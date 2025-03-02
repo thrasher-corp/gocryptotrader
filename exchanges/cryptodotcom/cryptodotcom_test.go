@@ -2,7 +2,6 @@ package cryptodotcom
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -12,14 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -36,33 +36,20 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	cr = new(Cryptodotcom)
+	if err := testexch.Setup(cr); err != nil {
 		log.Fatal(err)
 	}
-	exchCfg, err := cfg.GetExchangeConfig("Cryptodotcom")
-	if err != nil {
-		log.Fatal(err)
-	}
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	cr.SetDefaults()
+
 	if apiKey != "" && apiSecret != "" {
-		exchCfg.API.AuthenticatedSupport = true
-		exchCfg.API.AuthenticatedWebsocketSupport = true
-	}
-	cr.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = cr.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if apiKey != "" && apiSecret != "" {
+		cr.API.AuthenticatedSupport = true
+		cr.API.AuthenticatedWebsocketSupport = true
+		cr.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		cr.SetCredentials(apiKey, apiSecret, "", "", "", "")
 		cr.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-	cr.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	cr.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	if err = initTradablePair(); err != nil {
+	err := initTradablePair()
+	if err != nil {
 		log.Fatal(err)
 	}
 	setupWS()

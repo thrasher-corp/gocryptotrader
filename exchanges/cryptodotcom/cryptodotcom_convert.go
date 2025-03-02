@@ -1,10 +1,10 @@
 package cryptodotcom
 
 import (
-	"encoding/json"
 	"strconv"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 

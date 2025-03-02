@@ -3,7 +3,6 @@ package cryptodotcom
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -758,10 +758,12 @@ func (cr *Cryptodotcom) GetOpenStakeUnStakeRequests(ctx context.Context, symbol 
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params["start_time"] = startTime.UnixMilli()
-	}
-	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -777,10 +779,12 @@ func (cr *Cryptodotcom) GetStakingHistory(ctx context.Context, symbol string, st
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params["start_time"] = startTime.UnixMilli()
-	}
-	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -796,10 +800,12 @@ func (cr *Cryptodotcom) GetStakingRewardHistory(ctx context.Context, symbol stri
 	if symbol != "" {
 		params["instrument_name"] = symbol
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params["start_time"] = startTime.UnixMilli()
-	}
-	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -839,10 +845,12 @@ func (cr *Cryptodotcom) ConvertStakedToken(ctx context.Context, fromSymbol, toSy
 // GetOpenStakingConverts get convert request that status is not in final state.
 func (cr *Cryptodotcom) GetOpenStakingConverts(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
 	params := make(map[string]interface{})
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params["start_time"] = startTime.UnixMilli()
-	}
-	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
@@ -855,10 +863,12 @@ func (cr *Cryptodotcom) GetOpenStakingConverts(ctx context.Context, startTime, e
 // GetStakingConvertHistory get convert request history
 func (cr *Cryptodotcom) GetStakingConvertHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*StakingConvertsHistory, error) {
 	params := make(map[string]interface{})
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params["start_time"] = startTime.UnixMilli()
-	}
-	if !endTime.IsZero() {
 		params["end_time"] = endTime.UnixMilli()
 	}
 	if limit > 0 {
