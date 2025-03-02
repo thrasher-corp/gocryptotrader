@@ -959,12 +959,12 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, len(resp))
 	for x := range resp {
 		timeSeries[x] = kline.Candle{
-			Time:   time.UnixMilli(resp[x].Date),
-			Open:   resp[x].Open,
-			High:   resp[x].High,
-			Low:    resp[x].Low,
-			Close:  resp[x].Close,
-			Volume: resp[x].Volume,
+			Time:   resp[x].Date.Time(),
+			Open:   resp[x].Open.Float64(),
+			High:   resp[x].High.Float64(),
+			Low:    resp[x].Low.Float64(),
+			Close:  resp[x].Close.Float64(),
+			Volume: resp[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -989,12 +989,12 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 		for x := range resp {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.UnixMilli(resp[x].Date),
-				Open:   resp[x].Open,
-				High:   resp[x].High,
-				Low:    resp[x].Low,
-				Close:  resp[x].Close,
-				Volume: resp[x].Volume,
+				Time:   resp[x].Date.Time(),
+				Open:   resp[x].Open.Float64(),
+				High:   resp[x].High.Float64(),
+				Low:    resp[x].Low.Float64(),
+				Close:  resp[x].Close.Float64(),
+				Volume: resp[x].Volume.Float64(),
 			})
 		}
 	}
