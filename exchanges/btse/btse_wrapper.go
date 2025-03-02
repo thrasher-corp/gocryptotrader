@@ -1051,11 +1051,16 @@ func (m *MarketPair) Pair() (currency.Pair, error) {
 	baseCurr := m.Base
 	var quoteCurr string
 	if m.Futures {
-		s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
-		if len(s) <= 1 {
-			return currency.EMPTYPAIR, errInvalidPairSymbol
+		if baseCurr == "TRUMPSOL" { // Only base currency which is different to the rest
+			baseCurr = "TRUMP"
+			quoteCurr = strings.TrimPrefix(m.Symbol, baseCurr)
+		} else {
+			s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+			if len(s) <= 1 {
+				return currency.EMPTYPAIR, errInvalidPairSymbol
+			}
+			quoteCurr = s[1]
 		}
-		quoteCurr = s[1]
 	} else {
 		s := strings.Split(m.Symbol, currency.DashDelimiter)
 		if len(s) != 2 {
