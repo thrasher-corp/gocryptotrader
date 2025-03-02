@@ -1604,9 +1604,7 @@ var balanceUpdateInputJSON = `
 		"E": 1573200697110,           
 		"a": "BTC",                   
 		"d": "100.00000000",          
-		"T": 1573200697068            
-  }
-}`
+		"T": 1573200697068}}`
 
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()
