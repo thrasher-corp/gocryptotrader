@@ -1369,8 +1369,8 @@ func TestWsHandleAllTradesMsg(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", h.wsHandleData)
 	close(h.Websocket.DataHandler)
 	expJSON := []string{
-		`{"TID":"102523573486","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"BUY","Price":52648.62,"Amount":0.006754,"Timestamp":"2021-09-07T13:09:23.173+07:00"}`,
-		`{"TID":"102523573487","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"SELL","Price":52648.73,"Amount":0.006755,"Timestamp":"2021-09-07T13:09:23.184+07:00"}`,
+		`{"TID":"102523573486","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"BUY","Price":52648.62,"Amount":0.006754,"Timestamp":"2021-09-07T06:09:23.173Z"}`,
+		`{"TID":"102523573487","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"SELL","Price":52648.73,"Amount":0.006755,"Timestamp":"2021-09-07T06:09:23.184Z"}`,
 	}
 	require.Len(t, h.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
 	for resp := range h.Websocket.DataHandler {

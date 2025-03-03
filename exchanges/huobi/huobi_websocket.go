@@ -251,7 +251,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 			Exchange:     h.Name,
 			AssetType:    s.Asset,
 			CurrencyPair: s.Pairs[0],
-			Timestamp:    t.Tick.Data[i].Timestamp.Time(),
+			Timestamp:    t.Tick.Data[i].Timestamp.Time().UTC(),
 			Amount:       t.Tick.Data[i].Amount,
 			Price:        t.Tick.Data[i].Price,
 			Side:         side,
