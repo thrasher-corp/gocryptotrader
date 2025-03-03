@@ -160,7 +160,6 @@ type Modify struct {
 
 	// Change fields
 	TimeInForce  TimeInForce
-	PostOnly     bool
 	Price        float64
 	Amount       float64
 	TriggerPrice float64
@@ -417,9 +416,9 @@ const (
 	GoodTillCancel TimeInForce = 1 << iota
 	GoodTillDay
 	GoodTillTime
-	FillOrKill        // FOK represents FillOrKill
-	ImmediateOrCancel // IOC represents ImmediateOrCancel
-	PostOnly          // PostOnlyGCT represents PostOnlyGoodTilCancelled
+	FillOrKill
+	ImmediateOrCancel
+	PostOnly
 	UnknownTIF
 
 	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | FillOrKill | ImmediateOrCancel | PostOnly

@@ -3370,21 +3370,30 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 
 func TestGetTypeFromTimeInForce(t *testing.T) {
 	t.Parallel()
-	typeResp, tif := getTypeFromTimeInForce("gtc")
-	assert.Equal(t, order.Limit, typeResp, "should be a limit order")
-	assert.False(t, tif.Is(order.PostOnly), "should return false")
-
-	typeResp, tif = getTypeFromTimeInForce("ioc")
-	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, tif.Is(order.PostOnly), "should return false")
-
-	typeResp, tif = getTypeFromTimeInForce("poc")
-	assert.Equal(t, order.Limit, typeResp, "should be limit order")
-	assert.True(t, tif.Is(order.PostOnly), "should return true")
-
-	typeResp, tif = getTypeFromTimeInForce("fok")
-	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, tif.Is(order.PostOnly), "should return false")
+	type tifAndPrice struct {
+		TIF   string
+		Price float64
+	}
+	tifAndPriceStringToValueMap := map[tifAndPrice]struct {
+		OType order.Type
+		TIF   order.TimeInForce
+	}{
+		{"gtc", 0}:   {order.Limit, order.GoodTillCancel},
+		{"gtc", 1.2}: {order.Limit, order.GoodTillCancel},
+		{"", 0}:      {order.Limit, order.UnsetTIF},
+		{"", 1.2}:    {order.Limit, order.UnsetTIF},
+		{"ioc", 0}:   {order.Market, order.ImmediateOrCancel},
+		{"ioc", 1.3}: {order.Limit, order.ImmediateOrCancel},
+		{"poc", .1}:  {order.Limit, order.PostOnly},
+		{"poc", 0}:   {order.Limit, order.PostOnly},
+		{"fok", 0}:   {order.Market, order.FillOrKill},
+		{"fok", 1}:   {order.Limit, order.FillOrKill},
+	}
+	for k, v := range tifAndPriceStringToValueMap {
+		typeResp, tif := getTypeFromTimeInForceAndPrice(k.TIF, k.Price)
+		assert.Equal(t, v.OType, typeResp)
+		assert.Equal(t, v.TIF, tif)
+	}
 }
 
 func TestGetSideAndAmountFromSize(t *testing.T) {

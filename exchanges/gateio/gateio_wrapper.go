@@ -1488,7 +1488,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
 
-		ordertype, tif := getTypeFromTimeInForce(fOrder.TimeInForce)
+		ordertype, tif := getTypeFromTimeInForceAndPrice(fOrder.TimeInForce, fOrder.OrderPrice.Float64())
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -2510,17 +2510,21 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
-// getTypeFromTimeInForce returns the order type and if the order is post only
-// TODO: Add in price param to correctly determine if order is market or limit as a zero value price must be a market order
-// IOC and POC can be limits if price is supplied.
-func getTypeFromTimeInForce(tif string) (orderType order.Type, postOnly order.TimeInForce) {
+// getTypeFromTimeInForceAndPrice returns the order type and if the order is post only
+func getTypeFromTimeInForceAndPrice(tif string, price float64) (orderType order.Type, postOnly order.TimeInForce) {
+	oType := order.Market
+	if price > 0 {
+		oType = order.Limit
+	}
 	switch tif {
 	case "ioc":
-		return order.Market, order.UnsetTIF
+		return oType, order.ImmediateOrCancel
 	case "fok":
-		return order.Market, order.UnsetTIF
+		return oType, order.FillOrKill
 	case "poc":
 		return order.Limit, order.PostOnly
+	case "gtc":
+		return order.Limit, order.GoodTillCancel
 	default:
 		return order.Limit, order.UnsetTIF
 	}
@@ -2546,30 +2550,31 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 	}
 }
 
-// getTimeInForce returns the time in force for a given order. If Market order
-// IOC
+// getTimeInForce returns the time-in-force for a given order.
+// If the time-in-force is unset, it assumes a Market order with an immediate-or-cancel (IOC) time-in-force value.
+// If the order type is Limit, it applies a good-til-cancel (GTC) policy.
 func getTimeInForce(s *order.Submit) (string, error) {
-	var timeInForce string
-	switch s.TimeInForce {
-	case order.ImmediateOrCancel:
-		timeInForce = "ioc" // market taker only
-	case order.FillOrKill:
-		timeInForce = "fok"
-	case order.PostOnly:
-		timeInForce = "poc"
-	case order.GoodTillCancel:
-		timeInForce = "gtc"
-	case order.UnsetTIF:
+	switch {
+	case s.TimeInForce.Is(order.ImmediateOrCancel):
+		return "ioc", nil // market taker only
+	case s.TimeInForce.Is(order.FillOrKill):
+		return "fok", nil
+	case s.TimeInForce.Is(order.PostOnly):
+		return "poc", nil
+	case s.TimeInForce.Is(order.GoodTillCancel):
+		return "gtc", nil
+	case s.TimeInForce.Is(order.UnsetTIF):
 		switch s.Type {
 		case order.Market:
-			timeInForce = "ioc"
+			return "ioc", nil
 		case order.Limit:
-			timeInForce = "gtc"
+			return "gtc", nil
+		default:
+			return "", nil
 		}
 	default:
-		return timeInForce, fmt.Errorf("%w: time-in-force value of %s", order.ErrInvalidTimeInForce, timeInForce)
+		return "", fmt.Errorf("%w: time-in-force value of %s", order.ErrInvalidTimeInForce, s.TimeInForce.String())
 	}
-	return timeInForce, nil
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

@@ -889,7 +889,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
-			if s.TimeInForce == order.ImmediateOrCancel {
+			if s.TimeInForce.Is(order.ImmediateOrCancel) {
 				timeInForce = order.ImmediateOrCancel.String()
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
@@ -936,15 +936,11 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid side")
 		}
 
-		var (
-			oType       string
-			timeInForce RequestParamsTimeForceType
-		)
-
+		var oType, timeInForce string
 		switch s.Type {
 		case order.Limit:
 			oType = cfuturesLimit
-			timeInForce = BinanceRequestParamsTimeGTC
+			timeInForce = order.GoodTillTime.String()
 		case order.Market:
 			oType = cfuturesMarket
 		case order.Stop:

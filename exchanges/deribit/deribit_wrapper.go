@@ -592,14 +592,14 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return nil, err
 	}
 	var timeInForce string
-	switch s.TimeInForce {
-	case order.GoodTillCancel:
+	switch {
+	case s.TimeInForce.Is(order.GoodTillCancel):
 		timeInForce = "good_til_cancelled"
-	case order.GoodTillDay:
+	case s.TimeInForce.Is(order.GoodTillDay):
 		timeInForce = "good_till_day"
-	case order.FillOrKill:
+	case s.TimeInForce.Is(order.FillOrKill):
 		timeInForce = "fill_or_kill"
-	case order.ImmediateOrCancel:
+	case s.TimeInForce.Is(order.ImmediateOrCancel):
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData
@@ -663,7 +663,7 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	var err error
 	reqParam := &OrderBuyAndSellParams{
 		TriggerPrice: action.TriggerPrice,
-		PostOnly:     action.PostOnly,
+		PostOnly:     action.TimeInForce.Is(order.PostOnly),
 		Amount:       action.Amount,
 		OrderID:      action.OrderID,
 		Price:        action.Price,
@@ -788,15 +788,12 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 		}
 	}
 	var tif order.TimeInForce
-	switch orderInfo.TimeInForce {
-	case "good_til_cancelled":
-		tif = order.GoodTillCancel
-	case "good_til_day":
-		tif = order.GoodTillDay
-	case "fill_or_kill":
-		tif = order.FillOrKill
-	case "immediate_or_cancel":
-		tif = order.ImmediateOrCancel
+	tif, err = order.StringToTimeInForce(orderInfo.TimeInForce)
+	if err != nil {
+		tif = order.UnsetTIF
+	}
+	if orderInfo.PostOnly {
+		tif |= order.PostOnly
 	}
 	return &order.Detail{
 		AssetType:       assetType,
@@ -921,6 +918,10 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			}
 
 			var tif order.TimeInForce
+			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
+			if err != nil {
+				tif = order.UnsetTIF
+			}
 			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
 				tif = order.PostOnly
 			}
@@ -996,8 +997,12 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			}
 
 			var tif order.TimeInForce
+			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
+			if err != nil {
+				tif = order.UnsetTIF
+			}
 			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
-				tif = order.PostOnly
+				tif |= order.PostOnly
 			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,

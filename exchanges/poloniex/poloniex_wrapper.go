@@ -548,8 +548,8 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		oID,
 		action.Price,
 		action.Amount,
-		action.PostOnly,
-		action.TimeInForce.IsIOC())
+		action.TimeInForce.Is(order.PostOnly),
+		action.TimeInForce.Is(order.ImmediateOrCancel))
 	if err != nil {
 		return nil, err
 	}

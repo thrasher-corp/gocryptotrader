@@ -781,7 +781,7 @@ func TestNewOrderTest(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
 	_, err := bi.NewOrderTest(context.Background(), req)
 	if err != nil {
@@ -809,7 +809,7 @@ func TestNewOrder(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
 	if _, err := bi.NewOrder(context.Background(), req); err != nil && !strings.Contains(err.Error(), "Account has insufficient balance for requested action") {
 		t.Error("Binanceus NewOrder() error", err)

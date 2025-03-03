@@ -1023,7 +1023,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		switch {
 		case s.Type == order.Limit:
 			oType = "limit"
-		case s.TimeInForce == order.PostOnly:
+		case s.TimeInForce.Is(order.PostOnly):
 			oType = "post_only"
 		}
 		offset := "open"

@@ -692,10 +692,9 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var timeInForce string
 			if oType == order.Limit {
 				switch {
-				case s.TimeInForce == order.FillOrKill:
-					timeInForce = order.FillOrKill.String()
-				case s.TimeInForce == order.ImmediateOrCancel:
-					timeInForce = order.ImmediateOrCancel.String()
+				case s.TimeInForce.Is(order.FillOrKill) ||
+					s.TimeInForce.Is(order.ImmediateOrCancel):
+					timeInForce = s.TimeInForce.String()
 				case s.PostOnly:
 				default:
 					timeInForce = order.GoodTillCancel.String()

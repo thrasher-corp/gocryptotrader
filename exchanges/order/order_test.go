@@ -930,6 +930,24 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Nil(t, od.Trades)
 }
 
+func TestTimeInForceIs(t *testing.T) {
+	t.Parallel()
+	tifValuesMap := map[TimeInForce][]TimeInForce{
+		GoodTillCancel | PostOnly:    {GoodTillCancel, PostOnly},
+		GoodTillCancel:               {GoodTillCancel},
+		ImmediateOrCancel | PostOnly: {ImmediateOrCancel, PostOnly},
+		GoodTillDay:                  {GoodTillDay},
+		FillOrKill | PostOnly:        {FillOrKill, PostOnly},
+		FillOrKill:                   {FillOrKill},
+		PostOnly:                     {PostOnly},
+	}
+	for tif := range tifValuesMap {
+		for _, v := range tifValuesMap[tif] {
+			require.True(t, tif.Is(v))
+		}
+	}
+}
+
 func TestUpdateOrderFromDetail(t *testing.T) {
 	var leet = "1337"
 
@@ -1698,7 +1716,6 @@ func TestIsValid(t *testing.T) {
 
 func TestStringToTimeInForce(t *testing.T) {
 	t.Parallel()
-
 	var timeInForceStringToValueMap = map[string]struct {
 		TIF   TimeInForce
 		Error error
@@ -1709,7 +1726,7 @@ func TestStringToTimeInForce(t *testing.T) {
 		"GTT":                          {TIF: GoodTillTime},
 		"GOOD_TIL_TIME":                {TIF: GoodTillTime},
 		"FILLORKILL":                   {TIF: FillOrKill},
-		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: PostOnly},
+		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel},
 		"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
 		"":                             {TIF: UnsetTIF},
 		"IOC":                          {TIF: ImmediateOrCancel},
@@ -1722,8 +1739,8 @@ func TestStringToTimeInForce(t *testing.T) {
 		"GTD":                          {TIF: GoodTillDay},
 		"GOODtillday":                  {TIF: GoodTillDay},
 		"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-		"PoC":                          {TIF: ImmediateOrCancel},
-		"PendingORCANCEL":              {TIF: ImmediateOrCancel},
+		"PoC":                          {TIF: PostOnly},
+		"PendingORCANCEL":              {TIF: PostOnly},
 	}
 
 	for tk := range timeInForceStringToValueMap {
@@ -1741,21 +1758,14 @@ func TestString(t *testing.T) {
 		GoodTillTime:      "GTT",
 		GoodTillDay:       "GTD",
 		FillOrKill:        "FOK",
-		PostOnly:          "POST_ONLY_GOOD_TIL_CANCELLED",
+		PostOnly:          "POSTONLY",
 		UnknownTIF:        "UNKNOWN",
 		UnsetTIF:          "",
 	}
 	for x := range valMap {
 		result := x.String()
-		assert.Equalf(t, result, valMap[x], "expected %v, got %v", x, result)
+		assert.Equalf(t, valMap[x], result, "expected %v, got %v", x, result)
 	}
-}
-
-func TestIsIOC(t *testing.T) {
-	t.Parallel()
-	require.True(t, ImmediateOrCancel.IsIOC())
-	require.False(t, FillOrKill.IsIOC())
-	require.False(t, TimeInForce(0).IsIOC())
 }
 
 func TestSideMarshalJSON(t *testing.T) {

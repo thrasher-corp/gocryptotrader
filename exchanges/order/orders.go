@@ -720,29 +720,24 @@ func (t Type) String() string {
 
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
-	switch t {
-	case ImmediateOrCancel:
+	switch {
+	case t.Is(ImmediateOrCancel):
 		return "IOC"
-	case GoodTillCancel:
+	case t.Is(GoodTillCancel):
 		return "GTC"
-	case GoodTillDay:
+	case t.Is(GoodTillDay):
 		return "GTD"
-	case GoodTillTime:
+	case t.Is(GoodTillTime):
 		return "GTT"
-	case FillOrKill:
+	case t.Is(FillOrKill):
 		return "FOK"
-	case PostOnly:
+	case t.Is(PostOnly):
 		return "POSTONLY"
-	case UnsetTIF:
+	case t == UnsetTIF:
 		return ""
 	default:
 		return "UNKNOWN"
 	}
-}
-
-// IsIOC determines whether the TimeInForce value is set to IOC (Immediate or Cancel).
-func (t TimeInForce) IsIOC() bool {
-	return t == ImmediateOrCancel
 }
 
 // Lower returns the type lower case string
@@ -1237,9 +1232,9 @@ func StringToOrderStatus(status string) (Status, error) {
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
-	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String(), "POC", "PENDINGORCANCEL":
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
 		return ImmediateOrCancel, nil
-	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String():
+	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
 		return GoodTillCancel, nil
 	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
 		return GoodTillDay, nil
@@ -1247,7 +1242,7 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		return GoodTillTime, nil
 	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
 		return FillOrKill, nil
-	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String():
+	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "PENDINGORCANCEL":
 		return PostOnly, nil
 	case "":
 		return UnsetTIF, nil
