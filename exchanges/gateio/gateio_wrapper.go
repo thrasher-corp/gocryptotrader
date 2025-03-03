@@ -2587,7 +2587,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		sr, err := g.DeriveSpotWebsocketOrderResponses(got)
+		sr, err := g.deriveSpotWebsocketOrderResponses(got)
 		if err != nil {
 			return nil, err
 		}
@@ -2614,7 +2614,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		if err != nil {
 			return nil, err
 		}
-		sr, err := g.DeriveFuturesWebsocketOrderResponses(got)
+		sr, err := g.deriveFuturesWebsocketOrderResponses(got)
 		if err != nil {
 			return nil, err
 		}
@@ -2624,8 +2624,8 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	}
 }
 
-// DeriveSpotWebsocketOrderResponses returns the order submission responses for spot
-func (g *Gateio) DeriveSpotWebsocketOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
+// deriveSpotWebsocketOrderResponses returns the order submission responses for spot
+func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, common.ErrNoResponse
 	}
@@ -2687,8 +2687,8 @@ func (g *Gateio) DeriveSpotWebsocketOrderResponses(responses []WebsocketOrderRes
 	return out, nil
 }
 
-// DeriveFuturesWebsocketOrderResponses returns the order submission responses for futures
-func (g *Gateio) DeriveFuturesWebsocketOrderResponses(responses []WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
+// deriveFuturesWebsocketOrderResponses returns the order submission responses for futures
+func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, common.ErrNoResponse
 	}

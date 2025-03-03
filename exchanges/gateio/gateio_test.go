@@ -3672,7 +3672,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			var resp WebsocketOrderResponse
 			require.NoError(t, json.Unmarshal(tc.order, &resp))
 
-			got, err := g.DeriveSpotWebsocketOrderResponses([]WebsocketOrderResponse{resp})
+			got, err := g.deriveSpotWebsocketOrderResponses([]WebsocketOrderResponse{resp})
 			require.ErrorIs(t, err, tc.error)
 
 			require.Len(t, got, len(tc.expected))
@@ -3824,7 +3824,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 			var resp WebsocketFuturesOrderResponse
 			require.NoError(t, json.Unmarshal(tc.order, &resp))
 
-			got, err := g.DeriveFuturesWebsocketOrderResponses([]WebsocketFuturesOrderResponse{resp})
+			got, err := g.deriveFuturesWebsocketOrderResponses([]WebsocketFuturesOrderResponse{resp})
 			require.ErrorIs(t, err, tc.error)
 
 			require.Len(t, got, len(tc.expected))
