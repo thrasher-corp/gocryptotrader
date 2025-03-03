@@ -23,6 +23,7 @@ func TestDeploy(t *testing.T) {
 	m = manager{}
 
 	m.registerVersion(0, &Version0{})
+	m.registerVersion(1, &Version1{})
 	_, err = m.Deploy(context.Background(), []byte(`not an object`), LatestVersion)
 	require.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "Must throw the correct error trying to add version to bad json")
 	require.ErrorIs(t, err, common.ErrSettingField, "Must throw the correct error trying to add version to bad json")
@@ -31,15 +32,20 @@ func TestDeploy(t *testing.T) {
 	_, err = m.Deploy(context.Background(), []byte(`{"version":"not an int"}`), LatestVersion)
 	require.ErrorIs(t, err, common.ErrGettingField, "Must throw the correct error trying to get version from bad json")
 
+	_, err = m.Deploy(context.Background(), []byte(`{"version":65535}`), LatestVersion)
+	require.ErrorIs(t, err, errConfigVersionMax, "Must throw the correct error when version is too high")
+
+	_, err = m.Deploy(context.Background(), []byte(`{"version":-1}`), LatestVersion)
+	require.ErrorIs(t, err, errConfigVersionNegative, "Must throw the correct error when version is negative")
+
 	in := []byte(`{"version":0,"exchanges":[{"name":"Juan"}]}`)
 	j, err := m.Deploy(context.Background(), in, LatestVersion)
 	require.NoError(t, err)
-	assert.Equal(t, string(in), string(j))
-
-	m.registerVersion(1, &Version1{})
-	j, err = m.Deploy(context.Background(), in, LatestVersion)
-	require.NoError(t, err)
 	assert.Contains(t, string(j), `"version": 1`)
+
+	j2, err := m.Deploy(context.Background(), j, LatestVersion)
+	require.NoError(t, err, "Deploy the same version again must not error")
+	require.Equal(t, string(j2), string(j), "Deploy the same version again must not change config")
 
 	_, err = m.Deploy(context.Background(), j, 2)
 	assert.ErrorIs(t, err, errTargetVersion, "Downgrade to a unregistered version should not be allowed")
@@ -53,16 +59,13 @@ func TestDeploy(t *testing.T) {
 	require.Implements(t, (*ExchangeVersion)(nil), m.versions[1])
 	require.ErrorIs(t, err, errUpgrade)
 
-	j2, err := m.Deploy(context.Background(), j, 0)
+	j2, err = m.Deploy(context.Background(), j, 0)
 	require.NoError(t, err)
 	assert.Contains(t, string(j2), `"version": 0`, "Explicit downgrade should work correctly")
 
 	m.versions = m.versions[:1]
 	_, err = m.Deploy(context.Background(), j, LatestVersion)
-	assert.ErrorIs(t, err, errConfigVersion, "Config version ahead of latest version should error")
-
-	_, err = m.Deploy(context.Background(), j, 0)
-	assert.ErrorIs(t, err, errConfigVersion, "Config version ahead of latest version should error")
+	assert.ErrorIs(t, err, errConfigVersionUnavail, "Config version ahead of latest version should error")
 }
 
 // TestExchangeDeploy exercises exchangeDeploy
@@ -113,10 +116,10 @@ func TestLatest(t *testing.T) {
 	m.registerVersion(1, &Version1{})
 	v, err := m.latest()
 	require.NoError(t, err)
-	assert.Equal(t, 1, v)
+	assert.Equal(t, uint16(1), v)
 
 	m.registerVersion(2, &Version2{})
 	v, err = m.latest()
 	require.NoError(t, err)
-	assert.Equal(t, 2, v)
+	assert.Equal(t, uint16(2), v)
 }
