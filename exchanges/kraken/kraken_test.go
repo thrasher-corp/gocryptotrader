@@ -1248,7 +1248,7 @@ func TestWSProcessTrades(t *testing.T) {
 			i := 1 - len(k.Websocket.DataHandler)
 			exp := trade.Data{Exchange: k.Name, CurrencyPair: spotTestPair}
 			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
-			require.Equalf(t, exp, v, "Trade [%d] should be correct", i)
+			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
 		default:
