@@ -309,7 +309,7 @@ func TestGetSpotAccounts(t *testing.T) {
 func TestCreateBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CreateBatchOrders(context.Background(), []CreateOrderRequest{
+	_, err := g.CreateBatchOrders(context.Background(), []CreateOrderRequest{
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
@@ -326,9 +326,8 @@ func TestCreateBatchOrders(t *testing.T) {
 			Account:      g.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
-	}); err != nil {
-		t.Errorf("%s CreateBatchOrders() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "CreateBatchOrders should not error")
 }
 
 func TestGetSpotOpenOrders(t *testing.T) {
@@ -354,24 +353,22 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 func TestCreateSpotOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.PlaceSpotOrder(context.Background(), &CreateOrderRequest{
+	_, err := g.PlaceSpotOrder(context.Background(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
 		Amount:       1,
 		Price:        900000,
 		Account:      g.assetTypeToString(asset.Spot),
 		Type:         "limit",
-	}); err != nil {
-		t.Errorf("%s CreateSpotOrder() error %v", g.Name, err)
-	}
+	})
+	assert.NoError(t, err, "PlaceSpotOrder should not error")
 }
 
 func TestGetSpotOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetSpotOrders(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, statusOpen, 0, 0); err != nil {
-		t.Errorf("%s GetSpotOrders() error %v", g.Name, err)
-	}
+	_, err := g.GetSpotOrders(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, statusOpen, 0, 0)
+	assert.NoError(t, err, "GetSpotOrders should not error")
 }
 
 func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
@@ -490,9 +487,8 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 func TestGetPriceTriggeredOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetPriceTriggeredOrderList(context.Background(), statusOpen, currency.EMPTYPAIR, asset.Empty, 0, 0); err != nil {
-		t.Errorf("%s GetPriceTriggeredOrderList() error %v", g.Name, err)
-	}
+	_, err := g.GetPriceTriggeredOrderList(context.Background(), statusOpen, currency.EMPTYPAIR, asset.Empty, 0, 0)
+	assert.NoError(t, err, "GetPriceTriggeredOrderList should not error")
 }
 
 func TestCancelAllOpenOrders(t *testing.T) {
@@ -564,9 +560,8 @@ func TestMarginLoan(t *testing.T) {
 func TestGetMarginAllLoans(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetMarginAllLoans(context.Background(), statusOpen, "lend", "", currency.BTC, currency.Pair{Base: currency.BTC, Delimiter: currency.UnderscoreDelimiter, Quote: currency.USDT}, false, 0, 0); err != nil {
-		t.Errorf("%s GetMarginAllLoans() error %v", g.Name, err)
-	}
+	_, err := g.GetMarginAllLoans(context.Background(), statusOpen, "lend", "", currency.BTC, currency.Pair{Base: currency.BTC, Delimiter: currency.UnderscoreDelimiter, Quote: currency.USDT}, false, 0, 0)
+	assert.NoError(t, err, "GetMarginAllLoans should not error")
 }
 
 func TestMergeMultipleLendingLoans(t *testing.T) {
