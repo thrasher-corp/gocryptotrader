@@ -156,7 +156,7 @@ func (b *Bitstamp) handleWSTrade(msg []byte) error {
 	if wsTradeTemp.Data.Type == 1 {
 		side = order.Sell
 	}
-	return trade.AddTradesToBuffer(b.Name, trade.Data{
+	return trade.AddTradesToBuffer(trade.Data{
 		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 		CurrencyPair: p,
 		AssetType:    asset.Spot,

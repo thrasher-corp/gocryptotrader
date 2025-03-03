@@ -34,9 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var (
-	errParsingWSField = errors.New("error parsing WS field")
-)
+var errParsingWSField = errors.New("error parsing WS field")
 
 const (
 	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
@@ -112,8 +110,10 @@ type checksum struct {
 }
 
 // checksumStore quick global for now
-var checksumStore = make(map[int]*checksum)
-var cMtx sync.Mutex
+var (
+	checksumStore = make(map[int]*checksum)
+	cMtx          sync.Mutex
+)
 
 var subscriptionNames = map[string]string{
 	subscription.TickerChannel:    wsTickerChannel,
@@ -724,12 +724,14 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interfac
 					ID:     int64(id),
 					Period: int64(pricePeriod),
 					Price:  rateAmount,
-					Amount: amount})
+					Amount: amount,
+				})
 			} else {
 				newOrderbook = append(newOrderbook, WebsocketBook{
 					ID:     int64(id),
 					Price:  pricePeriod,
-					Amount: rateAmount})
+					Amount: rateAmount,
+				})
 			}
 		}
 		if err := b.WsInsertSnapshot(c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
@@ -756,12 +758,14 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interfac
 				ID:     int64(id),
 				Period: int64(pricePeriod),
 				Price:  amountRate,
-				Amount: amount})
+				Amount: amount,
+			})
 		} else {
 			newOrderbook = append(newOrderbook, WebsocketBook{
 				ID:     int64(id),
 				Price:  pricePeriod,
-				Amount: amountRate})
+				Amount: amountRate,
+			})
 		}
 
 		if err := b.WsUpdateOrderbook(c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
@@ -986,7 +990,7 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 		}
 	}
 	if b.IsSaveTradeDataEnabled() {
-		err = trade.AddTradesToBuffer(b.GetName(), trades...)
+		err = trade.AddTradesToBuffer(trades...)
 	}
 	return err
 }

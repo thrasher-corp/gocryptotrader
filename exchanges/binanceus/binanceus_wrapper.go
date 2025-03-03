@@ -326,7 +326,8 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 
 	orderbookNew, err := bi.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
 		Symbol: pair,
-		Limit:  1000})
+		Limit:  1000,
+	})
 	if err != nil {
 		return book, err
 	}
@@ -450,7 +451,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	}
 
 	if bi.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(bi.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}

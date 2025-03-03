@@ -568,7 +568,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		if err != nil {
 			return err
 		}
-		var tSide = order.Buy
+		tSide := order.Buy
 		s, ok := t[3].(string)
 		if !ok {
 			return common.GetTypeAssertError("string", t[3], "trade.side")
@@ -593,7 +593,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		}
 	}
 	if saveTradeData {
-		return trade.AddTradesToBuffer(k.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	}
 	return nil
 }
@@ -1094,7 +1094,6 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 
 	// Ignore an overall timeout, because we'll track individual subscriptions in handleSubResps
 	err = common.ExcludeError(err, stream.ErrSignatureTimeout)
-
 	if err != nil {
 		return fmt.Errorf("%w; Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
