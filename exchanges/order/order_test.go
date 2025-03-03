@@ -2208,7 +2208,7 @@ func TestUnmarshalOrder(t *testing.T) {
 		Price:     1000,
 	}
 	jOrderSubmit, err := json.Marshal(orderSubmit)
-	require.NoError(t, err)
+	require.NoError(t, err, "json.Marshal must not error")
 	var os2 Submit
 	err = json.Unmarshal(jOrderSubmit, &os2)
 	require.NoError(t, err)
