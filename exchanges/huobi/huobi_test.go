@@ -1358,9 +1358,8 @@ func TestWSOrderbook(t *testing.T) {
 	assert.Equal(t, 0.56281, liq, "Bid Liquidity should be correct")
 }
 
-// TestWSTradeDetail checks we can send a trade detail through
-// We can't currently easily see the result with the current DB instance, so we just check it doesn't error
-func TestWSTradeDetail(t *testing.T) {
+// TestWsHandleAllTradesMsg checks we can send a trade detail through
+func TestWsHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
@@ -1371,24 +1370,16 @@ func TestWSTradeDetail(t *testing.T) {
 	close(h.Websocket.DataHandler)
 	expJSON := []string{
 		`{"TID":"102523573486","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"BUY","Price":52648.62,"Amount":0.006754,"Timestamp":"2021-09-07T13:09:23.173+07:00"}`,
+		`{"TID":"102523573487","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"SELL","Price":52648.73,"Amount":0.006755,"Timestamp":"2021-09-07T13:09:23.184+07:00"}`,
 	}
 	require.Len(t, h.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
 	for resp := range h.Websocket.DataHandler {
 		switch v := resp.(type) {
-		case []trade.Data:
-			exp := []trade.Data{{
-				Exchange:     h.Name,
-				CurrencyPair: btcusdtPair,
-			},
-			}
-			require.NoError(t, json.Unmarshal([]byte(expJSON[0]), &exp[0]), "Must not error unmarshalling json %d:%s", 0, expJSON)
-			for i := range v {
-				v[i].ID = [16]uint8{}
-			}
-			for i := range exp {
-				exp[i].ID = [16]uint8{}
-			}
-			require.Equalf(t, exp, v, "Trade [%d] should be correct", 0)
+		case trade.Data:
+			i := 1 - len(h.Websocket.DataHandler)
+			exp := trade.Data{Exchange: h.Name, CurrencyPair: btcusdtPair}
+			require.NoError(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d:%s", i, expJSON[i])
+			require.Equalf(t, exp, v, "Trade [%d] should be correct", i)
 		case error:
 			t.Error()
 		default:

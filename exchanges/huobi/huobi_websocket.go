@@ -259,7 +259,9 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 		})
 	}
 	if tradeFeed {
-		h.Websocket.DataHandler <- trades
+		for i := range trades {
+			h.Websocket.DataHandler <- trades[i]
+		}
 	}
 	if saveTradeData {
 		return trade.AddTradesToBuffer(trades...)
