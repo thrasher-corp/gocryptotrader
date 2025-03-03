@@ -15,7 +15,6 @@ import (
 var (
 	errInvalidAutoSize            = errors.New("invalid auto size")
 	errSettlementCurrencyConflict = errors.New("settlement currency conflict")
-	errInvalidSide                = errors.New("invalid side")
 	errStatusNotSet               = errors.New("status not set")
 )
 
@@ -115,7 +114,7 @@ func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context,
 	}
 
 	if side != "" && side != "ask" && side != "bid" {
-		return nil, fmt.Errorf("%w: %s", errInvalidSide, side)
+		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
 
 	params := struct {

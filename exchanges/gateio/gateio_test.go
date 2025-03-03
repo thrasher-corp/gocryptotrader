@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -3546,13 +3547,24 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		order    []byte
+		orders   [][]byte
 		error    error
 		expected []*order.SubmitResponse
 	}{
 		{
-			name:  "sell order market",
-			order: []byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
+			name:   "no response",
+			orders: [][]byte{},
+			error:  common.ErrNoResponse,
+		},
+		{
+			name: "assortment of spot orders",
+			orders: [][]byte{
+				[]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
+				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
+				[]byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
+				[]byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
+				[]byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
+			},
 			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
@@ -3571,12 +3583,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Cost:                 0.0001,
 					Purchased:            9.35033,
 				},
-			},
-		},
-		{
-			name:  "buy order market",
-			order: []byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
 					OrderID:              "766075454188",
@@ -3595,12 +3601,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Cost:                 9.991512,
 					Purchased:            816.3,
 				},
-			},
-		},
-		{
-			name:  "buy order limit - FOK",
-			order: []byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
 					OrderID:              "766488882062",
@@ -3619,12 +3619,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Cost:                 7.346,
 					Purchased:            200,
 				},
-			},
-		},
-		{
-			name:  "buy order limit - POC",
-			order: []byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:        g.Name,
 					OrderID:         "766504537761",
@@ -3641,12 +3635,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Status:          order.Open,
 					PostOnly:        true,
 				},
-			},
-		},
-		{
-			name:  "sell order limit - GTC",
-			order: []byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:        g.Name,
 					OrderID:         "766536556747",
@@ -3669,10 +3657,14 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var resp WebsocketOrderResponse
-			require.NoError(t, json.Unmarshal(tc.order, &resp))
 
-			got, err := g.deriveSpotWebsocketOrderResponses([]WebsocketOrderResponse{resp})
+			orders := bytes.Join(tc.orders, []byte(","))
+			orders = append([]byte("["), append(orders, []byte("]")...)...)
+
+			var resp []WebsocketOrderResponse
+			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
+
+			got, err := g.deriveSpotWebsocketOrderResponses(resp)
 			require.ErrorIs(t, err, tc.error)
 
 			require.Len(t, got, len(tc.expected))
@@ -3688,13 +3680,25 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		order    []byte
+		orders   [][]byte
 		error    error
 		expected []*order.SubmitResponse
 	}{
 		{
-			name:  "short order market - reduce only",
-			order: []byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`),
+			name:   "no response",
+			orders: [][]byte{},
+			error:  common.ErrNoResponse,
+		},
+		{
+			name: "assortment of futures orders",
+			orders: [][]byte{
+				[]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`),
+				[]byte(`{"text":"t-1336","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"REX_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.03654","id":596662040388,"create_time":1735778597.374,"size":-2,"finish_time":1735778597.374,"update_time":1735778597.374,"left":0,"user":12870774}`),
+				[]byte(`{"text":"apiv4-ws","price":"40000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596746193678,"create_time":1735789790.476,"size":1,"update_time":1735789790.476,"left":1,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"200000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596748780649,"create_time":1735790222.185,"size":-1,"update_time":1735790222.185,"left":-1,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98172.9","id":36028797827161124,"create_time":1740108860.761,"size":1,"finish_time":1740108860.761,"update_time":1740108860.761,"left":0,"user":2365748}`),
+				[]byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98113.1","id":36028797827225781,"create_time":1740109172.06,"size":-1,"finish_time":1740109172.06,"update_time":1740109172.06,"left":0,"user":2365748,"is_reduce_only":true}`),
+			},
 			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
@@ -3712,12 +3716,6 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					ImmediateOrCancel:    true,
 					ReduceOnly:           true,
 				},
-			},
-		},
-		{
-			name:  "short order market",
-			order: []byte(`{"text":"t-1336","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"REX_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.03654","id":596662040388,"create_time":1735778597.374,"size":-2,"finish_time":1735778597.374,"update_time":1735778597.374,"left":0,"user":12870774}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
 					OrderID:              "596662040388",
@@ -3733,12 +3731,6 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Status:               order.Filled,
 					ImmediateOrCancel:    true,
 				},
-			},
-		},
-		{
-			name:  "long order limit",
-			order: []byte(`{"text":"apiv4-ws","price":"40000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596746193678,"create_time":1735789790.476,"size":1,"update_time":1735789790.476,"left":1,"user":2365748}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:        g.Name,
 					OrderID:         "596746193678",
@@ -3753,12 +3745,6 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Side:            order.Long,
 					Status:          order.Open,
 				},
-			},
-		},
-		{
-			name:  "short order limit",
-			order: []byte(`{"text":"apiv4-ws","price":"200000","biz_info":"-","tif":"gtc","amend_text":"-","status":"open","contract":"BTC_USDT","stp_act":"-","fill_price":"0","id":596748780649,"create_time":1735790222.185,"size":-1,"update_time":1735790222.185,"left":-1,"user":2365748}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:        g.Name,
 					OrderID:         "596748780649",
@@ -3773,12 +3759,6 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Side:            order.Short,
 					Status:          order.Open,
 				},
-			},
-		},
-		{
-			name:  "long market",
-			order: []byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98172.9","id":36028797827161124,"create_time":1740108860.761,"size":1,"finish_time":1740108860.761,"update_time":1740108860.761,"left":0,"user":2365748}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
 					OrderID:              "36028797827161124",
@@ -3793,12 +3773,6 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Status:               order.Filled,
 					ImmediateOrCancel:    true,
 				},
-			},
-		},
-		{
-			name:  "long reduce only",
-			order: []byte(`{"text":"apiv4-ws","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"BTC_USDT","stp_act":"-","finish_as":"filled","fill_price":"98113.1","id":36028797827225781,"create_time":1740109172.06,"size":-1,"finish_time":1740109172.06,"update_time":1740109172.06,"left":0,"user":2365748,"is_reduce_only":true}`),
-			expected: []*order.SubmitResponse{
 				{
 					Exchange:             g.Name,
 					OrderID:              "36028797827225781",
@@ -3821,10 +3795,14 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var resp WebsocketFuturesOrderResponse
-			require.NoError(t, json.Unmarshal(tc.order, &resp))
 
-			got, err := g.deriveFuturesWebsocketOrderResponses([]WebsocketFuturesOrderResponse{resp})
+			orders := bytes.Join(tc.orders, []byte(","))
+			orders = append([]byte("["), append(orders, []byte("]")...)...)
+
+			var resp []WebsocketFuturesOrderResponse
+			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
+
+			got, err := g.deriveFuturesWebsocketOrderResponses(resp)
 			require.ErrorIs(t, err, tc.error)
 
 			require.Len(t, got, len(tc.expected))

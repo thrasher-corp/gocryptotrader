@@ -836,8 +836,6 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
-			// This request ID associated with the payload is the match to the
-			// response.
 			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn, 10),
@@ -853,12 +851,10 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		return common.ErrNoResponse
 	}
 
-	var inbound WebsocketAPIResponse
-	// The last response is the one we want to unmarshal, the other is just
-	// an ack. If the request fails on the ACK then we can unmarshal the error
-	// from that as the next response won't come anyway.
+	// responses may include an ack resp, which we skip
 	endResponse := responses[len(responses)-1]
 
+	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(endResponse, &inbound); err != nil {
 		return err
 	}
