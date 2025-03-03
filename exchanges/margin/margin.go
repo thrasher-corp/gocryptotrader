@@ -23,7 +23,7 @@ func (t *Type) UnmarshalJSON(d []byte) error {
 	return err
 }
 
-// MarshalJSON conforms type to the Marshaler interface
+// MarshalJSON conforms type to the json.Marshaler interface
 func (t Type) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
 }
