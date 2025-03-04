@@ -128,11 +128,11 @@ type EncryptionKeyProvider func(confirmKey bool) ([]byte, error)
 
 // OrderManager holds settings used for the order manager
 type OrderManager struct {
-	Enabled                       *bool         `json:"enabled"`
+	Enabled                       bool          `json:"enabled"`
 	Verbose                       bool          `json:"verbose"`
 	ActivelyTrackFuturesPositions bool          `json:"activelyTrackFuturesPositions"`
 	FuturesTrackingSeekDuration   time.Duration `json:"futuresTrackingSeekDuration"`
-	RespectOrderHistoryLimits     *bool         `json:"respectOrderHistoryLimits"`
+	RespectOrderHistoryLimits     bool          `json:"respectOrderHistoryLimits"`
 	CancelOrdersOnShutdown        bool          `json:"cancelOrdersOnShutdown"`
 }
 
