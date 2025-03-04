@@ -1875,9 +1875,8 @@ func TestDetail_CopyPointerOrderSlice(t *testing.T) {
 func TestDeriveModify(t *testing.T) {
 	t.Parallel()
 	var o *Detail
-	if _, err := o.DeriveModify(); !errors.Is(err, errOrderDetailIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
-	}
+	_, err := o.DeriveModify()
+	require.ErrorIs(t, err, errOrderDetailIsNil)
 
 	pair := currency.NewPair(currency.BTC, currency.AUD)
 
@@ -1892,31 +1891,26 @@ func TestDeriveModify(t *testing.T) {
 	}
 
 	mod, err := o.DeriveModify()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, mod)
 
-	if mod == nil {
-		t.Fatal("should not be nil")
+	exp := &Modify{
+		Exchange:      "wow",
+		OrderID:       "wow2",
+		ClientOrderID: "wow3",
+		Type:          Market,
+		Side:          Long,
+		AssetType:     asset.Futures,
+		Pair:          pair,
 	}
-
-	if mod.Exchange != "wow" ||
-		mod.OrderID != "wow2" ||
-		mod.ClientOrderID != "wow3" ||
-		mod.Type != Market ||
-		mod.Side != Long ||
-		mod.AssetType != asset.Futures ||
-		!mod.Pair.Equal(pair) {
-		t.Fatal("unexpected values")
-	}
+	assert.Equal(t, exp, mod)
 }
 
 func TestDeriveModifyResponse(t *testing.T) {
 	t.Parallel()
 	var mod *Modify
-	if _, err := mod.DeriveModifyResponse(); !errors.Is(err, errOrderDetailIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
-	}
+	_, err := mod.DeriveModifyResponse()
+	require.ErrorIs(t, err, errOrderDetailIsNil)
 
 	pair := currency.NewPair(currency.BTC, currency.AUD)
 
@@ -1931,23 +1925,19 @@ func TestDeriveModifyResponse(t *testing.T) {
 	}
 
 	modresp, err := mod.DeriveModifyResponse()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "DeriveModifyResponse must not error")
+	require.NotNil(t, modresp)
 
-	if modresp == nil {
-		t.Fatal("should not be nil")
+	exp := &ModifyResponse{
+		Exchange:      "wow",
+		OrderID:       "wow2",
+		ClientOrderID: "wow3",
+		Type:          Market,
+		Side:          Long,
+		AssetType:     asset.Futures,
+		Pair:          pair,
 	}
-
-	if modresp.Exchange != "wow" ||
-		modresp.OrderID != "wow2" ||
-		modresp.ClientOrderID != "wow3" ||
-		modresp.Type != Market ||
-		modresp.Side != Long ||
-		modresp.AssetType != asset.Futures ||
-		!modresp.Pair.Equal(pair) {
-		t.Fatal("unexpected values")
-	}
+	assert.Equal(t, exp, modresp)
 }
 
 func TestDeriveCancel(t *testing.T) {

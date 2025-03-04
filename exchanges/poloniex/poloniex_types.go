@@ -33,11 +33,11 @@ type CompleteBalances map[string]CompleteBalance
 
 // OrderbookResponse is a sub-type for orderbooks
 type OrderbookResponse struct {
-	Asks     [][]interface{} `json:"asks"`
-	Bids     [][]interface{} `json:"bids"`
-	IsFrozen string          `json:"isFrozen"`
-	Error    string          `json:"error"`
-	Seq      int64           `json:"seq"`
+	Asks     [][2]types.Number `json:"asks"`
+	Bids     [][2]types.Number `json:"bids"`
+	IsFrozen string            `json:"isFrozen"`
+	Error    string            `json:"error"`
+	Seq      int64             `json:"seq"`
 }
 
 // OrderbookItem holds data on an individual item

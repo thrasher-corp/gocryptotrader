@@ -112,40 +112,15 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			Asks: make([]OrderbookItem, len(resp.Asks)),
 		}
 		for x := range resp.Asks {
-			askPrice, ok := resp.Asks[x][0].(string)
-			if !ok {
-				return oba, common.GetTypeAssertError("string", resp.Asks[x][0], "price")
-			}
-			price, err := strconv.ParseFloat(askPrice, 64)
-			if err != nil {
-				return oba, err
-			}
-			amt, ok := resp.Asks[x][1].(float64)
-			if !ok {
-				return oba, common.GetTypeAssertError("float64", resp.Asks[x][1], "amount")
-			}
 			ob.Asks[x] = OrderbookItem{
-				Price:  price,
-				Amount: amt,
+				Price:  resp.Asks[x][0].Float64(),
+				Amount: resp.Asks[x][1].Float64(),
 			}
 		}
-
 		for x := range resp.Bids {
-			bidPrice, ok := resp.Bids[x][0].(string)
-			if !ok {
-				return oba, common.GetTypeAssertError("string", resp.Bids[x][0], "price")
-			}
-			price, err := strconv.ParseFloat(bidPrice, 64)
-			if err != nil {
-				return oba, err
-			}
-			amt, ok := resp.Bids[x][1].(float64)
-			if !ok {
-				return oba, common.GetTypeAssertError("float64", resp.Bids[x][1], "amount")
-			}
 			ob.Bids[x] = OrderbookItem{
-				Price:  price,
-				Amount: amt,
+				Price:  resp.Bids[x][0].Float64(),
+				Amount: resp.Bids[x][1].Float64(),
 			}
 		}
 		oba.Data[currencyPair] = ob
@@ -163,40 +138,15 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				Asks: make([]OrderbookItem, len(orderbook.Asks)),
 			}
 			for x := range orderbook.Asks {
-				priceData, ok := orderbook.Asks[x][0].(string)
-				if !ok {
-					return oba, common.GetTypeAssertError("string", orderbook.Asks[x][0], "price")
-				}
-				price, err := strconv.ParseFloat(priceData, 64)
-				if err != nil {
-					return oba, err
-				}
-
-				amt, ok := orderbook.Asks[x][1].(float64)
-				if !ok {
-					return oba, common.GetTypeAssertError("float64", orderbook.Asks[x][1], "amount")
-				}
 				ob.Asks[x] = OrderbookItem{
-					Price:  price,
-					Amount: amt,
+					Price:  orderbook.Asks[x][0].Float64(),
+					Amount: orderbook.Asks[x][1].Float64(),
 				}
 			}
 			for x := range orderbook.Bids {
-				priceData, ok := orderbook.Bids[x][0].(string)
-				if !ok {
-					return oba, common.GetTypeAssertError("string", orderbook.Bids[x][0], "price")
-				}
-				price, err := strconv.ParseFloat(priceData, 64)
-				if err != nil {
-					return oba, err
-				}
-				amt, ok := orderbook.Bids[x][1].(float64)
-				if !ok {
-					return oba, common.GetTypeAssertError("float64", orderbook.Bids[x][1], "amount")
-				}
 				ob.Bids[x] = OrderbookItem{
-					Price:  price,
-					Amount: amt,
+					Price:  orderbook.Bids[x][0].Float64(),
+					Amount: orderbook.Bids[x][1].Float64(),
 				}
 			}
 			oba.Data[currency] = ob

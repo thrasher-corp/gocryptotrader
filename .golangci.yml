@@ -109,7 +109,7 @@ linters:
     - unconvert
     - unparam
     - usestdlibvars
-#   - usetesting
+#   - usetesting # Disabled temporarily due to the number of t.Context changes required
 #   - varnamelen
     - wastedassign
     - whitespace
