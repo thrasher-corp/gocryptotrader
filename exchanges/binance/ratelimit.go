@@ -168,6 +168,23 @@ const (
 	wbethWrapOrUnwrapHistoryRate
 	wbethRewardsHistoryRate
 
+	solStakingAccountRate
+	solStakingQuotaDetailsRate
+	subscribeSOLStakingRate
+	redeemSOLRate
+	claimbBoostReqardsRate
+	solStakingHistoryRate
+	solRedemptionHistoryRate
+	bnsolRewardsHistoryRate
+	bnsolRateHistory
+	boostRewardsHistoryRate
+	unclaimedRewardsRate
+
+	createSubAccountRate
+	getSubAccountRate
+	enableFuturesForSubAccountRate
+	createAPIKeyForSubAccountRate
+
 	futuresFundTransfersFetchRate
 	futureTickLevelOrderbookHistoricalDataDownloadLinkRate
 	fundAutoCollectionRate
@@ -368,6 +385,7 @@ const (
 	cryptoLoanCustomizeMarginRate
 	borrowFlexibleRate
 	getFlexibleLoanOngoingOrdersRate
+	flexibleLoanLiquidiationHistoryRate
 	flexibleBorrowHistoryRate
 	repayFlexibleLoanHistoryRate
 	flexibleLoanRepaymentHistoryRate
@@ -704,6 +722,23 @@ func GetRateLimits() request.RateLimitDefinitions {
 		wbethWrapOrUnwrapHistoryRate:      request.GetRateLimiterWithWeight(stakingLimiter, 150),
 		wbethRewardsHistoryRate:           request.GetRateLimiterWithWeight(stakingLimiter, 150),
 
+		solStakingAccountRate:      request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		solStakingQuotaDetailsRate: request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		subscribeSOLStakingRate:    request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		redeemSOLRate:              request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		claimbBoostReqardsRate:     request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		solStakingHistoryRate:      request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		solRedemptionHistoryRate:   request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		bnsolRewardsHistoryRate:    request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		bnsolRateHistory:           request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		boostRewardsHistoryRate:    request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		unclaimedRewardsRate:       request.GetRateLimiterWithWeight(stakingLimiter, 150),
+
+		createSubAccountRate:           request.NewRateLimitWithWeight(time.Second, 1, 1),
+		getSubAccountRate:              request.NewRateLimitWithWeight(time.Second, 1, 1),
+		enableFuturesForSubAccountRate: request.NewRateLimitWithWeight(time.Second, 1, 1),
+		createAPIKeyForSubAccountRate:  request.NewRateLimitWithWeight(time.Second, 8, 1),
+
 		// Futures
 		futuresFundTransfersFetchRate:                          request.GetRateLimiterWithWeight(futuresFundTransfersFetchLimiter, 10),
 		futureTickLevelOrderbookHistoricalDataDownloadLinkRate: request.GetRateLimiterWithWeight(futuresFundTransfersFetchLimiter, 200),
@@ -780,6 +815,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		flexibleLoanCollateralAssetRate:     request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
 		getBorrowOngoingOrdersRate:          request.GetRateLimiterWithWeight(cryptoLoanLimiter, 300),
 		getFlexibleLoanOngoingOrdersRate:    request.GetRateLimiterWithWeight(cryptoLoanLimiter, 300),
+		flexibleLoanLiquidiationHistoryRate: request.GetRateLimiterWithWeight(cryptoLoanLimiter, 400),
 	}
 }
 

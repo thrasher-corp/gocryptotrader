@@ -3868,7 +3868,7 @@ func (b *Binance) CheckCollateralRepayRate(ctx context.Context, loanCoin, collat
 	params.Set("loanCoin", loanCoin.String())
 	params.Set("collateralCoin", collateralCoin.String())
 	var resp *CollateralRepayRate
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/repay/rate", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/repay/rate", params, checkCollateralRepayRate, nil, &resp)
 }
 
 // GetFlexibleLoanLiquidiationHistory retrieves flexible loan liquidiation history of an account
@@ -3887,7 +3887,7 @@ func (b *Binance) GetFlexibleLoanLiquidiationHistory(ctx context.Context, loanCo
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FlexibleLoanLiquidiationhistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/liquidation/history", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/liquidation/history", params, flexibleLoanLiquidiationHistoryRate, nil, &resp)
 }
 
 // FlexibleLoanAdjustLTV adjusts the LTV of a flexible loan
@@ -4905,13 +4905,13 @@ func (b *Binance) GetWBETHRewardHistory(ctx context.Context, startTime, endTime 
 // GetSOLStakingAccount retrieves SOL staking account
 func (b *Binance) GetSOLStakingAccount(ctx context.Context) (*SOLStakingAccountDetail, error) {
 	var resp *SOLStakingAccountDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/account", nil, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/account", nil, solStakingAccountRate, nil, &resp)
 }
 
 // GetSOLStakingQuotaDetails retrieves SOL staking quota
 func (b *Binance) GetSOLStakingQuotaDetails(ctx context.Context) (*SOLStakingQuotaDetail, error) {
 	var resp *SOLStakingQuotaDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/quota", nil, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/quota", nil, solStakingQuotaDetailsRate, nil, &resp)
 }
 
 // SubscribeToSOLStaking subscribes to SOL staking
@@ -4922,7 +4922,7 @@ func (b *Binance) SubscribeToSOLStaking(ctx context.Context, amount float64) (*S
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *SOLStakingSubscriptionResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/stake", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/stake", params, subscribeSOLStakingRate, nil, &resp)
 }
 
 // RedeemSOL redeem BNSOL and SOL
@@ -4933,7 +4933,7 @@ func (b *Binance) RedeemSOL(ctx context.Context, amount float64) (*SOLRedemption
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *SOLRedemptionResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/redeem", nil, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/redeem", nil, redeemSOLRate, nil, &resp)
 }
 
 // ClaimBoostRewards claim boost APR airdrop rewards
@@ -4941,7 +4941,7 @@ func (b *Binance) ClaimBoostRewards(ctx context.Context) (bool, error) {
 	resp := &struct {
 		Success bool `json:"success"`
 	}{}
-	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/claim", nil, request.Auth, nil, &resp)
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/claim", nil, claimbBoostReqardsRate, nil, &resp)
 }
 
 // GetSOLStakingHistory retrieves SOL staking history
@@ -4951,7 +4951,7 @@ func (b *Binance) GetSOLStakingHistory(ctx context.Context, startTime, endTime t
 		return nil, err
 	}
 	var resp *SOLStakingHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/stakingHistory", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/stakingHistory", params, solStakingHistoryRate, nil, &resp)
 }
 
 // GetSOLRedemptionHistory retrieves SOL redemption history
@@ -4961,7 +4961,7 @@ func (b *Binance) GetSOLRedemptionHistory(ctx context.Context, startTime, endTim
 		return nil, err
 	}
 	var resp *SOLStakingHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/redemptionHistory", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/redemptionHistory", params, solRedemptionHistoryRate, nil, &resp)
 }
 
 // GetBNSOLRewardsHistory retrieves a BNSOL rewards history
@@ -4971,7 +4971,7 @@ func (b *Binance) GetBNSOLRewardsHistory(ctx context.Context, startTime, endTime
 		return nil, err
 	}
 	var resp *BNSOLRewardHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/bnsolRewardsHistory", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/bnsolRewardsHistory", params, bnsolRewardsHistoryRate, nil, &resp)
 }
 
 // GetBNSOLRateHistory retrieves BNSOL rate history
@@ -4981,7 +4981,7 @@ func (b *Binance) GetBNSOLRateHistory(ctx context.Context, startTime, endTime ti
 		return nil, err
 	}
 	var resp *BNSOLRewardHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/rateHistory", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/rateHistory", params, bnsolRateHistory, nil, &resp)
 }
 
 // GetBoostRewardsHistory retrieves boosts reward history
@@ -4995,13 +4995,13 @@ func (b *Binance) GetBoostRewardsHistory(ctx context.Context, rewardType string,
 	}
 	params.Set("type", rewardType)
 	var resp *RewardBoostResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/boostRewardsHistory", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/boostRewardsHistory", params, boostRewardsHistoryRate, nil, &resp)
 }
 
 // GetUnclaimedRewards get unclaimed rewards
 func (b *Binance) GetUnclaimedRewards(ctx context.Context) ([]Reward, error) {
 	var resp []Reward
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/unclaimedRewards", nil, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sol-staking/sol/history/unclaimedRewards", nil, unclaimedRewardsRate, nil, &resp)
 }
 
 // -----------------------------------  Mining Endpoints  -----------------------------
@@ -6652,7 +6652,7 @@ func (b *Binance) CreateSubAccount(ctx context.Context, tag string) (*CreatesSub
 		params.Set("tag", tag)
 	}
 	var resp *CreatesSubAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount", nil, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount", nil, createSubAccountRate, nil, &resp)
 }
 
 // GetSubAccounts retrieves sub-accounts of the given account
@@ -6668,7 +6668,7 @@ func (b *Binance) GetSubAccounts(ctx context.Context, subAccountID string, page,
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp []SubAccountInstance
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/subAccount", params, getSubAccountRate, nil, &resp)
 }
 
 // EnableFuturesForSubAccount enabled futures for sub-account
@@ -6682,7 +6682,7 @@ func (b *Binance) EnableFuturesForSubAccount(ctx context.Context, subAccountID s
 		params.Set("futures", "true")
 	}
 	var resp *FuturesSubAccountEnableResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount/futures", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccount/futures", params, enableFuturesForSubAccountRate, nil, &resp)
 }
 
 // CreateAPIKeyForSubAccount creates a new API key for the specified subaccount
@@ -6703,7 +6703,7 @@ func (b *Binance) CreateAPIKeyForSubAccount(ctx context.Context, subAccountID st
 		params.Set("futuresTrade", "true")
 	}
 	var resp *SubAccountAPIKey
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/broker/subAccountApi", params, createAPIKeyForSubAccountRate, nil, &resp)
 }
 
 // ChangeSubAccountAPIPermission changes sub-account's api permission

@@ -386,6 +386,22 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"flexibleLoanAdjustLTVRate":                              flexibleLoanAdjustLTVRate,
 		"flexibleLoanAssetDataRate":                              flexibleLoanAssetDataRate,
 		"flexibleLoanCollateralAssetRate":                        flexibleLoanCollateralAssetRate,
+		"flexibleLoanLiquidiationHistoryRate":                    flexibleLoanLiquidiationHistoryRate,
+		"solStakingAccountRate":                                  solStakingAccountRate,
+		"solStakingQuotaDetailsRate":                             solStakingQuotaDetailsRate,
+		"subscribeSOLStakingRate":                                subscribeSOLStakingRate,
+		"redeemSOLRate":                                          redeemSOLRate,
+		"claimbBoostReqardsRate":                                 claimbBoostReqardsRate,
+		"solStakingHistoryRate":                                  solStakingHistoryRate,
+		"solRedemptionHistoryRate":                               solRedemptionHistoryRate,
+		"bnsolRewardsHistoryRate":                                bnsolRewardsHistoryRate,
+		"bnsolRateHistory":                                       bnsolRateHistory,
+		"boostRewardsHistoryRate":                                boostRewardsHistoryRate,
+		"unclaimedRewardsRate":                                   unclaimedRewardsRate,
+		"createSubAccountRate":                                   createSubAccountRate,
+		"getSubAccountRate":                                      getSubAccountRate,
+		"enableFuturesForSubAccountRate":                         enableFuturesForSubAccountRate,
+		"createAPIKeyForSubAccountRate":                          createAPIKeyForSubAccountRate,
 	}
 
 	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimits()))
