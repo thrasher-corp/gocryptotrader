@@ -720,24 +720,46 @@ func (t Type) String() string {
 
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
-	switch {
-	case t.Is(ImmediateOrCancel):
-		return "IOC"
-	case t.Is(GoodTillCancel):
-		return "GTC"
-	case t.Is(GoodTillDay):
-		return "GTD"
-	case t.Is(GoodTillTime):
-		return "GTT"
-	case t.Is(FillOrKill):
-		return "FOK"
-	case t.Is(PostOnly):
-		return "POSTONLY"
-	case t == UnsetTIF:
+	var tifStrings []string
+
+	if t.Is(ImmediateOrCancel) {
+		tifStrings = append(tifStrings, "IOC")
+	}
+	if t.Is(GoodTillCancel) {
+		tifStrings = append(tifStrings, "GTC")
+	}
+	if t.Is(GoodTillDay) {
+		tifStrings = append(tifStrings, "GTD")
+	}
+	if t.Is(GoodTillTime) {
+		tifStrings = append(tifStrings, "GTT")
+	}
+	if t.Is(FillOrKill) {
+		tifStrings = append(tifStrings, "FOK")
+	}
+	if t.Is(PostOnly) {
+		tifStrings = append(tifStrings, "POSTONLY")
+	}
+	if t == UnsetTIF {
 		return ""
-	default:
+	}
+	if len(tifStrings) == 0 {
 		return "UNKNOWN"
 	}
+	return strings.Join(tifStrings, ",")
+}
+
+// UnmarshalJSON deserializes a string data into TimeInForce instance.
+func (t *TimeInForce) UnmarshalJSON(data []byte) error {
+	tifStrings := strings.Split(strings.Trim(string(data), `"`), ",")
+	for _, val := range tifStrings {
+		tif, err := StringToTimeInForce(val)
+		if err != nil {
+			return err
+		}
+		*t |= tif
+	}
+	return nil
 }
 
 // Lower returns the type lower case string
@@ -1234,7 +1256,7 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	switch timeInForce {
 	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
 		return ImmediateOrCancel, nil
-	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
+	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
 		return GoodTillCancel, nil
 	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
 		return GoodTillDay, nil
@@ -1242,7 +1264,7 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		return GoodTillTime, nil
 	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
 		return FillOrKill, nil
-	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "PENDINGORCANCEL":
+	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
 		return PostOnly, nil
 	case "":
 		return UnsetTIF, nil

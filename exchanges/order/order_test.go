@@ -1753,19 +1753,40 @@ func TestStringToTimeInForce(t *testing.T) {
 func TestString(t *testing.T) {
 	t.Parallel()
 	valMap := map[TimeInForce]string{
-		ImmediateOrCancel: "IOC",
-		GoodTillCancel:    "GTC",
-		GoodTillTime:      "GTT",
-		GoodTillDay:       "GTD",
-		FillOrKill:        "FOK",
-		PostOnly:          "POSTONLY",
-		UnknownTIF:        "UNKNOWN",
-		UnsetTIF:          "",
+		ImmediateOrCancel:              "IOC",
+		GoodTillCancel:                 "GTC",
+		GoodTillTime:                   "GTT",
+		GoodTillDay:                    "GTD",
+		FillOrKill:                     "FOK",
+		PostOnly:                       "POSTONLY",
+		UnknownTIF:                     "UNKNOWN",
+		UnsetTIF:                       "",
+		ImmediateOrCancel | PostOnly:   "IOC,POSTONLY",
+		GoodTillCancel | PostOnly:      "GTC,POSTONLY",
+		GoodTillTime | PostOnly:        "GTT,POSTONLY",
+		GoodTillDay | PostOnly:         "GTD,POSTONLY",
+		FillOrKill | PostOnly:          "FOK,POSTONLY",
+		FillOrKill | ImmediateOrCancel: "IOC,FOK",
 	}
 	for x := range valMap {
 		result := x.String()
 		assert.Equalf(t, valMap[x], result, "expected %v, got %v", x, result)
 	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	targets := []TimeInForce{
+		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnsetTIF, PostOnly | ImmediateOrCancel,
+		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
+	}
+	data := `{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	target := &struct {
+		TIFs []TimeInForce `json:"tifs"`
+	}{}
+	err := json.Unmarshal([]byte(data), &target)
+	require.NoError(t, err)
+	require.EqualValues(t, targets, target.TIFs)
 }
 
 func TestSideMarshalJSON(t *testing.T) {
