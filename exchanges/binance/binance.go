@@ -3117,6 +3117,17 @@ func (b *Binance) transferSubAccount(ctx context.Context, email, path string, as
 	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, sapiDefaultRate, nil, &resp)
 }
 
+// GetSubAccountAssetsV3 retrieves sub-account assets
+func (b *Binance) GetSubAccountAssetsV3(ctx context.Context, email string) (*SubAccountAssets, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, fmt.Errorf("%w: provided %s", errValidEmailRequired, email)
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *SubAccountAssets
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v3/sub-account/assets", params, getV3SubAccountAssetsRate, nil, &resp)
+}
+
 // TransferToSubAccountOfSameMaster Transfer to Sub-account of Same Master (For Sub-account)
 func (b *Binance) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail string, asset currency.Code, amount float64) (string, error) {
 	if !common.MatchesEmailPattern(toEmail) {
@@ -5000,13 +5011,13 @@ func (b *Binance) GetUnclaimedRewards(ctx context.Context) ([]Reward, error) {
 // AcquiringAlgorithm retrieves list of algorithms
 func (b *Binance) AcquiringAlgorithm(ctx context.Context) (*AlgorithmsList, error) {
 	var resp *AlgorithmsList
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/pub/algoList", nil, sapiDefaultRate, nil, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/mining/pub/algoList", sapiDefaultRate, &resp)
 }
 
 // GetCoinNames retrieves coin names
 func (b *Binance) GetCoinNames(ctx context.Context) (*CoinNames, error) {
 	var resp *CoinNames
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/pub/coinList", nil, sapiDefaultRate, nil, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/mining/pub/coinList", sapiDefaultRate, &resp)
 }
 
 // GetDetailMinerList retrieves list of miners name and other details.
@@ -5766,6 +5777,8 @@ func fillFiatFetchParams(beginTime, endTime time.Time, transactionType, page, ro
 	return params, nil
 }
 
+// ---------------------------------------------------------------- Fiat endpoints ----------------------------------------------------------------
+
 // GetFiatDepositAndWithdrawalHistory represents a fiat deposit and withdrawal history
 // transactionType possible values are 0 for deposit and 1 for withdrawal
 func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatTransactionHistory, error) {
@@ -5828,7 +5841,7 @@ func (b *Binance) GetC2CTradeHistory(ctx context.Context, tradeType string, star
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/c2c/orderMatch/listUserOrderHistory", params, sapiDefaultRate, nil, &resp)
 }
 
-// ------------------------------------------  VIP Loans ------------------------------------------------
+// ------------------------------------------  VIP Loan endpoints ------------------------------------------------
 
 // GetVIPLoanOngoingOrders retrieves VIP loan is available for VIP users only.
 func (b *Binance) GetVIPLoanOngoingOrders(ctx context.Context, orderID, collateralAccountID, current, limit int64, loanCoin, collateralCoin currency.Code) (*VIPLoanOngoingOrders, error) {
@@ -5905,7 +5918,7 @@ func (b *Binance) GetVIPLoanAccruedInterest(ctx context.Context, orderID string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *VIPLoanAccruedInterests
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/accruedInterest", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/accruedInterest", params, getVIPLoanAccruedInterest, nil, &resp)
 }
 
 // VIPLoanRenew represents VIP loan is available for VIP users only.
@@ -6034,10 +6047,8 @@ func (b *Binance) GetVIPLoanInterestRateHistory(ctx context.Context, coin curren
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *VIPLoanInterestRate
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/interestRateHistory", params, request.Auth, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/interestRateHistory", params, vipLoanInterestRateHistoryRate, nil, &resp)
 }
-
-// ------------- Crypto Loan Endpoints ---------------------------------------------------------------
 
 // ------------------------------------------------ Pay Endpoints ----------------------------------------------
 
@@ -6255,6 +6266,8 @@ func (b *Binance) GetNFTTransactionHistory(ctx context.Context, orderType int64,
 	var resp *NFTTransactionHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/transactions", params, nftRate, nil, &resp)
 }
+
+// ----------------- NFT endpoints ----------------
 
 // GetNFTDepositHistory retrieves list of deposit history
 func (b *Binance) GetNFTDepositHistory(ctx context.Context, startTime, endTime time.Time, limit, page int64) (*NFTDepositHistory, error) {

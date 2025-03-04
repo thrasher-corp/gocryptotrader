@@ -34,6 +34,7 @@ const (
 	aggTradesRate
 	listenKeyRate
 	sapiDefaultRate
+	getV3SubAccountAssetsRate
 	allCoinInfoRate
 	dailyAccountSnapshotRate
 	fundWithdrawalRate
@@ -177,12 +178,14 @@ const (
 	vipLoanRepayRate
 	vipLoanRenewRate
 	getVIPLoanRepaymentHistoryRate
+	getVIPLoanAccruedInterest
 	checkLockedValueVIPCollateralAccountRate
 	vipLoanBorrowRate
 	getVIPLoanableAssetsRate
 	getCollateralAssetDataRate
 	getApplicationStatusRate
 	getVIPBorrowInterestRate
+	vipLoanInterestRateHistoryRate
 
 	fiatDepositWithdrawHistRate
 
@@ -580,7 +583,8 @@ func GetRateLimits() request.RateLimitDefinitions {
 		pmRepayFuturesNegativeBalanceRate:                      request.GetRateLimiterWithWeight(portfolioMarginLimiter, 750),
 
 		// /sapi/* endpoints
-		sapiDefaultRate: request.GetRateLimiterWithWeight(sapiDefaultLimiter, 1),
+		sapiDefaultRate:           request.GetRateLimiterWithWeight(sapiDefaultLimiter, 1),
+		getV3SubAccountAssetsRate: request.GetRateLimiterWithWeight(sapiDefaultLimiter, 60),
 
 		// Wallet Endpoints
 		userAssetsRate:                         request.GetRateLimiterWithWeight(walletLimiter, 5),
@@ -645,10 +649,12 @@ func GetRateLimits() request.RateLimitDefinitions {
 		// VIP Endpoints
 		getVIPLoanOngoingOrdersRate:              request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
 		getVIPLoanRepaymentHistoryRate:           request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
+		getVIPLoanAccruedInterest:                request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
 		getVIPLoanableAssetsRate:                 request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
 		getCollateralAssetDataRate:               request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
 		getApplicationStatusRate:                 request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
 		getVIPBorrowInterestRate:                 request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
+		vipLoanInterestRateHistoryRate:           request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 400),
 		vipLoanRepayRate:                         request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 6000),
 		vipLoanRenewRate:                         request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 6000),
 		checkLockedValueVIPCollateralAccountRate: request.GetRateLimiterWithWeight(vipLoanEndpointsLimiter, 6000),

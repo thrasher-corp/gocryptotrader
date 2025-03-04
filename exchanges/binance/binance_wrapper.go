@@ -1582,20 +1582,21 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			orderType = order.Market
 		}
 		return &order.Detail{
-			Amount:         resp.OrigQty.Float64(),
-			Exchange:       b.Name,
-			OrderID:        strconv.FormatInt(resp.OrderID, 10),
-			ClientOrderID:  resp.ClientOrderID,
-			Side:           side,
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           resp.CummulativeQuoteQty.Float64(),
-			AssetType:      assetType,
-			Status:         status,
-			Price:          resp.Price.Float64(),
-			ExecutedAmount: resp.ExecutedQty.Float64(),
-			Date:           resp.Time.Time(),
-			LastUpdated:    resp.UpdateTime.Time(),
+			Amount:            resp.OrigQty.Float64(),
+			Exchange:          b.Name,
+			OrderID:           strconv.FormatInt(resp.OrderID, 10),
+			ClientOrderID:     resp.ClientOrderID,
+			Side:              side,
+			Type:              orderType,
+			Pair:              pair,
+			Cost:              resp.CummulativeQuoteQty.Float64(),
+			AssetType:         assetType,
+			Status:            status,
+			Price:             resp.Price.Float64(),
+			ExecutedAmount:    resp.ExecutedQty.Float64(),
+			Date:              resp.Time.Time(),
+			LastUpdated:       resp.UpdateTime.Time(),
+			ImmediateOrCancel: resp.TimeInForce == "IOC",
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := b.FuturesOpenOrderData(ctx, pair, orderID, "")
@@ -1612,21 +1613,22 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		}
 		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
 		return &order.Detail{
-			Amount:          orderData.OriginalQuantity,
-			AssetType:       assetType,
-			ClientOrderID:   orderData.ClientOrderID,
-			Exchange:        b.Name,
-			ExecutedAmount:  orderData.ExecutedQuantity,
-			Fee:             fee,
-			OrderID:         orderID,
-			Pair:            pair,
-			Price:           orderData.Price,
-			RemainingAmount: orderData.OriginalQuantity - orderData.ExecutedQuantity,
-			Side:            orderVars.Side,
-			Status:          orderVars.Status,
-			Type:            orderVars.OrderType,
-			Date:            orderData.Time.Time(),
-			LastUpdated:     orderData.UpdateTime.Time()}, nil
+			Amount:            orderData.OriginalQuantity,
+			AssetType:         assetType,
+			ClientOrderID:     orderData.ClientOrderID,
+			Exchange:          b.Name,
+			ExecutedAmount:    orderData.ExecutedQuantity,
+			Fee:               fee,
+			OrderID:           orderID,
+			Pair:              pair,
+			Price:             orderData.Price,
+			RemainingAmount:   orderData.OriginalQuantity - orderData.ExecutedQuantity,
+			Side:              orderVars.Side,
+			Status:            orderVars.Status,
+			ImmediateOrCancel: orderData.TimeInForce == "IOC",
+			Type:              orderVars.OrderType,
+			Date:              orderData.Time.Time(),
+			LastUpdated:       orderData.UpdateTime.Time()}, nil
 	case asset.USDTMarginedFutures:
 		orderData, err := b.UGetOrderData(ctx, pair.String(), orderID, "")
 		if err != nil {
@@ -1642,21 +1644,22 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		}
 		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
 		return &order.Detail{
-			Amount:          orderData.OriginalQuantity,
-			AssetType:       assetType,
-			ClientOrderID:   orderData.ClientOrderID,
-			Exchange:        b.Name,
-			ExecutedAmount:  orderData.ExecutedQuantity,
-			Fee:             fee,
-			OrderID:         orderID,
-			Pair:            pair,
-			Price:           orderData.Price,
-			RemainingAmount: orderData.OriginalQuantity - orderData.ExecutedQuantity,
-			Side:            orderVars.Side,
-			Status:          orderVars.Status,
-			Type:            orderVars.OrderType,
-			Date:            orderData.Time.Time(),
-			LastUpdated:     orderData.UpdateTime.Time(),
+			Amount:            orderData.OriginalQuantity,
+			AssetType:         assetType,
+			ClientOrderID:     orderData.ClientOrderID,
+			Exchange:          b.Name,
+			ExecutedAmount:    orderData.ExecutedQuantity,
+			Fee:               fee,
+			OrderID:           orderID,
+			Pair:              pair,
+			Price:             orderData.Price,
+			RemainingAmount:   orderData.OriginalQuantity - orderData.ExecutedQuantity,
+			Side:              orderVars.Side,
+			Status:            orderVars.Status,
+			Type:              orderVars.OrderType,
+			Date:              orderData.Time.Time(),
+			LastUpdated:       orderData.UpdateTime.Time(),
+			ImmediateOrCancel: orderData.TimeInForce == "IOC",
 		}, nil
 	case asset.Options:
 		orderData, err := b.GetSingleEOptionsOrder(ctx, pair.String(), "", orderIDInt)
@@ -1695,6 +1698,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			AssetType:            assetType,
 			LastUpdated:          orderData.UpdateTime.Time(),
 			Pair:                 pair,
+			ImmediateOrCancel:    orderData.TimeInForce == "IOC",
 		}, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)

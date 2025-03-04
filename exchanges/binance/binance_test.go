@@ -2320,6 +2320,17 @@ func TestMarginTransferForSubAccount(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetSubAccountAssetsV3(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSubAccountAssetsV3(context.Background(), "")
+	require.ErrorIs(t, err, errValidEmailRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountAssetsV3(context.Background(), "someone@thrasher.io")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestTransferToSubAccountOfSameMaster(t *testing.T) {
 	t.Parallel()
 	_, err := b.TransferToSubAccountOfSameMaster(context.Background(), "thrasher", currency.ETH, 10)
@@ -8145,7 +8156,6 @@ func TestGetUnclaimedRewards(t *testing.T) {
 
 func TestAcquiringAlgorithm(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.AcquiringAlgorithm(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -8153,7 +8163,6 @@ func TestAcquiringAlgorithm(t *testing.T) {
 
 func TestGetCoinNames(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetCoinNames(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)

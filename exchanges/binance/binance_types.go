@@ -2686,6 +2686,9 @@ type SubAccountAssets struct {
 		Asset  string  `json:"asset"`
 		Free   float64 `json:"free"`
 		Locked float64 `json:"locked"`
+
+		Freeze      float64 `json:"freeze"`
+		Withdrawing float64 `json:"withdrawing"`
 	} `json:"balances"`
 }
 
