@@ -123,7 +123,7 @@ func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 	pair, err := currency.NewPairFromString("BTC_USDT")
 	require.NoError(t, err)
 	_, err = g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), pair, "bruh")
-	require.ErrorIs(t, err, errInvalidSide)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
