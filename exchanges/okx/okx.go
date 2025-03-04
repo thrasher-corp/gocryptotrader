@@ -5934,12 +5934,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		}
 		return err
 	}
-	if rv.Kind() == reflect.Slice {
-		value, okay := result.([]interface{})
-		if !okay || result == nil || len(value) == 0 {
-			return fmt.Errorf("%w, received invalid response", common.ErrNoResponse)
-		}
-	}
 	if err == nil && resp.Code.Int64() != 0 {
 		if resp.Msg != "" {
 			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
