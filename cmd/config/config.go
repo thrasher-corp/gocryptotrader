@@ -86,7 +86,7 @@ func main() {
 				usage(fs)
 				os.Exit(3)
 			}
-			version = versions.LatestVersion
+			version = versions.UseLatestVersion
 		} else if version >= math.MaxUint16 {
 			fmt.Fprintln(os.Stderr, "Error: version must be less than 65535")
 			usage(fs)

@@ -27,8 +27,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-// LatestVersion used as version param to Deploy to automatically use the latest version
-const LatestVersion = math.MaxUint16
+// UseLatestVersion used as version param to Deploy to automatically use the latest version
+const UseLatestVersion = math.MaxUint16
 
 var (
 	errMissingVersion        = errors.New("missing version")
@@ -66,7 +66,7 @@ type manager struct {
 var Manager = &manager{}
 
 // Deploy upgrades or downgrades the config between versions
-// Pass LatestVersion for version to use the latest version automatically
+// Pass UseLatestVersion for version to use the latest version automatically
 // Prints an error an exits if the config file version or version param is not registered
 func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte, error) {
 	if err := m.checkVersions(); err != nil {
@@ -79,7 +79,7 @@ func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte,
 	}
 
 	target := latest
-	if version != LatestVersion {
+	if version != UseLatestVersion {
 		target = version
 	}
 
@@ -94,7 +94,7 @@ func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte,
 		return j, fmt.Errorf("%w: %w `version`: %w", errConfigVersion, common.ErrGettingField, err)
 	case current64 < 0:
 		return j, fmt.Errorf("%w: %w `version`: `%d`", errConfigVersion, errConfigVersionNegative, current64)
-	case current64 >= LatestVersion:
+	case current64 >= UseLatestVersion:
 		return j, fmt.Errorf("%w: %w `version`: `%d`", errConfigVersion, errConfigVersionMax, current64)
 	}
 	current := uint16(current64)
