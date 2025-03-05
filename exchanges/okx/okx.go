@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -4559,7 +4558,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 	params := url.Values{}
 	params.Set("index", index)
 	var resp *IndexComponent
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexComponentsEPL, http.MethodGet, common.EncodeURLValues("market/index-components", params), nil, &resp, request.UnauthenticatedRequest, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexComponentsEPL, http.MethodGet, common.EncodeURLValues("market/index-components", params), nil, &resp, request.UnauthenticatedRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -5168,7 +5167,7 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
 	var resp []string
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues("public/underlying", params), nil, &resp, request.UnauthenticatedRequest, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues("public/underlying", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetInsuranceFundInformation returns insurance fund balance information
@@ -5268,7 +5267,7 @@ func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrume
 // GetSupportCoins retrieves the currencies supported by the trading data endpoints
 func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
 	var resp *SupportedCoinsData
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &resp, request.UnauthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetTakerVolume retrieves the taker volume for both buyers and sellers
@@ -5432,7 +5431,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline
 		params.Set("period", interval)
 	}
 	var resp *CurrencyTakerFlow
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/taker-block-volume", params), nil, &resp, request.UnauthenticatedRequest, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/taker-block-volume", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // ********************************************************** Affiliate **********************************************************************
@@ -5841,17 +5840,9 @@ func (ok *Okx) GetFiatDepositPaymentMethods(ctx context.Context, ccy currency.Co
 SendHTTPRequest sends an http request, optionally with a JSON payload
 URL arguments must be encoded in the request path
 result must be a pointer
-If useAsItIs is true resp.Data is unmarshaled directly into result,
-When false resp.Data is unmarshaled into a slice; []any{result}
-useAsItIs default value when omitted is:
-
-  - true when result is a pointer to a slice
-
-  - false true for all other types
-
-    There are only a few rare API exceptions where useAsIs default value is correct: resp.Data is an object or resp.Data is a slice containing a slice
+The response will be unmarshalled first into []any{result}, which matches most APIs, and fallback to directly into result
 */
-func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType) (err error) {
 	rv := reflect.ValueOf(result)
 	if rv.Kind() != reflect.Pointer {
 		return errInvalidResponseParam
@@ -5860,25 +5851,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	var respResult any
-	switch {
-	case len(useAsItIs) > 0:
-		if useAsItIs[0] {
-			respResult = result
-		} else {
-			respResult = &[]any{result}
-		}
-	case rv.Elem().Kind() == reflect.Slice:
-		respResult = result
-	default:
-		respResult = &[]any{result}
-	}
-	resp := struct {
-		Code types.Number `json:"code"`
-		Msg  string       `json:"msg"`
-		Data any          `json:"data"`
-	}{
-		Data: respResult,
+	var resp struct {
+		Code types.Number    `json:"code"`
+		Msg  string          `json:"msg"`
+		Data json.RawMessage `json:"data"`
 	}
 	requestType := request.AuthType(request.UnauthenticatedRequest)
 	newRequest := func() (*request.Item, error) {
@@ -5898,16 +5874,13 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated == request.AuthenticatedRequest {
-			var creds *account.Credentials
-			creds, err = ok.GetCredentials(ctx)
+			creds, err := ok.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
 			}
 			signPath := "/" + apiPath + requestPath
 			var hmac []byte
-			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-				[]byte(utcTime+httpMethod+signPath+string(payload)),
-				[]byte(creds.Secret))
+			hmac, err = crypto.GetHMAC(crypto.HashSHA256, []byte(utcTime+httpMethod+signPath+string(payload)), []byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
@@ -5927,8 +5900,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	err = ok.SendPayload(ctx, f, newRequest, requestType)
-	if err != nil {
+	if err = ok.SendPayload(ctx, f, newRequest, requestType); err != nil {
 		if authenticated == request.AuthenticatedRequest {
 			return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
 		}
@@ -5938,11 +5910,23 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		if resp.Msg != "" {
 			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
 		}
-		err, okay := ErrorCodes[resp.Code.String()]
-		if okay {
+		if err, ok := ErrorCodes[resp.Code.String()]; ok {
 			return err
 		}
 		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
 	}
+
+	// First see if resp.Data can unmarshal into a slice of result, which is true for most APIs
+	if sliceErr := json.Unmarshal(resp.Data, &[]any{result}); sliceErr != nil {
+		// Otherwise, resp.Data should unmarshal directly into result; e.g. index-components, support-coin, and taker-block-volume
+		if directErr := json.Unmarshal(resp.Data, result); directErr != nil {
+			return fmt.Errorf("cannot unmarshal as a slice of result (error: %w) or as a reference to result (error: %w)", sliceErr, directErr)
+		}
+	}
+
+	if ptrTo := rv.Elem(); ptrTo.Kind() == reflect.Slice && ptrTo.Len() == 0 {
+		return common.ErrNoResponse
+	}
+
 	return nil
 }

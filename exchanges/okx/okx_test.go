@@ -227,7 +227,7 @@ func TestGetCandlesticks(t *testing.T) {
 	_, err := ok.GetCandlesticks(contextGenerate(), "", kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	result, err := ok.GetCandlesticks(contextGenerate(), spotTP.String(), kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
+	result, err := ok.GetCandlesticks(contextGenerate(), spotTP.String(), kline.OneHour, time.Now().Add(-time.Hour), time.Now(), 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -408,14 +408,13 @@ func TestGetInstrument(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	result, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+	_, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
 		Underlying:     "SOL-USD",
 	})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	require.ErrorIs(t, err, common.ErrNoResponse)
 
-	result, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+	result, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
 	})
 	require.NoError(t, err)
