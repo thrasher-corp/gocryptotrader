@@ -95,7 +95,6 @@ func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Dur
 		case <-r.ch:
 			return
 		case <-timer.C:
-			timer.Reset(time.Until(time.Now().Truncate(period).Add(period)))
 			r.m.Lock()
 			if r.operations > 0 {
 				avgOperationsPerSecond := float64(r.operations) / 60
@@ -114,6 +113,7 @@ func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Dur
 			} else {
 				r.m.Unlock()
 			}
+			timer.Reset(time.Until(time.Now().Truncate(period).Add(period)))
 		}
 	}
 }
