@@ -2202,22 +2202,14 @@ func TestUnmarshalOrder(t *testing.T) {
 		Exchange:  "test",
 		Pair:      btx,
 		AssetType: asset.Spot,
-		Side:      Buy,
-		Type:      Market,
-		Amount:    1,
-		Price:     1000,
+		MarginType: margin.Multi,
+		Side:       Buy,
+		Type:       Market,
+		Amount:     1,
+		Price:      1000,
 	}
-	jOrderSubmit, err := json.Marshal(orderSubmit)
+	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "json.Marshal must not error")
-	var os2 Submit
-	err = json.Unmarshal(jOrderSubmit, &os2)
-	require.NoError(t, err)
-	require.Equal(t, orderSubmit, os2)
-	// Margin-type regression test
-	orderSubmit.MarginType = margin.Multi
-	jOrderSubmit, err = json.Marshal(orderSubmit)
-	require.NoError(t, err)
-	err = json.Unmarshal(jOrderSubmit, &os2)
-	require.NoError(t, err)
-	require.Equal(t, orderSubmit, os2)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","ImmediateOrCancel":false,"FillOrKill":false,"PostOnly":false,"ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
+	assert.Equal(t, exp, j)
 }
