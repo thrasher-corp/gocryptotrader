@@ -965,7 +965,7 @@ func genCert(targetDir string) error {
 // supported by GCT. This function will return an error if the exchange is not
 // supported.
 func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
-	switch strings.ToLower(name) {
+	switch strings.ToLower(strings.ReplaceAll(name, " ", "")) {
 	case "binanceus":
 		return new(binanceus.Binanceus), nil
 	case "binance":
@@ -980,7 +980,7 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bitmex.Bitmex), nil
 	case "bitstamp":
 		return new(bitstamp.Bitstamp), nil
-	case "btc markets":
+	case "btcmarkets":
 		return new(btcmarkets.BTCMarkets), nil
 	case "btse":
 		return new(btse.BTSE), nil
