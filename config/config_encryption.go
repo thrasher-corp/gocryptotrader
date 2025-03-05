@@ -131,8 +131,7 @@ func (c *Config) encryptConfigData(configData []byte) ([]byte, error) {
 
 	ciphertext := aead.Seal(nil, nil, configData, nil)
 
-	totalLen := len(encryptionPrefix) + len(c.storedSalt) + len(encryptionVersionPrefix) + versionSize + len(ciphertext)
-	appendedFile := make([]byte, totalLen)
+	appendedFile := make([]byte, len(encryptionPrefix)+len(c.storedSalt)+len(encryptionVersionPrefix)+versionSize+len(ciphertext))
 	offset := 0
 	copy(appendedFile[offset:], encryptionPrefix)
 	offset += len(encryptionPrefix)

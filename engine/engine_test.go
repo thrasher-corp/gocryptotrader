@@ -382,8 +382,8 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 			require.NoError(t, err, "GetDefaultConfig must not error")
 			require.NotNil(t, defaultCfg)
-			assert.NotEmpty(t, defaultCfg.Name)
-			assert.True(t, defaultCfg.Enabled)
+			assert.NotEmpty(t, defaultCfg.Name, "Name should not be empty")
+			assert.True(t, defaultCfg.Enabled, "Enabled should have the correct value")
 
 			if exch.SupportsWebsocket() {
 				assert.Positive(t, defaultCfg.WebsocketResponseCheckTimeout, 0)

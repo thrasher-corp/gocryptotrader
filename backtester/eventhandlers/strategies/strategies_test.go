@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -83,34 +84,33 @@ func TestCreateNewStrategy(t *testing.T) {
 
 	// invalid Handler
 	resp, err := createNewStrategy(dollarcostaverage.Name, false, nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
-	}
-	if resp != nil {
-		t.Errorf("received '%v' expected '%v'", resp, nil)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	assert.Nil(t, resp)
 
 	// mismatched name
 	resp, err = createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if resp != nil {
-		t.Errorf("received '%v' expected '%v'", resp, nil)
-	}
+	assert.NoError(t, err, "createNewStrategy should not error")
+	assert.Nil(t, resp)
+
+	// nil Handler
+	var h Handler = (*customStrategy)(nil)
+	_, err = createNewStrategy("custom-strategy", false, h)
+	assert.ErrorContains(t, err, "must be a non-nil pointer")
 
 	// valid
-	h := new(dollarcostaverage.Strategy)
-	resp, err = createNewStrategy(dollarcostaverage.Name, false, h)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if resp == nil {
-		t.Errorf("received '%v' expected '%v'", resp, h)
-	}
+	h = new(dollarcostaverage.Strategy)
+	resp, err = createNewStrategy(dollarcostaverage.Name, true, h)
+	assert.NoError(t, err, "createNewStrategy should not error")
+	assert.NotNil(t, resp)
+
+	// simultaneous processing desired but not supported
+	h = &customStrategy{allowSimultaneousProcessing: false}
+	_, err = createNewStrategy("custom-strategy", true, h)
+	assert.ErrorIs(t, err, base.ErrSimultaneousProcessingNotSupported)
 }
 
 type customStrategy struct {
+	allowSimultaneousProcessing bool
 	base.Strategy
 }
 
@@ -121,7 +121,7 @@ func (s *customStrategy) Description() string {
 	return "this is a demonstration of loading strategies via custom plugins"
 }
 func (s *customStrategy) SupportsSimultaneousProcessing() bool {
-	return true
+	return s.allowSimultaneousProcessing
 }
 func (s *customStrategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	return s.createSignal(d)
