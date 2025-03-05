@@ -760,7 +760,6 @@ func isSymbolChannel(name string) bool {
 	return true
 }
 
-// isCategorisedChannel returns whether the channel is categorised
 func isCategorisedChannel(name string) bool {
 	switch name {
 	case chanPositions, chanExecution, chanOrder:
