@@ -834,7 +834,7 @@ func (bot *Engine) LoadExchange(name string) error {
 		return err
 	}
 
-	// Update prototocol capabilities with dynamic supported functionality check
+	// Update protocol capabilities with dynamic supported functionality check
 	exch.GetBase().ProtocolCapabilities = exchange.GenerateSupportedFunctionality(exch)
 	return nil
 }
