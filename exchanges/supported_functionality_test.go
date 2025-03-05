@@ -31,7 +31,7 @@ func TestGenerateSupportedFunctionality(t *testing.T) {
 
 	_, ok := set[protocol.Target{Asset: asset.Spot, Protocol: protocol.Websocket}]
 	require.False(t, ok, "no websocket support for this asset")
-	restSpotfunctionality, ok := set[protocol.Target{Asset: asset.Spot, Protocol: protocol.REST}]
+	restSpotFunctionality, ok := set[protocol.Target{Asset: asset.Spot, Protocol: protocol.REST}]
 	require.True(t, ok, "rest support for this asset")
-	require.True(t, restSpotfunctionality["SubmitOrder"], "submit order must be functional for this protocol and this asset")
+	require.True(t, restSpotFunctionality["SubmitOrder"], "submit order must be functional for this protocol and this asset")
 }
