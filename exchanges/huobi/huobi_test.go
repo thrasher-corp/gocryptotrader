@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1368,18 +1367,34 @@ func TestWsHandleAllTradesMsg(t *testing.T) {
 	h.SetSaveTradeDataStatus(true)
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", h.wsHandleData)
 	close(h.Websocket.DataHandler)
-	expJSON := []string{
-		`{"TID":"102523573486","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"BUY","Price":52648.62,"Amount":0.006754,"Timestamp":"2021-09-07T06:09:23.173Z"}`,
-		`{"TID":"102523573487","AssetType":"spot","CurrencyPair":"BTC-USDT","Side":"SELL","Price":52648.73,"Amount":0.006755,"Timestamp":"2021-09-07T06:09:23.184Z"}`,
+	exp := []trade.Data{
+		{
+			Exchange:     h.Name,
+			CurrencyPair: btcusdtPair,
+			Timestamp:    time.UnixMilli(1630994963173).UTC(),
+			Price:        52648.62,
+			Amount:       0.006754,
+			Side:         order.Buy,
+			TID:          "102523573486",
+			AssetType:    asset.Spot,
+		},
+		{
+			Exchange:     h.Name,
+			CurrencyPair: btcusdtPair,
+			Timestamp:    time.UnixMilli(1630994963184).UTC(),
+			Price:        52648.73,
+			Amount:       0.006755,
+			Side:         order.Sell,
+			TID:          "102523573487",
+			AssetType:    asset.Spot,
+		},
 	}
-	require.Len(t, h.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
+	require.Len(t, h.Websocket.DataHandler, 2, "Must see correct number of trades")
 	for resp := range h.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case trade.Data:
 			i := 1 - len(h.Websocket.DataHandler)
-			exp := trade.Data{Exchange: h.Name, CurrencyPair: btcusdtPair}
-			require.NoError(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d:%s", i, expJSON[i])
-			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
+			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error()
 		default:
