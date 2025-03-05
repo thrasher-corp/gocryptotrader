@@ -85,7 +85,8 @@ func TestGetHoldings(t *testing.T) {
 		Accounts: []SubAccount{
 			{
 				ID: "1337",
-			}},
+			},
+		},
 	}, happyCredentials)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -106,7 +107,8 @@ func TestGetHoldings(t *testing.T) {
 						Hold:     20,
 					},
 				},
-			}},
+			},
+		},
 	}, happyCredentials)
 	assert.NoError(t, err)
 
@@ -124,7 +126,8 @@ func TestGetHoldings(t *testing.T) {
 						Hold:     20,
 					},
 				},
-			}},
+			},
+		},
 	}, happyCredentials)
 	assert.NoError(t, err)
 
@@ -292,8 +295,13 @@ func TestBalanceInternalWait(t *testing.T) {
 func TestBalanceInternalLoad(t *testing.T) {
 	t.Parallel()
 	bi := &ProtectedBalance{}
-	bi.load(Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	err := bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	assert.NoError(t, err, "should have been loaded")
+
 	bi.m.Lock()
+	if !bi.updatedAt.IsZero() {
+		t.Fatal("unexpected value")
+	}
 	if bi.total != 1 {
 		t.Fatal("unexpected value")
 	}
@@ -314,6 +322,22 @@ func TestBalanceInternalLoad(t *testing.T) {
 	if bi.GetFree() != 3 {
 		t.Fatal("unexpected value")
 	}
+
+	err = bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	assert.NoError(t, err, "should have been loaded")
+
+	now := time.Now()
+	err = bi.load(&Balance{UpdatedAt: now, Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	assert.NoError(t, err, "should have been loaded")
+
+	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.Error(t, err, "should have not been loaded")
+
+	err = bi.load(&Balance{Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.Error(t, err, "should have not been loaded")
+
+	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.NoError(t, err, "should have been loaded")
 }
 
 func TestGetFree(t *testing.T) {
