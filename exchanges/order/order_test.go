@@ -2194,14 +2194,14 @@ func TestTrackingModeString(t *testing.T) {
 	}
 }
 
-func TestUnmarshalOrder(t *testing.T) {
+func TestMarshalOrder(t *testing.T) {
 	t.Parallel()
 	btx := currency.NewBTCUSDT()
 	btx.Delimiter = "-"
 	orderSubmit := Submit{
-		Exchange:  "test",
-		Pair:      btx,
-		AssetType: asset.Spot,
+		Exchange:   "test",
+		Pair:       btx,
+		AssetType:  asset.Spot,
 		MarginType: margin.Multi,
 		Side:       Buy,
 		Type:       Market,
