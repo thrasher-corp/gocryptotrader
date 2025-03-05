@@ -4555,7 +4555,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 	params := url.Values{}
 	params.Set("index", index)
 	var resp *IndexComponent
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexComponentsEPL, http.MethodGet, common.EncodeURLValues("market/index-components", params), nil, &resp, request.UnauthenticatedRequest, true)
+       err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexComponentsEPL, http.MethodGet, common.EncodeURLValues("market/index-components", params), nil, &resp, request.UnauthenticatedRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -5164,7 +5164,7 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
 	var resp []string
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues("public/underlying", params), nil, &resp, request.UnauthenticatedRequest, false)
+       return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues("public/underlying", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetInsuranceFundInformation returns insurance fund balance information
@@ -5264,7 +5264,7 @@ func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrume
 // GetSupportCoins retrieves the currencies supported by the trading data endpoints
 func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
 	var resp *SupportedCoinsData
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &resp, request.UnauthenticatedRequest, true)
+       return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetTakerVolume retrieves the taker volume for both buyers and sellers
@@ -5427,7 +5427,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, ccy currency.Code, period kline
 		params.Set("period", interval)
 	}
 	var resp *CurrencyTakerFlow
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/taker-block-volume", params), nil, &resp, request.UnauthenticatedRequest, true)
+       return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/taker-block-volume", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // ********************************************************** Affiliate **********************************************************************
@@ -5846,7 +5846,7 @@ useAsItIs default value when omitted is:
 
     There are only a few rare API exceptions where useAsIs default value is correct: resp.Data is an object or resp.Data is a slice containing a slice
 */
-func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType) (err error) {
 	rv := reflect.ValueOf(result)
 	if rv.Kind() != reflect.Pointer {
 		return errInvalidResponseParam
@@ -5855,25 +5855,10 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	if err != nil {
 		return err
 	}
-	var respResult any
-	switch {
-	case len(useAsItIs) > 0:
-		if useAsItIs[0] {
-			respResult = result
-		} else {
-			respResult = &[]any{result}
-		}
-	case rv.Elem().Kind() == reflect.Slice:
-		respResult = result
-	default:
-		respResult = &[]any{result}
-	}
-	resp := struct {
-		Code types.Number `json:"code"`
-		Msg  string       `json:"msg"`
-		Data any          `json:"data"`
-	}{
-		Data: respResult,
+       var resp struct {
+               Code types.Number    `json:"code"`
+               Msg  string          `json:"msg"`
+               Data json.RawMessage `json:"data"`
 	}
 	requestType := request.AuthType(request.UnauthenticatedRequest)
 	newRequest := func() (*request.Item, error) {
@@ -5939,5 +5924,21 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		}
 		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
 	}
+
+       err = json.Unmarshal(resp.Data, &[]any{result})
+       if err != nil {
+               fallbackErr := json.Unmarshal(resp.Data, result)
+               if fallbackErr != nil {
+                       return fmt.Errorf("initial err:%w fallback err: %w %v", err, fallbackErr, string(resp.Data))
+               }
+       }
+
+       deref := rv.Elem()
+       if deref.Kind() == reflect.Slice {
+               if deref.Len() == 0 {
+                       return fmt.Errorf("%w", common.ErrNoResponse)
+               }
+       }
+
 	return nil
 }
