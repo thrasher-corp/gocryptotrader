@@ -5920,7 +5920,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 
 	if ptrTo := rv.Elem(); ptrTo.Kind() == reflect.Slice && ptrTo.Len() == 0 {
-		return fmt.Errorf("%w", common.ErrNoResponse)
+		return common.ErrNoResponse
 	}
 
 	return nil
