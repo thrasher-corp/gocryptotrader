@@ -7,14 +7,15 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
 	errSetCannotBeEmpty        = errors.New("set cannot be empty")
 	errNoSeqNo                 = errors.New("no sequence number")
 	errParamNotAllowed         = errors.New("param not allowed")
-	errParsingWSField          = errors.New("error parsing WS field")
 	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")
 	errTickerInvalidResp       = errors.New("invalid ticker response format")
 	errTickerInvalidFieldCount = errors.New("invalid ticker response field count")
@@ -488,16 +489,18 @@ type WebsocketBook struct {
 	Period int64
 }
 
-// WebsocketTrade holds trade information
-type WebsocketTrade struct {
+// wsTrade holds trade information
+type wsTrade struct {
 	ID        int64
-	Timestamp int64
-	Price     float64
+	Timestamp types.Time
 	Amount    float64
-	// Funding rate of the trade
-	Rate float64
-	// Funding offer period in days
-	Period int64
+	Price     float64
+	Period    int64 // Funding offer period in days
+}
+
+// UnmarshalJSON unmarshals json bytes into a wsTrade
+func (t *wsTrade) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[5]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period})
 }
 
 // Candle holds OHLC data
@@ -612,63 +615,6 @@ type WebsocketHandshake struct {
 	Code    int64   `json:"code"`
 	Version float64 `json:"version"`
 }
-
-const (
-	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
-	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
-	pong                                   = "pong"
-	wsHeartbeat                            = "hb"
-	wsChecksum                             = "cs"
-	wsPositionSnapshot                     = "ps"
-	wsPositionNew                          = "pn"
-	wsPositionUpdate                       = "pu"
-	wsPositionClose                        = "pc"
-	wsWalletSnapshot                       = "ws"
-	wsWalletUpdate                         = "wu"
-	wsTradeExecutionUpdate                 = "tu"
-	wsTradeExecuted                        = "te"
-	wsFundingCreditSnapshot                = "fcs"
-	wsFundingCreditNew                     = "fcn"
-	wsFundingCreditUpdate                  = "fcu"
-	wsFundingCreditCancel                  = "fcc"
-	wsFundingLoanSnapshot                  = "fls"
-	wsFundingLoanNew                       = "fln"
-	wsFundingLoanUpdate                    = "flu"
-	wsFundingLoanCancel                    = "flc"
-	wsFundingTradeExecuted                 = "fte"
-	wsFundingTradeUpdate                   = "ftu"
-	wsFundingInfoUpdate                    = "fiu"
-	wsBalanceUpdate                        = "bu"
-	wsMarginInfoUpdate                     = "miu"
-	wsNotification                         = "n"
-	wsOrderSnapshot                        = "os"
-	wsOrderNew                             = "on"
-	wsOrderUpdate                          = "ou"
-	wsOrderCancel                          = "oc"
-	wsRequest                              = "-req"
-	wsOrderNewRequest                      = wsOrderNew + wsRequest
-	wsOrderUpdateRequest                   = wsOrderUpdate + wsRequest
-	wsOrderCancelRequest                   = wsOrderCancel + wsRequest
-	wsFundingOfferSnapshot                 = "fos"
-	wsFundingOfferNew                      = "fon"
-	wsFundingOfferUpdate                   = "fou"
-	wsFundingOfferCancel                   = "foc"
-	wsFundingOfferNewRequest               = wsFundingOfferNew + wsRequest
-	wsFundingOfferUpdateRequest            = wsFundingOfferUpdate + wsRequest
-	wsFundingOfferCancelRequest            = wsFundingOfferCancel + wsRequest
-	wsCancelMultipleOrders                 = "oc_multi"
-	wsBook                                 = "book"
-	wsCandles                              = "candles"
-	wsTicker                               = "ticker"
-	wsTrades                               = "trades"
-	wsError                                = "error"
-	wsEventSubscribed                      = "subscribed"
-	wsEventUnsubscribed                    = "unsubscribed"
-	wsEventAuth                            = "auth"
-	wsEventError                           = "error"
-	wsEventConf                            = "conf"
-	wsEventInfo                            = "info"
-)
 
 // WsAuthRequest container for WS auth request
 type WsAuthRequest struct {

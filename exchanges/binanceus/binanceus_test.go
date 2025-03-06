@@ -2,7 +2,6 @@ package binanceus
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -130,14 +130,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	err := bi.UpdateTradablePairs(context.Background(), false)
 	if err != nil {
 		t.Error("Binanceus UpdateTradablePairs() error", err)
-	}
-}
-
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, err := bi.FetchAccountInfo(context.Background(), asset.Spot); err != nil {
-		t.Error("Binanceus FetchAccountInfo() error", err)
 	}
 }
 
@@ -1612,9 +1604,7 @@ var balanceUpdateInputJSON = `
 		"E": 1573200697110,           
 		"a": "BTC",                   
 		"d": "100.00000000",          
-		"T": 1573200697068            
-  }
-}`
+		"T": 1573200697068}}`
 
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()

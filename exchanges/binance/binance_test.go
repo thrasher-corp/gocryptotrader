@@ -3,7 +3,6 @@ package binance
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -2205,8 +2205,7 @@ func TestWsBalanceUpdate(t *testing.T) {
   "E": 1573200697110,           
   "a": "BTC",                   
   "d": "100.00000000",          
-  "T": 1573200697068            
-}}`)
+  "T": 1573200697068}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)

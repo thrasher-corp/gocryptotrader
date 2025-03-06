@@ -1,11 +1,12 @@
 package mock
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestGetFilteredHeader(t *testing.T) {

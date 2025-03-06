@@ -1,9 +1,9 @@
 package okx
 
 import (
-	"encoding/json"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 

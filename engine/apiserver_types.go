@@ -140,8 +140,8 @@ type AllEnabledExchangeCurrencies struct {
 // EnabledExchangeCurrencies is a sub type for singular exchanges and respective
 // currencies
 type EnabledExchangeCurrencies struct {
-	ExchangeName   string         `json:"exchangeName"`
-	ExchangeValues []ticker.Price `json:"exchangeValues"`
+	ExchangeName   string          `json:"exchangeName"`
+	ExchangeValues []*ticker.Price `json:"exchangeValues"`
 }
 
 // AllEnabledExchangeAccounts holds all enabled accounts info

@@ -1,9 +1,9 @@
 package binanceus
 
 import (
-	"encoding/json"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 

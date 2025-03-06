@@ -2,7 +2,6 @@ package bitstamp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -33,7 +33,6 @@ const (
 )
 
 var (
-	errParsingWSField     = errors.New("error parsing WS field")
 	errParsingWSPair      = errors.New("unable to parse currency pair from wsResponse.Channel")
 	errChannelHyphens     = errors.New("channel name does not contain exactly 0 or 2 hyphens")
 	errChannelUnderscores = errors.New("channel name does not contain exactly 2 underscores")
@@ -102,7 +101,7 @@ func (b *Bitstamp) wsReadData() {
 func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
-		return fmt.Errorf("%w `event`: %w", errParsingWSField, err)
+		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)
 	}
 
 	event = strings.TrimPrefix(event, "bts:")
@@ -132,7 +131,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 func (b *Bitstamp) handleWSSubscription(event string, respRaw []byte) error {
 	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
 	if err != nil {
-		return fmt.Errorf("%w `channel`: %w", errParsingWSField, err)
+		return fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)
 	}
 	event = strings.TrimSuffix(event, "scription_succeeded")
 	return b.Websocket.Match.RequireMatchWithData(event+":"+channel, respRaw)
@@ -402,7 +401,7 @@ func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, err
 func (b *Bitstamp) parseChannelName(respRaw []byte) (string, currency.Pair, error) {
 	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
 	if err != nil {
-		return "", currency.EMPTYPAIR, fmt.Errorf("%w `channel`: %w", errParsingWSField, err)
+		return "", currency.EMPTYPAIR, fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)
 	}
 
 	authParts := strings.Split(channel, "-")

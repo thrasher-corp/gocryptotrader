@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -779,6 +779,7 @@ func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
+		"fmt":             formatChannelPair,
 	}).
 		Parse(subTplText)
 }
@@ -805,18 +806,19 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 	if err != nil || len(subs) == 0 {
 		return err
 	}
+
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
 		Method:         method,
-		Params: map[string][]string{
-			"channels": subs.QualifiedChannels(),
-		},
+		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
+
 	data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}
+
 	var response wsSubscriptionResponse
 	err = json.Unmarshal(data, &response)
 	if err != nil {
@@ -827,15 +829,25 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		subAck[c] = true
 	}
 	if len(subAck) != len(subs) {
-		err = common.ErrUnknownError
+		err = stream.ErrSubscriptionFailure
 	}
 	for _, s := range subs {
 		if _, ok := subAck[s.QualifiedChannel]; ok {
-			err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
+			delete(subAck, s.QualifiedChannel)
+			if !strings.Contains(method, "unsubscribe") {
+				err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
+			} else {
+				err = common.AppendError(err, d.Websocket.RemoveSubscriptions(d.Websocket.Conn, s))
+			}
 		} else {
-			err = common.AppendError(err, errors.New(s.String()))
+			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))
 		}
 	}
+
+	for key := range subAck {
+		err = common.AppendError(err, fmt.Errorf("unexpected channel `%s` in result", key))
+	}
+
 	return err
 }
 
@@ -899,11 +911,18 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
+func formatChannelPair(pair currency.Pair) string {
+	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
+		pair.Delimiter = "_"
+	}
+	return pair.String()
+}
+
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- $p }}
+			{{- channelName $.S -}} . {{- fmt $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

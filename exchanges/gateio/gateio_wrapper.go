@@ -438,19 +438,6 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	return ticker.GetTicker(g.Name, fPair, a)
 }
 
-// FetchTicker retrieves a list of tickers.
-func (g *Gateio) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := g.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	tickerNew, err := ticker.GetTicker(g.Name, fPair, assetType)
-	if err != nil {
-		return g.UpdateTicker(ctx, fPair, assetType)
-	}
-	return tickerNew, nil
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !g.SupportsAsset(a) {
@@ -704,15 +691,6 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
-// FetchOrderbook returns orderbook base on the currency pair
-func (g *Gateio) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(g.Name, p, assetType)
-	if err != nil {
-		return g.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
@@ -894,19 +872,6 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 		return info, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gateio) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := g.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(g.Name, creds, assetType)
-	if err != nil {
-		return g.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
