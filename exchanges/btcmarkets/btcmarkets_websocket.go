@@ -204,7 +204,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		return trade.AddTradesToBuffer(b.Name, trade.Data{
+		return trade.AddTradesToBuffer(trade.Data{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -254,7 +254,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		originalAmount := orderData.OpenVolume
 		var price float64
 		var trades []order.TradeHistory
-		var orderID = strconv.FormatInt(orderData.OrderID, 10)
+		orderID := strconv.FormatInt(orderData.OrderID, 10)
 		for x := range orderData.Trades {
 			var isMaker bool
 			if orderData.Trades[x].LiquidityType == "Maker" {

@@ -458,7 +458,8 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 						Total:    accountH[x].Balance.Float64(),
 						Hold:     accountH[x].Holds.Float64(),
 						Free:     accountH[x].Available.Float64(),
-					}},
+					},
+				},
 			})
 		}
 	default:
@@ -588,7 +589,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if ku.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(ku.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}

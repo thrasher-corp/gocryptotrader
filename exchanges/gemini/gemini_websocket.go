@@ -346,7 +346,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(result.EventID, 10),
 			}
 
-			return trade.AddTradesToBuffer(g.Name, tradeEvent)
+			return trade.AddTradesToBuffer(tradeEvent)
 		case "subscription_ack":
 			var result WsSubscriptionAcknowledgementResponse
 			err := json.Unmarshal(respRaw, &result)
@@ -563,7 +563,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		}
 	}
 
-	return trade.AddTradesToBuffer(g.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 func channelName(s *subscription.Subscription) string {
