@@ -114,6 +114,31 @@ func TestAssetPairs(t *testing.T) {
 	}
 }
 
+// TestAssetPairsPopulate exercises assetPairs Populate
+func TestAssetPairsPopulate(t *testing.T) {
+	e := newMockEx()
+	ap := assetPairs{}
+	err := ap.populate(e, asset.Spot)
+	require.NoError(t, err)
+	require.NotEmpty(t, ap)
+	assert.Equal(t, 3, len(ap[asset.Spot]), "populate should return correct number of pairs for spot")
+	assert.Equal(t, "BTC-USDT", ap[asset.Spot][0].String(), "populate should respect format and sort the pairs")
+	err = ap.populate(e, asset.Futures)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(ap[asset.Futures]), "populate should return correct number of pairs for futures")
+
+	exp := errors.New("expected error")
+	e.errFormat = exp
+	err = ap.populate(e, asset.Spot)
+	assert.ErrorIs(t, err, exp, "populate should error correctly on format error")
+
+	e.pairs = assetPairs{}
+	ap = assetPairs{}
+	err = ap.populate(e, asset.Spot)
+	require.NoError(t, err, "populate must not error with no pairs enabled")
+	assert.Empty(t, ap, "populate should return an empty map with no pairs enabled")
+}
+
 func TestListClone(t *testing.T) {
 	t.Parallel()
 	l := List{{Channel: TickerChannel}, {Channel: OrderbookChannel}}

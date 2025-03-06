@@ -1195,7 +1195,7 @@ func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
-	return trade.AddTradesToBuffer(b.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // IsSaveTradeDataEnabled checks the state of

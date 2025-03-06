@@ -14,7 +14,7 @@ import (
 )
 
 type mockEx struct {
-	pairs     currency.Pairs
+	pairs     assetPairs
 	assets    asset.Items
 	tpl       string
 	auth      bool
@@ -23,16 +23,13 @@ type mockEx struct {
 }
 
 func newMockEx() *mockEx {
-	pairs := currency.Pairs{btcusdtPair, ethusdcPair}
-	for _, b := range []currency.Code{currency.LTC, currency.XRP, currency.TRX} {
-		for _, q := range []currency.Code{currency.USDT, currency.USDC} {
-			pairs = append(pairs, currency.NewPair(b, q))
-		}
-	}
-
 	return &mockEx{
 		assets: asset.Items{asset.Spot, asset.Futures, asset.Index},
-		pairs:  pairs,
+		pairs: assetPairs{
+			asset.Spot:    currency.Pairs{ethusdcPair, btcusdtPair, currency.NewPair(currency.LTC, currency.USDT)},
+			asset.Futures: currency.Pairs{ethusdcPair, btcusdtPair},
+			asset.Index:   currency.Pairs{btcusdtPair},
+		},
 	}
 }
 
@@ -40,12 +37,12 @@ func (m *mockEx) IsAssetWebsocketSupported(a asset.Item) bool {
 	return a != asset.Index
 }
 
-func (m *mockEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
-	return m.pairs, m.errPairs
+func (m *mockEx) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	return m.pairs[a], m.errPairs
 }
 
 func (m *mockEx) GetPairFormat(_ asset.Item, _ bool) (currency.PairFormat, error) {
-	return currency.PairFormat{Uppercase: true}, m.errFormat
+	return currency.PairFormat{Uppercase: true, Delimiter: "-"}, m.errFormat
 }
 
 func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, error) {
@@ -65,7 +62,14 @@ func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, e
 				ap[asset.Spot] = ap[asset.Spot][0:1]
 				return ""
 			},
-			"batch": common.Batch[currency.Pairs],
+			"batch": func(pairs currency.Pairs, size int) []string {
+				s := []string{}
+				for _, p := range common.Batch(pairs, size) {
+					p = p.Format(currency.PairFormat{Uppercase: true})
+					s = append(s, p.Join())
+				}
+				return s
+			},
 		}).
 		ParseFiles("testdata/" + m.tpl)
 }

@@ -1504,7 +1504,7 @@ func (c *Config) readConfig(d io.Reader) error {
 		}
 	}
 
-	if j, err = versions.Manager.Deploy(context.Background(), j, versions.LatestVersion); err != nil {
+	if j, err = versions.Manager.Deploy(context.Background(), j, versions.UseLatestVersion); err != nil {
 		return err
 	}
 
