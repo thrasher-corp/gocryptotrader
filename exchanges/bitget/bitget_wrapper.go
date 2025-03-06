@@ -1273,7 +1273,7 @@ func (bi *Bitget) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	if err != nil {
 		return nil, err
 	}
-	resp, err := bi.WithdrawFunds(ctx, withdrawRequest.Currency, "on_chain", withdrawRequest.Crypto.Address, withdrawRequest.Crypto.Chain, "", "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, "", withdrawRequest.Amount)
+	resp, err := bi.WithdrawFunds(ctx, withdrawRequest.Currency, "on_chain", withdrawRequest.Crypto.Address, withdrawRequest.Crypto.Chain, "", "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Description, "", "", "", "", "", "", withdrawRequest.Amount)
 	if err != nil {
 		return nil, err
 	}

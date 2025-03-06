@@ -362,6 +362,7 @@ type SubaccountList struct {
 	PermList       []string   `json:"permList"`
 	CreationTime   types.Time `json:"cTime"`
 	UpdateTime     types.Time `json:"uTime"`
+	// Documentation mentions "accountType" and "bindingTime" fields, but they aren't present in the response
 }
 
 // GetVirSubResp contains information on the user's virtual sub-accounts
@@ -694,7 +695,7 @@ type PlaceSpotOrderStruct struct {
 	Strategy               string        `json:"force"`
 	Price                  float64       `json:"price,string"`
 	Size                   float64       `json:"size,string"`
-	ClientOrderID          string        `json:"clientOId,omitempty"`
+	ClientOrderID          string        `json:"clientOid,omitempty"`
 	STPMode                string        `json:"stpMode"`
 	PresetTakeProfitPrice  float64       `json:"presetTakeProfitPrice,string,omitempty"`
 	ExecuteTakeProfitPrice float64       `json:"executeTakeProfitPrice,string,omitempty"`
@@ -706,7 +707,7 @@ type PlaceSpotOrderStruct struct {
 type CancelSpotOrderStruct struct {
 	Pair          currency.Pair `json:"symbol"`
 	OrderID       int64         `json:"orderId,string,omitempty"`
-	ClientOrderID string        `json:"clientOId,omitempty"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
 }
 
 // EmptyInt is a type used to unmarshal empty string into 0, and numbers encoded as strings into int64
@@ -929,11 +930,6 @@ type AssetData struct {
 type SubaccountAssetsResp struct {
 	UserID     uint64      `json:"userId,string"`
 	AssetsList []AssetData `json:"assetsList"`
-}
-
-// SuccessBoolResp2 contains a success bool in a secondary format returned by the exchange
-type SuccessBoolResp2 struct {
-	Success SuccessBool `json:"data"`
 }
 
 // SpotAccBillResp contains information on the user's billing history

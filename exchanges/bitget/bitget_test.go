@@ -824,7 +824,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestGetAccountAssets(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetAccountAssets(context.Background(), testCrypto, "")
+	_, err := bi.GetAccountAssets(context.Background(), testCrypto, "all")
 	assert.NoError(t, err)
 }
 
@@ -905,16 +905,16 @@ func TestSubaccountTransfer(t *testing.T) {
 
 func TestWithdrawFunds(t *testing.T) {
 	t.Parallel()
-	_, err := bi.WithdrawFunds(context.Background(), currency.Code{}, "", "", "", "", "", "", "", "", 0)
+	_, err := bi.WithdrawFunds(context.Background(), currency.Code{}, "", "", "", "", "", "", "", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
-	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "", "", "", "", "", "", "", "", 0)
+	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "", "", "", "", "", "", "", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errTransferTypeEmpty)
-	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "woof", "", "", "", "", "", "", "", 0)
+	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "woof", "", "", "", "", "", "", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errAddressEmpty)
-	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "woof", "neigh", "", "", "", "", "", "", 0)
+	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "woof", "neigh", "", "", "", "", "", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), testAmount)
+	_, err = bi.WithdrawFunds(context.Background(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), "", "", "", "", "", testAmount)
 	assert.NoError(t, err)
 }
 
@@ -979,7 +979,7 @@ func TestCancelWithdrawal(t *testing.T) {
 	_, err := bi.CancelWithdrawal(context.Background(), 0)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.WithdrawFunds(context.Background(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), testAmount)
+	resp, err := bi.WithdrawFunds(context.Background(), testCrypto, "on_chain", testAddress, testCrypto.String(), "", "", "", "", clientIDGenerator(), "", "", "", "", "", testAmount)
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.OrderID)
 	_, err = bi.CancelWithdrawal(context.Background(), int64(resp.OrderID))

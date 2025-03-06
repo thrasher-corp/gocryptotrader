@@ -1587,6 +1587,7 @@ func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair currency.Pai
 		return nil, err
 	}
 	params.Values.Set("symbol", pair.String())
+	// Despite this not being included in the documentation, it's verified as working
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -1626,7 +1627,9 @@ func (bi *Bitget) GetAccountAssets(ctx context.Context, currency currency.Code, 
 	if !currency.IsEmpty() {
 		vals.Set("coin", currency.String())
 	}
-	vals.Set("type", assetType)
+	if assetType != "" {
+		vals.Set("assetType", assetType)
+	}
 	path := bitgetSpot + bitgetAccount + bitgetAssets
 	var resp struct {
 		AssetData []AssetData `json:"data"`
@@ -1777,7 +1780,7 @@ func (bi *Bitget) SubaccountTransfer(ctx context.Context, fromType, toType, clie
 }
 
 // WithdrawFunds withdraws funds from the user's account
-func (bi *Bitget) WithdrawFunds(ctx context.Context, currency currency.Code, transferType, address, chain, innerAddressType, areaCode, tag, note, clientOrderID string, amount float64) (*OrderIDStruct, error) {
+func (bi *Bitget) WithdrawFunds(ctx context.Context, currency currency.Code, transferType, address, chain, innerAddressType, areaCode, tag, note, clientOrderID, memberCode, identityType, companyName, firstName, lastName string, amount float64) (*OrderIDStruct, error) {
 	if currency.IsEmpty() {
 		return nil, errCurrencyEmpty
 	}
@@ -1800,6 +1803,11 @@ func (bi *Bitget) WithdrawFunds(ctx context.Context, currency currency.Code, tra
 		"tag":          tag,
 		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
 		"remark":       note,
+		"memberCode":   memberCode,
+		"identityType": identityType,
+		"companyName":  companyName,
+		"firstName":    firstName,
+		"lastName":     lastName,
 	}
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
@@ -5264,7 +5272,11 @@ func (s *SuccessBool) UnmarshalJSON(b []byte) error {
 	if typ == jsonparser.String {
 		err = json.Unmarshal(b, &success)
 	} else {
+		// Hack fix, replace if a better one is found
 		success, err = jsonparser.GetString(b, "data")
+		if err == jsonparser.KeyPathNotFoundError {
+			success, err = jsonparser.GetString(b, "result")
+		}
 	}
 	if err != nil {
 		return err
