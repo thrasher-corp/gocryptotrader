@@ -404,7 +404,7 @@ func TestGetInstrument(t *testing.T) {
 		InstrumentType: instTypeOption, Underlying: ""})
 	assert.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	_, err = ok.GetInstruments(request.WithVerbose(contextGenerate()), &InstrumentsFetchParams{
+	_, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
 		Underlying:     "SOL-USD",
 	})
