@@ -360,7 +360,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 		if !arg.EndTime.IsZero() {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return arg.EndTime.Before(additionalTrades[i].TimeStamp)
+				return arg.EndTime.Before(additionalTrades[i].TimeStamp.Time())
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID
@@ -807,7 +807,8 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
+		HTTPRecording: b.HTTPRecording,
+	}
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -836,7 +837,8 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
+		HTTPRecording: b.HTTPRecording,
+	}
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -887,7 +889,8 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Result:        &interim,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
