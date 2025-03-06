@@ -2442,32 +2442,19 @@ func TestGetLiquidationRecords(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// Try to put these into those get one arg functions
 func TestGetLoanInfo(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetLoanInfo(context.Background(), "")
-	assert.ErrorIs(t, err, errProductIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetLoanInfo(context.Background(), "1")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetLoanInfo, "", "1", errProductIDEmpty, false, true, true)
 }
 
 func TestGetMarginCoinRatio(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetMarginCoinRatio(context.Background(), "")
-	assert.ErrorIs(t, err, errProductIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetMarginCoinRatio(context.Background(), "1")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetMarginCoinRatio, "", "1", errProductIDEmpty, false, true, true)
 }
 
 func TestGetSpotSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetSpotSymbols(context.Background(), "")
-	assert.ErrorIs(t, err, errProductIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetSpotSymbols(context.Background(), "1")
-	assert.NoError(t, err)
+	testGetOneArg(t, bi.GetSpotSymbols, "", "1", errProductIDEmpty, false, true, true)
 }
 
 func TestGetLoanToValue(t *testing.T) {
@@ -3794,7 +3781,7 @@ func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) 
 }
 
 type getOneArgResp interface {
-	[]WhaleNetFlowResp | *FundFlowResp | []WhaleFundFlowResp | *CrVirSubResp | []GetAPIKeyResp | []FundingAssetsResp | []BotAccAssetsResp | []ConvertBGBResp | []CoinInfoResp | []SymbolInfoResp | []TickerResp | string | *SubOrderResp | *BatchOrderResp | bool | *InterestRateResp | []FutureTickerResp | []FutureAccDetails | []SubaccountFuturesResp | []CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | []IntRateMaxBorrowCross | []TierConfigCross | *FlashRepayCross | []IsoAssetResp | []IntRateMaxBorrowIso | []TierConfigIso | *MaxBorrowIso | *MaxTransferIso | []FlashRepayIso | []EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates | []futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse
+	[]WhaleNetFlowResp | *FundFlowResp | []WhaleFundFlowResp | *CrVirSubResp | []GetAPIKeyResp | []FundingAssetsResp | []BotAccAssetsResp | []ConvertBGBResp | []CoinInfoResp | []SymbolInfoResp | []TickerResp | string | *SubOrderResp | *BatchOrderResp | bool | *InterestRateResp | []FutureTickerResp | []FutureAccDetails | []SubaccountFuturesResp | []CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | []IntRateMaxBorrowCross | []TierConfigCross | *FlashRepayCross | []IsoAssetResp | []IntRateMaxBorrowIso | []TierConfigIso | *MaxBorrowIso | *MaxTransferIso | []FlashRepayIso | []EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates | []futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse | *LoanInfo | *MarginCoinRatio | *SpotSymbols
 }
 
 type getOneArgParam interface {
