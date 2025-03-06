@@ -1847,7 +1847,7 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 					Asset:          a,
 					Pair:           currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin),
 					MinNotional:    resp[i].MinimumTradeUSDT,
-					MaxTotalOrders: resp[i].MaximumSymbolOpenOrderNumber,
+					MaxTotalOrders: resp[i].MaximumSymbolOrderNumber,
 				}
 			}
 		}
