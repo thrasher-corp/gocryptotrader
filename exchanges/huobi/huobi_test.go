@@ -1357,8 +1357,8 @@ func TestWSOrderbook(t *testing.T) {
 	assert.Equal(t, 0.56281, liq, "Bid Liquidity should be correct")
 }
 
-// TestWsHandleAllTradesMsg checks we can send a trade detail through
-func TestWsHandleAllTradesMsg(t *testing.T) {
+// TestWSHandleAllTradesMsg ensures wsHandleAllTrades sends trade.Data to the ws.DataHandler
+func TestWSHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
