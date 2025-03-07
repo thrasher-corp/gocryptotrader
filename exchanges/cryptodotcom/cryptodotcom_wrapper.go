@@ -633,8 +633,14 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		// For MARKET (BUY), STOP_LOSS (BUY), TAKE_PROFIT (BUY) orders only: Amount to spend
 		notional = s.Amount
 	}
+	priceTypeString, err := priceTypeToString(s.TriggerPriceType)
+	if err != nil {
+		return nil, err
+	}
 	var ordersResp *CreateOrderResponse
-	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice}
+	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice,
+		TriggerPriceType: priceTypeString,
+	}
 	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		ordersResp, err = cr.WsPlaceOrder(arg)
 	} else {
@@ -762,6 +768,18 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 	if err != nil {
 		return nil, err
 	}
+	var tif order.TimeInForce
+	switch orderDetail.OrderInfo.TimeInForce {
+	case "GOOD_TILL_CANCEL":
+		tif = order.GoodTillCancel
+	case "IMMEDIATE_OR_CANCEL":
+		tif = order.ImmediateOrCancel
+	case "FILL_OR_KILL":
+		tif = order.FillOrKill
+	default:
+		// TODO: include post only variable in response detail
+		tif |= order.PostOnly
+	}
 	return &order.Detail{
 		Amount:         orderDetail.OrderInfo.Quantity,
 		Exchange:       cr.Name,
@@ -777,6 +795,7 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 		ExecutedAmount: orderDetail.OrderInfo.CumulativeQuantity - orderDetail.OrderInfo.Quantity,
 		Date:           orderDetail.OrderInfo.CreateTime.Time(),
 		LastUpdated:    orderDetail.OrderInfo.UpdateTime.Time(),
+		TimeInForce:    tif,
 	}, err
 }
 
@@ -882,6 +901,17 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 		if err != nil {
 			return nil, err
 		}
+		var tif order.TimeInForce
+		switch orders.OrderList[x].TimeInForce {
+		case "GOOD_TILL_CANCEL":
+			tif = order.GoodTillCancel
+		case "IMMEDIATE_OR_CANCEL":
+			tif = order.ImmediateOrCancel
+		case "FILL_OR_KILL":
+			tif = order.FillOrKill
+		default:
+			tif |= order.PostOnly
+		}
 		resp = append(resp, order.Detail{
 			Price:                orders.OrderList[x].Price,
 			AverageExecutedPrice: orders.OrderList[x].AvgPrice,
@@ -898,6 +928,7 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 			Date:                 orders.OrderList[x].CreateTime.Time(),
 			LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
 			Pair:                 cp,
+			TimeInForce:          tif,
 		})
 	}
 	return getOrdersRequest.Filter(cr.Name, resp), nil
@@ -1109,7 +1140,7 @@ func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.
 	return cr.LoadLimits(limits)
 }
 
-func priceTypeString(pt order.PriceType) (string, error) {
+func priceTypeToString(pt order.PriceType) (string, error) {
 	switch pt {
 	case order.IndexPrice:
 		return "INDEX_PRICE", nil
@@ -1121,5 +1152,21 @@ func priceTypeString(pt order.PriceType) (string, error) {
 		return "", nil
 	default:
 		return "", fmt.Errorf("%w, price type: %v", order.ErrUnknownPriceType, pt.String())
+	}
+}
+
+func timeInForceString(tif order.TimeInForce) (string, error) {
+	if tif.Is(order.PostOnly) {
+		return "GOOD_TILL_CANCEL", nil
+	}
+	switch tif {
+	case order.GoodTillCancel:
+		return "GOOD_TILL_CANCEL", nil
+	case order.ImmediateOrCancel:
+		return "IMMEDIATE_OR_CANCEL", nil
+	case order.FillOrKill:
+		return "FILL_OR_KILL", nil
+	default:
+		return "", fmt.Errorf("%w: time-in-force value %v", order.ErrInvalidTimeInForce, tif.String())
 	}
 }

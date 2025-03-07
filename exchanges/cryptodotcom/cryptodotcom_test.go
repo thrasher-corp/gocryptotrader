@@ -1151,16 +1151,57 @@ func TestStakingConversionRate(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestOrderTypeToString(t *testing.T) {
+func TestTimeInForceString(t *testing.T) {
 	t.Parallel()
-	mapOrderTypeString := map[order.Type]string{
-		order.StopLimit:  "STOP_LIMIT",
-		order.TakeProfit: "TAKE_PROFIT",
-		order.Limit:      "LIMIT",
-		order.Market:     "MARKET",
+	var timeInForceStringMap = map[order.TimeInForce]struct {
+		String string
+		Error  error
+	}{
+		order.GoodTillDay | order.PostOnly: {"GOOD_TILL_CANCEL", nil},
+		order.GoodTillCancel:               {"GOOD_TILL_CANCEL", nil},
+		order.ImmediateOrCancel:            {"IMMEDIATE_OR_CANCEL", nil},
+		order.FillOrKill:                   {"FILL_OR_KILL", nil},
+		order.GoodTillDay:                  {"", order.ErrInvalidTimeInForce},
 	}
-	for k := range mapOrderTypeString {
-		result := OrderTypeToString(k)
-		require.Equal(t, mapOrderTypeString[k], result)
+	for k, v := range timeInForceStringMap {
+		result, err := timeInForceString(k)
+		assert.ErrorIs(t, err, v.Error)
+		assert.Equal(t, result, v.String)
+	}
+}
+
+func TestOrderTypeString(t *testing.T) {
+	t.Parallel()
+	var orderTypeStringMap = map[order.Type]string{
+		order.Market:          "MARKET",
+		order.Limit:           "LIMIT",
+		order.StopLoss:        "STOP_LOSS",
+		order.StopLimit:       "STOP_LIMIT",
+		order.TakeProfit:      "TAKE_PROFIT",
+		order.TakeProfitLimit: "TAKE_PROFIT_LIMI",
+		order.OCO:             "",
+	}
+	for k, v := range orderTypeStringMap {
+		oTypeString := OrderTypeToString(k)
+		assert.Equal(t, oTypeString, v)
+	}
+}
+
+func TestPriceTypeToString(t *testing.T) {
+	t.Parallel()
+	var priceTypeToStringMap = map[order.PriceType]struct {
+		String string
+		Error  error
+	}{
+		order.IndexPrice:     {"INDEX_PRICE", nil},
+		order.MarkPrice:      {"MARK_PRICE", nil},
+		order.LastPrice:      {"LAST_PRICE", nil},
+		order.UnsetPriceType: {"", nil},
+		order.PriceType(200): {"", order.ErrUnknownPriceType},
+	}
+	for k, v := range priceTypeToStringMap {
+		priceTypeString, err := priceTypeToString(k)
+		assert.ErrorIs(t, err, v.Error)
+		assert.Equal(t, priceTypeString, v.String)
 	}
 }

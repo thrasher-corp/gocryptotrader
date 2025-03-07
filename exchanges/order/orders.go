@@ -39,7 +39,7 @@ var (
 	ErrAmountMustBeSet             = errors.New("amount must be set")
 	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
 	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
-	ErrInvalidTimeInForce          = errors.New("invalid time in force value provided")
+	ErrInvalidTimeInForce          = errors.New("invalid time in force value")
 )
 
 var (
