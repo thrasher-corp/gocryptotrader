@@ -79,7 +79,6 @@ func init() {
 
 var (
 	authToken          string
-	errParsingWSField  = errors.New("error parsing WS field")
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -531,7 +530,9 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 	if !ok {
 		return errors.New("received invalid trade data")
 	}
-	if !k.IsSaveTradeDataEnabled() {
+	saveTradeData := k.IsSaveTradeDataEnabled()
+	tradeFeed := k.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
 		return nil
 	}
 	trades := make([]trade.Data, len(data))
@@ -540,24 +541,37 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 		if !ok {
 			return errors.New("unidentified trade data received")
 		}
-		timeData, err := strconv.ParseFloat(t[2].(string), 64)
+		if len(t) < 4 {
+			return fmt.Errorf("%w; unexpected trade data length: %d", common.ErrParsingWSField, len(t))
+		}
+		ts, ok := t[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[2], "trade.time")
+		}
+		timeData, err := strconv.ParseFloat(ts, 64)
 		if err != nil {
 			return err
 		}
-
-		price, err := strconv.ParseFloat(t[0].(string), 64)
+		p, ok := t[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[0], "trade.price")
+		}
+		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(t[1].(string), 64)
+		v, ok := t[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[1], "trade.volume")
+		}
+		amount, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
-		var tSide = order.Buy
+		tSide := order.Buy
 		s, ok := t[3].(string)
 		if !ok {
-			return common.GetTypeAssertError("string", t[3], "side")
+			return common.GetTypeAssertError("string", t[3], "trade.side")
 		}
 		if s == "s" {
 			tSide = order.Sell
@@ -573,7 +587,15 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 			Side:         tSide,
 		}
 	}
-	return trade.AddTradesToBuffer(k.Name, trades...)
+	if tradeFeed {
+		for i := range trades {
+			k.Websocket.DataHandler <- trades[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(trades...)
+	}
+	return nil
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates
@@ -1072,7 +1094,6 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 
 	// Ignore an overall timeout, because we'll track individual subscriptions in handleSubResps
 	err = common.ExcludeError(err, stream.ErrSignatureTimeout)
-
 	if err != nil {
 		return fmt.Errorf("%w; Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
@@ -1331,7 +1352,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 
 	status, err := jsonparser.GetUnsafeString(resp, "status")
 	if err != nil {
-		return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, resp)
+		return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, resp)
 	} else if status == "ok" {
 		return nil
 	}

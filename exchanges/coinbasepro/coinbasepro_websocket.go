@@ -241,7 +241,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			if !c.IsSaveTradeDataEnabled() {
 				return nil
 			}
-			return trade.AddTradesToBuffer(c.Name, trade.Data{
+			return trade.AddTradesToBuffer(trade.Data{
 				Timestamp:    wsOrder.Time,
 				Exchange:     c.Name,
 				CurrencyPair: p,

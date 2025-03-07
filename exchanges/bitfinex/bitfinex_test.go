@@ -1998,7 +1998,7 @@ func TestGetErrResp(t *testing.T) {
 		seen++
 		switch seen {
 		case 1: // no event
-			assert.ErrorIs(t, testErr, errParsingWSField, "Message with no event Should get correct error type")
+			assert.ErrorIs(t, testErr, common.ErrParsingWSField, "Message with no event should get correct error type")
 			assert.ErrorContains(t, testErr, "'event'", "Message with no event error should contain missing field name")
 			assert.ErrorContains(t, testErr, "nightjar", "Message with no event error should contain the message")
 		case 2: // with {} for event

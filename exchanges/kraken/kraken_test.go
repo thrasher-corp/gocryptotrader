@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -1219,6 +1220,41 @@ func TestWsHandleData(t *testing.T) {
 		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
 	}
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", k.wsHandleData)
+}
+
+func TestWSProcessTrades(t *testing.T) {
+	t.Parallel()
+
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
+	err := k.Websocket.AddSubscriptions(k.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
+	require.NoError(t, err, "AddSubscriptions must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", k.wsHandleData)
+	close(k.Websocket.DataHandler)
+
+	invalid := []any{"trades", []any{[]interface{}{"95873.80000", "0.00051182", "1708731380.3791859"}}}
+	pair := currency.NewPair(currency.XBT, currency.USD)
+	err = k.wsProcessTrades(invalid, pair)
+	require.ErrorContains(t, err, "unexpected trade data length")
+
+	expJSON := []string{
+		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379185914Z"}`,
+		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682041Z"}`,
+	}
+	require.Len(t, k.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
+	for resp := range k.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case trade.Data:
+			i := 1 - len(k.Websocket.DataHandler)
+			exp := trade.Data{Exchange: k.Name, CurrencyPair: spotTestPair}
+			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
+			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+		}
+	}
 }
 
 func TestWsOpenOrders(t *testing.T) {

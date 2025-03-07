@@ -675,7 +675,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	}
 
 	if by.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(by.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}

@@ -1193,7 +1193,7 @@ func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
-	return trade.AddTradesToBuffer(b.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // IsSaveTradeDataEnabled checks the state of
@@ -1322,7 +1322,7 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
-	var urlMap = make(map[string]string)
+	urlMap := make(map[string]string)
 	for k, v := range e.defaults {
 		urlMap[k] = v
 	}

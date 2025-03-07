@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
@@ -2191,4 +2192,24 @@ func TestTrackingModeString(t *testing.T) {
 	for k, v := range inputs {
 		require.Equal(t, v, k.String())
 	}
+}
+
+func TestMarshalOrder(t *testing.T) {
+	t.Parallel()
+	btx := currency.NewBTCUSDT()
+	btx.Delimiter = "-"
+	orderSubmit := Submit{
+		Exchange:   "test",
+		Pair:       btx,
+		AssetType:  asset.Spot,
+		MarginType: margin.Multi,
+		Side:       Buy,
+		Type:       Market,
+		Amount:     1,
+		Price:      1000,
+	}
+	j, err := json.Marshal(orderSubmit)
+	require.NoError(t, err, "json.Marshal must not error")
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","ImmediateOrCancel":false,"FillOrKill":false,"PostOnly":false,"ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
+	assert.Equal(t, exp, j)
 }
