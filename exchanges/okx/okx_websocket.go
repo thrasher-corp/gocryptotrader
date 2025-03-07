@@ -1252,14 +1252,16 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
 				Side:         response.Data[i].Side,
-				Timestamp:    response.Data[i].Timestamp.Time(),
+				Timestamp:    response.Data[i].Timestamp.Time().UTC(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price.Float64(),
 			})
 		}
 	}
 	if tradeFeed {
-		ok.Websocket.DataHandler <- trades
+		for i := range trades {
+			ok.Websocket.DataHandler <- trades[i]
+		}
 	}
 	if saveTradeData {
 		return trade.AddTradesToBuffer(trades...)
