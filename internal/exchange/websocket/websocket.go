@@ -285,12 +285,12 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 
 // getConnectionFromSetup returns a websocket connection from a setup
 // configuration. This is used for setting up new connections on the fly.
-func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnection {
+func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 	connectionURL := m.GetWebsocketURL()
 	if c.URL != "" {
 		connectionURL = c.URL
 	}
-	return &WebsocketConnection{
+	return &connection{
 		ExchangeName:             m.exchangeName,
 		URL:                      connectionURL,
 		ProxyURL:                 m.GetProxyAddress(),

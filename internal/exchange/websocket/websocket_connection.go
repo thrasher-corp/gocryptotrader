@@ -31,12 +31,12 @@ var (
 )
 
 // Dial sets proxy urls and then connects to the websocket
-func (w *WebsocketConnection) Dial(dialer *gws.Dialer, headers http.Header) error {
+func (w *connection) Dial(dialer *gws.Dialer, headers http.Header) error {
 	return w.DialContext(context.Background(), dialer, headers)
 }
 
 // DialContext sets proxy urls and then connects to the websocket
-func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
+func (w *connection) DialContext(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
@@ -69,7 +69,7 @@ func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *gws.Diale
 }
 
 // SendJSONMessage sends a JSON encoded message over the connection
-func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
+func (w *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
 	return w.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, w.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
@@ -81,7 +81,7 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, epl request.E
 }
 
 // SendRawMessage sends a message over the connection without JSON encoding it
-func (w *WebsocketConnection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
+func (w *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
 	return w.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, w.Verbose) {
 			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(message))
@@ -90,7 +90,7 @@ func (w *WebsocketConnection) SendRawMessage(ctx context.Context, epl request.En
 	})
 }
 
-func (w *WebsocketConnection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
+func (w *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message %w", w.ExchangeName, errWebsocketIsDisconnected)
 	}
@@ -124,7 +124,7 @@ func (w *WebsocketConnection) writeToConn(ctx context.Context, epl request.Endpo
 
 // SetupPingHandler will automatically send ping or pong messages based on
 // WebsocketPingHandler configuration
-func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
+func (w *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
 	if handler.UseGorillaHandler {
 		w.Connection.SetPingHandler(func(msg string) error {
 			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
@@ -159,7 +159,7 @@ func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handle
 
 // setConnectedStatus sets connection status if changed it will return true.
 // TODO: Swap out these atomic switches and opt for sync.RWMutex.
-func (w *WebsocketConnection) setConnectedStatus(b bool) bool {
+func (w *connection) setConnectedStatus(b bool) bool {
 	if b {
 		return atomic.SwapInt32(&w.connected, 1) == 0
 	}
@@ -167,12 +167,12 @@ func (w *WebsocketConnection) setConnectedStatus(b bool) bool {
 }
 
 // IsConnected exposes websocket connection status
-func (w *WebsocketConnection) IsConnected() bool {
+func (w *connection) IsConnected() bool {
 	return atomic.LoadInt32(&w.connected) == 1
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary
-func (w *WebsocketConnection) ReadMessage() Response {
+func (w *connection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		// If any error occurs, a Response{Raw: nil, Type: 0} is returned, causing the
@@ -221,7 +221,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 }
 
 // parseBinaryResponse parses a websocket binary response into a usable byte array
-func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
+func (w *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	var reader io.ReadCloser
 	var err error
 	if len(resp) >= 2 && resp[0] == 31 && resp[1] == 139 { // Detect GZIP
@@ -242,7 +242,7 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 // GenerateMessageID generates a message ID for the individual connection.
 // If a bespoke function is set (by using SetupNewConnection) it will use that,
 // otherwise it will use the defaultGenerateMessageID function.
-func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
+func (w *connection) GenerateMessageID(highPrec bool) int64 {
 	if w.bespokeGenerateMessageID != nil {
 		return w.bespokeGenerateMessageID(highPrec)
 	}
@@ -250,7 +250,7 @@ func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 }
 
 // defaultGenerateMessageID generates the default message ID
-func (w *WebsocketConnection) defaultGenerateMessageID(highPrec bool) int64 {
+func (w *connection) defaultGenerateMessageID(highPrec bool) int64 {
 	var minValue int64 = 1e8
 	var maxValue int64 = 2e8
 	if highPrec {
@@ -267,7 +267,7 @@ func (w *WebsocketConnection) defaultGenerateMessageID(highPrec bool) int64 {
 }
 
 // Shutdown shuts down and closes specific connection
-func (w *WebsocketConnection) Shutdown() error {
+func (w *connection) Shutdown() error {
 	if w == nil || w.Connection == nil {
 		return nil
 	}
@@ -278,22 +278,22 @@ func (w *WebsocketConnection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (w *WebsocketConnection) SetURL(url string) {
+func (w *connection) SetURL(url string) {
 	w.URL = url
 }
 
 // SetProxy sets connection proxy
-func (w *WebsocketConnection) SetProxy(proxy string) {
+func (w *connection) SetProxy(proxy string) {
 	w.ProxyURL = proxy
 }
 
 // GetURL returns the connection URL
-func (w *WebsocketConnection) GetURL() string {
+func (w *connection) GetURL() string {
 	return w.URL
 }
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error) {
+func (w *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error) {
 	resps, err := w.SendMessageReturnResponses(ctx, epl, signature, request, 1)
 	if err != nil {
 		return nil, err
@@ -303,13 +303,13 @@ func (w *WebsocketConnection) SendMessageReturnResponse(ctx context.Context, epl
 
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
+func (w *connection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
 	return w.SendMessageReturnResponsesWithInspector(ctx, epl, signature, payload, expected, nil)
 }
 
 // SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
-func (w *WebsocketConnection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
+func (w *connection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -339,7 +339,7 @@ func (w *WebsocketConnection) SendMessageReturnResponsesWithInspector(ctx contex
 }
 
 // waitForResponses waits for N responses from a channel
-func (w *WebsocketConnection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector Inspector) ([][]byte, error) {
+func (w *connection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector Inspector) ([][]byte, error) {
 	timeout := time.NewTimer(w.ResponseMaxLimit * time.Duration(expected))
 	defer timeout.Stop()
 
