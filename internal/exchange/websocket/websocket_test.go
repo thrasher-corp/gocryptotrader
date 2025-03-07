@@ -37,7 +37,7 @@ var errDastardlyReason = errors.New("some dastardly reason")
 
 type testStruct struct {
 	Error error
-	WC    WebsocketConnection
+	WC    connection
 }
 
 type testRequest struct {
@@ -412,7 +412,7 @@ func TestManager(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &WebsocketConnection{}}}
+	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &connection{}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -657,7 +657,7 @@ func TestDial(t *testing.T) {
 
 	testCases := []testStruct{
 		{
-			WC: WebsocketConnection{
+			WC: connection{
 				ExchangeName:     "test1",
 				Verbose:          true,
 				URL:              "ws" + mock.URL[len("http"):] + "/ws",
@@ -667,7 +667,7 @@ func TestDial(t *testing.T) {
 		},
 		{
 			Error: errors.New(" Error: malformed ws or wss URL"),
-			WC: WebsocketConnection{
+			WC: connection{
 				ExchangeName:     "test2",
 				Verbose:          true,
 				URL:              "",
@@ -675,7 +675,7 @@ func TestDial(t *testing.T) {
 			},
 		},
 		{
-			WC: WebsocketConnection{
+			WC: connection{
 				ExchangeName:     "test3",
 				Verbose:          true,
 				URL:              "ws" + mock.URL[len("http"):] + "/ws",
@@ -709,7 +709,7 @@ func TestSendMessage(t *testing.T) {
 
 	testCases := []testStruct{
 		{
-			WC: WebsocketConnection{
+			WC: connection{
 				ExchangeName:     "test1",
 				Verbose:          true,
 				URL:              "ws" + mock.URL[len("http"):] + "/ws",
@@ -719,7 +719,7 @@ func TestSendMessage(t *testing.T) {
 		},
 		{
 			Error: errors.New(" Error: malformed ws or wss URL"),
-			WC: WebsocketConnection{
+			WC: connection{
 				ExchangeName:     "test2",
 				Verbose:          true,
 				URL:              "",
@@ -727,7 +727,7 @@ func TestSendMessage(t *testing.T) {
 			},
 		},
 		{
-			WC: WebsocketConnection{
+			WC: connection{
 				ExchangeName:     "test3",
 				Verbose:          true,
 				URL:              "ws" + mock.URL[len("http"):] + "/ws",
@@ -762,7 +762,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
-	wc := &WebsocketConnection{
+	wc := &connection{
 		Verbose:          true,
 		URL:              "ws" + mock.URL[len("http"):] + "/ws",
 		ResponseMaxLimit: time.Second * 5,
@@ -809,7 +809,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 
 func TestWaitForResponses(t *testing.T) {
 	t.Parallel()
-	dummy := &WebsocketConnection{
+	dummy := &connection{
 		ResponseMaxLimit: time.Nanosecond,
 		Match:            NewMatch(),
 	}
@@ -852,7 +852,7 @@ func (r *reporter) Latency(name string, message []byte, t time.Duration) {
 }
 
 // readMessages helper func
-func readMessages(t *testing.T, wc *WebsocketConnection) {
+func readMessages(t *testing.T, wc *connection) {
 	t.Helper()
 	timer := time.NewTimer(20 * time.Second)
 	for {
@@ -886,7 +886,7 @@ func TestSetupPingHandler(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
-	wc := &WebsocketConnection{
+	wc := &connection{
 		URL:              "ws" + mock.URL[len("http"):] + "/ws",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
@@ -934,7 +934,7 @@ func TestParseBinaryResponse(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
-	wc := &WebsocketConnection{
+	wc := &connection{
 		URL:              "ws" + mock.URL[len("http"):] + "/ws",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
@@ -981,7 +981,7 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 
 func TestGenerateMessageID(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{}
+	wc := connection{}
 	const spins = 1000
 	ids := make([]int64, spins)
 	for i := range spins {
@@ -996,7 +996,7 @@ func TestGenerateMessageID(t *testing.T) {
 
 // 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_High(b *testing.B) {
-	wc := WebsocketConnection{}
+	wc := connection{}
 	for b.Loop() {
 		_ = wc.GenerateMessageID(true)
 	}
@@ -1004,7 +1004,7 @@ func BenchmarkGenerateMessageID_High(b *testing.B) {
 
 // 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_Low(b *testing.B) {
-	wc := WebsocketConnection{}
+	wc := connection{}
 	for b.Loop() {
 		_ = wc.GenerateMessageID(false)
 	}
@@ -1305,9 +1305,9 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errConnectionWrapperDuplication)
 }
 
-func TestWebsocketConnectionShutdown(t *testing.T) {
+func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{shutdown: make(chan struct{})}
+	wc := connection{shutdown: make(chan struct{})}
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 
@@ -1335,7 +1335,7 @@ func TestLatency(t *testing.T) {
 
 	r := &reporter{}
 	exch := "Kraken"
-	wc := &WebsocketConnection{
+	wc := &connection{
 		ExchangeName:     exch,
 		Verbose:          true,
 		URL:              "ws" + mock.URL[len("http"):] + "/ws",
@@ -1406,7 +1406,7 @@ func TestRemoveURLQueryString(t *testing.T) {
 
 func TestWriteToConn(t *testing.T) {
 	t.Parallel()
-	wc := WebsocketConnection{}
+	wc := connection{}
 	require.ErrorIs(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
@@ -1582,7 +1582,7 @@ func TestGetConnection(t *testing.T) {
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
-	expected := &WebsocketConnection{}
+	expected := &connection{}
 	ws.connectionManager[0].Connection = expected
 
 	conn, err := ws.GetConnection("testURL")
