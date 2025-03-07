@@ -471,7 +471,7 @@ func (cr *Cryptodotcom) processTrades(resp *WsResult) error {
 			TID:          data[i].TradeID,
 		}
 	}
-	return trade.AddTradesToBuffer(cr.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 func (cr *Cryptodotcom) processTicker(resp *WsResult) error {

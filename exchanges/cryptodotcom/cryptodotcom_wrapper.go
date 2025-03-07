@@ -534,7 +534,7 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 		}
 	}
 	if cr.IsSaveTradeDataEnabled() {
-		err = trade.AddTradesToBuffer(cr.Name, resp...)
+		err = trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -1107,4 +1107,19 @@ func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.
 		})
 	}
 	return cr.LoadLimits(limits)
+}
+
+func priceTypeString(pt order.PriceType) (string, error) {
+	switch pt {
+	case order.IndexPrice:
+		return "INDEX_PRICE", nil
+	case order.MarkPrice:
+		return "MARK_PRICE", nil
+	case order.LastPrice:
+		return "LAST_PRICE", nil
+	case order.UnsetPriceType:
+		return "", nil
+	default:
+		return "", fmt.Errorf("%w, price type: %v", order.ErrUnknownPriceType, pt.String())
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -323,16 +324,22 @@ type PersonalOrdersResponse struct {
 
 // CreateOrderParam represents a create order request parameter.
 type CreateOrderParam struct {
-	Symbol        string     `json:"instrument_name"`
-	Side          order.Side `json:"side"`
-	OrderType     order.Type `json:"type"`
-	Price         float64    `json:"price"`
-	Quantity      float64    `json:"quantity"`
-	Notional      float64    `json:"notional"`
-	ClientOrderID string     `json:"client_oid"`
-	TimeInForce   string     `json:"time_in_force"`
-	PostOnly      bool       `json:"exec_inst"`
-	TriggerPrice  float64    `json:"trigger_price"`
+	Symbol                        string     `json:"instrument_name"`
+	Side                          order.Side `json:"side"`
+	OrderType                     order.Type `json:"type"`
+	Price                         float64    `json:"price"`
+	Quantity                      float64    `json:"quantity"`
+	Notional                      float64    `json:"notional"`
+	ClientOrderID                 string     `json:"client_oid"`
+	TimeInForce                   string     `json:"time_in_force"`
+	PostOnly                      bool       `json:"exec_inst"`
+	TriggerPrice                  float64    `json:"ref_price,omitempty"`
+	TriggerPriceType              string     `json:"ref_price_type,omitempty"`
+	SpotMargin                    asset.Item `json:"spot_margin,omitempty"`
+	SelfTradePreventionScope      asset.Item `json:"stp_scope,omitempty"`
+	SelfTradePreventionInstrument string     `json:"stp_inst"`
+	SelfTradePreventionID         string     `json:"stp_id"`
+	FeeInstrumentName             string     `json:"fee_instrument_name,omitempty"`
 }
 
 func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error) {
