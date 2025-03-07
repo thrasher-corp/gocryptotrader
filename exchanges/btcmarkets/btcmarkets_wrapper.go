@@ -635,7 +635,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currenc
 	case stop:
 		resp.Type = order.Stop
 	case takeProfit:
-		resp.Type = order.ImmediateOrCancel
+		resp.Type = order.TakeProfit
 	default:
 		resp.Type = order.UnknownType
 	}

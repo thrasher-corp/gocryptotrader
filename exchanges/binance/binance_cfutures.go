@@ -990,8 +990,8 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 		params.Set("positionSide", x.PositionSide)
 	}
 	params.Set("type", x.OrderType)
-	if string(x.TimeInForce) != "" {
-		params.Set("timeInForce", string(x.TimeInForce))
+	if x.TimeInForce != "" {
+		params.Set("timeInForce", x.TimeInForce)
 	}
 	if x.ReduceOnly {
 		params.Set("reduceOnly", "true")

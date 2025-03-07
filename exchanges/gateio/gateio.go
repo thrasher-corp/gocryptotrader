@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -2849,7 +2850,8 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
+	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
+	if !slices.Contains([]string{gtcTIF, iocTIF, pocTIF, fokTIF}, arg.TimeInForce) {
 		return nil, errInvalidTimeInForce
 	}
 	if arg.Price == "" {
