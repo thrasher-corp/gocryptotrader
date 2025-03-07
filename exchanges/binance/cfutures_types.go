@@ -213,7 +213,7 @@ type FuturesNewOrderRequest struct {
 	Side             string
 	PositionSide     string
 	OrderType        string
-	TimeInForce      RequestParamsTimeForceType
+	TimeInForce      string
 	NewClientOrderID string
 	ClosePosition    string
 	WorkingType      string

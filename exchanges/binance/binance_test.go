@@ -866,7 +866,7 @@ func TestFuturesNewOrder(t *testing.T) {
 			Symbol:      currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 			Side:        "BUY",
 			OrderType:   "LIMIT",
-			TimeInForce: BinanceRequestParamsTimeGTC,
+			TimeInForce: order.GoodTillCancel.String(),
 			Quantity:    1,
 			Price:       1,
 		},
@@ -1420,7 +1420,7 @@ func TestNewOrderTest(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
 
 	err := b.NewOrderTest(context.Background(), req)
