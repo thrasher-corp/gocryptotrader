@@ -109,6 +109,19 @@ const (
 	cancelALlSLPriceTriggerOrdersEPL
 	switchSLPriceOfTriggerPriceEPL
 	switchSLLimitedOrderPriceEPL
+
+	universalTransferhistoryEPL
+	getUniversalTransferhistoryEPL
+	getUserRebateHistoryEPL
+	getRebateRecordsDetailEPL
+	selfRebateRecordsDetailsEPL
+	getReferCodeEPL
+	getAffilateCommissionRecordEPL
+	getAffilateWithdrawRecordEPL
+	getAffiliateConnissionDetailEPL
+	affiliateCampaignDataEPL
+	affiliateReferralDataEPL
+	subAffiliateDataEPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -217,5 +230,17 @@ func GetRateLimit() request.RateLimitDefinitions {
 		cancelALlSLPriceTriggerOrdersEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		switchSLPriceOfTriggerPriceEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		switchSLLimitedOrderPriceEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		getUniversalTransferhistoryEPL:  request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getUserRebateHistoryEPL:         request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getRebateRecordsDetailEPL:       request.GetRateLimiterWithWeight(ipModeRate, 1),
+		selfRebateRecordsDetailsEPL:     request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getReferCodeEPL:                 request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getAffilateCommissionRecordEPL:  request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getAffilateWithdrawRecordEPL:    request.GetRateLimiterWithWeight(ipModeRate, 1),
+		getAffiliateConnissionDetailEPL: request.GetRateLimiterWithWeight(ipModeRate, 1),
+		affiliateCampaignDataEPL:        request.GetRateLimiterWithWeight(ipModeRate, 1),
+		affiliateReferralDataEPL:        request.GetRateLimiterWithWeight(ipModeRate, 1),
+		subAffiliateDataEPL:             request.GetRateLimiterWithWeight(ipModeRate, 1),
 	}
 }

@@ -104,6 +104,17 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"cancelALlSLPriceTriggerOrders":    cancelALlSLPriceTriggerOrdersEPL,
 		"switchSLPriceOfTriggerPrice":      switchSLPriceOfTriggerPriceEPL,
 		"switchSLLimitedOrderPrice":        switchSLLimitedOrderPriceEPL,
+		"getUniversalTransferhistory":      getUniversalTransferhistoryEPL,
+		"getUserRebateHistory":             getUserRebateHistoryEPL,
+		"getRebateRecordsDetail":           getRebateRecordsDetailEPL,
+		"selfRebateRecordsDetails":         selfRebateRecordsDetailsEPL,
+		"getReferCode":                     getReferCodeEPL,
+		"getAffilateCommissionRecord":      getAffilateCommissionRecordEPL,
+		"getAffilateWithdrawRecord":        getAffilateWithdrawRecordEPL,
+		"getAffiliateConnissionDetail":     getAffiliateConnissionDetailEPL,
+		"affiliateCampaignData":            affiliateCampaignDataEPL,
+		"affiliateReferralData":            affiliateReferralDataEPL,
+		"subAffiliateData":                 subAffiliateDataEPL,
 	}
 	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimit()))
 	require.NoError(t, err)

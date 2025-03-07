@@ -262,7 +262,7 @@ func (me *MEXC) GetSubAccountList(ctx context.Context, subAccountName string, is
 // CreateAPIKeyForSubAccount creates an API key for sub-account
 // Permission of APIKey: SPOT_ACCOUNT_READ, SPOT_ACCOUNT_WRITE, SPOT_DEAL_READ, SPOT_DEAL_WRITE, CONTRACT_ACCOUNT_READ, CONTRACT_ACCOUNT_WRITE, CONTRACT_DEAL_READ,
 // CONTRACT_DEAL_WRITE, SPOT_TRANSFER_READ, SPOT_TRANSFER_WRITE
-func (me *MEXC) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, note, permissions, ip string) (interface{}, error) {
+func (me *MEXC) CreateAPIKeyForSubAccount(ctx context.Context, subAccountName, note, permissions, ip string) (*SubAccountAPIDetail, error) {
 	if subAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -393,7 +393,7 @@ func (me *MEXC) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
 }
 
 // UserAPIDefaultSymbols retrieves a default user API symbols
-func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) (interface{}, error) {
+func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
 	resp := &struct {
 		Data []string `json:"data"`
 	}{}
@@ -590,7 +590,7 @@ func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp []UniversalTransferHistoryData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "capital/transfer", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getUniversalTransferhistoryEPL, http.MethodGet, "capital/transfer", params, nil, &resp, true)
 }
 
 // GetUniversalTransferDetailByID retrieves a universal asset transfer history item detail
@@ -1012,7 +1012,7 @@ func (me *MEXC) GetRebateHistoryRecords(ctx context.Context, startTime, endTime 
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateHistory
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/taxQuery", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getUserRebateHistoryEPL, http.MethodGet, "rebate/taxQuery", params, nil, &resp, true)
 }
 
 // GetRebateRecordsDetail retrieves a rebate record detail
@@ -1030,7 +1030,7 @@ func (me *MEXC) GetRebateRecordsDetail(ctx context.Context, startTime, endTime t
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateRecordDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getRebateRecordsDetailEPL, http.MethodGet, "rebate/detail", params, nil, &resp, true)
 }
 
 // GetSelfRebateRecordsDetail retrieves self rebate records details
@@ -1048,13 +1048,13 @@ func (me *MEXC) GetSelfRebateRecordsDetail(ctx context.Context, startTime, endTi
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateRecordDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/detail/kickback", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, selfRebateRecordsDetailsEPL, http.MethodGet, "rebate/detail/kickback", params, nil, &resp, true)
 }
 
 // GetReferCode retrieves refer code
 func (me *MEXC) GetReferCode(ctx context.Context) (*ReferCode, error) {
 	var resp *ReferCode
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/referCode", nil, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getReferCodeEPL, http.MethodGet, "rebate/referCode", nil, nil, &resp, true)
 }
 
 // GetAffiliateCommissionRecord retrieves affiliate commission record
@@ -1078,7 +1078,7 @@ func (me *MEXC) GetAffiliateCommissionRecord(ctx context.Context, startTime, end
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateCommissionRecord
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateCommissionRecordEPL, http.MethodGet, "rebate/affiliate/commission", params, nil, &resp, true)
 }
 
 // GetAffiliateWithdrawRecord retrieves affiliate withdrawal records
@@ -1099,7 +1099,7 @@ func (me *MEXC) GetAffiliateWithdrawRecord(ctx context.Context, startTime, endTi
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateWithdrawRecords
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/withdraw", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateWithdrawRecordEPL, http.MethodGet, "rebate/affiliate/withdraw", params, nil, &resp, true)
 }
 
 // GetAffiliateCommissionDetailRecord retrieves an affiliate commission detail record
@@ -1127,7 +1127,7 @@ func (me *MEXC) GetAffiliateCommissionDetailRecord(ctx context.Context, startTim
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *RebateAffiliateCommissionDetail
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/commission/detail", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateConnissionDetailEPL, http.MethodGet, "rebate/affiliate/commission/detail", params, nil, &resp, true)
 }
 
 // GetAffiliateCampaignData retrieves an affiliate campaign data
@@ -1148,7 +1148,7 @@ func (me *MEXC) GetAffiliateCampaignData(ctx context.Context, startTime, endTime
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateCampaignData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/campaign", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, affiliateCampaignDataEPL, http.MethodGet, "rebate/affiliate/campaign", params, nil, &resp, true)
 }
 
 // GetAffiliateReferralData retrieves an affiliate referral data
@@ -1175,11 +1175,11 @@ func (me *MEXC) GetAffiliateReferralData(ctx context.Context, startTime, endTime
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AffiliateReferralData
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/referral", params, nil, &resp, true)
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, affiliateReferralDataEPL, http.MethodGet, "rebate/affiliate/referral", params, nil, &resp, true)
 }
 
 // GetSubAffiliateData retrieve a sub-affiliate data
-func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (interface{}, error) {
+func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time.Time, inviteCode string, page, pageSize int64) (*SubAffiliateData, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -1198,12 +1198,12 @@ func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
-	var resp interface{}
-	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/affiliate/subaffiliates", params, nil, &resp, true)
+	var resp *SubAffiliateData
+	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, subAffiliateDataEPL, http.MethodGet, "rebate/affiliate/subaffiliates", params, nil, &resp, true)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
-func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
+func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -1232,12 +1232,11 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.
 		}
 		values.Set("signature", crypto.HexEncodeToString(hmac))
 	}
-	return me.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
+	return me.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
-			Method:  method,
-			Path:    ePoint + common.EncodeURLValues(requestPath, values),
-			Headers: headers,
-			// Body:          bytes.NewBufferString(values.Encode()),
+			Method:        method,
+			Path:          ePoint + common.EncodeURLValues(requestPath, values),
+			Headers:       headers,
 			Result:        result,
 			NonceEnabled:  true,
 			Verbose:       me.Verbose,

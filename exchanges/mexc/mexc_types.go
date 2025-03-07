@@ -671,6 +671,30 @@ type AffiliateReferralData struct {
 	} `json:"data"`
 }
 
+// SubAffiliateData represents a sub-affiliate details
+type SubAffiliateData struct {
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Message any   `json:"message"`
+	Data    struct {
+		PageSize    int64 `json:"pageSize"`
+		TotalCount  int64 `json:"totalCount"`
+		TotalPage   int64 `json:"totalPage"`
+		CurrentPage int64 `json:"currentPage"`
+		ResultList  []struct {
+			SubaffiliateName string `json:"subaffiliateName"`
+			SubaffiliateMail string `json:"subaffiliateMail"`
+			Campaign         string `json:"campaign"`
+			InviteCode       string `json:"inviteCode"`
+			ActivationTime   int64  `json:"activationTime"`
+			Registered       int64  `json:"registered"`
+			Deposited        int64  `json:"deposited"`
+			DepositAmount    string `json:"depositAmount"`
+			Commission       string `json:"commission"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
 // FuturesContractsDetail holds a list of futures contracts detail
 type FuturesContractsDetail struct {
 	Success bool                 `json:"success"`
