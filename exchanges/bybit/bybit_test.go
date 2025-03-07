@@ -3735,6 +3735,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			} else {
 				s.Pairs = pairs
 				s.QualifiedChannel = channelName(s)
+				categoryName := getCategoryName(a)
+				if isCategorisedChannel(s.QualifiedChannel) && categoryName != "" {
+					s.QualifiedChannel += "." + categoryName
+				}
+
 				exp = append(exp, s)
 			}
 		}
