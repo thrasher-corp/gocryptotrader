@@ -276,11 +276,11 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 // load checks to see if there is a change from incoming balance, if there is a
 // change it will change then alert external routines.
 func (b *ProtectedBalance) load(change *Balance) error {
-	b.m.Lock()
-	defer b.m.Unlock()
 	if change == nil {
 		return fmt.Errorf("%w for '%T'", common.ErrNilPointer, change)
 	}
+	b.m.Lock()
+	defer b.m.Unlock()
 	if !b.updatedAt.IsZero() && !b.updatedAt.Before(change.UpdatedAt) {
 		return errOutOfSequence
 	}

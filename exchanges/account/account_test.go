@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -295,7 +296,10 @@ func TestBalanceInternalWait(t *testing.T) {
 func TestBalanceInternalLoad(t *testing.T) {
 	t.Parallel()
 	bi := &ProtectedBalance{}
-	err := bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	err := bi.load(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "should error nil pointer correctly")
+
+	err = bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
 	assert.NoError(t, err, "should have been loaded")
 
 	bi.m.Lock()
