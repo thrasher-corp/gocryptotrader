@@ -1159,15 +1159,15 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		} else {
 			sideType = order.Sell.String()
 		}
-		timeInForce := BinanceRequestParamsTimeGTC
+		timeInForce := order.GoodTillCancel.String()
 		var requestParamsOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
-			if s.ImmediateOrCancel {
-				timeInForce = BinanceRequestParamsTimeIOC
+			if s.TimeInForce.Is(order.ImmediateOrCancel) {
+				timeInForce = order.ImmediateOrCancel.String()
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
@@ -1299,16 +1299,29 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, order.ErrSideIsInvalid
 		}
 
-		var (
-			oType       string
-			timeInForce RequestParamsTimeForceType
-		)
+		var oType, timeInForce string
 		oType, err = b.orderTypeToString(s.Type)
 		if err != nil {
 			return nil, err
 		}
-		if s.Type == order.Limit {
-			timeInForce = BinanceRequestParamsTimeGTC
+		switch s.Type {
+		case order.Limit:
+			oType = cfuturesLimit
+			timeInForce = order.GoodTillTime.String()
+		case order.Market:
+			oType = cfuturesMarket
+		case order.Stop:
+			oType = cfuturesStop
+		case order.TakeProfit:
+			oType = cfuturesTakeProfit
+		case order.StopMarket:
+			oType = cfuturesStopMarket
+		case order.TakeProfitMarket:
+			oType = cfuturesTakeProfitMarket
+		case order.TrailingStop:
+			oType = cfuturesTrailingStopMarket
+		default:
+			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		if s.AssetType == asset.CoinMarginedFutures {
 			var o *FuturesOrderPlaceData
@@ -1596,7 +1609,6 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			ExecutedAmount:    resp.ExecutedQty.Float64(),
 			Date:              resp.Time.Time(),
 			LastUpdated:       resp.UpdateTime.Time(),
-			ImmediateOrCancel: resp.TimeInForce == "IOC",
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := b.FuturesOpenOrderData(ctx, pair, orderID, "")

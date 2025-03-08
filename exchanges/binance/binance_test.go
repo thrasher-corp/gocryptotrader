@@ -1251,7 +1251,7 @@ func TestFuturesNewOrder(t *testing.T) {
 	t.Parallel()
 	arg := &FuturesNewOrderRequest{Symbol: usdtmTradablePair, Side: "BUY", OrderType: order.Limit.String(),
 		PositionSide: "abcd",
-		TimeInForce:  BinanceRequestParamsTimeGTC, Quantity: 1, Price: 1}
+		TimeInForce:  order.GoodTillCancel.String(), Quantity: 1, Price: 1}
 	_, err := b.FuturesNewOrder(context.Background(), arg)
 	require.ErrorIs(t, err, errInvalidPositionSide)
 
@@ -1267,7 +1267,7 @@ func TestFuturesNewOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.FuturesNewOrder(context.Background(), &FuturesNewOrderRequest{Symbol: currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), Side: "BUY",
-		OrderType: order.Limit.String(), TimeInForce: BinanceRequestParamsTimeGTC, Quantity: 1, Price: 1})
+		OrderType: order.Limit.String(), TimeInForce: order.GoodTillCancel.String(), Quantity: 1, Price: 1})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2780,7 +2780,7 @@ func TestNewOrderTest(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}, false)
 	require.NoError(t, err)
 

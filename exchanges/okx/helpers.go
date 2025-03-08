@@ -12,45 +12,55 @@ import (
 )
 
 // orderTypeFromString returns order.Type instance from string
-func orderTypeFromString(orderType string) (order.Type, error) {
+func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case orderMarket:
-		return order.Market, nil
+		return order.Market, order.UnsetTIF, nil
 	case orderLimit:
-		return order.Limit, nil
+		return order.Limit, order.UnsetTIF, nil
 	case orderPostOnly:
-		return order.PostOnly, nil
+		return order.Limit, order.PostOnly, nil
 	case orderFOK:
-		return order.FillOrKill, nil
+		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
-		return order.ImmediateOrCancel, nil
+		return order.Limit, order.ImmediateOrCancel, nil
 	case orderOptimalLimitIOC:
-		return order.OptimalLimitIOC, nil
+		return order.OptimalLimitIOC, order.ImmediateOrCancel, nil
 	case "mmp":
-		return order.MarketMakerProtection, nil
+		return order.MarketMakerProtection, order.UnsetTIF, nil
 	case "mmp_and_post_only":
-		return order.MarketMakerProtectionAndPostOnly, nil
+		return order.MarketMakerProtectionAndPostOnly, order.PostOnly, nil
 	case "twap":
-		return order.TWAP, nil
+		return order.TWAP, order.UnsetTIF, nil
 	case "move_order_stop":
-		return order.TrailingStop, nil
+		return order.TrailingStop, 0, nil
 	case "chase":
-		return order.Chase, nil
+		return order.Chase, order.UnsetTIF, nil
 	default:
-		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return order.UnknownType, order.UnsetTIF, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
 // orderTypeString returns a string representation of order.Type instance
-func orderTypeString(orderType order.Type) (string, error) {
-	switch orderType {
+func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
+	switch tif {
+	case order.PostOnly:
+		return orderPostOnly, nil
+	case order.FillOrKill:
+		return orderFOK, nil
 	case order.ImmediateOrCancel:
-		return "ioc", nil
-	case order.Market, order.Limit, order.Trigger,
-		order.PostOnly, order.FillOrKill, order.OptimalLimitIOC,
-		order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly,
-		order.Chase, order.TWAP, order.OCO:
+		return orderIOC, nil
+	}
+	switch orderType {
+	case order.Market, order.Limit,
+		order.Trigger,
+		order.OptimalLimitIOC,
+		order.MarketMakerProtection,
+		order.MarketMakerProtectionAndPostOnly,
+		order.Chase,
+		order.TWAP,
+		order.OCO:
 		return orderType.Lower(), nil
 	case order.ConditionalStop:
 		return "conditional", nil

@@ -1488,7 +1488,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
 
-		ordertype, postonly := getTypeFromTimeInForce(fOrder.TimeInForce)
+		ordertype, tif := getTypeFromTimeInForceAndPrice(fOrder.TimeInForce, fOrder.OrderPrice.Float64())
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -1504,7 +1504,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:                 pair,
 			AssetType:            a,
 			Type:                 ordertype,
-			PostOnly:             postonly,
+			TimeInForce:          tif,
 			Side:                 side,
 		}, nil
 	case asset.Options:
@@ -1719,6 +1719,11 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					continue
 				}
 
+				var tif order.TimeInForce
+				if futuresOrders[x].TimeInForce == "poc" {
+					tif = order.PostOnly
+				}
+
 				side, amount, remaining := getSideAndAmountFromSize(futuresOrders[x].Size, futuresOrders[x].RemainingAmount)
 				orders = append(orders, order.Detail{
 					Status:               order.Open,
@@ -1738,7 +1743,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Type:                 order.Limit,
 					SettlementCurrency:   settlement,
 					ReduceOnly:           futuresOrders[x].IsReduceOnly,
-					PostOnly:             futuresOrders[x].TimeInForce == "poc",
+					TimeInForce:          tif,
 					AverageExecutedPrice: futuresOrders[x].FillPrice.Float64(),
 				})
 			}
@@ -2505,17 +2510,23 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
-// getTypeFromTimeInForce returns the order type and if the order is post only
-func getTypeFromTimeInForce(tif string) (orderType order.Type, postOnly bool) {
+// getTypeFromTimeInForceAndPrice returns the order type and if the order is post only
+func getTypeFromTimeInForceAndPrice(tif string, price float64) (orderType order.Type, postOnly order.TimeInForce) {
+	oType := order.Market
+	if price > 0 {
+		oType = order.Limit
+	}
 	switch tif {
 	case "ioc":
-		return order.Market, false
+		return oType, order.ImmediateOrCancel
 	case "fok":
-		return order.Market, false
+		return oType, order.FillOrKill
 	case "poc":
-		return order.Limit, true
+		return order.Limit, order.PostOnly
+	case "gtc":
+		return order.Limit, order.GoodTillCancel
 	default:
-		return order.Limit, false
+		return order.Limit, order.UnsetTIF
 	}
 }
 
@@ -2539,25 +2550,31 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 	}
 }
 
-var errPostOnlyOrderTypeUnsupported = errors.New("post only is only supported for limit orders")
-
-// getTimeInForce returns the time in force for a given order. If Market order
-// IOC
+// getTimeInForce returns the time-in-force for a given order.
+// If the time-in-force is unset, it assumes a Market order with an immediate-or-cancel (IOC) time-in-force value.
+// If the order type is Limit, it applies a good-til-cancel (GTC) policy.
 func getTimeInForce(s *order.Submit) (string, error) {
-	timeInForce := "gtc" // limit order taker/maker
-	if s.Type == order.Market || s.ImmediateOrCancel {
-		timeInForce = "ioc" // market taker only
-	}
-	if s.PostOnly {
-		if s.Type != order.Limit {
-			return "", fmt.Errorf("%w not for %v", errPostOnlyOrderTypeUnsupported, s.Type)
+	switch {
+	case s.TimeInForce.Is(order.ImmediateOrCancel):
+		return "ioc", nil // market taker only
+	case s.TimeInForce.Is(order.FillOrKill):
+		return "fok", nil
+	case s.TimeInForce.Is(order.PostOnly):
+		return "poc", nil
+	case s.TimeInForce.Is(order.GoodTillCancel):
+		return "gtc", nil
+	case s.TimeInForce.Is(order.UnsetTIF):
+		switch s.Type {
+		case order.Market:
+			return "ioc", nil
+		case order.Limit:
+			return "gtc", nil
+		default:
+			return "", nil
 		}
-		timeInForce = "poc" // limit order maker only
+	default:
+		return "", fmt.Errorf("%w: time-in-force value of %s", order.ErrInvalidTimeInForce, s.TimeInForce.String())
 	}
-	if s.FillOrKill {
-		timeInForce = "fok" // market order entire fill or kill
-	}
-	return timeInForce, nil
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

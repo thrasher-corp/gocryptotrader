@@ -666,7 +666,7 @@ type NewOrderRequest struct {
 	TradeType RequestParamsOrderType
 	// TimeInForce specifies how long the order remains in effect.
 	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
-	TimeInForce RequestParamsTimeForceType
+	TimeInForce string
 	// Quantity is the total base qty spent or received in an order.
 	Quantity float64
 	// QuoteOrderQty is the total quote qty spent or received in a MARKET order.
@@ -918,20 +918,6 @@ type MarginAccountAsset struct {
 	Locked   float64 `json:"locked,string"`
 	NetAsset float64 `json:"netAsset,string"`
 }
-
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// BinanceRequestParamsTimeGTC GTC
-	BinanceRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// BinanceRequestParamsTimeIOC IOC
-	BinanceRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-
-	// BinanceRequestParamsTimeFOK FOK
-	BinanceRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
-)
 
 // RequestParamsOrderType trade order type
 type RequestParamsOrderType string

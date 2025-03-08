@@ -234,22 +234,22 @@ type BatchCancelOrderData struct {
 // FuturesNewOrderRequest stores all the data needed to submit a
 // delivery/coin-margined-futures order.
 type FuturesNewOrderRequest struct {
-	Symbol           currency.Pair              `json:"symbol"`
-	Side             string                     `json:"side,omitempty"`
-	PositionSide     string                     `json:"positionSide,omitempty"`
-	OrderType        string                     `json:"type,omitempty"`
-	TimeInForce      RequestParamsTimeForceType `json:"timeInForce,omitempty"`
-	NewClientOrderID string                     `json:"newClientOrderID,omitempty"`
-	ClosePosition    string                     `json:"closePosition,omitempty"`
-	WorkingType      string                     `json:"workingType,omitempty"`
-	NewOrderRespType string                     `json:"newOrderRespType,omitempty"`
-	Quantity         float64                    `json:"quantity,omitempty"`
-	Price            float64                    `json:"price,omitempty"`
-	StopPrice        float64                    `json:"stopPrice,omitempty"`
-	ActivationPrice  float64                    `json:"activationPrice,omitempty"`
-	CallbackRate     float64                    `json:"callbackRate,omitempty"`
-	ReduceOnly       bool                       `json:"reduceOnly,omitempty"`
-	PriceProtect     bool                       `json:"priceProtect,omitempty"`
+	Symbol           currency.Pair `json:"symbol"`
+	Side             string        `json:"side,omitempty"`
+	PositionSide     string        `json:"positionSide,omitempty"`
+	OrderType        string        `json:"type,omitempty"`
+	TimeInForce      string        `json:"timeInForce,omitempty"`
+	NewClientOrderID string        `json:"newClientOrderID,omitempty"`
+	ClosePosition    string        `json:"closePosition,omitempty"`
+	WorkingType      string        `json:"workingType,omitempty"`
+	NewOrderRespType string        `json:"newOrderRespType,omitempty"`
+	Quantity         float64       `json:"quantity,omitempty"`
+	Price            float64       `json:"price,omitempty"`
+	StopPrice        float64       `json:"stopPrice,omitempty"`
+	ActivationPrice  float64       `json:"activationPrice,omitempty"`
+	CallbackRate     float64       `json:"callbackRate,omitempty"`
+	ReduceOnly       bool          `json:"reduceOnly,omitempty"`
+	PriceProtect     bool          `json:"priceProtect,omitempty"`
 }
 
 // FuturesOrderPlaceData stores futures order data
