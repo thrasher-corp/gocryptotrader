@@ -1742,6 +1742,9 @@ func TestStringToTimeInForce(t *testing.T) {
 		"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
 		"PoC":                          {TIF: PostOnly},
 		"PendingORCANCEL":              {TIF: PostOnly},
+		"GTX":                          {TIF: GoodTillCrossing},
+		"GOOD_TILL_CROSSING":           {TIF: GoodTillCrossing},
+		"Good Til crossing":            {TIF: GoodTillCrossing},
 	}
 
 	for tk := range timeInForceStringToValueMap {
