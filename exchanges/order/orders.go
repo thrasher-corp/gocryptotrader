@@ -679,6 +679,8 @@ func (t Type) String() string {
 		return "ANY"
 	case Limit:
 		return "LIMIT"
+	case LimitMaker:
+		return "LIMIT_MAKER"
 	case Market:
 		return "MARKET"
 	case Stop:
@@ -701,6 +703,8 @@ func (t Type) String() string {
 		return "TAKE PROFIT"
 	case TakeProfitMarket:
 		return "TAKE PROFIT MARKET"
+	case TakeProfitLimit:
+		return "TAKE PROFIT LIMIT"
 	case TrailingStop:
 		return "TRAILING_STOP"
 	case IOS:
@@ -711,6 +715,8 @@ func (t Type) String() string {
 		return "TRIGGER"
 	case OptimalLimitIOC:
 		return "OPTIMAL_LIMIT_IOC"
+	case OTO:
+		return "OTO"
 	case OCO:
 		return "OCO"
 	case SOR:
@@ -1159,6 +1165,8 @@ func StringToOrderType(oType string) (Type, error) {
 	switch oType {
 	case Limit.String(), "EXCHANGE LIMIT":
 		return Limit, nil
+	case LimitMaker.String(), "LIMIT MAKER":
+		return LimitMaker, nil
 	case Market.String(), "EXCHANGE MARKET":
 		return Market, nil
 	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
@@ -1177,6 +1185,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Trigger, nil
 	case OptimalLimitIOC.String():
 		return OptimalLimitIOC, nil
+	case OTO.String():
+		return OTO, nil
 	case OCO.String():
 		return OCO, nil
 	case "sor", SOR.String():
@@ -1193,6 +1203,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Chase, nil
 	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
+	case TakeProfitLimit.String(), "TAKE_PROFIT_LIMIT":
+		return TakeProfitLimit, nil
 	case TakeProfit.String(), "TAKE_PROFIT":
 		return TakeProfit, nil
 	case Liquidation.String():

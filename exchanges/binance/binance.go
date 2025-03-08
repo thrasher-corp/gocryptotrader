@@ -467,13 +467,13 @@ func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("side", o.Side)
-	params.Set("type", string(o.TradeType))
+	params.Set("type", o.TradeType)
 	if o.QuoteOrderQty > 0 {
 		params.Set("quoteOrderQty", strconv.FormatFloat(o.QuoteOrderQty, 'f', -1, 64))
 	} else {
 		params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
 	}
-	if o.TradeType == BinanceRequestParamsOrderLimit {
+	if o.TradeType == order.Limit.String() {
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
 	if o.TimeInForce != "" {
@@ -4281,8 +4281,7 @@ func (b *Binance) GetLockedSubscriptionPreview(ctx context.Context, projectID st
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/subscriptionPreview", params, subscriptionPreviewRate, nil, &resp)
 }
 
-// SetLockedProductRedeemOption
-// possible values of redeemTo are 'SPOT' and 'FLEXIBLE'.
+// SetLockedProductRedeemOption possible values of redeemTo are 'SPOT' and 'FLEXIBLE'.
 func (b *Binance) SetLockedProductRedeemOption(ctx context.Context, positionID, redeemTo string) (interface{}, error) {
 	if positionID == "" {
 		return nil, errPositionIDRequired
@@ -7078,7 +7077,7 @@ func (b *Binance) UniversalTransferWithBroker(ctx context.Context, fromAccountTy
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/broker/universalTransfer", params, request.Auth, nil, &resp)
 }
 
-// GetUniversalTransferHistoryThroughBroker retrieves a universal asset transfer history throught broker
+// GetUniversalTransferHistoryThroughBroker retrieves a universal asset transfer history thought broker
 func (b *Binance) GetUniversalTransferHistoryThroughBroker(ctx context.Context, fromID, toID, clientTransferID string, startTime, endTime time.Time, page, limit int64) ([]AssetUniversalTransferDetail, error) {
 	params := url.Values{}
 	if fromID != "" {
@@ -7402,8 +7401,7 @@ func (b *Binance) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime, 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/kickback/recentRecord", params, request.Auth, nil, &resp)
 }
 
-// GetOwnRebateRecentRecords retrieves client if the new user is
-// margin type(mType) value of 1:USDT-margined Futures，2: Coin-margined Futures
+// GetOwnRebateRecentRecords retrieves client if the new user is margin type(mType) value of 1:USDT-margined Futures，2: Coin-margined Futures
 func (b *Binance) GetFuturesClientIfNewUser(ctx context.Context, brokerID string, mType int) (*FuturesNewUserDetail, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)

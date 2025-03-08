@@ -1,9 +1,9 @@
 package binance
 
 import (
-	"encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -209,29 +209,29 @@ type OptionsOrderParams struct {
 
 // OptionOrder represents an options order instance.
 type OptionOrder struct {
-	OrderID       int64        `json:"orderId"`
-	ClientOrderID string       `json:"clientOrderId"`
-	Symbol        string       `json:"symbol"`
-	Price         types.Number `json:"price"`
-	Quantity      types.Number `json:"quantity"`
-	Side          string       `json:"side"`
-	Type          string       `json:"type"`
-	CreateDate    types.Time   `json:"createDate,omitempty"`
-	UpdateTime    types.Time   `json:"updateTime"`
-	ExecutedQty   types.Number `json:"executedQty,omitempty"`
-	Fee           types.Number `json:"fee,omitempty"`
-	TimeInForce   string       `json:"timeInForce,omitempty"`
-	ReduceOnly    bool         `json:"reduceOnly,omitempty"`
-	PostOnly      bool         `json:"postOnly,omitempty"`
-	Source        string       `json:"source"`
-	CreateTime    types.Time   `json:"createTime,omitempty"`
-	Status        string       `json:"status,omitempty"`
-	AvgPrice      types.Number `json:"avgPrice,omitempty"`
-	PriceScale    int64        `json:"priceScale,omitempty"`
-	QuantityScale int64        `json:"quantityScale,omitempty"`
-	OptionSide    string       `json:"optionSide,omitempty"`
-	QuoteAsset    string       `json:"quoteAsset,omitempty"`
-	Mmp           bool         `json:"mmp,omitempty"` // is market maker protection order, true/false
+	OrderID       int64             `json:"orderId"`
+	ClientOrderID string            `json:"clientOrderId"`
+	Symbol        string            `json:"symbol"`
+	Price         types.Number      `json:"price"`
+	Quantity      types.Number      `json:"quantity"`
+	Side          string            `json:"side"`
+	Type          string            `json:"type"`
+	CreateDate    types.Time        `json:"createDate,omitempty"`
+	UpdateTime    types.Time        `json:"updateTime"`
+	ExecutedQty   types.Number      `json:"executedQty,omitempty"`
+	Fee           types.Number      `json:"fee,omitempty"`
+	TimeInForce   order.TimeInForce `json:"timeInForce,omitempty"`
+	ReduceOnly    bool              `json:"reduceOnly,omitempty"`
+	PostOnly      bool              `json:"postOnly,omitempty"`
+	Source        string            `json:"source"`
+	CreateTime    types.Time        `json:"createTime,omitempty"`
+	Status        string            `json:"status,omitempty"`
+	AvgPrice      types.Number      `json:"avgPrice,omitempty"`
+	PriceScale    int64             `json:"priceScale,omitempty"`
+	QuantityScale int64             `json:"quantityScale,omitempty"`
+	OptionSide    string            `json:"optionSide,omitempty"`
+	QuoteAsset    string            `json:"quoteAsset,omitempty"`
+	Mmp           bool              `json:"mmp,omitempty"` // is market maker protection order, true/false
 }
 
 // OptionPosition represents current position information.

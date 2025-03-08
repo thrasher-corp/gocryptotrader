@@ -2777,7 +2777,7 @@ func TestNewOrderTest(t *testing.T) {
 	err := b.NewOrderTest(context.Background(), &NewOrderRequest{
 		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
 		Side:        order.Buy.String(),
-		TradeType:   BinanceRequestParamsOrderLimit,
+		TradeType:   order.Limit.String(),
 		Price:       0.0025,
 		Quantity:    100000,
 		TimeInForce: order.GoodTillCancel.String(),
@@ -2787,7 +2787,7 @@ func TestNewOrderTest(t *testing.T) {
 	err = b.NewOrderTest(context.Background(), &NewOrderRequest{
 		Symbol:        currency.NewPair(currency.LTC, currency.BTC),
 		Side:          order.Sell.String(),
-		TradeType:     BinanceRequestParamsOrderMarket,
+		TradeType:     order.Market.String(),
 		Price:         0.0045,
 		QuoteOrderQty: 10,
 	}, true)
@@ -9927,4 +9927,59 @@ func TestCreateAPIKey(t *testing.T) {
 	result, err := b.CreateAPIKey(context.Background(), "", "", "1", "", "", true, true, false, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestOrderTypeFromString(t *testing.T) {
+	t.Parallel()
+	var orderTypeFromStringMap = map[string]struct {
+		OrderType order.Type
+		Error     error
+	}{
+		"STOP_MARKET":          {order.StopMarket, nil},
+		"TAKE_PROFIT":          {order.TakeProfit, nil},
+		"TAKE_PROFIT_MARKET":   {order.TakeProfitMarket, nil},
+		"TRAILING_STOP_MARKET": {order.TrailingStop, nil},
+		"STOP_LOSS_LIMIT":      {order.StopLimit, nil},
+		"TAKE_PROFIT_LIMIT":    {order.TakeProfitLimit, nil},
+		"LIMIT_MAKER":          {order.LimitMaker, nil},
+		"LIMIT":                {order.Limit, nil},
+		"MARKET":               {order.Market, nil},
+		"STOP":                 {order.Stop, nil},
+		"OCO":                  {order.OCO, nil},
+		"OTO":                  {order.OTO, nil},
+		"STOP_LOSS":            {order.Stop, nil},
+		"abcd":                 {order.UnknownType, order.ErrUnsupportedOrderType},
+	}
+	for k, v := range orderTypeFromStringMap {
+		result, err := orderTypeFromString(k)
+		require.ErrorIs(t, err, v.Error)
+		assert.Equal(t, result, v.OrderType)
+	}
+}
+
+func TestOrderTypeString(t *testing.T) {
+	t.Parallel()
+	var orderTypeStringToTypeMap = map[order.Type]struct {
+		String string
+		Error  error
+	}{
+		order.Limit:            {"LIMIT", nil},
+		order.StopMarket:       {"STOP_MARKET", nil},
+		order.TakeProfit:       {"TAKE_PROFIT", nil},
+		order.TakeProfitMarket: {"TAKE_PROFIT_MARKET", nil},
+		order.TrailingStop:     {"TRAILING_STOP_MARKET", nil},
+		order.StopLimit:        {"STOP_LOSS_LIMIT", nil},
+		order.TakeProfitLimit:  {"TAKE_PROFIT_LIMIT", nil},
+		order.LimitMaker:       {"LIMIT_MAKER", nil},
+		order.Market:           {"MARKET", nil},
+		order.OCO:              {"OCO", nil},
+		order.OTO:              {"OTO", nil},
+		order.Stop:             {"STOP_LOSS", nil},
+		order.IOS:              {"", order.ErrUnsupportedOrderType},
+	}
+	for k, v := range orderTypeStringToTypeMap {
+		result, err := OrderTypeString(k)
+		require.ErrorIs(t, err, v.Error)
+		assert.Equal(t, result, v.String)
+	}
 }

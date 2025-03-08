@@ -357,11 +357,13 @@ const (
 	UnknownType Type = 0
 	Limit       Type = 1 << iota
 	Market
+	LimitMaker
 	Stop
 	StopLimit
 	StopMarket
 	TakeProfit
 	TakeProfitMarket
+	TakeProfitLimit
 	TrailingStop
 	IOS
 	AnyType
@@ -369,6 +371,7 @@ const (
 	Trigger
 	OptimalLimitIOC
 	SOR                              // smart-order-routine(SOR) used in Binance
+	OTO                              // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
 	OCO                              // One-cancels-the-other order
 	ConditionalStop                  // One-way stop order
 	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order

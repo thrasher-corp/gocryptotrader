@@ -1,14 +1,16 @@
 package binance
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -663,7 +665,7 @@ type NewOrderRequest struct {
 	// Side Buy or Sell
 	Side string
 	// TradeType (market or limit order)
-	TradeType RequestParamsOrderType
+	TradeType string
 	// TimeInForce specifies how long the order remains in effect.
 	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
 	TimeInForce string
@@ -714,30 +716,30 @@ type CancelOrderResponse struct {
 // TradeOrder holds query order data
 // Note that some fields are optional and included only for orders that set them.
 type TradeOrder struct {
-	Code                    int64        `json:"code"`
-	Msg                     string       `json:"msg"`
-	Symbol                  string       `json:"symbol"`
-	OrderID                 int64        `json:"orderId"`
-	OrderListID             int64        `json:"orderListId"`
-	ClientOrderID           string       `json:"clientOrderId"`
-	Price                   types.Number `json:"price"`
-	OrigQty                 types.Number `json:"origQty"`
-	ExecutedQty             types.Number `json:"executedQty"`
-	CummulativeQuoteQty     types.Number `json:"cummulativeQuoteQty"`
-	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
-	IsWorking               bool         `json:"isWorking"`
-	StopPrice               types.Number `json:"stopPrice"`
-	IcebergQty              types.Number `json:"icebergQty"`
-	Time                    types.Time   `json:"time"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	WorkingTime             types.Time   `json:"workingTime"`
-	OrigQuoteOrderQty       types.Number `json:"origQuoteOrderQty"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	OrigClientOrderID       string       `json:"origClientOrderId"`
-	TransactTime            types.Time   `json:"transactTime"`
+	Code                    int64             `json:"code"`
+	Msg                     string            `json:"msg"`
+	Symbol                  string            `json:"symbol"`
+	OrderID                 int64             `json:"orderId"`
+	OrderListID             int64             `json:"orderListId"`
+	ClientOrderID           string            `json:"clientOrderId"`
+	Price                   types.Number      `json:"price"`
+	OrigQty                 types.Number      `json:"origQty"`
+	ExecutedQty             types.Number      `json:"executedQty"`
+	CummulativeQuoteQty     types.Number      `json:"cummulativeQuoteQty"`
+	Status                  string            `json:"status"`
+	TimeInForce             order.TimeInForce `json:"timeInForce"`
+	Type                    string            `json:"type"`
+	Side                    string            `json:"side"`
+	IsWorking               bool              `json:"isWorking"`
+	StopPrice               types.Number      `json:"stopPrice"`
+	IcebergQty              types.Number      `json:"icebergQty"`
+	Time                    types.Time        `json:"time"`
+	UpdateTime              types.Time        `json:"updateTime"`
+	WorkingTime             types.Time        `json:"workingTime"`
+	OrigQuoteOrderQty       types.Number      `json:"origQuoteOrderQty"`
+	SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
+	OrigClientOrderID       string            `json:"origClientOrderId"`
+	TransactTime            types.Time        `json:"transactTime"`
 
 	PreventedMatchID  int64        `json:"preventedMatchId"`
 	PreventedQuantity types.Number `json:"preventedQuantity"`
@@ -919,31 +921,59 @@ type MarginAccountAsset struct {
 	NetAsset float64 `json:"netAsset,string"`
 }
 
-// RequestParamsOrderType trade order type
-type RequestParamsOrderType string
+func orderTypeFromString(oType string) (order.Type, error) {
+	switch oType {
+	case "STOP_MARKET":
+		return order.StopMarket, nil
+	case "TAKE_PROFIT":
+		return order.TakeProfit, nil
+	case "TAKE_PROFIT_MARKET":
+		return order.TakeProfitMarket, nil
+	case "TRAILING_STOP_MARKET":
+		return order.TrailingStop, nil
+	case "STOP_LOSS_LIMIT":
+		return order.StopLimit, nil
+	case "TAKE_PROFIT_LIMIT":
+		return order.TakeProfitLimit, nil
+	case "LIMIT_MAKER":
+		return order.LimitMaker, nil
+	case "LIMIT", "MARKET", "STOP", "OCO", "OTO", "STOP_LOSS":
+		return order.StringToOrderType(oType)
+	default:
+		return order.UnknownType, fmt.Errorf("%w: unsupported order type %s", order.ErrUnsupportedOrderType, oType)
+	}
+}
 
-var (
-	// BinanceRequestParamsOrderLimit Limit order
-	BinanceRequestParamsOrderLimit = RequestParamsOrderType("LIMIT")
-
-	// BinanceRequestParamsOrderMarket Market order
-	BinanceRequestParamsOrderMarket = RequestParamsOrderType("MARKET")
-
-	// BinanceRequestParamsOrderStopLoss STOP_LOSS
-	BinanceRequestParamsOrderStopLoss = RequestParamsOrderType("STOP_LOSS")
-
-	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
-	BinanceRequestParamsOrderStopLossLimit = RequestParamsOrderType("STOP_LOSS_LIMIT")
-
-	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
-	BinanceRequestParamsOrderTakeProfit = RequestParamsOrderType("TAKE_PROFIT")
-
-	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
-	BinanceRequestParamsOrderTakeProfitLimit = RequestParamsOrderType("TAKE_PROFIT_LIMIT")
-
-	// BinanceRequestParamsOrderLimitMarker LIMIT_MAKER
-	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
-)
+func OrderTypeString(oType order.Type) (string, error) {
+	switch oType {
+	case order.Limit:
+		return "LIMIT", nil
+	case order.StopMarket:
+		return "STOP_MARKET", nil
+	case order.TakeProfit:
+		return "TAKE_PROFIT", nil
+	case order.TakeProfitMarket:
+		return "TAKE_PROFIT_MARKET", nil
+	case order.TrailingStop:
+		return "TRAILING_STOP_MARKET", nil
+	case order.StopLimit:
+		return "STOP_LOSS_LIMIT", nil
+	case order.TakeProfitLimit:
+		return "TAKE_PROFIT_LIMIT", nil
+	case order.LimitMaker:
+		return "LIMIT_MAKER", nil
+	case order.Market:
+		return "MARKET", nil
+	case order.OCO:
+		return "OCO", nil
+	case order.OTO:
+		return "OTO", nil
+	case order.Stop:
+		return "STOP_LOSS", nil
+	default:
+		return "", fmt.Errorf("%w: order type %v", order.ErrUnsupportedOrderType, oType)
+	}
+}
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
@@ -2322,22 +2352,22 @@ type OCOOrder struct {
 		ClientOrderID string `json:"clientOrderId"`
 	} `json:"orders"`
 	OrderReports []struct {
-		Symbol                  string       `json:"symbol"`
-		OrderID                 int64        `json:"orderId"`
-		OrderListID             int64        `json:"orderListId"`
-		ClientOrderID           string       `json:"clientOrderId"`
-		TransactTime            types.Time   `json:"transactTime"`
-		Price                   types.Number `json:"price"`
-		OrigQty                 types.Number `json:"origQty"`
-		ExecutedQty             types.Number `json:"executedQty"`
-		CummulativeQuoteQty     types.Number `json:"cummulativeQuoteQty"`
-		Status                  string       `json:"status"`
-		TimeInForce             string       `json:"timeInForce"`
-		Type                    string       `json:"type"`
-		Side                    string       `json:"side"`
-		StopPrice               types.Number `json:"stopPrice,omitempty"`
-		WorkingTime             types.Time   `json:"workingTime"`
-		SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+		Symbol                  string            `json:"symbol"`
+		OrderID                 int64             `json:"orderId"`
+		OrderListID             int64             `json:"orderListId"`
+		ClientOrderID           string            `json:"clientOrderId"`
+		TransactTime            types.Time        `json:"transactTime"`
+		Price                   types.Number      `json:"price"`
+		OrigQty                 types.Number      `json:"origQty"`
+		ExecutedQty             types.Number      `json:"executedQty"`
+		CummulativeQuoteQty     types.Number      `json:"cummulativeQuoteQty"`
+		Status                  string            `json:"status"`
+		TimeInForce             order.TimeInForce `json:"timeInForce"`
+		Type                    string            `json:"type"`
+		Side                    string            `json:"side"`
+		StopPrice               types.Number      `json:"stopPrice,omitempty"`
+		WorkingTime             types.Time        `json:"workingTime"`
+		SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
 
 		OrigClientOrderID string `json:"origClientOrderId"`
 	} `json:"orderReports"`

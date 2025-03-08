@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -190,35 +191,35 @@ type UCompositeIndexInfoData struct {
 
 // UOrderData stores order data
 type UOrderData struct {
-	ClientOrderID           string     `json:"clientOrderId"`
-	Time                    types.Time `json:"time"`
-	CumulativeQuantity      float64    `json:"cumQty,string"`
-	CumulativeQuote         float64    `json:"cumQuote,string"`
-	ExecutedQuantity        float64    `json:"executedQty,string"`
-	OrderID                 int64      `json:"orderId"`
-	AveragePrice            float64    `json:"avgPrice,string"`
-	OriginalQuantity        float64    `json:"origQty,string"`
-	Price                   float64    `json:"price,string"`
-	ReduceOnly              bool       `json:"reduceOnly"`
-	Side                    string     `json:"side"`
-	PositionSide            string     `json:"positionSide"`
-	Status                  string     `json:"status"`
-	StopPrice               float64    `json:"stopPrice,string"`
-	ClosePosition           bool       `json:"closePosition"`
-	Symbol                  string     `json:"symbol"`
-	TimeInForce             string     `json:"timeInForce"`
-	OrderType               string     `json:"type"`
-	OriginalType            string     `json:"origType"`
-	ActivatePrice           float64    `json:"activatePrice,string"`
-	PriceRate               float64    `json:"priceRate,string"`
-	UpdateTime              types.Time `json:"updateTime"`
-	WorkingType             string     `json:"workingType"`
-	Pair                    string     `json:"pair"`
-	CumBase                 string     `json:"cumBase"`
-	PriceProtect            bool       `json:"priceProtect"`
-	PriceMatch              string     `json:"priceMatch"`
-	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
-	GoodTillDate            int64      `json:"goodTillDate"`
+	ClientOrderID           string            `json:"clientOrderId"`
+	Time                    types.Time        `json:"time"`
+	CumulativeQuantity      float64           `json:"cumQty,string"`
+	CumulativeQuote         float64           `json:"cumQuote,string"`
+	ExecutedQuantity        float64           `json:"executedQty,string"`
+	OrderID                 int64             `json:"orderId"`
+	AveragePrice            float64           `json:"avgPrice,string"`
+	OriginalQuantity        float64           `json:"origQty,string"`
+	Price                   float64           `json:"price,string"`
+	ReduceOnly              bool              `json:"reduceOnly"`
+	Side                    string            `json:"side"`
+	PositionSide            string            `json:"positionSide"`
+	Status                  string            `json:"status"`
+	StopPrice               float64           `json:"stopPrice,string"`
+	ClosePosition           bool              `json:"closePosition"`
+	Symbol                  string            `json:"symbol"`
+	TimeInForce             order.TimeInForce `json:"timeInForce"`
+	OrderType               string            `json:"type"`
+	OriginalType            string            `json:"origType"`
+	ActivatePrice           float64           `json:"activatePrice,string"`
+	PriceRate               float64           `json:"priceRate,string"`
+	UpdateTime              types.Time        `json:"updateTime"`
+	WorkingType             string            `json:"workingType"`
+	Pair                    string            `json:"pair"`
+	CumBase                 string            `json:"cumBase"`
+	PriceProtect            bool              `json:"priceProtect"`
+	PriceMatch              string            `json:"priceMatch"`
+	SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
+	GoodTillDate            int64             `json:"goodTillDate"`
 
 	Code    int64  `json:"code"`
 	Message string `json:"msg"`
@@ -226,28 +227,28 @@ type UOrderData struct {
 
 // UFuturesOrderData stores order data for ufutures
 type UFuturesOrderData struct {
-	AvgPrice      float64    `json:"avgPrice,string"`
-	ClientOrderID string     `json:"clientOrderId"`
-	CumQuote      string     `json:"cumQuote"`
-	ExecutedQty   float64    `json:"executedQty,string"`
-	OrderID       int64      `json:"orderId"`
-	OrigQty       float64    `json:"origQty,string"`
-	OrigType      string     `json:"origType"`
-	Price         float64    `json:"price,string"`
-	ReduceOnly    bool       `json:"reduceOnly"`
-	Side          string     `json:"side"`
-	PositionSide  string     `json:"positionSide"`
-	Status        string     `json:"status"`
-	StopPrice     float64    `json:"stopPrice,string"`
-	ClosePosition bool       `json:"closePosition"`
-	Symbol        string     `json:"symbol"`
-	Time          types.Time `json:"time"`
-	TimeInForce   string     `json:"timeInForce"`
-	OrderType     string     `json:"type"`
-	ActivatePrice float64    `json:"activatePrice,string"`
-	PriceRate     float64    `json:"priceRate,string"`
-	UpdateTime    types.Time `json:"updateTime"`
-	WorkingType   string     `json:"workingType"`
+	AvgPrice      float64           `json:"avgPrice,string"`
+	ClientOrderID string            `json:"clientOrderId"`
+	CumQuote      string            `json:"cumQuote"`
+	ExecutedQty   float64           `json:"executedQty,string"`
+	OrderID       int64             `json:"orderId"`
+	OrigQty       float64           `json:"origQty,string"`
+	OrigType      string            `json:"origType"`
+	Price         float64           `json:"price,string"`
+	ReduceOnly    bool              `json:"reduceOnly"`
+	Side          string            `json:"side"`
+	PositionSide  string            `json:"positionSide"`
+	Status        string            `json:"status"`
+	StopPrice     float64           `json:"stopPrice,string"`
+	ClosePosition bool              `json:"closePosition"`
+	Symbol        string            `json:"symbol"`
+	Time          types.Time        `json:"time"`
+	TimeInForce   order.TimeInForce `json:"timeInForce"`
+	OrderType     string            `json:"type"`
+	ActivatePrice float64           `json:"activatePrice,string"`
+	PriceRate     float64           `json:"priceRate,string"`
+	UpdateTime    types.Time        `json:"updateTime"`
+	WorkingType   string            `json:"workingType"`
 }
 
 // UAccountBalanceV2Data stores account balance data for ufutures
