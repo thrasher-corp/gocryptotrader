@@ -1010,7 +1010,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 	}
 
 	if b.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(b.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}

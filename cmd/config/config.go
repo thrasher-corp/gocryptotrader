@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -23,7 +24,7 @@ func main() {
 
 	var in, out, keyStr string
 	var inplace bool
-	var version int
+	var version uint
 
 	fs := flag.NewFlagSet("config", flag.ExitOnError)
 	fs.Usage = func() { usage(fs) }
@@ -31,7 +32,7 @@ func main() {
 	fs.StringVar(&out, "out", "[in].out", "The config output file")
 	fs.BoolVar(&inplace, "edit", false, "Edit; Save result to the original file")
 	fs.StringVar(&keyStr, "key", "", "The key to use for AES encryption")
-	fs.IntVar(&version, "version", 0, "The version to downgrade to")
+	fs.UintVar(&version, "version", 0, "The version to downgrade to")
 
 	cmd, args := parseCommand(os.Args[1:])
 	if cmd == "" {
@@ -85,13 +86,13 @@ func main() {
 				usage(fs)
 				os.Exit(3)
 			}
-			version = versions.LatestVersion
-		} else if version < 0 {
-			fmt.Fprintln(os.Stderr, "Error: version must be positive")
+			version = versions.UseLatestVersion
+		} else if version >= math.MaxUint16 {
+			fmt.Fprintln(os.Stderr, "Error: version must be less than 65535")
 			usage(fs)
 			os.Exit(3)
 		}
-		if data, err = versions.Manager.Deploy(context.Background(), data, version); err != nil {
+		if data, err = versions.Manager.Deploy(context.Background(), data, uint16(version)); err != nil {
 			fatal("Unable to " + cmd + " config; Error: " + err.Error())
 		}
 		if !isEncrypted {

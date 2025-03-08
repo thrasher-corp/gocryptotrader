@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Ticker holds ticker data
@@ -102,15 +103,15 @@ type OrderTrade struct {
 
 // ChartData holds kline data
 type ChartData struct {
-	Date            int64   `json:"date,string"`
-	High            float64 `json:"high,string"`
-	Low             float64 `json:"low,string"`
-	Open            float64 `json:"open,string"`
-	Close           float64 `json:"close,string"`
-	Volume          float64 `json:"volume,string"`
-	QuoteVolume     float64 `json:"quoteVolume,string"`
-	WeightedAverage float64 `json:"weightedAverage,string"`
-	Error           string  `json:"error"`
+	Date            types.Time   `json:"date"`
+	High            types.Number `json:"high"`
+	Low             types.Number `json:"low"`
+	Open            types.Number `json:"open"`
+	Close           types.Number `json:"close"`
+	Volume          types.Number `json:"volume"`
+	QuoteVolume     types.Number `json:"quoteVolume"`
+	WeightedAverage types.Number `json:"weightedAverage"`
+	Error           string       `json:"error"`
 }
 
 // Currencies contains currency information
