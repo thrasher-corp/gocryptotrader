@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -490,7 +491,6 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		AssetType: s.AssetType,
 
 		TimeInForce:   s.TimeInForce,
-		PostOnly:      s.PostOnly,
 		ReduceOnly:    s.ReduceOnly,
 		Leverage:      s.Leverage,
 		Price:         s.Price,

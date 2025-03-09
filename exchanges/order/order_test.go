@@ -936,11 +936,13 @@ func TestTimeInForceIs(t *testing.T) {
 	tifValuesMap := map[TimeInForce][]TimeInForce{
 		GoodTillCancel | PostOnly:    {GoodTillCancel, PostOnly},
 		GoodTillCancel:               {GoodTillCancel},
+		GoodTillCrossing | PostOnly:  {GoodTillCrossing, PostOnly},
 		ImmediateOrCancel | PostOnly: {ImmediateOrCancel, PostOnly},
 		GoodTillDay:                  {GoodTillDay},
 		FillOrKill | PostOnly:        {FillOrKill, PostOnly},
 		FillOrKill:                   {FillOrKill},
 		PostOnly:                     {PostOnly},
+		GoodTillCrossing:             {GoodTillCrossing},
 	}
 	for tif := range tifValuesMap {
 		for _, v := range tifValuesMap[tif] {

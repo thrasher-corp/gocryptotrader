@@ -49,7 +49,6 @@ type Submit struct {
 	// TimeInForce holds time in force values
 	TimeInForce TimeInForce
 
-	PostOnly bool
 	// ReduceOnly reduces a position instead of opening an opposing
 	// position; this also equates to closing the position in huobi_wrapper.go
 	// swaps.
@@ -109,7 +108,6 @@ type SubmitResponse struct {
 	AssetType asset.Item
 
 	TimeInForce          TimeInForce
-	PostOnly             bool
 	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
