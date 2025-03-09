@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	underlying "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -75,6 +74,7 @@ type Manager struct {
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
 	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
+
 	connectionManager []*ConnectionWrapper
 }
 
@@ -107,25 +107,4 @@ type ManagerSetup struct {
 	// an error will be returned. However, if a connection configuration includes its own rate limit,
 	// it will fall back to that configuration’s rate limit without raising an error.
 	RateLimitDefinitions request.RateLimitDefinitions
-}
-
-// connection contains all the data needed to send a message to a websocket connection
-type connection struct {
-	Verbose                  bool
-	connected                int32
-	writeControl             sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
-	RateLimit                *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
-	RateLimitDefinitions     request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
-	Reporter                 Reporter
-	ExchangeName             string
-	URL                      string
-	ProxyURL                 string
-	Wg                       *sync.WaitGroup
-	Connection               *underlying.Conn
-	shutdown                 chan struct{}
-	Match                    *Match
-	ResponseMaxLimit         time.Duration
-	Traffic                  chan struct{}
-	readMessageErrors        chan error
-	bespokeGenerateMessageID func(highPrecision bool) int64
 }

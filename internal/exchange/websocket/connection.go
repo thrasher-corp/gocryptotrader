@@ -14,12 +14,16 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
+
+	underlying "github.com/gorilla/websocket"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -29,6 +33,92 @@ var (
 	errWebsocketIsDisconnected = errors.New("websocket connection is disconnected")
 	errRateLimitNotFound       = errors.New("rate limit definition not found")
 )
+
+// Connection defines the interface for websocket connections
+type Connection interface {
+	Dial(*gws.Dialer, http.Header) error
+	DialContext(context.Context, *gws.Dialer, http.Header) error
+	ReadMessage() Response
+	SetupPingHandler(request.EndpointLimit, PingHandler)
+	// GenerateMessageID generates a message ID for the individual connection. If a bespoke function is set
+	// (by using SetupNewConnection) it will use that, otherwise it will use the defaultGenerateMessageID function
+	// defined in websocket_connection.go.
+	GenerateMessageID(highPrecision bool) int64
+	// SendMessageReturnResponse will send a WS message to the connection and wait for response
+	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
+	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
+	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector Inspector) ([][]byte, error)
+	// SendRawMessage sends a message over the connection without JSON encoding it
+	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
+	// SendJSONMessage sends a JSON encoded message over the connection
+	SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error
+	SetURL(string)
+	SetProxy(string)
+	GetURL() string
+	Shutdown() error
+}
+
+// ConnectionSetup defines variables for an individual stream connection
+type ConnectionSetup struct {
+	ResponseCheckTimeout    time.Duration
+	ResponseMaxLimit        time.Duration
+	RateLimit               *request.RateLimiterWithWeight
+	Authenticated           bool
+	ConnectionLevelReporter Reporter
+
+	// URL defines the websocket server URL to connect to
+	URL string
+	// Connector is the function that will be called to connect to the
+	// exchange's websocket server. This will be called once when the stream
+	// service is started. Any bespoke connection logic should be handled here.
+	Connector func(ctx context.Context, conn Connection) error
+	// GenerateSubscriptions is a function that will be called to generate a
+	// list of subscriptions to be made to the exchange's websocket server.
+	GenerateSubscriptions func() (subscription.List, error)
+	// Subscriber is a function that will be called to send subscription
+	// messages based on the exchange's websocket server requirements to
+	// subscribe to specific channels.
+	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) error
+	// Unsubscriber is a function that will be called to send unsubscription
+	// messages based on the exchange's websocket server requirements to
+	// unsubscribe from specific channels. NOTE: IF THE FEATURE IS ENABLED.
+	Unsubscriber func(ctx context.Context, conn Connection, unsub subscription.List) error
+	// Handler defines the function that will be called when a message is
+	// received from the exchange's websocket server. This function should
+	// handle the incoming message and pass it to the appropriate data handler.
+	Handler func(ctx context.Context, incoming []byte) error
+	// BespokeGenerateMessageID is a function that returns a unique message ID.
+	// This is useful for when an exchange connection requires a unique or
+	// structured message ID for each message sent.
+	BespokeGenerateMessageID func(highPrecision bool) int64
+	Authenticate             func(ctx context.Context, conn Connection) error
+	// MessageFilter defines the criteria used to match messages to a specific connection.
+	// The filter enables precise routing and handling of messages for distinct connection contexts.
+	MessageFilter any
+}
+
+// connection contains all the data needed to send a message to a websocket connection
+type connection struct {
+	Verbose                  bool
+	connected                int32
+	writeControl             sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
+	RateLimit                *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
+	RateLimitDefinitions     request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
+	Reporter                 Reporter
+	ExchangeName             string
+	URL                      string
+	ProxyURL                 string
+	Wg                       *sync.WaitGroup
+	Connection               *underlying.Conn
+	shutdown                 chan struct{}
+	Match                    *Match
+	ResponseMaxLimit         time.Duration
+	Traffic                  chan struct{}
+	readMessageErrors        chan error
+	bespokeGenerateMessageID func(highPrecision bool) int64
+}
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *connection) Dial(dialer *gws.Dialer, headers http.Header) error {
