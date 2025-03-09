@@ -489,7 +489,7 @@ func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair, ass
 // SubmitOrder submits a new order
 func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	var timeInForce RequestParamsTimeForceType
+	var timeInForce string
 	var sideType string
 	err := s.Validate(bi.GetTradingRequirements())
 	if err != nil {
@@ -508,7 +508,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	case order.Market:
 		requestParamOrderType = BinanceRequestParamsOrderMarket
 	case order.Limit:
-		timeInForce = BinanceRequestParamsTimeGTC
+		timeInForce = order.GoodTillCancel.String()
 		requestParamOrderType = BinanceRequestParamsOrderLimit
 	default:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)

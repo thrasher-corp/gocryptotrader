@@ -6285,28 +6285,32 @@ func TestGetAccountInstruments(t *testing.T) {
 
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	var orderTypesToStringMap = map[order.Type]struct {
+	type OrderTypeWithTIF struct {
+		OrderType order.Type
+		TIF       order.TimeInForce
+	}
+	var orderTypesToStringMap = map[OrderTypeWithTIF]struct {
 		Expected string
 		Error    error
 	}{
-		order.Market:                           {Expected: orderMarket},
-		order.Limit:                            {Expected: orderLimit},
-		order.PostOnly:                         {Expected: orderPostOnly},
-		order.FillOrKill:                       {Expected: orderFOK},
-		order.ImmediateOrCancel:                {Expected: orderIOC},
-		order.OptimalLimitIOC:                  {Expected: orderOptimalLimitIOC},
-		order.MarketMakerProtection:            {Expected: "mmp"},
-		order.MarketMakerProtectionAndPostOnly: {Expected: "mmp_and_post_only"},
-		order.Liquidation:                      {Error: order.ErrUnsupportedOrderType},
-		order.OCO:                              {Expected: "oco"},
-		order.TrailingStop:                     {Expected: "move_order_stop"},
-		order.Chase:                            {Expected: "chase"},
-		order.TWAP:                             {Expected: "twap"},
-		order.ConditionalStop:                  {Expected: "conditional"},
-		order.Trigger:                          {Expected: "trigger"},
+		{OrderType: order.Market, TIF: order.UnsetTIF}:                           {Expected: orderMarket},
+		{OrderType: order.Limit, TIF: order.UnsetTIF}:                            {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                            {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:                          {Expected: orderFOK},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:                   {Expected: orderIOC},
+		{OrderType: order.OptimalLimitIOC, TIF: order.UnsetTIF}:                  {Expected: orderOptimalLimitIOC},
+		{OrderType: order.MarketMakerProtection, TIF: order.UnsetTIF}:            {Expected: "mmp"},
+		{OrderType: order.MarketMakerProtectionAndPostOnly, TIF: order.UnsetTIF}: {Expected: "mmp_and_post_only"},
+		{OrderType: order.Liquidation, TIF: order.UnsetTIF}:                      {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.OCO, TIF: order.UnsetTIF}:                              {Expected: "oco"},
+		{OrderType: order.TrailingStop, TIF: order.UnsetTIF}:                     {Expected: "move_order_stop"},
+		{OrderType: order.Chase, TIF: order.UnsetTIF}:                            {Expected: "chase"},
+		{OrderType: order.TWAP, TIF: order.UnsetTIF}:                             {Expected: "twap"},
+		{OrderType: order.ConditionalStop, TIF: order.UnsetTIF}:                  {Expected: "conditional"},
+		{OrderType: order.Trigger, TIF: order.UnsetTIF}:                          {Expected: "trigger"},
 	}
-	for oType, val := range orderTypesToStringMap {
-		orderTypeString, err := orderTypeString(oType)
+	for tc, val := range orderTypesToStringMap {
+		orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
 		require.ErrorIs(t, err, val.Error)
 		assert.Equal(t, val.Expected, orderTypeString)
 	}
@@ -6571,29 +6575,32 @@ func TestWsProcessSpreadTradesJSON(t *testing.T) {
 
 func TestOrderTypeFromString(t *testing.T) {
 	t.Parallel()
+
 	orderTypeStrings := map[string]struct {
 		OType order.Type
+		TIF   order.TimeInForce
 		Error error
 	}{
 		"market":            {OType: order.Market},
 		"LIMIT":             {OType: order.Limit},
 		"limit":             {OType: order.Limit},
-		"post_only":         {OType: order.PostOnly},
-		"fok":               {OType: order.FillOrKill},
-		"ioc":               {OType: order.ImmediateOrCancel},
-		"optimal_limit_ioc": {OType: order.OptimalLimitIOC},
+		"post_only":         {OType: order.Limit, TIF: order.PostOnly},
+		"fok":               {OType: order.Limit, TIF: order.FillOrKill},
+		"ioc":               {OType: order.Limit, TIF: order.ImmediateOrCancel},
+		"optimal_limit_ioc": {OType: order.OptimalLimitIOC, TIF: order.ImmediateOrCancel},
 		"mmp":               {OType: order.MarketMakerProtection},
-		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly},
+		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly, TIF: order.PostOnly},
 		"trigger":           {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 		"chase":             {OType: order.Chase},
 		"move_order_stop":   {OType: order.TrailingStop},
 		"twap":              {OType: order.TWAP},
 		"abcd":              {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 	}
-	for a := range orderTypeStrings {
-		oType, err := orderTypeFromString(a)
-		assert.ErrorIs(t, err, orderTypeStrings[a].Error)
-		assert.Equal(t, oType, orderTypeStrings[a].OType)
+	for s, exp := range orderTypeStrings {
+		oType, tif, err := orderTypeFromString(s)
+		require.ErrorIs(t, err, exp.Error)
+		assert.Equal(t, exp.OType, oType)
+		assert.Equal(t, exp.TIF.String(), tif.String(), s)
 	}
 }
 
