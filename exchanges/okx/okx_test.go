@@ -4055,12 +4055,15 @@ func TestWSProcessTrades(t *testing.T) {
 	instrumentID := "BTC-USDT"
 	assets, err := ok.getAssetsFromInstrumentID(instrumentID)
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+
+	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+
 	for _, a := range assets {
 		err := ok.Websocket.AddSubscriptions(ok.Websocket.Conn, &subscription.Subscription{
 			Asset:   a,
-			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)},
+			Pairs:   currency.Pairs{p},
 			Channel: subscription.AllTradesChannel,
-			Key:     fmt.Sprintf("%s-%s", currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter), a)})
+			Key:     fmt.Sprintf("%s-%s", p, a)})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ok.WsHandleData)
@@ -4068,7 +4071,7 @@ func TestWSProcessTrades(t *testing.T) {
 	exp := []trade.Data{
 		{
 			Exchange:     ok.Name,
-			CurrencyPair: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter),
+			CurrencyPair: p,
 			Timestamp:    time.UnixMilli(1740394561685).UTC(),
 			Price:        95634.9,
 			Amount:       0.00011186,
@@ -4077,7 +4080,7 @@ func TestWSProcessTrades(t *testing.T) {
 		},
 		{
 			Exchange:     ok.Name,
-			CurrencyPair: currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter),
+			CurrencyPair: p,
 			Timestamp:    time.UnixMilli(1740394561686).UTC(),
 			Price:        95635.3,
 			Amount:       0.00011194,
@@ -4097,7 +4100,6 @@ func TestWSProcessTrades(t *testing.T) {
 
 	for len(ok.Websocket.DataHandler) > 0 {
 		resp := <-ok.Websocket.DataHandler
-
 		switch v := resp.(type) {
 		case trade.Data:
 			receivedTrades[v.AssetType] = append(receivedTrades[v.AssetType], v)
@@ -4113,11 +4115,9 @@ func TestWSProcessTrades(t *testing.T) {
 		require.True(t, exists, "Should have received trades for asset %v", assetType)
 		require.Len(t, trades, len(exp),
 			"Should have received %d trades for asset %v", len(exp), assetType)
-
 		sort.Slice(trades, func(i, j int) bool {
 			return trades[i].TID < trades[j].TID
 		})
-
 		for i, trade := range trades {
 			expected := exp[i]
 			expected.AssetType = assetType
