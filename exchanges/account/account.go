@@ -118,6 +118,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 			Free:                   assetHoldings.free,
 			AvailableWithoutBorrow: assetHoldings.availableWithoutBorrow,
 			Borrowed:               assetHoldings.borrowed,
+			UpdatedAt:              assetHoldings.updatedAt,
 		})
 		assetHoldings.m.Unlock()
 		if cpy.SubAccount == "" && mapKey.SubAccount != "" {
