@@ -99,6 +99,14 @@ func (b *Binance) WsConnect() error {
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
+
+	err = b.WsConnectAPI()
+	if err != nil {
+		b.SetIsAPIStreamConnected(false)
+		log.Errorf(log.ExchangeSys, "could not connect to API stream %v", err)
+		return err
+	}
+	b.SetIsAPIStreamConnected(true)
 	return nil
 }
 
@@ -276,8 +284,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Side:                 orderSide,
 				Status:               orderStatus,
 				AssetType:            assetType,
-				Date:                 data.Data.OrderCreationTime,
-				LastUpdated:          data.Data.TransactionTime,
+				Date:                 data.Data.OrderCreationTime.Time(),
+				LastUpdated:          data.Data.TransactionTime.Time(),
 				Pair:                 pair,
 			}
 			return nil
@@ -286,6 +294,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			err = json.Unmarshal(respRaw, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "outboundAccountInfo":
+			var data wsAccountInfo
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
 					b.Name,
 					err)
 			}
@@ -337,21 +355,22 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				b.Name,
 				err)
 		}
-		td := trade.Data{
-			CurrencyPair: pair,
-			Timestamp:    t.TimeStamp,
-			Price:        t.Price.Float64(),
-			Amount:       t.Quantity.Float64(),
-			Exchange:     b.Name,
-			AssetType:    asset.Spot,
-			TID:          strconv.FormatInt(t.TradeID, 10)}
-
-		if t.IsBuyerMaker { // Seller is Taker
-			td.Side = order.Sell
-		} else { // Buyer is Taker
-			td.Side = order.Buy
-		}
-		return b.Websocket.Trade.Update(saveTradeData, td)
+		return b.Websocket.Trade.Update(saveTradeData,
+			trade.Data{
+				CurrencyPair: pair,
+				Timestamp:    t.TimeStamp.Time(),
+				Price:        t.Price.Float64(),
+				Amount:       t.Quantity.Float64(),
+				Exchange:     b.Name,
+				AssetType:    asset.Spot,
+				Side: func() order.Side {
+					if t.IsBuyerMaker {
+						return order.Sell
+					}
+					return order.Buy
+				}(),
+				TID: strconv.FormatInt(t.TradeID, 10),
+			})
 	case "ticker":
 		var t TickerStream
 		err = json.Unmarshal(jsonData, &t)
@@ -371,7 +390,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			Bid:          t.BestBidPrice.Float64(),
 			Ask:          t.BestAskPrice.Float64(),
 			Last:         t.LastPrice.Float64(),
-			LastUpdated:  t.EventTime,
+			LastUpdated:  t.EventTime.Time(),
 			AssetType:    asset.Spot,
 			Pair:         pair,
 		}
@@ -386,12 +405,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				err)
 		}
 		b.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  kline.EventTime,
+			Timestamp:  kline.EventTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Spot,
 			Exchange:   b.Name,
-			StartTime:  kline.Kline.StartTime,
-			CloseTime:  kline.Kline.CloseTime,
+			StartTime:  kline.Kline.StartTime.Time(),
+			CloseTime:  kline.Kline.CloseTime.Time(),
 			Interval:   kline.Kline.Interval,
 			OpenPrice:  kline.Kline.OpenPrice.Float64(),
 			ClosePrice: kline.Kline.ClosePrice.Float64(),
@@ -466,21 +485,9 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 		Exchange:        b.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
 		LastUpdated:     time.Now(), // Time not provided in REST book.
-	}
-	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
-		}
-	}
-	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
-		}
+		Bids:            orderbook.Tranches(orderbookNew.Bids),
+		Asks:            orderbook.Tranches(orderbookNew.Asks),
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -614,26 +621,12 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
-	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Tranche{
-			Price:  ws.UpdateBids[i][0].Float64(),
-			Amount: ws.UpdateBids[i][1].Float64(),
-		}
-	}
-	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
-	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Tranche{
-			Price:  ws.UpdateAsks[i][0].Float64(),
-			Amount: ws.UpdateAsks[i][1].Float64(),
-		}
-	}
 	return b.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
+		Bids:       ws.UpdateBids,
+		Asks:       ws.UpdateAsks,
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
+		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
 }
