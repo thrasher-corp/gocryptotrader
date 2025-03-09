@@ -420,12 +420,13 @@ const (
 	GoodTillCancel TimeInForce = 1 << iota
 	GoodTillDay
 	GoodTillTime
+	GoodTillCrossing
 	FillOrKill
 	ImmediateOrCancel
 	PostOnly
 	UnknownTIF
 
-	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | FillOrKill | ImmediateOrCancel | PostOnly
+	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly
 )
 
 // ByPrice used for sorting orders by price
