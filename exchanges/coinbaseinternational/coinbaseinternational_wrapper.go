@@ -467,14 +467,6 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 		return nil, err
 	}
 
-	// TODO: possible value GTT is not represented by the order.Submit
-	// therefore we could not represent 'GTT'
-	var tif string
-	if s.ImmediateOrCancel {
-		tif = "IOC"
-	} else {
-		tif = "GTC"
-	}
 	response, err := co.CreateOrder(ctx, &OrderRequestParams{
 		ClientOrderID: s.ClientOrderID,
 		Side:          s.Side.String(),
@@ -484,7 +476,7 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 		Price:         s.Price,
 		StopPrice:     s.TriggerPrice,
 		PostOnly:      s.PostOnly,
-		TimeInForce:   tif,
+		TimeInForce:   s.TimeInForce.String(),
 	})
 	if err != nil {
 		return nil, err
@@ -588,6 +580,10 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 	} else if !newPair.Equal(pair) {
 		return nil, fmt.Errorf("expected pair %v, got %v", pair, newPair)
 	}
+	tif, err := order.StringToTimeInForce(resp.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
 	return &order.Detail{
 		Price:                resp.Price,
 		Amount:               resp.Size,
@@ -606,6 +602,7 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 		AssetType:            asset.Spot,
 		CloseTime:            resp.ExpireTime,
 		Pair:                 pair,
+		TimeInForce:          tif,
 	}, nil
 }
 
@@ -693,6 +690,10 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 		if len(getOrdersRequest.Pairs) != 0 && getOrdersRequest.Pairs.Contains(pair, true) {
 			continue
 		}
+		tif, err := order.StringToTimeInForce(response.Results[x].TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		orders = append(orders, order.Detail{
 			Amount:               response.Results[x].Size,
 			Price:                response.Results[x].Price,
@@ -711,6 +712,7 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 			Status:               oStatus,
 			AssetType:            asset.Spot,
 			Pair:                 pair,
+			TimeInForce:          tif,
 		})
 	}
 	return orders, nil
