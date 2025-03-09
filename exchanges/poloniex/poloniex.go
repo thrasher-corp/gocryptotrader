@@ -224,28 +224,27 @@ func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start,
 	}
 
 	var temp json.RawMessage
-	var resp []ChartData
 	path := "/public?command=returnChartData&" + vals.Encode()
 	err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &temp)
 	if err != nil {
 		return nil, err
 	}
 
-	tempUnmarshal := json.Unmarshal(temp, &resp)
-	if tempUnmarshal != nil {
+	var resp []ChartData
+	err = json.Unmarshal(temp, &resp)
+	if err != nil {
 		var errResp struct {
 			Error string `json:"error"`
 		}
-		errRet := json.Unmarshal(temp, &errResp)
-		if errRet != nil {
-			return nil, err
+		if errRet := json.Unmarshal(temp, &errResp); errRet != nil {
+			return nil, errRet
 		}
 		if errResp.Error != "" {
 			return nil, errors.New(errResp.Error)
 		}
 	}
 
-	return resp, nil
+	return resp, err
 }
 
 // GetCurrencies returns information about currencies

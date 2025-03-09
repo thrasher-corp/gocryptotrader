@@ -78,10 +78,6 @@ const (
 	askSide = "Ask"
 	bidSide = "Bid"
 
-	// time in force
-	immediateOrCancel = "IOC"
-	fillOrKill        = "FOK"
-
 	subscribe         = "subscribe"
 	fundChange        = "fundChange"
 	orderChange       = "orderChange"
@@ -377,11 +373,8 @@ func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
 
 // getTimeInForce returns a string depending on the options in order.Submit
 func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
-	if s.ImmediateOrCancel {
-		return immediateOrCancel
-	}
-	if s.FillOrKill {
-		return fillOrKill
+	if s.TimeInForce.Is(order.ImmediateOrCancel) || s.TimeInForce.Is(order.FillOrKill) {
+		return s.TimeInForce.String()
 	}
 	return "" // GTC (good till cancelled, default value)
 }

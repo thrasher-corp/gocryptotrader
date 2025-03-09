@@ -280,7 +280,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(b.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
