@@ -240,6 +240,9 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 
 		for y := range incoming.Accounts[x].Currencies {
+			if incoming.Accounts[x].Currencies[y].UpdatedAt.IsZero() {
+				incoming.Accounts[x].Currencies[y].UpdatedAt = time.Now()
+			}
 			// Note: Sub accounts are case sensitive and an account "name" is
 			// different to account "naMe".
 			bal, ok := subAccounts[key.SubAccountCurrencyAsset{

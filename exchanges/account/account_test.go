@@ -443,4 +443,8 @@ func TestUpdate(t *testing.T) {
 	if b.hold != 20 {
 		t.Errorf("expecting 20 but received %f", b.hold)
 	}
+
+	if b.updatedAt.IsZero() {
+		t.Error("expected updatedAt to be set")
+	}
 }
