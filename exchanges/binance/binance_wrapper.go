@@ -1117,32 +1117,10 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	}
 }
 
-func (b *Binance) orderTypeToString(orderType order.Type) (string, error) {
-	switch orderType {
-	case order.Limit:
-		return cfuturesLimit, nil
-	case order.Market:
-		return cfuturesMarket, nil
-	case order.Stop:
-		return cfuturesStop, nil
-	case order.StopMarket:
-		return cfuturesStopMarket, nil
-	case order.TakeProfit:
-		return cfuturesTakeProfit, nil
-	case order.TakeProfitMarket:
-		return cfuturesTakeProfitMarket, nil
-	case order.TrailingStop:
-		return cfuturesTrailingStopMarket, nil
-	case order.OCO, order.SOR:
-		return orderType.String(), nil
-	}
-	return "", fmt.Errorf("%w, order type %v", order.ErrTypeIsInvalid, orderType)
-}
-
 func timeInForceString(tif order.TimeInForce, oType order.Type) string {
 	switch {
 	case tif.Is(order.FillOrKill), tif.Is(order.ImmediateOrCancel),
-		tif.Is(order.GoodTillCancel), tif.Is(order.GoodTillDay):
+		tif.Is(order.GoodTillCancel), tif.Is(order.GoodTillDay), tif.Is(order.GoodTillCrossing):
 		return tif.String()
 	default:
 		switch oType {
@@ -1204,10 +1182,10 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			} else {
 				var resp *SOROrderResponse
 				resp, err = b.NewOrderUsingSOR(ctx, &SOROrderRequestParams{
-					Symbol:    s.Pair,
-					Side:      sideType,
-					OrderType: oTypeString,
-					// TimeInForce:      string(timeInForce),
+					Symbol:           s.Pair,
+					Side:             sideType,
+					OrderType:        oTypeString,
+					TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
 					Quantity:         s.Amount,
 					Price:            s.Price,
 					NewClientOrderID: s.ClientOrderID,
@@ -1221,14 +1199,14 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var ocoOrder *OCOOrder
 			if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				ocoOrder, err = b.WsPlaceOCOOrder(&PlaceOCOOrderParam{
-					Symbol:             s.Pair.String(),
-					Side:               sideType,
-					Price:              s.Price,
-					Quantity:           s.Amount,
-					ListClientOrderID:  "list-" + s.ClientOrderID,
-					LimitClientOrderID: "limit-" + s.ClientOrderID,
-					StopPrice:          s.TriggerPrice,
-					// StopLimitTimeInForce: string(timeInForce),
+					Symbol:               s.Pair.String(),
+					Side:                 sideType,
+					Price:                s.Price,
+					Quantity:             s.Amount,
+					ListClientOrderID:    "list-" + s.ClientOrderID,
+					LimitClientOrderID:   "limit-" + s.ClientOrderID,
+					StopPrice:            s.TriggerPrice,
+					StopLimitTimeInForce: timeInForceString(s.TimeInForce, s.Type),
 				})
 				if err != nil {
 					return nil, err
@@ -1238,15 +1216,15 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				ocoOrder, err = b.NewOCOOrder(
 					ctx,
 					&OCOOrderParam{
-						Symbol:             s.Pair,
-						Side:               sideType,
-						Amount:             s.Amount,
-						Price:              s.Price,
-						StopPrice:          s.TriggerPrice,
-						LimitClientOrderID: "limit-" + s.ClientOrderID,
-						StopClientOrderID:  "stop-" + s.ClientOrderID,
-						StopLimitPrice:     s.RiskManagementModes.StopLoss.LimitPrice,
-						// StopLimitTimeInForce: string(timeInForce),
+						Symbol:               s.Pair,
+						Side:                 sideType,
+						Amount:               s.Amount,
+						Price:                s.Price,
+						StopPrice:            s.TriggerPrice,
+						LimitClientOrderID:   "limit-" + s.ClientOrderID,
+						StopClientOrderID:    "stop-" + s.ClientOrderID,
+						StopLimitPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
+						StopLimitTimeInForce: timeInForceString(s.TimeInForce, s.Type),
 					})
 				if err != nil {
 					return nil, err
@@ -1256,12 +1234,12 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper():
 			var results *TradeOrderResponse
 			results, err = b.WsPlaceNewOrder(&TradeOrderRequestParam{
-				Symbol:    s.Pair.String(),
-				Side:      sideType,
-				OrderType: oTypeString,
-				Price:     s.Price,
-				Quantity:  s.Amount,
-				// TimeInForce: string(timeInForce),
+				Symbol:      s.Pair.String(),
+				Side:        sideType,
+				OrderType:   oTypeString,
+				Price:       s.Price,
+				Quantity:    s.Amount,
+				TimeInForce: timeInForceString(s.TimeInForce, s.Type),
 			})
 			if err != nil {
 				return nil, err
@@ -1276,7 +1254,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				Quantity:         s.Amount,
 				TradeType:        oTypeString,
 				NewClientOrderID: s.ClientOrderID,
-				// TimeInForce:      timeInForce,
+				TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
 			})
 			if err != nil {
 				return nil, err
@@ -1308,7 +1286,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 
 		var oType, timeInForce string
-		oType, err = b.orderTypeToString(s.Type)
+		oType, err = OrderTypeString(s.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -1331,10 +1309,10 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		} else {
 			var o *UOrderData
 			o, err = b.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
-				Symbol:    s.Pair,
-				Side:      reqSide,
-				OrderType: oType,
-				// TimeInForce:      string(timeInForce),
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
 				NewClientOrderID: s.ClientOrderID,
 				Quantity:         s.Amount,
 				Price:            s.Price,
@@ -1617,7 +1595,10 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		orderVars, err := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		if err != nil {
+			return nil, err
+		}
 		return &order.Detail{
 			Amount:          orderData.OriginalQuantity,
 			AssetType:       assetType,
@@ -1649,7 +1630,10 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		orderVars := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		orderVars, err := compatibleOrderVars(orderData.Side, orderData.Status, orderData.OrderType)
+		if err != nil {
+			return nil, err
+		}
 		return &order.Detail{
 			Amount:          orderData.OriginalQuantity,
 			AssetType:       assetType,
@@ -1897,7 +1881,10 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				orderVars, err := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				if err != nil {
+					return nil, err
+				}
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price,
 					Amount:          openOrders[y].OrigQty,
@@ -1931,7 +1918,10 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				orderVars, err := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].OrderType)
+				if err != nil {
+					return nil, err
+				}
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price,
 					Amount:          openOrders[y].OriginalQuantity,
@@ -1960,7 +1950,10 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 				if openOrders[y].PostOnly {
 					openOrders[y].TimeInForce |= order.PostOnly
 				}
-				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].Type)
+				orderVars, err := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].Type)
+				if err != nil {
+					return nil, err
+				}
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price.Float64(),
 					Amount:          openOrders[y].Quantity.Float64(),
@@ -2138,7 +2131,10 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				orderVars, err := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				if err != nil {
+					return nil, err
+				}
 				orders = append(orders, order.Detail{
 					Price:           orderHistory[y].Price,
 					Amount:          orderHistory[y].OrigQty,
@@ -2197,7 +2193,10 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 				if err != nil {
 					return orders, err
 				}
-				orderVars := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				orderVars, err := compatibleOrderVars(orderHistory[y].Side, orderHistory[y].Status, orderHistory[y].OrderType)
+				if err != nil {
+					return nil, err
+				}
 				orders = append(orders, order.Detail{
 					Price:           orderHistory[y].Price,
 					Amount:          orderHistory[y].OrigQty,
@@ -2230,7 +2229,10 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 				if openOrders[y].PostOnly {
 					openOrders[y].TimeInForce |= order.PostOnly
 				}
-				orderVars := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].Type)
+				orderVars, err := compatibleOrderVars(openOrders[y].Side, openOrders[y].Status, openOrders[y].Type)
+				if err != nil {
+					return nil, err
+				}
 				orders = append(orders, order.Detail{
 					Price:           openOrders[y].Price.Float64(),
 					Amount:          openOrders[y].Quantity.Float64(),
@@ -2494,7 +2496,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	return req.ProcessResponse(timeSeries)
 }
 
-func compatibleOrderVars(side, status, orderType string) OrderVars {
+func compatibleOrderVars(side, status, orderType string) (OrderVars, error) {
 	var resp OrderVars
 	switch side {
 	case order.Buy.String():
@@ -2520,17 +2522,12 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 	default:
 		resp.Status = order.UnknownStatus
 	}
-	switch orderType {
-	case "TAKE_PROFIT":
-		resp.OrderType = order.TakeProfit
-	default:
-		var err error
-		resp.OrderType, err = order.StringToOrderType(orderType)
-		if err != nil {
-			resp.OrderType = order.UnknownType
-		}
+	var err error
+	resp.OrderType, err = orderTypeFromString(orderType)
+	if err != nil {
+		return OrderVars{}, err
 	}
-	return resp
+	return resp, nil
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -3391,7 +3388,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
-						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						orderVars, err := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						if err != nil {
+							return nil, err
+						}
 						var mt margin.Type
 						mt, err = margin.StringToMarginType(result[y].MarginType)
 						if err != nil {
@@ -3467,7 +3467,10 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 						if err != nil {
 							return nil, err
 						}
-						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						orderVars, err := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						if err != nil {
+							return nil, err
+						}
 						var mt margin.Type
 						mt, err = margin.StringToMarginType(result[y].MarginType)
 						if err != nil {

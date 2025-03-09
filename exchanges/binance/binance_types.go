@@ -944,10 +944,13 @@ func orderTypeFromString(oType string) (order.Type, error) {
 	}
 }
 
+// OrderTypeString returns string from order type instance
 func OrderTypeString(oType order.Type) (string, error) {
 	switch oType {
-	case order.Limit:
-		return "LIMIT", nil
+	case order.Limit, order.Market, order.OCO, order.OTO:
+		return oType.String(), nil
+	case order.Stop:
+		return "STOP_LOSS", nil
 	case order.StopMarket:
 		return "STOP_MARKET", nil
 	case order.TakeProfit:
@@ -962,14 +965,6 @@ func OrderTypeString(oType order.Type) (string, error) {
 		return "TAKE_PROFIT_LIMIT", nil
 	case order.LimitMaker:
 		return "LIMIT_MAKER", nil
-	case order.Market:
-		return "MARKET", nil
-	case order.OCO:
-		return "OCO", nil
-	case order.OTO:
-		return "OTO", nil
-	case order.Stop:
-		return "STOP_LOSS", nil
 	default:
 		return "", fmt.Errorf("%w: order type %v", order.ErrUnsupportedOrderType, oType)
 	}
@@ -5712,7 +5707,7 @@ type SubAccountIPRestrictioin struct {
 	APIKey     string     `json:"apiKey"`
 }
 
-// BrokerCreateSubAccount represents a a subaccount creation response through a broker
+// BrokerCreateSubAccount represents a subaccount creation response through a broker
 type BrokerCreateSubAccount struct {
 	SubaccountID string `json:"subaccountId"`
 	Email        string `json:"email"`

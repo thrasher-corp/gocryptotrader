@@ -6938,10 +6938,15 @@ func (b *Binance) SubAccountTransferWithFuturesBroker(ctx context.Context, asset
 }
 
 // GetFuturesBrokerSubAccountTransferHistory retrieves sub-account assets transfers of futures account through a broker account
-func (b *Binance) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context, futuresType int, subAccountID, clientTransferID string, startTime, endTime time.Time, page, limit int64) (*FuturesSubAccountTransfers, error) {
+func (b *Binance) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context, coinMargined bool, subAccountID, clientTransferID string, startTime, endTime time.Time, page, limit int64) (*FuturesSubAccountTransfers, error) {
+	if subAccountID == "" {
+		return nil, errSubAccountIDMissing
+	}
 	params := url.Values{}
-	if futuresType != 0 {
-		params.Set("futuresType", strconv.Itoa(futuresType))
+	if coinMargined {
+		params.Set("futuresType", "2")
+	} else {
+		params.Set("futuresType", "1")
 	}
 	if clientTransferID != "" {
 		params.Set("clientTranId", clientTransferID)
@@ -7401,7 +7406,7 @@ func (b *Binance) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime, 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/kickback/recentRecord", params, request.Auth, nil, &resp)
 }
 
-// GetOwnRebateRecentRecords retrieves client if the new user is margin type(mType) value of 1:USDT-margined Futures，2: Coin-margined Futures
+// GetFuturesClientIfNewUser retrieves client if the new user is margin type(mType) value of 1:USDT-margined Futures，2: Coin-margined Futures
 func (b *Binance) GetFuturesClientIfNewUser(ctx context.Context, brokerID string, mType int) (*FuturesNewUserDetail, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)
@@ -7558,7 +7563,7 @@ func (b *Binance) GetTraderDetail(ctx context.Context, customerID string, coinMa
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, request.Auth, nil, &resp)
 }
 
-// GetFuturesClientIfNewUser retrieves futures client detail if new user
+// GetFuturesClientifNewUser retrieves futures client detail if new user
 func (b *Binance) GetFuturesClientifNewUser(ctx context.Context, brokerID string, coinMargined bool) (*FuturesClientIfNewUser, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerId is required", order.ErrOrderIDNotSet)

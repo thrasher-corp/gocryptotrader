@@ -9513,7 +9513,7 @@ func TestSubAccountTransferWithFuturesBroker(t *testing.T) {
 func TestGetFuturesBrokerSubAccountTransferHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetFuturesBrokerSubAccountTransferHistory(context.Background(), 1, "", "", time.Time{}, time.Time{}, 0, 100)
+	result, err := b.GetFuturesBrokerSubAccountTransferHistory(context.Background(), false, "", "", time.Time{}, time.Time{}, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -9981,5 +9981,26 @@ func TestOrderTypeString(t *testing.T) {
 		result, err := OrderTypeString(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, result, v.String)
+	}
+}
+
+func TestTimeInForceString(t *testing.T) {
+	t.Parallel()
+	var timeInForceStringMap = map[struct {
+		TIF   order.TimeInForce
+		OType order.Type
+	}]string{
+		{order.FillOrKill, 0}:               "FOK",
+		{order.ImmediateOrCancel, 0}:        "IOC",
+		{order.GoodTillCancel, 0}:           "GTC",
+		{order.GoodTillDay, 0}:              "GTD",
+		{order.GoodTillCrossing, 0}:         "GTX",
+		{order.UnsetTIF, order.Limit}:       "GTC",
+		{order.UnsetTIF, order.Market}:      "IOC",
+		{order.UnsetTIF, order.UnknownType}: "",
+	}
+	for k, v := range timeInForceStringMap {
+		result := timeInForceString(k.TIF, k.OType)
+		assert.Equal(t, v, result)
 	}
 }
