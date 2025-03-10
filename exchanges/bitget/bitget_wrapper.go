@@ -340,7 +340,6 @@ func (bi *Bitget) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// tickerPrice := new(ticker.Price)
 	var tickerPrice *ticker.Price
 	p, err := bi.FormatExchangeCurrency(p, assetType)
 	if err != nil {
