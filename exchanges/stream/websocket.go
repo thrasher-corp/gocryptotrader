@@ -22,17 +22,18 @@ const jobBuffer = 5000
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
-	ErrSubscriptionFailure     = errors.New("subscription failure")
-	ErrUnsubscribeFailure      = errors.New("unsubscribe failure")
-	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
-	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
-	ErrAlreadyDisabled         = errors.New("websocket already disabled")
-	ErrNotConnected            = errors.New("websocket is not connected")
-	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
-	ErrRequestRouteNotFound    = errors.New("request route not found")
-	ErrSignatureNotSet         = errors.New("signature not set")
-	ErrRequestPayloadNotSet    = errors.New("request payload not set")
+	ErrWebsocketAlreadyInitialised = errors.New("websocket already initialised")
+	ErrWebsocketNotEnabled         = errors.New("websocket not enabled")
+	ErrSubscriptionFailure         = errors.New("subscription failure")
+	ErrUnsubscribeFailure          = errors.New("unsubscribe failure")
+	ErrSubscriptionsNotAdded       = errors.New("subscriptions not added")
+	ErrSubscriptionsNotRemoved     = errors.New("subscriptions not removed")
+	ErrAlreadyDisabled             = errors.New("websocket already disabled")
+	ErrNotConnected                = errors.New("websocket is not connected")
+	ErrSignatureTimeout            = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound        = errors.New("request route not found")
+	ErrSignatureNotSet             = errors.New("signature not set")
+	ErrRequestPayloadNotSet        = errors.New("request payload not set")
 )
 
 // Private websocket errors
@@ -40,7 +41,6 @@ var (
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
-	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
 	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
 	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
@@ -115,7 +115,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	defer w.m.Unlock()
 
 	if w.IsInitialised() {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
+		return fmt.Errorf("%s %w", w.exchangeName, ErrWebsocketAlreadyInitialised)
 	}
 
 	if s.ExchangeConfig == nil {
