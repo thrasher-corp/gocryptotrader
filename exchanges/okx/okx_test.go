@@ -224,7 +224,7 @@ func TestGetCandlesticks(t *testing.T) {
 	_, err := ok.GetCandlesticks(contextGenerate(), "", kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	result, err := ok.GetCandlesticks(contextGenerate(), spotTP.String(), kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
+	result, err := ok.GetCandlesticks(contextGenerate(), spotTP.String(), kline.OneHour, time.Now().Add(-time.Hour), time.Now(), 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -314,7 +314,9 @@ func TestGetIndexComponents(t *testing.T) {
 
 	result, err := ok.GetIndexComponents(contextGenerate(), "ETH-USDT")
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotNil(t, result)
+	assert.NotEmpty(t, result.Index, "Index must not be empty")
+	assert.NotEmpty(t, result.Components, "Components must not be empty")
 }
 
 func TestGetBlockTickers(t *testing.T) {
@@ -402,14 +404,13 @@ func TestGetInstrument(t *testing.T) {
 		InstrumentType: instTypeOption, Underlying: ""})
 	assert.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	result, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+	_, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
 		Underlying:     "SOL-USD",
 	})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	require.ErrorIs(t, err, common.ErrNoResponse)
 
-	result, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+	result, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
 	})
 	require.NoError(t, err)
@@ -520,6 +521,7 @@ func TestGetSystemTime(t *testing.T) {
 	result, err := ok.GetSystemTime(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	assert.False(t, result.Time().IsZero(), "GetSystemTime must not return a zero time")
 }
 
 func TestGetLiquidationOrders(t *testing.T) {
@@ -587,7 +589,8 @@ func TestGetPublicUnderlyings(t *testing.T) {
 
 	result, err := ok.GetPublicUnderlyings(contextGenerate(), instTypeFutures)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotNil(t, result)
+	assert.NotEmpty(t, result)
 }
 
 func TestGetInsuranceFundInformation(t *testing.T) {
@@ -647,7 +650,8 @@ func TestGetSupportCoins(t *testing.T) {
 	t.Parallel()
 	result, err := ok.GetSupportCoins(contextGenerate())
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotNil(t, result)
+	assert.NotEmpty(t, result.Spot, "SupportedCoins Spot must not be empty")
 }
 
 func TestGetTakerVolume(t *testing.T) {
@@ -715,7 +719,8 @@ func TestGetTakerFlow(t *testing.T) {
 	t.Parallel()
 	result, err := ok.GetTakerFlow(contextGenerate(), currency.BTC, kline.OneDay)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NotNil(t, result)
+	assert.False(t, result.Timestamp.Time().IsZero(), "Timestamp must not be zero")
 }
 
 func TestPlaceOrder(t *testing.T) {
