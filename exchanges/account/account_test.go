@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -70,7 +71,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = Process(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	holdings := Holdings{Exchange: "Test"}
 
@@ -129,7 +130,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = GetHoldings("", nil, asset.Spot)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	_, err = GetHoldings("bla", nil, asset.Spot)
 	assert.ErrorIs(t, err, errCredentialsAreNil)
@@ -200,7 +201,7 @@ func TestGetBalance(t *testing.T) {
 	t.Parallel()
 
 	_, err := GetBalance("", "", nil, asset.Empty, currency.Code{})
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	_, err = GetBalance("bruh", "", nil, asset.Empty, currency.Code{})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -338,8 +339,8 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = s.Update(&Holdings{}, nil)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	err = s.Update(&Holdings{
