@@ -1396,7 +1396,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 			i := 1 - len(h.Websocket.DataHandler)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
-			t.Error()
+			t.Error(v)
 		default:
 			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
 		}
