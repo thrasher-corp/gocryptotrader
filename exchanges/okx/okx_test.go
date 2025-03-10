@@ -4052,8 +4052,7 @@ func TestWSProcessTrades(t *testing.T) {
 
 	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
-	instrumentID := "BTC-USDT"
-	assets, err := ok.getAssetsFromInstrumentID(instrumentID)
+	assets, err := ok.getAssetsFromInstrumentID("BTC-USDT")
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
@@ -4090,19 +4089,15 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	total := len(assets) * len(exp)
-	require.Len(t, ok.Websocket.DataHandler, total,
-		"Must see correct number of trades")
+	require.Len(t, ok.Websocket.DataHandler, total, "Must see correct number of trades")
 
-	receivedTrades := make(map[asset.Item][]trade.Data)
-	for _, a := range assets {
-		receivedTrades[a] = []trade.Data{}
-	}
+	trades := make(map[asset.Item][]trade.Data)
 
 	for len(ok.Websocket.DataHandler) > 0 {
 		resp := <-ok.Websocket.DataHandler
 		switch v := resp.(type) {
 		case trade.Data:
-			receivedTrades[v.AssetType] = append(receivedTrades[v.AssetType], v)
+			trades[v.AssetType] = append(trades[v.AssetType], v)
 		case error:
 			t.Error(v)
 		default:
@@ -4111,19 +4106,14 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	for _, assetType := range assets {
-		trades, exists := receivedTrades[assetType]
-		require.True(t, exists, "Should have received trades for asset %v", assetType)
-		require.Len(t, trades, len(exp),
-			"Should have received %d trades for asset %v", len(exp), assetType)
-		sort.Slice(trades, func(i, j int) bool {
-			return trades[i].TID < trades[j].TID
+		require.Len(t, trades[assetType], len(exp), "Should have received %d trades for asset %v", len(exp), assetType)
+		sort.Slice(trades[assetType], func(i, j int) bool {
+			return trades[assetType][i].TID < trades[assetType][j].TID
 		})
-		for i, trade := range trades {
+		for i, trade := range trades[assetType] {
 			expected := exp[i]
 			expected.AssetType = assetType
-			require.Equal(t, expected, trade,
-				"Trade %d (TID: %s) for asset %v should match expected data",
-				i, trade.TID, assetType)
+			require.Equal(t, expected, trade, "Trade %d (TID: %s) for asset %v should match expected data", i, trade.TID, assetType)
 		}
 	}
 }
