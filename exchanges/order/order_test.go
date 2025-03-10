@@ -381,7 +381,7 @@ func TestFilterOrdersByType(t *testing.T) {
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
 	FilterOrdersByType(&orders, Limit)
 	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -1867,6 +1867,21 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "json.Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","ImmediateOrCancel":false,"FillOrKill":false,"PostOnly":false,"ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
 	assert.Equal(t, exp, j)
+}
+
+func TestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	data, err := json.Marshal(GoodTillCrossing)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(`"GTX"`), data)
+
+	data = []byte(`{"tif":"IOC"}`)
+	target := &struct {
+		TimeInForce TimeInForce `json:"tif"`
+	}{}
+	err = json.Unmarshal(data, &target)
+	require.NoError(t, err)
+	assert.Equal(t, "IOC", target.TimeInForce.String())
 }

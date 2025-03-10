@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -721,7 +720,6 @@ func (t Type) String() string {
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
 	var tifStrings []string
-
 	if t.Is(ImmediateOrCancel) {
 		tifStrings = append(tifStrings, "IOC")
 	}
@@ -763,6 +761,11 @@ func (t *TimeInForce) UnmarshalJSON(data []byte) error {
 		*t |= tif
 	}
 	return nil
+}
+
+// MarshalJSON returns the JSON-encoded order time-in-force value
+func (t TimeInForce) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
 }
 
 // Lower returns the type lower case string
