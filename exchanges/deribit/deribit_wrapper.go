@@ -199,30 +199,23 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
-	var resp currency.Pairs
-	for _, x := range baseCurrencies {
-		var instrumentsData []InstrumentData
-		var err error
-		if d.Websocket.IsConnected() {
-			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(x), d.GetAssetKind(assetType), false)
-		} else {
-			instrumentsData, err = d.GetInstruments(ctx, currency.NewCode(x), d.GetAssetKind(assetType), false)
+
+	instrumentsData, err := d.GetInstruments(ctx, currency.EMPTYCODE, d.GetAssetKind(assetType), false)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make(currency.Pairs, 0, len(instrumentsData))
+	for y := range instrumentsData {
+		if !instrumentsData[y].IsActive {
+			continue
 		}
+		var cp currency.Pair
+		cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
 		if err != nil {
 			return nil, err
 		}
-
-		for y := range instrumentsData {
-			if !instrumentsData[y].IsActive {
-				continue
-			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
-			if err != nil {
-				return nil, err
-			}
-			resp = resp.Add(cp)
-		}
+		resp = resp.Add(cp)
 	}
 	return resp, nil
 }
