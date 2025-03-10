@@ -237,8 +237,8 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		if startTime.After(endTime) {
 			return nil, errors.New("startTime cannot be after endTime")
 		}
-		params.Set("startTime", timeString(startTime))
-		params.Set("endTime", timeString(endTime))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	rateBudget := uFuturesDefaultRate
 	switch {
