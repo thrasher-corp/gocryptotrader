@@ -4815,6 +4815,9 @@
         "borrowed": {
           "type": "number",
           "format": "double"
+        },
+        "updatedAt": {
+          "type": "string"
         }
       }
     },

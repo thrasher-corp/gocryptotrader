@@ -3,6 +3,7 @@ package account
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -59,6 +60,7 @@ type Balance struct {
 	Free                   float64
 	AvailableWithoutBorrow float64
 	Borrowed               float64
+	UpdatedAt              time.Time
 }
 
 // Change defines incoming balance change on currency holdings
@@ -78,6 +80,7 @@ type ProtectedBalance struct {
 	availableWithoutBorrow float64
 	borrowed               float64
 	m                      sync.Mutex
+	updatedAt              time.Time
 
 	// notice alerts for when the balance changes for strategy inspection and
 	// usage.

@@ -31,6 +31,8 @@ var (
 	errBalanceIsNil                 = errors.New("balance is nil")
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
 	errCredentialsAreNil            = errors.New("credentials are nil")
+	errOutOfSequence                = errors.New("out of sequence")
+	errUpdatedAtIsZero              = errors.New("updated at is zero")
 )
 
 // CollectBalances converts a map of sub-account balances into a slice
@@ -103,7 +105,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 		return Holdings{}, fmt.Errorf("%s %s %s %w %w", exch, creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
 	}
 
-	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
+	currencyBalances := make([]Balance, 0, len(subAccountHoldings))
 	cpy := *creds
 	for mapKey, assetHoldings := range subAccountHoldings {
 		if mapKey.Asset != assetType {
@@ -117,6 +119,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 			Free:                   assetHoldings.free,
 			AvailableWithoutBorrow: assetHoldings.availableWithoutBorrow,
 			Borrowed:               assetHoldings.borrowed,
+			UpdatedAt:              assetHoldings.updatedAt,
 		})
 		assetHoldings.m.Unlock()
 		if cpy.SubAccount == "" && mapKey.SubAccount != "" {
@@ -239,6 +242,9 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 
 		for y := range incoming.Accounts[x].Currencies {
+			if incoming.Accounts[x].Currencies[y].UpdatedAt.IsZero() {
+				incoming.Accounts[x].Currencies[y].UpdatedAt = time.Now()
+			}
 			// Note: Sub accounts are case sensitive and an account "name" is
 			// different to account "naMe".
 			bal, ok := subAccounts[key.SubAccountCurrencyAsset{
@@ -254,7 +260,13 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 					Asset:      incoming.Accounts[x].AssetType,
 				}] = bal
 			}
-			bal.load(incoming.Accounts[x].Currencies[y])
+			if err := bal.load(&incoming.Accounts[x].Currencies[y]); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("cannot load balance for %s [%s %s] %w",
+					incoming.Accounts[x].ID,
+					incoming.Accounts[x].AssetType,
+					incoming.Accounts[x].Currencies[y].Currency,
+					err))
+			}
 		}
 	}
 
@@ -268,22 +280,34 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 
 // load checks to see if there is a change from incoming balance, if there is a
 // change it will change then alert external routines.
-func (b *ProtectedBalance) load(change Balance) {
+func (b *ProtectedBalance) load(change *Balance) error {
+	if change == nil {
+		return fmt.Errorf("%w for '%T'", common.ErrNilPointer, change)
+	}
+        if change.UpdatedAt.IsZero() {
+		return errUpdatedAtIsZero
+	}
 	b.m.Lock()
 	defer b.m.Unlock()
+	if !b.updatedAt.IsZero() && !b.updatedAt.Before(change.UpdatedAt) {
+		return errOutOfSequence
+	}
 	if b.total == change.Total &&
 		b.hold == change.Hold &&
 		b.free == change.Free &&
 		b.availableWithoutBorrow == change.AvailableWithoutBorrow &&
-		b.borrowed == change.Borrowed {
-		return
+		b.borrowed == change.Borrowed &&
+		b.updatedAt.Equal(change.UpdatedAt) {
+		return nil
 	}
 	b.total = change.Total
 	b.hold = change.Hold
 	b.free = change.Free
 	b.availableWithoutBorrow = change.AvailableWithoutBorrow
 	b.borrowed = change.Borrowed
+	b.updatedAt = change.UpdatedAt
 	b.notice.Alert()
+	return nil
 }
 
 // Wait waits for a change in amounts for an asset type. This will pause
