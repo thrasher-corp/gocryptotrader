@@ -750,17 +750,6 @@ func (p *Poloniex) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestP
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
 }
 
-func orderTypeString(oType order.Type) string {
-	switch oType {
-	case order.StopLimit:
-		return "STOP_LIMIT"
-	case order.AnyType, order.UnknownType:
-		return ""
-	default:
-		return oType.String()
-	}
-}
-
 // CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters.
 // The replacement smart order can amend price, stopPrice, quantity, amount, type, and timeInForce fields. Specify the existing smart order id in the path;
 // if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.

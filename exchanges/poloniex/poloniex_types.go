@@ -3,6 +3,7 @@ package poloniex
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -557,43 +558,43 @@ type CancelReplaceOrderResponse struct {
 
 // TradeOrder represents a trade order instance.
 type TradeOrder struct {
-	ID             string       `json:"id"`
-	ClientOrderID  string       `json:"clientOrderId"`
-	Symbol         string       `json:"symbol"`
-	State          string       `json:"state"`
-	AccountType    string       `json:"accountType"`
-	Side           string       `json:"side"`
-	Type           string       `json:"type"`
-	TimeInForce    string       `json:"timeInForce"`
-	Quantity       types.Number `json:"quantity"`
-	Price          types.Number `json:"price"`
-	AvgPrice       types.Number `json:"avgPrice"`
-	Amount         types.Number `json:"amount"`
-	FilledQuantity types.Number `json:"filledQuantity"`
-	FilledAmount   types.Number `json:"filledAmount"`
-	CreateTime     types.Time   `json:"createTime"`
-	UpdateTime     types.Time   `json:"updateTime"`
-	OrderSource    string       `json:"orderSource"`
-	Loan           bool         `json:"loan"`
-	CancelReason   int64        `json:"cancelReason"`
+	ID             string            `json:"id"`
+	ClientOrderID  string            `json:"clientOrderId"`
+	Symbol         string            `json:"symbol"`
+	State          string            `json:"state"`
+	AccountType    string            `json:"accountType"`
+	Side           string            `json:"side"`
+	Type           string            `json:"type"`
+	TimeInForce    order.TimeInForce `json:"timeInForce"`
+	Quantity       types.Number      `json:"quantity"`
+	Price          types.Number      `json:"price"`
+	AvgPrice       types.Number      `json:"avgPrice"`
+	Amount         types.Number      `json:"amount"`
+	FilledQuantity types.Number      `json:"filledQuantity"`
+	FilledAmount   types.Number      `json:"filledAmount"`
+	CreateTime     types.Time        `json:"createTime"`
+	UpdateTime     types.Time        `json:"updateTime"`
+	OrderSource    string            `json:"orderSource"`
+	Loan           bool              `json:"loan"`
+	CancelReason   int64             `json:"cancelReason"`
 }
 
 // SmartOrderItem represents a smart order detail.
 type SmartOrderItem struct {
-	ID            string       `json:"id"`
-	ClientOrderID string       `json:"clientOrderId"`
-	Symbol        string       `json:"symbol"`
-	State         string       `json:"state"`
-	AccountType   string       `json:"accountType"`
-	Side          string       `json:"side"`
-	Type          string       `json:"type"`
-	TimeInForce   string       `json:"timeInForce"`
-	Quantity      types.Number `json:"quantity"`
-	Price         types.Number `json:"price"`
-	Amount        types.Number `json:"amount"`
-	StopPrice     types.Number `json:"stopPrice"`
-	CreateTime    types.Time   `json:"createTime"`
-	UpdateTime    types.Time   `json:"updateTime"`
+	ID            string            `json:"id"`
+	ClientOrderID string            `json:"clientOrderId"`
+	Symbol        string            `json:"symbol"`
+	State         string            `json:"state"`
+	AccountType   string            `json:"accountType"`
+	Side          string            `json:"side"`
+	Type          string            `json:"type"`
+	TimeInForce   order.TimeInForce `json:"timeInForce"`
+	Quantity      types.Number      `json:"quantity"`
+	Price         types.Number      `json:"price"`
+	Amount        types.Number      `json:"amount"`
+	StopPrice     types.Number      `json:"stopPrice"`
+	CreateTime    types.Time        `json:"createTime"`
+	UpdateTime    types.Time        `json:"updateTime"`
 }
 
 // CancelOrderResponse represents a cancel order response instance.
@@ -662,20 +663,20 @@ type CancelReplaceSmartOrderResponse struct {
 
 // SmartOrderDetail represents a smart order information and trigger detailed information.
 type SmartOrderDetail struct {
-	ID             string       `json:"id"`
-	ClientOrderID  string       `json:"clientOrderId"`
-	Symbol         string       `json:"symbol"`
-	State          string       `json:"state"`
-	AccountType    string       `json:"accountType"`
-	Side           string       `json:"side"`
-	Type           string       `json:"type"`
-	TimeInForce    string       `json:"timeInForce"`
-	Quantity       types.Number `json:"quantity"`
-	Price          types.Number `json:"price"`
-	Amount         types.Number `json:"amount"`
-	StopPrice      types.Number `json:"stopPrice"`
-	CreateTime     types.Time   `json:"createTime"`
-	UpdateTime     types.Time   `json:"updateTime"`
+	ID             string            `json:"id"`
+	ClientOrderID  string            `json:"clientOrderId"`
+	Symbol         string            `json:"symbol"`
+	State          string            `json:"state"`
+	AccountType    string            `json:"accountType"`
+	Side           string            `json:"side"`
+	Type           string            `json:"type"`
+	TimeInForce    order.TimeInForce `json:"timeInForce"`
+	Quantity       types.Number      `json:"quantity"`
+	Price          types.Number      `json:"price"`
+	Amount         types.Number      `json:"amount"`
+	StopPrice      types.Number      `json:"stopPrice"`
+	CreateTime     types.Time        `json:"createTime"`
+	UpdateTime     types.Time        `json:"updateTime"`
 	TriggeredOrder struct {
 		ID             string       `json:"id"`
 		ClientOrderID  string       `json:"clientOrderId"`
@@ -1006,38 +1007,38 @@ type FuturesOrders struct {
 
 // FuturesOrder represents a futures order detail.
 type FuturesOrder struct {
-	OrderID             string       `json:"id"`
-	Symbol              string       `json:"symbol"`
-	OrderType           string       `json:"type"`
-	Side                string       `json:"side"`
-	Price               types.Number `json:"price"`
-	Size                float64      `json:"size"`
-	Value               types.Number `json:"value"`
-	FilledValue         types.Number `json:"filledValue"`
-	FilledSize          float64      `json:"filledSize"`
-	SelfTradePrevention string       `json:"stp"`
-	Stop                string       `json:"stop"`
-	StopPriceType       string       `json:"stopPriceType"`
-	StopTriggered       bool         `json:"stopTriggered"`
-	StopPrice           float64      `json:"stopPrice"`
-	TimeInForce         string       `json:"timeInForce"`
-	PostOnly            bool         `json:"postOnly"`
-	Hidden              bool         `json:"hidden"`
-	Iceberg             bool         `json:"iceberg"`
-	VisibleSize         float64      `json:"visibleSize"`
-	Leverage            types.Number `json:"leverage"`
-	ForceHold           bool         `json:"forceHold"`
-	CloseOrder          bool         `json:"closeOrder"`
-	ReduceOnly          bool         `json:"reduceOnly"`
-	ClientOrderID       string       `json:"clientOid"`
-	Remark              string       `json:"remark"`
-	IsActive            bool         `json:"isActive"`
-	CancelExist         bool         `json:"cancelExist"`
-	CreatedAt           types.Time   `json:"createdAt"`
-	SettleCurrency      string       `json:"settleCurrency"`
-	Status              string       `json:"status"`
-	UpdatedAt           types.Time   `json:"updatedAt"`
-	OrderTime           types.Time   `json:"orderTime"`
+	OrderID             string            `json:"id"`
+	Symbol              string            `json:"symbol"`
+	OrderType           string            `json:"type"`
+	Side                string            `json:"side"`
+	Price               types.Number      `json:"price"`
+	Size                float64           `json:"size"`
+	Value               types.Number      `json:"value"`
+	FilledValue         types.Number      `json:"filledValue"`
+	FilledSize          float64           `json:"filledSize"`
+	SelfTradePrevention string            `json:"stp"`
+	Stop                string            `json:"stop"`
+	StopPriceType       string            `json:"stopPriceType"`
+	StopTriggered       bool              `json:"stopTriggered"`
+	StopPrice           float64           `json:"stopPrice"`
+	TimeInForce         order.TimeInForce `json:"timeInForce"`
+	PostOnly            bool              `json:"postOnly"`
+	Hidden              bool              `json:"hidden"`
+	Iceberg             bool              `json:"iceberg"`
+	VisibleSize         float64           `json:"visibleSize"`
+	Leverage            types.Number      `json:"leverage"`
+	ForceHold           bool              `json:"forceHold"`
+	CloseOrder          bool              `json:"closeOrder"`
+	ReduceOnly          bool              `json:"reduceOnly"`
+	ClientOrderID       string            `json:"clientOid"`
+	Remark              string            `json:"remark"`
+	IsActive            bool              `json:"isActive"`
+	CancelExist         bool              `json:"cancelExist"`
+	CreatedAt           types.Time        `json:"createdAt"`
+	SettleCurrency      string            `json:"settleCurrency"`
+	Status              string            `json:"status"`
+	UpdatedAt           types.Time        `json:"updatedAt"`
+	OrderTime           types.Time        `json:"orderTime"`
 
 	MarginType int64 `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
 	Trades     []struct {

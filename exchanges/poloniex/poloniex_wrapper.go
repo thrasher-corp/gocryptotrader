@@ -668,6 +668,14 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
+	oTypeString, err := OrderTypeString(s.Type)
+	if err != nil {
+		return nil, err
+	}
+	tif, err := TimeInForceString(s.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
 	switch s.AssetType {
 	case asset.Spot:
 		var smartOrder bool
@@ -683,26 +691,32 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			var sOrder *PlaceOrderResponse
 			sOrder, err = p.CreateSmartOrder(ctx, &SmartOrderRequestParam{
 				Symbol:        s.Pair,
-				Side:          orderSideString(s.Side),
-				Type:          orderTypeString(s.Type),
+				Type:          oTypeString,
+				Side:          s.Side.String(),
 				AccountType:   accountTypeString(s.AssetType),
 				Price:         s.Price,
 				StopPrice:     s.TriggerPrice,
 				Quantity:      s.Amount,
 				ClientOrderID: s.ClientOrderID,
+				TimeInForce:   tif,
 			})
 			if err != nil {
 				return nil, err
 			}
 			return s.DeriveSubmitResponse(sOrder.ID)
 		}
+		tif, err := TimeInForceString(s.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		arg := &PlaceOrderParams{
 			Symbol:      s.Pair,
 			Price:       s.Price,
 			Amount:      s.Amount,
 			AllowBorrow: false,
-			Type:        s.Type.String(),
+			Type:        oTypeString,
 			Side:        s.Side.String(),
+			TimeInForce: tif,
 		}
 		if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			response, err = p.WsCreateOrder(arg)
@@ -747,20 +761,29 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				}
 			}
 		}
+		tif, err := TimeInForceString(s.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
+		oTypeString, err := OrderTypeString(s.Type)
+		if err != nil {
+			return nil, err
+		}
 		response, err := p.PlaceFuturesOrder(ctx, &FuturesOrderParams{
 			ClientOrderID: s.ClientOrderID,
-			Side:          orderSideString(s.Side),
+			Side:          s.Side.String(),
 			Symbol:        s.Pair.String(),
-			OrderType:     orderTypeString(s.Type),
+			OrderType:     oTypeString,
 			Leverage:      int64(s.Leverage),
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
 			StopPriceType: stopOrderType,
 			ReduceOnly:    s.ReduceOnly,
 			Hidden:        s.Hidden,
-			// PostOnly:      s.PostOnly,
-			Price: s.Price,
-			Size:  s.Amount,
+			PostOnly:      s.TimeInForce.Is(order.PostOnly),
+			TimeInForce:   tif,
+			Price:         s.Price,
+			Size:          s.Amount,
 		})
 		if err != nil {
 			return nil, err
@@ -783,6 +806,10 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if action.AssetType != asset.Spot {
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, action.AssetType)
 	}
+	tif, err := TimeInForceString(action.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
 	switch action.Type {
 	case order.Market, order.Limit, order.LimitMaker:
 		resp, err := p.CancelReplaceOrder(ctx, &CancelReplaceOrderParam{
@@ -791,6 +818,7 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			Price:         action.Price,
 			Quantity:      action.Amount,
 			AmendedType:   action.Type.String(),
+			TimeInForce:   tif,
 		})
 		if err != nil {
 			return nil, err
@@ -802,14 +830,19 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		modResp.OrderID = resp.ID
 		return modResp, nil
 	case order.Stop, order.StopLimit:
+		oTypeString, err := OrderTypeString(action.Type)
+		if err != nil {
+			return nil, err
+		}
 		oResp, err := p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
-			orderID:       action.OrderID,
-			ClientOrderID: action.ClientOrderID,
-			Price:         action.Price,
-			StopPrice:     action.TriggerPrice,
-			Amount:        action.Amount,
-			AmendedType:   orderTypeString(action.Type),
-			// ProceedOnFailure: !action.ImmediateOrCancel,
+			orderID:          action.OrderID,
+			ClientOrderID:    action.ClientOrderID,
+			Price:            action.Price,
+			StopPrice:        action.TriggerPrice,
+			Amount:           action.Amount,
+			AmendedType:      oTypeString,
+			ProceedOnFailure: !action.TimeInForce.Is(order.ImmediateOrCancel),
+			TimeInForce:      tif,
 		})
 		if err != nil {
 			return nil, err
@@ -993,8 +1026,12 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 				pairsString = append(pairsString, cancelOrd.Pair.String())
 			}
 			orderTypes := []string{}
+			oTypeString, err := OrderTypeString(cancelOrd.Type)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
 			if cancelOrd.Type != order.UnknownType {
-				orderTypes = append(orderTypes, orderTypeString(cancelOrd.Type))
+				orderTypes = append(orderTypes, oTypeString)
 			}
 			var resp []CancelOrderResponse
 			resp, err = p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
@@ -1011,7 +1048,7 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 		var result *FuturesCancelOrderResponse
 		switch cancelOrd.Type {
 		case order.Limit:
-			result, err = p.CancelAllFuturesLimitOrders(ctx, cancelOrd.Pair.String(), orderSideString(cancelOrd.Side))
+			result, err = p.CancelAllFuturesLimitOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1118,6 +1155,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				LastUpdated:   smartOrders[0].UpdateTime.Time(),
 				Pair:          dPair,
 				Trades:        orderTrades,
+				// TimeInForce:   tif,
 			}, nil
 		}
 		dPair, err = currency.NewPairFromString(resp.Symbol)
@@ -1332,7 +1370,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := p.GetOpenOrders(ctx, samplePair, orderSideString(req.Side), "", req.FromOrderID, 0)
+		resp, err := p.GetOpenOrders(ctx, samplePair, req.Side.String(), "", req.FromOrderID, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1366,7 +1404,11 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			})
 		}
 	case asset.Futures:
-		fOrders, err := p.GetFuturesOrderList(context.Background(), "active", samplePair.String(), orderSideString(req.Side), orderTypeString(req.Type), req.StartTime, req.EndTime, margin.Unset)
+		oTypeString, err := OrderTypeString(req.Type)
+		if err != nil {
+			return nil, err
+		}
+		fOrders, err := p.GetFuturesOrderList(context.Background(), "active", samplePair.String(), req.Side.String(), oTypeString, req.StartTime, req.EndTime, margin.Unset)
 		if err != nil {
 			return nil, err
 		}
@@ -1459,17 +1501,8 @@ func stringToAccountType(assetType string) asset.Item {
 	}
 }
 
-func orderSideString(oSide order.Side) string {
-	switch oSide {
-	case order.Buy, order.Sell:
-		return oSide.String()
-	default:
-		return ""
-	}
-}
-
 // GetOrderHistory retrieves account order information
-// Can Limit response to specific order status
+// can Limit response to specific order status
 func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
@@ -1482,7 +1515,11 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	case asset.Spot:
 		switch req.Type {
 		case order.Market, order.Limit:
-			resp, err := p.GetOrdersHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType), orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
+			oTypeString, err := OrderTypeString(req.Type)
+			if err != nil {
+				return nil, err
+			}
+			resp, err := p.GetOrdersHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType), oTypeString, req.Side.String(), "", "", 0, 100, req.StartTime, req.EndTime, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1535,8 +1572,12 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 			return req.Filter(p.Name, orders), nil
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+			oTypeString, err := OrderTypeString(req.Type)
+			if err != nil {
+				return nil, err
+			}
 			smartOrders, err := p.GetSmartOrderHistory(ctx, currency.EMPTYPAIR, accountTypeString(req.AssetType),
-				orderTypeString(req.Type), orderSideString(req.Side), "", "", 0, 100, req.StartTime, req.EndTime, false)
+				oTypeString, req.Side.String(), "", "", 0, 100, req.StartTime, req.EndTime, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1587,7 +1628,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Type)
 		}
 	case asset.Futures:
-		orderHistory, err := p.GetV3FuturesOrderHistory(ctx, "", orderSideString(req.Side), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
+		orderHistory, err := p.GetV3FuturesOrderHistory(ctx, "", req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
 		if err != nil {
 			return nil, err
 		}
@@ -1945,5 +1986,36 @@ func (p *Poloniex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		return poloniexAPIURL + tradeFutures + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}
+
+// OrderTypeString return a string representation of order type
+func OrderTypeString(oType order.Type) (string, error) {
+	switch oType {
+	case order.Market, order.Limit, order.LimitMaker:
+		return oType.String(), nil
+	case order.StopLimit:
+		return "STOP_LIMIT", nil
+	case order.AnyType, order.UnknownType:
+		return "", nil
+	}
+	return "", fmt.Errorf("%w: order type %v", order.ErrUnsupportedOrderType, oType)
+}
+
+// TimeInforceString return a string representation of time-in-force value
+func TimeInForceString(tif order.TimeInForce) (string, error) {
+	if tif.Is(order.GoodTillCancel) {
+		return order.GoodTillCancel.String(), nil
+	}
+	if tif.Is(order.FillOrKill) {
+		return order.FillOrKill.String(), nil
+	}
+	if tif.Is(order.ImmediateOrCancel) {
+		return order.ImmediateOrCancel.String(), nil
+	}
+	if tif == order.UnsetTIF {
+		return "", nil
+	} else {
+		return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)
 	}
 }

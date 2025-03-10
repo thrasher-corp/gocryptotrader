@@ -1106,25 +1106,22 @@ func TestCreateSmartOrder(t *testing.T) {
 	t.Parallel()
 	_, err := p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{})
 	require.ErrorIs(t, err, errNilArgument)
-	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
-		Side: "BUY",
-	})
+
+	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{Side: "BUY"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
-		Symbol: spotTradablePair,
-	})
+	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
 		Symbol:        spotTradablePair,
-		Side:          "BUY",
-		Type:          orderTypeString(order.StopLimit),
-		Quantity:      100,
+		Type:          "STOP_LIMIT",
 		Price:         40000.50000,
-		TimeInForce:   "GTC",
 		ClientOrderID: "1234Abc",
+		Side:          "BUY",
+		TimeInForce:   "GTC",
+		Quantity:      100,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2010,5 +2007,44 @@ func TestIntervalString(t *testing.T) {
 		is, err = IntervalString(key)
 		require.Equal(t, val.IntervalString, is)
 		require.ErrorIs(t, err, val.Error, err)
+	}
+}
+
+func TestTimeInForceString(t *testing.T) {
+	t.Parallel()
+	timeInForceStringMap := map[order.TimeInForce]struct {
+		String string
+		Error  error
+	}{
+		order.GoodTillCancel:    {String: "GTC"},
+		order.FillOrKill:        {String: "FOK"},
+		order.ImmediateOrCancel: {String: "IOC"},
+		order.GoodTillCrossing:  {Error: order.ErrInvalidTimeInForce},
+	}
+	for k, v := range timeInForceStringMap {
+		result, err := TimeInForceString(k)
+		assert.ErrorIs(t, err, v.Error)
+		assert.Equal(t, v.String, result)
+	}
+}
+
+func TestOrderTypeString(t *testing.T) {
+	t.Parallel()
+	orderStringMap := map[order.Type]struct {
+		String string
+		Error  error
+	}{
+		order.Market:       {String: order.Market.String()},
+		order.Limit:        {String: order.Limit.String()},
+		order.LimitMaker:   {String: order.LimitMaker.String()},
+		order.StopLimit:    {String: "STOP_LIMIT"},
+		order.AnyType:      {},
+		order.UnknownType:  {},
+		order.TrailingStop: {Error: order.ErrUnsupportedOrderType},
+	}
+	for k, v := range orderStringMap {
+		result, err := OrderTypeString(k)
+		require.ErrorIs(t, err, v.Error)
+		assert.Equal(t, v.String, result)
 	}
 }

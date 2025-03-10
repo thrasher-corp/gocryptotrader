@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -113,43 +114,43 @@ type FuturesTradeFill struct {
 
 // FuturesV3Order represents a futures v3 order detail
 type FuturesV3Order struct {
-	OrderID                    string       `json:"ordId"`
-	AveragePrice               types.Number `json:"avgPx"`
-	CreationTime               types.Time   `json:"cTime"`
-	ClientOrderID              string       `json:"clOrdId"`
-	DeductAmount               types.Number `json:"deductAmt"`
-	ExecutedAmount             types.Number `json:"execAmt"`
-	DeductCurrency             string       `json:"deductCcy"`
-	ExecQuantity               types.Number `json:"execQty"`
-	FeeAmount                  types.Number `json:"feeAmt"`
-	FeeCurrency                string       `json:"feeCcy"`
-	PositionSide               string       `json:"posSide"`
-	Leverage                   types.Number `json:"lever"`
-	MarginMode                 string       `json:"mgnMode"`
-	Price                      types.Number `json:"px"`
-	ReduceOnly                 bool         `json:"reduceOnly"`
-	StopLossPrice              types.Number `json:"slPx"`
-	Side                       string       `json:"side"`
-	StopLossTriggerPrice       string       `json:"slTrgPx"`
-	StopLossTriggerPriceType   string       `json:"slTrgPxType"`
-	Source                     string       `json:"source"`
-	State                      string       `json:"state"`
-	SelfTradePreventionMode    string       `json:"stpMode"`
-	Symbol                     string       `json:"symbol"`
-	Size                       types.Number `json:"sz"`
-	TimeInForce                string       `json:"timeInForce"`
-	TakeProfitPrice            types.Number `json:"tpPx"`
-	TakeProfitTriggerPrice     types.Number `json:"tpTrgPx"`
-	TakeProfitTriggerPriceType string       `json:"tpTrgPxType"`
-	Type                       string       `json:"type"`
-	UpdateTime                 types.Time   `json:"uTime"`
-	FeeRate                    types.Number `json:"feeRate"`
-	ID                         string       `json:"id"`
-	OrderType                  string       `json:"ordType"`
-	Quantity                   types.Number `json:"qty"`
-	Role                       string       `json:"role"`
-	TradeID                    string       `json:"trdId"`
-	CancelReason               string       `json:"cancelReason"`
+	OrderID                    string            `json:"ordId"`
+	AveragePrice               types.Number      `json:"avgPx"`
+	CreationTime               types.Time        `json:"cTime"`
+	ClientOrderID              string            `json:"clOrdId"`
+	DeductAmount               types.Number      `json:"deductAmt"`
+	ExecutedAmount             types.Number      `json:"execAmt"`
+	DeductCurrency             string            `json:"deductCcy"`
+	ExecQuantity               types.Number      `json:"execQty"`
+	FeeAmount                  types.Number      `json:"feeAmt"`
+	FeeCurrency                string            `json:"feeCcy"`
+	PositionSide               string            `json:"posSide"`
+	Leverage                   types.Number      `json:"lever"`
+	MarginMode                 string            `json:"mgnMode"`
+	Price                      types.Number      `json:"px"`
+	ReduceOnly                 bool              `json:"reduceOnly"`
+	StopLossPrice              types.Number      `json:"slPx"`
+	Side                       string            `json:"side"`
+	StopLossTriggerPrice       string            `json:"slTrgPx"`
+	StopLossTriggerPriceType   string            `json:"slTrgPxType"`
+	Source                     string            `json:"source"`
+	State                      string            `json:"state"`
+	SelfTradePreventionMode    string            `json:"stpMode"`
+	Symbol                     string            `json:"symbol"`
+	Size                       types.Number      `json:"sz"`
+	TimeInForce                order.TimeInForce `json:"timeInForce"`
+	TakeProfitPrice            types.Number      `json:"tpPx"`
+	TakeProfitTriggerPrice     types.Number      `json:"tpTrgPx"`
+	TakeProfitTriggerPriceType string            `json:"tpTrgPxType"`
+	Type                       string            `json:"type"`
+	UpdateTime                 types.Time        `json:"uTime"`
+	FeeRate                    types.Number      `json:"feeRate"`
+	ID                         string            `json:"id"`
+	OrderType                  string            `json:"ordType"`
+	Quantity                   types.Number      `json:"qty"`
+	Role                       string            `json:"role"`
+	TradeID                    string            `json:"trdId"`
+	CancelReason               string            `json:"cancelReason"`
 }
 
 // V3FuturesPosition represents a v3 futures position detail
