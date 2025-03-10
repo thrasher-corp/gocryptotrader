@@ -69,8 +69,8 @@ type Websocket struct {
 
 	useMultiConnectionManagement bool
 
-	DataHandler chan interface{}
-	ToRoutine   chan interface{}
+	DataHandler chan any
+	ToRoutine   chan any
 
 	Match *Match
 

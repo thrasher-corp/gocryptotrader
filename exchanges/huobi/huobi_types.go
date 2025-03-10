@@ -7,12 +7,12 @@ import (
 )
 
 type errorCapture struct {
-	Status      string      `json:"status"`
-	CodeType1   interface{} `json:"err-code"` // can be either a string or int depending on the endpoint
-	ErrMsgType1 string      `json:"err-msg"`
-	CodeType2   interface{} `json:"err_code"`
-	ErrMsgType2 string      `json:"err_msg"`
-	Timestamp   types.Time  `json:"ts"`
+	Status      string     `json:"status"`
+	CodeType1   any        `json:"err-code"` // can be either a string or int depending on the endpoint
+	ErrMsgType1 string     `json:"err-msg"`
+	CodeType2   any        `json:"err_code"`
+	ErrMsgType2 string     `json:"err_msg"`
+	Timestamp   types.Time `json:"ts"`
 }
 
 // MarketSummary24Hr stores past 24hr market summary data of a given symbol
@@ -824,10 +824,10 @@ type WsDepth struct {
 	Channel   string     `json:"ch"`
 	Timestamp types.Time `json:"ts"`
 	Tick      struct {
-		Bids      [][]interface{} `json:"bids"`
-		Asks      [][]interface{} `json:"asks"`
-		Timestamp types.Time      `json:"ts"`
-		Version   int64           `json:"version"`
+		Bids      [][]any    `json:"bids"`
+		Asks      [][]any    `json:"asks"`
+		Timestamp types.Time `json:"ts"`
+		Version   int64      `json:"version"`
 	} `json:"tick"`
 }
 

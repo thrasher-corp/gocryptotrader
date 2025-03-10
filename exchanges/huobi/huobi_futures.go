@@ -488,7 +488,7 @@ func (h *HUOBI) FGetBasisData(ctx context.Context, symbol currency.Pair, period,
 // FGetAccountInfo gets user info for futures account
 func (h *HUOBI) FGetAccountInfo(ctx context.Context, symbol currency.Code) (FUserAccountData, error) {
 	var resp FUserAccountData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -502,7 +502,7 @@ func (h *HUOBI) FGetAccountInfo(ctx context.Context, symbol currency.Code) (FUse
 // FGetPositionsInfo gets positions info for futures account
 func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FUsersPositionsInfo, error) {
 	var resp FUsersPositionsInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -516,7 +516,7 @@ func (h *HUOBI) FGetPositionsInfo(ctx context.Context, symbol currency.Code) (FU
 // FGetAllSubAccountAssets gets assets info for all futures subaccounts
 func (h *HUOBI) FGetAllSubAccountAssets(ctx context.Context, symbol currency.Code) (FSubAccountAssetsInfo, error) {
 	var resp FSubAccountAssetsInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -530,7 +530,7 @@ func (h *HUOBI) FGetAllSubAccountAssets(ctx context.Context, symbol currency.Cod
 // FGetSingleSubAccountInfo gets assets info for a futures subaccount
 func (h *HUOBI) FGetSingleSubAccountInfo(ctx context.Context, symbol, subUID string) (FSingleSubAccountAssetsInfo, error) {
 	var resp FSingleSubAccountAssetsInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -541,7 +541,7 @@ func (h *HUOBI) FGetSingleSubAccountInfo(ctx context.Context, symbol, subUID str
 // FGetSingleSubPositions gets positions info for a single sub account
 func (h *HUOBI) FGetSingleSubPositions(ctx context.Context, symbol, subUID string) (FSingleSubAccountPositionsInfo, error) {
 	var resp FSingleSubAccountPositionsInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -552,7 +552,7 @@ func (h *HUOBI) FGetSingleSubPositions(ctx context.Context, symbol, subUID strin
 // FGetFinancialRecords gets financial records for futures
 func (h *HUOBI) FGetFinancialRecords(ctx context.Context, symbol, recordType string, createDate, pageIndex, pageSize int64) (FFinancialRecords, error) {
 	var resp FFinancialRecords
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -578,7 +578,7 @@ func (h *HUOBI) FGetFinancialRecords(ctx context.Context, symbol, recordType str
 // FGetSettlementRecords gets settlement records for futures
 func (h *HUOBI) FGetSettlementRecords(ctx context.Context, symbol currency.Code, pageIndex, pageSize int64, startTime, endTime time.Time) (FSettlementRecords, error) {
 	var resp FSettlementRecords
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if pageIndex != 0 {
 		req["page_index"] = pageIndex
@@ -599,7 +599,7 @@ func (h *HUOBI) FGetSettlementRecords(ctx context.Context, symbol currency.Code,
 // FGetOrderLimits gets order limits for futures contracts
 func (h *HUOBI) FGetOrderLimits(ctx context.Context, symbol, orderPriceType string) (FContractInfoOnOrderLimit, error) {
 	var resp FContractInfoOnOrderLimit
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -615,7 +615,7 @@ func (h *HUOBI) FGetOrderLimits(ctx context.Context, symbol, orderPriceType stri
 // FContractTradingFee gets futures contract trading fees
 func (h *HUOBI) FContractTradingFee(ctx context.Context, symbol currency.Code) (FContractTradingFeeData, error) {
 	var resp FContractTradingFeeData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -629,7 +629,7 @@ func (h *HUOBI) FContractTradingFee(ctx context.Context, symbol currency.Code) (
 // FGetTransferLimits gets transfer limits for futures
 func (h *HUOBI) FGetTransferLimits(ctx context.Context, symbol currency.Code) (FTransferLimitData, error) {
 	var resp FTransferLimitData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -643,7 +643,7 @@ func (h *HUOBI) FGetTransferLimits(ctx context.Context, symbol currency.Code) (F
 // FGetPositionLimits gets position limits for futures
 func (h *HUOBI) FGetPositionLimits(ctx context.Context, symbol currency.Code) (FPositionLimitData, error) {
 	var resp FPositionLimitData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -657,7 +657,7 @@ func (h *HUOBI) FGetPositionLimits(ctx context.Context, symbol currency.Code) (F
 // FGetAssetsAndPositions gets assets and positions for futures
 func (h *HUOBI) FGetAssetsAndPositions(ctx context.Context, symbol currency.Code) (FAssetsAndPositionsData, error) {
 	var resp FAssetsAndPositionsData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fQueryAssetsAndPositions, nil, req, &resp)
 }
@@ -665,7 +665,7 @@ func (h *HUOBI) FGetAssetsAndPositions(ctx context.Context, symbol currency.Code
 // FTransfer transfers assets between master and subaccounts
 func (h *HUOBI) FTransfer(ctx context.Context, subUID, symbol, transferType string, amount float64) (FAccountTransferData, error) {
 	var resp FAccountTransferData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["subUid"] = subUID
 	req["amount"] = amount
@@ -679,7 +679,7 @@ func (h *HUOBI) FTransfer(ctx context.Context, subUID, symbol, transferType stri
 // FGetTransferRecords gets transfer records data for futures
 func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType string, createDate, pageIndex, pageSize int64) (FTransferRecords, error) {
 	var resp FTransferRecords
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -703,7 +703,7 @@ func (h *HUOBI) FGetTransferRecords(ctx context.Context, symbol, transferType st
 // FGetAvailableLeverage gets available leverage data for futures
 func (h *HUOBI) FGetAvailableLeverage(ctx context.Context, symbol currency.Code) (FAvailableLeverageData, error) {
 	var resp FAvailableLeverageData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := h.formatFuturesCode(symbol)
 		if err != nil {
@@ -717,7 +717,7 @@ func (h *HUOBI) FGetAvailableLeverage(ctx context.Context, symbol currency.Code)
 // FOrder places an order for futures
 func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, contractType, clientOrderID, direction, offset, orderPriceType string, price, volume, leverageRate float64) (FOrderData, error) {
 	var resp FOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -762,7 +762,7 @@ func (h *HUOBI) FOrder(ctx context.Context, contractCode currency.Pair, symbol, 
 // FPlaceBatchOrder places a batch of orders for futures
 func (h *HUOBI) FPlaceBatchOrder(ctx context.Context, data []fBatchOrderData) (FBatchOrderResponse, error) {
 	var resp FBatchOrderResponse
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if len(data) > 10 || len(data) == 0 {
 		return resp, errors.New("invalid data provided: maximum of 10 batch orders supported")
 	}
@@ -797,7 +797,7 @@ func (h *HUOBI) FPlaceBatchOrder(ctx context.Context, data []fBatchOrderData) (F
 // FCancelOrder cancels a futures order
 func (h *HUOBI) FCancelOrder(ctx context.Context, baseCurrency currency.Code, orderID, clientOrderID string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if baseCurrency.IsEmpty() {
 		return resp, fmt.Errorf("cannot cancel futures order %w", currency.ErrCurrencyCodeEmpty)
 	}
@@ -814,7 +814,7 @@ func (h *HUOBI) FCancelOrder(ctx context.Context, baseCurrency currency.Code, or
 // FCancelAllOrders cancels all futures order for a given symbol
 func (h *HUOBI) FCancelAllOrders(ctx context.Context, contractCode currency.Pair, symbol, contractType string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -837,7 +837,7 @@ func (h *HUOBI) FCancelAllOrders(ctx context.Context, contractCode currency.Pair
 // FFlashCloseOrder flash closes a futures order
 func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair, symbol, contractType, direction, orderPriceType, clientOrderID string, volume float64) (FOrderData, error) {
 	var resp FOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
@@ -869,7 +869,7 @@ func (h *HUOBI) FFlashCloseOrder(ctx context.Context, contractCode currency.Pair
 // FGetOrderInfo gets order info for futures
 func (h *HUOBI) FGetOrderInfo(ctx context.Context, symbol, clientOrderID, orderID string) (FOrderInfo, error) {
 	var resp FOrderInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if orderID != "" {
 		req["order_id"] = orderID
@@ -883,7 +883,7 @@ func (h *HUOBI) FGetOrderInfo(ctx context.Context, symbol, clientOrderID, orderI
 // FOrderDetails gets order details for futures orders
 func (h *HUOBI) FOrderDetails(ctx context.Context, symbol, orderID, orderType string, createdAt time.Time, pageIndex, pageSize int64) (FOrderDetailsData, error) {
 	var resp FOrderDetailsData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["order_id"] = orderID
 	req["created_at"] = strconv.FormatInt(createdAt.Unix(), 10)
@@ -904,7 +904,7 @@ func (h *HUOBI) FOrderDetails(ctx context.Context, symbol, orderID, orderType st
 // FGetOpenOrders gets order details for futures orders
 func (h *HUOBI) FGetOpenOrders(ctx context.Context, symbol currency.Code, pageIndex, pageSize int64) (FOpenOrdersData, error) {
 	var resp FOpenOrdersData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if pageIndex != 0 {
 		req["page_index"] = pageIndex
@@ -918,7 +918,7 @@ func (h *HUOBI) FGetOpenOrders(ctx context.Context, symbol currency.Code, pageIn
 // FGetOrderHistory gets order history for futures
 func (h *HUOBI) FGetOrderHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
 	var resp FOrderHistoryData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	tType, ok := validFuturesTradeType[tradeType]
 	if !ok {
@@ -977,7 +977,7 @@ func (h *HUOBI) FGetOrderHistory(ctx context.Context, contractCode currency.Pair
 // FTradeHistory gets trade history data for futures
 func (h *HUOBI) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
 	var resp FOrderHistoryData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	tType, ok := validTradeType[tradeType]
 	if !ok {
@@ -1007,7 +1007,7 @@ func (h *HUOBI) FTradeHistory(ctx context.Context, contractCode currency.Pair, s
 // FPlaceTriggerOrder places a trigger order for futures
 func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pair, symbol, contractType, triggerType, orderPriceType, direction, offset string, triggerPrice, orderPrice, volume, leverageRate float64) (FTriggerOrderData, error) {
 	var resp FTriggerOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
@@ -1048,7 +1048,7 @@ func (h *HUOBI) FPlaceTriggerOrder(ctx context.Context, contractCode currency.Pa
 // FCancelTriggerOrder cancels trigger order for futures
 func (h *HUOBI) FCancelTriggerOrder(ctx context.Context, symbol, orderID string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["order_id"] = orderID
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fCancelTriggerOrder, nil, req, &resp)
@@ -1057,7 +1057,7 @@ func (h *HUOBI) FCancelTriggerOrder(ctx context.Context, symbol, orderID string)
 // FCancelAllTriggerOrders cancels all trigger order for futures
 func (h *HUOBI) FCancelAllTriggerOrders(ctx context.Context, contractCode currency.Pair, symbol, contractType string) (FCancelOrderData, error) {
 	var resp FCancelOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -1078,7 +1078,7 @@ func (h *HUOBI) FCancelAllTriggerOrders(ctx context.Context, contractCode curren
 // FQueryTriggerOpenOrders queries open trigger orders for futures
 func (h *HUOBI) FQueryTriggerOpenOrders(ctx context.Context, contractCode currency.Pair, symbol string, pageIndex, pageSize int64) (FTriggerOpenOrders, error) {
 	var resp FTriggerOpenOrders
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -1099,7 +1099,7 @@ func (h *HUOBI) FQueryTriggerOpenOrders(ctx context.Context, contractCode curren
 // FQueryTriggerOrderHistory queries trigger order history for futures
 func (h *HUOBI) FQueryTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType, status string, createDate, pageIndex, pageSize int64) (FTriggerOrderHistoryData, error) {
 	var resp FTriggerOrderHistoryData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["symbol"] = symbol
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.Futures)
@@ -1134,7 +1134,7 @@ func (h *HUOBI) FQueryTriggerOrderHistory(ctx context.Context, contractCode curr
 }
 
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}) error {
+func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result any) error {
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return err

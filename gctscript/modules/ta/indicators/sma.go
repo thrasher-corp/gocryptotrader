@@ -42,7 +42,7 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]any)
 	if !valid {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
@@ -50,9 +50,9 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	ohlcvClose := make([]float64, len(ohlcvInputData))
 	var allErrors []string
 	for x := range ohlcvInputData {
-		t, ok := ohlcvInputData[x].([]interface{})
+		t, ok := ohlcvInputData[x].([]any)
 		if !ok {
-			return nil, common.GetTypeAssertError("[]interface{}", ohlcvInputData[x])
+			return nil, common.GetTypeAssertError("[]any", ohlcvInputData[x])
 		}
 		if len(t) < 5 {
 			return nil, errors.New("ohlcvInputData invalid data length")

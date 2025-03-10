@@ -69,7 +69,7 @@ type TestStructLevel0 struct {
 	FloatVal   float64          `json:"floatVal"`
 	IntVal     int64            `json:"intVal"`
 	StructVal  TestStructLevel1 `json:"structVal"`
-	MixedSlice []interface{}    `json:"mixedSlice"`
+	MixedSlice []any            `json:"mixedSlice"`
 }
 
 type TestStructLevel1 struct {
@@ -119,9 +119,9 @@ func TestCheckJSON(t *testing.T) {
 		OtherData: level2,
 	}
 
-	sliceOfPrimitives := []interface{}{
-		[]interface{}{float64(1586994000000), "6615.23000000"},
-		[]interface{}{float64(1586994300000), "6624.74000000"},
+	sliceOfPrimitives := []any{
+		[]any{float64(1586994000000), "6615.23000000"},
+		[]any{float64(1586994300000), "6624.74000000"},
 	}
 
 	testVal := TestStructLevel0{
@@ -187,7 +187,7 @@ func TestCheckJSON(t *testing.T) {
 		t.Fatal("json marshal error", err)
 	}
 
-	var newSlice []interface{}
+	var newSlice []any
 	err = json.Unmarshal(payload, &newSlice)
 	if err != nil {
 		t.Fatal("Unmarshal error", err)

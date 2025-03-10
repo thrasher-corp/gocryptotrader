@@ -47,7 +47,7 @@ type ExchangeInfo struct {
 		Interval      string `json:"interval"`
 		Limit         int    `json:"limit"`
 	} `json:"rateLimits"`
-	ExchangeFilters interface{} `json:"exchangeFilters"`
+	ExchangeFilters any `json:"exchangeFilters"`
 	Symbols         []*struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
@@ -157,7 +157,7 @@ type OrderBook struct {
 type DepthUpdateParams []struct {
 	PriceLevel float64
 	Quantity   float64
-	ignore     []interface{}
+	ignore     []any
 }
 
 // WebsocketDepthStream is the difference for the update depth stream

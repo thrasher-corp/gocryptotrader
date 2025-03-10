@@ -47,7 +47,6 @@ const (
 
 var (
 	h                  = &HUOBI{}
-	wsSetupRan         bool
 	btcFutureDatedPair currency.Pair
 	btccwPair          = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	btcusdPair         = currency.NewPairWithDelimiter("BTC", "USD", "-")

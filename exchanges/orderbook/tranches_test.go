@@ -1107,7 +1107,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 }
 
 // check checks depth values after an update has taken place
-func Check(t *testing.T, depth interface{}, liquidity, value float64, expectedLen int) {
+func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 	t.Helper()
 	b, isBid := depth.(bidTranches)
 	a, isAsk := depth.(askTranches)

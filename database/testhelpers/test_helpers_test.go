@@ -35,7 +35,7 @@ func TestDatabaseConnect(t *testing.T) {
 		name   string
 		config *database.Config
 		closer func(dbConn *database.Instance) error
-		output interface{}
+		output any
 	}{
 		{
 			"SQLite",

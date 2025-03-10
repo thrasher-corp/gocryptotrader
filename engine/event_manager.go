@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -147,7 +148,7 @@ func (m *eventManager) Remove(eventID int64) bool {
 	defer m.m.Unlock()
 	for i := range m.events {
 		if m.events[i].ID == eventID {
-			m.events = append(m.events[:i], m.events[i+1:]...)
+			m.events = slices.Delete(m.events, i, i+1)
 			return true
 		}
 	}

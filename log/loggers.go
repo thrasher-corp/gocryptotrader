@@ -6,10 +6,10 @@ import (
 )
 
 // Infoln is a logging function that takes a sublogger and an arbitrary number
-// of interface{} arguments. This writes to configured io.Writer(s) as an
+// of any arguments. This writes to configured io.Writer(s) as an
 // information message using default formats for its operands. A new line is
 // automatically added to the output.
-func Infoln(sl *SubLogger, a ...interface{}) {
+func Infoln(sl *SubLogger, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -18,11 +18,11 @@ func Infoln(sl *SubLogger, a ...interface{}) {
 }
 
 // InfolnWithFields is a logging function that takes a sublogger, additional
-// structured logging fields and an arbitrary number of interface{} arguments.
+// structured logging fields and an arbitrary number of any arguments.
 // This writes to configured io.Writer(s) as an information message using
 // default formats for its operands. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
+func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -35,7 +35,7 @@ func InfolnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 // with optional arguments. This writes to configured io.Writer(s) as an
 // information message which formats according to the format specifier.
 // A new line is automatically added to the output.
-func Infof(sl *SubLogger, format string, a ...interface{}) {
+func Infof(sl *SubLogger, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -49,7 +49,7 @@ func Infof(sl *SubLogger, format string, a ...interface{}) {
 // formats according to the format specifier. A new line is automatically added
 // to the output. If structured logging is not enabled, the fields will be
 // ignored.
-func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
+func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -59,10 +59,10 @@ func InfofWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inter
 }
 
 // Debugln is a logging function that takes a sublogger and an arbitrary number
-// of interface{} arguments. This writes to configured io.Writer(s) as an
+// of any arguments. This writes to configured io.Writer(s) as an
 // debug message using default formats for its operands. A new line is
 // automatically added to the output.
-func Debugln(sl *SubLogger, v ...interface{}) {
+func Debugln(sl *SubLogger, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -71,11 +71,11 @@ func Debugln(sl *SubLogger, v ...interface{}) {
 }
 
 // DebuglnWithFields is a logging function that takes a sublogger, additional
-// structured logging fields and an arbitrary number of interface{} arguments.
+// structured logging fields and an arbitrary number of any arguments.
 // This writes to configured io.Writer(s) as an debug message using default
 // formats for its operands. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
+func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -88,7 +88,7 @@ func DebuglnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 // with optional arguments. This writes to configured io.Writer(s) as an
 // debug message which formats according to the format specifier. A new line is
 // automatically added to the output.
-func Debugf(sl *SubLogger, data string, v ...interface{}) {
+func Debugf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -101,7 +101,7 @@ func Debugf(sl *SubLogger, data string, v ...interface{}) {
 // This writes to configured io.Writer(s) as an debug message which formats
 // according to the format specifier. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
+func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -111,10 +111,10 @@ func DebugfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inte
 }
 
 // Warnln is a logging function that takes a sublogger and an arbitrary number
-// of interface{} arguments. This writes to configured io.Writer(s) as an
+// of any arguments. This writes to configured io.Writer(s) as an
 // warning message using default formats for its operands. A new line is
 // automatically added to the output.
-func Warnln(sl *SubLogger, v ...interface{}) {
+func Warnln(sl *SubLogger, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -123,11 +123,11 @@ func Warnln(sl *SubLogger, v ...interface{}) {
 }
 
 // WarnlnWithFields is a logging function that takes a sublogger, additional
-// structured logging fields and an arbitrary number of interface{} arguments.
+// structured logging fields and an arbitrary number of any arguments.
 // This writes to configured io.Writer(s) as an warning message using default
 // formats for its operands. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
+func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -140,7 +140,7 @@ func WarnlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 // with optional arguments. This writes to configured io.Writer(s) as an
 // warning message which formats according to the format specifier. A new line
 // is automatically added to the output.
-func Warnf(sl *SubLogger, data string, v ...interface{}) {
+func Warnf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -153,7 +153,7 @@ func Warnf(sl *SubLogger, data string, v ...interface{}) {
 // This writes to configured io.Writer(s) as an warning message which formats
 // according to the format specifier. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
+func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -163,10 +163,10 @@ func WarnfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...inter
 }
 
 // Errorln is a logging function that takes a sublogger and an arbitrary number
-// of interface{} arguments. This writes to configured io.Writer(s) as an
+// of any arguments. This writes to configured io.Writer(s) as an
 // error message using default formats for its operands. A new line is
 // automatically added to the output.
-func Errorln(sl *SubLogger, v ...interface{}) {
+func Errorln(sl *SubLogger, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -175,11 +175,11 @@ func Errorln(sl *SubLogger, v ...interface{}) {
 }
 
 // ErrorlnWithFields is a logging function that takes a sublogger, additional
-// structured logging fields and an arbitrary number of interface{} arguments.
+// structured logging fields and an arbitrary number of any arguments.
 // This writes to configured io.Writer(s) as an error message using default
 // formats for its operands. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
+func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -192,7 +192,7 @@ func ErrorlnWithFields(sl *SubLogger, extra ExtraFields, a ...interface{}) {
 // with optional arguments. This writes to configured io.Writer(s) as an
 // error message which formats according to the format specifier. A new line
 // is automatically added to the output.
-func Errorf(sl *SubLogger, data string, v ...interface{}) {
+func Errorf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
@@ -205,7 +205,7 @@ func Errorf(sl *SubLogger, data string, v ...interface{}) {
 // This writes to configured io.Writer(s) as an error message which formats
 // according to the format specifier. A new line is automatically added to the
 // output. If structured logging is not enabled, the fields will be ignored.
-func ErrorfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...interface{}) { //nolint:goprintffuncname // False positive
+func ErrorfWithFields(sl *SubLogger, extra ExtraFields, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {

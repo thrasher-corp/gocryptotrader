@@ -652,7 +652,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		var response map[string]interface{}
+		var response map[string]any
 		err = json.Unmarshal(resp, &response)
 		if err == nil {
 			val, ok := response["status"].([]any)

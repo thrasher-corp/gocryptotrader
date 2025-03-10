@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/gofrs/uuid"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -185,7 +186,7 @@ func (r *TaskManager) ClearTask(id uuid.UUID) error {
 		if r.tasks[i].IsRunning() {
 			return fmt.Errorf("%w %v, currently running. Stop it first", errCannotClear, r.tasks[i].MetaData.ID)
 		}
-		r.tasks = append(r.tasks[:i], r.tasks[i+1:]...)
+		r.tasks = slices.Delete(r.tasks, i, i+1)
 		return nil
 	}
 	return fmt.Errorf("%s %w", id, errTaskNotFound)
@@ -208,7 +209,7 @@ func (r *TaskManager) ClearAllTasks() (clearedRuns, remainingRuns []*TaskSummary
 			remainingRuns = append(remainingRuns, run)
 		} else {
 			clearedRuns = append(clearedRuns, run)
-			r.tasks = append(r.tasks[:i], r.tasks[i+1:]...)
+			r.tasks = slices.Delete(r.tasks, i, i+1)
 			i--
 		}
 	}

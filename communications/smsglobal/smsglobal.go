@@ -7,6 +7,7 @@ import (
 	"flag"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -137,7 +138,7 @@ func (s *SMSGlobal) RemoveContact(contact Contact) error {
 
 	for x := range s.Contacts {
 		if s.Contacts[x].Name == contact.Name && s.Contacts[x].Number == contact.Number {
-			s.Contacts = append(s.Contacts[:x], s.Contacts[x+1:]...)
+			s.Contacts = slices.Delete(s.Contacts, x, x+1)
 			return nil
 		}
 	}

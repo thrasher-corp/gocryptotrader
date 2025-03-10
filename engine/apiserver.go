@@ -207,7 +207,7 @@ func restLogger(inner http.Handler, name string) http.Handler {
 }
 
 // writeResponse outputs a JSON response of the response interface
-func writeResponse(w http.ResponseWriter, response interface{}) error {
+func writeResponse(w http.ResponseWriter, response any) error {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	return json.NewEncoder(w).Encode(response)
@@ -466,7 +466,7 @@ func (h *websocketHub) run() {
 }
 
 // SendWebsocketMessage sends a websocket event to the client
-func (c *websocketClient) SendWebsocketMessage(evt interface{}) error {
+func (c *websocketClient) SendWebsocketMessage(evt any) error {
 	data, err := json.Marshal(evt)
 	if err != nil {
 		log.Errorf(log.APIServerMgr, "websocket: failed to send message: %s\n", err)
@@ -667,7 +667,7 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 	go client.write()
 }
 
-func wsAuth(client *websocketClient, data interface{}) error {
+func wsAuth(client *websocketClient, data any) error {
 	d, ok := data.([]byte)
 	if !ok {
 		return common.GetTypeAssertError("[]byte", data)
@@ -722,7 +722,7 @@ func wsAuth(client *websocketClient, data interface{}) error {
 	return nil
 }
 
-func wsGetConfig(client *websocketClient, _ interface{}) error {
+func wsGetConfig(client *websocketClient, _ any) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetConfig",
 		Data:  config.GetConfig(),
@@ -730,7 +730,7 @@ func wsGetConfig(client *websocketClient, _ interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsSaveConfig(client *websocketClient, data interface{}) error {
+func wsSaveConfig(client *websocketClient, data any) error {
 	d, ok := data.([]byte)
 	if !ok {
 		return common.GetTypeAssertError("[]byte", data)
@@ -774,7 +774,7 @@ func wsSaveConfig(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetAccountInfo(client *websocketClient, _ interface{}) error {
+func wsGetAccountInfo(client *websocketClient, _ any) error {
 	accountInfo := getAllActiveAccounts(client.exchangeManager)
 	wsResp := WebsocketEventResponse{
 		Event: "GetAccountInfo",
@@ -783,7 +783,7 @@ func wsGetAccountInfo(client *websocketClient, _ interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetTickers(client *websocketClient, _ interface{}) error {
+func wsGetTickers(client *websocketClient, _ any) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetTickers",
 	}
@@ -791,7 +791,7 @@ func wsGetTickers(client *websocketClient, _ interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetTicker(client *websocketClient, data interface{}) error {
+func wsGetTicker(client *websocketClient, data any) error {
 	d, ok := data.([]byte)
 	if !ok {
 		return common.GetTypeAssertError("[]byte", data)
@@ -843,7 +843,7 @@ func wsGetTicker(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetOrderbooks(client *websocketClient, _ interface{}) error {
+func wsGetOrderbooks(client *websocketClient, _ any) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetOrderbooks",
 	}
@@ -851,7 +851,7 @@ func wsGetOrderbooks(client *websocketClient, _ interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetOrderbook(client *websocketClient, data interface{}) error {
+func wsGetOrderbook(client *websocketClient, data any) error {
 	d, ok := data.([]byte)
 	if !ok {
 		return common.GetTypeAssertError("[]byte", data)
@@ -897,7 +897,7 @@ func wsGetOrderbook(client *websocketClient, data interface{}) error {
 	return client.SendWebsocketMessage(WebsocketEventResponse{Event: "GetOrderbook", Data: ob})
 }
 
-func wsGetExchangeRates(client *websocketClient, _ interface{}) error {
+func wsGetExchangeRates(client *websocketClient, _ any) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetExchangeRates",
 	}
@@ -911,7 +911,7 @@ func wsGetExchangeRates(client *websocketClient, _ interface{}) error {
 	return client.SendWebsocketMessage(wsResp)
 }
 
-func wsGetPortfolio(client *websocketClient, _ interface{}) error {
+func wsGetPortfolio(client *websocketClient, _ any) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetPortfolio",
 	}

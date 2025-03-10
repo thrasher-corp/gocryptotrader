@@ -269,7 +269,7 @@ func (y *Yobit) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, 
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -290,7 +290,7 @@ func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
-func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result interface{}) (err error) {
+func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result any) (err error) {
 	creds, err := y.GetCredentials(ctx)
 	if err != nil {
 		return err
