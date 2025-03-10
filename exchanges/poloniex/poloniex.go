@@ -112,32 +112,15 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			Asks: make([]OrderbookItem, len(resp.Asks)),
 		}
 		for x := range resp.Asks {
-			price, err := strconv.ParseFloat(resp.Asks[x][0].(string), 64)
-			if err != nil {
-				return oba, err
-			}
-			amt, ok := resp.Asks[x][1].(float64)
-			if !ok {
-				return oba, common.GetTypeAssertError("float64", resp.Asks[x][1], "amount")
-			}
 			ob.Asks[x] = OrderbookItem{
-				Price:  price,
-				Amount: amt,
+				Price:  resp.Asks[x][0].Float64(),
+				Amount: resp.Asks[x][1].Float64(),
 			}
 		}
-
 		for x := range resp.Bids {
-			price, err := strconv.ParseFloat(resp.Bids[x][0].(string), 64)
-			if err != nil {
-				return oba, err
-			}
-			amt, ok := resp.Bids[x][1].(float64)
-			if !ok {
-				return oba, common.GetTypeAssertError("float64", resp.Bids[x][1], "amount")
-			}
 			ob.Bids[x] = OrderbookItem{
-				Price:  price,
-				Amount: amt,
+				Price:  resp.Bids[x][0].Float64(),
+				Amount: resp.Bids[x][1].Float64(),
 			}
 		}
 		oba.Data[currencyPair] = ob
@@ -155,31 +138,15 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				Asks: make([]OrderbookItem, len(orderbook.Asks)),
 			}
 			for x := range orderbook.Asks {
-				price, err := strconv.ParseFloat(orderbook.Asks[x][0].(string), 64)
-				if err != nil {
-					return oba, err
-				}
-				amt, ok := orderbook.Asks[x][1].(float64)
-				if !ok {
-					return oba, common.GetTypeAssertError("float64", orderbook.Asks[x][1], "amount")
-				}
 				ob.Asks[x] = OrderbookItem{
-					Price:  price,
-					Amount: amt,
+					Price:  orderbook.Asks[x][0].Float64(),
+					Amount: orderbook.Asks[x][1].Float64(),
 				}
 			}
 			for x := range orderbook.Bids {
-				price, err := strconv.ParseFloat(orderbook.Bids[x][0].(string), 64)
-				if err != nil {
-					return oba, err
-				}
-				amt, ok := orderbook.Bids[x][1].(float64)
-				if !ok {
-					return oba, common.GetTypeAssertError("float64", orderbook.Bids[x][1], "amount")
-				}
 				ob.Bids[x] = OrderbookItem{
-					Price:  price,
-					Amount: amt,
+					Price:  orderbook.Bids[x][0].Float64(),
+					Amount: orderbook.Bids[x][1].Float64(),
 				}
 			}
 			oba.Data[currency] = ob
@@ -284,22 +251,31 @@ func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrde
 
 // GetBalances returns balances for your account.
 func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
-	var result interface{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result)
-	if err != nil {
+	var result any
+	if err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
 		return Balance{}, err
 	}
 
-	data, ok := result.(map[string]interface{})
+	data, ok := result.(map[string]any)
 	if !ok {
 		return Balance{}, common.GetTypeAssertError("map[string]interface{}", result, "balance result")
 	}
-	balance := Balance{}
-	balance.Currency = make(map[string]float64)
+
+	balance := Balance{
+		Currency: make(map[string]float64),
+	}
 
 	for x, y := range data {
-		balance.Currency[x], _ = strconv.ParseFloat(y.(string), 64)
+		bal, ok := y.(string)
+		if !ok {
+			return Balance{}, common.GetTypeAssertError("string", y, "balance amount")
+		}
+
+		var err error
+		balance.Currency[x], err = strconv.ParseFloat(bal, 64)
+		if err != nil {
+			return Balance{}, err
+		}
 	}
 
 	return balance, nil
@@ -670,7 +646,14 @@ func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[stri
 	for x, y := range result.Data {
 		balances[x] = make(map[string]float64)
 		for z, w := range y {
-			balances[x][z], _ = strconv.ParseFloat(w.(string), 64)
+			bal, ok := w.(string)
+			if !ok {
+				return nil, common.GetTypeAssertError("string", w, "balance")
+			}
+			balances[x][z], err = strconv.ParseFloat(bal, 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

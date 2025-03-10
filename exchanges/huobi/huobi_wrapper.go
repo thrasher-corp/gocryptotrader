@@ -1835,7 +1835,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
 			Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol: req.Pair,
-			Size:   int(req.RequestLimit),
+			Size:   req.RequestLimit,
 		})
 		if err != nil {
 			return nil, err

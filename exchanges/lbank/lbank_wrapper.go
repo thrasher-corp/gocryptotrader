@@ -850,7 +850,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 	data, err := l.GetKlines(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(req.RequestLimit, 10),
+		strconv.FormatUint(req.RequestLimit, 10),
 		l.FormatExchangeKlineInterval(req.ExchangeInterval),
 		strconv.FormatInt(req.Start.Unix(), 10))
 	if err != nil {
@@ -883,7 +883,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(req.RequestLimit, 10),
+			strconv.FormatUint(req.RequestLimit, 10),
 			l.FormatExchangeKlineInterval(req.ExchangeInterval),
 			strconv.FormatInt(req.RangeHolder.Ranges[x].Start.Ticks, 10))
 		if err != nil {

@@ -119,7 +119,7 @@ func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
 }
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]KlineItem, error) {
 	switch category {
 	case "":
 		return nil, errCategoryNotSet
@@ -145,7 +145,7 @@ func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interva
 		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp KlineResponse
 	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/kline", params), defaultEPL, &resp)
