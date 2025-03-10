@@ -277,10 +277,10 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", timeString(arg.StartTime))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", timeString(arg.EndTime))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 
 	// startTime and endTime are set and time between startTime and endTime is more than 1 hour
@@ -327,8 +327,8 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 				// All requests returned empty
 				return nil, nil
 			}
-			params.Set("startTime", timeString(start))
-			params.Set("endTime", timeString(start.Add(increment)))
+			params.Set("startTime", strconv.FormatInt(start.UnixMilli(), 10))
+			params.Set("endTime", strconv.FormatInt(start.Add(increment).UnixMilli(), 10))
 			path := aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
@@ -399,10 +399,10 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", timeString(arg.StartTime))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", timeString(arg.EndTime))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 
 	path := candleStick + "?" + params.Encode()
