@@ -916,7 +916,7 @@ type AccountInfoResp struct {
 	RegisterTime types.Time `json:"regisTime"`
 }
 
-// AssetData contains information on the amount of an assset an account owns
+// AssetData contains information on the amount of an asset an account owns
 type AssetData struct {
 	Coin           currency.Code `json:"coin"`
 	Available      float64       `json:"available,string"`
@@ -2567,7 +2567,7 @@ type WsRequest struct {
 	Arguments []WsArgument `json:"args"`
 }
 
-// WsLoginArgument contains information usied in a websocket login request
+// WsLoginArgument contains information used in a websocket login request
 type WsLoginArgument struct {
 	APIKey     string `json:"apiKey"`
 	Passphrase string `json:"passphrase"`

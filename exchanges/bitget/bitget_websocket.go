@@ -72,13 +72,13 @@ var subscriptionNames = map[asset.Item]map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures},
+	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
-	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Spot},
@@ -941,7 +941,7 @@ func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 			Pair:       pair,
 			UpdateTime: wsResponse.Timestamp.Time(),
 			Asset:      itemDecoder(wsResponse.Arg.InstrumentType),
-			Checksum:   uint32(ob[0].Checksum),
+			Checksum:   uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
 		}
 		// Sometimes the exchange returns updates with no new asks or bids, just a checksum and timestamp
 		if len(update.Bids) != 0 || len(update.Asks) != 0 {
