@@ -100,7 +100,7 @@ func TestCreateNewStrategy(t *testing.T) {
 	h = new(dollarcostaverage.Strategy)
 	resp, err = createNewStrategy(dollarcostaverage.Name, true, h)
 	assert.NoError(t, err, "createNewStrategy should not error")
-	assert.NotSame(t, h, resp, "createNewStrategy must return a new pointer")
+	assert.NotSame(t, h, resp, "createNewStrategy should return a new pointer")
 
 	// simultaneous processing desired but not supported
 	h = &customStrategy{allowSimultaneousProcessing: false}
