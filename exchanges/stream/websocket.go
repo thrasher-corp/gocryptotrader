@@ -210,6 +210,14 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.setState(disconnectedState)
 
 	w.rateLimitDefinitions = s.RateLimitDefinitions
+
+	if s.ExchangeConfig.WebsocketMetricsLogging {
+		if s.UseMultiConnectionManagement {
+			w.processReporter = NewDefaultProcessReporterManager()
+		} else {
+			log.Warnf(log.WebsocketMgr, "%s websocket: metrics logging is only supported with multi connection management supported exchanges", w.exchangeName)
+		}
+	}
 	return nil
 }
 
@@ -1108,13 +1116,32 @@ func (w *Websocket) checkSubscriptions(conn Connection, subs subscription.List) 
 // Reader reads and handles data from a specific connection
 func (w *Websocket) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, message []byte) error) {
 	defer w.Wg.Done()
+	var reporter ProcessReporter
+	if w.processReporter != nil {
+		reporter = w.processReporter.New(conn)
+	}
 	for {
 		resp := conn.ReadMessage()
+
+		var readAt time.Time
+		if reporter != nil {
+			readAt = time.Now()
+		}
+
 		if resp.Raw == nil {
+			if reporter != nil {
+				reporter.Close()
+			}
 			return // Connection has been closed
 		}
-		if err := handler(ctx, resp.Raw); err != nil {
+
+		err := handler(ctx, resp.Raw)
+		if err != nil {
 			w.DataHandler <- fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
+		}
+
+		if reporter != nil {
+			reporter.Report(readAt, resp.Raw, err)
 		}
 	}
 }
