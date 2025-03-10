@@ -320,33 +320,43 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 			return nil, errors.New("unrecognised trade data received")
 		}
 		var r RecentTrades
-		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
+
+		price, ok := individualTrade[0].(string)
+		if !ok {
+			return nil, common.GetTypeAssertError("string", individualTrade[0], "price")
+		}
+		r.Price, err = strconv.ParseFloat(price, 64)
 		if err != nil {
 			return nil, err
 		}
-		r.Volume, err = strconv.ParseFloat(individualTrade[1].(string), 64)
+
+		volume, ok := individualTrade[1].(string)
+		if !ok {
+			return nil, common.GetTypeAssertError("string", individualTrade[1], "volume")
+		}
+		r.Volume, err = strconv.ParseFloat(volume, 64)
 		if err != nil {
 			return nil, err
 		}
 		r.Time, ok = individualTrade[2].(float64)
 		if !ok {
-			return nil, errors.New("unable to parse time for individual trade data")
+			return nil, common.GetTypeAssertError("float64", individualTrade[2], "time")
 		}
 		r.BuyOrSell, ok = individualTrade[3].(string)
 		if !ok {
-			return nil, errors.New("unable to parse order side for individual trade data")
+			return nil, common.GetTypeAssertError("string", individualTrade[3], "buyOrSell")
 		}
 		r.MarketOrLimit, ok = individualTrade[4].(string)
 		if !ok {
-			return nil, errors.New("unable to parse order type for individual trade data")
+			return nil, common.GetTypeAssertError("string", individualTrade[4], "marketOrLimit")
 		}
 		r.Miscellaneous, ok = individualTrade[5].(string)
 		if !ok {
-			return nil, errors.New("unable to parse misc field for individual trade data")
+			return nil, common.GetTypeAssertError("string", individualTrade[5], "miscellaneous")
 		}
 		tradeID, ok := individualTrade[6].(float64)
 		if !ok {
-			return nil, errors.New("unable to parse TradeID field for individual trade data")
+			return nil, common.GetTypeAssertError("float64", individualTrade[6], "tradeID")
 		}
 		r.TradeID = int64(tradeID)
 		recentTrades[x] = r

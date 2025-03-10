@@ -22,10 +22,10 @@ type DataHistoryJob struct {
 	StartDate                   time.Time
 	EndDate                     time.Time
 	Interval                    int64
-	RequestSizeLimit            int64
+	RequestSizeLimit            uint64
 	DataType                    int64
-	MaxRetryAttempts            int64
-	BatchSize                   int64
+	MaxRetryAttempts            uint64
+	BatchSize                   uint64
 	Status                      int64
 	CreatedDate                 time.Time
 	Results                     []*datahistoryjobresult.DataHistoryJobResult
@@ -33,7 +33,7 @@ type DataHistoryJob struct {
 	PrerequisiteJobNickname     string
 	ConversionInterval          int64
 	OverwriteData               bool
-	DecimalPlaceComparison      int64
+	DecimalPlaceComparison      uint64
 	SecondarySourceExchangeName string
 	IssueTolerancePercentage    float64
 	ReplaceOnIssue              bool
