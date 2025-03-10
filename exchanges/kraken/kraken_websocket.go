@@ -58,6 +58,7 @@ const (
 	krakenWsAddOrderStatus       = "addOrderStatus"
 	krakenWsCancelOrderStatus    = "cancelOrderStatus"
 	krakenWsCancelAllOrderStatus = "cancelAllStatus"
+	krakenWsPong                 = "pong"
 	krakenWsPingDelay            = time.Second * 27
 )
 
@@ -226,7 +227,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 	}
 
 	switch event {
-	case websocket.Pong, krakenWsHeartbeat:
+	case krakenWsPong, krakenWsHeartbeat:
 		return nil
 	case krakenWsCancelOrderStatus, krakenWsCancelAllOrderStatus, krakenWsAddOrderStatus, krakenWsSubscriptionStatus:
 		// All of these should have found a listener already
