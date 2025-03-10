@@ -27,7 +27,7 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "expand-pairs", Asset: asset.Spot, Levels: 2},
 		{Channel: "single-channel", QualifiedChannel: "just one sub already processed"},
 		{Channel: "update-asset-pairs", Asset: asset.All},
-		{Channel: "expand-pairs", Asset: asset.Spot, Pairs: e.pairs[0:2], Levels: 3},
+		{Channel: "expand-pairs", Asset: asset.Spot, Pairs: e.pairs[asset.Spot][0:2], Levels: 3},
 		{Channel: "batching", Asset: asset.Spot},
 		{Channel: "single-channel", Authenticated: true},
 	}
@@ -35,21 +35,32 @@ func TestExpandTemplates(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	exp := List{
 		{Channel: "single-channel", QualifiedChannel: "single-channel"},
-		{Channel: "expand-assets", QualifiedChannel: "spot-expand-assets@15m", Asset: asset.Spot, Pairs: e.pairs, Interval: kline.FifteenMin},
-		{Channel: "expand-assets", QualifiedChannel: "future-expand-assets@15m", Asset: asset.Futures, Pairs: e.pairs, Interval: kline.FifteenMin},
+		{Channel: "expand-assets", QualifiedChannel: "spot-expand-assets@15m", Asset: asset.Spot, Pairs: e.pairs[asset.Spot], Interval: kline.FifteenMin},
+		{Channel: "expand-assets", QualifiedChannel: "future-expand-assets@15m", Asset: asset.Futures, Pairs: e.pairs[asset.Futures], Interval: kline.FifteenMin},
 		{Channel: "single-channel", QualifiedChannel: "just one sub already processed"},
 		{Channel: "update-asset-pairs", QualifiedChannel: "spot-btcusdt-update-asset-pairs", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}},
-		{Channel: "expand-pairs", QualifiedChannel: "spot-USDTBTC-expand-pairs@3", Asset: asset.Spot, Pairs: e.pairs[:1], Levels: 3},
-		{Channel: "expand-pairs", QualifiedChannel: "spot-USDCETH-expand-pairs@3", Asset: asset.Spot, Pairs: e.pairs[1:2], Levels: 3},
+		{Channel: "expand-pairs", QualifiedChannel: "spot-USDTBTC-expand-pairs@3", Asset: asset.Spot, Pairs: e.pairs[asset.Spot][1:2], Levels: 3},
+		{Channel: "expand-pairs", QualifiedChannel: "spot-USDCETH-expand-pairs@3", Asset: asset.Spot, Pairs: e.pairs[asset.Spot][:1], Levels: 3},
 	}
-	for _, p := range e.pairs {
-		exp = append(exp, List{
-			{Channel: "expand-pairs", QualifiedChannel: "spot-" + p.Swap().String() + "-expand-pairs@1", Asset: asset.Spot, Pairs: currency.Pairs{p}, Levels: 1},
-			{Channel: "expand-pairs", QualifiedChannel: "future-" + p.Swap().String() + "-expand-pairs@1", Asset: asset.Futures, Pairs: currency.Pairs{p}, Levels: 1},
-			{Channel: "expand-pairs", QualifiedChannel: "spot-" + p.Swap().String() + "-expand-pairs@2", Asset: asset.Spot, Pairs: currency.Pairs{p}, Levels: 2},
-		}...)
+	for a, pairs := range e.pairs {
+		if a == asset.Index { // Not IsAssetWebsocketEnabled
+			continue
+		}
+		for _, p := range common.SortStrings(pairs) {
+			pStr := p.Swap().String()
+			if a == asset.Spot {
+				exp = append(exp, List{
+					{Channel: "expand-pairs", QualifiedChannel: "spot-" + pStr + "-expand-pairs@1", Asset: a, Pairs: currency.Pairs{p}, Levels: 1},
+					&Subscription{Channel: "expand-pairs", QualifiedChannel: "spot-" + pStr + "-expand-pairs@2", Asset: a, Pairs: currency.Pairs{p}, Levels: 2},
+				}...)
+			} else {
+				exp = append(exp,
+					&Subscription{Channel: "expand-pairs", QualifiedChannel: "future-" + pStr + "-expand-pairs@1", Asset: a, Pairs: currency.Pairs{p}, Levels: 1},
+				)
+			}
+		}
 	}
-	for _, b := range common.Batch(common.SortStrings(e.pairs), 3) {
+	for _, b := range common.Batch(common.SortStrings(e.pairs[asset.Spot]), 3) {
 		exp = append(exp, &Subscription{Channel: "batching", QualifiedChannel: "spot-" + b.Join() + "-batching", Asset: asset.Spot, Pairs: b})
 	}
 
@@ -73,9 +84,9 @@ func TestExpandTemplates(t *testing.T) {
 	got, err = l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	exp = List{
-		{Channel: "expand-assets", QualifiedChannel: "spot-expand-assets@1h", Asset: asset.Spot, Pairs: e.pairs, Interval: kline.OneHour},
+		{Channel: "expand-assets", QualifiedChannel: "spot-expand-assets@1h", Asset: asset.Spot, Pairs: e.pairs[asset.Spot], Interval: kline.OneHour},
 	}
-	for _, p := range e.pairs {
+	for _, p := range e.pairs[asset.Spot] {
 		exp = append(exp, List{
 			{Channel: "expand-pairs", QualifiedChannel: "spot-" + p.Swap().String() + "-expand-pairs@4", Asset: asset.Spot, Pairs: currency.Pairs{p}, Levels: 4},
 		}...)

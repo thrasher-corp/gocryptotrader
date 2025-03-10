@@ -200,7 +200,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return err
 	}
 
-	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.DataHandler)
+	w.Trade.Setup(s.TradeFeed, w.DataHandler)
 	w.Fills.Setup(s.FillsFeed, w.DataHandler)
 
 	if s.MaxWebsocketSubscriptionsPerConnection < 0 {
