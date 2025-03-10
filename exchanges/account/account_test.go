@@ -300,10 +300,14 @@ func TestBalanceInternalLoad(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer, "should error nil pointer correctly")
 
 	err = bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	assert.ErrorIs(t, err, errUpdatedAtIsZero, "should have not been loaded")
+
+	now := time.Now()
+	err = bi.load(&Balance{UpdatedAt: now, Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
 	assert.NoError(t, err, "should have been loaded")
 
 	bi.m.Lock()
-	if !bi.updatedAt.IsZero() {
+	if bi.updatedAt.IsZero() {
 		t.Fatal("unexpected value")
 	}
 	if bi.total != 1 {
@@ -327,17 +331,7 @@ func TestBalanceInternalLoad(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	err = bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
-	assert.NoError(t, err, "should have been loaded")
-
-	now := time.Now()
-	err = bi.load(&Balance{UpdatedAt: now, Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
-	assert.NoError(t, err, "should have been loaded")
-
 	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
-	assert.Error(t, err, "should have not been loaded")
-
-	err = bi.load(&Balance{Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
 	assert.Error(t, err, "should have not been loaded")
 
 	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
