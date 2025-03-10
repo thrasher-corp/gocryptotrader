@@ -1811,9 +1811,9 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		require.True(t, ok, "%s type must be in contractExpiryNames", cType)
 		assert.Equal(t, currency.BTC, p.Base, "pair Base should be the same")
 		assert.Equal(t, exp, p.Quote, "pair Quote should be the same")
-		cst, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
+		tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
 		require.NoError(t, err, "LoadLocation must not error")
-		d, err := time.ParseInLocation("060102", p.Quote.String(), cst)
+		d, err := time.ParseInLocation("060102", p.Quote.String(), tz)
 		require.NoError(t, err, "currency code must be a parsable date")
 		require.Falsef(t, d.Before(n), "%s expiry must be today or after", cType)
 		switch cType {
