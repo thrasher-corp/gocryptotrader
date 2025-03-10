@@ -627,7 +627,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 				Free:              y.Free,
 				FreeWithoutBorrow: y.AvailableWithoutBorrow,
 				Borrowed:          y.Borrowed,
-				UpdatedAt:         y.UpdatedAt.Format(common.SimpleTimeFormatWithTimezone),
+				UpdatedAt:         timestamppb.New(y.UpdatedAt),
 			})
 		}
 		accounts[x] = &a
@@ -666,7 +666,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 				Currency:   initAcc.Accounts[x].Currencies[y].Currency.String(),
 				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
 				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
-				UpdatedAt:  initAcc.Accounts[x].Currencies[y].UpdatedAt.Format(common.SimpleTimeFormatWithTimezone),
+				UpdatedAt:  timestamppb.New(initAcc.Accounts[x].Currencies[y].UpdatedAt),
 			}
 		}
 		accounts[x] = &gctrpc.Account{
@@ -714,7 +714,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 					Currency:   holdings.Accounts[x].Currencies[y].Currency.String(),
 					TotalValue: holdings.Accounts[x].Currencies[y].Total,
 					Hold:       holdings.Accounts[x].Currencies[y].Hold,
-					UpdatedAt:  holdings.Accounts[x].Currencies[y].UpdatedAt.Format(common.SimpleTimeFormatWithTimezone),
+					UpdatedAt:  timestamppb.New(holdings.Accounts[x].Currencies[y].UpdatedAt),
 				}
 			}
 			accounts[x] = &gctrpc.Account{

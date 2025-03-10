@@ -32,6 +32,7 @@ var (
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
 	errCredentialsAreNil            = errors.New("credentials are nil")
 	errOutOfSequence                = errors.New("out of sequence")
+	errUpdatedAtIsZero              = errors.New("updated at is zero")
 )
 
 // CollectBalances converts a map of sub-account balances into a slice
@@ -282,6 +283,9 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 func (b *ProtectedBalance) load(change *Balance) error {
 	if change == nil {
 		return fmt.Errorf("%w for '%T'", common.ErrNilPointer, change)
+	}
+	if change.UpdatedAt.IsZero() {
+		return errUpdatedAtIsZero
 	}
 	b.m.Lock()
 	defer b.m.Unlock()
