@@ -758,9 +758,9 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			StopPriceType: stopOrderType,
 			ReduceOnly:    s.ReduceOnly,
 			Hidden:        s.Hidden,
-			PostOnly:      s.PostOnly,
-			Price:         s.Price,
-			Size:          s.Amount,
+			// PostOnly:      s.PostOnly,
+			Price: s.Price,
+			Size:  s.Amount,
 		})
 		if err != nil {
 			return nil, err
@@ -803,13 +803,13 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return modResp, nil
 	case order.Stop, order.StopLimit:
 		oResp, err := p.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderParam{
-			orderID:          action.OrderID,
-			ClientOrderID:    action.ClientOrderID,
-			Price:            action.Price,
-			StopPrice:        action.TriggerPrice,
-			Amount:           action.Amount,
-			AmendedType:      orderTypeString(action.Type),
-			ProceedOnFailure: !action.ImmediateOrCancel,
+			orderID:       action.OrderID,
+			ClientOrderID: action.ClientOrderID,
+			Price:         action.Price,
+			StopPrice:     action.TriggerPrice,
+			Amount:        action.Amount,
+			AmendedType:   orderTypeString(action.Type),
+			// ProceedOnFailure: !action.ImmediateOrCancel,
 		})
 		if err != nil {
 			return nil, err
@@ -1408,16 +1408,16 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				}
 			}
 			orders = append(orders, order.Detail{
-				Type:               oType,
-				OrderID:            fOrders.Items[a].OrderID,
-				Side:               orderSide,
-				Amount:             fOrders.Items[a].Size,
-				Date:               fOrders.Items[a].CreatedAt.Time(),
-				Price:              fOrders.Items[a].Price.Float64(),
-				Pair:               symbol,
-				Exchange:           p.Name,
-				HiddenOrder:        fOrders.Items[a].Hidden,
-				PostOnly:           fOrders.Items[a].PostOnly,
+				Type:        oType,
+				OrderID:     fOrders.Items[a].OrderID,
+				Side:        orderSide,
+				Amount:      fOrders.Items[a].Size,
+				Date:        fOrders.Items[a].CreatedAt.Time(),
+				Price:       fOrders.Items[a].Price.Float64(),
+				Pair:        symbol,
+				Exchange:    p.Name,
+				HiddenOrder: fOrders.Items[a].Hidden,
+				// PostOnly:           fOrders.Items[a].PostOnly,
 				ReduceOnly:         fOrders.Items[a].ReduceOnly,
 				Leverage:           fOrders.Items[a].Leverage.Float64(),
 				ExecutedAmount:     fOrders.Items[a].FilledSize,

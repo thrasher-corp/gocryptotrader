@@ -276,14 +276,14 @@ func (vm *VM) getHash() string {
 }
 
 func (vmc *vmscount) add() {
-	atomic.AddInt32((*int32)(vmc), 1)
+	atomic.AddUint64((*uint64)(vmc), 1)
 }
 
 func (vmc *vmscount) remove() {
-	atomic.AddInt32((*int32)(vmc), -1)
+	atomic.AddUint64((*uint64)(vmc), ^uint64(0))
 }
 
 // Len() returns current length vmscount
-func (vmc *vmscount) Len() int32 {
-	return atomic.LoadInt32((*int32)(vmc))
+func (vmc *vmscount) Len() uint64 {
+	return atomic.LoadUint64((*uint64)(vmc))
 }

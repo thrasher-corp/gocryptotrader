@@ -151,7 +151,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, symbol currency.Pair, scale
 }
 
 // GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
-func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]CandlestickData, error) {
+func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -164,7 +164,7 @@ func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	params := url.Values{}
 	params.Set("interval", intervalString)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))

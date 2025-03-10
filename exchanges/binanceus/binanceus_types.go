@@ -192,7 +192,7 @@ type OrderBook struct {
 type KlinesRequestParams struct {
 	Symbol    currency.Pair // Required field; example LTCBTC, BTCUSDT
 	Interval  string        // Time interval period
-	Limit     int64         // Default 500; max 500.
+	Limit     uint64        // Default 500; max 500.
 	StartTime time.Time
 	EndTime   time.Time
 }
@@ -404,26 +404,12 @@ type OrderRateLimit struct {
 // RequestParamsOrderType trade order type
 type RequestParamsOrderType string
 
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// BinanceRequestParamsTimeGTC GTC
-	BinanceRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// BinanceRequestParamsTimeIOC IOC
-	BinanceRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-
-	// BinanceRequestParamsTimeFOK FOK
-	BinanceRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
-)
-
 // NewOrderRequest request type
 type NewOrderRequest struct {
 	Symbol           currency.Pair
 	Side             string
 	TradeType        RequestParamsOrderType
-	TimeInForce      RequestParamsTimeForceType
+	TimeInForce      string
 	Quantity         float64
 	QuoteOrderQty    float64
 	Price            float64

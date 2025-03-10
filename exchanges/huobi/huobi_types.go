@@ -804,7 +804,7 @@ var (
 type KlinesRequestParams struct {
 	Symbol currency.Pair // Symbol to be used; example btcusdt, bccbtc......
 	Period string        // Kline time interval; 1min, 5min, 15min......
-	Size   int           // Size; [1-2000]
+	Size   uint64        // Size; [1-2000]
 }
 
 // wsSubReq is a request to subscribe to or unubscribe from a topic for public channels (private channels use generic wsReq)
@@ -980,10 +980,11 @@ type WsTradeUpdate struct {
 
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
-	Side      order.Side
-	Status    order.Status
-	OrderType order.Type
-	Fee       float64
+	Side        order.Side
+	Status      order.Status
+	OrderType   order.Type
+	TimeInForce order.TimeInForce
+	Fee         float64
 }
 
 // Variables below are used to check api requests being sent out

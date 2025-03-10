@@ -458,7 +458,8 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 						Total:    accountH[x].Balance.Float64(),
 						Hold:     accountH[x].Holds.Float64(),
 						Free:     accountH[x].Available.Float64(),
-					}},
+					},
+				},
 			})
 		}
 	default:
@@ -588,7 +589,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if ku.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(ku.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -668,7 +669,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			Leverage:      s.Leverage,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
-			PostOnly:      s.PostOnly,
+			PostOnly:      s.TimeInForce.Is(order.PostOnly),
 			Hidden:        s.Hidden,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
@@ -692,13 +693,11 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var timeInForce string
 			if oType == order.Limit {
 				switch {
-				case s.FillOrKill:
-					timeInForce = "FOK"
-				case s.ImmediateOrCancel:
-					timeInForce = "IOC"
-				case s.PostOnly:
+				case s.TimeInForce.Is(order.FillOrKill) ||
+					s.TimeInForce.Is(order.ImmediateOrCancel):
+					timeInForce = s.TimeInForce.String()
 				default:
-					timeInForce = "GTC"
+					timeInForce = order.GoodTillCancel.String()
 				}
 			}
 			var stopType string
@@ -721,7 +720,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, 0, s.PostOnly, s.Hidden, s.Iceberg)
+					0, 0, s.TimeInForce.Is(order.PostOnly), s.Hidden, s.Iceberg)
 				if err != nil {
 					return nil, err
 				}
@@ -734,7 +733,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				OrderType:     s.Type.Lower(),
 				Size:          s.Amount,
 				Price:         s.Price,
-				PostOnly:      s.PostOnly,
+				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				TimeInForce:   timeInForce,
 				Iceberg:       s.Iceberg,
@@ -794,7 +793,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				Price:         s.Price,
 				Size:          s.Amount,
 				VisibleSize:   s.Amount,
-				PostOnly:      s.PostOnly,
+				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
 				AutoRepay:     s.AutoBorrow,
@@ -1033,7 +1032,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price,
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
-			PostOnly:             orderDetail.PostOnly,
+			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
 			ReduceOnly:           orderDetail.ReduceOnly,
 			Leverage:             orderDetail.Leverage,
 			AverageExecutedPrice: orderDetail.Price,
@@ -1104,7 +1103,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Price:                orderDetail.Price.Float64(),
 			Date:                 orderDetail.CreatedAt.Time(),
 			HiddenOrder:          orderDetail.Hidden,
-			PostOnly:             orderDetail.PostOnly,
+			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
 			AverageExecutedPrice: orderDetail.Price.Float64(),
 			FeeAsset:             currency.NewCode(orderDetail.FeeCurrency),
 			ClientOrderID:        orderDetail.ClientOID,
@@ -1276,7 +1275,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:               side,
 				Type:               oType,
 				Pair:               dPair,
-				PostOnly:           futuresOrders.Items[x].PostOnly,
+				TimeInForce:        StringToTimeInForce(futuresOrders.Items[x].TimeInForce, futuresOrders.Items[x].PostOnly),
 				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
 				Status:             status,
 				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
@@ -1372,7 +1371,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
-					PostOnly:       response.Items[a].PostOnly,
+					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce, response.Items[a].PostOnly),
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
 					HiddenOrder:    response.Items[a].Hidden,
@@ -1610,7 +1609,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Side:           side,
 					Type:           order.Stop,
 					Pair:           dPair,
-					PostOnly:       response.Items[a].PostOnly,
+					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce, response.Items[a].PostOnly),
 					Status:         status,
 					AssetType:      getOrdersRequest.AssetType,
 					HiddenOrder:    response.Items[a].Hidden,
@@ -2454,4 +2453,23 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+// StringToTimeInForce returns an order.TimeInForder instance from string
+func StringToTimeInForce(tif string, postOnly bool) order.TimeInForce {
+	var out order.TimeInForce
+	switch tif {
+	case "GTT":
+		out = order.GoodTillTime
+	case "IOC":
+		out = order.ImmediateOrCancel
+	case "FOK":
+		out = order.FillOrKill
+	default:
+		out = order.GoodTillCancel
+	}
+	if postOnly {
+		out |= order.PostOnly
+	}
+	return out
 }

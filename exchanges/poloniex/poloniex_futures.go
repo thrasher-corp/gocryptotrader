@@ -621,7 +621,7 @@ func IntervalString(interval kline.Interval) (string, error) {
 }
 
 // GetV3FuturesKlineData retrieves K-line data of the designated trading pair
-func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]V3FuturesCandle, error) {
+func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]V3FuturesCandle, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -641,7 +641,7 @@ func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, int
 		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []V3FuturesCandle
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp, true)

@@ -810,7 +810,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 	}
 
 	if b.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(b.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -882,15 +882,15 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		} else {
 			sideType = order.Sell.String()
 		}
-		timeInForce := BinanceRequestParamsTimeGTC
+		timeInForce := order.GoodTillCancel.String()
 		var requestParamsOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
-			if s.ImmediateOrCancel {
-				timeInForce = BinanceRequestParamsTimeIOC
+			if s.TimeInForce.Is(order.ImmediateOrCancel) {
+				timeInForce = order.ImmediateOrCancel.String()
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
@@ -936,15 +936,11 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid side")
 		}
 
-		var (
-			oType       string
-			timeInForce RequestParamsTimeForceType
-		)
-
+		var oType, timeInForce string
 		switch s.Type {
 		case order.Limit:
 			oType = cfuturesLimit
-			timeInForce = BinanceRequestParamsTimeGTC
+			timeInForce = order.GoodTillTime.String()
 		case order.Market:
 			oType = cfuturesMarket
 		case order.Stop:
@@ -1668,7 +1664,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Symbol:    req.Pair,
 			StartTime: req.Start,
 			EndTime:   req.End,
-			Limit:     int(req.RequestLimit),
+			Limit:     req.RequestLimit,
 		})
 		if err != nil {
 			return nil, err
@@ -1749,7 +1745,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				Symbol:    req.Pair,
 				StartTime: req.RangeHolder.Ranges[x].Start.Time,
 				EndTime:   req.RangeHolder.Ranges[x].End.Time,
-				Limit:     int(req.RequestLimit),
+				Limit:     req.RequestLimit,
 			})
 			if err != nil {
 				return nil, err
@@ -1769,7 +1765,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err = b.UKlineData(ctx,
 				req.RequestFormatted,
 				b.FormatExchangeKlineInterval(interval),
-				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -1790,7 +1786,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err = b.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
 				b.FormatExchangeKlineInterval(interval),
-				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {

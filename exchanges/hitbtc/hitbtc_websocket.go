@@ -250,7 +250,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeSnapshot.Params.Data[i].ID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(h.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	case "activeOrders":
 		var o wsActiveOrdersResponse
 		err := json.Unmarshal(respRaw, &o)
@@ -292,10 +292,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-	case
-		"replaced",
-		"canceled",
-		"new":
+	case "replaced", "canceled", "new":
 		var o wsOrderResponse
 		err := json.Unmarshal(respRaw, &o)
 		if err != nil {

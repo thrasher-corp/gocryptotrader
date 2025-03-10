@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -227,22 +226,26 @@ func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance,
 	}
 
 	// Added due to increasing of the usable currencies on exchange, usually
-	// without notificatation, so we dont need to update structs later on
+	// without notification, so we dont need to update structs later on
 	for tag, datum := range response.Data {
 		splitTag := strings.Split(tag, "_")
+		if len(splitTag) < 2 {
+			return fullBalance, fmt.Errorf("unhandled tag format: %q", splitTag)
+		}
+
 		c := splitTag[len(splitTag)-1]
+
 		var val float64
-		if reflect.TypeOf(datum).String() != "float64" {
-			val, err = strconv.ParseFloat(datum.(string), 64)
+		switch v := datum.(type) {
+		case float64:
+			val = v
+		case string:
+			val, err = strconv.ParseFloat(v, 64)
 			if err != nil {
 				return fullBalance, err
 			}
-		} else {
-			var ok bool
-			val, ok = datum.(float64)
-			if !ok {
-				return fullBalance, common.GetTypeAssertError("float64", datum)
-			}
+		default:
+			return fullBalance, common.GetTypeAssertError("float64|string", datum)
 		}
 
 		switch splitTag[0] {

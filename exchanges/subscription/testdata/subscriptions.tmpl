@@ -27,7 +27,7 @@
 	{{- range $asset, $pairs := $.AssetPairs }}
         {{- if eq $asset.String "spot" }}
             {{- range $batch := batch $pairs 3 -}}
-                {{ assetName $asset }}-{{ $batch.Join -}} -batching
+                {{ assetName $asset }}-{{ $batch -}} -batching
                 {{- $.PairSeparator -}}
             {{- end -}}
             {{- $.BatchSize -}} 3

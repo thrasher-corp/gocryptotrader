@@ -211,11 +211,11 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, err
 	}
 
-	if io64 := int64(request.IntervalOverride); io64 > 0 {
-		if io64 < gctkline.FifteenSecond.Duration().Nanoseconds() {
-			return nil, fmt.Errorf("%w, interval must be >= 15 seconds, received '%v'", gctkline.ErrInvalidInterval, time.Duration(request.IntervalOverride))
+	if io := request.IntervalOverride.AsDuration(); io > 0 {
+		if io < gctkline.FifteenSecond.Duration() {
+			return nil, fmt.Errorf("%w, interval must be >= 15 seconds, received '%v'", gctkline.ErrInvalidInterval, io)
 		}
-		cfg.DataSettings.Interval = gctkline.Interval(request.IntervalOverride)
+		cfg.DataSettings.Interval = gctkline.Interval(io)
 	}
 
 	if startTime := request.StartTimeOverride.AsTime(); startTime.Unix() != 0 && !startTime.IsZero() {
@@ -528,7 +528,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			Driver:  request.Config.DataSettings.DatabaseData.Config.Driver,
 			ConnectionDetails: drivers.ConnectionDetails{
 				Host:     request.Config.DataSettings.DatabaseData.Config.Config.Host,
-				Port:     uint16(request.Config.DataSettings.DatabaseData.Config.Config.Port),
+				Port:     request.Config.DataSettings.DatabaseData.Config.Config.Port,
 				Username: request.Config.DataSettings.DatabaseData.Config.Config.UserName,
 				Password: request.Config.DataSettings.DatabaseData.Config.Config.Password,
 				Database: request.Config.DataSettings.DatabaseData.Config.Config.Database,
@@ -591,7 +591,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		},
 		CurrencySettings: configSettings,
 		DataSettings: config.DataSettings{
-			Interval:     gctkline.Interval(request.Config.DataSettings.Interval),
+			Interval:     gctkline.Interval(request.Config.DataSettings.Interval.AsDuration()),
 			DataType:     request.Config.DataSettings.Datatype,
 			APIData:      apiData,
 			DatabaseData: dbData,

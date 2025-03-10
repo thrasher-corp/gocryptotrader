@@ -110,7 +110,7 @@ func (h *HUOBI) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]Kl
 	vals.Set("period", arg.Period)
 
 	if arg.Size != 0 {
-		vals.Set("size", strconv.Itoa(arg.Size))
+		vals.Set("size", strconv.FormatUint(arg.Size, 10))
 	}
 
 	type response struct {

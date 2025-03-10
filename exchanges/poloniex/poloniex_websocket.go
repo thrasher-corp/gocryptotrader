@@ -411,7 +411,7 @@ func (p *Poloniex) processTrades(result *SubscriptionResponse) error {
 			Timestamp:    resp[x].Timestamp.Time(),
 		}
 	}
-	return trade.AddTradesToBuffer(p.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 func (p *Poloniex) processCandlestickData(result *SubscriptionResponse) error {

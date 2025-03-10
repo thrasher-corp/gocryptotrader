@@ -292,7 +292,6 @@ func TestModifyOrder(t *testing.T) {
 		Side:         order.Buy,
 		AssetType:    asset.Options,
 		Pair:         spotTradablePair,
-		PostOnly:     true,
 		Price:        1234,
 		Amount:       0.15,
 		TriggerPrice: 1145,
@@ -3736,6 +3735,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			} else {
 				s.Pairs = pairs
 				s.QualifiedChannel = channelName(s)
+				categoryName := getCategoryName(a)
+				if isCategorisedChannel(s.QualifiedChannel) && categoryName != "" {
+					s.QualifiedChannel += "." + categoryName
+				}
+
 				exp = append(exp, s)
 			}
 		}
