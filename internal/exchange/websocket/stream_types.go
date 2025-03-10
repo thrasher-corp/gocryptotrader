@@ -72,14 +72,6 @@ type KlineData struct {
 	Volume     float64
 }
 
-// WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
-type WebsocketPositionUpdated struct {
-	Timestamp time.Time
-	Pair      currency.Pair
-	AssetType asset.Item
-	Exchange  string
-}
-
 // UnhandledMessageWarning defines a container for unhandled message warnings
 type UnhandledMessageWarning struct {
 	Message string
