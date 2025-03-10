@@ -72,9 +72,9 @@ var subscriptionNames = map[asset.Item]map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: false, Channel: subscription.TickerChannel, Asset: asset.Futures},
-	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Futures},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Futures},
+	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Spot},
+	{Enabled: false, Channel: subscription.CandlesChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Spot},
 	{Enabled: false, Channel: subscription.AllOrdersChannel, Asset: asset.Futures},
 	{Enabled: false, Channel: subscription.OrderbookChannel, Asset: asset.Spot},
@@ -223,81 +223,67 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 	case "snapshot":
 		switch wsResponse.Arg.Channel {
 		case bitgetTicker:
-			var ticks []WsTickerSnapshot
-			err := json.Unmarshal(wsResponse.Data, &ticks)
-			if err != nil {
-				return err
-			}
-			for i := range ticks {
-				pair, err := pairFromStringHelper(ticks[i].InstrumentID)
+			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+			switch respAsset {
+			case asset.Spot:
+				var ticks []WsTickerSnapshotSpot
+				err := json.Unmarshal(wsResponse.Data, &ticks)
 				if err != nil {
 					return err
 				}
-				bi.Websocket.DataHandler <- &ticker.Price{
-					Last:         ticks[i].LastPrice,
-					High:         ticks[i].High24H,
-					Low:          ticks[i].Low24H,
-					Bid:          ticks[i].BidPrice,
-					Ask:          ticks[i].AskPrice,
-					Volume:       ticks[i].BaseVolume,
-					QuoteVolume:  ticks[i].QuoteVolume,
-					Open:         ticks[i].Open24H,
-					Pair:         pair,
-					ExchangeName: bi.Name,
-					AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
-					LastUpdated:  ticks[i].Timestamp.Time(),
+				for i := range ticks {
+					pair, err := pairFromStringHelper(ticks[i].InstrumentID)
+					if err != nil {
+						return err
+					}
+					bi.Websocket.DataHandler <- &ticker.Price{
+						Last:         ticks[i].LastPrice,
+						High:         ticks[i].High24H,
+						Low:          ticks[i].Low24H,
+						Bid:          ticks[i].BidPrice,
+						Ask:          ticks[i].AskPrice,
+						Volume:       ticks[i].BaseVolume,
+						QuoteVolume:  ticks[i].QuoteVolume,
+						Open:         ticks[i].Open24H,
+						Pair:         pair,
+						ExchangeName: bi.Name,
+						AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+						LastUpdated:  ticks[i].Timestamp.Time(),
+					}
+				}
+			case asset.Futures:
+				var ticks []WsTickerSnapshotFutures
+				err := json.Unmarshal(wsResponse.Data, &ticks)
+				if err != nil {
+					return err
+				}
+				for i := range ticks {
+					pair, err := pairFromStringHelper(ticks[i].InstrumentID)
+					if err != nil {
+						return err
+					}
+					bi.Websocket.DataHandler <- &ticker.Price{
+						Last:         ticks[i].LastPrice,
+						High:         ticks[i].High24H,
+						Low:          ticks[i].Low24H,
+						Bid:          ticks[i].BidPrice,
+						Ask:          ticks[i].AskPrice,
+						Volume:       ticks[i].BaseVolume,
+						QuoteVolume:  ticks[i].QuoteVolume,
+						Open:         ticks[i].Open24H,
+						MarkPrice:    ticks[i].MarkPrice,
+						IndexPrice:   ticks[i].IndexPrice,
+						Pair:         pair,
+						ExchangeName: bi.Name,
+						AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+						LastUpdated:  ticks[i].Timestamp.Time(),
+					}
 				}
 			}
 		case bitgetCandleDailyChannel:
-			var candles [][8]string
-			err := json.Unmarshal(wsResponse.Data, &candles)
+			resp, err := bi.candleDataHandler(&wsResponse)
 			if err != nil {
 				return err
-			}
-			pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
-			if err != nil {
-				return err
-			}
-			resp := make([]stream.KlineData, len(candles))
-			for i := range candles {
-				ts, err := strconv.ParseInt(candles[i][0], 10, 64)
-				if err != nil {
-					return err
-				}
-				open, err := strconv.ParseFloat(candles[i][1], 64)
-				if err != nil {
-					return err
-				}
-				closePrice, err := strconv.ParseFloat(candles[i][4], 64)
-				if err != nil {
-					return err
-				}
-				high, err := strconv.ParseFloat(candles[i][2], 64)
-				if err != nil {
-					return err
-				}
-				low, err := strconv.ParseFloat(candles[i][3], 64)
-				if err != nil {
-					return err
-				}
-				volume, err := strconv.ParseFloat(candles[i][5], 64)
-				if err != nil {
-					return err
-				}
-				resp[i] = stream.KlineData{
-					Timestamp:  wsResponse.Timestamp.Time(),
-					Pair:       pair,
-					AssetType:  itemDecoder(wsResponse.Arg.InstrumentType),
-					Exchange:   bi.Name,
-					StartTime:  time.UnixMilli(ts),
-					CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
-					Interval:   "1d",
-					OpenPrice:  open,
-					ClosePrice: closePrice,
-					HighPrice:  high,
-					LowPrice:   low,
-					Volume:     volume,
-				}
 			}
 			bi.Websocket.DataHandler <- resp
 		case bitgetTrade:
@@ -444,7 +430,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 						Pair:                 pair,
 						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
 						ClientOrderID:        orders[i].ClientOrderID,
-						Price:                orders[i].Price,
+						Price:                orders[i].PriceAverage,
 						Amount:               baseAmount,
 						QuoteAmount:          quoteAmount,
 						Type:                 orderType,
@@ -509,6 +495,8 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 						AverageExecutedPrice: orders[i].PriceAverage,
 						ReduceOnly:           bool(orders[i].ReduceOnly),
 						Status:               statusDecoder(orders[i].Status),
+						LimitPriceLower:      orders[i].PresetStopSurplusPrice,
+						LimitPriceUpper:      orders[i].PresetStopLossPrice,
 						LastUpdated:          orders[i].UpdateTime.Time(),
 					}
 					for x := range orders[i].FeeDetail {
@@ -565,19 +553,20 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 						return err
 					}
 					resp[i] = order.Detail{
-						Exchange:      bi.Name,
-						AssetType:     asset.Futures,
-						Pair:          pair,
-						OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
-						ClientOrderID: orders[i].ClientOrderID,
-						TriggerPrice:  orders[i].TriggerPrice,
-						Price:         orders[i].Price,
-						Amount:        orders[i].Size,
-						Type:          typeDecoder(orders[i].OrderType),
-						Side:          sideDecoder(orders[i].Side),
-						Status:        statusDecoder(orders[i].Status),
-						Date:          orders[i].CreationTime.Time(),
-						LastUpdated:   orders[i].UpdateTime.Time(),
+						Exchange:             bi.Name,
+						AssetType:            asset.Futures,
+						Pair:                 pair,
+						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+						ClientOrderID:        orders[i].ClientOrderID,
+						TriggerPrice:         orders[i].TriggerPrice,
+						Price:                orders[i].Price,
+						AverageExecutedPrice: orders[i].ExecutePrice,
+						Amount:               orders[i].Size,
+						Type:                 typeDecoder(orders[i].OrderType),
+						Side:                 sideDecoder(orders[i].Side),
+						Status:               statusDecoder(orders[i].Status),
+						Date:                 orders[i].CreationTime.Time(),
+						LastUpdated:          orders[i].UpdateTime.Time(),
 					}
 				}
 				bi.Websocket.DataHandler <- resp
@@ -764,55 +753,9 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 	case "update":
 		switch wsResponse.Arg.Channel {
 		case bitgetCandleDailyChannel:
-			var candles [][8]string
-			err := json.Unmarshal(wsResponse.Data, &candles)
+			resp, err := bi.candleDataHandler(&wsResponse)
 			if err != nil {
 				return err
-			}
-			pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
-			if err != nil {
-				return err
-			}
-			resp := make([]stream.KlineData, len(candles))
-			for i := range candles {
-				ts, err := strconv.ParseInt(candles[i][0], 10, 64)
-				if err != nil {
-					return err
-				}
-				open, err := strconv.ParseFloat(candles[i][1], 64)
-				if err != nil {
-					return err
-				}
-				closePrice, err := strconv.ParseFloat(candles[i][4], 64)
-				if err != nil {
-					return err
-				}
-				high, err := strconv.ParseFloat(candles[i][2], 64)
-				if err != nil {
-					return err
-				}
-				low, err := strconv.ParseFloat(candles[i][3], 64)
-				if err != nil {
-					return err
-				}
-				volume, err := strconv.ParseFloat(candles[i][5], 64)
-				if err != nil {
-					return err
-				}
-				resp[i] = stream.KlineData{
-					Timestamp:  wsResponse.Timestamp.Time(),
-					Pair:       pair,
-					AssetType:  itemDecoder(wsResponse.Arg.InstrumentType),
-					Exchange:   bi.Name,
-					StartTime:  time.UnixMilli(ts),
-					CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
-					Interval:   "1d",
-					OpenPrice:  open,
-					ClosePrice: closePrice,
-					HighPrice:  high,
-					LowPrice:   low,
-					Volume:     volume,
-				}
 			}
 			bi.Websocket.DataHandler <- resp
 		case bitgetTrade:
@@ -870,6 +813,61 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 	}
 	return nil
+}
+
+// CandleDataHandler handles candle data, as functionality is shared between updates and snapshots
+func (bi *Bitget) candleDataHandler(wsResponse *WsResponse) ([]stream.KlineData, error) {
+	var candles [][8]string
+	err := json.Unmarshal(wsResponse.Data, &candles)
+	if err != nil {
+		return nil, err
+	}
+	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]stream.KlineData, len(candles))
+	for i := range candles {
+		ts, err := strconv.ParseInt(candles[i][0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		open, err := strconv.ParseFloat(candles[i][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		closePrice, err := strconv.ParseFloat(candles[i][4], 64)
+		if err != nil {
+			return nil, err
+		}
+		high, err := strconv.ParseFloat(candles[i][2], 64)
+		if err != nil {
+			return nil, err
+		}
+		low, err := strconv.ParseFloat(candles[i][3], 64)
+		if err != nil {
+			return nil, err
+		}
+		volume, err := strconv.ParseFloat(candles[i][5], 64)
+		if err != nil {
+			return nil, err
+		}
+		resp[i] = stream.KlineData{
+			Timestamp:  wsResponse.Timestamp.Time(),
+			Pair:       pair,
+			AssetType:  itemDecoder(wsResponse.Arg.InstrumentType),
+			Exchange:   bi.Name,
+			StartTime:  time.UnixMilli(ts),
+			CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
+			Interval:   "1d",
+			OpenPrice:  open,
+			ClosePrice: closePrice,
+			HighPrice:  high,
+			LowPrice:   low,
+			Volume:     volume,
+		}
+	}
+	return resp, nil
 }
 
 // TradeDataHandler handles trade data, as functionality is shared between updates and snapshots
@@ -1019,7 +1017,7 @@ func (bi *Bitget) generateDefaultSubscriptions() (subscription.List, error) {
 	for i := range subs {
 		subs[i].Channel = subscriptionNames[subs[i].Asset][subs[i].Channel]
 		switch subs[i].Channel {
-		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel, bitgetIndexPriceChannel, bitgetAccountCrossedChannel, bitgetAccountIsolatedChannel: // Not fully sure that bitgetIndexPriceChannel belongs here
+		case bitgetAccount, bitgetFillChannel, bitgetPositionsChannel, bitgetPositionsHistoryChannel, bitgetIndexPriceChannel, bitgetAccountCrossedChannel, bitgetAccountIsolatedChannel:
 		default:
 			subs[i].Pairs = assetPairs[subs[i].Asset]
 		}

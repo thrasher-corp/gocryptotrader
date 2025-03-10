@@ -2460,7 +2460,7 @@ func (bi *Bitget) SetIsolatedAutoMargin(ctx context.Context, pair currency.Pair,
 }
 
 // ChangeLeverage changes the leverage for the given pair and product type
-func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, productType, holdSide string, marginCoin currency.Code, leverage float64) (*LeverageResp, error) {
+func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, productType, holdSide string, marginCoin currency.Code, leverage float64) (*ChangeLeverageResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -2482,9 +2482,9 @@ func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, produc
 	}
 	path := bitgetMix + bitgetAccount + bitgetSetLeverage
 	var resp struct {
-		LeverageResp `json:"data"`
+		ChangeLeverageResp `json:"data"`
 	}
-	return &resp.LeverageResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
+	return &resp.ChangeLeverageResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // AdjustMargin adds or subtracts margin from a position
@@ -2535,7 +2535,7 @@ func (bi *Bitget) SetUSDTAssetMode(ctx context.Context, productType, assetMode s
 }
 
 // ChangeMarginMode changes the margin mode for a given pair. Can only be done when there the user has no open positions or orders
-func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair currency.Pair, productType, marginMode string, marginCoin currency.Code) (*LeverageResp, error) {
+func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair currency.Pair, productType, marginMode string, marginCoin currency.Code) (*ChangeMarginModeResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -2556,9 +2556,9 @@ func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair currency.Pair, prod
 	}
 	path := bitgetMix + bitgetAccount + bitgetSetMarginMode
 	var resp struct {
-		LeverageResp `json:"data"`
+		ChangeMarginModeResp `json:"data"`
 	}
-	return &resp.LeverageResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
+	return &resp.ChangeMarginModeResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // ChangePositionMode changes the position mode for any pair. Having any positions or orders on any side of any pair may cause this to fail.
@@ -3091,7 +3091,7 @@ func (bi *Bitget) CancelAllFuturesOrders(ctx context.Context, pair currency.Pair
 }
 
 // GetFuturesTriggerOrderByID returns information on a particular trigger order
-func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, productType string, planOrderID int64) (*SubOrderResp, error) {
+func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, productType string, planOrderID int64) ([]SubOrderResp, error) {
 	if planType == "" {
 		return nil, errPlanTypeEmpty
 	}
@@ -3107,9 +3107,9 @@ func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, prod
 	vals.Set("productType", productType)
 	path := bitgetMix + bitgetOrder + bitgetPlanSubOrder
 	var resp struct {
-		SubOrderResp `json:"data"`
+		SubOrderResp []SubOrderResp `json:"data"`
 	}
-	return &resp.SubOrderResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
+	return resp.SubOrderResp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // PlaceTPSLFuturesOrder places a take-profit or stop-loss futures order
@@ -3823,7 +3823,7 @@ func (bi *Bitget) BatchCancelCrossOrders(ctx context.Context, pair currency.Pair
 }
 
 // GetCrossOpenOrders returns the open orders for cross margin
-func (bi *Bitget) GetCrossOpenOrders(ctx context.Context, pair currency.Pair, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginOpenOrds, error) {
+func (bi *Bitget) GetCrossOpenOrders(ctx context.Context, pair currency.Pair, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginOrders, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -3846,13 +3846,13 @@ func (bi *Bitget) GetCrossOpenOrders(ctx context.Context, pair currency.Pair, cl
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetOpenOrders
 	var resp struct {
-		MarginOpenOrds `json:"data"`
+		MarginOrders `json:"data"`
 	}
-	return &resp.MarginOpenOrds, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.MarginOrders, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetCrossHistoricalOrders returns the historical orders for cross margin
-func (bi *Bitget) GetCrossHistoricalOrders(ctx context.Context, pair currency.Pair, enterPointSource, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginHistOrds, error) {
+func (bi *Bitget) GetCrossHistoricalOrders(ctx context.Context, pair currency.Pair, enterPointSource, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginOrders, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -3876,9 +3876,9 @@ func (bi *Bitget) GetCrossHistoricalOrders(ctx context.Context, pair currency.Pa
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetHistoryOrders
 	var resp struct {
-		MarginHistOrds `json:"data"`
+		MarginOrders `json:"data"`
 	}
-	return &resp.MarginHistOrds, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.MarginOrders, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetCrossOrderFills returns the fills for cross margin orders
@@ -4335,7 +4335,7 @@ func (bi *Bitget) BatchCancelIsolatedOrders(ctx context.Context, pair currency.P
 }
 
 // GetIsolatedOpenOrders returns the open orders for isolated margin
-func (bi *Bitget) GetIsolatedOpenOrders(ctx context.Context, pair currency.Pair, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginOpenOrds, error) {
+func (bi *Bitget) GetIsolatedOpenOrders(ctx context.Context, pair currency.Pair, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginOrders, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -4358,13 +4358,13 @@ func (bi *Bitget) GetIsolatedOpenOrders(ctx context.Context, pair currency.Pair,
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetOpenOrders
 	var resp struct {
-		MarginOpenOrds `json:"data"`
+		MarginOrders `json:"data"`
 	}
-	return &resp.MarginOpenOrds, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.MarginOrders, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetIsolatedHistoricalOrders returns the historical orders for isolated margin
-func (bi *Bitget) GetIsolatedHistoricalOrders(ctx context.Context, pair currency.Pair, enterPointSource, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginHistOrds, error) {
+func (bi *Bitget) GetIsolatedHistoricalOrders(ctx context.Context, pair currency.Pair, enterPointSource, clientOrderID string, orderID, limit, pagination int64, startTime, endTime time.Time) (*MarginOrders, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
@@ -4388,9 +4388,9 @@ func (bi *Bitget) GetIsolatedHistoricalOrders(ctx context.Context, pair currency
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetHistoryOrders
 	var resp struct {
-		MarginHistOrds `json:"data"`
+		MarginOrders `json:"data"`
 	}
-	return &resp.MarginHistOrds, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
+	return &resp.MarginOrders, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetIsolatedOrderFills returns the fills for isolated margin orders

@@ -1203,7 +1203,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			}
 		}
 	case asset.Margin, asset.CrossMargin:
-		var ordInfo *MarginOpenOrds
+		var ordInfo *MarginOrders
 		var fillInfo *MarginOrderFills
 		if assetType == asset.Margin {
 			ordInfo, err = bi.GetIsolatedOpenOrders(ctx, pair, "", ordID, 2, 0, time.Now().Add(-time.Hour*24*90), time.Now())
@@ -1389,7 +1389,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			}
 		case asset.Margin, asset.CrossMargin:
 			var pagination int64
-			var genOrds *MarginOpenOrds
+			var genOrds *MarginOrders
 			for {
 				if getOrdersRequest.AssetType == asset.Margin {
 					genOrds, err = bi.GetIsolatedOpenOrders(ctx, getOrdersRequest.Pairs[x], "", 0, 500, pagination, time.Now().Add(-time.Hour*24*90), time.Time{})
@@ -1578,7 +1578,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				}
 			}
 			pagination = 0
-			var genOrds *MarginHistOrds
+			var genOrds *MarginOrders
 			for {
 				if getOrdersRequest.AssetType == asset.Margin {
 					genOrds, err = bi.GetIsolatedHistoricalOrders(ctx, getOrdersRequest.Pairs[x], "", "", 0, 500, pagination, time.Now().Add(-time.Hour*24*90), time.Time{})
@@ -1994,7 +1994,7 @@ func (bi *Bitget) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		Leverage:                     decimal.NewFromFloat(resp[0].Leverage),
 		RealisedPNL:                  decimal.NewFromFloat(resp[0].AchievedProfits),
 		AverageOpenPrice:             decimal.NewFromFloat(resp[0].OpenPriceAverage),
-		UnrealisedPNL:                decimal.NewFromFloat(resp[0].UnrealizedPL),
+		UnrealisedPNL:                decimal.NewFromFloat(resp[0].UnrealizedProfitLoss),
 		MaintenanceMarginRequirement: decimal.NewFromFloat(resp[0].KeepMarginRate),
 		MarkPrice:                    decimal.NewFromFloat(resp[0].MarkPrice),
 		StartDate:                    resp[0].CreationTime.Time(),
