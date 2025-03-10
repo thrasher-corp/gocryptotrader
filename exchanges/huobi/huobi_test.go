@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -1356,9 +1357,8 @@ func TestWSOrderbook(t *testing.T) {
 	assert.Equal(t, 0.56281, liq, "Bid Liquidity should be correct")
 }
 
-// TestWSTradeDetail checks we can send a trade detail through
-// We can't currently easily see the result with the current DB instance, so we just check it doesn't error
-func TestWSTradeDetail(t *testing.T) {
+// TestWSHandleAllTradesMsg ensures wsHandleAllTrades sends trade.Data to the ws.DataHandler
+func TestWSHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
 	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
@@ -1367,6 +1367,40 @@ func TestWSTradeDetail(t *testing.T) {
 	h.SetSaveTradeDataStatus(true)
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", h.wsHandleData)
 	close(h.Websocket.DataHandler)
+	exp := []trade.Data{
+		{
+			Exchange:     h.Name,
+			CurrencyPair: btcusdtPair,
+			Timestamp:    time.UnixMilli(1630994963173).UTC(),
+			Price:        52648.62,
+			Amount:       0.006754,
+			Side:         order.Buy,
+			TID:          "102523573486",
+			AssetType:    asset.Spot,
+		},
+		{
+			Exchange:     h.Name,
+			CurrencyPair: btcusdtPair,
+			Timestamp:    time.UnixMilli(1630994963184).UTC(),
+			Price:        52648.73,
+			Amount:       0.006755,
+			Side:         order.Sell,
+			TID:          "102523573487",
+			AssetType:    asset.Spot,
+		},
+	}
+	require.Len(t, h.Websocket.DataHandler, 2, "Must see correct number of trades")
+	for resp := range h.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case trade.Data:
+			i := 1 - len(h.Websocket.DataHandler)
+			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
+		}
+	}
 	require.Empty(t, h.Websocket.DataHandler, "Must not see any errors going to datahandler")
 }
 

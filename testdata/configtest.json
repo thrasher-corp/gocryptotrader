@@ -1872,7 +1872,9 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": true
     }
    },
    "bankAccounts": [
