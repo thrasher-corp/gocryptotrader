@@ -83,12 +83,11 @@ func TestCreateNewStrategy(t *testing.T) {
 	t.Parallel()
 
 	// invalid Handler
-	resp, err := createNewStrategy(dollarcostaverage.Name, false, nil)
+	_, err := createNewStrategy(dollarcostaverage.Name, false, nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
-	assert.Nil(t, resp)
 
 	// mismatched name
-	resp, err = createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
+	resp, err := createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
 	assert.NoError(t, err, "createNewStrategy should not error")
 	assert.Nil(t, resp)
 
@@ -101,7 +100,7 @@ func TestCreateNewStrategy(t *testing.T) {
 	h = new(dollarcostaverage.Strategy)
 	resp, err = createNewStrategy(dollarcostaverage.Name, true, h)
 	assert.NoError(t, err, "createNewStrategy should not error")
-	assert.NotNil(t, resp)
+	assert.NotSame(t, h, resp, "createNewStrategy must return a new pointer")
 
 	// simultaneous processing desired but not supported
 	h = &customStrategy{allowSimultaneousProcessing: false}

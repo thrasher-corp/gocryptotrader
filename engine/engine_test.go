@@ -386,9 +386,9 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			assert.True(t, defaultCfg.Enabled, "Enabled should have the correct value")
 
 			if exch.SupportsWebsocket() {
-				assert.Positive(t, defaultCfg.WebsocketResponseCheckTimeout, 0)
-				assert.Positive(t, defaultCfg.WebsocketResponseMaxLimit, 0)
-				assert.Positive(t, defaultCfg.WebsocketTrafficTimeout, 0)
+				assert.Positive(t, defaultCfg.WebsocketResponseCheckTimeout, "WebsocketResponseCheckTimeout should be positive")
+				assert.Positive(t, defaultCfg.WebsocketResponseMaxLimit, "WebsocketResponseMaxLimit should be positive")
+				assert.Positive(t, defaultCfg.WebsocketTrafficTimeout, "WebsocketTrafficTimeout should be positive")
 			}
 
 			require.NoError(t, exch.Setup(defaultCfg), "Setup must not error")

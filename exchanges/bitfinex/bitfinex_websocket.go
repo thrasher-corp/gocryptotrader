@@ -34,8 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var errParsingWSField = errors.New("error parsing WS field")
-
 const (
 	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
@@ -949,22 +947,22 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	}
 	v, valueType, _, err := jsonparser.Get(respRaw, "[1]")
 	if err != nil {
-		return fmt.Errorf("%w `tradesUpdate[1]`: %w", errParsingWSField, err)
+		return fmt.Errorf("%w `tradesUpdate[1]`: %w", common.ErrParsingWSField, err)
 	}
 	var wsTrades []*wsTrade
 	switch valueType {
 	case jsonparser.String:
 		t, err := b.handleWSPublicTradeUpdate(respRaw)
 		if err != nil {
-			return fmt.Errorf("%w `tradesUpdate[2]`: %w", errParsingWSField, err)
+			return fmt.Errorf("%w `tradesUpdate[2]`: %w", common.ErrParsingWSField, err)
 		}
 		wsTrades = []*wsTrade{t}
 	case jsonparser.Array:
 		if wsTrades, err = b.handleWSPublicTradesSnapshot(v); err != nil {
-			return fmt.Errorf("%w `tradesSnapshot`: %w", errParsingWSField, err)
+			return fmt.Errorf("%w `tradesSnapshot`: %w", common.ErrParsingWSField, err)
 		}
 	default:
-		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", errParsingWSField, jsonparser.UnknownValueTypeError, valueType)
+		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
 	}
 	trades := make([]trade.Data, len(wsTrades))
 	for _, w := range wsTrades {
