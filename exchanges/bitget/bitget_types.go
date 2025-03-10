@@ -2712,7 +2712,7 @@ type WsTickerSnapshotFutures struct {
 	BaseVolume    float64    `json:"baseVolume,string"`
 	QuoteVolume   float64    `json:"quoteVolume,string"`
 	OpenUTC       float64    `json:"openUtc,string"`
-	SymbolType    uint8      `json:"symbolType"`
+	SymbolType    uint8      `json:"symbolType,string"`
 	Symbol        string     `json:"symbol"`
 	DeliveryPrice float64    `json:"deliveryPrice,string"`
 	Timestamp     types.Time `json:"ts"`

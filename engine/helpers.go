@@ -752,7 +752,10 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]map
 									cryptocurrency)
 								continue
 							}
-
+							// Bitget requires a size to be passed in when the chain is BTC's lightning network; we don't currently support that
+							if exch.GetName() == "Bitget" && cryptocurrency == "BTC" && availChains[z] == "LIGHTNING" {
+								continue
+							}
 							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
