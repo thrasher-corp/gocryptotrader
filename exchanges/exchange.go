@@ -1967,3 +1967,8 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	return account.GetHoldings(b.Name, creds, assetType)
 }
+
+// WebsocketSubmitOrder submits an order to the exchange via a websocket connection
+func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
