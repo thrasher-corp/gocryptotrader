@@ -284,11 +284,11 @@ func (b *ProtectedBalance) load(change *Balance) error {
 	if change == nil {
 		return fmt.Errorf("%w for '%T'", common.ErrNilPointer, change)
 	}
-	b.m.Lock()
-	defer b.m.Unlock()
-	if change.UpdatedAt.IsZero() {
+        if change.UpdatedAt.IsZero() {
 		return errUpdatedAtIsZero
 	}
+	b.m.Lock()
+	defer b.m.Unlock()
 	if !b.updatedAt.IsZero() && !b.updatedAt.Before(change.UpdatedAt) {
 		return errOutOfSequence
 	}
