@@ -156,6 +156,20 @@ type ManagerSetup struct {
 	RateLimitDefinitions request.RateLimitDefinitions
 }
 
+// ConnectionWrapper contains the connection setup details to be used when
+// attempting a new connection. It also contains the subscriptions that are
+// associated with the specific connection.
+type ConnectionWrapper struct {
+	// Setup contains the connection setup details
+	Setup *ConnectionSetup
+	// Subscriptions contains the subscriptions that are associated with the
+	// specific connection(s)
+	Subscriptions *subscription.Store
+	// Connection contains the active connection based off the connection
+	// details above.
+	Connection Connection // TODO: Upgrade to slice of connections.
+}
+
 var globalReporter Reporter
 
 // SetupGlobalReporter sets a reporter interface to be used

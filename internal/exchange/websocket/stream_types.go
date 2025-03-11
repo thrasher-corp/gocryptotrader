@@ -6,22 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
-
-// ConnectionWrapper contains the connection setup details to be used when
-// attempting a new connection. It also contains the subscriptions that are
-// associated with the specific connection.
-type ConnectionWrapper struct {
-	// Setup contains the connection setup details
-	Setup *ConnectionSetup
-	// Subscriptions contains the subscriptions that are associated with the
-	// specific connection(s)
-	Subscriptions *subscription.Store
-	// Connection contains the active connection based off the connection
-	// details above.
-	Connection Connection // TODO: Upgrade to slice of connections.
-}
 
 // PingHandler container for ping handler settings
 type PingHandler struct {
@@ -65,8 +50,7 @@ type UnhandledMessageWarning struct {
 	Message string
 }
 
-// Reporter interface groups observability functionality over
-// Websocket request latency.
+// Reporter interface groups observability functionality over Websocket request latency.
 type Reporter interface {
 	Latency(name string, message []byte, t time.Duration)
 }
