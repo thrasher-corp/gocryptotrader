@@ -75,19 +75,19 @@ func TestSubscriptionMarshaling(t *testing.T) {
 	t.Parallel()
 	j, err := json.Marshal(&Subscription{Key: 42, Channel: CandlesChannel})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":false,"channel":"candles"}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":false,"channel":"candles"}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"orderbook","pairs":"BTCUSDT","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","pairs":"BTCUSDT","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: MyTradesChannel, Authenticated: true})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
 }
 
 func TestSubscriptionClone(t *testing.T) {
