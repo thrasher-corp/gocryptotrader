@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	Ping          = "ping"
 	useProxyTests = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
 	proxyURL      = "http://212.186.171.4:80" // Replace with a usable proxy server
 )
