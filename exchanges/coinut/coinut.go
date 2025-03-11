@@ -380,7 +380,7 @@ func (c *COINUT) calculateTradingFee(base, quote currency.Code, purchasePrice, a
 }
 
 func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 {
-	switch c {
+	switch c.Upper() {
 	case currency.USD:
 		return max(amount*0.001, 10.0)
 	case currency.CAD:
@@ -393,7 +393,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 
 }
 
 func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
-	switch c {
+	switch c.Upper() {
 	case currency.USD:
 		return max(amount*0.001, 10.0)
 	case currency.CAD:

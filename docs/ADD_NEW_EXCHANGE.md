@@ -309,7 +309,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result interface{}) error {
+func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	// This is used to generate the *http.Request, used in conjunction with the
 	// generate functionality below. 
 	item := &request.Item{  
@@ -414,7 +414,7 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
 ```go
 // SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result interface{}) error {
+func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result any) error {
 // A potential example below of closing over authenticated variables which may 
 // be required to regenerate on every request between each attempt after rate
 // limiting. This is for when signatures are based on timestamps/nonces that are 
@@ -553,12 +553,12 @@ type PlaceOrder struct {
 }
 ```
 
-For `POST` or `DELETE` requests, params are sent through a map[string]interface{}:
+For `POST` or `DELETE` requests, params are sent through a map[string]any:
 
 ```go
 // Order places an order
 func (f *FTX) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["market"] = marketName
 	req["side"] = side
 	req["price"] = price
@@ -863,14 +863,14 @@ type WsResponseData struct {
 	ResponseType string      `json:"type"`
 	Channel      string      `json:"channel"`
 	Market       string      `json:"market"`
-	Data         interface{} `json:"data"`
+	Data         any `json:"data"`
 }
 ```
 
 - Unmarshall the raw data into the main type:
 
 ```go
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err

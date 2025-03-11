@@ -3138,15 +3138,15 @@ type wsRequestInfo struct {
 }
 
 type wsIncomingData struct {
-	Event      string           `json:"event,omitempty"`
-	Argument   SubscriptionInfo `json:"arg,omitzero"`
-	StatusCode string           `json:"code,omitempty"`
-	Message    string           `json:"msg,omitempty"`
+	Event      string           `json:"event"`
+	Argument   SubscriptionInfo `json:"arg"`
+	StatusCode string           `json:"code"`
+	Message    string           `json:"msg"`
 
 	// For Websocket Trading Endpoints websocket responses
-	ID        string          `json:"id,omitempty"`
-	Operation string          `json:"op,omitempty"`
-	Data      json.RawMessage `json:"data,omitempty"`
+	ID        string          `json:"id"`
+	Operation string          `json:"op"`
+	Data      json.RawMessage `json:"data"`
 }
 
 // copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance

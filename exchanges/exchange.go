@@ -1293,10 +1293,8 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
-	urlMap := make(map[string]string)
-	maps.Copy(urlMap, e.defaults)
-	e.mu.RUnlock()
-	return urlMap
+	defer e.mu.RUnlock()
+	return maps.Clone(e.defaults)
 }
 
 // GetCachedOpenInterest returns open interest data if the exchange

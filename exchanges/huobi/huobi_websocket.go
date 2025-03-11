@@ -53,8 +53,6 @@ const (
 	wsUnsubOp            = "unsub"
 )
 
-var errParsingMsg = errors.New("error parsing message")
-
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
@@ -672,7 +670,7 @@ func getErrResp(msg []byte) error {
 			return nil
 		}
 		if err != nil {
-			return fmt.Errorf("%w: %w", errParsingMsg, err)
+			return fmt.Errorf("%w 'code': %w from message: %s", common.ErrParsingWSField, err, msg)
 		}
 		errCode = strconv.Itoa(int(errCodeInt))
 		errMsg, _ = jsonparser.GetString(msg, "message")

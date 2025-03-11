@@ -145,9 +145,6 @@ func (a Items) Strings() []string {
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
 func (a Items) Contains(i Item) bool {
-	if !i.IsValid() {
-		return false
-	}
 	return slices.Contains(a, i)
 }
 
