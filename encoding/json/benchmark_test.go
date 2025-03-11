@@ -6,7 +6,7 @@ import "testing"
 // BenchmarkUnmarshal-16  1859184   653.3 ns/op  900 B/op  18 allocs/op (bytedance/sonic) Usage: go test --tags=sonic -bench=BenchmarkUnmarshal -v
 func BenchmarkUnmarshal(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = Unmarshal([]byte(`{"Name":"Wednesday","Age":6,"Parents":["Gomez","Morticia"]}`), &map[string]interface{}{})
 	}
 }

@@ -688,15 +688,14 @@ func newTestBuffer() *testBuffer {
 // 2140294	       770.0 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", "", "", time.RFC3339, true, false, false, nil)
 	}
 }
 
 // BenchmarkInfo-8   	 1000000	     64971 ns/op	      47 B/op	       1 allocs/op
 func BenchmarkInfo(b *testing.B) {
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
 	}
 }
@@ -707,24 +706,21 @@ func BenchmarkInfoDisabled(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
 	}
 }
 
 // BenchmarkInfof-8   	 1000000	     72641 ns/op	     178 B/op	       4 allocs/op
 func BenchmarkInfof(b *testing.B) {
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for n := range b.N {
 		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
 }
 
 // BenchmarkInfoln-8   	 1000000	     68152 ns/op	     121 B/op	       3 allocs/op
 func BenchmarkInfoln(b *testing.B) {
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		Infoln(Global, "Hello this is an infoln benchmark")
 	}
 }

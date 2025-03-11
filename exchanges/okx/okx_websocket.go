@@ -1066,7 +1066,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 			pair,
 			err)
 	}
-	if signedChecksum != data.Checksum {
+	if signedChecksum != uint32(data.Checksum) { //nolint:gosec // Requires type casting
 		return fmt.Errorf("%w %v",
 			errInvalidChecksum,
 			pair)
@@ -1115,7 +1115,7 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum)
+	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
 		ob := update
 		ob.Asset = assets[i]
@@ -1163,7 +1163,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32, error) {
+func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1185,7 +1185,7 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
+	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.

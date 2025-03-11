@@ -11,7 +11,7 @@ import (
 
 // New returns a new instance of VM
 func (g *GctScriptManager) New() *VM {
-	if VMSCount.Len() >= int32(g.GetMaxVirtualMachines()) {
+	if VMSCount.Len() >= g.GetMaxVirtualMachines() {
 		if g.config.Verbose {
 			log.Warnf(log.GCTScriptMgr, "GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
 				g.GetMaxVirtualMachines())

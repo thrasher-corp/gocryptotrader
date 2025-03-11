@@ -217,7 +217,7 @@ func (m *manager) latest() (uint16, error) {
 	if len(m.versions) == 0 {
 		return 0, errNoVersions
 	}
-	return uint16(len(m.versions)) - 1, nil
+	return uint16(len(m.versions)) - 1, nil //nolint:gosec // Ignore this as we hardcode version numbers
 }
 
 // checkVersions ensures that registered versions are consistent

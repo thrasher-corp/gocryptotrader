@@ -1796,7 +1796,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 				Currency:    v.RequestDetails.Currency.String(),
 				Description: v.RequestDetails.Description,
 				Amount:      v.RequestDetails.Amount,
-				Type:        int32(v.RequestDetails.Type),
+				Type:        int64(v.RequestDetails.Type),
 			},
 		},
 	}
@@ -3622,7 +3622,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				Currency:    ret[x].RequestDetails.Currency.String(),
 				Description: ret[x].RequestDetails.Description,
 				Amount:      ret[x].RequestDetails.Amount,
-				Type:        int32(ret[x].RequestDetails.Type),
+				Type:        int64(ret[x].RequestDetails.Type),
 			},
 		}
 
@@ -3708,7 +3708,7 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Currency:    ret.RequestDetails.Currency.String(),
 			Description: ret.RequestDetails.Description,
 			Amount:      ret.RequestDetails.Amount,
-			Type:        int32(ret.RequestDetails.Type),
+			Type:        int64(ret.RequestDetails.Type),
 		},
 	}
 	tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt)
@@ -5058,7 +5058,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		bollinger, err = klines.GetBollingerBands(r.Period,
 			r.StandardDeviationUp,
 			r.StandardDeviationDown,
-			indicators.MaType(r.MovingAverageType))
+			indicators.MaType(r.MovingAverageType)) //nolint:gosec // TODO: Make var types consistent
 		if err != nil {
 			return nil, err
 		}

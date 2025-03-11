@@ -202,7 +202,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("deprecatedrpc", &b.Settings.EnableDeprecatedRPC, b.Config.RemoteControl.DeprecatedRPC.Enabled)
 
 	if flagSet["maxvirtualmachines"] {
-		maxMachines := uint8(b.Settings.MaxVirtualMachines)
+		maxMachines := b.Settings.MaxVirtualMachines
 		b.gctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
