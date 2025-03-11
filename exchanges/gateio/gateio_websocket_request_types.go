@@ -16,7 +16,7 @@ type WebsocketAPIResponse struct {
 // Header defines a websocket header
 type Header struct {
 	ResponseTime types.Time `json:"response_time"`
-	Status       string     `json:"status"`
+	Status       int64      `json:"status,string"`
 	Channel      string     `json:"channel"`
 	Event        string     `json:"event"`
 	ClientID     string     `json:"client_id"`

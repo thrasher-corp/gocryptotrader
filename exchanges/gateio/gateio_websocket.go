@@ -131,7 +131,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 
 	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
 
-	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, req.Payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -141,15 +141,16 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 		return err
 	}
 
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	if inbound.Header.Status == http.StatusOK {
+		return nil
 	}
 
-	return nil
+	var wsErr WebsocketErrors
+	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
@@ -858,7 +859,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		return err
 	}
 
-	if inbound.Header.Status != "200" {
+	if inbound.Header.Status != http.StatusOK {
 		var wsErr WebsocketErrors
 		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
 			return err
