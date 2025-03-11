@@ -813,8 +813,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	return errs
 }
 
-// ResultHolder is used to unmarshal the result of a websocket request back to the required caller type
-type ResultHolder struct {
+type resultHolder struct {
 	Result any `json:"result"`
 }
 
@@ -867,7 +866,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
-	return json.Unmarshal(inbound.Data, &ResultHolder{Result: result})
+	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
 }
 
 type wsRespAckInspector struct{}

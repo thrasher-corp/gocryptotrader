@@ -1815,7 +1815,7 @@ type ContractOrderCreateParams struct {
 	Iceberg                   int64         `json:"iceberg"` // required; can be zero
 	Price                     string        `json:"price"`   // NOTE: Market orders require string "0"
 	TimeInForce               string        `json:"tif"`
-	Text                      string        `json:"text,omitempty"`  // Omitempty required as payload sent as `text:""` will return error message: Text content not starting with `t-`"
+	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
 	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true
 	ReduceOnly                bool          `json:"reduce_only,omitempty"`
 	AutoSize                  string        `json:"auto_size,omitempty"` // either close_long or close_short, requires zero in size field

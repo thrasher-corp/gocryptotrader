@@ -2560,8 +2560,6 @@ func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 	}
 }
 
-// WebsocketSubmitOrder submits an order to the exchange through the websocket
-// connection.
 // NOTE: Regarding spot orders, fee is applied to purchased currency.
 func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(g.GetTradingRequirements())
@@ -2586,12 +2584,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		if err != nil {
 			return nil, err
 		}
-
-		sr, err := g.deriveSpotWebsocketOrderResponses(got)
-		if err != nil {
-			return nil, err
-		}
-		return sr[0], nil
+		return g.deriveSpotWebsocketOrderResponse(got)
 	case asset.Futures:
 		amountWithDirection, err := getFutureOrderSize(s)
 		if err != nil {
@@ -2614,14 +2607,21 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		if err != nil {
 			return nil, err
 		}
-		sr, err := g.deriveFuturesWebsocketOrderResponses(got)
-		if err != nil {
-			return nil, err
-		}
-		return sr[0], nil
+		return g.deriveFuturesWebsocketOrderResponse(got)
 	default:
 		return nil, common.ErrNotYetImplemented
 	}
+}
+
+func (g *Gateio) deriveSpotWebsocketOrderResponse(responses []WebsocketOrderResponse) (*order.SubmitResponse, error) {
+	if len(responses) > 1 {
+		return nil, errUnexpectedBatchOrderResponse
+	}
+	got, err := g.deriveSpotWebsocketOrderResponses(responses)
+	if err != nil {
+		return nil, err
+	}
+	return got[0], nil
 }
 
 // deriveSpotWebsocketOrderResponses returns the order submission responses for spot
@@ -2685,6 +2685,17 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []WebsocketOrderRes
 		})
 	}
 	return out, nil
+}
+
+func (g *Gateio) deriveFuturesWebsocketOrderResponse(responses []WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
+	if len(responses) > 1 {
+		return nil, errUnexpectedBatchOrderResponse
+	}
+	got, err := g.deriveFuturesWebsocketOrderResponses(responses)
+	if err != nil {
+		return nil, err
+	}
+	return got[0], nil
 }
 
 // deriveFuturesWebsocketOrderResponses returns the order submission responses for futures
@@ -2759,11 +2770,9 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, erro
 	}
 
 	return &CreateOrderRequest{
-		Side:    s.Side.Lower(),
-		Type:    s.Type.Lower(),
-		Account: g.assetTypeToString(s.AssetType),
-		// When doing spot market orders when purchasing base currency, the quote currency amount is used. When selling
-		// the base currency the base currency amount is used.
+		Side:         s.Side.Lower(),
+		Type:         s.Type.Lower(),
+		Account:      g.assetTypeToString(s.AssetType),
 		Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
 		Price:        types.Number(s.Price),
 		CurrencyPair: s.Pair,
