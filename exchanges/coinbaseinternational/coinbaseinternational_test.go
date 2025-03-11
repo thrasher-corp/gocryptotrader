@@ -250,7 +250,7 @@ func TestCreateOrder(t *testing.T) {
 
 	arg.ClientOrderID = "123442"
 	_, err = co.CreateOrder(context.Background(), arg)
-	require.ErrorIs(t, err, errTimeInForceRequired)
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.CreateOrder(context.Background(), &OrderRequestParams{

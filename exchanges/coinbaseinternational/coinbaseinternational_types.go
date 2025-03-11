@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -224,28 +225,28 @@ type OrderRequestParams struct {
 
 // TradeOrder represents a single order
 type TradeOrder struct {
-	OrderID        int64        `json:"order_id"`
-	ClientOrderID  string       `json:"client_order_id"`
-	Side           string       `json:"side"`
-	InstrumentID   int64        `json:"instrument_id"`
-	InstrumentUUID string       `json:"instrument_uuid"`
-	Symbol         string       `json:"symbol"`
-	PortfolioID    int64        `json:"portfolio_id"`
-	PortfolioUUID  string       `json:"portfolio_uuid"`
-	Type           string       `json:"type"`
-	Price          float64      `json:"price"`
-	StopPrice      float64      `json:"stop_price"`
-	Size           float64      `json:"size"`
-	TimeInForce    string       `json:"tif"`
-	ExpireTime     time.Time    `json:"expire_time"`
-	StpMode        string       `json:"stp_mode"`
-	EventType      string       `json:"event_type"`
-	OrderStatus    string       `json:"order_status"`
-	LeavesQty      types.Number `json:"leaves_qty"`
-	ExecQty        types.Number `json:"exec_qty"`
-	AvgPrice       types.Number `json:"avg_price"`
-	Message        string       `json:"message"`
-	Fee            types.Number `json:"fee"`
+	OrderID        int64             `json:"order_id"`
+	ClientOrderID  string            `json:"client_order_id"`
+	Side           string            `json:"side"`
+	InstrumentID   int64             `json:"instrument_id"`
+	InstrumentUUID string            `json:"instrument_uuid"`
+	Symbol         string            `json:"symbol"`
+	PortfolioID    int64             `json:"portfolio_id"`
+	PortfolioUUID  string            `json:"portfolio_uuid"`
+	Type           string            `json:"type"`
+	Price          float64           `json:"price"`
+	StopPrice      float64           `json:"stop_price"`
+	Size           float64           `json:"size"`
+	TimeInForce    order.TimeInForce `json:"tif"`
+	ExpireTime     time.Time         `json:"expire_time"`
+	StpMode        string            `json:"stp_mode"`
+	EventType      string            `json:"event_type"`
+	OrderStatus    string            `json:"order_status"`
+	LeavesQty      types.Number      `json:"leaves_qty"`
+	ExecQty        types.Number      `json:"exec_qty"`
+	AvgPrice       types.Number      `json:"avg_price"`
+	Message        string            `json:"message"`
+	Fee            types.Number      `json:"fee"`
 }
 
 // OrderItemDetail represents an open order detail.
@@ -463,30 +464,30 @@ type PortfolioFill struct {
 		ResultOffset int64     `json:"result_offset"`
 	} `json:"pagination"`
 	Results []struct {
-		FillID         string    `json:"fill_id"`
-		OrderID        string    `json:"order_id"`
-		InstrumentID   string    `json:"instrument_id"`
-		InstrumentUUID string    `json:"instrument_uuid"`
-		Symbol         string    `json:"symbol"`
-		MatchID        string    `json:"match_id"`
-		FillPrice      float64   `json:"fill_price"`
-		FillQty        float64   `json:"fill_qty"`
-		ClientID       string    `json:"client_id"`
-		ClientOrderID  string    `json:"client_order_id"`
-		OrderQty       float64   `json:"order_qty"`
-		LimitPrice     float64   `json:"limit_price"`
-		TotalFilled    float64   `json:"total_filled"`
-		FilledVwap     float64   `json:"filled_vwap"`
-		ExpireTime     time.Time `json:"expire_time"`
-		StopPrice      float64   `json:"stop_price"`
-		Side           string    `json:"side"`
-		TimeInForce    string    `json:"tif"`
-		StpMode        string    `json:"stp_mode"`
-		Flags          string    `json:"flags"`
-		Fee            float64   `json:"fee"`
-		FeeAsset       string    `json:"fee_asset"`
-		OrderStatus    string    `json:"order_status"`
-		EventTime      time.Time `json:"event_time"`
+		FillID         string            `json:"fill_id"`
+		OrderID        string            `json:"order_id"`
+		InstrumentID   string            `json:"instrument_id"`
+		InstrumentUUID string            `json:"instrument_uuid"`
+		Symbol         string            `json:"symbol"`
+		MatchID        string            `json:"match_id"`
+		FillPrice      float64           `json:"fill_price"`
+		FillQty        float64           `json:"fill_qty"`
+		ClientID       string            `json:"client_id"`
+		ClientOrderID  string            `json:"client_order_id"`
+		OrderQty       float64           `json:"order_qty"`
+		LimitPrice     float64           `json:"limit_price"`
+		TotalFilled    float64           `json:"total_filled"`
+		FilledVwap     float64           `json:"filled_vwap"`
+		ExpireTime     time.Time         `json:"expire_time"`
+		StopPrice      float64           `json:"stop_price"`
+		Side           string            `json:"side"`
+		TimeInForce    order.TimeInForce `json:"tif"`
+		StpMode        string            `json:"stp_mode"`
+		Flags          string            `json:"flags"`
+		Fee            float64           `json:"fee"`
+		FeeAsset       string            `json:"fee_asset"`
+		OrderStatus    string            `json:"order_status"`
+		EventTime      time.Time         `json:"event_time"`
 	} `json:"results"`
 }
 
@@ -724,9 +725,9 @@ type WsInstrument struct {
 	Total30DayVolume    types.Number `json:"total_30_day_volume"`
 	Total24HourQuantity types.Number `json:"total_24_hour_quantity"`
 	Total24HourVolume   types.Number `json:"total_24_hour_volume"`
-	BaseImf             string       `json:"base_imf"`
 	MinQuantity         types.Number `json:"min_quantity"`
 	PositionSizeLimit   types.Number `json:"position_size_limit"`
+	BaseImf             string       `json:"base_imf"`
 	FundingInterval     string       `json:"funding_interval"`
 	TradingState        string       `json:"trading_state"`
 	LastUpdateTime      time.Time    `json:"last_update_time"`

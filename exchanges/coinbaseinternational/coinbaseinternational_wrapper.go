@@ -901,10 +901,9 @@ func (co *CoinbaseInternational) UpdateOrderExecutionLimits(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		pair = pair.Format(format)
 		limits[index] = order.MinMaxLevel{
 			Asset:                   a,
-			Pair:                    pair,
+			Pair:                    pair.Format(format),
 			AmountStepIncrementSize: instruments[index].BaseIncrement.Float64(),
 			QuoteStepIncrementSize:  instruments[index].QuoteIncrement.Float64(),
 			MinimumQuoteAmount:      instruments[index].Quote.LimitDown.Float64(),

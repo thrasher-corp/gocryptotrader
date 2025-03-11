@@ -45,7 +45,6 @@ var (
 	errIndexNameRequired       = errors.New("index name required")
 	errGranularityRequired     = errors.New("granularity value is required")
 	errStartTimeRequired       = errors.New("start time required")
-	errTimeInForceRequired     = errors.New("time_in_force is required")
 	errInstrumentIDRequired    = errors.New("instrument information is required")
 	errInstrumentTypeRequired  = errors.New("instrument type required")
 )
@@ -291,7 +290,7 @@ func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequ
 		return nil, fmt.Errorf("%w, client_order_id is required", order.ErrOrderIDNotSet)
 	}
 	if arg.TimeInForce == "" {
-		return nil, errTimeInForceRequired
+		return nil, fmt.Errorf("%w: time-in-force is missing", order.ErrInvalidTimeInForce)
 	}
 	var resp *TradeOrder
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "orders", nil, arg, &resp, true)
@@ -872,9 +871,7 @@ func (co *CoinbaseInternational) ValidateCounterpartyID(ctx context.Context, cou
 	var resp *CounterpartyValidationResponse
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/validate-counterparty-id", nil, &struct {
 		CounterpartyID string `json:"counterparty_id,omitempty"`
-	}{
-		CounterpartyID: counterpartyID,
-	}, &resp, true)
+	}{CounterpartyID: counterpartyID}, &resp, true)
 }
 
 // WithdrawToCounterpartyID withdraw to counterparty Id
@@ -936,7 +933,6 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 			}
 			headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
 		}
-
 		return &request.Item{
 			Method:        method,
 			Path:          urlPath,

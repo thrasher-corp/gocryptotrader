@@ -194,13 +194,13 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 			}
 		}
 		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			LastUpdateID: resp[x].Sequence,
 			Bids:         bids,
 			Asks:         asks,
 			Pair:         pair,
 			Exchange:     co.Name,
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
+			LastUpdateID: resp[x].Sequence,
 		})
 		if err != nil {
 			return err
