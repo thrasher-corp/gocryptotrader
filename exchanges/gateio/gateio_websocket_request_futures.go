@@ -28,49 +28,43 @@ func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, order *Contrac
 	return g.WebsocketFuturesSubmitOrders(ctx, order)
 }
 
-// WebsocketFuturesSubmitOrders places an order via the websocket connection. You can
-// send multiple orders in a single request. NOTE: When sending multiple orders
-// the response will be an array of responses and a succeeded bool will be
-// returned in the response.
+// WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
 func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, orders ...*ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
 
 	var a asset.Item
-	for i := range orders {
-		if orders[i].Contract.IsEmpty() {
-			return nil, currency.ErrCurrencyPairEmpty
+	for _, o := range orders {
+		check, err := getAssetFromFuturesPair(o.Contract)
+		if err != nil {
+			return nil, err
 		}
 
-		if orders[i].Price == "" && orders[i].TimeInForce != "ioc" {
+		if o.Price == "" && o.TimeInForce != "ioc" {
 			return nil, fmt.Errorf("%w: cannot be zero when time in force is not IOC", errInvalidPrice)
 		}
 
-		if orders[i].Size == 0 && orders[i].AutoSize == "" {
+		if o.Size == 0 && o.AutoSize == "" {
 			return nil, fmt.Errorf("%w: size cannot be zero", errInvalidAmount)
 		}
 
-		if orders[i].AutoSize != "" {
-			if orders[i].AutoSize != "close_long" && orders[i].AutoSize != "close_short" {
-				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, orders[i].AutoSize)
+		if o.AutoSize != "" {
+			if o.AutoSize != "close_long" && o.AutoSize != "close_short" {
+				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, o.AutoSize)
 			}
-			if orders[i].Size != 0 {
+			if o.Size != 0 {
 				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidAmount)
 			}
 		}
 
-		switch {
-		case orders[i].Contract.Quote.Equal(currency.USDT):
-			if a != asset.Empty && a != asset.USDTMarginedFutures {
-				return nil, fmt.Errorf("%w: either btc or usdt margined can only be batched as they are using different connections", errSettlementCurrencyConflict)
-			}
-			a = asset.USDTMarginedFutures
-		case orders[i].Contract.Quote.Equal(currency.USD):
-			if a != asset.Empty && a != asset.CoinMarginedFutures {
-				return nil, fmt.Errorf("%w: either btc or usdt margined can only be batched as they are using different connections", errSettlementCurrencyConflict)
-			}
-			a = asset.CoinMarginedFutures
+		if a == asset.Empty {
+			a = check
+			continue
+		}
+
+		if a != check {
+			return nil, fmt.Errorf("%w: either btc or usdt margined can only be batched as they are using different connections", errSettlementCurrencyConflict)
 		}
 	}
 
@@ -90,13 +84,9 @@ func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string
 		return nil, order.ErrOrderIDNotSet
 	}
 
-	if contract.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-
-	a := asset.USDTMarginedFutures
-	if contract.Quote.Equal(currency.USD) {
-		a = asset.CoinMarginedFutures
+	a, err := getAssetFromFuturesPair(contract)
+	if err != nil {
+		return nil, err
 	}
 
 	params := &struct {
@@ -109,8 +99,9 @@ func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string
 
 // WebsocketFuturesCancelAllOpenFuturesOrders cancels multiple orders via the websocket.
 func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, side string) ([]WebsocketFuturesOrderResponse, error) {
-	if contract.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	a, err := getAssetFromFuturesPair(contract)
+	if err != nil {
+		return nil, err
 	}
 
 	if side != "" && side != "ask" && side != "bid" {
@@ -121,11 +112,6 @@ func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context,
 		Contract currency.Pair `json:"contract"`
 		Side     string        `json:"side,omitempty"`
 	}{Contract: contract, Side: side}
-
-	a := asset.USDTMarginedFutures
-	if contract.Quote.Equal(currency.USD) {
-		a = asset.CoinMarginedFutures
-	}
 
 	var resp []WebsocketFuturesOrderResponse
 	return resp, g.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_cp", a, params, &resp, 2)
@@ -141,17 +127,13 @@ func (g *Gateio) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websocke
 		return nil, order.ErrOrderIDNotSet
 	}
 
-	if amend.Contract.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	a, err := getAssetFromFuturesPair(amend.Contract)
+	if err != nil {
+		return nil, err
 	}
 
 	if amend.Size == 0 && amend.Price == "" {
 		return nil, fmt.Errorf("%w: size or price must be set", errInvalidAmount)
-	}
-
-	a := asset.USDTMarginedFutures
-	if amend.Contract.Quote.Equal(currency.USD) {
-		a = asset.CoinMarginedFutures
 	}
 
 	var resp WebsocketFuturesOrderResponse
@@ -164,17 +146,13 @@ func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketF
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
 
-	if list.Contract.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	a, err := getAssetFromFuturesPair(list.Contract)
+	if err != nil {
+		return nil, err
 	}
 
 	if list.Status == "" {
 		return nil, errStatusNotSet
-	}
-
-	a := asset.USDTMarginedFutures
-	if list.Contract.Quote.Equal(currency.USD) {
-		a = asset.CoinMarginedFutures
 	}
 
 	var resp []WebsocketFuturesOrderResponse
@@ -183,8 +161,9 @@ func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketF
 
 // WebsocketFuturesGetOrderStatus gets the status of an order via the websocket connection.
 func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract currency.Pair, orderID string) (*WebsocketFuturesOrderResponse, error) {
-	if contract.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	a, err := getAssetFromFuturesPair(contract)
+	if err != nil {
+		return nil, err
 	}
 
 	if orderID == "" {
@@ -195,11 +174,20 @@ func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract cu
 		OrderID string `json:"order_id"`
 	}{OrderID: orderID}
 
-	a := asset.USDTMarginedFutures
-	if contract.Quote.Equal(currency.USD) {
-		a = asset.CoinMarginedFutures
-	}
-
 	var resp WebsocketFuturesOrderResponse
 	return &resp, g.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)
+}
+
+func getAssetFromFuturesPair(pair currency.Pair) (asset.Item, error) {
+	if pair.IsEmpty() {
+		return asset.Empty, currency.ErrCurrencyPairEmpty
+	}
+	switch pair.Quote.Item {
+	case currency.USDT.Item:
+		return asset.USDTMarginedFutures, nil
+	case currency.USD.Item:
+		return asset.CoinMarginedFutures, nil
+	default:
+		return asset.Empty, fmt.Errorf("%w futures pair: `%v`", asset.ErrNotSupported, pair)
+	}
 }
