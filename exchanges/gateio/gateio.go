@@ -168,7 +168,6 @@ var (
 	errCannotParseSettlementCurrency    = errors.New("cannot derive settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
-	errUnexpectedBatchOrderResponse     = errors.New("unexpected batch order response")
 )
 
 // Gateio is the overarching type across this package

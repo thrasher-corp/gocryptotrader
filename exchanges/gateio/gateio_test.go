@@ -3545,64 +3545,28 @@ func TestParseWSHeader(t *testing.T) {
 func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
-		name     string
-		orders   [][]byte
-		error    error
-		expected *order.SubmitResponse
-	}{
-		{
-			name:   "empty response",
-			orders: [][]byte{},
-			error:  common.ErrNoResponse,
-		},
-		{
-			name: "too many responses",
-			orders: [][]byte{
-				[]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
-				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
-			},
-			error: errUnexpectedBatchOrderResponse,
-		},
-		{
-			name: "one response",
-			orders: [][]byte{
-				[]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
-			},
-			expected: &order.SubmitResponse{
-				Exchange:             g.Name,
-				OrderID:              "766075454481",
-				AssetType:            asset.Spot,
-				Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-				ClientOrderID:        "t-1735720637181634009",
-				Date:                 time.UnixMilli(1735720637188),
-				LastUpdated:          time.UnixMilli(1735720637188),
-				Amount:               0.0001,
-				AverageExecutedPrice: 93503.3,
-				Type:                 order.Market,
-				Side:                 order.Sell,
-				Status:               order.Filled,
-				ImmediateOrCancel:    true,
-				Cost:                 0.0001,
-				Purchased:            9.35033,
-			},
-		},
-	}
+	var resp *WebsocketOrderResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			orders := bytes.Join(tc.orders, []byte(","))
-			orders = append([]byte("["), append(orders, []byte("]")...)...)
-
-			var resp []WebsocketOrderResponse
-			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
-
-			got, err := g.deriveSpotWebsocketOrderResponse(resp)
-			assert.Equal(t, tc.error, err)
-			assert.Equal(t, tc.expected, got)
-		})
-	}
+	got, err := g.deriveSpotWebsocketOrderResponse(resp)
+	require.NoError(t, err)
+	assert.Equal(t, &order.SubmitResponse{
+		Exchange:             g.Name,
+		OrderID:              "766075454481",
+		AssetType:            asset.Spot,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+		ClientOrderID:        "t-1735720637181634009",
+		Date:                 time.UnixMilli(1735720637188),
+		LastUpdated:          time.UnixMilli(1735720637188),
+		Amount:               0.0001,
+		AverageExecutedPrice: 93503.3,
+		Type:                 order.Market,
+		Side:                 order.Sell,
+		Status:               order.Filled,
+		ImmediateOrCancel:    true,
+		Cost:                 0.0001,
+		Purchased:            9.35033,
+	}, got)
 }
 
 func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
@@ -3741,63 +3705,28 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
-		name     string
-		orders   [][]byte
-		error    error
-		expected *order.SubmitResponse
-	}{
-		{
-			name:   "empty response",
-			orders: [][]byte{},
-			error:  common.ErrNoResponse,
-		},
-		{
-			name: "too many responses",
-			orders: [][]byte{
-				[]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`),
-				[]byte(`{"text":"t-1336","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"REX_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.03654","id":596662040388,"create_time":1735778597.374,"size":-2,"finish_time":1735778597.374,"update_time":1735778597.374,"left":0,"user":12870774}`),
-			},
-			error: errUnexpectedBatchOrderResponse,
-		},
-		{
-			name: "one response",
-			orders: [][]byte{
-				[]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`),
-			},
-			expected: &order.SubmitResponse{
-				Exchange:             g.Name,
-				OrderID:              "596729318437",
-				AssetType:            asset.Futures,
-				Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-				ClientOrderID:        "t-1337",
-				Date:                 time.UnixMilli(1735787107449),
-				LastUpdated:          time.UnixMilli(1735787107450),
-				Amount:               2,
-				AverageExecutedPrice: 0.0000002625,
-				Type:                 order.Market,
-				Side:                 order.Long,
-				Status:               order.Filled,
-				ImmediateOrCancel:    true,
-				ReduceOnly:           true,
-			},
-		},
-	}
+	var resp *WebsocketFuturesOrderResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"text":"t-1337","price":"0","biz_info":"-","tif":"ioc","amend_text":"-","status":"finished","contract":"CWIF_USDT","stp_act":"-","finish_as":"filled","fill_price":"0.0000002625","id":596729318437,"create_time":1735787107.449,"size":2,"finish_time":1735787107.45,"update_time":1735787107.45,"left":0,"user":12870774,"is_reduce_only":true}`), &resp), "unmarshal must not error")
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			orders := bytes.Join(tc.orders, []byte(","))
-			orders = append([]byte("["), append(orders, []byte("]")...)...)
+	got, err := g.deriveFuturesWebsocketOrderResponse(resp)
+	require.NoError(t, err)
+	assert.Equal(t, &order.SubmitResponse{
+		Exchange:             g.Name,
+		OrderID:              "596729318437",
+		AssetType:            asset.Futures,
+		Pair:                 currency.NewPair(currency.NewCode("CWIF"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+		ClientOrderID:        "t-1337",
+		Date:                 time.UnixMilli(1735787107449),
+		LastUpdated:          time.UnixMilli(1735787107450),
+		Amount:               2,
+		AverageExecutedPrice: 0.0000002625,
+		Type:                 order.Market,
+		Side:                 order.Long,
+		Status:               order.Filled,
+		ImmediateOrCancel:    true,
+		ReduceOnly:           true,
+	}, got)
 
-			var resp []WebsocketFuturesOrderResponse
-			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
-
-			got, err := g.deriveFuturesWebsocketOrderResponse(resp)
-			assert.Equal(t, tc.error, err)
-			assert.Equal(t, tc.expected, got)
-		})
-	}
 }
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {

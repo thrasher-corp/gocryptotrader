@@ -24,8 +24,15 @@ func (g *Gateio) authenticateFutures(ctx context.Context, conn stream.Connection
 }
 
 // WebsocketFuturesSubmitOrder submits an order via the websocket connection
-func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, order *ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
-	return g.WebsocketFuturesSubmitOrders(ctx, order)
+func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, order *ContractOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
+	resps, err := g.WebsocketFuturesSubmitOrders(ctx, order)
+	if err != nil {
+		return nil, err
+	}
+	if len(resps) != 1 {
+		return nil, common.ErrInvalidResponse
+	}
+	return &resps[0], err
 }
 
 // WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.

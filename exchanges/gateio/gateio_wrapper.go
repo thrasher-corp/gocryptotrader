@@ -2613,11 +2613,8 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	}
 }
 
-func (g *Gateio) deriveSpotWebsocketOrderResponse(responses []WebsocketOrderResponse) (*order.SubmitResponse, error) {
-	if len(responses) > 1 {
-		return nil, errUnexpectedBatchOrderResponse
-	}
-	got, err := g.deriveSpotWebsocketOrderResponses(responses)
+func (g *Gateio) deriveSpotWebsocketOrderResponse(responses *WebsocketOrderResponse) (*order.SubmitResponse, error) {
+	got, err := g.deriveSpotWebsocketOrderResponses([]WebsocketOrderResponse{*responses})
 	if err != nil {
 		return nil, err
 	}
@@ -2687,11 +2684,8 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []WebsocketOrderRes
 	return out, nil
 }
 
-func (g *Gateio) deriveFuturesWebsocketOrderResponse(responses []WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
-	if len(responses) > 1 {
-		return nil, errUnexpectedBatchOrderResponse
-	}
-	got, err := g.deriveFuturesWebsocketOrderResponses(responses)
+func (g *Gateio) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
+	got, err := g.deriveFuturesWebsocketOrderResponses([]WebsocketFuturesOrderResponse{*responses})
 	if err != nil {
 		return nil, err
 	}

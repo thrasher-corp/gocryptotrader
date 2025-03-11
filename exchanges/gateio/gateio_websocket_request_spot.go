@@ -25,8 +25,15 @@ func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) e
 }
 
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
-func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) ([]WebsocketOrderResponse, error) {
-	return g.WebsocketSpotSubmitOrders(ctx, order)
+func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) (*WebsocketOrderResponse, error) {
+	resps, err := g.WebsocketSpotSubmitOrders(ctx, order)
+	if err != nil {
+		return nil, err
+	}
+	if len(resps) != 1 {
+		return nil, common.ErrInvalidResponse
+	}
+	return &resps[0], nil
 }
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
