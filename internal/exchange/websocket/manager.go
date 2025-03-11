@@ -55,7 +55,7 @@ var (
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 	errConnSetup                            = errors.New("error in connection setup")
 	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
-	errConnectionWrapperDuplication         = errors.New("connection wrapper duplication")
+	errconnectionWrapperDuplication         = errors.New("connection wrapper duplication")
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
@@ -93,7 +93,7 @@ type Manager struct {
 	exchangeName                  string
 	features                      *protocol.Features
 	m                             sync.Mutex
-	connections                   map[Connection]*ConnectionWrapper
+	connections                   map[Connection]*connectionWrapper
 	subscriptions                 *subscription.Store
 	connector                     func() error
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
@@ -116,13 +116,13 @@ type Manager struct {
 	ExchangeLevelReporter         Reporter   // Latency reporter
 	MaxSubscriptionsPerConnection int
 
-	// connectionManager stores all *potential* connections for the exchange, organised within ConnectionWrapper structs.
-	// Each ConnectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types. // TODO: Expand this to support multiple connections per ConnectionWrapper
+	// connectionManager stores all *potential* connections for the exchange, organised within connectionWrapper structs.
+	// Each connectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types. // TODO: Expand this to support multiple connections per connectionWrapper
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
-	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
+	// If an exchange does not require such differentiation, all connections may be managed under a single connectionWrapper.
 
-	connectionManager []*ConnectionWrapper
+	connectionManager []*connectionWrapper
 }
 
 // ManagerSetup defines variables for setting up a websocket manager
@@ -156,10 +156,10 @@ type ManagerSetup struct {
 	RateLimitDefinitions request.RateLimitDefinitions
 }
 
-// ConnectionWrapper contains the connection setup details to be used when
+// connectionWrapper contains the connection setup details to be used when
 // attempting a new connection. It also contains the subscriptions that are
 // associated with the specific connection.
-type ConnectionWrapper struct {
+type connectionWrapper struct {
 	// Setup contains the connection setup details
 	Setup *ConnectionSetup
 	// Subscriptions contains the subscriptions that are associated with the
@@ -194,7 +194,7 @@ func NewManager() *Manager {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		connections:       make(map[Connection]*ConnectionWrapper),
+		connections:       make(map[Connection]*connectionWrapper),
 	}
 }
 
@@ -367,10 +367,10 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
 			// a spot connection.
 			if m.connectionManager[x].Setup.URL == c.URL && c.MessageFilter == m.connectionManager[x].Setup.MessageFilter {
-				return fmt.Errorf("%w: %w", errConnSetup, errConnectionWrapperDuplication)
+				return fmt.Errorf("%w: %w", errConnSetup, errconnectionWrapperDuplication)
 			}
 		}
-		m.connectionManager = append(m.connectionManager, &ConnectionWrapper{
+		m.connectionManager = append(m.connectionManager, &connectionWrapper{
 			Setup:         c,
 			Subscriptions: subscription.NewStore(),
 		})
