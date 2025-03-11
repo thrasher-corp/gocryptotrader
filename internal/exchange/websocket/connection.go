@@ -99,6 +99,18 @@ type ConnectionSetup struct {
 	MessageFilter any
 }
 
+// Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
+// It inspects the []bytes websocket message and returns true if the message is the final message in a sequence of expected messages
+type Inspector interface {
+	IsFinal([]byte) bool
+}
+
+// Response defines generalised data from the websocket connection
+type Response struct {
+	Type int
+	Raw  []byte
+}
+
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
 	Verbose                  bool

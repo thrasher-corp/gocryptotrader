@@ -9,18 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
-// Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
-// It inspects the []bytes websocket message and returns true if the message is the final message in a sequence of expected messages
-type Inspector interface {
-	IsFinal([]byte) bool
-}
-
-// Response defines generalised data from the stream connection
-type Response struct {
-	Type int
-	Raw  []byte
-}
-
 // ConnectionWrapper contains the connection setup details to be used when
 // attempting a new connection. It also contains the subscriptions that are
 // associated with the specific connection.
