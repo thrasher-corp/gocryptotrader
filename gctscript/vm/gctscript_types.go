@@ -15,7 +15,7 @@ const (
 type Config struct {
 	Enabled            bool          `json:"enabled"`
 	ScriptTimeout      time.Duration `json:"timeout"`
-	MaxVirtualMachines uint8         `json:"max_virtual_machines"`
+	MaxVirtualMachines uint64        `json:"max_virtual_machines"`
 	AllowImports       bool          `json:"allow_imports"`
 	AutoLoad           []string      `json:"auto_load"`
 	Verbose            bool          `json:"verbose"`

@@ -369,9 +369,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			exch, err := em.NewExchangeByName(name)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err, "NewExchangeByName must not error")
 
 			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				t.Skipf("skipping %s due to CI test restrictions", name)
@@ -382,40 +380,18 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			}
 
 			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if defaultCfg == nil {
-				t.Fatal("expected config")
-			}
-
-			if defaultCfg.Name == "" {
-				t.Error("name unset SetDefaults() not called")
-			}
-
-			if !defaultCfg.Enabled {
-				t.Error("expected enabled", defaultCfg.Name)
-			}
+			require.NoError(t, err, "GetDefaultConfig must not error")
+			require.NotNil(t, defaultCfg)
+			assert.NotEmpty(t, defaultCfg.Name, "Name should not be empty")
+			assert.True(t, defaultCfg.Enabled, "Enabled should have the correct value")
 
 			if exch.SupportsWebsocket() {
-				if defaultCfg.WebsocketResponseCheckTimeout <= 0 {
-					t.Error("expected websocketResponseCheckTimeout to be greater than 0", defaultCfg.Name)
-				}
-
-				if defaultCfg.WebsocketResponseMaxLimit <= 0 {
-					t.Error("expected WebsocketResponseMaxLimit to be greater than 0", defaultCfg.Name)
-				}
-
-				if defaultCfg.WebsocketTrafficTimeout <= 0 {
-					t.Error("expected WebsocketTrafficTimeout to be greater than 0", defaultCfg.Name)
-				}
+				assert.Positive(t, defaultCfg.WebsocketResponseCheckTimeout, "WebsocketResponseCheckTimeout should be positive")
+				assert.Positive(t, defaultCfg.WebsocketResponseMaxLimit, "WebsocketResponseMaxLimit should be positive")
+				assert.Positive(t, defaultCfg.WebsocketTrafficTimeout, "WebsocketTrafficTimeout should be positive")
 			}
 
-			// Makes sure the config is valid and can be used to setup the exchange
-			if err := exch.Setup(defaultCfg); err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, exch.Setup(defaultCfg), "Setup must not error")
 		})
 	}
 }

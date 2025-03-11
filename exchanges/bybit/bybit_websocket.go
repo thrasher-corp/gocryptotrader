@@ -65,7 +65,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyTradesChannel},
-	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanPositions},
 }
 
 var subscriptionNames = map[string]string{
@@ -242,9 +241,11 @@ func (by *Bybit) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":      channelName,
-		"isSymbolChannel":  isSymbolChannel,
-		"intervalToString": intervalToString,
+		"channelName":          channelName,
+		"isSymbolChannel":      isSymbolChannel,
+		"intervalToString":     intervalToString,
+		"getCategoryName":      getCategoryName,
+		"isCategorisedChannel": isCategorisedChannel,
 	}).Parse(subTplText)
 }
 
@@ -681,7 +682,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 			TID:          result[x].TradeID,
 		}
 	}
-	return trade.AddTradesToBuffer(by.Name, tradeDatas...)
+	return trade.AddTradesToBuffer(tradeDatas...)
 }
 
 func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
@@ -759,6 +760,14 @@ func isSymbolChannel(name string) bool {
 	return true
 }
 
+func isCategorisedChannel(name string) bool {
+	switch name {
+	case chanPositions, chanExecution, chanOrder:
+		return true
+	}
+	return false
+}
+
 const subTplText = `
 {{ with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
@@ -772,6 +781,7 @@ const subTplText = `
 			{{- end }}
 		{{- else }}
 			{{- $name }}
+			{{- if and (isCategorisedChannel $name) ($categoryName := getCategoryName $asset) -}} . {{- $categoryName -}} {{- end }}
 		{{- end }}
 	{{- end }}
 	{{- $.AssetSeparator }}

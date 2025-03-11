@@ -31,39 +31,29 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, e
 
 func createNewStrategy(name string, useSimultaneousProcessing bool, h Handler) (Handler, error) {
 	if h == nil {
-		return nil, fmt.Errorf("cannot load %v supported strategies contains %w", name, common.ErrNilPointer)
+		return nil, fmt.Errorf("cannot load strategy %q: %w", name, common.ErrNilPointer)
 	}
+
 	if !strings.EqualFold(name, h.Name()) {
 		return nil, nil
 	}
-	// create new instance so strategy is not shared across all tasks
+
 	strategyValue := reflect.ValueOf(h)
-	if strategyValue.IsNil() {
-		return nil, fmt.Errorf("cannot load %v supported strategies element is a %w", name, common.ErrNilPointer)
+	if strategyValue.Kind() != reflect.Ptr || strategyValue.IsNil() {
+		return nil, fmt.Errorf("cannot load strategy %q: handler must be a non-nil pointer, got %T", name, h)
 	}
-	strategyElement := strategyValue.Elem()
-	if !strategyElement.IsValid() {
-		return nil, fmt.Errorf("cannot load %v strategy element is invalid %w", name, common.ErrTypeAssertFailure)
-	}
-	strategyType := strategyElement.Type()
-	if strategyType == nil {
-		return nil, fmt.Errorf("cannot load %v strategy type is a %w", name, common.ErrNilPointer)
-	}
-	newStrategy := reflect.New(strategyType)
-	if newStrategy.IsNil() {
-		return nil, fmt.Errorf("cannot load %v new instance of strategy is a %w", name, common.ErrNilPointer)
-	}
-	strategyInterface := newStrategy.Interface()
-	if strategyInterface == nil {
-		return nil, fmt.Errorf("cannot load %v new instance of strategy is not an interface. %w", name, common.ErrTypeAssertFailure)
-	}
-	strategy, ok := strategyInterface.(Handler)
+
+	// create new instance so strategy is not shared across all tasks
+	strategy, ok := reflect.New(strategyValue.Elem().Type()).Interface().(Handler)
 	if !ok {
-		return nil, fmt.Errorf("cannot load %v new instance of strategy is not a Handler interface. %w", name, common.ErrTypeAssertFailure)
+		return nil, fmt.Errorf("cannot load strategy %q: type %T doesn't implement Handler interface: %w",
+			name, strategy, common.ErrTypeAssertFailure)
 	}
+
 	if useSimultaneousProcessing && !strategy.SupportsSimultaneousProcessing() {
 		return nil, base.ErrSimultaneousProcessingNotSupported
 	}
+
 	strategy.SetSimultaneousProcessing(useSimultaneousProcessing)
 	return strategy, nil
 }

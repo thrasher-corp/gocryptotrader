@@ -23,6 +23,11 @@ func (t *Type) UnmarshalJSON(d []byte) error {
 	return err
 }
 
+// MarshalJSON conforms type to the json.Marshaler interface
+func (t Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
 // String returns the string representation of the margin type in lowercase
 // the absence of a lower func should hopefully highlight that String is lower
 func (t Type) String() string {
@@ -37,10 +42,9 @@ func (t Type) String() string {
 		return spotIsolatedStr
 	case NoMargin:
 		return cashStr
-	case Unknown:
+	default:
 		return unknownStr
 	}
-	return ""
 }
 
 // Upper returns the upper case string representation of the margin type
