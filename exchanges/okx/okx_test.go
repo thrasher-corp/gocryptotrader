@@ -4110,10 +4110,10 @@ func TestWSProcessTrades(t *testing.T) {
 		sort.Slice(trades[assetType], func(i, j int) bool {
 			return trades[assetType][i].TID < trades[assetType][j].TID
 		})
-		for i, trade := range trades[assetType] {
+		for i, tradeData := range trades[assetType] {
 			expected := exp[i]
 			expected.AssetType = assetType
-			require.Equal(t, expected, trade, "Trade %d (TID: %s) for asset %v should match expected data", i, trade.TID, assetType)
+			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v should match expected data", i, tradeData.TID, assetType)
 		}
 	}
 }
