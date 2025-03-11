@@ -104,18 +104,20 @@ var (
 	errNilResult                  = errors.New("received nil job result")
 	errJobMustBeActiveOrPaused    = errors.New("job must be active or paused to be set as a prerequisite")
 	errNilCandles                 = errors.New("received nil candles")
+)
 
+const (
 	// defaultDataHistoryTradeInterval is the default interval size used to verify whether there is any database data
 	// for a trade job
-	defaultDataHistoryTradeInterval          = kline.FifteenMin
-	defaultDataHistoryMaxJobsPerCycle  int64 = 5
-	defaultMaxResultInsertions         int64 = 10000
-	defaultDataHistoryBatchLimit       int64 = 3
-	defaultDataHistoryRetryAttempts    int64 = 3
-	defaultDataHistoryRequestSizeLimit int64 = 500
-	defaultDataHistoryTicker                 = time.Minute
-	defaultDataHistoryTradeRequestSize int64 = 10
-	defaultDecimalPlaceComparison      int64 = 3
+	defaultDataHistoryTradeInterval           = kline.FifteenMin
+	defaultDataHistoryMaxJobsPerCycle  int64  = 5
+	defaultMaxResultInsertions         int64  = 10000
+	defaultDataHistoryBatchLimit       uint64 = 3
+	defaultDataHistoryRetryAttempts    uint64 = 3
+	defaultDataHistoryRequestSizeLimit uint64 = 500
+	defaultDataHistoryTicker                  = time.Minute
+	defaultDataHistoryTradeRequestSize uint64 = 10
+	defaultDecimalPlaceComparison      uint64 = 3
 )
 
 // DataHistoryManager is responsible for synchronising,
@@ -149,17 +151,17 @@ type DataHistoryJob struct {
 	StartDate                time.Time
 	EndDate                  time.Time
 	Interval                 kline.Interval
-	RunBatchLimit            int64
-	RequestSizeLimit         int64
+	RunBatchLimit            uint64
+	RequestSizeLimit         uint64
 	DataType                 dataHistoryDataType
-	MaxRetryAttempts         int64
+	MaxRetryAttempts         uint64
 	Status                   dataHistoryStatus
 	CreatedDate              time.Time
 	Results                  map[int64][]DataHistoryJobResult
 	rangeHolder              *kline.IntervalRangeHolder
 	OverwriteExistingData    bool
 	ConversionInterval       kline.Interval
-	DecimalPlaceComparison   int64
+	DecimalPlaceComparison   uint64
 	SecondaryExchangeSource  string
 	IssueTolerancePercentage float64
 	ReplaceOnIssue           bool

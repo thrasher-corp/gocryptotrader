@@ -136,9 +136,17 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol, fromID string, 
 }
 
 // UKlineData gets kline data for usdt margined futures
+<<<<<<< HEAD
 func (b *Binance) UKlineData(ctx context.Context, symbol, interval string, limit int64, startTime, endTime time.Time) ([]UFuturesCandleStick, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
+=======
+func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	params := url.Values{}
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return nil, err
+>>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, kline.ErrUnsupportedInterval
@@ -156,7 +164,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol, interval string, limit
 		params.Set("endTime", timeString(endTime))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	rateBudget := uFuturesDefaultRate
 	switch {

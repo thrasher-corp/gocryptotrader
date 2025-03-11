@@ -2292,6 +2292,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	switch a {
 	case asset.Spot, asset.Margin:
 		var candles []CandleStick
+<<<<<<< HEAD
 		if b.IsAPIStreamConnected() {
 			candles, err = b.GetWsOptimizedCandlestick(&KlinesRequestParams{
 				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -2309,6 +2310,15 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				Limit:     req.RequestLimit,
 			})
 		}
+=======
+		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
+			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+			Symbol:    req.Pair,
+			StartTime: req.Start,
+			EndTime:   req.End,
+			Limit:     req.RequestLimit,
+		})
+>>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 		if err != nil {
 			return nil, err
 		}
@@ -2399,6 +2409,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		switch a {
 		case asset.Spot, asset.Margin:
 			var candles []CandleStick
+<<<<<<< HEAD
 			if b.IsAPIStreamConnected() {
 				candles, err = b.GetWsCandlestick(&KlinesRequestParams{
 					Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -2416,6 +2427,15 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Limit:     req.RequestLimit,
 				})
 			}
+=======
+			candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
+				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+				Symbol:    req.Pair,
+				StartTime: req.RangeHolder.Ranges[x].Start.Time,
+				EndTime:   req.RangeHolder.Ranges[x].End.Time,
+				Limit:     req.RequestLimit,
+			})
+>>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 			if err != nil {
 				return nil, err
 			}
@@ -2434,7 +2454,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err = b.UKlineData(ctx,
 				req.RequestFormatted.String(),
 				b.FormatExchangeKlineInterval(interval),
-				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -2455,7 +2475,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err = b.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
 				b.FormatExchangeKlineInterval(interval),
-				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {

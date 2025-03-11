@@ -972,6 +972,7 @@ func OrderTypeString(oType order.Type) (string, error) {
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
+<<<<<<< HEAD
 	Symbol         currency.Pair `json:"symbol"`             // Required field; example LTCBTC, BTCUSDT
 	Interval       string        `json:"interval,omitempty"` // Time interval period
 	Limit          int64         `json:"limit,omitempty"`    // Default 500; max 500.
@@ -980,6 +981,13 @@ type KlinesRequestParams struct {
 	Timezone       string        `json:"timeZone,omitempty"`
 	StartTimestamp int64         `json:"startTime,omitempty"`
 	EndTimestamp   int64         `json:"endTime,omitempty"`
+=======
+	Symbol    currency.Pair // Required field; example LTCBTC, BTCUSDT
+	Interval  string        // Time interval period
+	Limit     uint64        // Default 500; max 500.
+	StartTime time.Time
+	EndTime   time.Time
+>>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees

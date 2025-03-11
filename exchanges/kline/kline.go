@@ -348,12 +348,17 @@ func durationToWord(in Interval) string {
 }
 
 // TotalCandlesPerInterval returns the total number of candle intervals between the start and end date
-func TotalCandlesPerInterval(start, end time.Time, interval Interval) int64 {
+func TotalCandlesPerInterval(start, end time.Time, interval Interval) uint64 {
 	if interval <= 0 {
 		return 0
 	}
+
+	if start.After(end) {
+		return 0
+	}
+
 	window := end.Sub(start)
-	return int64(window) / int64(interval)
+	return uint64(window) / uint64(interval) //nolint:gosec // No overflow risk
 }
 
 // IntervalsPerYear helps determine the number of intervals in a year
@@ -463,7 +468,7 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 // CalculateCandleDateRanges will calculate the expected candle data in intervals in a date range
 // If an API is limited in the amount of candles it can make in a request, it will automatically separate
 // ranges into the limit
-func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint32) (*IntervalRangeHolder, error) {
+func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit uint64) (*IntervalRangeHolder, error) {
 	if err := common.StartEndTimeCheck(start, end); err != nil && !errors.Is(err, common.ErrStartAfterTimeNow) {
 		return nil, err
 	}
@@ -473,44 +478,39 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 
 	start = start.Round(interval.Duration())
 	end = end.Round(interval.Duration())
-	window := end.Sub(start)
-	count := int64(window) / int64(interval)
-	requests := float64(count) / float64(limit)
 
-	switch {
-	case requests <= 1:
-		requests = 1
-	case limit == 0:
-		requests, limit = 1, uint32(count)
-	case requests-float64(int64(requests)) > 0:
-		requests++
+	count := uint64(end.Sub(start) / interval.Duration()) //nolint:gosec // No overflow risk
+	if count == 0 {
+		return nil, common.ErrStartEqualsEnd
 	}
 
-	potentialRequests := make([]IntervalRange, int(requests))
-	requestStart := start
-	for x := range potentialRequests {
-		potentialRequests[x].Start = CreateIntervalTime(requestStart)
-
-		count -= int64(limit)
-		if count < 0 {
-			potentialRequests[x].Intervals = make([]IntervalData, count+int64(limit))
-		} else {
-			potentialRequests[x].Intervals = make([]IntervalData, limit)
-		}
-
-		for y := range potentialRequests[x].Intervals {
-			potentialRequests[x].Intervals[y].Start = CreateIntervalTime(requestStart)
-			requestStart = requestStart.Add(interval.Duration())
-			potentialRequests[x].Intervals[y].End = CreateIntervalTime(requestStart)
-		}
-		potentialRequests[x].End = CreateIntervalTime(requestStart)
+	intervals := make([]IntervalData, 0, count)
+	for iStart := start; iStart.Before(end); iStart = iStart.Add(interval.Duration()) {
+		intervals = append(intervals, IntervalData{
+			Start: CreateIntervalTime(iStart),
+			End:   CreateIntervalTime(iStart.Add(interval.Duration())),
+		})
 	}
-	return &IntervalRangeHolder{
-		Start:  CreateIntervalTime(start),
-		End:    CreateIntervalTime(requestStart),
-		Ranges: potentialRequests,
-		Limit:  int(limit),
-	}, nil
+
+	if limit == 0 {
+		limit = count
+	}
+
+	h := &IntervalRangeHolder{
+		Start: CreateIntervalTime(start),
+		End:   CreateIntervalTime(end),
+		Limit: limit,
+	}
+
+	for _, b := range common.Batch(intervals, int(limit)) { //nolint:gosec // Ignore this warning as Batch requires int
+		h.Ranges = append(h.Ranges, IntervalRange{
+			Start:     b[0].Start,
+			End:       b[len(b)-1].End,
+			Intervals: b,
+		})
+	}
+
+	return h, nil
 }
 
 // HasDataAtDate determines whether a there is any data at a set
@@ -655,7 +655,7 @@ func (k *Item) EqualSource(i *Item) error {
 func DeployExchangeIntervals(enabled ...IntervalCapacity) ExchangeIntervals {
 	sort.Slice(enabled, func(i, j int) bool { return enabled[i].Interval < enabled[j].Interval })
 
-	supported := make(map[Interval]int64)
+	supported := make(map[Interval]uint64)
 	for x := range enabled {
 		supported[enabled[x].Interval] = enabled[x].Capacity
 	}
@@ -695,7 +695,7 @@ func (e *ExchangeIntervals) Construct(required Interval) (Interval, error) {
 // GetIntervalResultLimit returns the maximum amount of candles that can be
 // returned for a specific interval. If the individual interval limit is not set,
 // it will be ignored and the global result limit will be returned.
-func (e *ExchangeCapabilitiesEnabled) GetIntervalResultLimit(interval Interval) (int64, error) {
+func (e *ExchangeCapabilitiesEnabled) GetIntervalResultLimit(interval Interval) (uint64, error) {
 	if e == nil {
 		return 0, errExchangeCapabilitiesEnabledIsNil
 	}
@@ -713,5 +713,5 @@ func (e *ExchangeCapabilitiesEnabled) GetIntervalResultLimit(interval Interval) 
 		return 0, fmt.Errorf("%w there is no global result limit set", errCannotFetchIntervalLimit)
 	}
 
-	return int64(e.GlobalResultLimit), nil
+	return e.GlobalResultLimit, nil
 }

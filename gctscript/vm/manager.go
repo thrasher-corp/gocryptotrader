@@ -25,7 +25,7 @@ type GctScriptManager struct {
 	started  int32
 	shutdown chan struct{}
 	// Optional values to override stored config ('nil' if not overridden)
-	MaxVirtualMachines *uint8
+	MaxVirtualMachines *uint64
 }
 
 // NewManager creates a new instance of script manager
@@ -83,7 +83,7 @@ func (g *GctScriptManager) run(wg *sync.WaitGroup) {
 }
 
 // GetMaxVirtualMachines returns the max number of VMs to create
-func (g *GctScriptManager) GetMaxVirtualMachines() uint8 {
+func (g *GctScriptManager) GetMaxVirtualMachines() uint64 {
 	if g.MaxVirtualMachines != nil {
 		return *g.MaxVirtualMachines
 	}

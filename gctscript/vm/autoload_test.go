@@ -1,9 +1,11 @@
 package vm
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestGctScriptManagerAutoLoadNonExisting(t *testing.T) {
-	var vms uint8 = 1
+	var vms uint64 = 1
 	g := &GctScriptManager{
 		config: &Config{
 			AutoLoad: []string{"non-existing"},

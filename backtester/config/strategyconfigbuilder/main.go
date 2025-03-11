@@ -429,12 +429,12 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	input = quickParse(reader)
 	var port uint64
 	if input != "" {
-		port, err = strconv.ParseUint(input, 10, 16)
+		port, err = strconv.ParseUint(input, 10, 32)
 		if err != nil {
 			return err
 		}
 	}
-	cfg.DataSettings.DatabaseData.Config.Port = uint16(port)
+	cfg.DataSettings.DatabaseData.Config.Port = uint32(port) //nolint:gosec // No overflow risk
 	err = database.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 	if err != nil {
 		return fmt.Errorf("database failed to set config: %w", err)
