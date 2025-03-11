@@ -73,7 +73,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.connections = map[Connection]*ConnectionWrapper{
+	multi.connections = map[Connection]*connectionWrapper{
 		amazingConn: multi.connectionManager[0],
 	}
 

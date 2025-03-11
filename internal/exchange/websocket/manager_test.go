@@ -238,7 +238,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
-	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
+	ws.connectionManager = []*connectionWrapper{{Setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
@@ -413,7 +413,7 @@ func TestManager(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []*ConnectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &connection{}}}
+	ws.connectionManager = []*connectionWrapper{{Setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, Connection: &connection{}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -1081,7 +1081,7 @@ func TestSetupNewConnection(t *testing.T) {
 	require.Nil(t, multi.Conn)
 
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errConnectionWrapperDuplication)
+	require.ErrorIs(t, err, errconnectionWrapperDuplication)
 }
 
 func TestConnectionShutdown(t *testing.T) {
@@ -1322,7 +1322,7 @@ func TestGetConnection(t *testing.T) {
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
-	ws.connectionManager = []*ConnectionWrapper{{
+	ws.connectionManager = []*connectionWrapper{{
 		Setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
 	}}
 
