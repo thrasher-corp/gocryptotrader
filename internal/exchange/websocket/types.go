@@ -1,110 +1,56 @@
 package websocket
 
 import (
-	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Websocket functionality list and state consts
-const (
-	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
-	Ping                               = "ping"
-	Pong                               = "pong"
-	UnhandledMessage                   = " - Unhandled websocket message: "
-)
-
-const (
-	uninitialisedState uint32 = iota
-	disconnectedState
-	connectingState
-	connectedState
-)
-
-// Manager provides connection and subscription management and routing
-type Manager struct {
-	enabled                       atomic.Bool
-	state                         atomic.Uint32
-	verbose                       bool
-	canUseAuthenticatedEndpoints  atomic.Bool
-	connectionMonitorRunning      atomic.Bool
-	trafficTimeout                time.Duration
-	connectionMonitorDelay        time.Duration
-	proxyAddr                     string
-	defaultURL                    string
-	defaultURLAuth                string
-	runningURL                    string
-	runningURLAuth                string
-	exchangeName                  string
-	features                      *protocol.Features
-	m                             sync.Mutex
-	connections                   map[Connection]*ConnectionWrapper
-	subscriptions                 *subscription.Store
-	connector                     func() error
-	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
-	Subscriber                    func(subscription.List) error
-	Unsubscriber                  func(subscription.List) error
-	GenerateSubs                  func() (subscription.List, error)
-	useMultiConnectionManagement  bool
-	DataHandler                   chan any
-	ToRoutine                     chan any
-	Match                         *Match
-	ShutdownC                     chan struct{}
-	Wg                            sync.WaitGroup
-	Orderbook                     buffer.Orderbook
-	Trade                         trade.Trade // Trade is a notifier for trades
-	Fills                         fill.Fills  // Fills is a notifier for fills
-	TrafficAlert                  chan struct{}
-	ReadMessageErrors             chan error
-	Conn                          Connection // Public connection
-	AuthConn                      Connection // Authenticated Private connection
-	ExchangeLevelReporter         Reporter   // Latency reporter
-	MaxSubscriptionsPerConnection int
-
-	// connectionManager stores all *potential* connections for the exchange, organised within ConnectionWrapper structs.
-	// Each ConnectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types. // TODO: Expand this to support multiple connections per ConnectionWrapper
-	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
-	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
-	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
-
-	connectionManager []*ConnectionWrapper
+// PingHandler container for ping handler settings
+type PingHandler struct {
+	Websocket         bool
+	UseGorillaHandler bool
+	MessageType       int
+	Message           []byte
+	Delay             time.Duration
 }
 
-// ManagerSetup defines variables for setting up a websocket manager
-type ManagerSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
-	Connector             func() error
-	Subscriber            func(subscription.List) error
-	Unsubscriber          func(subscription.List) error
-	GenerateSubscriptions func() (subscription.List, error)
-	Features              *protocol.Features
-	OrderbookBufferConfig buffer.Config
+// FundingData defines funding data
+type FundingData struct {
+	Timestamp    time.Time
+	CurrencyPair currency.Pair
+	AssetType    asset.Item
+	Exchange     string
+	Amount       float64
+	Rate         float64
+	Period       int64
+	Side         order.Side
+}
 
-	// UseMultiConnectionManagement allows the connections to be managed by the
-	// connection manager. If false, this will default to the global fields
-	// provided in this struct.
-	UseMultiConnectionManagement bool
+// KlineData defines kline feed
+type KlineData struct {
+	Timestamp  time.Time
+	Pair       currency.Pair
+	AssetType  asset.Item
+	Exchange   string
+	StartTime  time.Time
+	CloseTime  time.Time
+	Interval   string
+	OpenPrice  float64
+	ClosePrice float64
+	HighPrice  float64
+	LowPrice   float64
+	Volume     float64
+}
 
-	TradeFeed bool
-	FillsFeed bool
+// UnhandledMessageWarning defines a container for unhandled message warnings
+type UnhandledMessageWarning struct {
+	Message string
+}
 
-	MaxWebsocketSubscriptionsPerConnection int
-
-	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
-	// These rate limits take precedence over any rate limits specified in individual connection configurations.
-	// If no connection-specific rate limit is provided and the endpoint does not match any of these definitions,
-	// an error will be returned. However, if a connection configuration includes its own rate limit,
-	// it will fall back to that configuration’s rate limit without raising an error.
-	RateLimitDefinitions request.RateLimitDefinitions
+// Reporter interface groups observability functionality over Websocket request latency.
+type Reporter interface {
+	Latency(name string, message []byte, t time.Duration)
 }
