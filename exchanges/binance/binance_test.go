@@ -9951,7 +9951,7 @@ func TestOrderTypeFromString(t *testing.T) {
 		"abcd":                 {order.UnknownType, order.ErrUnsupportedOrderType},
 	}
 	for k, v := range orderTypeFromStringMap {
-		result, err := orderTypeFromString(k)
+		result, err := StringToOrderType(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, result, v.OrderType)
 	}

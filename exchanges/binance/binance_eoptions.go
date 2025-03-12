@@ -84,7 +84,7 @@ func (b *Binance) GetEOptionsTradeHistory(ctx context.Context, symbol string, fr
 }
 
 // GetEOptionsCandlesticks retrieves kline/candlestick bars for an option symbol. Klines are uniquely identified by their open time.
-func (b *Binance) GetEOptionsCandlesticks(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]EOptionsCandlestick, error) {
+func (b *Binance) GetEOptionsCandlesticks(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]EOptionsCandlestick, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -103,7 +103,7 @@ func (b *Binance) GetEOptionsCandlesticks(ctx context.Context, symbol string, in
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set(order.Limit.String(), strconv.FormatUint(limit, 10))
 	}
 	var resp []EOptionsCandlestick
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), optionsDefaultRate, &resp)

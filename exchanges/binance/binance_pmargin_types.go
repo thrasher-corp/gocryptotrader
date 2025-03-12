@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -67,22 +68,22 @@ type MarginOrderParam struct {
 
 // MarginOrderResp represents a margin order response.
 type MarginOrderResp struct {
-	Symbol                  string       `json:"symbol"`
-	OrderID                 int64        `json:"orderId"`
-	ClientOrderID           string       `json:"clientOrderId"`
-	OrigClientOrderID       string       `json:"origClientOrderId"`
-	TransactTime            types.Time   `json:"transactTime"`
-	Price                   types.Number `json:"price"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	OrigQty                 types.Number `json:"origQty"`
-	ExecutedQty             types.Number `json:"executedQty"`
-	CummulativeQuoteQty     types.Number `json:"cummulativeQuoteQty"`
-	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
-	MarginBuyBorrowAmount   float64      `json:"marginBuyBorrowAmount"`
-	MarginBuyBorrowAsset    string       `json:"marginBuyBorrowAsset"`
+	Symbol                  string            `json:"symbol"`
+	OrderID                 int64             `json:"orderId"`
+	ClientOrderID           string            `json:"clientOrderId"`
+	OrigClientOrderID       string            `json:"origClientOrderId"`
+	TransactTime            types.Time        `json:"transactTime"`
+	Price                   types.Number      `json:"price"`
+	SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
+	OrigQty                 types.Number      `json:"origQty"`
+	ExecutedQty             types.Number      `json:"executedQty"`
+	CummulativeQuoteQty     types.Number      `json:"cummulativeQuoteQty"`
+	Status                  string            `json:"status"`
+	TimeInForce             order.TimeInForce `json:"timeInForce"`
+	Type                    string            `json:"type"`
+	Side                    string            `json:"side"`
+	MarginBuyBorrowAmount   float64           `json:"marginBuyBorrowAmount"`
+	MarginBuyBorrowAsset    string            `json:"marginBuyBorrowAsset"`
 	Fills                   []struct {
 		Price           types.Number `json:"price"`
 		Qty             types.Number `json:"qty"`
@@ -93,69 +94,52 @@ type MarginOrderResp struct {
 
 // MarginAccOrdersList represents a list of margin account order details.
 type MarginAccOrdersList []struct {
-	Symbol              string       `json:"symbol"`
-	OrigClientOrderID   string       `json:"origClientOrderId,omitempty"`
-	OrderID             int64        `json:"orderId,omitempty"`
-	OrderListID         int64        `json:"orderListId"`
-	ClientOrderID       string       `json:"clientOrderId,omitempty"`
-	Price               types.Number `json:"price,omitempty"`
-	OrigQty             types.Number `json:"origQty,omitempty"`
-	ExecutedQty         types.Number `json:"executedQty,omitempty"`
-	CummulativeQuoteQty types.Number `json:"cummulativeQuoteQty,omitempty"`
-	Status              string       `json:"status,omitempty"`
-	TimeInForce         string       `json:"timeInForce,omitempty"`
-	Type                string       `json:"type,omitempty"`
-	Side                string       `json:"side,omitempty"`
-	ContingencyType     string       `json:"contingencyType,omitempty"`
-	ListStatusType      string       `json:"listStatusType,omitempty"`
-	ListOrderStatus     string       `json:"listOrderStatus,omitempty"`
-	ListClientOrderID   string       `json:"listClientOrderId,omitempty"`
-	TransactionTime     types.Time   `json:"transactionTime,omitempty"`
+	Symbol              string            `json:"symbol"`
+	OrigClientOrderID   string            `json:"origClientOrderId,omitempty"`
+	OrderID             int64             `json:"orderId,omitempty"`
+	OrderListID         int64             `json:"orderListId"`
+	ClientOrderID       string            `json:"clientOrderId,omitempty"`
+	Price               types.Number      `json:"price,omitempty"`
+	OrigQty             types.Number      `json:"origQty,omitempty"`
+	ExecutedQty         types.Number      `json:"executedQty,omitempty"`
+	CummulativeQuoteQty types.Number      `json:"cummulativeQuoteQty,omitempty"`
+	Status              string            `json:"status,omitempty"`
+	TimeInForce         order.TimeInForce `json:"timeInForce,omitempty"`
+	Type                string            `json:"type,omitempty"`
+	Side                string            `json:"side,omitempty"`
+	ContingencyType     string            `json:"contingencyType,omitempty"`
+	ListStatusType      string            `json:"listStatusType,omitempty"`
+	ListOrderStatus     string            `json:"listOrderStatus,omitempty"`
+	ListClientOrderID   string            `json:"listClientOrderId,omitempty"`
+	TransactionTime     types.Time        `json:"transactionTime,omitempty"`
 	Orders              []struct {
 		Symbol        string `json:"symbol"`
 		OrderID       int64  `json:"orderId"`
 		ClientOrderID string `json:"clientOrderId"`
 	} `json:"orders,omitempty"`
-	OrderReports []struct {
-		Symbol                  string       `json:"symbol"`
-		OrigClientOrderID       string       `json:"origClientOrderId"`
-		OrderID                 int64        `json:"orderId"`
-		OrderListID             int64        `json:"orderListId"`
-		ClientOrderID           string       `json:"clientOrderId"`
-		Price                   types.Number `json:"price"`
-		OrigQty                 types.Number `json:"origQty"`
-		ExecutedQty             types.Number `json:"executedQty"`
-		CummulativeQuoteQty     types.Number `json:"cummulativeQuoteQty"`
-		Status                  string       `json:"status"`
-		TimeInForce             string       `json:"timeInForce"`
-		Type                    string       `json:"type"`
-		Side                    string       `json:"side"`
-		StopPrice               types.Number `json:"stopPrice,omitempty"`
-		IcebergQty              types.Number `json:"icebergQty"`
-		SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	} `json:"orderReports,omitempty"`
+	OrderReports []OrderResponse `json:"orderReports,omitempty"`
 }
 
 // ConditionalOrder represents a USDT/Coin margined conditional order instance.
 type ConditionalOrder struct {
-	NewClientStrategyID string       `json:"newClientStrategyId"`
-	StrategyID          int          `json:"strategyId"`
-	StrategyStatus      string       `json:"strategyStatus"`
-	StrategyType        string       `json:"strategyType"`
-	OrigQty             types.Number `json:"origQty"`
-	Price               types.Number `json:"price"`
-	ReduceOnly          bool         `json:"reduceOnly"`
-	Side                string       `json:"side"`
-	PositionSide        string       `json:"positionSide"`
-	StopPrice           types.Number `json:"stopPrice"`
-	Symbol              string       `json:"symbol"`
-	TimeInForce         string       `json:"timeInForce"`
-	ActivatePrice       types.Number `json:"activatePrice"` // activation price, only return with TRAILING_STOP_MARKET order
-	PriceRate           types.Number `json:"priceRate"`     // callback rate, only return with TRAILING_STOP_MARKET order
-	BookTime            types.Time   `json:"bookTime"`      // order place time
-	UpdateTime          types.Time   `json:"updateTime"`
-	WorkingType         string       `json:"workingType"`
-	PriceProtect        bool         `json:"priceProtect"`
+	NewClientStrategyID string            `json:"newClientStrategyId"`
+	StrategyID          int               `json:"strategyId"`
+	StrategyStatus      string            `json:"strategyStatus"`
+	StrategyType        string            `json:"strategyType"`
+	OrigQty             types.Number      `json:"origQty"`
+	Price               types.Number      `json:"price"`
+	ReduceOnly          bool              `json:"reduceOnly"`
+	Side                string            `json:"side"`
+	PositionSide        string            `json:"positionSide"`
+	StopPrice           types.Number      `json:"stopPrice"`
+	Symbol              string            `json:"symbol"`
+	TimeInForce         order.TimeInForce `json:"timeInForce"`
+	ActivatePrice       types.Number      `json:"activatePrice"` // activation price, only return with TRAILING_STOP_MARKET order
+	PriceRate           types.Number      `json:"priceRate"`     // callback rate, only return with TRAILING_STOP_MARKET order
+	BookTime            types.Time        `json:"bookTime"`      // order place time
+	UpdateTime          types.Time        `json:"updateTime"`
+	WorkingType         string            `json:"workingType"`
+	PriceProtect        bool              `json:"priceProtect"`
 
 	// Returned for USDT Margined Futures orders only
 	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`

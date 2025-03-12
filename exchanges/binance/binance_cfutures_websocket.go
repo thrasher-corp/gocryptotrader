@@ -328,6 +328,7 @@ func (b *Binance) processCFuturesForceOrder(respRaw []byte) error {
 		Status:               oStatus,
 		AssetType:            asset.CoinMarginedFutures,
 		LastUpdated:          resp.Order.OrderTradeTime.Time(),
+		TimeInForce:          resp.Order.TimeInForce,
 		Pair:                 cp,
 	}
 	return nil

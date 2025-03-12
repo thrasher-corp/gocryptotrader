@@ -275,11 +275,7 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
-<<<<<<< HEAD
-		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
-=======
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
->>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 	}
 	if !arg.StartTime.IsZero() {
 		params.Set("startTime", timeString(arg.StartTime))

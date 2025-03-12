@@ -515,6 +515,7 @@ func (b *Binance) processForceOrder(respRaw []byte, assetType asset.Item) error 
 		AssetType:            assetType,
 		LastUpdated:          resp.Order.OrderTradeTime.Time(),
 		Pair:                 cp,
+		TimeInForce:          resp.Order.TimeInForce,
 	}
 	return nil
 }

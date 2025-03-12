@@ -267,6 +267,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
+			tif, err := order.StringToTimeInForce(data.Data.TimeInForce)
+			if err != nil {
+				return err
+			}
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:                data.Data.Price,
 				Amount:               data.Data.Quantity,
@@ -287,6 +291,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Date:                 data.Data.OrderCreationTime.Time(),
 				LastUpdated:          data.Data.TransactionTime.Time(),
 				Pair:                 pair,
+				TimeInForce:          tif,
 			}
 			return nil
 		case "listStatus":

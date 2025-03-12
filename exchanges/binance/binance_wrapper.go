@@ -1347,7 +1347,6 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
-
 	resp, err := s.DeriveSubmitResponse(orderID)
 	if err != nil {
 		return nil, err
@@ -1969,6 +1968,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
 					LastUpdated:     openOrders[y].UpdateTime.Time(),
+					TimeInForce:     openOrders[y].TimeInForce,
 				})
 			}
 		default:
@@ -2292,7 +2292,6 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	switch a {
 	case asset.Spot, asset.Margin:
 		var candles []CandleStick
-<<<<<<< HEAD
 		if b.IsAPIStreamConnected() {
 			candles, err = b.GetWsOptimizedCandlestick(&KlinesRequestParams{
 				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -2310,15 +2309,6 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				Limit:     req.RequestLimit,
 			})
 		}
-=======
-		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			Symbol:    req.Pair,
-			StartTime: req.Start,
-			EndTime:   req.End,
-			Limit:     req.RequestLimit,
-		})
->>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 		if err != nil {
 			return nil, err
 		}
@@ -2409,7 +2399,6 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		switch a {
 		case asset.Spot, asset.Margin:
 			var candles []CandleStick
-<<<<<<< HEAD
 			if b.IsAPIStreamConnected() {
 				candles, err = b.GetWsCandlestick(&KlinesRequestParams{
 					Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -2427,15 +2416,6 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Limit:     req.RequestLimit,
 				})
 			}
-=======
-			candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
-				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-				Symbol:    req.Pair,
-				StartTime: req.RangeHolder.Ranges[x].Start.Time,
-				EndTime:   req.RangeHolder.Ranges[x].End.Time,
-				Limit:     req.RequestLimit,
-			})
->>>>>>> 5c21e974eed8811ce3bf16b4e4dcdedc1058384f
 			if err != nil {
 				return nil, err
 			}
@@ -2495,7 +2475,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err := b.GetEOptionsCandlesticks(ctx, req.RequestFormatted.String(),
 				interval, req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time,
-				int64(req.RangeHolder.Limit))
+				req.RangeHolder.Limit)
 			if err != nil {
 				return nil, err
 			}
@@ -2543,7 +2523,7 @@ func compatibleOrderVars(side, status, orderType string) (OrderVars, error) {
 		resp.Status = order.UnknownStatus
 	}
 	var err error
-	resp.OrderType, err = orderTypeFromString(orderType)
+	resp.OrderType, err = StringToOrderType(orderType)
 	if err != nil {
 		return OrderVars{}, err
 	}
@@ -2913,7 +2893,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		}
 		for {
 			var frh []FundingRateHistory
-			frh, err = b.FuturesGetFundingHistory(ctx, fPair, int64(requestLimit), sd, r.EndDate)
+			frh, err = b.FuturesGetFundingHistory(ctx, fPair, uint64(requestLimit), sd, r.EndDate)
 			if err != nil {
 				return nil, err
 			}
@@ -3044,7 +3024,6 @@ func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.Position
 	if req.MarginType == margin.Multi {
 		return nil, fmt.Errorf("%w %v %v", margin.ErrMarginTypeUnsupported, req.Asset, req.Pair)
 	}
-
 	marginType := "add"
 	if req.NewAllocatedMargin < req.OriginalAllocatedMargin {
 		marginType = "reduce"
@@ -3474,7 +3453,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 				}
 				for {
 					var orders []FuturesOrderData
-					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, int64(orderLimit))
+					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, uint64(orderLimit))
 					if err != nil {
 						return nil, err
 					}

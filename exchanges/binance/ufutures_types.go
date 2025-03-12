@@ -134,16 +134,16 @@ type USymbolOrderbookTicker struct {
 
 // ULiquidationOrdersData stores liquidation orders data
 type ULiquidationOrdersData struct {
-	Symbol       string     `json:"symbol"`
-	Price        float64    `json:"price,string"`
-	OrigQty      float64    `json:"origQty,string"`
-	ExecutedQty  float64    `json:"executedQty,string"`
-	AveragePrice float64    `json:"averagePrice,string"`
-	Status       string     `json:"status"`
-	TimeInForce  string     `json:"timeInForce"`
-	OrderType    string     `json:"type"`
-	Side         string     `json:"side"`
-	Time         types.Time `json:"time"`
+	Symbol       string            `json:"symbol"`
+	Price        float64           `json:"price,string"`
+	OrigQty      float64           `json:"origQty,string"`
+	ExecutedQty  float64           `json:"executedQty,string"`
+	AveragePrice float64           `json:"averagePrice,string"`
+	Status       string            `json:"status"`
+	TimeInForce  order.TimeInForce `json:"timeInForce"`
+	OrderType    string            `json:"type"`
+	Side         string            `json:"side"`
+	Time         types.Time        `json:"time"`
 }
 
 // UOpenInterestData stores open interest data
@@ -418,27 +418,27 @@ type UPositionADLEstimationData struct {
 
 // UForceOrdersData stores liquidation orders data for the account
 type UForceOrdersData struct {
-	OrderID       int64      `json:"orderId"`
-	Symbol        string     `json:"symbol"`
-	Status        string     `json:"status"`
-	ClientOrderID string     `json:"clientOrderId"`
-	Price         float64    `json:"price,string"`
-	AvgPrice      float64    `json:"avgPrice,string"`
-	OrigQty       float64    `json:"origQty,string"`
-	ExecutedQty   float64    `json:"executedQty,string"`
-	CumQuote      float64    `json:"cumQuote,string"`
-	TimeInForce   string     `json:"timeInForce"`
-	OrderType     string     `json:"type"`
-	ReduceOnly    bool       `json:"reduceOnly"`
-	ClosePosition bool       `json:"closePosition"`
-	Side          string     `json:"side"`
-	PositionSide  string     `json:"positionSide"`
-	StopPrice     float64    `json:"stopPrice,string"`
-	WorkingType   string     `json:"workingType"`
-	PriceProtect  bool       `json:"priceProtect,string"`
-	OrigType      string     `json:"origType"`
-	Time          types.Time `json:"time"`
-	UpdateTime    types.Time `json:"updateTime"`
+	OrderID       int64             `json:"orderId"`
+	Symbol        string            `json:"symbol"`
+	Status        string            `json:"status"`
+	ClientOrderID string            `json:"clientOrderId"`
+	Price         float64           `json:"price,string"`
+	AvgPrice      float64           `json:"avgPrice,string"`
+	OrigQty       float64           `json:"origQty,string"`
+	ExecutedQty   float64           `json:"executedQty,string"`
+	CumQuote      float64           `json:"cumQuote,string"`
+	TimeInForce   order.TimeInForce `json:"timeInForce"`
+	OrderType     string            `json:"type"`
+	ReduceOnly    bool              `json:"reduceOnly"`
+	ClosePosition bool              `json:"closePosition"`
+	Side          string            `json:"side"`
+	PositionSide  string            `json:"positionSide"`
+	StopPrice     float64           `json:"stopPrice,string"`
+	WorkingType   string            `json:"workingType"`
+	PriceProtect  bool              `json:"priceProtect,string"`
+	OrigType      string            `json:"origType"`
+	Time          types.Time        `json:"time"`
+	UpdateTime    types.Time        `json:"updateTime"`
 }
 
 // UFuturesNewOrderRequest stores order data for placing

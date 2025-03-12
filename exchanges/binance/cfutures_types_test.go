@@ -2,8 +2,10 @@ package binance
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
@@ -48,20 +50,20 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
 		x.Status != "NEW" ||
 		x.ClientOrderID != "customID" ||
 		x.Price != 4096 ||
-		x.AvgPrice != 2 ||
-		x.OrigQty != 8 ||
-		x.ExecuteQty != 4 ||
-		x.CumQty != 32 ||
-		x.CumBase != 16 ||
-		x.TimeInForce != "GTC" ||
+		x.AveragePrice != 2 ||
+		x.OriginalQuantity != 8 ||
+		x.ExecutedQuantity != 4 ||
+		x.CumulativeQuantity != 32 ||
+		x.CumulativeBase != 16 ||
+		x.TimeInForce != order.GoodTillCancel ||
 		x.OrderType != cfuturesLimit ||
 		!x.ReduceOnly ||
 		!x.ClosePosition ||
 		x.StopPrice != 2048 ||
 		x.WorkingType != "CONTRACT_PRICE" ||
 		!x.PriceProtect ||
-		x.OrigType != cfuturesMarket ||
-		x.UpdateTime != 1635931801320 ||
+		x.OriginalType != cfuturesMarket ||
+		x.UpdateTime.Time() != time.UnixMilli(1635931801320) ||
 		x.ActivatePrice != 64 ||
 		x.PriceRate != 32 {
 		// If any of these values isn't set as expected, mark test as failed.
