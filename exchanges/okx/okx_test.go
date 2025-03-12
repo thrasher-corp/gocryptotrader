@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -4104,12 +4105,7 @@ func TestWSProcessTrades(t *testing.T) {
 	for _, assetType := range assets {
 		require.Len(t, trades[assetType], len(exp), "Should have received %d trades for asset %v", len(exp), assetType)
 		slices.SortFunc(trades[assetType], func(a, b trade.Data) int {
-			if a.TID < b.TID {
-				return -1
-			} else if a.TID > b.TID {
-				return 1
-			}
-			return 0
+			return strings.Compare(a.TID, b.TID)
 		})
 		for i, tradeData := range trades[assetType] {
 			expected := exp[i]
