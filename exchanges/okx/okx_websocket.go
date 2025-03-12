@@ -580,14 +580,12 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case channelTrades,
-		channelAllTrades:
+	case channelTrades, channelAllTrades:
 		return ok.wsProcessTrades(respRaw)
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
 		return ok.wsProcessPushData(respRaw, &response)
-	case channelMarkPrice,
-		channelPriceLimit:
+	case channelMarkPrice, channelPriceLimit:
 		var response WsMarkPrice
 		return ok.wsProcessPushData(respRaw, &response)
 	case channelOrderBooks5:
@@ -695,7 +693,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 			Price:        resp.Data[x].FillPrice.Float64(),
 		}
 	}
-	return trade.AddTradesToBuffer(ok.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessSpreadOrders retrieve order information from the sprd-order Websocket channel.
@@ -874,7 +872,7 @@ func (ok *Okx) wsProcessPublicSpreadTrades(respRaw []byte) error {
 			Timestamp:    data[x].Timestamp.Time(),
 		}
 	}
-	return trade.AddTradesToBuffer(ok.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.
@@ -900,7 +898,8 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 			LastUpdated:     resp.Data[x].Timestamp.Time(),
 			Pair:            pair,
 			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook})
+			VerifyOrderbook: ok.CanVerifyOrderbook,
+		})
 		if err != nil {
 			return err
 		}
@@ -949,7 +948,8 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 			LastUpdated:     resp.Data[0].Timestamp.Time(),
 			Pair:            pair,
 			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook})
+			VerifyOrderbook: ok.CanVerifyOrderbook,
+		})
 		if err != nil {
 			return err
 		}
@@ -986,7 +986,7 @@ func (ok *Okx) wsProcessOptionTrades(data []byte) error {
 			Price:        resp.Data[i].Price.Float64(),
 		}
 	}
-	return trade.AddTradesToBuffer(ok.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
@@ -1066,7 +1066,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 			pair,
 			err)
 	}
-	if signedChecksum != data.Checksum {
+	if signedChecksum != uint32(data.Checksum) { //nolint:gosec // Requires type casting
 		return fmt.Errorf("%w %v",
 			errInvalidChecksum,
 			pair)
@@ -1115,7 +1115,7 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum)
+	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
 		ob := update
 		ob.Asset = assets[i]
@@ -1163,7 +1163,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32, error) {
+func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1185,7 +1185,7 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
+	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
@@ -1251,7 +1251,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 			})
 		}
 	}
-	return trade.AddTradesToBuffer(ok.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessOrders handles websocket order push data responses.
@@ -1500,7 +1500,7 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 			Price:        resp.Data[i].Price.Float64(),
 		}
 	}
-	return trade.AddTradesToBuffer(ok.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessPushData processes push data coming through the websocket channel

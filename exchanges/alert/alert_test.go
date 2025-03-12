@@ -96,7 +96,7 @@ func isLeaky(t *testing.T, a *Notice, ch chan struct{}) {
 // 146173060	         9.154 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkAlert(b *testing.B) {
 	n := Notice{}
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		n.Alert()
 	}
 }
@@ -107,7 +107,7 @@ func BenchmarkAlert(b *testing.B) {
 // 87436	     14724 ns/op	     682 B/op	       4 allocs/op // CURRENT
 func BenchmarkWait(b *testing.B) {
 	n := Notice{}
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		n.Wait(nil)
 	}
 }

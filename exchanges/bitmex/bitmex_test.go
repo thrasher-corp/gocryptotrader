@@ -383,7 +383,7 @@ func TestGetPreviousTrades(t *testing.T) {
 	_, err := b.GetPreviousTrades(context.Background(),
 		&TradeGetBucketedParams{
 			Symbol:  "XBTBTC",
-			Start:   int32(time.Now().Add(-time.Hour).Unix()),
+			Start:   time.Now().Add(-time.Hour).Unix(),
 			Columns: "open,high,low,close,volume",
 		})
 	require.Error(t, err)

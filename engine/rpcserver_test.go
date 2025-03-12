@@ -1945,35 +1945,18 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
-
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
-
-	_, err = s.GetDataHistoryJobSummary(context.Background(), nil)
-	if !errors.Is(err, errNilRequestData) {
-		t.Errorf("received %v, expected %v", err, errNilRequestData)
-	}
+	assert.NoError(t, m.UpsertJob(dhj, false), "UpsertJob should not error")
+	_, err := s.GetDataHistoryJobSummary(context.Background(), nil)
+	assert.ErrorIs(t, err, errNilRequestData)
 
 	_, err = s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
-	if !errors.Is(err, errNicknameUnset) {
-		t.Errorf("received %v, expected %v", err, errNicknameUnset)
-	}
+	assert.ErrorIs(t, err, errNicknameUnset)
 
 	resp, err := s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobSummary"})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
-	if resp == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected job")
-	}
-	if resp.Nickname == "" {
-		t.Fatalf("received %v, expected %v", "", dhj.Nickname)
-	}
-	if resp.ResultSummaries == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatalf("received %v, expected %v", nil, "result summaries slice")
-	}
+	assert.NoError(t, err, "GetDataHistoryJobSummary should not error")
+	require.NotNil(t, resp)
+	assert.NotEmpty(t, resp.Nickname)
+	assert.NotEmpty(t, resp.ResultSummaries)
 }
 
 func TestGetManagedOrders(t *testing.T) {

@@ -915,8 +915,8 @@ func (b *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (b *Base) FormatWithdrawPermissions() string {
 	var services []string
-	for i := range 32 {
-		var check uint32 = 1 << uint32(i)
+	for i := range uint(32) {
+		var check uint32 = 1 << i
 		if b.GetWithdrawPermissions()&check != 0 {
 			switch check {
 			case AutoWithdrawCrypto:
@@ -1193,7 +1193,7 @@ func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
-	return trade.AddTradesToBuffer(b.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // IsSaveTradeDataEnabled checks the state of
@@ -1322,7 +1322,7 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
-	var urlMap = make(map[string]string)
+	urlMap := make(map[string]string)
 	for k, v := range e.defaults {
 		urlMap[k] = v
 	}
@@ -1568,7 +1568,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 					modifiedCount,
 					exchangeInterval)
 			}
-			boundary := time.Now().Add(-exchangeInterval.Duration() * time.Duration(limit))
+			boundary := time.Now().Add(-exchangeInterval.Duration() * time.Duration(limit)) //nolint:gosec // TODO: Ensure limit can't overflow
 			return nil, fmt.Errorf("%w %v, exceeding the limit of %v %v candles up to %v. Please reduce timeframe or use GetHistoricCandlesExtended",
 				kline.ErrRequestExceedsExchangeLimits,
 				errMsg,
@@ -1623,7 +1623,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 	}
 	r.IsExtended = true
 
-	dates, err := r.GetRanges(uint32(limit))
+	dates, err := r.GetRanges(limit)
 	if err != nil {
 		return nil, err
 	}

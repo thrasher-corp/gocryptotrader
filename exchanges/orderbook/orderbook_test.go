@@ -608,7 +608,7 @@ func BenchmarkReverse(b *testing.B) {
 		b.Fatal("incorrect length")
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		s.Reverse()
 	}
 }
@@ -618,7 +618,7 @@ func BenchmarkReverse(b *testing.B) {
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
 	}
@@ -630,7 +630,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
 	}
@@ -641,7 +641,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
 	}
@@ -652,7 +652,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
 	}
@@ -663,7 +663,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
 	}
@@ -675,7 +675,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
 	}

@@ -118,6 +118,7 @@ func (h *HUOBI) wsReadMsgs(s stream.Connection) {
 		}
 	}
 }
+
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if h.Websocket.Match.IncomingWithData(id, respRaw) {
@@ -228,7 +229,9 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 }
 
 func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
-	if !h.IsSaveTradeDataEnabled() {
+	saveTradeData := h.IsSaveTradeDataEnabled()
+	tradeFeed := h.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
 		return nil
 	}
 	if len(s.Pairs) != 1 {
@@ -248,14 +251,22 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 			Exchange:     h.Name,
 			AssetType:    s.Asset,
 			CurrencyPair: s.Pairs[0],
-			Timestamp:    t.Tick.Data[i].Timestamp.Time(),
+			Timestamp:    t.Tick.Data[i].Timestamp.Time().UTC(),
 			Amount:       t.Tick.Data[i].Amount,
 			Price:        t.Tick.Data[i].Price,
 			Side:         side,
 			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 		})
 	}
-	return trade.AddTradesToBuffer(h.Name, trades...)
+	if tradeFeed {
+		for i := range trades {
+			h.Websocket.DataHandler <- trades[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(trades...)
+	}
+	return nil
 }
 
 func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {

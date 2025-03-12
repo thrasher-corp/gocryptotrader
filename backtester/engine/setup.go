@@ -820,19 +820,12 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.EndDate.Add(cfg.DataSettings.Interval.Duration())
 		}
 
-		var limit int64
-		limit, err = b.Features.Enabled.Kline.GetIntervalResultLimit(cfg.DataSettings.Interval)
+		limit, err := b.Features.Enabled.Kline.GetIntervalResultLimit(cfg.DataSettings.Interval)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err = loadAPIData(
-			cfg,
-			exch,
-			fPair,
-			a,
-			uint32(limit),
-			dataType)
+		resp, err = loadAPIData(cfg, exch, fPair, a, limit, dataType)
 		if err != nil {
 			return resp, err
 		}
@@ -894,7 +887,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		isUSDTrackingPair)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint64, dataType int64) (*kline.DataFromKline, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}

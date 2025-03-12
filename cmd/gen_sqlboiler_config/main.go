@@ -24,7 +24,7 @@ var sqlboilerConfig map[string]driverConfig
 type driverConfig struct {
 	DBName    string   `json:"dbname,omitempty"`
 	Host      string   `json:"host,omitempty"`
-	Port      uint16   `json:"port,omitempty"`
+	Port      uint32   `json:"port,omitempty"`
 	User      string   `json:"user,omitempty"`
 	Pass      string   `json:"pass,omitempty"`
 	Schema    string   `json:"schema,omitempty"`
