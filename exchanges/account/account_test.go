@@ -300,42 +300,28 @@ func TestBalanceInternalLoad(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer, "should error nil pointer correctly")
 
 	err = bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
-	assert.ErrorIs(t, err, errUpdatedAtIsZero, "should have not been loaded")
+	assert.ErrorIs(t, err, errUpdatedAtIsZero, "should error correctly when updatedAt is not set")
 
 	now := time.Now()
 	err = bi.load(&Balance{UpdatedAt: now, Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
-	assert.NoError(t, err, "should have been loaded")
+	require.NoError(t, err)
 
 	bi.m.Lock()
-	if bi.updatedAt.IsZero() {
-		t.Fatal("unexpected value")
-	}
-	if bi.total != 1 {
-		t.Fatal("unexpected value")
-	}
-	if bi.hold != 2 {
-		t.Fatal("unexpected value")
-	}
-	if bi.free != 3 {
-		t.Fatal("unexpected value")
-	}
-	if bi.availableWithoutBorrow != 4 {
-		t.Fatal("unexpected value")
-	}
-	if bi.borrowed != 5 {
-		t.Fatal("unexpected value")
-	}
+	assert.Equal(t, now, bi.updatedAt)
+	assert.Equal(t, 1.0, bi.total)
+	assert.Equal(t, 2.0, bi.hold)
+	assert.Equal(t, 3.0, bi.free)
+	assert.Equal(t, 4.0, bi.availableWithoutBorrow)
+	assert.Equal(t, 5.0, bi.borrowed)
 	bi.m.Unlock()
 
-	if bi.GetFree() != 3 {
-		t.Fatal("unexpected value")
-	}
+	assert.Equal(t, 3.0, bi.GetFree())
 
 	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
-	assert.Error(t, err, "should have not been loaded")
+	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with same UpdatedAt")
 
 	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
-	assert.NoError(t, err, "should have been loaded")
+	assert.NoError(t, err)
 }
 
 func TestGetFree(t *testing.T) {
@@ -430,15 +416,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("account should be loaded")
 	}
 
-	if b.total != 100 {
-		t.Errorf("expecting 100 but received %f", b.total)
-	}
-
-	if b.hold != 20 {
-		t.Errorf("expecting 20 but received %f", b.hold)
-	}
-
-	if b.updatedAt.IsZero() {
-		t.Error("expected updatedAt to be set")
-	}
+	assert.Equal(t, 100.0, b.total)
+	assert.Equal(t, 20.0, b.hold)
+	assert.NotEmpty(t, b.updatedAt)
 }

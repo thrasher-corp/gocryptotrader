@@ -32,7 +32,8 @@ var (
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
 	errCredentialsAreNil            = errors.New("credentials are nil")
 	errOutOfSequence                = errors.New("out of sequence")
-	errUpdatedAtIsZero              = errors.New("updated at is zero")
+	errUpdatedAtIsZero              = errors.New("updatedAt may not be zero")
+	errLoadingBalance               = errors.New("error loading balance")
 )
 
 // CollectBalances converts a map of sub-account balances into a slice
@@ -261,7 +262,8 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 				}] = bal
 			}
 			if err := bal.load(&incoming.Accounts[x].Currencies[y]); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("cannot load balance for %s [%s %s] %w",
+				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w",
+					errLoadingBalance,
 					incoming.Accounts[x].ID,
 					incoming.Accounts[x].AssetType,
 					incoming.Accounts[x].Currencies[y].Currency,
