@@ -356,7 +356,7 @@ func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*Instru
 }
 
 // GetInstruments gets data for all available instruments
-func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
+func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -367,7 +367,7 @@ func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind st
 	if expired {
 		params.Set("expired", "true")
 	}
-	var resp []InstrumentData
+	var resp []*InstrumentData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getInstruments, params), &resp)
 }
 

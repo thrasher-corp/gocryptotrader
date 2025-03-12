@@ -551,7 +551,7 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	}
 }
 
-func TestGetInstrumentsData(t *testing.T) {
+func TestGetInstruments(t *testing.T) {
 	t.Parallel()
 	result, err := d.GetInstruments(context.Background(), currency.EMPTYCODE, "future", false)
 	require.NoError(t, err)
@@ -3769,7 +3769,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	var instrumentDetail *InstrumentData
 	for a := range instrumentInfo {
 		if instrumentInfo[a].InstrumentName == spotTradablePair.String() {
-			instrumentDetail = &instrumentInfo[a]
+			instrumentDetail = instrumentInfo[a]
 			break
 		}
 	}
