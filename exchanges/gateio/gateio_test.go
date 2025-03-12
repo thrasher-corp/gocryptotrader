@@ -3726,7 +3726,6 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		ImmediateOrCancel:    true,
 		ReduceOnly:           true,
 	}, got)
-
 }
 
 func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
