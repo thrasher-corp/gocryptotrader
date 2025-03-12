@@ -2596,7 +2596,12 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		got, err := g.WebsocketFuturesSubmitOrder(ctx, &ContractOrderCreateParams{
+		a, err := getAssetFromFuturesPair(s.Pair)
+		if err != nil {
+			return nil, err
+		}
+
+		got, err := g.WebsocketFuturesSubmitOrder(ctx, a, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
