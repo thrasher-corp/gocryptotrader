@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -4069,22 +4069,18 @@ func TestWSProcessTrades(t *testing.T) {
 
 	exp := []trade.Data{
 		{
-			Exchange:     ok.Name,
-			CurrencyPair: p,
-			Timestamp:    time.UnixMilli(1740394561685).UTC(),
-			Price:        95634.9,
-			Amount:       0.00011186,
-			Side:         order.Buy,
-			TID:          "674510826",
+			Timestamp: time.UnixMilli(1740394561685).UTC(),
+			Price:     95634.9,
+			Amount:    0.00011186,
+			Side:      order.Buy,
+			TID:       "674510826",
 		},
 		{
-			Exchange:     ok.Name,
-			CurrencyPair: p,
-			Timestamp:    time.UnixMilli(1740394561686).UTC(),
-			Price:        95635.3,
-			Amount:       0.00011194,
-			Side:         order.Sell,
-			TID:          "674510827",
+			Timestamp: time.UnixMilli(1740394561686).UTC(),
+			Price:     95635.3,
+			Amount:    0.00011194,
+			Side:      order.Sell,
+			TID:       "674510827",
 		},
 	}
 
@@ -4107,12 +4103,19 @@ func TestWSProcessTrades(t *testing.T) {
 
 	for _, assetType := range assets {
 		require.Len(t, trades[assetType], len(exp), "Should have received %d trades for asset %v", len(exp), assetType)
-		sort.Slice(trades[assetType], func(i, j int) bool {
-			return trades[assetType][i].TID < trades[assetType][j].TID
+		slices.SortFunc(trades[assetType], func(a, b trade.Data) int {
+			if a.TID < b.TID {
+				return -1
+			} else if a.TID > b.TID {
+				return 1
+			}
+			return 0
 		})
 		for i, tradeData := range trades[assetType] {
 			expected := exp[i]
 			expected.AssetType = assetType
+			expected.Exchange = ok.Name
+			expected.CurrencyPair = p
 			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v should match expected data", i, tradeData.TID, assetType)
 		}
 	}
