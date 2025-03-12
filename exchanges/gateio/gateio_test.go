@@ -3688,7 +3688,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			orders := bytes.Join(tc.orders, []byte(","))
 			orders = append([]byte("["), append(orders, []byte("]")...)...)
 
-			var resp []WebsocketOrderResponse
+			var resp []*WebsocketOrderResponse
 			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
 
 			got, err := g.deriveSpotWebsocketOrderResponses(resp)
@@ -3853,7 +3853,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 			orders := bytes.Join(tc.orders, []byte(","))
 			orders = append([]byte("["), append(orders, []byte("]")...)...)
 
-			var resp []WebsocketFuturesOrderResponse
+			var resp []*WebsocketFuturesOrderResponse
 			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
 
 			got, err := g.deriveFuturesWebsocketOrderResponses(resp)
