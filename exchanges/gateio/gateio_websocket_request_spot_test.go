@@ -100,14 +100,11 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 	_, err = g.WebsocketSpotCancelOrder(context.Background(), "1337", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	btcusdt, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	got, err := g.WebsocketSpotCancelOrder(context.Background(), "644913098758", btcusdt, "")
+	got, err := g.WebsocketSpotCancelOrder(context.Background(), "644913098758", BTCUSDT, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -123,8 +120,7 @@ func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 	_, err = g.WebsocketSpotCancelAllOrdersByIDs(context.Background(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	out.Pair, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	out.Pair = BTCUSDT
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
@@ -138,10 +134,7 @@ func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 
 func TestWebsocketSpotCancelAllOrdersByPair(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("LTC_USDT")
-	require.NoError(t, err)
-
-	_, err = g.WebsocketSpotCancelAllOrdersByPair(context.Background(), pair, 0, "")
+	_, err := g.WebsocketSpotCancelAllOrdersByPair(context.Background(), currency.NewPairWithDelimiter("LTC", "USDT", "_"), 0, "")
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -166,8 +159,7 @@ func TestWebsocketSpotAmendOrder(t *testing.T) {
 	_, err = g.WebsocketSpotAmendOrder(context.Background(), amend)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	amend.Pair, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	amend.Pair = BTCUSDT
 
 	_, err = g.WebsocketSpotAmendOrder(context.Background(), amend)
 	require.ErrorIs(t, err, errInvalidAmount)
@@ -197,10 +189,7 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	g := newExchangeWithWebsocket(t, asset.Spot)
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-
-	got, err := g.WebsocketSpotGetOrderStatus(context.Background(), "644999650452", pair, "")
+	got, err := g.WebsocketSpotGetOrderStatus(context.Background(), "644999650452", BTCUSDT, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

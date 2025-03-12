@@ -13,11 +13,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
+var (
+	BTCUSDT = currency.NewPairWithDelimiter("BTC", "USDT", "_")
+	BTCUSD  = currency.NewPairWithDelimiter("BTC", "USD", "_")
+)
+
 func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := g.WebsocketFuturesSubmitOrder(context.Background(), &ContractOrderCreateParams{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := &ContractOrderCreateParams{Contract: currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})}
+	out := &ContractOrderCreateParams{Contract: BTCUSDT}
 	_, err = g.WebsocketFuturesSubmitOrder(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = "40000"
@@ -47,8 +52,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	_, err = g.WebsocketFuturesSubmitOrders(context.Background(), out)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	out.Contract, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	out.Contract = BTCUSDT
 
 	_, err = g.WebsocketFuturesSubmitOrders(context.Background(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
@@ -68,8 +72,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	out.AutoSize = ""
 	outBad := *out
-	outBad.Contract, err = currency.NewPairFromString("BTC_USD")
-	require.NoError(t, err)
+	outBad.Contract = BTCUSD
 
 	_, err = g.WebsocketFuturesSubmitOrders(context.Background(), out, &outBad)
 	require.ErrorIs(t, err, errSettlementCurrencyConflict)
@@ -107,10 +110,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 
 	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-
-	got, err := g.WebsocketFuturesCancelOrder(context.Background(), "513160761072", pair)
+	got, err := g.WebsocketFuturesCancelOrder(context.Background(), "513160761072", BTCUSDT)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -120,16 +120,14 @@ func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 	_, err := g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-	_, err = g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), pair, "bruh")
+	_, err = g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), BTCUSDT, "bruh")
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	got, err := g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), pair, "bid")
+	got, err := g.WebsocketFuturesCancelAllOpenFuturesOrders(context.Background(), BTCUSDT, "bid")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -147,8 +145,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	_, err = g.WebsocketFuturesAmendOrder(context.Background(), amend)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	amend.Contract, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	amend.Contract = BTCUSDT
 
 	_, err = g.WebsocketFuturesAmendOrder(context.Background(), amend)
 	require.ErrorIs(t, err, errInvalidAmount)
@@ -174,8 +171,7 @@ func TestWebsocketFuturesOrderList(t *testing.T) {
 	_, err = g.WebsocketFuturesOrderList(context.Background(), list)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	list.Contract, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	list.Contract = BTCUSDT
 
 	_, err = g.WebsocketFuturesOrderList(context.Background(), list)
 	require.ErrorIs(t, err, errStatusNotSet)
@@ -195,17 +191,14 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 	_, err := g.WebsocketFuturesGetOrderStatus(context.Background(), currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-
-	_, err = g.WebsocketFuturesGetOrderStatus(context.Background(), pair, "")
+	_, err = g.WebsocketFuturesGetOrderStatus(context.Background(), BTCUSDT, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	got, err := g.WebsocketFuturesGetOrderStatus(context.Background(), pair, "513170215869")
+	got, err := g.WebsocketFuturesGetOrderStatus(context.Background(), BTCUSDT, "513170215869")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -218,11 +211,11 @@ func TestGetAssetFromFuturesPair(t *testing.T) {
 	_, err = getAssetFromFuturesPair(currency.NewPair(currency.BTC, currency.USDC))
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	a, err := getAssetFromFuturesPair(currency.NewPair(currency.BTC, currency.USDT))
+	a, err := getAssetFromFuturesPair(BTCUSDT)
 	require.NoError(t, err)
 	require.Equal(t, asset.USDTMarginedFutures, a)
 
-	a, err = getAssetFromFuturesPair(currency.NewPair(currency.BTC, currency.USD))
+	a, err = getAssetFromFuturesPair(BTCUSD)
 	require.NoError(t, err)
 	require.Equal(t, asset.CoinMarginedFutures, a)
 }
