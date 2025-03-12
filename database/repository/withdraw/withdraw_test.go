@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -159,7 +160,7 @@ func withdrawHelper(t *testing.T) {
 
 	_, err := GetEventByUUID(withdraw.DryRunID.String())
 	if err != nil {
-		if !errors.Is(err, ErrNoResults) {
+		if !errors.Is(err, common.ErrNoResults) {
 			t.Fatal(err)
 		}
 	}
@@ -181,7 +182,7 @@ func withdrawHelper(t *testing.T) {
 	if len(v) > 0 {
 		_, err = GetEventByUUID(v[0].ID.String())
 		if err != nil {
-			if !errors.Is(err, ErrNoResults) {
+			if !errors.Is(err, common.ErrNoResults) {
 				t.Error(err)
 			}
 		}

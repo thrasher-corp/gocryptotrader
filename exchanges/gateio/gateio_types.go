@@ -1,11 +1,11 @@
 package gateio
 
 import (
-	"encoding/json"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1301,7 +1301,7 @@ type CrossMarginBalance struct {
 	BorrowedNet         string       `json:"borrowed_net"`
 	TotalNetAssetInUSDT string       `json:"net"`
 	PositionLeverage    string       `json:"leverage"`
-	Risk                string       `json:"risk"` // Risk rate. When it belows 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
+	Risk                string       `json:"risk"` // Risk percentage; Liquidation is triggered when this falls below required margin. Calculation: total / (borrowed+interest)
 }
 
 // WalletSavedAddress represents currency saved address

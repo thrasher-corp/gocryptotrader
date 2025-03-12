@@ -78,13 +78,13 @@ func TestGctScriptManagerGetMaxVirtualMachines(t *testing.T) {
 		config             *Config
 		started            int32
 		shutdown           chan struct{}
-		MaxVirtualMachines *uint8
+		MaxVirtualMachines *uint64
 	}
-	var value uint8 = 6
+	var value uint64 = 6
 	tests := []struct {
 		name   string
 		fields fields
-		want   uint8
+		want   uint64
 	}{
 		{
 			name: "get from config",

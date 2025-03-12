@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -219,7 +219,7 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 }
 
 // UKlineData gets kline data for usdt margined futures
-func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -231,7 +231,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 	}
 	params.Set("interval", interval)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {

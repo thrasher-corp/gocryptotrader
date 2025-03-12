@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -65,7 +65,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
 	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyTradesChannel},
-	{Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: chanPositions},
 }
 
 var subscriptionNames = map[string]string{
@@ -167,30 +166,19 @@ func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (
 	if err != nil {
 		return
 	}
-	chans := []string{}
-	authChans := []string{}
-	for _, s := range subs {
-		if s.Authenticated {
-			authChans = append(authChans, s.QualifiedChannel)
-		} else {
-			chans = append(chans, s.QualifiedChannel)
+
+	for _, list := range []subscription.List{subs.Public(), subs.Private()} {
+		for _, b := range common.Batch(list, 10) {
+			args = append(args, SubscriptionArgument{
+				auth:           b[0].Authenticated,
+				Operation:      operation,
+				RequestID:      strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+				Arguments:      b.QualifiedChannels(),
+				associatedSubs: b,
+			})
 		}
 	}
-	for _, b := range common.Batch(chans, 10) {
-		args = append(args, SubscriptionArgument{
-			Operation: operation,
-			RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-			Arguments: b,
-		})
-	}
-	if len(authChans) != 0 {
-		args = append(args, SubscriptionArgument{
-			auth:      true,
-			Operation: operation,
-			RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
-			Arguments: authChans,
-		})
-	}
+
 	return
 }
 
@@ -225,6 +213,22 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe su
 		if !resp.Success {
 			return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
 		}
+
+		var conn stream.Connection
+		if payloads[a].auth {
+			conn = by.Websocket.AuthConn
+		} else {
+			conn = by.Websocket.Conn
+		}
+
+		if operation == "unsubscribe" {
+			err = by.Websocket.RemoveSubscriptions(conn, payloads[a].associatedSubs...)
+		} else {
+			err = by.Websocket.AddSubscriptions(conn, payloads[a].associatedSubs...)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -237,9 +241,11 @@ func (by *Bybit) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":      channelName,
-		"isSymbolChannel":  isSymbolChannel,
-		"intervalToString": intervalToString,
+		"channelName":          channelName,
+		"isSymbolChannel":      isSymbolChannel,
+		"intervalToString":     intervalToString,
+		"getCategoryName":      getCategoryName,
+		"isCategorisedChannel": isCategorisedChannel,
 	}).Parse(subTplText)
 }
 
@@ -676,7 +682,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 			TID:          result[x].TradeID,
 		}
 	}
-	return trade.AddTradesToBuffer(by.Name, tradeDatas...)
+	return trade.AddTradesToBuffer(tradeDatas...)
 }
 
 func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
@@ -754,6 +760,14 @@ func isSymbolChannel(name string) bool {
 	return true
 }
 
+func isCategorisedChannel(name string) bool {
+	switch name {
+	case chanPositions, chanExecution, chanOrder:
+		return true
+	}
+	return false
+}
+
 const subTplText = `
 {{ with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
@@ -767,6 +781,7 @@ const subTplText = `
 			{{- end }}
 		{{- else }}
 			{{- $name }}
+			{{- if and (isCategorisedChannel $name) ($categoryName := getCategoryName $asset) -}} . {{- $categoryName -}} {{- end }}
 		{{- end }}
 	{{- end }}
 	{{- $.AssetSeparator }}

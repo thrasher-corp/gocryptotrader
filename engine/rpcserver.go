@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -32,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -392,7 +392,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
-func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
+func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -403,24 +403,14 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, e, a, currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	})
+	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
+
+	err = checkParams(r.Exchange, e, a, pair)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := s.GetSpecificTicker(ctx,
-		currency.Pair{
-			Delimiter: r.Pair.Delimiter,
-			Base:      currency.NewCode(r.Pair.Base),
-			Quote:     currency.NewCode(r.Pair.Quote),
-		},
-		r.Exchange,
-		a,
-	)
+	t, err := e.GetCachedTicker(pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -442,18 +432,13 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
-	activeTickers := s.GetAllActiveTickers(ctx)
+func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
+	activeTickers := s.GetAllActiveTickers()
 	tickers := make([]*gctrpc.Tickers, len(activeTickers))
-
 	for x := range activeTickers {
-		t := &gctrpc.Tickers{
-			Exchange: activeTickers[x].ExchangeName,
-			Tickers:  make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues)),
-		}
-		for y := range activeTickers[x].ExchangeValues {
-			val := activeTickers[x].ExchangeValues[y]
-			t.Tickers[y] = &gctrpc.TickerResponse{
+		ticks := make([]*gctrpc.TickerResponse, len(activeTickers[x].ExchangeValues))
+		for y, val := range activeTickers[x].ExchangeValues {
+			ticks[y] = &gctrpc.TickerResponse{
 				Pair: &gctrpc.CurrencyPair{
 					Delimiter: val.Pair.Delimiter,
 					Base:      val.Pair.Base.String(),
@@ -469,7 +454,7 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 				PriceAth:    val.PriceATH,
 			}
 		}
-		tickers[x] = t
+		tickers[x] = &gctrpc.Tickers{Exchange: activeTickers[x].ExchangeName, Tickers: ticks}
 	}
 
 	return &gctrpc.GetTickersResponse{Tickers: tickers}, nil
@@ -477,46 +462,33 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
-func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
+func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	ob, err := s.GetSpecificOrderbook(ctx,
-		currency.Pair{
-			Delimiter: r.Pair.Delimiter,
-			Base:      currency.NewCode(r.Pair.Base),
-			Quote:     currency.NewCode(r.Pair.Quote),
-		},
-		r.Exchange,
-		a,
-	)
+	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	bids := make([]*gctrpc.OrderbookItem, 0, len(ob.Bids))
-	asks := make([]*gctrpc.OrderbookItem, 0, len(ob.Asks))
-	ch := make(chan bool)
+	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	go func() {
-		for _, b := range ob.Bids {
-			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: b.Amount,
-				Price:  b.Price,
-			})
-		}
-		ch <- true
-	}()
-
-	for _, a := range ob.Asks {
-		asks = append(asks, &gctrpc.OrderbookItem{
-			Amount: a.Amount,
-			Price:  a.Price,
-		})
+	ob, err := e.GetCachedOrderbook(pair, a)
+	if err != nil {
+		return nil, err
 	}
-	<-ch
+
+	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
+	for x := range ob.Bids {
+		bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price}
+	}
+
+	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
+	for x := range ob.Asks {
+		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price}
+	}
 
 	resp := &gctrpc.OrderbookResponse{
 		Pair:        r.Pair,
@@ -531,67 +503,50 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
+func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
 	exchanges, err := s.ExchangeManager.GetExchanges()
 	if err != nil {
 		return nil, err
 	}
 	obResponse := make([]*gctrpc.Orderbooks, 0, len(exchanges))
 	var obs []*gctrpc.OrderbookResponse
-	for x := range exchanges {
-		if !exchanges[x].IsEnabled() {
+	for _, e := range exchanges {
+		if !e.IsEnabled() {
 			continue
 		}
-		assets := exchanges[x].GetAssetTypes(true)
-		exchName := exchanges[x].GetName()
-		for y := range assets {
-			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+		for _, a := range e.GetAssetTypes(true) {
+			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
-				log.Errorf(log.RESTSys,
-					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
-					exchName,
-					err)
+				log.Errorf(log.RESTSys, "Exchange %s could not retrieve enabled currencies. Err: %s\n", e.GetName(), err)
 				continue
 			}
-			for z := range currencies {
-				resp, err := exchanges[x].FetchOrderbook(ctx, currencies[z], assets[y])
+			for _, pair := range pairs {
+				resp, err := e.GetCachedOrderbook(pair, a)
 				if err != nil {
-					log.Errorf(log.RESTSys,
-						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
-						currencies[z].String(),
-						err)
+					log.Errorf(log.RESTSys, "Exchange %s failed to retrieve %s orderbook. Err: %s\n", e.GetName(), pair, err)
 					continue
 				}
 				ob := &gctrpc.OrderbookResponse{
 					Pair: &gctrpc.CurrencyPair{
-						Delimiter: currencies[z].Delimiter,
-						Base:      currencies[z].Base.String(),
-						Quote:     currencies[z].Quote.String(),
+						Delimiter: pair.Delimiter,
+						Base:      pair.Base.String(),
+						Quote:     pair.Quote.String(),
 					},
-					AssetType:   assets[y].String(),
+					AssetType:   a.String(),
 					LastUpdated: s.unixTimestamp(resp.LastUpdated),
 					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
 					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
 				}
 				for i := range resp.Bids {
-					ob.Bids[i] = &gctrpc.OrderbookItem{
-						Amount: resp.Bids[i].Amount,
-						Price:  resp.Bids[i].Price,
-					}
+					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price}
 				}
 				for i := range resp.Asks {
-					ob.Asks[i] = &gctrpc.OrderbookItem{
-						Amount: resp.Asks[i].Amount,
-						Price:  resp.Asks[i].Price,
-					}
+					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price}
 				}
 				obs = append(obs, ob)
 			}
 		}
-		obResponse = append(obResponse, &gctrpc.Orderbooks{
-			Exchange:   exchanges[x].GetName(),
-			Orderbooks: obs,
-		})
+		obResponse = append(obResponse, &gctrpc.Orderbooks{Exchange: e.GetName(), Orderbooks: obs})
 	}
 
 	return &gctrpc.GetOrderbooksResponse{Orderbooks: obResponse}, nil
@@ -614,7 +569,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, err
 	}
 
-	resp, err := exch.FetchAccountInfo(ctx, assetType)
+	resp, err := exch.GetCachedAccountInfo(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +647,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	initAcc, err := exch.FetchAccountInfo(stream.Context(), assetType)
+	initAcc, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
 	if err != nil {
 		return err
 	}
@@ -1143,12 +1098,6 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		return nil, errCurrencyPairUnset
 	}
 
-	pair := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	a, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
@@ -1158,6 +1107,8 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	if err != nil {
 		return nil, err
 	}
+
+	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, pair)
 	if err != nil {
@@ -1234,16 +1185,12 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, errCurrencyPairUnset
 	}
 
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, p)
 	if err != nil {
@@ -1299,15 +1246,9 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 // SimulateOrder simulates an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
-	}
-
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -1315,12 +1256,14 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		return nil, err
 	}
 
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
+
 	err = checkParams(r.Exchange, exch, asset.Spot, p)
 	if err != nil {
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
+	o, err := exch.GetCachedOrderbook(p, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -1354,15 +1297,9 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 
 // WhaleBomb finds the amount required to reach a specific price target for a given exchange, pair
 // and asset type
-func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
-	}
-
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
 	}
 
 	exch, err := s.GetExchangeByName(r.Exchange)
@@ -1375,12 +1312,14 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, err
 	}
 
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
+
 	err = checkParams(r.Exchange, exch, a, p)
 	if err != nil {
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, a)
+	o, err := exch.GetCachedOrderbook(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -1418,12 +1357,6 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		return nil, errCurrencyPairUnset
 	}
 
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -1433,6 +1366,8 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, p)
 	if err != nil {
@@ -1464,12 +1399,6 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 
 // CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
 func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
-	pair := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -1479,6 +1408,8 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	if err != nil {
 		return nil, err
 	}
+
+	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, assetType, pair)
 	if err != nil {
@@ -1545,16 +1476,13 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 	if err != nil {
 		return nil, err
 	}
-	pair := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
+
+	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, assetType, pair)
 	if err != nil {
@@ -1868,7 +1796,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 				Currency:    v.RequestDetails.Currency.String(),
 				Description: v.RequestDetails.Description,
 				Amount:      v.RequestDetails.Amount,
-				Type:        int32(v.RequestDetails.Type),
+				Type:        int64(v.RequestDetails.Type),
 			},
 		},
 	}
@@ -2139,16 +2067,12 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, p)
 	if err != nil {
@@ -2452,11 +2376,6 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
-	pair := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -2467,6 +2386,8 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, r *gctrpc.GetHistori
 	if err != nil {
 		return nil, err
 	}
+
+	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, pair)
 	if err != nil {
@@ -3185,12 +3106,6 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 		return nil, errInvalidArguments
 	}
 
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -3200,6 +3115,8 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, p)
 	if err != nil {
@@ -3261,11 +3178,6 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if err != nil {
 		return nil, err
 	}
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -3276,6 +3188,8 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, p)
 	if err != nil {
@@ -3333,11 +3247,6 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" || r.Interval <= 0 {
 		return nil, errInvalidArguments
 	}
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -3348,6 +3257,8 @@ func (s *RPCServer) FindMissingSavedCandleIntervals(_ context.Context, r *gctrpc
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.ExchangeName, exch, a, p)
 	if err != nil {
@@ -3425,11 +3336,6 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if r.End == "" || r.Start == "" || r.ExchangeName == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -3440,6 +3346,8 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.ExchangeName, exch, a, p)
 	if err != nil {
@@ -3542,11 +3450,6 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return errInvalidArguments
 	}
-	cp := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -3557,6 +3460,8 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if err != nil {
 		return err
 	}
+
+	cp := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, cp)
 	if err != nil {
@@ -3622,11 +3527,6 @@ func (s *RPCServer) GetRecentTrades(ctx context.Context, r *gctrpc.GetSavedTrade
 	if r.Exchange == "" || r.Pair == nil || r.AssetType == "" || r.Pair.String() == "" {
 		return nil, errInvalidArguments
 	}
-	cp := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
 
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -3637,6 +3537,8 @@ func (s *RPCServer) GetRecentTrades(ctx context.Context, r *gctrpc.GetSavedTrade
 	if err != nil {
 		return nil, err
 	}
+
+	cp := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, exch, a, cp)
 	if err != nil {
@@ -3720,7 +3622,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				Currency:    ret[x].RequestDetails.Currency.String(),
 				Description: ret[x].RequestDetails.Description,
 				Amount:      ret[x].RequestDetails.Amount,
-				Type:        int32(ret[x].RequestDetails.Type),
+				Type:        int64(ret[x].RequestDetails.Type),
 			},
 		}
 
@@ -3806,7 +3708,7 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Currency:    ret.RequestDetails.Currency.String(),
 			Description: ret.RequestDetails.Description,
 			Amount:      ret.RequestDetails.Amount,
-			Type:        int32(ret.RequestDetails.Type),
+			Type:        int64(ret.RequestDetails.Type),
 		},
 	}
 	tempEvent.CreatedAt = timestamppb.New(ret.CreatedAt)
@@ -3855,16 +3757,12 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 		return nil, err
 	}
 
-	p := currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	}
-
 	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
+
+	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
 	err = checkParams(r.Exchange, e, a, p)
 	if err != nil {
@@ -4886,7 +4784,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
-	ai, err := exch.FetchAccountInfo(ctx, a)
+	ai, err := exch.GetCachedAccountInfo(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -4942,9 +4840,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				// cannot price currency to calculate collateral
 				continue
 			}
-			tick, err = exch.FetchTicker(ctx, tickerCurr, asset.Spot)
+			tick, err = exch.GetCachedTicker(tickerCurr, asset.Spot)
 			if err != nil {
-				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err)
+				log.Errorf(log.GRPCSys, "GetCollateral offline calculation error via GetCachedTicker %s %s", exch.GetName(), err)
 				continue
 			}
 			if tick.Last == 0 {
@@ -5160,7 +5058,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		bollinger, err = klines.GetBollingerBands(r.Period,
 			r.StandardDeviationUp,
 			r.StandardDeviationDown,
-			indicators.MaType(r.MovingAverageType))
+			indicators.MaType(r.MovingAverageType)) //nolint:gosec // TODO: Make var types consistent
 		if err != nil {
 			return nil, err
 		}

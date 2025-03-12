@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -3190,10 +3190,10 @@ func (g *Gateio) GetSettlementHistory(ctx context.Context, underlying string, of
 	params := url.Values{}
 	params.Set("underlying", underlying)
 	if offset > 0 {
-		params.Set("offset", strconv.Itoa(int(offset)))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.Itoa(int(limit)))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
@@ -3234,10 +3234,10 @@ func (g *Gateio) GetMyOptionsSettlements(ctx context.Context, underlying string,
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if offset > 0 {
-		params.Set("offset", strconv.Itoa(int(offset)))
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.Itoa(int(limit)))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var settlements []MyOptionSettlement
 	return settlements, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSettlementsEPL, http.MethodGet, gateioOptionMySettlements, params, nil, &settlements)

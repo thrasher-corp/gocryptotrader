@@ -374,32 +374,6 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 	return errs
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (ku *Kucoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	p, err := ku.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	tickerNew, err := ticker.GetTicker(ku.Name, p, assetType)
-	if err != nil {
-		return ku.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (ku *Kucoin) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	pair, err := ku.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-	ob, err := orderbook.Get(ku.Name, pair, assetType)
-	if err != nil {
-		return ku.UpdateOrderbook(ctx, pair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
@@ -415,14 +389,7 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	case asset.Futures:
 		ordBook, err = ku.GetFuturesOrderbook(ctx, pair.String())
 	case asset.Spot, asset.Margin:
-		if ku.IsRESTAuthenticationSupported() && ku.AreCredentialsValid(ctx) {
-			ordBook, err = ku.GetOrderbook(ctx, pair.String())
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
-		}
+		ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -491,26 +458,14 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 						Total:    accountH[x].Balance.Float64(),
 						Hold:     accountH[x].Holds.Float64(),
 						Free:     accountH[x].Available.Float64(),
-					}},
+					},
+				},
 			})
 		}
 	default:
 		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return holding, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (ku *Kucoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := ku.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(ku.Name, creds, assetType)
-	if err != nil {
-		return ku.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -634,7 +589,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if ku.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(ku.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}

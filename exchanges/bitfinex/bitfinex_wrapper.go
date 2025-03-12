@@ -339,36 +339,6 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *Bitfinex) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return nil, err
-	}
-	DFPair := fPair
-	b.appendOptionalDelimiter(&DFPair)
-	tick, err := ticker.GetTicker(b.Name, DFPair, a)
-	if err != nil {
-		return b.UpdateTicker(ctx, fPair, a)
-	}
-	return tick, nil
-}
-
-// FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitfinex) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	DFPair := fPair
-	b.appendOptionalDelimiter(&DFPair)
-	ob, err := orderbook.Get(b.Name, DFPair, assetType)
-	if err != nil {
-		return b.UpdateOrderbook(ctx, fPair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -491,19 +461,6 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	return response, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bitfinex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1120,7 +1077,7 @@ func (b *Bitfinex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	candles, err := b.GetCandles(ctx, cf, fInterval, req.Start.UnixMilli(), req.End.UnixMilli(), uint32(req.RequestLimit), true)
+	candles, err := b.GetCandles(ctx, cf, fInterval, req.Start.UnixMilli(), req.End.UnixMilli(), req.RequestLimit, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1157,7 +1114,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles []Candle
-		candles, err = b.GetCandles(ctx, cf, fInterval, req.RangeHolder.Ranges[x].Start.Time.UnixMilli(), req.RangeHolder.Ranges[x].End.Time.UnixMilli(), uint32(req.RequestLimit), true)
+		candles, err = b.GetCandles(ctx, cf, fInterval, req.RangeHolder.Ranges[x].Start.Time.UnixMilli(), req.RangeHolder.Ranges[x].End.Time.UnixMilli(), req.RequestLimit, true)
 		if err != nil {
 			return nil, err
 		}

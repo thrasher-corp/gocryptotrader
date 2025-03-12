@@ -1,13 +1,13 @@
 package types
 
 import (
-	"encoding/json"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestUnmarshalJSON(t *testing.T) {
@@ -67,7 +67,7 @@ func TestUnmarshalJSON(t *testing.T) {
 // 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
 		require.NoError(b, err)
 	}

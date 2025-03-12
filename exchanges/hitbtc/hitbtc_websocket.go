@@ -2,7 +2,6 @@ package hitbtc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -250,7 +250,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeSnapshot.Params.Data[i].ID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(h.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	case "activeOrders":
 		var o wsActiveOrdersResponse
 		err := json.Unmarshal(respRaw, &o)
@@ -292,10 +292,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-	case
-		"replaced",
-		"canceled",
-		"new":
+	case "replaced", "canceled", "new":
 		var o wsOrderResponse
 		err := json.Unmarshal(respRaw, &o)
 		if err != nil {

@@ -1,11 +1,11 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestRoleString(t *testing.T) {
@@ -652,7 +652,7 @@ func TestItemString(t *testing.T) {
 //	546290	      2192 ns/op	       8 B/op	       1 allocs/op // Previous
 func BenchmarkNewCode(b *testing.B) {
 	b.ReportAllocs()
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = NewCode("someCode")
 	}
 }

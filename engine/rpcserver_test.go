@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -303,7 +303,7 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 	return resp, nil
 }
 
-func (f fExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{
 		Last:         1337,
 		High:         1337,
@@ -322,9 +322,9 @@ func (f fExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item)
 	}, nil
 }
 
-// FetchAccountInfo overrides testExchange's fetch account info function
+// GetCachedAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) FetchAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
 		Accounts: []account.SubAccount{
@@ -1945,35 +1945,18 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
-
-	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
-
-	_, err = s.GetDataHistoryJobSummary(context.Background(), nil)
-	if !errors.Is(err, errNilRequestData) {
-		t.Errorf("received %v, expected %v", err, errNilRequestData)
-	}
+	assert.NoError(t, m.UpsertJob(dhj, false), "UpsertJob should not error")
+	_, err := s.GetDataHistoryJobSummary(context.Background(), nil)
+	assert.ErrorIs(t, err, errNilRequestData)
 
 	_, err = s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{})
-	if !errors.Is(err, errNicknameUnset) {
-		t.Errorf("received %v, expected %v", err, errNicknameUnset)
-	}
+	assert.ErrorIs(t, err, errNicknameUnset)
 
 	resp, err := s.GetDataHistoryJobSummary(context.Background(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobSummary"})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
-	if resp == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatal("expected job")
-	}
-	if resp.Nickname == "" {
-		t.Fatalf("received %v, expected %v", "", dhj.Nickname)
-	}
-	if resp.ResultSummaries == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
-		t.Fatalf("received %v, expected %v", nil, "result summaries slice")
-	}
+	assert.NoError(t, err, "GetDataHistoryJobSummary should not error")
+	require.NotNil(t, resp)
+	assert.NotEmpty(t, resp.Nickname)
+	assert.NotEmpty(t, resp.ResultSummaries)
 }
 
 func TestGetManagedOrders(t *testing.T) {

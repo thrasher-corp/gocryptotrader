@@ -27,7 +27,6 @@ var (
 // Trade used to hold data and methods related to trade dissemination and
 // storage
 type Trade struct {
-	exchangeName     string
 	dataHandler      chan interface{}
 	tradeFeedEnabled bool
 }

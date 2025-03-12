@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -204,7 +204,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return checkErr
 		} else if retry {
 			if err == nil {
-				// If the body isn't fully read, the connection cannot be re-used
+				// If the body isn't fully read, the connection cannot be reused
 				r.drainBody(resp.Body)
 			}
 

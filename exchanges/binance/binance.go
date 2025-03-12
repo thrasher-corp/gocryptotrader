@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -396,7 +396,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() {
 		params.Set("startTime", timeString(arg.StartTime))

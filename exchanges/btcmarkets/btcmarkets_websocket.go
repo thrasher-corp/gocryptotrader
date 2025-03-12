@@ -2,7 +2,6 @@ package btcmarkets
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -204,7 +204,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		return trade.AddTradesToBuffer(b.Name, trade.Data{
+		return trade.AddTradesToBuffer(trade.Data{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -254,7 +254,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		originalAmount := orderData.OpenVolume
 		var price float64
 		var trades []order.TradeHistory
-		var orderID = strconv.FormatInt(orderData.OrderID, 10)
+		orderID := strconv.FormatInt(orderData.OrderID, 10)
 		for x := range orderData.Trades {
 			var isMaker bool
 			if orderData.Trades[x].LiquidityType == "Maker" {

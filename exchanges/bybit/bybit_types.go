@@ -1,13 +1,14 @@
 package bybit
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -33,10 +34,11 @@ type Authenticate struct {
 
 // SubscriptionArgument represents a subscription arguments.
 type SubscriptionArgument struct {
-	auth      bool     `json:"-"`
-	RequestID string   `json:"req_id"`
-	Operation string   `json:"op"`
-	Arguments []string `json:"args"`
+	auth           bool              `json:"-"`
+	RequestID      string            `json:"req_id"`
+	Operation      string            `json:"op"`
+	Arguments      []string          `json:"args"`
+	associatedSubs subscription.List `json:"-"`
 }
 
 // Fee holds fee information
@@ -1301,7 +1303,7 @@ type SubUIDAPIResponse struct {
 	ExpiredAt             time.Time `json:"expiredAt"`
 	CreatedAt             time.Time `json:"createdAt"`
 	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
-	IsUnifiedTradeAccount int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
+	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
 	UserID                int64     `json:"userID"`
 	InviterID             int64     `json:"inviterID"`
 	VipLevel              string    `json:"vipLevel"`

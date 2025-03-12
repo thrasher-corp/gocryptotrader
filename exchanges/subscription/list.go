@@ -94,19 +94,6 @@ func (l List) SetStates(state State) error {
 	return err
 }
 
-func fillAssetPairs(ap assetPairs, a asset.Item, e IExchange) error {
-	p, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	f, err := e.GetPairFormat(a, true)
-	if err != nil {
-		return err
-	}
-	ap[a] = common.SortStrings(p.Format(f))
-	return nil
-}
-
 // assetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
 func (l List) assetPairs(e IExchange) (assetPairs, error) {
 	at := []asset.Item{}
@@ -122,13 +109,13 @@ func (l List) assetPairs(e IExchange) (assetPairs, error) {
 			// Nothing to do
 		case asset.All:
 			for _, a := range at {
-				if err := fillAssetPairs(ap, a, e); err != nil {
+				if err := ap.populate(e, a); err != nil {
 					return nil, err
 				}
 			}
 		default:
 			if slices.Contains(at, s.Asset) {
-				if err := fillAssetPairs(ap, s.Asset, e); err != nil {
+				if err := ap.populate(e, s.Asset); err != nil {
 					return nil, err
 				}
 			}
@@ -168,4 +155,18 @@ func (l List) Public() List {
 		}
 	}
 	return n
+}
+
+// populate adds all enabled pairs for an asset to the assetPair map
+func (ap assetPairs) populate(e IExchange, a asset.Item) error {
+	p, err := e.GetEnabledPairs(a)
+	if err != nil || len(p) == 0 {
+		return err
+	}
+	f, err := e.GetPairFormat(a, true)
+	if err != nil {
+		return err
+	}
+	ap[a] = common.SortStrings(p.Format(f))
+	return nil
 }
