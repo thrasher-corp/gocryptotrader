@@ -371,7 +371,6 @@ func getOrderbook(c *cli.Context) error {
 
 	var (
 		exchangeName, pair, assetType string
-		depthLimit                    int64
 		exchangeStyle                 bool
 		err                           error
 	)
@@ -407,12 +406,15 @@ func getOrderbook(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("depthlimit") {
-		depthLimit = c.Int64("depthlimit")
-	} else if c.Args().Get(4) != "" {
-		depthLimit, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
-		if err != nil {
+	const depthCeiling uint64 = 100 // The maximum the depth can be regardless of user entry
+	depthLimit := depthCeiling
+	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
+		depthLimit = d
+	} else if d := c.Args().Get(4); d != "" {
+		if du, err := strconv.ParseUint(d, 10, 64); err != nil {
 			return err
+		} else if du > 0 && du < depthCeiling {
+			depthLimit = du
 		}
 	}
 
@@ -449,14 +451,9 @@ func getOrderbook(c *cli.Context) error {
 	}
 
 	if exchangeStyle {
-		bidLen := int64(len(result.Bids) - 1)
-		askLen := int64(len(result.Asks) - 1)
-		maxLen := max(bidLen, askLen)
-		if depthLimit > 0 && depthLimit < maxLen {
-			maxLen = depthLimit
-		}
-
-		maxLen = min(maxLen, 100)
+		bidLen := uint64(len(result.Bids) - 1) //nolint:gosec // Can fit in uint64
+		askLen := uint64(len(result.Asks) - 1) //nolint:gosec // Can fit in uint64
+		maxLen := min(max(bidLen, askLen), depthLimit)
 		renderOrderbookExchangeStyle(result, exchangeName, assetType, maxLen, askLen, bidLen)
 	} else {
 		jsonOutput(result)
@@ -510,7 +507,6 @@ func getOrderbookStream(c *cli.Context) error {
 
 	var (
 		exchangeName, pair, assetType string
-		depthLimit                    int64
 		exchangeStyle                 bool
 		err                           error
 	)
@@ -546,12 +542,15 @@ func getOrderbookStream(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("depthlimit") {
-		depthLimit = c.Int64("depthlimit")
-	} else if c.Args().Get(4) != "" {
-		depthLimit, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
-		if err != nil {
+	const depthCeiling uint64 = 50 // The maximum the depth can be regardless of user entry
+	depthLimit := depthCeiling
+	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
+		depthLimit = d
+	} else if d := c.Args().Get(4); d != "" {
+		if du, err := strconv.ParseUint(d, 10, 64); err != nil {
 			return err
+		} else if du > 0 && du < depthCeiling {
+			depthLimit = du
 		}
 	}
 
@@ -604,15 +603,9 @@ func getOrderbookStream(c *cli.Context) error {
 			continue
 		}
 
-		bidLen := int64(len(resp.Bids) - 1)
-		askLen := int64(len(resp.Asks) - 1)
-		maxLen := max(bidLen, askLen)
-		if depthLimit > 0 && depthLimit < maxLen {
-			maxLen = depthLimit
-		}
-		if maxLen > 50 {
-			maxLen = 50
-		}
+		bidLen := uint64(len(resp.Bids) - 1) //nolint:gosec // Can fit in uint64
+		askLen := uint64(len(resp.Asks) - 1) //nolint:gosec // Can fit in uint64
+		maxLen := min(max(bidLen, askLen), depthLimit)
 
 		if exchangeStyle {
 			renderOrderbookExchangeStyle(resp, exchangeName, assetType, maxLen, askLen, bidLen)
@@ -648,7 +641,7 @@ func getOrderbookStream(c *cli.Context) error {
 	}
 }
 
-func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, assetType string, maxLen, askLen, bidLen int64) {
+func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, assetType string, maxLen, askLen, bidLen uint64) {
 	maxLen-- // ensure we get the 0 index at the correct max length
 	upperBase := strings.ToUpper(resp.Pair.Base)
 	upperQuote := strings.ToUpper(resp.Pair.Quote)
@@ -658,16 +651,17 @@ func renderOrderbookExchangeStyle(resp *gctrpc.OrderbookResponse, exchangeName, 
 
 	fmt.Printf("%sPrice(%v)\t\tAmount(%s)\n",
 		grayText, upperQuote, upperBase)
-	for i := maxLen; i >= 0; i-- {
+	for i := uint64(0); i <= maxLen; i++ {
+		j := maxLen - i
 		var askAmount, askPrice float64
-		if i <= askLen {
-			askAmount = resp.Asks[i].Amount
-			askPrice = resp.Asks[i].Price
+		if j <= askLen {
+			askAmount = resp.Asks[j].Amount
+			askPrice = resp.Asks[j].Price
 		}
 		fmt.Printf(printFmt, redText, askPrice, askAmount)
 	}
 	fmt.Println()
-	for i := int64(0); i <= maxLen; i++ {
+	for i := uint64(0); i <= maxLen; i++ {
 		var bidAmount, bidPrice float64
 		if i <= bidLen {
 			bidAmount = resp.Bids[i].Amount

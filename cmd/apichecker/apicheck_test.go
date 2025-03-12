@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -221,15 +222,10 @@ func TestHTMLScrapeCoinbasepro(t *testing.T) {
 
 func TestHTMLScrapeBitfinex(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{
-		DateFormat: "2006-01-02",
-		RegExp:     `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
-		Path:       "https://docs.bitfinex.com/docs/changelog",
-	}
-	_, err := htmlScrapeBitfinex(&data)
-	if err != nil {
-		t.Error(err)
-	}
+	data := HTMLScrapingData{DateFormat: "2006-01-02", RegExp: `section-v-(2\d{3}-\d{1,2}-\d{1,2})`, Path: "https://docs.bitfinex.com/docs/changelog"}
+	r, err := htmlScrapeBitfinex(&data)
+	require.NoError(t, err, "htmlScrapeBitfinex must not error")
+	require.NotEmpty(t, r, "htmlScrapeBitfinex must return a non empty result")
 }
 
 func TestHTMLScrapeBitmex(t *testing.T) {
@@ -251,13 +247,10 @@ func TestHTMLScrapeBitmex(t *testing.T) {
 
 func TestHTMLScrapeHitBTC(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{
-		RegExp: `newest version \d{1}.\d{1}`,
-		Path:   "https://api.hitbtc.com/",
-	}
-	if _, err := htmlScrapeHitBTC(&data); err != nil {
-		t.Error(err)
-	}
+	data := HTMLScrapingData{RegExp: `newest version \d{1}.\d{1}`, Path: "https://api.hitbtc.com/"}
+	r, err := htmlScrapeHitBTC(&data)
+	require.NoError(t, err, "htmlScrapeHitBTC must not error")
+	require.NotEmpty(t, r, "htmlScrapeHitBTC must return a non empty result")
 }
 
 func TestHTMLScrapeBTSE(t *testing.T) {

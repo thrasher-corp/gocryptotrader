@@ -739,22 +739,13 @@ func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	aBody := string(a)
+
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	matches := r.FindAllString(aBody, -1)
-	unique := make(map[string]struct{}, len(matches))
-	result := make([]string, 0, len(matches))
-	for _, match := range matches {
-		cleaned := strings.Replace(match, "section-v-", "", 1)
-		if _, exists := unique[cleaned]; !exists {
-			unique[cleaned] = struct{}{}
-			result = append(result, cleaned)
-		}
-	}
-	return result, nil
+
+	return r.FindAllString(string(a), -1), nil
 }
 
 // htmlScrapeBTCMarkets gets the check string for BTCMarkets exchange
@@ -1496,15 +1487,14 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindAllString(string(a), -1)
-	var resp []string
-	for x := range str {
-		tempStr := strings.Replace(str[x], "section-v-", "", 1)
-		if !slices.Contains(resp, tempStr) {
-			resp = append(resp, tempStr)
-		}
+	matches := r.FindAllString(string(a), -1)
+	results := make([]string, 0, len(matches))
+	for _, match := range matches {
+		s := strings.Replace(match, "section-v-", "", 1)
+		results = append(results, s)
 	}
-	return resp, nil
+	slices.Sort(results)
+	return slices.Clip(slices.Compact(results)), nil
 }
 
 // htmlScrapeBinance gets checkstring for binance exchange
