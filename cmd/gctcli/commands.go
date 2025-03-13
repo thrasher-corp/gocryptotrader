@@ -2958,7 +2958,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		&gctrpc.WithdrawalEventsByExchangeRequest{
 			Exchange:  exchange,
 			Id:        ID,
-			Limit:     int32(limit),
+			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
 			Currency:  currency,
 			AssetType: assetType,
 		},
@@ -3034,7 +3034,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 			Exchange: exchange,
 			Start:    s.Format(common.SimpleTimeFormatWithTimezone),
 			End:      e.Format(common.SimpleTimeFormatWithTimezone),
-			Limit:    int32(limit),
+			Limit:    int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
 		},
 	)
 	if err != nil {
@@ -3427,7 +3427,7 @@ func getAuditEvent(c *cli.Context) error {
 		&gctrpc.GetAuditEventRequest{
 			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
-			Limit:     int32(limit),
+			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
 			OrderBy:   orderingDirection,
 		})
 

@@ -2065,8 +2065,7 @@
      "autoPairUpdates": true,
      "websocketAPI": true,
      "saveTradeData": false,
-     "tradeFeed": false,
-     "fillsFeed": false
+     "tradeFeed": true
     }
    },
    "bankAccounts": [
