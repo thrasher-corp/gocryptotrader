@@ -6464,9 +6464,9 @@ func TestGetAnnouncements(t *testing.T) {
 
 func TestGetAnnouncementTypes(t *testing.T) {
 	t.Parallel()
-	results, err := ok.GetAnnouncementTypes(contextGenerate())
+	_, err := ok.GetAnnouncementTypes(contextGenerate())
 	require.NoError(t, err)
-	assert.NotEmpty(t, results)
+	// No tests of contents of resp because currently in US based github actions announcement-types returns empty
 }
 
 func TestGetDepositOrderDetail(t *testing.T) {
