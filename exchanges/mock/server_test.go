@@ -18,8 +18,10 @@ type responsePayload struct {
 	Currency string  `json:"currency"`
 }
 
-const queryString = "currency=btc&command=getprice"
-const testFile = "test.json"
+const (
+	queryString = "currency=btc&command=getprice"
+	testFile    = "test.json"
+)
 
 func TestNewVCRServer(t *testing.T) {
 	_, _, err := NewVCRServer("")
@@ -32,9 +34,11 @@ func TestNewVCRServer(t *testing.T) {
 	test1.Routes = make(map[string]map[string][]HTTPResponse)
 	test1.Routes["/test"] = make(map[string][]HTTPResponse)
 
-	rp, err := json.Marshal(responsePayload{Price: 8000.0,
+	rp, err := json.Marshal(responsePayload{
+		Price:    8000.0,
 		Amount:   1,
-		Currency: "bitcoin"})
+		Currency: "bitcoin",
+	})
 	if err != nil {
 		t.Fatal("marshal error", err)
 	}

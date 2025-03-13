@@ -188,7 +188,7 @@ func (c *CurrencyStateManager) GetAllRPC(exchName string) (*gctrpc.CurrencyState
 		return nil, err
 	}
 
-	var resp = &gctrpc.CurrencyStateResponse{}
+	resp := &gctrpc.CurrencyStateResponse{}
 	for x := range sh {
 		resp.CurrencyStates = append(resp.CurrencyStates, &gctrpc.CurrencyState{
 			Currency:        sh[x].Code.String(),

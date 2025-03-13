@@ -314,7 +314,8 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Volume:       val.Volume,
 			Pair:         pair,
 			AssetType:    a,
-			ExchangeName: b.Name})
+			ExchangeName: b.Name,
+		})
 		if err != nil {
 			errs = common.AppendError(errs, err)
 		}
@@ -354,7 +355,7 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return o, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	b.appendOptionalDelimiter(&fPair)
-	var prefix = "t"
+	prefix := "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
@@ -419,7 +420,7 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return response, err
 	}
 
-	var Accounts = []account.SubAccount{
+	Accounts := []account.SubAccount{
 		{ID: "deposit", AssetType: assetType},
 		{ID: "exchange", AssetType: assetType},
 		{ID: "trading", AssetType: assetType},

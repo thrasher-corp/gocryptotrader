@@ -207,7 +207,7 @@ func (b *Bithumb) GetAccountInformation(ctx context.Context, orderCurrency, paym
 // GetAccountBalance returns customer wallet information
 func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance, error) {
 	var response Balance
-	var fullBalance = FullBalance{
+	fullBalance := FullBalance{
 		make(map[string]float64),
 		make(map[string]float64),
 		make(map[string]float64),
@@ -596,7 +596,8 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err

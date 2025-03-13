@@ -159,8 +159,10 @@ func (b *Base) AddExchangeAddress(exchangeName string, coinType currency.Code, b
 		b.UpdateExchangeAddressBalance(exchangeName, coinType, balance)
 	} else {
 		b.Addresses = append(
-			b.Addresses, Address{Address: exchangeName, CoinType: coinType,
-				Balance: balance, Description: ExchangeAddress},
+			b.Addresses, Address{
+				Address: exchangeName, CoinType: coinType,
+				Balance: balance, Description: ExchangeAddress,
+			},
 		)
 	}
 }
@@ -209,8 +211,10 @@ func (b *Base) AddAddress(address, description string, coinType currency.Code, b
 	}
 	if !b.AddressExists(address) {
 		b.Addresses = append(
-			b.Addresses, Address{Address: address, CoinType: coinType,
-				Balance: balance, Description: description},
+			b.Addresses, Address{
+				Address: address, CoinType: coinType,
+				Balance: balance, Description: description,
+			},
 		)
 	} else {
 		if balance <= 0 {

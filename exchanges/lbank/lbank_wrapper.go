@@ -178,7 +178,8 @@ func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         tickerInfo[j].Symbol,
 				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
 				ExchangeName: l.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 			if err != nil {
 				return err
 			}
@@ -476,7 +477,7 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 		if key != o.Pair.String() {
 			continue
 		}
-		var x, y = 0, 0
+		x, y := 0, 0
 		var input string
 		var tempSlice []string
 		for x <= len(orderIDs[key]) {
@@ -558,7 +559,8 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 			resp.Fee, err = l.GetFeeByType(ctx, &exchange.FeeBuilder{
 				FeeType:       exchange.CryptocurrencyTradeFee,
 				Amount:        tempResp.Orders[0].Amount,
-				PurchasePrice: tempResp.Orders[0].Price})
+				PurchasePrice: tempResp.Orders[0].Price,
+			})
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
@@ -646,7 +648,8 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 				&exchange.FeeBuilder{
 					FeeType:       exchange.CryptocurrencyTradeFee,
 					Amount:        tempResp.Orders[0].Amount,
-					PurchasePrice: tempResp.Orders[0].Price})
+					PurchasePrice: tempResp.Orders[0].Price,
+				})
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
@@ -729,7 +732,8 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 					&exchange.FeeBuilder{
 						FeeType:       exchange.CryptocurrencyTradeFee,
 						Amount:        tempResp.Orders[x].Amount,
-						PurchasePrice: tempResp.Orders[x].Price})
+						PurchasePrice: tempResp.Orders[x].Price,
+					})
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}

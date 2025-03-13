@@ -246,7 +246,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		if jobs[i].ReplaceOnIssue {
 			replaceOnIssue = 1
 		}
-		var tempEvent = sqlite3.Datahistoryjob{
+		tempEvent := sqlite3.Datahistoryjob{
 			ID:                       jobs[i].ID,
 			ExchangeNameID:           exch.ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
@@ -297,7 +297,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			}
 		}
 
-		var tempEvent = postgres.Datahistoryjob{
+		tempEvent := postgres.Datahistoryjob{
 			ID:                       jobs[i].ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
 			ExchangeNameID:           exch.ID,
@@ -330,6 +330,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 
 	return nil
 }
+
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.TODO(), db.sql)
 	if err != nil {
