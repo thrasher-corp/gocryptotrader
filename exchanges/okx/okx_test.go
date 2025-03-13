@@ -4103,7 +4103,7 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	for _, assetType := range assets {
-		require.Len(t, trades[assetType], len(exp), "Should have received %d trades for asset %v", len(exp), assetType)
+		require.Len(t, trades[assetType], len(exp), "Must have received %d trades for asset %v", len(exp), assetType)
 		slices.SortFunc(trades[assetType], func(a, b trade.Data) int {
 			return strings.Compare(a.TID, b.TID)
 		})
@@ -4112,7 +4112,7 @@ func TestWSProcessTrades(t *testing.T) {
 			expected.AssetType = assetType
 			expected.Exchange = ok.Name
 			expected.CurrencyPair = p
-			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v should match expected data", i, tradeData.TID, assetType)
+			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
 		}
 	}
 }
