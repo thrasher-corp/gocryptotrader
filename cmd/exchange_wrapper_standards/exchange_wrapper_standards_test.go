@@ -444,30 +444,30 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		input = reflect.ValueOf(req)
 	case argGenerator.MethodInputType.AssignableTo(orderSubmitParam):
 		input = reflect.ValueOf(&order.Submit{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientID:          "1337",
-			ClientOrderID:     "13371337",
-			ImmediateOrCancel: true,
-			Leverage:          1,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientID:      "1337",
+			ClientOrderID: "13371337",
+			TimeInForce:   order.ImmediateOrCancel,
+			Leverage:      1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientOrderID:     "13371337",
-			OrderID:           "1337",
-			ImmediateOrCancel: true,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientOrderID: "13371337",
+			OrderID:       "1337",
+			TimeInForce:   order.ImmediateOrCancel,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{
@@ -610,7 +610,6 @@ var unsupportedExchangeNames = []string{
 	"alphapoint",
 	"bitflyer",    // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"btse",        // 	TODO rm once timeout issues resolved
-	"poloniex",    // 	outdated API // TODO rm once updated
 	"coinbasepro", // 	outdated API // TODO rm once updated
 }
 

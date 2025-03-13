@@ -163,8 +163,8 @@ func TestAuthRequests(t *testing.T) {
 		t.Error("Expecting error")
 	}
 	orderResponse, err := c.PlaceLimitOrder(context.Background(),
-		"", 0.001, 0.001,
-		order.Buy.Lower(), "", "", testPair.String(), "", false)
+		"",
+		order.Buy.Lower(), "", "", testPair.String(), "", 0.001, 0.001, false)
 	if orderResponse != "" {
 		t.Error("Expecting no data returned")
 	}
