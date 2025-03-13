@@ -696,14 +696,14 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 	}()
 
 	for {
-		data, ok := <-pipe.Channel()
+		_, ok := <-pipe.Channel()
 		if !ok {
 			return errDispatchSystem
 		}
 
-		holdings, ok := data.(*account.Holdings)
-		if !ok {
-			return common.GetTypeAssertError("*account.Holdings", data)
+		holdings, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
+		if err != nil {
+			return err
 		}
 
 		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
