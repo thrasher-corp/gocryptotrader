@@ -241,8 +241,11 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(topic, "tradeHistory"):
-		saveTradedata := b.IsSaveTradeDataEnabled()
+		saveTradeData := b.IsSaveTradeDataEnabled()
 		tradeFeed := b.IsTradeFeedEnabled()
+		if !saveTradeData && !tradeFeed {
+			return nil
+		}
 
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
@@ -282,7 +285,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				b.Websocket.DataHandler <- trades[i]
 			}
 		}
-		if saveTradedata {
+		if saveTradeData {
 			return trade.AddTradesToBuffer(trades...)
 		}
 	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
