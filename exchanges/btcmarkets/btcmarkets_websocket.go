@@ -185,9 +185,12 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	case tradeEndPoint:
-		if !b.IsSaveTradeDataEnabled() {
+		tradeFeed := b.IsTradeFeedEnabled()
+		saveTradeData := b.IsSaveTradeDataEnabled()
+		if !saveTradeData && !tradeFeed {
 			return nil
 		}
+
 		var t WsTrade
 		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -204,7 +207,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		return trade.AddTradesToBuffer(trade.Data{
+		tr := trade.Data{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -213,7 +216,14 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Amount:       t.Volume,
 			Side:         side,
 			TID:          strconv.FormatInt(t.TradeID, 10),
-		})
+		}
+
+		if tradeFeed {
+			b.Websocket.DataHandler <- tr
+		}
+		if saveTradeData {
+			return trade.AddTradesToBuffer(tr)
+		}
 	case tick:
 		var tick WsTick
 		err := json.Unmarshal(respRaw, &tick)
