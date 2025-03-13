@@ -251,7 +251,6 @@ func (h *HUOBI) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade, e
 // symbol: string of currency pair
 func (h *HUOBI) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (float64, error) {
 	list, err := h.GetTradeHistory(ctx, symbol, 1)
-
 	if err != nil {
 		return 0, err
 	}

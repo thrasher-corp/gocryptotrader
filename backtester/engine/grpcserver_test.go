@@ -21,8 +21,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
-var dbConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-database-candles.strat")
+var (
+	dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+	dbConfigPath  = filepath.Join("..", "config", "strategyexamples", "dca-database-candles.strat")
+)
 
 func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()

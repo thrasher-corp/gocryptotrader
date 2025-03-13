@@ -39,7 +39,7 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 			}
 			return
 		}
-		var tempEvent = modelSQLite.Script{}
+		tempEvent := modelSQLite.Script{}
 		if !f {
 			newUUID, errUUID := uuid.NewV4()
 			if errUUID != nil {
@@ -82,7 +82,7 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 			return
 		}
 	} else {
-		var tempEvent = modelPSQL.Script{
+		tempEvent := modelPSQL.Script{
 			ScriptID:   id,
 			ScriptName: name,
 			ScriptPath: path,

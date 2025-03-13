@@ -144,7 +144,6 @@ func executeStrategyFromFile(c *cli.Context) error {
 			IntervalOverride:    durationpb.New(intervalOverride),
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -171,7 +170,6 @@ func listAllTasks(c *cli.Context) error {
 		c.Context,
 		&btrpc.ListAllTasksRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -217,7 +215,6 @@ func startTask(c *cli.Context) error {
 			Id: id,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -244,7 +241,6 @@ func startAllTasks(c *cli.Context) error {
 		c.Context,
 		&btrpc.StartAllTasksRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -291,7 +287,6 @@ func stopTask(c *cli.Context) error {
 			Id: id,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -318,7 +313,6 @@ func stopAllTasks(c *cli.Context) error {
 		c.Context,
 		&btrpc.StopAllTasksRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -365,7 +359,6 @@ func clearTask(c *cli.Context) error {
 			Id: id,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -392,7 +385,6 @@ func clearAllTasks(c *cli.Context) error {
 		c.Context,
 		&btrpc.ClearAllTasksRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -623,7 +615,6 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			DoNotStore:          dns,
 		},
 	)
-
 	if err != nil {
 		return err
 	}

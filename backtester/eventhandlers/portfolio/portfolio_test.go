@@ -134,7 +134,8 @@ func TestSetHoldings(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt})
+		Timestamp: tt,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -143,7 +144,8 @@ func TestSetHoldings(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt})
+		Timestamp: tt,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -161,7 +163,8 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt})
+		Timestamp: tt,
+	})
 	if !errors.Is(err, errNoPortfolioSettings) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
@@ -181,7 +184,8 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt})
+		Timestamp: tt,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -194,7 +198,8 @@ func TestGetLatestHoldingsForAllCurrencies(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt})
+		Timestamp: tt,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -238,7 +243,8 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt})
+		Timestamp: tt,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -247,7 +253,8 @@ func TestViewHoldingAtTimePeriod(t *testing.T) {
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
-		Timestamp: tt.Add(time.Hour)})
+		Timestamp: tt.Add(time.Hour),
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -1068,7 +1075,7 @@ func TestGetHoldingsForTime(t *testing.T) {
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
-	var expectedError = common.ErrNilEvent
+	expectedError := common.ErrNilEvent
 	_, err := p.GetPositions(nil)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
@@ -1096,7 +1103,7 @@ func TestGetPositions(t *testing.T) {
 func TestGetLatestPNLForEvent(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
-	var expectedError = common.ErrNilEvent
+	expectedError := common.ErrNilEvent
 	_, err := p.GetLatestPNLForEvent(nil)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
@@ -1349,7 +1356,7 @@ func TestGetDirection(t *testing.T) {
 
 func TestCannotPurchase(t *testing.T) {
 	t.Parallel()
-	var expectedError = common.ErrNilEvent
+	expectedError := common.ErrNilEvent
 	_, err := cannotPurchase(nil, nil)
 	if !errors.Is(err, expectedError) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)

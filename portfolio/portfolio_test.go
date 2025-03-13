@@ -318,7 +318,8 @@ func TestUpdatePortfolio(t *testing.T) {
 	}
 	err = newBase.UpdatePortfolio([]string{
 		"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL",
-		"LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy"},
+		"LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy",
+	},
 		currency.LTC,
 	)
 	if err != nil {
@@ -332,34 +333,40 @@ func TestUpdatePortfolio(t *testing.T) {
 	}
 
 	err = newBase.UpdatePortfolio([]string{
-		"0xb794f5ea0ba39494ce839613fffba74279579268"},
+		"0xb794f5ea0ba39494ce839613fffba74279579268",
+	},
 		currency.ETH)
 	if err != nil {
 		t.Error(err)
 	}
 	err = newBase.UpdatePortfolio([]string{
-		"TESTY"},
+		"TESTY",
+	},
 		currency.ETH)
 	if err == nil {
 		t.Error("UpdatePortfolio error cannot be nil")
 	}
 
-	err = newBase.UpdatePortfolio([]string{ExchangeAddress,
-		PersonalAddress},
+	err = newBase.UpdatePortfolio([]string{
+		ExchangeAddress,
+		PersonalAddress,
+	},
 		currency.LTC)
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = newBase.UpdatePortfolio([]string{
-		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh"},
+		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh",
+	},
 		currency.XRP)
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = newBase.UpdatePortfolio([]string{
-		"TESTY"},
+		"TESTY",
+	},
 		currency.XRP)
 	if err == nil {
 		t.Error("error cannot be nil")

@@ -51,6 +51,7 @@ func TestGetRates(t *testing.T) {
 		t.Fatal("Test error. Expected 4 rates")
 	}
 }
+
 func TestConvertMany(t *testing.T) {
 	if !IsAPIKeysSet() {
 		t.Skip("API keys unset, skipping")

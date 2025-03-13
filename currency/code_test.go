@@ -73,7 +73,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleUnknown Role `json:"RoleUnknown"`
 	}
 
-	var outgoing = AllTheRoles{
+	outgoing := AllTheRoles{
 		RoleOne:   Unset,
 		RoleTwo:   Cryptocurrency,
 		RoleThree: Fiat,

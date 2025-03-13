@@ -10,8 +10,7 @@ import (
 )
 
 // Version1 is an ExchangeVersion to upgrade currency pair format for exchanges
-type Version1 struct {
-}
+type Version1 struct{}
 
 func init() {
 	Manager.registerVersion(1, &Version1{})

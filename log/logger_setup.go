@@ -210,7 +210,8 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 	tempHolder, err := getWriters(&SubLoggerConfig{
 		Name:   strings.ToUpper(subLogger),
 		Level:  "INFO|WARN|DEBUG|ERROR",
-		Output: "stdout"})
+		Output: "stdout",
+	})
 	if err != nil {
 		return nil
 	}

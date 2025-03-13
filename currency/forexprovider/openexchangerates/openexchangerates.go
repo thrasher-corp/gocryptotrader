@@ -222,7 +222,8 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
-		Verbose: o.Verbose}
+		Verbose: o.Verbose,
+	}
 	return o.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)

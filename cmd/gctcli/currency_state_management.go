@@ -148,7 +148,8 @@ func stateGetDeposit(c *cli.Context) error {
 		&gctrpc.CurrencyStateDepositRequest{
 			Exchange: exchange,
 			Code:     code,
-			Asset:    a},
+			Asset:    a,
+		},
 	)
 	if err != nil {
 		return err
@@ -195,7 +196,8 @@ func stateGetWithdrawal(c *cli.Context) error {
 		&gctrpc.CurrencyStateWithdrawRequest{
 			Exchange: exchange,
 			Code:     code,
-			Asset:    a},
+			Asset:    a,
+		},
 	)
 	if err != nil {
 		return err
@@ -242,7 +244,8 @@ func stateGetTrading(c *cli.Context) error {
 		&gctrpc.CurrencyStateTradingRequest{
 			Exchange: exchange,
 			Code:     code,
-			Asset:    a},
+			Asset:    a,
+		},
 	)
 	if err != nil {
 		return err
@@ -289,7 +292,8 @@ func stateGetPairTrading(c *cli.Context) error {
 		&gctrpc.CurrencyStateTradingPairRequest{
 			Exchange: exchange,
 			Pair:     pair,
-			Asset:    a},
+			Asset:    a,
+		},
 	)
 	if err != nil {
 		return err

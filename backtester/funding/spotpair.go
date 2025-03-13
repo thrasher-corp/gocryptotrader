@@ -8,10 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	// ErrNotCollateral is returned when a user requests collateral pair details when it is a funding pair
-	ErrNotCollateral = errors.New("not a collateral pair")
-)
+// ErrNotCollateral is returned when a user requests collateral pair details when it is a funding pair
+var ErrNotCollateral = errors.New("not a collateral pair")
 
 // BaseInitialFunds returns the initial funds
 // from the base in a currency pair

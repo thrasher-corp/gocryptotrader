@@ -28,9 +28,7 @@ const (
 	tradeTimeLayout  = time.DateTime + ".000000"
 )
 
-var (
-	location *time.Location
-)
+var location *time.Location
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.ThirtyMin}, // alternatives "1H", "12H", "24H"

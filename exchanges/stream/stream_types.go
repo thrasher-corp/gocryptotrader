@@ -24,11 +24,11 @@ type Connection interface {
 	// defined in websocket_connection.go.
 	GenerateMessageID(highPrecision bool) int64
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
-	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature any, request any) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
-	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int) ([][]byte, error)
+	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int) ([][]byte, error)
 	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
-	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature any, request any, expected int, messageInspector Inspector) ([][]byte, error)
+	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int, messageInspector Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
 	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
 	// SendJSONMessage sends a JSON encoded message over the connection

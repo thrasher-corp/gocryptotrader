@@ -125,7 +125,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := e.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
 	if _, err := e.GetFee(feeBuilder); err != nil {
@@ -254,7 +254,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -270,7 +270,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -294,7 +294,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: e.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
@@ -321,7 +321,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -343,7 +343,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -403,7 +403,7 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{}
+	withdrawFiatRequest := withdraw.Request{}
 	_, err := e.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -414,7 +414,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{}
+	withdrawFiatRequest := withdraw.Request{}
 	_, err := e.WithdrawFiatFundsToInternationalBank(context.Background(),
 		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {

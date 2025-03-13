@@ -159,8 +159,10 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	return errs
 }
 
-var setupWsMutex sync.Mutex
-var setupWsOnce = make(map[exchange.IBotExchange]bool)
+var (
+	setupWsMutex sync.Mutex
+	setupWsOnce  = make(map[exchange.IBotExchange]bool)
+)
 
 // SetupWs is a helper function to connect both auth and normal websockets
 // It will skip the test if websockets are not enabled
@@ -195,8 +197,10 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	setupWsOnce[e] = true
 }
 
-var updatePairsMutex sync.Mutex
-var updatePairsOnce = make(map[string]*currency.PairsManager)
+var (
+	updatePairsMutex sync.Mutex
+	updatePairsOnce  = make(map[string]*currency.PairsManager)
+)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
 // A clone of the cache of the updated pairs is used to populate duplicate requests

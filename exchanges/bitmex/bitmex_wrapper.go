@@ -377,7 +377,8 @@ instruments:
 			LastUpdated:  tick[j].Timestamp,
 			ExchangeName: b.Name,
 			OpenInterest: tick[j].OpenInterest,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -426,7 +427,8 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	orderbookNew, err := b.GetOrderbook(ctx,
 		OrderBookGetL2Params{
 			Symbol: fPair.String(),
-			Depth:  500})
+			Depth:  500,
+		})
 	if err != nil {
 		return book, err
 	}
@@ -653,7 +655,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 
-	var orderNewParams = OrderNewParams{
+	orderNewParams := OrderNewParams{
 		OrderType:     s.Type.Title(),
 		Symbol:        fPair.String(),
 		OrderQuantity: s.Amount,
@@ -685,7 +687,8 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	o, err := b.AmendOrder(ctx, &OrderAmendParams{
 		OrderID:  action.OrderID,
 		OrderQty: int32(action.Amount),
-		Price:    action.Price})
+		Price:    action.Price,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -831,7 +834,7 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var r = UserRequestWithdrawalParams{
+	r := UserRequestWithdrawalParams{
 		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,
 		Currency: withdrawRequest.Currency.String(),

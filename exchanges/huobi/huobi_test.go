@@ -1077,7 +1077,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := h.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
 	if !sharedtestvalues.AreAPICredentialsSet(h) {
@@ -1089,7 +1089,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	_, err := h.GetFee(feeBuilder)
 	require.NoError(t, err)
@@ -1155,7 +1155,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
@@ -1178,7 +1178,7 @@ func TestSubmitOrder(t *testing.T) {
 	accounts, err := h.GetAccounts(context.Background())
 	require.NoError(t, err, "GetAccounts must not error")
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: h.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
@@ -1199,7 +1199,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -1215,7 +1215,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = order.Cancel{
+	orderCancellation := order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -2072,8 +2072,10 @@ func TestBootstrap(t *testing.T) {
 	require.NotNil(t, h.futureContractCodes)
 }
 
-var updatePairsMutex sync.Mutex
-var futureContractCodesCache map[string]currency.Code
+var (
+	updatePairsMutex         sync.Mutex
+	futureContractCodesCache map[string]currency.Code
+)
 
 // updatePairsOnce updates the pairs once, and ensures a future dated contract is enabled
 func updatePairsOnce(tb testing.TB, h *HUOBI) {

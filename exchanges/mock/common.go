@@ -42,7 +42,7 @@ func MatchURLVals(v1, v2 url.Values) bool {
 
 // DeriveURLValsFromJSONMap gets url vals from a map[string]string encoded JSON body
 func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
-	var vals = url.Values{}
+	vals := url.Values{}
 	if len(payload) == 0 {
 		return vals, nil
 	}

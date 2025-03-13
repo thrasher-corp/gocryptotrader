@@ -696,7 +696,8 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		Path:    path,
 		Headers: headers,
 		Result:  result,
-		Verbose: c.Verbose}
+		Verbose: c.Verbose,
+	}
 	return c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)

@@ -125,8 +125,10 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: p, QualifiedChannel: `{"type":"transaction","symbols":["BTC_KRW","ETH_KRW"]}`},
 		{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: p, QualifiedChannel: `{"type":"orderbookdepth","symbols":["BTC_KRW","ETH_KRW"]}`},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
-			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`},
+		{
+			Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
+			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`,
+		},
 	}
 	testsubs.EqualLists(t, exp, subs)
 }

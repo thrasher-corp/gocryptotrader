@@ -1193,7 +1193,8 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Amount:    1,
-		Price:     1})
+		Price:     1,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1240,7 +1241,8 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Amount:    1,
-		Price:     1})
+		Price:     1,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1291,7 +1293,8 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Amount:    1,
-		Price:     1})
+		Price:     1,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}

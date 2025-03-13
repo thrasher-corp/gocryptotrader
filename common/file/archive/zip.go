@@ -17,9 +17,7 @@ const (
 	ErrUnableToCloseFile string = "Unable to close file %v %v"
 )
 
-var (
-	addFilesToZip func(z *zip.Writer, src string, isDir bool) error
-)
+var addFilesToZip func(z *zip.Writer, src string, isDir bool) error
 
 func init() {
 	addFilesToZip = addFilesToZipWrapper

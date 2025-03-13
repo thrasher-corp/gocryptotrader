@@ -17,7 +17,7 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
-	var expected = false
+	expected := false
 	received := MatchURLVals(testVal, emptyVal)
 	if received != expected {
 		t.Errorf("MatchURLVals error expected %v received %v",

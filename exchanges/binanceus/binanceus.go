@@ -114,9 +114,7 @@ const (
 	recvWindowSize5000 = 5000
 )
 
-var (
-	recvWindowSize5000String = strconv.Itoa(recvWindowSize5000)
-)
+var recvWindowSize5000String = strconv.Itoa(recvWindowSize5000)
 
 // This is a list of error Messages to be returned by binanceus endpoint methods.
 var (
@@ -1487,7 +1485,7 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) 
 	}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
 	var response WithdrawalResponse
-	var er = bi.SendAuthHTTPRequest(ctx,
+	er := bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost, applyWithdrawal,
 		params, spotDefaultRate, &response)
@@ -1717,7 +1715,8 @@ func (bi *Binanceus) GetSubAccountDepositAddress(ctx context.Context, arg SubAcc
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history.
 func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code,
-	status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
+	status int, startTime, endTime time.Time, limit, offset int,
+) ([]SubAccountDepositItem, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
@@ -1807,7 +1806,8 @@ func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.U
 		Result:        result,
 		Verbose:       bi.Verbose,
 		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording}
+		HTTPRecording: bi.HTTPRecording,
+	}
 
 	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -1854,7 +1854,8 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 			Result:        &interim,
 			Verbose:       bi.Verbose,
 			HTTPDebugging: bi.HTTPDebugging,
-			HTTPRecording: bi.HTTPRecording}, nil
+			HTTPRecording: bi.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err

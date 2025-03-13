@@ -160,6 +160,7 @@ func TestGetFillDependentEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", k.GetFillDependentEvent(), decimal.NewFromInt(1337))
 	}
 }
+
 func TestIsClosingPosition(t *testing.T) {
 	t.Parallel()
 	k := Order{

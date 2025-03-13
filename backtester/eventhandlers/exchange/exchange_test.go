@@ -83,6 +83,7 @@ func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
 	}
 	return p, nil
 }
+
 func (f *fakeFund) CollateralReleaser() (funding.ICollateralReleaser, error) {
 	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {

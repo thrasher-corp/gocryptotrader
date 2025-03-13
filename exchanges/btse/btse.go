@@ -150,7 +150,7 @@ func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	var res = 60
+	res := 60
 	if resolution != 0 {
 		res = resolution
 	}

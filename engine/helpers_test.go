@@ -89,7 +89,8 @@ func CreateTestBot(tb testing.TB) *Engine {
 					Pairs:           pairs2,
 				},
 			},
-		}}}
+		}},
+	}
 	err := bot.LoadExchange(testExchange)
 	assert.NoError(tb, err, "LoadExchange should not error")
 
@@ -193,12 +194,14 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			Subsystem:    grpcName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  errGRPCManagementFault,
-			DisableError: errGRPCManagementFault},
+			DisableError: errGRPCManagementFault,
+		},
 		{
 			Subsystem:    grpcProxyName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  errGRPCManagementFault,
-			DisableError: errGRPCManagementFault},
+			DisableError: errGRPCManagementFault,
+		},
 		{
 			Subsystem:    dataHistoryManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
@@ -677,7 +680,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
 
-	var pairs = []currency.Pair{
+	pairs := []currency.Pair{
 		currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}

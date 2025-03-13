@@ -227,7 +227,7 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 	if len(d) == 0 {
 		return nil, base.ErrNoDataToProcess
 	}
-	var carryMap = make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
+	carryMap := make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
 	for i := range d {
 		l, err := d[i].Latest()
 		if err != nil {

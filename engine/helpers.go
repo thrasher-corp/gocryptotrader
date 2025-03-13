@@ -430,7 +430,7 @@ func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 		return true
 	}
 
-	var relatablePairs = GetRelatableCurrencies(p1, true, includeUSDT)
+	relatablePairs := GetRelatableCurrencies(p1, true, includeUSDT)
 	if p1.IsCryptoFiatPair() {
 		for x := range relatablePairs {
 			relatablePairs = append(relatablePairs,

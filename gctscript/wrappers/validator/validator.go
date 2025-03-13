@@ -99,9 +99,11 @@ func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, erro
 		return nil, errTestFailed
 	}
 
-	pairs, err := currency.NewPairsFromStrings([]string{"btc_usd",
+	pairs, err := currency.NewPairsFromStrings([]string{
+		"btc_usd",
 		"btc_aud",
-		"btc_ltc"})
+		"btc_ltc",
+	})
 	if err != nil {
 		return nil, err
 	}

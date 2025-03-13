@@ -288,7 +288,8 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 		Pair:         p,
 		LastUpdated:  tick.Time,
 		ExchangeName: c.Name,
-		AssetType:    a}
+		AssetType:    a,
+	}
 
 	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {

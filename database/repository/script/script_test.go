@@ -13,9 +13,7 @@ import (
 	"github.com/volatiletech/null"
 )
 
-var (
-	verbose = false
-)
+var verbose = false
 
 func TestMain(m *testing.M) {
 	var err error

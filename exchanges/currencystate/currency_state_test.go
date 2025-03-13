@@ -218,7 +218,8 @@ func TestStatesUpdateAll(t *testing.T) {
 		currency.BTC: {
 			Withdraw: convert.BoolPtr(true),
 			Trade:    convert.BoolPtr(true),
-			Deposit:  convert.BoolPtr(true)},
+			Deposit:  convert.BoolPtr(true),
+		},
 	})
 
 	if !errors.Is(err, nil) {
@@ -313,7 +314,8 @@ func TestAlerting(_ *testing.T) {
 	c.update(Options{
 		Trade:    convert.BoolPtr(true),
 		Withdraw: convert.BoolPtr(true),
-		Deposit:  convert.BoolPtr(true)})
+		Deposit:  convert.BoolPtr(true),
+	})
 	finish.Wait()
 }
 

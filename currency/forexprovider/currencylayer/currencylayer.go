@@ -210,7 +210,8 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,
-		Verbose: c.Verbose}
+		Verbose: c.Verbose,
+	}
 	return c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, auth)
