@@ -484,7 +484,7 @@ func TestWsOrderbook(t *testing.T) {
 	// TODO: Meaningful test of data parsing
 }
 
-func TestWsTrades(t *testing.T) {
+func TestWSTrades(t *testing.T) {
 	t.Parallel()
 
 	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes

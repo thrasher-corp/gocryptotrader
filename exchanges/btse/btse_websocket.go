@@ -257,7 +257,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 
 			var p currency.Pair
-			p, err = currency.NewPairFromString(strings.TrimPrefix(tradeHistory.Topic, "tradeHistoryApi:"))
+			p, err = currency.NewPairFromString(tradeHistory.Data[x].Symbol)
 			if err != nil {
 				return err
 			}
