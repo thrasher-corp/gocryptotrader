@@ -2273,7 +2273,7 @@
      "autoPairUpdates": true,
      "websocketAPI": true,
      "saveTradeData": false,
-     "tradeFeed": false,
+     "tradeFeed": true,
      "fillsFeed": false
     }
    },
