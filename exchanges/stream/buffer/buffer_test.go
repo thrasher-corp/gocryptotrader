@@ -500,7 +500,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-	require.ErrorIs(t, err, errDepthNotFound)
+	require.ErrorIs(t, err, ErrDepthNotFound)
 }
 
 // TestRunUpdateWithoutAnyUpdates logic test
@@ -982,7 +982,7 @@ func TestFlushOrderbook(t *testing.T) {
 	}
 
 	_, err = w.GetOrderbook(cp, asset.Spot)
-	require.ErrorIs(t, err, errDepthNotFound)
+	require.ErrorIs(t, err, ErrDepthNotFound)
 
 	require.NoError(t, w.LoadSnapshot(&snapShot1))
 	require.NoError(t, w.FlushOrderbook(cp, asset.Spot))
