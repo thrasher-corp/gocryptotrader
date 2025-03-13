@@ -74,10 +74,8 @@ const (
 
 var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
-	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
-	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
 	errInvalidTradeModeValue                = errors.New("invalid trade mode value")
 	errCurrencyQuantityTypeRequired         = errors.New("only base_ccy and quote_ccy quantity types are supported")
@@ -85,10 +83,8 @@ var (
 	errInvalidNewSizeOrPriceInformation     = errors.New("invalid new size or price information")
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
 	errInvalidPriceLimit                    = errors.New("invalid price limit value")
-	errMissingIntervalValue                 = errors.New("missing interval value")
 	errMissingSizeLimit                     = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState           = errors.New("either algo ID or order state is required")
-	errAlgoIDRequired                       = errors.New("algo ID is required")
 	errMissingValidWithdrawalID             = errors.New("missing valid withdrawal ID")
 	errInstrumentFamilyRequired             = errors.New("instrument family is required")
 	errCountdownTimeoutRequired             = errors.New("countdown timeout is required")
@@ -99,10 +95,8 @@ var (
 	errMissingIsolatedMarginTradingSetting  = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
 	errInvalidCounterParties                = errors.New("missing counter parties")
 	errMissingRFQIDOrQuoteID                = errors.New("either RFQ ID or Quote ID is missing")
-	errMissingRFQID                         = errors.New("error missing rfq ID")
 	errMissingLegs                          = errors.New("missing legs")
 	errMissingSizeOfQuote                   = errors.New("missing size of quote leg")
-	errMissingLegsQuotePrice                = errors.New("error missing quote price")
 	errInvalidLoanAllocationValue           = errors.New("invalid loan allocation value, must be between 0 to 100")
 	errInvalidSubaccount                    = errors.New("invalid sub-account type")
 	errMissingAlgoOrderType                 = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
@@ -112,22 +106,19 @@ var (
 	errInvalidLeverage                      = errors.New("invalid leverage value")
 	errMissingValidStopType                 = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
 	errMissingSubOrderType                  = errors.New("missing sub order type")
-	errMissingQuantity                      = errors.New("invalid quantity to buy or sell")
 	errAddressRequired                      = errors.New("address is required")
 	errInvalidWebsocketEvent                = errors.New("invalid websocket event")
 	errMissingValidChannelInformation       = errors.New("missing channel information")
 	errMaxRFQOrdersToCancel                 = errors.New("no more than 100 RFQ cancel order parameter is allowed")
 	errInvalidUnderlying                    = errors.New("invalid underlying")
 	errInstrumentFamilyOrUnderlyingRequired = errors.New("either underlying or instrument family is required")
-	errMissingRequiredParameter             = errors.New("missing required parameter")
 	errMissingMakerInstrumentSettings       = errors.New("missing maker instrument settings")
 	errInvalidSubAccountName                = errors.New("invalid sub-account name")
-	errInvalidAPIKey                        = errors.New("invalid api key")
 	errInvalidMarginTypeAdjust              = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
 	errInvalidAlgoOrderType                 = errors.New("invalid algo order type")
 	errInvalidIPAddress                     = errors.New("invalid ip address")
+	errInvalidAPIKey                        = errors.New("invalid api key")
 	errInvalidAPIKeyPermission              = errors.New("invalid API Key permission")
-	errInvalidResponseParam                 = errors.New("invalid response parameter, response must be non-nil pointer")
 	errInvalidDuration                      = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
 	errInvalidProtocolType                  = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
 	errExceedLimit                          = errors.New("limit exceeded")
@@ -137,7 +128,6 @@ var (
 	errRecurringDayRequired                 = errors.New("recurring day is required")
 	errRecurringBuyTimeRequired             = errors.New("recurring buy time, the value range is an integer with value between 0 and 23")
 	errSubPositionIDRequired                = errors.New("sub position ID is required")
-	errUserIDRequired                       = errors.New("uid is required")
 	errSubPositionCloseTypeRequired         = errors.New("sub position close type")
 	errUniqueCodeRequired                   = errors.New("unique code is required")
 	errLastDaysRequired                     = errors.New("last days required")
@@ -150,9 +140,7 @@ var (
 	errYearRequired                         = errors.New("year is required")
 	errBorrowTypeRequired                   = errors.New("borrow type is required")
 	errMaxRateRequired                      = errors.New("max rate is required")
-	errLendingSideRequired                  = errors.New("lending side is required")
 	errPaymentMethodRequired                = errors.New("payment method required")
-	errIDNotSet                             = errors.New("ID is not set")
 	errMonthNameRequired                    = errors.New("month name is required")
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
 	errInvoiceTextMissing                   = errors.New("missing invoice text")
@@ -3177,7 +3165,7 @@ func (w *wsIncomingData) copyToPlaceOrderResponse() (*WsPlaceOrderResponse, erro
 func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
 	rv := reflect.ValueOf(dataHolder)
 	if rv.Kind() != reflect.Pointer {
-		return errInvalidResponseParam
+		return common.ErrNilPointer
 	}
 	if len(w.Data) == 0 {
 		return common.ErrNoResponse
