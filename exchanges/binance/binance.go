@@ -278,10 +278,10 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", timeString(arg.StartTime))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", timeString(arg.EndTime))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	var resp []CandleStick
 	return resp, b.SendHTTPRequest(ctx,
@@ -1783,7 +1783,8 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
+		HTTPRecording: b.HTTPRecording,
+	}
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -1862,7 +1863,8 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Result:        &interim,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err

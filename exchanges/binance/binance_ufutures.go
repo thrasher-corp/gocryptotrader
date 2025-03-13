@@ -230,8 +230,8 @@ func (b *Binance) GetIndexOrCandlesticPriceKlineData(ctx context.Context, pair c
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
-		params.Set("startTime", timeString(startTime))
-		params.Set("endTime", timeString(endTime))
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	rateBudget := uFuturesDefaultRate
 	switch {

@@ -220,9 +220,8 @@ type UOrderData struct {
 	PriceMatch              string            `json:"priceMatch"`
 	SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
 	GoodTillDate            int64             `json:"goodTillDate"`
-
-	Code    int64  `json:"code"`
-	Message string `json:"msg"`
+	Code                    int64             `json:"code"`
+	Message                 string            `json:"msg"`
 }
 
 // UFuturesOrderData stores order data for ufutures

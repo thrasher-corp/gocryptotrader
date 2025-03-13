@@ -1510,6 +1510,7 @@ func TestGetExchangeInfo(t *testing.T) {
 	result, err := b.GetExchangeInfo(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	assert.WithinRange(t, result.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -2763,7 +2764,8 @@ func TestGetOrderHistory(t *testing.T) {
 
 	getOrdersRequest.Pairs = []currency.Pair{
 		currency.NewPair(currency.LTC,
-			currency.BTC)}
+			currency.BTC),
+	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetOrderHistory(context.Background(), &getOrdersRequest)

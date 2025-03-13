@@ -3362,7 +3362,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
-		var orderLimit = 1000
+		orderLimit := 1000
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -3431,7 +3431,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 			}
 		}
 	case asset.CoinMarginedFutures:
-		var orderLimit = 100
+		orderLimit := 100
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
