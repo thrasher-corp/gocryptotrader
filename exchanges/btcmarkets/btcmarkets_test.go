@@ -546,8 +546,7 @@ func TestWsTicker(t *testing.T) {
 func TestWSTrade(t *testing.T) {
 	t.Parallel()
 
-	b := new(BTCMarkets) //nolint:govet
-	// Intentional shadow to avoid future copy/paste mistakes
+	b := new(BTCMarkets) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", b.wsHandleData)
 	close(b.Websocket.DataHandler)
@@ -566,7 +565,7 @@ func TestWSTrade(t *testing.T) {
 		{
 			Exchange:     b.Name,
 			CurrencyPair: currency.NewPairWithDelimiter("BTC", "AUD", currency.DashDelimiter),
-			Timestamp:    time.Date(2025, 3, 13, 8, 28, 02, 273000000, time.UTC),
+			Timestamp:    time.Date(2025, 3, 13, 8, 28, 2, 273000000, time.UTC),
 			Price:        131065.01,
 			Amount:       0.05,
 			Side:         order.Sell,
