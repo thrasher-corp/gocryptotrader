@@ -72,7 +72,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !errors.Is(err, order.ErrCancelOrderIsNil) {
 		t.Error(err)
 	}
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -134,6 +134,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -291,6 +292,7 @@ func TestGetCandlesticks(t *testing.T) {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
+
 func TestGetTradingFeeRatio(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -403,10 +405,12 @@ func TestGetSpotOrder(t *testing.T) {
 	if _, err := g.GetSpotOrder(t.Context(), "1234", currency.Pair{
 		Base:      currency.BTC,
 		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT}, asset.Spot); err != nil {
+		Quote:     currency.USDT,
+	}, asset.Spot); err != nil {
 		t.Errorf("%s GetSpotOrder() error %v", g.Name, err)
 	}
 }
+
 func TestAmendSpotOrder(t *testing.T) {
 	t.Parallel()
 	_, err := g.AmendSpotOrder(t.Context(), "", getPair(t, asset.Spot), false, &PriceAndAmount{
@@ -429,6 +433,7 @@ func TestAmendSpotOrder(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestCancelSingleSpotOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -530,7 +535,8 @@ func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
 	if _, err := g.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, currency.Pair{
 		Base:      currency.BTC,
 		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT}, time.Time{}, time.Time{}, 0, 0); err != nil {
+		Quote:     currency.USDT,
+	}, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Errorf("%s ListMarginAccountBalanceChangeHistory() error %v", g.Name, err)
 	}
 }
@@ -979,6 +985,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	_, err = g.GetFuturesOrderbook(t.Context(), settle, getPair(t, asset.Futures).String(), "", 0, false)
 	assert.NoError(t, err, "GetFuturesOrderbook should not error")
 }
+
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
@@ -1046,6 +1053,7 @@ func TestGetLiquidationHistory(t *testing.T) {
 	_, err = g.GetLiquidationHistory(t.Context(), settle, getPair(t, asset.Futures), time.Time{}, time.Time{}, 0)
 	assert.NoError(t, err, "GetLiquidationHistory should not error")
 }
+
 func TestQueryFuturesAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -1252,6 +1260,7 @@ func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	_, err = g.UpdatePositionMarginInDualMode(t.Context(), settle, getPair(t, asset.Futures), 0.001, "dual_long")
 	assert.NoError(t, err, "UpdatePositionMarginInDualMode should not error")
 }
+
 func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -1349,12 +1358,14 @@ func TestGetSingleFuturesOrder(t *testing.T) {
 	_, err := g.GetSingleFuturesOrder(t.Context(), currency.BTC, "12345")
 	assert.NoError(t, err, "GetSingleFuturesOrder should not error")
 }
+
 func TestCancelSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err := g.CancelSingleFuturesOrder(t.Context(), currency.BTC, "12345")
 	assert.NoError(t, err, "CancelSingleFuturesOrder should not error")
 }
+
 func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -1503,6 +1514,7 @@ func TestQueryDeliveryFuturesAccounts(t *testing.T) {
 	_, err := g.GetDeliveryFuturesAccounts(t.Context(), currency.USDT)
 	assert.NoError(t, err, "GetDeliveryFuturesAccounts should not error")
 }
+
 func TestGetDeliveryAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -1744,6 +1756,7 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 		t.Errorf("%s CancelOptionOpenOrders() error %v", g.Name, err)
 	}
 }
+
 func TestGetSingleOptionOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -1950,6 +1963,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 		t.Errorf("%s GetWithdrawalsHistory() error %v", g.Name, err)
 	}
 }
+
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetRecentTrades(t.Context(), getPair(t, asset.Spot), asset.Spot)
@@ -2056,7 +2070,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -2109,7 +2123,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Spot),
 			AssetType:     asset.Spot,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2126,7 +2141,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Futures),
 			AssetType:     asset.Futures,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2143,7 +2159,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.DeliveryFutures),
 			AssetType:     asset.DeliveryFutures,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2160,7 +2177,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Options),
 			AssetType:     asset.Options,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2177,7 +2195,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Margin),
 			AssetType:     asset.Margin,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2282,7 +2301,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	var multiOrderRequest = order.MultiOrderRequest{
+	multiOrderRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -2383,6 +2402,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
+
 func TestGetAvailableTransferTrains(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetAvailableTransferChains(t.Context(), currency.USDT)
@@ -2876,6 +2896,7 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
@@ -2887,6 +2908,7 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
 	require.Error(t, err)
 }
+
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateOptionsDefaultSubscriptions(); err != nil {

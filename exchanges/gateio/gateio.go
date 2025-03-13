@@ -3673,6 +3673,7 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 	}
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
 }
+
 func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.Code, err error) {
 	quote := currencyPair.Quote.Upper().String()
 

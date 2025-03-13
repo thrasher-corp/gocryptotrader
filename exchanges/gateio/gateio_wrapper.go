@@ -1082,7 +1082,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForce,
-			Text:        s.ClientOrderID})
+			Text:        s.ClientOrderID,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1090,7 +1091,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		var status = order.Open
+		status := order.Open
 		if fOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
@@ -1137,7 +1138,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		var status = order.Open
+		status := order.Open
 		if newOrder.Status != statusOpen {
 			status, err = order.StringToOrderStatus(newOrder.FinishAs)
 			if err != nil {
@@ -2560,6 +2561,7 @@ func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 	}
 }
 
+// WebsocketSubmitOrder submits an order to the exchange
 // NOTE: Regarding spot orders, fee is applied to purchased currency.
 func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(g.GetTradingRequirements())
