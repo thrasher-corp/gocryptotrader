@@ -669,7 +669,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			Leverage:      s.Leverage,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
-			PostOnly:      s.PostOnly,
+			PostOnly:      s.TimeInForce.Is(order.PostOnly),
 			Hidden:        s.Hidden,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
@@ -696,7 +696,6 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				case s.TimeInForce.Is(order.FillOrKill) ||
 					s.TimeInForce.Is(order.ImmediateOrCancel):
 					timeInForce = s.TimeInForce.String()
-				case s.PostOnly:
 				default:
 					timeInForce = order.GoodTillCancel.String()
 				}
@@ -721,7 +720,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, 0, s.PostOnly, s.Hidden, s.Iceberg)
+					0, 0, s.TimeInForce.Is(order.PostOnly), s.Hidden, s.Iceberg)
 				if err != nil {
 					return nil, err
 				}
@@ -734,7 +733,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				OrderType:     s.Type.Lower(),
 				Size:          s.Amount,
 				Price:         s.Price,
-				PostOnly:      s.PostOnly,
+				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				TimeInForce:   timeInForce,
 				Iceberg:       s.Iceberg,
@@ -794,7 +793,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				Price:         s.Price,
 				Size:          s.Amount,
 				VisibleSize:   s.Amount,
-				PostOnly:      s.PostOnly,
+				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
 				AutoRepay:     s.AutoBorrow,

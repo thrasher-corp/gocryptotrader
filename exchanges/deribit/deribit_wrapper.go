@@ -611,7 +611,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		Amount:       s.Amount,
 		Price:        s.Price,
 		TriggerPrice: s.TriggerPrice,
-		PostOnly:     s.PostOnly,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
 		ReduceOnly:   s.ReduceOnly,
 	}
 	switch {

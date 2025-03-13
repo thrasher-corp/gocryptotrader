@@ -490,7 +490,6 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		AssetType: s.AssetType,
 
 		TimeInForce:   s.TimeInForce,
-		PostOnly:      s.PostOnly,
 		ReduceOnly:    s.ReduceOnly,
 		Leverage:      s.Leverage,
 		Price:         s.Price,
@@ -725,7 +724,6 @@ func (t Type) String() string {
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
 	var tifStrings []string
-
 	if t.Is(ImmediateOrCancel) {
 		tifStrings = append(tifStrings, "IOC")
 	}
@@ -737,6 +735,9 @@ func (t TimeInForce) String() string {
 	}
 	if t.Is(GoodTillTime) {
 		tifStrings = append(tifStrings, "GTT")
+	}
+	if t.Is(GoodTillCrossing) {
+		tifStrings = append(tifStrings, "GTX")
 	}
 	if t.Is(FillOrKill) {
 		tifStrings = append(tifStrings, "FOK")
@@ -764,6 +765,11 @@ func (t *TimeInForce) UnmarshalJSON(data []byte) error {
 		*t |= tif
 	}
 	return nil
+}
+
+// MarshalJSON returns the JSON-encoded order time-in-force value
+func (t TimeInForce) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
 }
 
 // Lower returns the type lower case string
@@ -1270,6 +1276,8 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		return GoodTillDay, nil
 	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
 		return GoodTillTime, nil
+	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
+		return GoodTillCrossing, nil
 	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
 		return FillOrKill, nil
 	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
