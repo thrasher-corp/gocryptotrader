@@ -13,6 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -425,7 +426,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 func TestGetAssociation(t *testing.T) {
 	_, err := service.getAssociations("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	service.mux = nil
 
@@ -439,7 +440,7 @@ func TestGetAssociation(t *testing.T) {
 
 func TestGetExchangeTickersPublic(t *testing.T) {
 	_, err := GetExchangeTickers("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 }
 
 func TestGetExchangeTickers(t *testing.T) {
@@ -450,7 +451,7 @@ func TestGetExchangeTickers(t *testing.T) {
 	}
 
 	_, err := s.getExchangeTickers("")
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)

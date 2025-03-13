@@ -25,7 +25,6 @@ var (
 
 var (
 	errHoldingsIsNil                = errors.New("holdings cannot be nil")
-	errExchangeNameUnset            = errors.New("exchange name unset")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errBalanceIsNil                 = errors.New("balance is nil")
@@ -81,7 +80,7 @@ func Process(h *Holdings, c *Credentials) error {
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
 func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
-		return Holdings{}, errExchangeNameUnset
+		return Holdings{}, common.ErrExchangeNameUnset
 	}
 
 	if creds.IsEmpty() {
@@ -143,7 +142,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 // GetBalance returns the internal balance for that asset item.
 func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
-		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
+		return nil, fmt.Errorf("cannot get balance: %w", common.ErrExchangeNameUnset)
 	}
 
 	if !ai.IsValid() {
@@ -192,7 +191,7 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 	}
 
 	if incoming.Exchange == "" {
-		return fmt.Errorf("cannot update holdings: %w", errExchangeNameUnset)
+		return fmt.Errorf("cannot update holdings: %w", common.ErrExchangeNameUnset)
 	}
 
 	if creds.IsEmpty() {
