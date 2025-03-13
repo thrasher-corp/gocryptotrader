@@ -30,6 +30,7 @@ const (
 	MarginFunding
 	Index
 	Binary
+	OTC // Over-the-counter(OTC)
 	// Futures asset consts must come below this comment for method `IsFutures`
 	Futures
 	PerpetualContract
@@ -46,6 +47,7 @@ const (
 	// Options asset consts must come below this comment for method `IsOptions`
 	Options
 	OptionCombo
+
 	// All asset const must come immediately after all valid assets for method `IsValid`
 	All
 )
@@ -71,12 +73,13 @@ const (
 	options                = "options"
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
+	otc                    = "otc"
 	linearContract         = "linearcontract"
 	all                    = "all"
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread, OTC}
 )
 
 // Supported returns a list of supported asset types
@@ -125,6 +128,8 @@ func (a Item) String() string {
 		return optionCombo
 	case FutureCombo:
 		return futureCombo
+	case OTC:
+		return otc
 	case LinearContract:
 		return linearContract
 	case All:
@@ -245,6 +250,8 @@ func New(input string) (Item, error) {
 		return OptionCombo, nil
 	case futureCombo:
 		return FutureCombo, nil
+	case otc:
+		return OTC, nil
 	case linearContract:
 		return LinearContract, nil
 	case all:
