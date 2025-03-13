@@ -498,13 +498,9 @@ func setupTest(t *testing.T) {
 		}
 	}
 
-	var err error
 	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
-	testhelpers.TempDir, err = os.MkdirTemp("", "gct-temp")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
+	testhelpers.TempDir = t.TempDir()
 }
 
 func TestStoreInDatabase(t *testing.T) {
