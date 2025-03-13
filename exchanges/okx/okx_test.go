@@ -408,11 +408,12 @@ func TestGetInstrument(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	_, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+	resp, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
 		Underlying:     "SOL-USD",
 	})
-	require.ErrorIs(t, err, common.ErrNoResponse)
+	require.NoError(t, err)
+	assert.Empty(t, resp, "Should get back no instruments for SOL-USD futures")
 
 	result, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,

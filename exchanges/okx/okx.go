@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -5843,10 +5842,6 @@ result must be a pointer
 The response will be unmarshalled first into []any{result}, which matches most APIs, and fallback to directly into result
 */
 func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType) (err error) {
-	rv := reflect.ValueOf(result)
-	if rv.Kind() != reflect.Pointer {
-		return errInvalidResponseParam
-	}
 	endpoint, err := ok.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -5922,10 +5917,6 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		if directErr := json.Unmarshal(resp.Data, result); directErr != nil {
 			return fmt.Errorf("cannot unmarshal as a slice of result (error: %w) or as a reference to result (error: %w)", sliceErr, directErr)
 		}
-	}
-
-	if ptrTo := rv.Elem(); ptrTo.Kind() == reflect.Slice && ptrTo.Len() == 0 {
-		return common.ErrNoResponse
 	}
 
 	return nil
