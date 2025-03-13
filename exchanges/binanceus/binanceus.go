@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,7 +25,6 @@ import (
 
 // Binanceus is the overarching type across this package
 type Binanceus struct {
-	validLimits []int64
 	exchange.Base
 	obm *orderbookManager
 }
@@ -115,7 +113,7 @@ const (
 	recvWindowSize5000 = 5000
 )
 
-var recvWindowSize5000String = strconv.Itoa(recvWindowSize5000)
+const recvWindowSize5000String = "5000"
 
 // This is a list of error Messages to be returned by binanceus endpoint methods.
 var (
@@ -126,7 +124,6 @@ var (
 	errInvalidAssetAmount                     = errors.New("invalid asset amount")
 	errIncompleteArguments                    = errors.New("missing required argument")
 	errStartTimeOrFromIDNotSet                = errors.New("please set StartTime or FromId, but not both")
-	errIncorrectLimitValues                   = errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 	errUnexpectedKlineDataLength              = errors.New("unexpected kline data length")
 	errMissingRequiredArgumentCoin            = errors.New("missing required argument,coin")
 	errMissingRequiredArgumentNetwork         = errors.New("missing required argument,network")
@@ -147,11 +144,6 @@ var (
 	errMissingPageNumber                      = errors.New("missing page number")
 	errInvalidRowNumber                       = errors.New("invalid row number")
 )
-
-// SetValues sets the default valid values
-func (bi *Binanceus) SetValues() {
-	bi.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000, 5000}
-}
 
 // General Data Endpoints
 
@@ -339,9 +331,6 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 
 // GetOrderBookDepth to get the order book depth. Please note the limits in the table below.
 func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
-	if err := bi.CheckLimit(arg.Limit); err != nil {
-		return nil, err
-	}
 	params := url.Values{}
 	symbol, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
@@ -390,14 +379,6 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 		}
 	}
 	return &orderbook, nil
-}
-
-// CheckLimit checks value against a variable list
-func (bi *Binanceus) CheckLimit(limit int64) error {
-	if slices.Contains(bi.validLimits, limit) {
-		return nil
-	}
-	return errIncorrectLimitValues
 }
 
 // GetIntervalEnum allowed interval params by Binanceus
@@ -1484,14 +1465,13 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) 
 	}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
 	var response WithdrawalResponse
-	er := bi.SendAuthHTTPRequest(ctx,
+	if err := bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost, applyWithdrawal,
-		params, spotDefaultRate, &response)
-	if er != nil {
-		return "", er
+		params, spotDefaultRate, &response); err != nil {
+		return "", err
 	}
-	return response.ID, er
+	return response.ID, nil
 }
 
 // WithdrawalHistory gets the status of recent withdrawals

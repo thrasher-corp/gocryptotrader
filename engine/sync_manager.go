@@ -30,6 +30,7 @@ const (
 	SyncItemOrderbook
 	SyncItemTrade
 	SyncManagerName = "exchange_syncer"
+	minSyncInterval = time.Second
 )
 
 var (
@@ -452,7 +453,7 @@ func (m *SyncManager) worker() {
 	}
 	defer cleanup()
 
-	interval := min(greatestCommonDivisor(m.config.TimeoutWebsocket, m.config.TimeoutREST), time.Second)
+	interval := min(greatestCommonDivisor(m.config.TimeoutWebsocket, m.config.TimeoutREST), minSyncInterval)
 	t := time.NewTicker(interval)
 
 	for {

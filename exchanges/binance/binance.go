@@ -26,9 +26,7 @@ import (
 // Binance is the overarching type across the Binance package
 type Binance struct {
 	exchange.Base
-	// Valid string list that is required by the exchange
-	validLimits []int
-	obm         *orderbookManager
+	obm *orderbookManager
 }
 
 const (
@@ -124,10 +122,6 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // symbol: string of currency pair
 // limit: returned limit amount
 func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
-	if err := b.CheckLimit(obd.Limit); err != nil {
-		return nil, err
-	}
-
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
@@ -910,19 +904,6 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 		return nil
 	}
 	return json.Unmarshal(interim, result)
-}
-
-// CheckLimit checks value against a variable list
-func (b *Binance) CheckLimit(limit int) error {
-	if slices.Contains(b.validLimits, limit) {
-		return nil
-	}
-	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-}
-
-// SetValues sets the default valid values
-func (b *Binance) SetValues() {
-	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // GetFee returns an estimate of fee based on type of transaction
