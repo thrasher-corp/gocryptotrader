@@ -889,9 +889,11 @@ func orderFillParams(symbol currency.Pair,
 func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
 	accountType, orderType, side, direction, states string,
 	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
-	params := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
 	var resp []TradeOrder
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders/history", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet,
+		"/orders/history",
+		orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel),
+		nil, &resp)
 }
 
 // GetSmartOrderHistory get a list of historical smart orders in an account.
@@ -901,9 +903,11 @@ func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
 func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pair,
 	accountType, orderType, side, direction, states string,
 	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
-	params := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
 	var resp []SmartOrderItem
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders/history", params, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
+		authResourceIntensiveEPL, http.MethodGet, "/smartorders/history",
+		orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel),
+		nil, &resp)
 }
 
 // GetTradeHistory get a list of all trades for an account. Currently, trade history is supported since 07/30/2021.

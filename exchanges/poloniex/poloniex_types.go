@@ -614,8 +614,8 @@ type WsCancelOrderResponse struct {
 
 // OrderCancellationParams represents an order cancellation parameters.
 type OrderCancellationParams struct {
-	OrderIDs       []string `json:"orderIds"`
-	ClientOrderIDs []string `json:"clientOrderIds"`
+	OrderIDs       []string `json:"orderIds,omitempty"`
+	ClientOrderIDs []string `json:"clientOrderIds,omitempty"`
 }
 
 // KillSwitchStatus represents a kill switch response

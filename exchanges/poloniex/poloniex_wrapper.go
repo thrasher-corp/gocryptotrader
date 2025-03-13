@@ -1155,7 +1155,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				LastUpdated:   smartOrders[0].UpdateTime.Time(),
 				Pair:          dPair,
 				Trades:        orderTrades,
-				// TimeInForce:   tif,
+				TimeInForce:   smartOrders[0].TimeInForce,
 			}, nil
 		}
 		dPair, err = currency.NewPairFromString(resp.Symbol)
@@ -1195,6 +1195,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			LastUpdated:          resp.UpdateTime.Time(),
 			Pair:                 dPair,
 			Trades:               orderTrades,
+			TimeInForce:          resp.TimeInForce,
 		}, nil
 	case asset.Futures:
 		fResults, err := p.GetV3FuturesOrderHistory(ctx, "", "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
@@ -1240,6 +1241,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Date:                 orderDetail.CreationTime.Time(),
 			LastUpdated:          orderDetail.UpdateTime.Time(),
 			Pair:                 dPair,
+			TimeInForce:          orderDetail.TimeInForce,
 		}, nil
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
@@ -1393,14 +1395,15 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			orders = append(orders, order.Detail{
-				Type:     oType,
-				OrderID:  resp[a].ID,
-				Side:     orderSide,
-				Amount:   resp[a].Amount.Float64(),
-				Date:     resp[a].CreateTime.Time(),
-				Price:    resp[a].Price.Float64(),
-				Pair:     symbol,
-				Exchange: p.Name,
+				Type:        oType,
+				OrderID:     resp[a].ID,
+				Side:        orderSide,
+				Amount:      resp[a].Amount.Float64(),
+				Date:        resp[a].CreateTime.Time(),
+				Price:       resp[a].Price.Float64(),
+				Pair:        symbol,
+				Exchange:    p.Name,
+				TimeInForce: resp[a].TimeInForce,
 			})
 		}
 	case asset.Futures:
@@ -1449,17 +1452,19 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Exchange: p.Name,
 				}
 			}
+			if fOrders.Items[a].PostOnly {
+				fOrders.Items[a].TimeInForce |= order.PostOnly
+			}
 			orders = append(orders, order.Detail{
-				Type:        oType,
-				OrderID:     fOrders.Items[a].OrderID,
-				Side:        orderSide,
-				Amount:      fOrders.Items[a].Size,
-				Date:        fOrders.Items[a].CreatedAt.Time(),
-				Price:       fOrders.Items[a].Price.Float64(),
-				Pair:        symbol,
-				Exchange:    p.Name,
-				HiddenOrder: fOrders.Items[a].Hidden,
-				// PostOnly:           fOrders.Items[a].PostOnly,
+				Type:               oType,
+				OrderID:            fOrders.Items[a].OrderID,
+				Side:               orderSide,
+				Amount:             fOrders.Items[a].Size,
+				Date:               fOrders.Items[a].CreatedAt.Time(),
+				Price:              fOrders.Items[a].Price.Float64(),
+				Pair:               symbol,
+				Exchange:           p.Name,
+				HiddenOrder:        fOrders.Items[a].Hidden,
 				ReduceOnly:         fOrders.Items[a].ReduceOnly,
 				Leverage:           fOrders.Items[a].Leverage.Float64(),
 				ExecutedAmount:     fOrders.Items[a].FilledSize,
@@ -1471,6 +1476,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				MarginType:         mType,
 				Trades:             trades,
 				SettlementCurrency: currency.NewCode(fOrders.Items[a].SettleCurrency),
+				TimeInForce:        fOrders.Items[a].TimeInForce,
 			})
 		}
 	default:
@@ -1566,6 +1572,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AssetType:            assetType,
 					Date:                 resp[i].CreateTime.Time(),
 					LastUpdated:          resp[i].UpdateTime.Time(),
+					TimeInForce:          resp[i].TimeInForce,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1619,6 +1626,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AssetType:     assetType,
 					Date:          smartOrders[i].CreateTime.Time(),
 					LastUpdated:   smartOrders[i].UpdateTime.Time(),
+					TimeInForce:   smartOrders[i].TimeInForce,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1667,6 +1675,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				AssetType:       asset.Futures,
 				Date:            orderHistory[i].CreationTime.Time(),
 				LastUpdated:     orderHistory[i].UpdateTime.Time(),
+				TimeInForce:     orderHistory[i].TimeInForce,
 			}
 			detail.InferCostsAndTimes()
 			orders = append(orders, detail)
