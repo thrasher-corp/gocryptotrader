@@ -752,7 +752,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				AssetType:    a,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Quantity,
-				Timestamp:    tradeData[i].Time,
+				Timestamp:    tradeData[i].Time.Time(),
 			}
 			if tradeData[i].IsBuyerMaker { // Seller is Taker
 				td.Side = order.Sell
@@ -850,7 +850,7 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 			Amount:       trades[i].Quantity,
 			Exchange:     b.Name,
 			Price:        trades[i].Price,
-			Timestamp:    trades[i].TimeStamp,
+			Timestamp:    trades[i].TimeStamp.Time(),
 			AssetType:    a,
 		}
 		if trades[i].IsBuyerMaker { // Seller is Taker
@@ -897,7 +897,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 
-		var orderRequest = NewOrderRequest{
+		orderRequest := NewOrderRequest{
 			Symbol:           s.Pair,
 			Side:             sideType,
 			Price:            s.Price,
@@ -1186,8 +1186,8 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Status:         status,
 			Price:          resp.Price,
 			ExecutedAmount: resp.ExecutedQty,
-			Date:           resp.Time,
-			LastUpdated:    resp.UpdateTime,
+			Date:           resp.Time.Time(),
+			LastUpdated:    resp.UpdateTime.Time(),
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := b.FuturesOpenOrderData(ctx, pair, orderID, "")
@@ -1216,8 +1216,8 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
-		respData.Date = orderData.Time
-		respData.LastUpdated = orderData.UpdateTime
+		respData.Date = orderData.Time.Time()
+		respData.LastUpdated = orderData.UpdateTime.Time()
 	case asset.USDTMarginedFutures:
 		orderData, err := b.UGetOrderData(ctx, pair, orderID, "")
 		if err != nil {
@@ -1245,8 +1245,8 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
-		respData.Date = orderData.Time
-		respData.LastUpdated = orderData.UpdateTime
+		respData.Date = orderData.Time.Time()
+		respData.LastUpdated = orderData.UpdateTime.Time()
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -1349,7 +1349,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 				}
 				orders = append(orders, order.Detail{
 					Amount:        resp[x].OrigQty,
-					Date:          resp[x].Time,
+					Date:          resp[x].Time.Time(),
 					Exchange:      b.Name,
 					OrderID:       strconv.FormatInt(resp[x].OrderID, 10),
 					ClientOrderID: resp[x].ClientOrderID,
@@ -1359,7 +1359,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Status:        orderStatus,
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
-					LastUpdated:   resp[x].UpdateTime,
+					LastUpdated:   resp[x].UpdateTime.Time(),
 				})
 			}
 		case asset.CoinMarginedFutures:
@@ -1391,8 +1391,8 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.CoinMarginedFutures,
-					Date:            openOrders[y].Time,
-					LastUpdated:     openOrders[y].UpdateTime,
+					Date:            openOrders[y].Time.Time(),
+					LastUpdated:     openOrders[y].UpdateTime.Time(),
 				})
 			}
 		case asset.USDTMarginedFutures:
@@ -1424,8 +1424,8 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
-					Date:            openOrders[y].Time,
-					LastUpdated:     openOrders[y].UpdateTime,
+					Date:            openOrders[y].Time.Time(),
+					LastUpdated:     openOrders[y].UpdateTime.Time(),
 				})
 			}
 		default:
@@ -1489,8 +1489,8 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					RemainingAmount: resp[i].OrigQty - resp[i].ExecutedQty,
 					Cost:            cost,
 					CostAsset:       req.Pairs[x].Quote,
-					Date:            resp[i].Time,
-					LastUpdated:     resp[i].UpdateTime,
+					Date:            resp[i].Time.Time(),
+					LastUpdated:     resp[i].UpdateTime.Time(),
 					Exchange:        b.Name,
 					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 					Side:            side,
@@ -1557,7 +1557,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.CoinMarginedFutures,
-					Date:            orderHistory[y].Time,
+					Date:            orderHistory[y].Time.Time(),
 				})
 			}
 		}
@@ -1615,7 +1615,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
-					Date:            orderHistory[y].Time,
+					Date:            orderHistory[y].Time.Time(),
 				})
 			}
 		}
@@ -1945,7 +1945,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		if err != nil {
 			return time.Time{}, err
 		}
-		return info.ServerTime, nil
+		return info.ServerTime.Time(), nil
 	case asset.CoinMarginedFutures:
 		info, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
@@ -2677,7 +2677,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
-		var orderLimit = 1000
+		orderLimit := 1000
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -2699,7 +2699,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 						return nil, err
 					}
 					for i := range orders {
-						if orders[i].Time.After(req.EndDate) {
+						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
@@ -2727,8 +2727,8 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 							Side:                 orderVars.Side,
 							Status:               orderVars.Status,
 							AssetType:            asset.USDTMarginedFutures,
-							Date:                 orders[i].Time,
-							LastUpdated:          orders[i].UpdateTime,
+							Date:                 orders[i].Time.Time(),
+							LastUpdated:          orders[i].UpdateTime.Time(),
 							Pair:                 req.Pairs[x],
 							MarginType:           mt,
 						})
@@ -2742,7 +2742,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 			}
 		}
 	case asset.CoinMarginedFutures:
-		var orderLimit = 100
+		orderLimit := 100
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -2769,7 +2769,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 						return nil, err
 					}
 					for i := range orders {
-						if orders[i].Time.After(req.EndDate) {
+						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
 						var orderPair currency.Pair
@@ -2802,8 +2802,8 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 							Side:                 orderVars.Side,
 							Status:               orderVars.Status,
 							AssetType:            asset.CoinMarginedFutures,
-							Date:                 orders[i].Time,
-							LastUpdated:          orders[i].UpdateTime,
+							Date:                 orders[i].Time.Time(),
+							LastUpdated:          orders[i].UpdateTime.Time(),
 							Pair:                 req.Pairs[x],
 							MarginType:           mt,
 						})
