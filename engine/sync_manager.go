@@ -30,6 +30,7 @@ const (
 	SyncItemOrderbook
 	SyncItemTrade
 	SyncManagerName = "exchange_syncer"
+	minSyncInterval = time.Second
 )
 
 var (
@@ -266,6 +267,7 @@ func newCurrencyPairSyncAgent(k key.ExchangePairAsset) *currencyPairSyncAgent {
 		trackers: make([]*syncBase, SyncItemTrade+1),
 	}
 }
+
 func (m *SyncManager) add(k key.ExchangePairAsset, s syncBase) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -451,7 +453,7 @@ func (m *SyncManager) worker() {
 	}
 	defer cleanup()
 
-	interval := min(greatestCommonDivisor(m.config.TimeoutWebsocket, m.config.TimeoutREST), time.Second)
+	interval := min(greatestCommonDivisor(m.config.TimeoutWebsocket, m.config.TimeoutREST), minSyncInterval)
 	t := time.NewTicker(interval)
 
 	for {
