@@ -3850,7 +3850,7 @@ var (
 	candleRangeSize, candleGranularity int64
 	getHistoricCandlesCommand          = &cli.Command{
 		Name:      "gethistoriccandles",
-		Usage:     "gets historical candles for the specified granularity up to range size time from now.",
+		Usage:     "gets historical candles for the specified granularity up to range size time from now",
 		ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
 		Action:    getHistoricCandles,
 		Flags: []cli.Flag{

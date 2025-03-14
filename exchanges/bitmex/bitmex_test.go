@@ -617,7 +617,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:          -1,
 		Currency:        currency.BTC,
 		Description:     "WITHDRAW IT ALL",
-		OneTimePassword: 0o00000, //nolint // gocritic false positive
+		OneTimePassword: 696969,
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)

@@ -1714,9 +1714,7 @@ func (bi *Binanceus) GetSubAccountDepositAddress(ctx context.Context, arg SubAcc
 }
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history.
-func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code,
-	status int, startTime, endTime time.Time, limit, offset int,
-) ([]SubAccountDepositItem, error) {
+func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
