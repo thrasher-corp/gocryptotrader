@@ -32,7 +32,8 @@ func TestLoadCandles(t *testing.T) {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	tt1 := time.Now().Add(-time.Minute).Round(gctkline.OneMin.Duration())
 	tt2 := time.Now().Round(gctkline.OneMin.Duration())
 	interval := gctkline.OneMin
@@ -70,7 +71,8 @@ func TestLoadTrades(t *testing.T) {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	interval := gctkline.OneMin
 	tt1 := time.Now().Add(-time.Minute * 10).Round(interval.Duration())
 	tt2 := time.Now().Round(interval.Duration())

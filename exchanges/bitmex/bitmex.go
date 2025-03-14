@@ -978,7 +978,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 // calculateTradingFee returns the fee for trading any currency on Bitmex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
-	var fee = 0.000750
+	fee := 0.000750
 	if isMaker {
 		fee -= 0.000250
 	}

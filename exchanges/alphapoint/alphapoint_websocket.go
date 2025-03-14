@@ -36,7 +36,6 @@ func (a *Alphapoint) WebsocketClient() {
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
-
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 			return

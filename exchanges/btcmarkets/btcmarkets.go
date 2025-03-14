@@ -726,7 +726,8 @@ func (b *BTCMarkets) GetReport(ctx context.Context, reportID string) (ReportData
 
 // RequestWithdraw requests withdrawals
 func (b *BTCMarkets) RequestWithdraw(ctx context.Context, assetName string, amount float64,
-	toAddress, accountName, accountNumber, bsbNumber, bankName string) (TransferData, error) {
+	toAddress, accountName, accountNumber, bsbNumber, bankName string,
+) (TransferData, error) {
 	var resp TransferData
 	req := make(map[string]interface{})
 	req["assetName"] = assetName

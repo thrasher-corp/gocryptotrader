@@ -527,7 +527,7 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 // TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
-	var um = make(FullStore)
+	um := make(FullStore)
 	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
 
 	data, err := json.Marshal(um)

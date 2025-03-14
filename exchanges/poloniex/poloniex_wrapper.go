@@ -257,7 +257,8 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Volume:       tick[curr].BaseVolume,
 			QuoteVolume:  tick[curr].QuoteVolume,
 			ExchangeName: p.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}

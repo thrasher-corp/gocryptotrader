@@ -51,7 +51,7 @@ func (g *GctScriptManager) autoLoad() {
 				g.config.AutoLoad[x])
 			continue
 		}
-		var name = g.config.AutoLoad[x]
+		name := g.config.AutoLoad[x]
 		if filepath.Ext(name) != common.GctExt {
 			name += common.GctExt
 		}

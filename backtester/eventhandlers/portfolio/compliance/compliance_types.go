@@ -8,9 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	errSnapshotNotFound = errors.New("snapshot not found")
-)
+var errSnapshotNotFound = errors.New("snapshot not found")
 
 // Manager holds a snapshot of all orders at each timeperiod, allowing
 // study of all changes across time

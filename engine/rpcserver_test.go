@@ -487,7 +487,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -506,7 +507,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1344,7 +1346,8 @@ func TestGetOrders(t *testing.T) {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1454,7 +1457,8 @@ func TestGetOrder(t *testing.T) {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1599,7 +1603,7 @@ func TestCheckVars(t *testing.T) {
 		t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
 	}
 
-	var data = []currency.Pair{
+	data := []currency.Pair{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
@@ -1629,7 +1633,7 @@ func TestCheckVars(t *testing.T) {
 
 func TestParseEvents(t *testing.T) {
 	t.Parallel()
-	var exchangeName = "Binance"
+	exchangeName := "Binance"
 	testData := make([]*withdraw.Response, 5)
 	for x := range 5 {
 		test := fmt.Sprintf("test-%v", x)
@@ -1704,7 +1708,8 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
-		AssetEnabled: convert.BoolPtr(true)}
+		AssetEnabled: convert.BoolPtr(true),
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1976,7 +1981,8 @@ func TestGetManagedOrders(t *testing.T) {
 		Enabled:       currency.Pairs{cp},
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2206,7 +2212,8 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: "wow", Asset: "meow"})
+			Exchange: "wow", Asset: "meow",
+		})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}
@@ -2215,7 +2222,8 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: "wow", Asset: "spot"})
+			Exchange: "wow", Asset: "spot",
+		})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
@@ -2289,8 +2297,10 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	s := RPCServer{Engine: &Engine{ExchangeManager: em,
-		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
+	s := RPCServer{Engine: &Engine{
+		ExchangeManager:      em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em},
+	}}
 
 	_, err = s.CurrencyStateTradingPair(context.Background(),
 		&gctrpc.CurrencyStateTradingPairRequest{

@@ -121,7 +121,8 @@ func TestSendTrollboxMessage(t *testing.T) {
 	_, err := b.SendTrollboxMessage(context.Background(),
 		ChatSendParams{
 			ChannelID: 1337,
-			Message:   "Hello,World!"})
+			Message:   "Hello,World!",
+		})
 	require.Error(t, err)
 }
 
@@ -244,10 +245,12 @@ func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	_, err := b.CreateOrder(context.Background(),
-		&OrderNewParams{Symbol: "XBTM15",
+		&OrderNewParams{
+			Symbol:        "XBTM15",
 			Price:         219.0,
 			ClientOrderID: "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
-			OrderQuantity: 98})
+			OrderQuantity: 98,
+		})
 	require.Error(t, err)
 }
 
@@ -401,7 +404,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := b.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
 	if !sharedtestvalues.AreAPICredentialsSet(b) {
@@ -413,7 +416,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	_, err := b.GetFee(feeBuilder)
 	require.NoError(t, err)
@@ -474,7 +477,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -490,7 +493,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 		AssetType: asset.Spot,
@@ -512,7 +515,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.XBT,
@@ -539,7 +542,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -560,7 +563,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -614,7 +617,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:          -1,
 		Currency:        currency.BTC,
 		Description:     "WITHDRAW IT ALL",
-		OneTimePassword: 000000, //nolint // gocritic false positive
+		OneTimePassword: 696969,
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
@@ -629,7 +632,7 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{}
+	withdrawFiatRequest := withdraw.Request{}
 	_, err := b.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
@@ -638,7 +641,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{}
+	withdrawFiatRequest := withdraw.Request{}
 	_, err := b.WithdrawFiatFundsToInternationalBank(context.Background(),
 		&withdrawFiatRequest)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)

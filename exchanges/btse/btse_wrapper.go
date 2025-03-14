@@ -262,7 +262,8 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 				High:         tickers[x].High24Hr,
 				OpenInterest: tickers[x].OpenInterest,
 				ExchangeName: b.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -300,7 +301,8 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 		Volume:       ticks[0].Volume,
 		High:         ticks[0].High24Hr,
 		ExchangeName: b.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -588,7 +590,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 			continue
 		}
 
-		var side = order.Buy
+		side := order.Buy
 		if strings.EqualFold(o[i].Side, order.Ask.String()) {
 			side = order.Sell
 		}
@@ -746,7 +748,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 		}
 
 		for i := range resp {
-			var side = order.Buy
+			side := order.Buy
 			if strings.EqualFold(resp[i].Side, order.Ask.String()) {
 				side = order.Sell
 			}

@@ -219,7 +219,7 @@ func Insert(in *Item) (uint64, error) {
 func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 	var totalInserted uint64
 	for x := range in.Candles {
-		var tempCandle = modelSQLite.Candle{
+		tempCandle := modelSQLite.Candle{
 			ExchangeNameID: in.ExchangeID,
 			Base:           strings.ToUpper(in.Base),
 			Quote:          strings.ToUpper(in.Quote),
@@ -254,7 +254,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) (uint64, error) {
 	var totalInserted uint64
 	for x := range in.Candles {
-		var tempCandle = modelPSQL.Candle{
+		tempCandle := modelPSQL.Candle{
 			ExchangeNameID: in.ExchangeID,
 			Base:           strings.ToUpper(in.Base),
 			Quote:          strings.ToUpper(in.Quote),

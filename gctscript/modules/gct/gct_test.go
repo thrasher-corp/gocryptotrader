@@ -8,9 +8,11 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -330,11 +332,7 @@ func TestParseInterval(t *testing.T) {
 	}
 
 	_, err = parseInterval("6m")
-	if err != nil {
-		if !errors.Is(err, errInvalidInterval) {
-			t.Error(err)
-		}
-	}
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "parseInterval should return invalid interval for 6m")
 }
 
 func TestSetVerbose(t *testing.T) {

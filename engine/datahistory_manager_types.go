@@ -16,8 +16,10 @@ import (
 
 const dataHistoryManagerName = "data_history_manager"
 
-type dataHistoryStatus int64
-type dataHistoryDataType int64
+type (
+	dataHistoryStatus   int64
+	dataHistoryDataType int64
+)
 
 // Data type descriptors
 const (

@@ -130,7 +130,8 @@ func TestUpdateOrderbook(t *testing.T) {
 	p := currency.Pair{
 		Delimiter: "_",
 		Base:      currency.ETH,
-		Quote:     currency.BTC}
+		Quote:     currency.BTC,
+	}
 
 	_, err := l.UpdateOrderbook(context.Background(), p.Lower(), asset.Spot)
 	if err != nil {
@@ -319,7 +320,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, l, canManipulateRealOrders)
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: l.Name,
 		Pair: currency.Pair{
 			Base:      currency.BTC,

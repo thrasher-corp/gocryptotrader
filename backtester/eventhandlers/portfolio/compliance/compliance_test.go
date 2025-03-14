@@ -42,7 +42,8 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	t.Parallel()
 	m := Manager{}
 	tt := time.Now()
-	err := m.AddSnapshot(&Snapshot{Offset: 0,
+	err := m.AddSnapshot(&Snapshot{
+		Offset:    0,
 		Timestamp: tt,
 		Orders: []SnapshotOrder{
 			{

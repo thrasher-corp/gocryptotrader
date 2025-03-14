@@ -104,6 +104,7 @@ func TestMaximumBuySizeEqualZero(t *testing.T) {
 		t.Errorf("expected: %v, received %v, err: %+v", buyLimit, amount, err)
 	}
 }
+
 func TestMaximumSellSizeEqualZero(t *testing.T) {
 	t.Parallel()
 	globalMinMax := exchange.MinMax{

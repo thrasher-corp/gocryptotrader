@@ -1573,8 +1573,7 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 	}
 	arg.Side = strings.ToLower(arg.Side)
 	switch arg.Side {
-	case order.Buy.Lower(),
-		order.Sell.Lower():
+	case order.Buy.Lower(), order.Sell.Lower():
 	default:
 		return nil, order.ErrSideIsInvalid
 	}
@@ -3101,7 +3100,8 @@ func (ok *Okx) InstantTriggerGridAlgoOrder(ctx context.Context, algoID string) (
 // GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data
 func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
-	after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
+	after, before string, limit int64,
+) ([]GridAlgoOrderResponse, error) {
 	return ok.getGridAlgoOrders(ctx, algoOrderType, algoID,
 		instrumentID, instrumentType,
 		after, before, "tradingBot/grid/orders-algo-pending", limit)
@@ -3110,7 +3110,8 @@ func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 // GetGridAlgoOrderHistory retrieves list of grid algo orders with the complete data including the stopped orders
 func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
-	after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
+	after, before string, limit int64,
+) ([]GridAlgoOrderResponse, error) {
 	return ok.getGridAlgoOrders(ctx, algoOrderType, algoID,
 		instrumentID, instrumentType,
 		after, before, "tradingBot/grid/orders-algo-history", limit)
@@ -3119,7 +3120,8 @@ func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoI
 // getGridAlgoOrderList retrieves list of grid algo orders with the complete data
 func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
-	after, before, route string, limit int64) ([]GridAlgoOrderResponse, error) {
+	after, before, route string, limit int64,
+) ([]GridAlgoOrderResponse, error) {
 	algoOrderType = strings.ToLower(algoOrderType)
 	if algoOrderType != AlgoOrdTypeGrid && algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
@@ -3868,7 +3870,8 @@ func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after,
 // Minimum lead days '1': 7 days '2': 30 days '3': 90 days '4': 180 days
 func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType, state,
 	minLeadDays, minAssets, maxAssets, minAssetUnderManagement, maxAssetUnderManagement,
-	dataVersion, page string, limit int64) ([]LeadTradersRank, error) {
+	dataVersion, page string, limit int64,
+) ([]LeadTradersRank, error) {
 	params := url.Values{}
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
@@ -3979,7 +3982,8 @@ func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentT
 // GetLeadTraderCurrentLeadPositions get current leading positions of lead trader
 // Instrument type "SPOT" "SWAP"
 func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID,
-	beforeSubPositionID string, limit int64) ([]LeadTraderCurrentLeadPosition, error) {
+	beforeSubPositionID string, limit int64,
+) ([]LeadTraderCurrentLeadPosition, error) {
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -5412,7 +5416,8 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, ccy currency.
 
 // GetOpenInterestAndVolumeStrike retrieves the taker volume for both buyers and sellers of calls and puts
 func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.Code,
-	expTime time.Time, period kline.Interval) ([]StrikeOpenInterestAndVolume, error) {
+	expTime time.Time, period kline.Interval,
+) ([]StrikeOpenInterestAndVolume, error) {
 	if expTime.IsZero() {
 		return nil, errMissingExpiryTimeParameter
 	}

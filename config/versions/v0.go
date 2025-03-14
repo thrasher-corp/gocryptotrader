@@ -6,8 +6,7 @@ import (
 
 // Version0 is a baseline version with no changes, so we can downgrade back to nothing
 // It does not implement any upgrade interfaces
-type Version0 struct {
-}
+type Version0 struct{}
 
 func init() {
 	Manager.registerVersion(0, &Version0{})

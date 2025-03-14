@@ -158,7 +158,8 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	man := &CurrencyStateManager{
 		shutdown:         make(chan struct{}),
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-		sleep:            time.Minute}
+		sleep:            time.Minute,
+	}
 	err = man.Start()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

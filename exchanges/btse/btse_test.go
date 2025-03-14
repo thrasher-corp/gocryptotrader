@@ -35,9 +35,11 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &BTSE{}
-var futuresPair = currency.NewPair(currency.ENJ, currency.PFC)
-var spotPair = currency.NewPairWithDelimiter("BTC", "USD", "-")
+var (
+	b           = &BTSE{}
+	futuresPair = currency.NewPair(currency.ENJ, currency.PFC)
+	spotPair    = currency.NewPairWithDelimiter("BTC", "USD", "-")
+)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -285,7 +287,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Pairs: []currency.Pair{
 			{
 				Delimiter: "-",
@@ -311,7 +313,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -405,7 +407,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
@@ -436,7 +438,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	// TODO: Place an order to make sure we can cancel it
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -460,7 +462,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",

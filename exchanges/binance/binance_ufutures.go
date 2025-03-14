@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -227,7 +228,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 	}
 	params.Set("symbol", symbolValue)
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if limit > 0 {

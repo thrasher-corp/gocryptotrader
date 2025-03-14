@@ -50,7 +50,8 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 		return nil, nil, err
 	}
 
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
 			Username: username,
 			Password: password,

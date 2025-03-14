@@ -4,10 +4,8 @@ import (
 	"errors"
 )
 
-var (
-	// ErrWithdrawRequestNotFound message to display when no record is found
-	ErrWithdrawRequestNotFound = errors.New("request not found")
-)
+// ErrWithdrawRequestNotFound message to display when no record is found
+var ErrWithdrawRequestNotFound = errors.New("request not found")
 
 // WithdrawManager is responsible for performing withdrawal requests and
 // saving them to the database

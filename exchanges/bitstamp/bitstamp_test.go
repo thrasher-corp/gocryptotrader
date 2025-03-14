@@ -31,8 +31,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &Bitstamp{}
-var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+var (
+	b          = &Bitstamp{}
+	btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+)
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
@@ -50,7 +52,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := b.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
 	if mockTests {
@@ -63,7 +65,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
 	if !mockTests {
@@ -616,7 +618,7 @@ func TestWithdrawFiat(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Type:     withdraw.Fiat,
 		Exchange: b.Name,
 		Fiat: withdraw.FiatRequest{
@@ -659,7 +661,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Type:     withdraw.Fiat,
 		Exchange: b.Name,
 		Fiat: withdraw.FiatRequest{

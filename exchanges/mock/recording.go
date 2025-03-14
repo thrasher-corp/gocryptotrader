@@ -409,10 +409,12 @@ func IsExcluded(key string, excludedVars []string) bool {
 	return false
 }
 
-var excludedList Exclusion
-var m sync.Mutex
-var set bool
-var exclusionFile = DefaultDirectory + "exclusion.json"
+var (
+	excludedList  Exclusion
+	m             sync.Mutex
+	set           bool
+	exclusionFile = DefaultDirectory + "exclusion.json"
+)
 
 var defaultExcludedHeaders = []string{
 	"Key",
@@ -421,6 +423,7 @@ var defaultExcludedHeaders = []string{
 	"Apiauth-Key",
 	"X-Bapi-Api-Key",
 }
+
 var defaultExcludedVariables = []string{
 	"bsb",
 	"user",

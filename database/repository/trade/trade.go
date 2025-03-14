@@ -154,7 +154,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = sqlite3.Trade{
+		tempEvent := sqlite3.Trade{
 			ID:             trades[i].ID,
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
@@ -190,7 +190,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = postgres.Trade{
+		tempEvent := postgres.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
 			Quote:          strings.ToUpper(trades[i].Quote),

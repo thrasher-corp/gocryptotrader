@@ -54,7 +54,7 @@ linters:
 #   - godot
 #   - godox
     - gofmt
-#   - gofumpt
+    - gofumpt
 #   - goheader
     - goimports
     - gomoddirectives
@@ -153,6 +153,8 @@ linters-settings:
       - float-compare
       # We deliberately use Equal over Len to avoid spamming the contents of large Slices
       - len
+  gofumpt:
+    extra-rules: true
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

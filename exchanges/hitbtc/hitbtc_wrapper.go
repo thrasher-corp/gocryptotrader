@@ -243,7 +243,8 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Pair:         pair,
 			LastUpdated:  tick[x].Timestamp,
 			ExchangeName: h.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -520,10 +521,9 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 	for i := range resp {
 		if resp[i].Status != "canceled" {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] =
-				fmt.Sprintf("Could not cancel order %v. Status: %v",
-					resp[i].ID,
-					resp[i].Status)
+			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v",
+				resp[i].ID,
+				resp[i].Status)
 		}
 	}
 
