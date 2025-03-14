@@ -348,7 +348,17 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint32
+type Type uint64
+
+// Is checks to see if the enum contains the flag
+func (t Type) Is(in Type) bool {
+	return in != 0 && t&in == in
+}
+
+// IsTimeInForce checks to see if the enum contains the time-in-force flag
+func (t Type) IsTimeInForce(in TimeInForce) bool {
+	return in != 0 && TimeInForce(t)&in == in
+}
 
 // Defined package order types
 const (
@@ -356,22 +366,24 @@ const (
 	Limit       Type = 1 << iota
 	Market
 	Stop
-	StopLimit
-	StopMarket
 	TakeProfit
-	TakeProfitMarket
 	TrailingStop
 	IOS
 	AnyType
 	Liquidation
 	Trigger
-	OptimalLimitIOC
-	OCO                              // One-cancels-the-other order
-	ConditionalStop                  // One-way stop order
-	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
-	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
-	TWAP                             // time-weighted average price.
-	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
+	TWAP            // time-weighted average price.
+	Chase           // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+
+	// Hybrid order types
+	OptimalLimitIOC                  = 1<<iota | Type(ImmediateOrCancel)
+	MarketMakerProtection                                                     // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
+	MarketMakerProtectionAndPostOnly = MarketMakerProtection | Type(PostOnly) // market-maker-protection and post-only mode. Used in Okx exchange orders.
+	StopLimit                        = Stop | Limit
+	StopMarket                       = Stop | Market
+	TakeProfitMarket                 = TakeProfit | Market
 )
 
 // Side enforces a standard for order sides across the code base
@@ -401,7 +413,7 @@ const (
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint16
+type TimeInForce uint64
 
 // Is checks to see if the enum contains the flag
 func (t TimeInForce) Is(in TimeInForce) bool {
@@ -411,7 +423,7 @@ func (t TimeInForce) Is(in TimeInForce) bool {
 // TimeInForce types
 const (
 	UnsetTIF       TimeInForce = 0
-	GoodTillCancel TimeInForce = 1 << iota
+	GoodTillCancel TimeInForce = 1 << (iota + 32)
 	GoodTillDay
 	GoodTillTime
 	GoodTillCrossing

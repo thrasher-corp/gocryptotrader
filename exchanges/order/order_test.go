@@ -299,6 +299,36 @@ func TestTitle(t *testing.T) {
 	require.Equal(t, "Limit", orderType.Title())
 }
 
+func TestOrderTypeString(t *testing.T) {
+	t.Parallel()
+	var orderTypeToStringMap = map[Type]string{
+		AnyType:                          "ANY",
+		Limit:                            "LIMIT",
+		Market:                           "MARKET",
+		Stop:                             "STOP",
+		ConditionalStop:                  "CONDITIONAL",
+		MarketMakerProtection:            "MMP",
+		MarketMakerProtectionAndPostOnly: "MMP_AND_POST_ONLY",
+		TWAP:                             "TWAP",
+		Chase:                            "CHASE",
+		StopLimit:                        "STOP LIMIT",
+		StopMarket:                       "STOP MARKET",
+		TakeProfit:                       "TAKE PROFIT",
+		TakeProfitMarket:                 "TAKE PROFIT MARKET",
+		TrailingStop:                     "TRAILING_STOP",
+		IOS:                              "IOS",
+		Liquidation:                      "LIQUIDATION",
+		Trigger:                          "TRIGGER",
+		OptimalLimitIOC:                  "OPTIMAL_LIMIT_IOC",
+		OCO:                              "OCO",
+		Type(3):                          "UNKNOWN",
+	}
+	for k, v := range orderTypeToStringMap {
+		orderTypeString := k.String()
+		assert.Equal(t, v, orderTypeString)
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 	var orderType Type
@@ -375,13 +405,16 @@ func TestFilterOrdersByType(t *testing.T) {
 
 	var orders = []Detail{
 		{
+			Type: StopLimit,
+		},
+		{
 			Type: Limit,
 		},
 		{}, // Unpopulated fields are preserved for API differences
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 
 	FilterOrdersByType(&orders, Limit)
 	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -697,8 +730,17 @@ func TestSortOrdersByOrderType(t *testing.T) {
 		}, {
 			Type: Limit,
 		}, {
+			Type: StopLimit,
+		}, {
 			Type: TrailingStop,
 		},
+	}
+
+	SortOrdersByType(&orders, false)
+	if !strings.EqualFold(orders[0].Type.String(), Limit.String()) {
+		t.Errorf("Expected: '%v', received: '%v'",
+			Limit,
+			orders[0].Type)
 	}
 
 	SortOrdersByType(&orders, true)

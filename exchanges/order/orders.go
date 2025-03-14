@@ -674,8 +674,6 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {
-	case AnyType:
-		return "ANY"
 	case Limit:
 		return "LIMIT"
 	case Market:
@@ -686,16 +684,10 @@ func (t Type) String() string {
 		return "CONDITIONAL"
 	case MarketMakerProtection:
 		return "MMP"
-	case MarketMakerProtectionAndPostOnly:
-		return "MMP_AND_POST_ONLY"
 	case TWAP:
 		return "TWAP"
 	case Chase:
 		return "CHASE"
-	case StopLimit:
-		return "STOP LIMIT"
-	case StopMarket:
-		return "STOP MARKET"
 	case TakeProfit:
 		return "TAKE PROFIT"
 	case TakeProfitMarket:
@@ -708,11 +700,21 @@ func (t Type) String() string {
 		return "LIQUIDATION"
 	case Trigger:
 		return "TRIGGER"
-	case OptimalLimitIOC:
-		return "OPTIMAL_LIMIT_IOC"
 	case OCO:
 		return "OCO"
 	default:
+		switch {
+		case t == AnyType:
+			return "ANY"
+		case t.Is(OptimalLimitIOC):
+			return "OPTIMAL_LIMIT_IOC"
+		case t.Is(MarketMakerProtectionAndPostOnly):
+			return "MMP_AND_POST_ONLY"
+		case t.Is(StopLimit):
+			return "STOP LIMIT"
+		case t.Is(StopMarket):
+			return "STOP MARKET"
+		}
 		return "UNKNOWN"
 	}
 }
