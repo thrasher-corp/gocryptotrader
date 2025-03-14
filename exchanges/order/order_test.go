@@ -329,6 +329,46 @@ func TestOrderTypeString(t *testing.T) {
 	}
 }
 
+func TestOrderTypeIs(t *testing.T) {
+	t.Parallel()
+	var orderTypesMap = map[Type][]Type{
+		Limit:                            {Limit},
+		Market:                           {Market},
+		ConditionalStop:                  {ConditionalStop},
+		MarketMakerProtection:            {MarketMakerProtection},
+		MarketMakerProtectionAndPostOnly: {MarketMakerProtectionAndPostOnly},
+		TWAP:                             {TWAP},
+		Chase:                            {Chase},
+		StopLimit:                        {StopLimit, Stop, Limit},
+		StopMarket:                       {StopMarket, Stop, Market},
+		TakeProfit:                       {TakeProfit},
+		TakeProfitMarket:                 {TakeProfitMarket, TakeProfit, Market},
+		TrailingStop:                     {TrailingStop},
+		IOS:                              {IOS},
+		Liquidation:                      {Liquidation},
+		Trigger:                          {Trigger},
+		OptimalLimitIOC:                  {OptimalLimitIOC},
+		OCO:                              {OCO},
+	}
+	for k, values := range orderTypesMap {
+		for _, v := range values {
+			require.True(t, k.Is(v))
+		}
+	}
+}
+
+func TestIsTimeInForce(t *testing.T) {
+	t.Parallel()
+	var orderToTimeInForce = map[Type]TimeInForce{
+		MarketMakerProtectionAndPostOnly: PostOnly,
+		Limit | Type(GoodTillCancel):     GoodTillCancel,
+		OptimalLimitIOC:                  ImmediateOrCancel,
+	}
+	for k, v := range orderToTimeInForce {
+		assert.True(t, k.TimeInForceIs(v))
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 	var orderType Type

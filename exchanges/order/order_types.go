@@ -355,8 +355,8 @@ func (t Type) Is(in Type) bool {
 	return in != 0 && t&in == in
 }
 
-// IsTimeInForce checks to see if the enum contains the time-in-force flag
-func (t Type) IsTimeInForce(in TimeInForce) bool {
+// TimeInForceIs checks to see if the enum contains the time-in-force flag
+func (t Type) TimeInForceIs(in TimeInForce) bool {
 	return in != 0 && TimeInForce(t)&in == in
 }
 
