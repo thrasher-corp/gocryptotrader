@@ -55,7 +55,8 @@ var errSymbolIsEmpty = errors.New("symbol cannot be empty")
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
 	exchange.Base
-	obm orderbookManager
+	location *time.Location
+	obm      orderbookManager
 }
 
 // GetTradablePairs returns a list of tradable currencies

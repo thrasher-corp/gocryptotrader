@@ -49,6 +49,11 @@ func (b *Bithumb) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	b.location, err = time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "Bithumb unable to load time location: %s", err)
+	}
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST: true,
@@ -142,11 +147,6 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	err = b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	location, err = time.LoadLocation("Asia/Seoul")
 	if err != nil {
 		return err
 	}

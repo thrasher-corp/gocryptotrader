@@ -773,7 +773,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 // parseInterval will parse the interval param of indictors that have them and convert to time.Duration
 func parseInterval(in string) (time.Duration, error) {
 	if !common.StringSliceContainsInsensitive(supportedDurations, in) {
-		return time.Nanosecond, errInvalidInterval
+		return time.Nanosecond, kline.ErrInvalidInterval
 	}
 	switch in {
 	case "1d":

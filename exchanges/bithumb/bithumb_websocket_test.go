@@ -3,6 +3,7 @@ package bithumb
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,7 @@ var (
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
+
 	pairs := currency.Pairs{
 		currency.Pair{
 			Base:  currency.BTC,
@@ -33,6 +35,7 @@ func TestWsHandleData(t *testing.T) {
 	}
 
 	dummy := Bithumb{
+		location: time.Local,
 		Base: exchange.Base{
 			Name: "dummy",
 			Features: exchange.Features{

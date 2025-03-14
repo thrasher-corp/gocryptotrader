@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -256,7 +257,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -375,7 +376,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -490,7 +491,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -609,7 +610,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {

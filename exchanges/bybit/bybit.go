@@ -611,9 +611,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
-func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string,
-	openOnly, limit int64,
-) (*TradeOrders, error) {
+func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
