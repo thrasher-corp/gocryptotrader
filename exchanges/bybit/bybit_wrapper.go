@@ -61,15 +61,15 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresSecret = true
 
 	for _, n := range assetPairFmts {
-		ps := currency.PairStore{RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
-		if err := by.StoreAssetPairFormat(n.asset, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%v %v", n.asset, err)
+		ps := currency.PairStore{AssetEnabled: true, RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
+		if err := by.SetAssetPairStore(n.asset, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", by.Name, n.asset, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
 		if err := by.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorln(log.ExchangeSys, err)
+			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", by.Name, a, err)
 		}
 	}
 
