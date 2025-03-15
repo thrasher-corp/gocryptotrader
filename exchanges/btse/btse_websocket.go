@@ -30,7 +30,7 @@ const (
 
 var subscriptionNames = map[string]string{
 	subscription.MyTradesChannel:  "notificationApi",
-	subscription.AllTradesChannel: "tradeHistory",
+	subscription.AllTradesChannel: "tradeHistoryApi",
 }
 
 var defaultSubscriptions = subscription.List{
