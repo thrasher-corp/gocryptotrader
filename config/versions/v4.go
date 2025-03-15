@@ -79,9 +79,8 @@ func (v *Version4) DowngradeExchange(_ context.Context, e []byte) ([]byte, error
 		}
 		return nil
 	}
-	err := jsonparser.ObjectEach(bytes.Clone(e), assetEnabledFn, "currencyPairs", "pairs")
-	if err == nil {
-		e, err = jsonparser.Set(e, []byte(`[`+strings.Join(assetTypes, ",")+`]`), "currencyPairs", "assetTypes")
+	if err := jsonparser.ObjectEach(bytes.Clone(e), assetEnabledFn, "currencyPairs", "pairs"); err != nil {
+		return e, err
 	}
-	return e, err
+	return jsonparser.Set(e, []byte(`[`+strings.Join(assetTypes, ",")+`]`), "currencyPairs", "assetTypes")
 }
