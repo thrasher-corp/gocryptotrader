@@ -309,6 +309,8 @@ This will generate a readme file for the exchange which can be found in the new 
 
 3. Time usage within Exchange API requests and responses should default to UTC. There is an existing PR for this, but further work is needed to enforce UTC across all exchanges before merging.
 
+4. TestMain in exchanges must avoid API calls to keep test footprint as minimal as possible unless there's a good case as to why it was done
+
 
 ### Create functions supported by the exchange:
 
