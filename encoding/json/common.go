@@ -1,6 +1,6 @@
 // json is an abstraction middleware package to allow switching between json encoder/decoder implementations
-// The default implementation is sonic.
-// Build with `sonic_off`, '386' or 'arm64' tags to switch to golang.org/encoding/json.
+// The default implementation is golang.org/encoding/json.
+// Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
 package json
 
 import "encoding/json" //nolint:depguard // Acceptable use in gct json wrapper

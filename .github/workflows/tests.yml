@@ -4,7 +4,7 @@ env:
   GO_VERSION: 1.24.x
 jobs:
   backend:
-    name: GoCryptoTrader backend (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic && matrix.goarch != '386' }})
+    name: GoCryptoTrader backend (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic }})
     strategy:
       fail-fast: false
       matrix:
@@ -13,32 +13,32 @@ jobs:
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
-            sonic: true
+            sonic: false
           - os: ubuntu-latest
             goarch: 386
             psql: true
             skip_wrapper_tests: true
-            sonic: true # Sonic is not supported on 386 systems, this ensures our build tag condition defaults to and tests the standard encoding/json implementation
+            sonic: false
           - os: ubuntu-24.04-arm
             goarch: arm64
             psql: false # Not supported
             skip_wrapper_tests: true
-            sonic: false # Disabled temporarily until OKX's unmarshalling is changed for sonic arm64 compatibility
+            sonic: false
           - os: macos-latest
             goarch: arm64
             psql: true
             skip_wrapper_tests: true
-            sonic: false # Same reason as the arm64 ubuntu-latest runner
+            sonic: false
           - os: windows-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: true
-            sonic: true
+            sonic: false
           - os: ubuntu-latest
             goarch: amd64
             psql: true
             skip_wrapper_tests: false
-            sonic: false # Disabled intentionally to test GCT's standard encoding/json implementation
+            sonic: true # Only test sonic on linux/amd64 since too many races and fatals across other archs and OS
 
     runs-on: ${{ matrix.os }}
 
@@ -96,8 +96,8 @@ jobs:
 
     - name: Set GOFLAGS
       run: |
-        if [ "${{ matrix.sonic }}" = "false" ]; then
-          echo "GOFLAGS=${GOFLAGS} -tags=sonic_off" >> $GITHUB_ENV
+        if [ "${{ matrix.sonic }}" = "true" ]; then
+          echo "GOFLAGS=${GOFLAGS} -tags=sonic_on" >> $GITHUB_ENV
         fi
       shell: bash
 
@@ -119,7 +119,7 @@ jobs:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   
   backend-docker:
-    name: GoCryptoTrader backend docker (ubuntu-latest, amd64, psql=false, skip_wrapper_tests=true, sonic=true)
+    name: GoCryptoTrader backend docker (ubuntu-latest, amd64, psql=false, skip_wrapper_tests=true, sonic=false)
     runs-on: ubuntu-latest
 
     steps:
