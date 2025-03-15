@@ -30,7 +30,7 @@ const (
 
 var subscriptionNames = map[string]string{
 	subscription.MyTradesChannel:  "notificationApi",
-	subscription.AllTradesChannel: "tradeHistory",
+	subscription.AllTradesChannel: "tradeHistoryApi",
 }
 
 var defaultSubscriptions = subscription.List{
@@ -241,9 +241,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(topic, "tradeHistory"):
-		if !b.IsSaveTradeDataEnabled() {
+		saveTradeData := b.IsSaveTradeDataEnabled()
+		tradeFeed := b.IsTradeFeedEnabled()
+		if !saveTradeData && !tradeFeed {
 			return nil
 		}
+
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
 		if err != nil {
@@ -252,15 +255,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		var trades []trade.Data
 		for x := range tradeHistory.Data {
 			side := order.Buy
-			if tradeHistory.Data[x].Gain == -1 {
+			if tradeHistory.Data[x].Side != "BUY" {
 				side = order.Sell
 			}
 
 			var p currency.Pair
-			p, err = currency.NewPairFromString(strings.Replace(tradeHistory.Topic,
-				"tradeHistory:",
-				"",
-				1))
+			p, err = currency.NewPairFromString(tradeHistory.Data[x].Symbol)
 			if err != nil {
 				return err
 			}
@@ -270,17 +270,24 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			trades = append(trades, trade.Data{
-				Timestamp:    time.UnixMilli(tradeHistory.Data[x].TransactionTime),
+				Timestamp:    tradeHistory.Data[x].Timestamp.Time().UTC(),
 				CurrencyPair: p,
 				AssetType:    a,
 				Exchange:     b.Name,
 				Price:        tradeHistory.Data[x].Price,
-				Amount:       tradeHistory.Data[x].Amount,
+				Amount:       tradeHistory.Data[x].Size,
 				Side:         side,
-				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
+				TID:          strconv.FormatInt(tradeHistory.Data[x].TID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(trades...)
+		if tradeFeed {
+			for i := range trades {
+				b.Websocket.DataHandler <- trades[i]
+			}
+		}
+		if saveTradeData {
+			return trade.AddTradesToBuffer(trades...)
+		}
 	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)

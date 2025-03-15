@@ -1,0 +1,2 @@
+{"topic":"tradeHistoryApi:BTC-USD","data":[{"symbol":"BTC-USD","side":"BUY","size":0.00067,"price":83894.01,"tradeId":74040596,"timestamp":1741836562893}]}
+{"topic":"tradeHistoryApi:BTC-USD","data":[{"symbol":"BTC-USD","side":"SELL","size":0.0035,"price":83894.87,"tradeId":74040529,"timestamp":1741836562687}]}
