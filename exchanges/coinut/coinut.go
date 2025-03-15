@@ -205,7 +205,7 @@ func (c *COINUT) GetIndexTicker(ctx context.Context, asset string) (IndexTicker,
 
 // GetDerivativeInstruments returns a list of derivative instruments
 func (c *COINUT) GetDerivativeInstruments(ctx context.Context, secType string) (any, error) {
-	var result any // to-do
+	var result any // TODO: Make this a concrete type
 	params := make(map[string]any)
 	params["sec_type"] = secType
 
@@ -249,8 +249,6 @@ func (c *COINUT) GetOpenPositionsForInstrument(ctx context.Context, instrumentID
 	return result.Positions,
 		c.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionOpen, params, true, &result)
 }
-
-// to-do: user position update via websocket
 
 // SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
 func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequest string, params map[string]any, authenticated bool, result any) (err error) {
@@ -386,7 +384,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64) float64 
 	case currency.CAD:
 		return max(amount*0.005, 2.0)
 	case currency.SGD:
-		return max(amount*0.001, 10.0)
+		return 2.0
 	default:
 		return 0 // Handle unknown currencies
 	}
