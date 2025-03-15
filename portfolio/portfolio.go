@@ -180,12 +180,9 @@ func (b *Base) UpdateAddressBalance(address string, amount float64) {
 
 // RemoveExchangeAddress removes an exchange address from the portfolio.
 func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code) {
-	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
-			b.Addresses = slices.Delete(b.Addresses, x, x+1)
-			return
-		}
-	}
+	b.Addresses = slices.Clip(slices.DeleteFunc(b.Addresses, func(a Address) bool {
+		return a.Address == exchangeName && a.CoinType.Equal(coinType)
+	}))
 }
 
 // UpdateExchangeAddressBalance updates the portfolio balance when checked
@@ -249,7 +246,7 @@ func (b *Base) RemoveAddress(address, description string, coinType currency.Code
 	if idx == -1 {
 		return errors.New("portfolio item does not exist")
 	}
-	b.Addresses = slices.Delete(b.Addresses, idx, idx+1)
+	b.Addresses = slices.Clip(slices.Delete(b.Addresses, idx, idx+1))
 	return nil
 }
 

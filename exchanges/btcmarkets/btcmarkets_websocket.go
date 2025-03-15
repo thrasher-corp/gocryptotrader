@@ -452,7 +452,7 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 
 // checksum provides assurance on current in memory liquidity
 func checksum(ob *orderbook.Base, checksum uint32) error {
-	check := crc32.ChecksumIEEE([]byte(concat(ob.Bids) + concat(ob.Asks)))
+	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 	if check != checksum {
 		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
 			ob.Exchange,
@@ -466,11 +466,10 @@ func checksum(ob *orderbook.Base, checksum uint32) error {
 	return nil
 }
 
-// concat concatenates price and amounts together for checksum processing
-func concat(liquidity orderbook.Tranches) string {
-	length := min(10, len(liquidity))
+// concatOrderbookLiquidity concatenates price and amounts together for checksum processing
+func concatOrderbookLiquidity(liquidity orderbook.Tranches) string {
 	var c string
-	for x := range length {
+	for x := range min(10, len(liquidity)) {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
 	return c
