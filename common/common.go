@@ -595,7 +595,7 @@ func GenerateRandomString(length uint, characters ...string) (string, error) {
 // GetTypeAssertError returns additional information for when an assertion failure
 // occurs.
 // fieldDescription is an optional way to return what the affected field was for
-func GetTypeAssertError(required string, received interface{}, fieldDescription ...string) error {
+func GetTypeAssertError(required string, received any, fieldDescription ...string) error {
 	var description string
 	if len(fieldDescription) > 0 {
 		description = " for: " + strings.Join(fieldDescription, ", ")

@@ -35,7 +35,7 @@ type Orderbook struct {
 	sortBufferByUpdateIDs bool // When timestamps aren't provided, an id can help sort
 	updateEntriesByID     bool // Use the update IDs to match ob entries
 	exchangeName          string
-	dataHandler           chan<- interface{}
+	dataHandler           chan<- any
 	verbose               bool
 
 	// updateIDProgression requires that the new update ID be greater than the

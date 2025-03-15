@@ -3,6 +3,7 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
@@ -77,27 +78,23 @@ updates:
 
 // deleteByID deletes reference by ID
 func (ts *Tranches) deleteByID(updts Tranches, bypassErr bool) error {
-updates:
 	for x := range updts {
-		for y := range *ts {
-			if updts[x].ID != (*ts)[y].ID {
-				continue
-			}
+		idx := slices.IndexFunc(*ts, func(t Tranche) bool {
+			return t.ID == updts[x].ID
+		})
 
-			if y < len(*ts) {
-				copy((*ts)[y:], (*ts)[y+1:])
-				*ts = (*ts)[:len(*ts)-1]
-			} else {
-				*ts = append((*ts)[:y], (*ts)[y+1:]...)
+		if idx == -1 {
+			if !bypassErr {
+				return fmt.Errorf("delete error: %w %d not found", errIDCannotBeMatched, updts[x].ID)
 			}
-			continue updates
+			continue
 		}
-		if !bypassErr {
-			return fmt.Errorf("delete error: %w %d not found",
-				errIDCannotBeMatched,
-				updts[x].ID)
-		}
+
+		*ts = slices.Delete(*ts, idx, idx+1)
 	}
+
+	*ts = slices.Clip(*ts)
+
 	return nil
 }
 
@@ -117,7 +114,9 @@ func (ts Tranches) retrieve(count int) Tranches {
 	if count == 0 || count >= len(ts) {
 		count = len(ts)
 	}
-	return append(Tranches{}, ts[:count]...)
+	result := make(Tranches, count)
+	copy(result, ts[:count])
+	return result
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by

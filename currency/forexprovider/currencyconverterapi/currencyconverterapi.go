@@ -149,7 +149,7 @@ func (c *CurrencyConverter) GetCountries() (map[string]CountryItem, error) {
 
 // SendHTTPRequest sends a HTTP request, if account is not free it automatically
 // upgrades request to SSL.
-func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
+func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result any) error {
 	var path string
 	var auth request.AuthType
 	if c.APIKey == "" || c.APIKey == defaultAPIKey {

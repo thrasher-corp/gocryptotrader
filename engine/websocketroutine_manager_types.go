@@ -39,4 +39,4 @@ type WebsocketRoutineManager struct {
 
 // WebsocketDataHandler defines a function signature for a function that handles
 // data coming from websocket connections.
-type WebsocketDataHandler func(service string, incoming interface{}) error
+type WebsocketDataHandler func(service string, incoming any) error

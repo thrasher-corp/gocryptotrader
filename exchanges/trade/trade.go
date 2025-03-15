@@ -3,6 +3,7 @@ package trade
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -29,7 +30,7 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 
 // Setup configures necessary fields to the `Trade` structure that govern trade data
 // processing.
-func (t *Trade) Setup(tradeFeedEnabled bool, c chan interface{}) {
+func (t *Trade) Setup(tradeFeedEnabled bool, c chan any) {
 	t.dataHandler = c
 	t.tradeFeedEnabled = tradeFeedEnabled
 }
@@ -125,8 +126,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 	for {
 		<-ticker.C
 		p.mutex.Lock()
-		//nolint: gocritic
-		bufferCopy := append(p.buffer[:0:0], p.buffer...)
+		bufferCopy := slices.Clone(p.buffer)
 		p.buffer = nil
 		p.mutex.Unlock()
 		if len(bufferCopy) == 0 {

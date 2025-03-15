@@ -93,7 +93,7 @@ func TestSetupFromConfig(t *testing.T) {
 
 	cfg.StrategySettings = config.StrategySettings{
 		Name: dollarcostaverage.Name,
-		CustomSettings: map[string]interface{}{
+		CustomSettings: map[string]any{
 			"hello": "moto",
 		},
 	}
@@ -166,7 +166,7 @@ func TestLoadDataAPI(t *testing.T) {
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -220,7 +220,7 @@ func TestLoadDataCSV(t *testing.T) {
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -285,7 +285,7 @@ func TestLoadDataDatabase(t *testing.T) {
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -361,7 +361,7 @@ func TestLoadDataLive(t *testing.T) {
 			}},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},

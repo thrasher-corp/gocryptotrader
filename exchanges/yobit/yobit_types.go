@@ -4,9 +4,9 @@ import "github.com/thrasher-corp/gocryptotrader/currency"
 
 // Response is a generic struct used for exchange API request result
 type Response struct {
-	Return  interface{} `json:"return"`
-	Success int         `json:"success"`
-	Error   string      `json:"error"`
+	Return  any    `json:"return"`
+	Success int    `json:"success"`
+	Error   string `json:"error"`
 }
 
 // Info holds server time and pair information

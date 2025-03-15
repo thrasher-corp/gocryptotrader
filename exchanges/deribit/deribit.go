@@ -291,7 +291,7 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var data [][2]interface{}
+	var data [][2]any
 	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getHistoricalVolatility, params), &data)
 	if err != nil {
@@ -719,15 +719,15 @@ func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*Tick
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
+func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 	data := &struct {
-		JSONRPC string      `json:"jsonrpc"`
-		ID      int64       `json:"id"`
-		Data    interface{} `json:"result"`
+		JSONRPC string `json:"jsonrpc"`
+		ID      int64  `json:"id"`
+		Data    any    `json:"result"`
 	}{
 		Data: result,
 	}
@@ -1328,7 +1328,7 @@ func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 	}
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	var resp interface{}
+	var resp any
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, removeAPIKey, params, &resp)
 	if err != nil {
 		return err
@@ -1396,7 +1396,7 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
 	params.Set("email", email)
-	var resp interface{}
+	var resp any
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		setEmailForSubAccount, params, &resp)
 	if err != nil {
@@ -2264,7 +2264,7 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy currenc
 }
 
 // SendHTTPAuthRequest sends an authenticated request to deribit api
-func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result interface{}) error {
+func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

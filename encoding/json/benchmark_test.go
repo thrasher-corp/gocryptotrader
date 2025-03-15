@@ -7,6 +7,6 @@ import "testing"
 func BenchmarkUnmarshal(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = Unmarshal([]byte(`{"Name":"Wednesday","Age":6,"Parents":["Gomez","Morticia"]}`), &map[string]interface{}{})
+		_ = Unmarshal([]byte(`{"Name":"Wednesday","Age":6,"Parents":["Gomez","Morticia"]}`), &map[string]any{})
 	}
 }

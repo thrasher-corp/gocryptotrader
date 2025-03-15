@@ -25,7 +25,7 @@ type Handler interface {
 	UsingSimultaneousProcessing() bool
 	SupportsSimultaneousProcessing() bool
 	SetSimultaneousProcessing(bool)
-	SetCustomSettings(map[string]interface{}) error
+	SetCustomSettings(map[string]any) error
 	SetDefaults()
 	CloseAllPositions([]holdings.Holding, []data.Event) ([]signal.Event, error)
 }

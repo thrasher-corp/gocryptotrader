@@ -162,7 +162,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 func (bi *Binanceus) wsHandleData(respRaw []byte) error {
-	var multiStreamData map[string]interface{}
+	var multiStreamData map[string]any
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	}
-	if newData, ok := multiStreamData["data"].(map[string]interface{}); ok {
+	if newData, ok := multiStreamData["data"].(map[string]any); ok {
 		if e, ok := newData["e"].(string); ok {
 			switch e {
 			case "outboundAccountPosition":
@@ -581,7 +581,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 			if err != nil {
 				return err
 			}
-			payload.Params = []interface{}{}
+			payload.Params = []any{}
 		}
 	}
 	if len(payload.Params) > 0 {
@@ -605,7 +605,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 			if err != nil {
 				return err
 			}
-			payload.Params = []interface{}{}
+			payload.Params = []any{}
 		}
 	}
 	if len(payload.Params) > 0 {

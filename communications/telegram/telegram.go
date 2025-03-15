@@ -274,7 +274,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 }
 
 // SendHTTPRequest sends an authenticated HTTP request
-func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{}) error {
+func (t *Telegram) SendHTTPRequest(path string, data []byte, result any) error {
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 

@@ -278,7 +278,7 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 }
 
 // SetCustomSettings can override default settings
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
+func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 	for k, v := range customSettings {
 		switch k {
 		case openShortDistancePercentageString:

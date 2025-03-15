@@ -14,7 +14,7 @@ const OHLCV = "OHLCV data"
 
 var errInvalidSelector = errors.New("invalid selector")
 
-func toFloat64(data interface{}) (float64, error) {
+func toFloat64(data any) (float64, error) {
 	switch d := data.(type) {
 	case float64:
 		return d, nil

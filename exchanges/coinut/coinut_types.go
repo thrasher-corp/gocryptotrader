@@ -312,7 +312,7 @@ type WsOrderbookSnapshot struct {
 	TotalBuy  float64           `json:"total_buy,string"`
 	TotalSell float64           `json:"total_sell,string"`
 	Reply     string            `json:"reply"`
-	Status    []interface{}     `json:"status"`
+	Status    []any             `json:"status"`
 }
 
 // WsOrderbookData defines singular orderbook data
@@ -341,7 +341,7 @@ type WsTradeSnapshot struct {
 	InstrumentID int64         `json:"inst_id"`
 	Nonce        int64         `json:"nonce"`
 	Reply        string        `json:"reply"`
-	Status       []interface{} `json:"status"`
+	Status       []any         `json:"status"`
 	Trades       []WsTradeData `json:"trades"`
 }
 
@@ -371,7 +371,7 @@ type WsInstrumentList struct {
 	Spot   map[string][]InstrumentBase `json:"SPOT"`
 	Nonce  int64                       `json:"nonce,omitempty"`
 	Reply  string                      `json:"inst_list,omitempty"`
-	Status []interface{}               `json:"status,omitempty"`
+	Status []any                       `json:"status,omitempty"`
 }
 
 // WsSupportedCurrency defines supported currency on the exchange

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 	"time"
 )
@@ -32,11 +33,11 @@ func (c *clientTracker) checkAndRegister(newClient *http.Client) error {
 	}
 	c.Lock()
 	defer c.Unlock()
-	for x := range c.clients {
-		if newClient == c.clients[x] {
-			return errCannotReuseHTTPClient
-		}
+
+	if slices.Contains(c.clients, newClient) {
+		return errCannotReuseHTTPClient
 	}
+
 	c.clients = append(c.clients, newClient)
 	return nil
 }

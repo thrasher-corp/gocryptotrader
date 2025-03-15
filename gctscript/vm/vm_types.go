@@ -34,7 +34,7 @@ const (
 type vmscount uint64
 
 var (
-	pool = &sync.Pool{New: func() interface{} { return new(tengo.Script) }}
+	pool = &sync.Pool{New: func() any { return new(tengo.Script) }}
 	// AllVMSync stores all current Virtual Machine instances
 	AllVMSync = &sync.Map{}
 	// VMSCount running total count of Virtual Machines

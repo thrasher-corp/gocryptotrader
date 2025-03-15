@@ -130,7 +130,7 @@ func (b *BTSE) wsReadData() {
 }
 
 func (b *BTSE) wsHandleData(respRaw []byte) error {
-	type Result map[string]interface{}
+	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {

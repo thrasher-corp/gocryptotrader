@@ -193,10 +193,10 @@ type UnconfirmedBTCTransactions struct {
 
 // CaptureError is used to capture unmarshalled errors
 type CaptureError struct {
-	Status interface{} `json:"status"`
-	Reason interface{} `json:"reason"`
-	Code   interface{} `json:"code"`
-	Error  interface{} `json:"error"`
+	Status any `json:"status"`
+	Reason any `json:"reason"`
+	Code   any `json:"code"`
+	Error  any `json:"error"`
 }
 
 const (
