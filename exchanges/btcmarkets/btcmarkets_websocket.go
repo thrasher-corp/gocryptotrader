@@ -207,7 +207,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		tr := trade.Data{
+		td := trade.Data{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -219,10 +219,10 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		if tradeFeed {
-			b.Websocket.DataHandler <- tr
+			b.Websocket.DataHandler <- td
 		}
 		if saveTradeData {
-			return trade.AddTradesToBuffer(tr)
+			return trade.AddTradesToBuffer(td)
 		}
 	case tick:
 		var tick WsTick
