@@ -3,6 +3,7 @@ package btse
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -316,7 +317,7 @@ type wsOrderBook struct {
 
 type wsTradeData struct {
 	Symbol    string     `json:"symbol"`
-	Side      string     `json:"side"`
+	Side      order.Side `json:"side"`
 	Size      float64    `json:"size"`
 	Price     float64    `json:"price"`
 	TID       int64      `json:"tradeID"`

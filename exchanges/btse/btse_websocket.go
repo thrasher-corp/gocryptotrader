@@ -254,10 +254,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		var trades []trade.Data
 		for x := range tradeHistory.Data {
-			side, err := order.StringToOrderSide(tradeHistory.Data[x].Side)
-			if err != nil {
-				return err
-			}
 
 			var p currency.Pair
 			p, err = currency.NewPairFromString(tradeHistory.Data[x].Symbol)
@@ -276,7 +272,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Exchange:     b.Name,
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Size,
-				Side:         side,
+				Side:         tradeHistory.Data[x].Side,
 				TID:          strconv.FormatInt(tradeHistory.Data[x].TID, 10),
 			})
 		}
