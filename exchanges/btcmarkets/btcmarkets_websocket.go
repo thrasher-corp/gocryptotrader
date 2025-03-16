@@ -203,8 +203,13 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		side := order.Buy
-		if t.Side == "Ask" {
+		switch {
+		case t.Side.IsLong():
+			// Nothing to do
+		case t.Side.IsShort():
 			side = order.Sell
+		default:
+			return fmt.Errorf("%w: `%s`", order.ErrSideIsInvalid, t.Side)
 		}
 
 		td := trade.Data{
