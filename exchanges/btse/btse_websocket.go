@@ -254,9 +254,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		var trades []trade.Data
 		for x := range tradeHistory.Data {
-			side := order.Buy
-			if tradeHistory.Data[x].Side != "BUY" {
-				side = order.Sell
+			side, err := order.StringToOrderSide(tradeHistory.Data[x].Side)
+			if err != nil {
+				return err
 			}
 
 			var p currency.Pair
