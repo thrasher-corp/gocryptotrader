@@ -81,7 +81,7 @@ func TestVersion4Downgrade(t *testing.T) {
 	require.Equal(t, jsonparser.Array, vT, "assetTypes must be an array")
 	require.Equal(t, `["spot","options_combo"]`, string(v), "assetTypes must be correct")
 
-	assetEnabledFn := func(k []byte, v []byte, _ jsonparser.ValueType, _ int) error {
+	assetEnabledFn := func(k, v []byte, _ jsonparser.ValueType, _ int) error {
 		_, err = jsonparser.GetBoolean(v, "assetEnabled")
 		require.ErrorIsf(t, err, jsonparser.KeyPathNotFoundError, "assetEnabled must be removed from %s", k)
 		return nil

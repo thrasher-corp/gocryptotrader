@@ -5,9 +5,7 @@ import (
 	"time"
 )
 
-var (
-	b Base
-)
+var b Base
 
 func TestStart(_ *testing.T) {
 	b = Base{
@@ -100,7 +98,8 @@ func TestSetup(t *testing.T) {
 	for _, config := range testConfigs {
 		config.provider = &CommunicationProvider{
 			isEnabled:   config.isEnabled,
-			isConnected: config.isConnected}
+			isConnected: config.isConnected,
+		}
 		ic = append(ic, config.provider)
 	}
 
@@ -134,7 +133,8 @@ func TestPushEvent(t *testing.T) {
 	for _, config := range testConfigs {
 		config.provider = &CommunicationProvider{
 			isEnabled:   config.Enabled,
-			isConnected: config.Connected}
+			isConnected: config.Connected,
+		}
 		ic = append(ic, config.provider)
 	}
 

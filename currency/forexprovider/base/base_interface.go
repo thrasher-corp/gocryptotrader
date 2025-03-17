@@ -70,7 +70,7 @@ func (p Provider) CheckCurrencies(currencies []string) []string {
 
 // GetCurrencyData returns currency data from enabled FX providers
 func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (map[string]float64, error) {
-	var fullRange = currencies
+	fullRange := currencies
 
 	if !common.StringSliceCompareInsensitive(currencies, baseCurrency) {
 		fullRange = append(fullRange, baseCurrency)

@@ -398,7 +398,6 @@ func TestRemoveVM(t *testing.T) {
 	}
 	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := manager.RemoveVM(id)
-
 	if err != nil {
 		if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
 			t.Fatal(err)

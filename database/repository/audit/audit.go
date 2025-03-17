@@ -29,14 +29,14 @@ func Event(id, msgtype, message string) {
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		var tempEvent = modelSQLite.AuditEvent{
+		tempEvent := modelSQLite.AuditEvent{
 			Type:       msgtype,
 			Identifier: id,
 			Message:    message,
 		}
 		err = tempEvent.Insert(ctx, tx, boil.Blacklist("created_at"))
 	} else {
-		var tempEvent = modelPSQL.AuditEvent{
+		tempEvent := modelPSQL.AuditEvent{
 			Type:       msgtype,
 			Identifier: id,
 			Message:    message,

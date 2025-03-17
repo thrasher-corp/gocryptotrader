@@ -131,7 +131,6 @@ func getNominal(c *cli.Context) error {
 			Sell:              isSelling,
 			NominalPercentage: percentage,
 		})
-
 	if err != nil {
 		return err
 	}
@@ -217,7 +216,6 @@ func getImpact(c *cli.Context) error {
 			Sell:             isSelling,
 			ImpactPercentage: percentage,
 		})
-
 	if err != nil {
 		return err
 	}
@@ -341,7 +339,6 @@ func getMovement(c *cli.Context) error {
 		Amount:   amount,
 		Purchase: c.Bool("purchase"),
 	})
-
 	if err != nil {
 		return err
 	}
@@ -447,7 +444,6 @@ func getOrderbook(c *cli.Context) error {
 			AssetType: assetType,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -594,7 +590,6 @@ func getOrderbookStream(c *cli.Context) error {
 			AssetType: assetType,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -731,7 +726,6 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 		&gctrpc.GetExchangeOrderbookStreamRequest{
 			Exchange: exchangeName,
 		})
-
 	if err != nil {
 		return err
 	}

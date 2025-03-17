@@ -143,7 +143,7 @@ func RateLimit(ctx context.Context, rateLimiter *RateLimiterWithWeight) error {
 	}
 
 	var finalDelay time.Duration
-	var reservations = make(Reservations, rateLimiter.Weight)
+	reservations := make(Reservations, rateLimiter.Weight)
 	for i := Weight(0); i < rateLimiter.Weight; i++ {
 		// Consume 1 weight at a time as this avoids needing burst capacity in the limiter,
 		// which would otherwise allow the rate limit to be exceeded over short periods

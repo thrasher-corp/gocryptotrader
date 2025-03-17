@@ -31,8 +31,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedFuturesOrderbookMutex sync.Mutex
-var fetchedFuturesOrderbook map[string]bool
+var (
+	fetchedFuturesOrderbookMutex sync.Mutex
+	fetchedFuturesOrderbook      map[string]bool
+)
 
 const (
 	publicBullets  = "/v1/bullet-public"
@@ -180,7 +182,8 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 			Result:        &response,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
-			HTTPRecording: ku.HTTPRecording}, nil
+			HTTPRecording: ku.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 }
 
@@ -949,7 +952,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	var lastUpdatedTime = response.Timestamp.Time()
+	lastUpdatedTime := response.Timestamp.Time()
 	if response.Timestamp.Time().IsZero() {
 		lastUpdatedTime = time.Now()
 	}

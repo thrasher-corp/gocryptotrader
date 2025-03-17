@@ -682,7 +682,7 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 // isFiat helps determine fiat currency without using currency.storage
 func isFiat(t *testing.T, c string) bool {
 	t.Helper()
-	var fiats = []string{
+	fiats := []string{
 		currency.USD.Item.Lower,
 		currency.AUD.Item.Lower,
 		currency.EUR.Item.Lower,

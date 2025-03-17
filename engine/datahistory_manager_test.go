@@ -923,7 +923,8 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:    currency.Pairs{cp, cp2},
 		Enabled:      currency.Pairs{cp, cp2},
-		AssetEnabled: true}
+		AssetEnabled: true,
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
