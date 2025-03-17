@@ -40,15 +40,15 @@ func (bi *Binanceus) SetDefaults() {
 	bi.SetValues()
 
 	fmt1 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
 		},
 	}
-	err := bi.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := bi.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
 	bi.Features = exchange.Features{
@@ -122,6 +122,8 @@ func (bi *Binanceus) SetDefaults() {
 			},
 		},
 	}
+
+	var err error
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -102,14 +103,9 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	b := exch.GetBase()
 
 	assets := b.CurrencyPairs.GetAssetTypes(false)
-	if len(assets) == 0 {
-		t.Fatalf("Cannot setup %v, exchange has no assets", name)
-	}
-	for j := range assets {
-		err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
-		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-			t.Fatalf("Cannot setup %v SetAssetEnabled %v", name, err)
-		}
+	require.NotEmpty(t, assets, "exchange %s must have assets", name)
+	for _, a := range assets {
+		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "exchange %s SetAssetEnabled must not error for %s", name, a)
 	}
 
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
