@@ -46,14 +46,14 @@ func CreateTestBot(tb testing.TB) *Engine {
 
 	pairs1 := map[asset.Item]*currency.PairStore{
 		asset.Spot: {
-			AssetEnabled: convert.BoolPtr(true),
+			AssetEnabled: true,
 			Available:    currency.Pairs{cp1},
 			Enabled:      currency.Pairs{cp1},
 		},
 	}
 	pairs2 := map[asset.Item]*currency.PairStore{
 		asset.Spot: {
-			AssetEnabled: convert.BoolPtr(true),
+			AssetEnabled: true,
 			Available:    currency.Pairs{cp2},
 			Enabled:      currency.Pairs{cp2},
 		},
@@ -372,7 +372,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 				Name:    testExchange,
 				CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
-						AssetEnabled: convert.BoolPtr(true),
+						AssetEnabled: true,
 						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
 						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
 						ConfigFormat: &currency.PairFormat{
@@ -717,7 +717,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		Name:    bf,
 		CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled:      currency.Pairs{btcjpy},
 				Available:    currency.Pairs{btcjpy},
 				ConfigFormat: &currency.PairFormat{
@@ -950,7 +950,7 @@ func (f fakeDepositExchange) GetDepositAddress(_ context.Context, _ currency.Cod
 
 func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 	ps := currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		Enabled: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USDT),
 			currency.NewPair(currency.XRP, currency.USDT),
