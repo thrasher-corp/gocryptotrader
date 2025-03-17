@@ -49,8 +49,6 @@ func (me *MEXC) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// Fill out the capabilities/features that the exchange supports
 	me.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -84,14 +82,11 @@ func (me *MEXC) SetDefaults() {
 			},
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
-	me.Requester, err = request.New(me.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	me.Requester, err = request.New(me.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
 	me.API.Endpoints = me.NewEndpoints()
 	me.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      spotAPIURL,
@@ -615,7 +610,7 @@ func (me *MEXC) ValidateAPICredentials(ctx context.Context, assetType asset.Item
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (me *MEXC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	intervalString, err := intervalToString(kline.FiveMin)
+	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +664,66 @@ func (me *MEXC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (me *MEXC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	pFormat, err := me.GetPairFormat(a, true)
+	if err != nil {
+		return nil, err
+	}
+	req, err := me.GetKlineExtendedRequest(pair, a, interval, start, end)
+	if err != nil {
+		return nil, err
+	}
+	intervalString, err := intervalToString(req.ExchangeInterval)
+	if err != nil {
+		return nil, err
+	}
+	switch a {
+	case asset.Spot:
+		timeSeries := make([]kline.Candle, 0, req.Size())
+		for x := range req.RangeHolder.Ranges {
+			result, err := me.GetCandlestick(ctx,
+				pFormat.Format(pair),
+				intervalString,
+				req.RangeHolder.Ranges[x].Start.Time,
+				req.RangeHolder.Ranges[x].End.Time,
+				req.RequestLimit,
+			)
+			if err != nil {
+				return nil, err
+			}
+			for c := range result {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   result[c].CloseTime.Time(),
+					Open:   result[c].OpenPrice.Float64(),
+					High:   result[c].HighPrice.Float64(),
+					Low:    result[c].LowPrice.Float64(),
+					Close:  result[c].ClosePrice.Float64(),
+					Volume: result[c].Volume.Float64(),
+				})
+			}
+		}
+		return req.ProcessResponse(timeSeries)
+	case asset.Futures:
+		timeSeries := make([]kline.Candle, 0, req.Size())
+		for x := range req.RangeHolder.Ranges {
+			result, err := me.GetContractsCandlestickData(ctx, pFormat.Format(pair), req.ExchangeInterval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for i := range result.Data.ClosePrice {
+				timeSeries = append(timeSeries, kline.Candle{
+					Open:   result.Data.ClosePrice[i],
+					Time:   result.Data.Time[i].Time(),
+					High:   result.Data.HighPrice[i],
+					Low:    result.Data.LowPrice[i],
+					Close:  result.Data.ClosePrice[i],
+					Volume: result.Data.Volume[i],
+				})
+			}
+		}
+		return req.ProcessResponse(timeSeries)
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+	}
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
