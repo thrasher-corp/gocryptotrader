@@ -30,6 +30,11 @@ const (
 )
 
 var me = &MEXC{}
+var assetsAndErrors = map[asset.Item]error{
+	asset.Spot:    nil,
+	asset.Futures: nil,
+	asset.Options: asset.ErrNotSupported,
+}
 
 func TestMain(m *testing.M) {
 	me = new(MEXC)
@@ -99,12 +104,15 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetCandlestick(t *testing.T) {
 	t.Parallel()
-	_, err := me.GetCandlestick(context.Background(), "", kline.FiveMin, time.Time{}, time.Time{}, 0)
+	intervalString, err := intervalToString(kline.FiveMin)
+	require.NoError(t, err)
+
+	_, err = me.GetCandlestick(context.Background(), "", intervalString, time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	_, err = me.GetCandlestick(context.Background(), "BTCUSDT", kline.TwelveHour, time.Time{}, time.Time{}, 0)
+	_, err = me.GetCandlestick(context.Background(), "BTCUSDT", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
-	result, err := me.GetCandlestick(context.Background(), "BTCUSDT", kline.FiveMin, time.Time{}, time.Time{}, 0)
+	result, err := me.GetCandlestick(context.Background(), "BTCUSDT", "5m", time.Time{}, time.Time{}, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1388,6 +1396,79 @@ func TestGetAllRecentSubAccountDepositHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.GetAllRecentSubAccountDepositHistory(context.Background(), currency.ETH, "1", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	for k, v := range assetsAndErrors {
+		result, err := me.FetchTradablePairs(context.Background(), k)
+		require.ErrorIs(t, err, v)
+		if v == nil {
+			assert.NotNil(t, result)
+		}
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	_, err := me.UpdateTicker(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = me.UpdateTicker(context.Background(), currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	result, err := me.UpdateTicker(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.UpdateTicker(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	for k, v := range assetsAndErrors {
+		err := me.UpdateTickers(context.Background(), k)
+		assert.ErrorIs(t, err, v)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := me.UpdateOrderbook(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = me.UpdateOrderbook(context.Background(), currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	result, err := me.UpdateOrderbook(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.UpdateOrderbook(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetHistoricCandles(context.Background(), currency.EMPTYPAIR, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = me.GetHistoricCandles(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+
+	_, err = me.GetHistoricCandles(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot, kline.TenMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+
+	result, err := me.GetHistoricCandles(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.GetHistoricCandles(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Futures, kline.FiveMin, time.Now().Add(-time.Hour*48), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

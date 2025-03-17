@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -33,9 +34,18 @@ func (me *MEXC) SetDefaults() {
 	me.API.CredentialsValidator.RequiresKey = true
 	me.API.CredentialsValidator.RequiresSecret = true
 
-	err := me.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true, Delimiter: ""},
-		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		asset.Spot, asset.Futures)
+	err := me.SetAssetPairStore(asset.Spot, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: ""},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = me.SetAssetPairStore(asset.Futures, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -58,6 +68,20 @@ func (me *MEXC) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: kline.DeployExchangeIntervals(
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+				),
+				GlobalResultLimit: 1000,
+			},
 		},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
@@ -131,8 +155,36 @@ func (me *MEXC) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+	switch a {
+	case asset.Spot:
+		result, err := me.GetSymbols(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		currencyPairs := make(currency.Pairs, len(result.Symbols))
+		for i := range result.Symbols {
+			currencyPairs[i], err = currency.NewPairFromString(result.Symbols[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return currencyPairs, nil
+	case asset.Futures:
+		result, err := me.GetContractsDetail(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+		currencyPairs := make(currency.Pairs, len(result.Data))
+		for i := range result.Data {
+			currencyPairs[i], err = currency.NewPairFromString(result.Data[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return currencyPairs, nil
+	default:
+		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, a)
+	}
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -144,7 +196,6 @@ func (me *MEXC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 		if err != nil {
 			return err
 		}
-
 		err = me.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
 		if err != nil {
 			return err
@@ -155,62 +206,152 @@ func (me *MEXC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (me *MEXC) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := me.GetTicker(p.String())
+	pFormat, err := me.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	switch assetType {
+	case asset.Spot:
+		pairString := pFormat.Format(p)
+		tickers, err := me.Get24HourTickerPriceChangeStatistics(ctx, []string{pairString})
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
+		var found bool
+		for t := range tickers {
+			if tickers[t].Symbol != pairString {
+				continue
+			}
+			found = true
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         p,
+				ExchangeName: me.Name,
+				AssetType:    assetType,
+				Last:         tickers[t].LastPrice.Float64(),
+				High:         tickers[t].HighPrice.Float64(),
+				Low:          tickers[t].LowPrice.Float64(),
+				Bid:          tickers[t].BidPrice.Float64(),
+				BidSize:      tickers[t].BidQty.Float64(),
+				Ask:          tickers[t].AskPrice.Float64(),
+				AskSize:      tickers[t].AskQty.Float64(),
+				Volume:       tickers[t].Volume.Float64(),
+				QuoteVolume:  tickers[t].QuoteVolume.Float64(),
+				Open:         tickers[t].OpenPrice.Float64(),
+				LastUpdated:  tickers[t].CloseTime.Time(),
+			})
+			if err != nil {
+				return nil, err
+			}
 		}
-		err = ticker.ProcessTicker(me.Name, tickerPrice, assetType)
+		if !found {
+			return nil, fmt.Errorf("%w for currency pair: %s", ticker.ErrTickerNotFound, p)
+		}
+	case asset.Futures:
+		pairString := pFormat.Format(p)
+		tickers, err := me.GetContractTickers(ctx, pairString)
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
 		}
-	*/
+		var found bool
+		for t := range tickers.Data {
+			if tickers.Data[t].Symbol != pairString {
+				continue
+			}
+			found = true
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tickers.Data[t].LastPrice,
+				High:         tickers.Data[t].High24Price,
+				Low:          tickers.Data[t].Lower24Price,
+				Bid:          tickers.Data[t].MaxBidPrice,
+				AskSize:      tickers.Data[t].MinAskPrice,
+				Volume:       tickers.Data[t].Volume24,
+				MarkPrice:    tickers.Data[t].FairPrice,
+				IndexPrice:   tickers.Data[t].IndexPrice,
+				Pair:         p,
+				ExchangeName: me.Name,
+				AssetType:    asset.Futures,
+				LastUpdated:  tickers.Data[t].Timestamp.Time(),
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("%w for currency pair: %s", ticker.ErrTickerNotFound, p)
+		}
+	default:
+		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	return ticker.GetTicker(me.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (me *MEXC) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-			tick, err := me.GetTickers()
+	switch assetType {
+	case asset.Spot:
+		tickers, err := me.Get24HourTickerPriceChangeStatistics(ctx, []string{})
+		if err != nil {
+			return err
+		}
+		for t := range tickers {
+			pair, err := currency.NewPairFromString(tickers[t].Symbol)
 			if err != nil {
 				return err
 			}
-		    for y := range tick {
-		        cp, err := currency.NewPairFromString(tick[y].Symbol)
-		        if err != nil {
-		            return err
-		        }
-		        err = ticker.ProcessTicker(&ticker.Price{
-		            Last:         tick[y].LastPrice,
-		            High:         tick[y].HighPrice,
-		            Low:          tick[y].LowPrice,
-		            Bid:          tick[y].BidPrice,
-		            Ask:          tick[y].AskPrice,
-		            Volume:       tick[y].Volume,
-		            QuoteVolume:  tick[y].QuoteVolume,
-		            Open:         tick[y].OpenPrice,
-		            Close:        tick[y].PrevClosePrice,
-		            Pair:         cp,
-		            ExchangeName: b.Name,
-		            AssetType:    assetType,
-		        })
-		        if err != nil {
-		            return err
-		        }
-		    }
-	*/
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         pair,
+				ExchangeName: me.Name,
+				AssetType:    assetType,
+				Last:         tickers[t].LastPrice.Float64(),
+				High:         tickers[t].HighPrice.Float64(),
+				Low:          tickers[t].LowPrice.Float64(),
+				Bid:          tickers[t].BidPrice.Float64(),
+				BidSize:      tickers[t].BidQty.Float64(),
+				Ask:          tickers[t].AskPrice.Float64(),
+				AskSize:      tickers[t].AskQty.Float64(),
+				Volume:       tickers[t].Volume.Float64(),
+				QuoteVolume:  tickers[t].QuoteVolume.Float64(),
+				Open:         tickers[t].OpenPrice.Float64(),
+				LastUpdated:  tickers[t].CloseTime.Time(),
+			})
+			if err != nil {
+				return err
+			}
+		}
+	case asset.Futures:
+		tickers, err := me.GetContractTickers(ctx, "")
+		if err != nil {
+			return err
+		}
+		for t := range tickers.Data {
+			pair, err := currency.NewPairFromString(tickers.Data[t].Symbol)
+			if err != nil {
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tickers.Data[t].LastPrice,
+				High:         tickers.Data[t].High24Price,
+				Low:          tickers.Data[t].Lower24Price,
+				Bid:          tickers.Data[t].MaxBidPrice,
+				AskSize:      tickers.Data[t].MinAskPrice,
+				Volume:       tickers.Data[t].Volume24,
+				MarkPrice:    tickers.Data[t].FairPrice,
+				IndexPrice:   tickers.Data[t].IndexPrice,
+				Pair:         pair,
+				ExchangeName: me.Name,
+				AssetType:    asset.Futures,
+				LastUpdated:  tickers.Data[t].Timestamp.Time(),
+			})
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+	}
 	return nil
 }
 
@@ -234,49 +375,80 @@ func (me *MEXC) FetchOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	book := &orderbook.Base{
 		Exchange:        me.Name,
 		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: me.CanVerifyOrderbook,
 	}
-
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := me.GetOrderBook(exchange.FormatExchangeCurrency(me.Name, p).String(), 1000)
+	pFormat, err := me.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	switch assetType {
+	case asset.Spot:
+		result, err := me.GetOrderbook(ctx, pFormat.Format(pair), 1000)
 		if err != nil {
 			return book, err
 		}
 
-		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
+		book.Bids = make([]orderbook.Tranche, len(result.Bids))
+		for x := range result.Bids {
 			book.Bids[x] = orderbook.Tranche{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
+				Price:  result.Bids[x][0].Float64(),
+				Amount: result.Bids[x][1].Float64(),
 			}
 		}
-
-		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
+		book.Asks = make([]orderbook.Tranche, len(result.Asks))
+		for x := range result.Asks {
 			book.Asks[x] = orderbook.Tranche{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
+				Price:  result.Asks[x][0].Float64(),
+				Amount: result.Asks[x][1].Float64(),
 			}
 		}
-	*/
-
-	err := book.Process()
-	if err != nil {
-		return book, err
+		err = book.Process()
+		if err != nil {
+			return book, err
+		}
+		return orderbook.Get(me.Name, pair, assetType)
+	case asset.Futures:
+		result, err := me.GetContractDepthInformation(ctx, pFormat.Format(pair), 1000)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids = make([]orderbook.Tranche, len(result.Bids))
+		for x := range result.Bids {
+			book.Bids[x] = orderbook.Tranche{
+				Price:  result.Bids[x].Price,
+				Amount: result.Bids[x].Amount,
+			}
+		}
+		book.Asks = make([]orderbook.Tranche, len(result.Asks))
+		for x := range result.Asks {
+			book.Asks[x] = orderbook.Tranche{
+				Price:  result.Asks[x].Price,
+				Amount: result.Asks[x].Amount,
+			}
+		}
+		err = book.Process()
+		if err != nil {
+			return book, err
+		}
+		return orderbook.Get(me.Name, pair, assetType)
+	default:
+		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}
-
-	return orderbook.Get(me.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (me *MEXC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	// If fetching requires more than one asset type please set
 	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
+	// var info account.Holdings
+	// accAssets,err := me.GetSubAccountAsset(ctx, )
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
@@ -443,7 +615,56 @@ func (me *MEXC) ValidateAPICredentials(ctx context.Context, assetType asset.Item
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (me *MEXC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	intervalString, err := intervalToString(kline.FiveMin)
+	if err != nil {
+		return nil, err
+	}
+	pFormat, err := me.GetPairFormat(a, true)
+	if err != nil {
+		return nil, err
+	}
+	req, err := me.GetKlineRequest(pair, a, interval, start, end, false)
+	if err != nil {
+		return nil, err
+	}
+	switch a {
+	case asset.Spot:
+		result, err := me.GetCandlestick(ctx, pFormat.Format(pair), intervalString, start, end, 0)
+		if err != nil {
+			return nil, err
+		}
+		timeSeries := make([]kline.Candle, len(result))
+		for c := range result {
+			timeSeries[c] = kline.Candle{
+				Time:   result[c].CloseTime.Time(),
+				Open:   result[c].OpenPrice.Float64(),
+				High:   result[c].HighPrice.Float64(),
+				Low:    result[c].LowPrice.Float64(),
+				Close:  result[c].ClosePrice.Float64(),
+				Volume: result[c].Volume.Float64(),
+			}
+		}
+		return req.ProcessResponse(timeSeries)
+	case asset.Futures:
+		result, err := me.GetContractsCandlestickData(ctx, pFormat.Format(pair), req.ExchangeInterval, start, end)
+		if err != nil {
+			return nil, err
+		}
+		timeSeries := make([]kline.Candle, len(result.Data.ClosePrice))
+		for i := range result.Data.ClosePrice {
+			timeSeries[i] = kline.Candle{
+				Open:   result.Data.ClosePrice[i],
+				Time:   result.Data.Time[i].Time(),
+				High:   result.Data.HighPrice[i],
+				Low:    result.Data.LowPrice[i],
+				Close:  result.Data.ClosePrice[i],
+				Volume: result.Data.Volume[i],
+			}
+		}
+		return req.ProcessResponse(timeSeries)
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+	}
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -462,6 +683,6 @@ func (me *MEXC) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRa
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (me *MEXC) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (me *MEXC) UpdateOrderExecutionLimits(ctx context.Context, assetType asset.Item) error {
 	return common.ErrNotYetImplemented
 }

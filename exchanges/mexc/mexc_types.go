@@ -25,12 +25,12 @@ type SymbolDetail struct {
 	Symbol                     string       `json:"symbol"`
 	Status                     string       `json:"status"`
 	BaseAsset                  string       `json:"baseAsset"`
-	BaseAssetPrecision         int          `json:"baseAssetPrecision"`
+	BaseAssetPrecision         float64      `json:"baseAssetPrecision"`
 	QuoteAsset                 string       `json:"quoteAsset"`
-	QuotePrecision             int          `json:"quotePrecision"`
-	QuoteAssetPrecision        int          `json:"quoteAssetPrecision"`
-	BaseCommissionPrecision    int          `json:"baseCommissionPrecision"`
-	QuoteCommissionPrecision   int          `json:"quoteCommissionPrecision"`
+	QuotePrecision             float64      `json:"quotePrecision"`
+	QuoteAssetPrecision        float64      `json:"quoteAssetPrecision"`
+	BaseCommissionPrecision    float64      `json:"baseCommissionPrecision"`
+	QuoteCommissionPrecision   float64      `json:"quoteCommissionPrecision"`
 	OrderTypes                 []string     `json:"orderTypes"`
 	IsSpotTradingAllowed       bool         `json:"isSpotTradingAllowed"`
 	IsMarginTradingAllowed     bool         `json:"isMarginTradingAllowed"`

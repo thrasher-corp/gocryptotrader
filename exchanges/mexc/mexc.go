@@ -146,17 +146,16 @@ func intervalToString(interval kline.Interval) (string, error) {
 
 // GetCandlestick retrieves kline/candlestick bars for a symbol.
 // Klines are uniquely identified by their open time.
-func (me *MEXC) GetCandlestick(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]CandlestickData, error) {
+func (me *MEXC) GetCandlestick(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit int64) ([]CandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	intervalString, err := intervalToString(interval)
-	if err != nil {
-		return nil, err
+	if interval == "" {
+		return nil, kline.ErrUnsupportedInterval
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("interval", intervalString)
+	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
