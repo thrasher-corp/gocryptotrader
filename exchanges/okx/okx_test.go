@@ -4083,7 +4083,8 @@ func TestWSProcessTrades(t *testing.T) {
 			Asset:   a,
 			Pairs:   currency.Pairs{p},
 			Channel: subscription.AllTradesChannel,
-			Key:     fmt.Sprintf("%s-%s", p, a)})
+			Key:     fmt.Sprintf("%s-%s", p, a),
+		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ok.WsHandleData)
