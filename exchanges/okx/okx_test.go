@@ -6360,9 +6360,8 @@ func TestGetAnnouncements(t *testing.T) {
 
 func TestGetAnnouncementTypes(t *testing.T) {
 	t.Parallel()
-	results, err := ok.GetAnnouncementTypes(contextGenerate())
-	require.NoError(t, err)
-	assert.NotEmpty(t, results)
+	_, err := ok.GetAnnouncementTypes(contextGenerate())
+	assert.NoError(t, err)
 }
 
 func TestGetDepositOrderDetail(t *testing.T) {

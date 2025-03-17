@@ -2563,7 +2563,7 @@ func getTimeInForce(s *order.Submit) (string, error) {
 		return "poc", nil
 	case s.TimeInForce.Is(order.GoodTillCancel):
 		return "gtc", nil
-	case s.TimeInForce.Is(order.UnsetTIF):
+	case s.TimeInForce == order.UnsetTIF:
 		switch s.Type {
 		case order.Market:
 			return "ioc", nil
@@ -2573,7 +2573,7 @@ func getTimeInForce(s *order.Submit) (string, error) {
 			return "", nil
 		}
 	default:
-		return "", fmt.Errorf("%w: time-in-force value of %s", order.ErrInvalidTimeInForce, s.TimeInForce.String())
+		return "", fmt.Errorf("%w: time-in-force value of %v", order.ErrInvalidTimeInForce, s.TimeInForce)
 	}
 }
 
