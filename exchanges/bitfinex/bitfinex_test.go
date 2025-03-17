@@ -1148,15 +1148,23 @@ func TestGenerateSubscriptions(t *testing.T) {
 				s := baseSub.Clone()
 				s.Asset = a
 				s.Pairs = currency.Pairs{p}
+				prefix := "t"
+				if a == asset.MarginFunding {
+					prefix = "f"
+				}
 				switch s.Channel {
 				case subscription.TickerChannel:
-					s.QualifiedChannel = `{"channel":"ticker","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"ticker","symbol":"` + prefix + p.String() + `"}`
 				case subscription.CandlesChannel:
-					s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:t` + p.String() + `"}`
+					if a == asset.MarginFunding {
+						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `:p30"}`
+					} else {
+						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `"}`
+					}
 				case subscription.OrderbookChannel:
-					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"` + prefix + p.String() + `"}`
 				case subscription.AllTradesChannel:
-					s.QualifiedChannel = `{"channel":"trades","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"trades","symbol":"` + prefix + p.String() + `"}`
 				}
 				exp = append(exp, s)
 			}
