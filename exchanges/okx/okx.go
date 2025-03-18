@@ -137,7 +137,7 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		var errs error
 		for x := range resp {
 			if resp[x].StatusCode != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error code:%d message: %v", resp[x].StatusCode, resp[x].StatusMessage))
+				errs = common.AppendError(errs, fmt.Errorf("status code:%d message: %v", resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
 		return nil, errs
@@ -546,7 +546,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w,  error code: %s,  error message: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w,  status code: %s,  error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -2982,7 +2982,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, error code: %s error message: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w, status code: %s error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -3004,7 +3004,7 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAmend) 
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage == "" {
-			return nil, fmt.Errorf("%w, error code: %s and error message: %s", err, resp.StatusMessage, resp.StatusCode)
+			return nil, fmt.Errorf("%w, status code: %s and error message: %s", err, resp.StatusCode, resp.StatusMessage)
 		}
 		return nil, err
 	}
@@ -5931,13 +5931,13 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 	if err == nil && resp.Code.Int64() != 0 {
 		if resp.Msg != "" {
-			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
+			return fmt.Errorf("%w status code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
 		}
 		err, okay := ErrorCodes[resp.Code.String()]
 		if okay {
 			return err
 		}
-		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
+		return fmt.Errorf("%w status code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
 	}
 	return nil
 }
