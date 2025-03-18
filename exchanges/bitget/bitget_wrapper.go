@@ -1840,15 +1840,16 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			if err != nil {
 				return err
 			}
-			limits = make([]order.MinMaxLevel, len(resp))
+			limitsTemp := make([]order.MinMaxLevel, len(resp))
 			for i := range resp {
-				limits[i] = order.MinMaxLevel{
+				limitsTemp[i] = order.MinMaxLevel{
 					Asset:          a,
 					Pair:           currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin),
 					MinNotional:    resp[i].MinimumTradeUSDT,
 					MaxTotalOrders: resp[i].MaximumSymbolOrderNumber,
 				}
 			}
+			limits = append(limits, limitsTemp...)
 		}
 	case asset.Margin, asset.CrossMargin:
 		resp, err := bi.GetSupportedCurrencies(ctx)

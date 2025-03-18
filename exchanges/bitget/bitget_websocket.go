@@ -941,7 +941,7 @@ func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 			Pair:       pair,
 			UpdateTime: wsResponse.Timestamp.Time(),
 			Asset:      itemDecoder(wsResponse.Arg.InstrumentType),
-			Checksum:   uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
+			Checksum:   uint32(ob[0].Checksum), // The exchange sends it as ints expecting overflows to be handled as Go does by default
 		}
 		// Sometimes the exchange returns updates with no new asks or bids, just a checksum and timestamp
 		if len(update.Bids) != 0 || len(update.Asks) != 0 {

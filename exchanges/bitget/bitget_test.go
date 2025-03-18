@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -76,6 +77,7 @@ const (
 	skipInsufficientBalance            = "insufficient balance to place order, skipping"
 	skipInsufficientOrders             = "insufficient orders found, skipping"
 	skipInsufficientRiskUnits          = "insufficient risk units found, skipping"
+	skipInstitution                    = "this endpoint requires IDs tailored to an institution, so it can't be automatically tested, skipping"
 	errAPIKeyLimitPartial              = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
 	errCurrentlyHoldingPositionPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"45117","msg":"Currently holding positions or orders, the margin mode cannot be adjusted","requestTime":`
 )
@@ -376,7 +378,7 @@ func TestCreateSubaccountAndAPIKey(t *testing.T) {
 	pL := []string{"read"}
 	// Fails with error "subAccountList not empty" and I'm not sure why. The account I'm testing with is far off hitting the limit of 20 sub-accounts.
 	// Now it's saying that parameter req cannot be empty, still no clue what that means
-	// Now it's saying that parameter verification failed
+	// Now it's saying that parameter verification failed. Occasionally it says this in Chinese
 	_, err = bi.CreateSubaccountAndAPIKey(context.Background(), "MEOWMEOW", "woofwoof123", "neighneighneighneighneigh", ipL, pL)
 	assert.NoError(t, err)
 }
@@ -2443,16 +2445,19 @@ func TestGetLiquidationRecords(t *testing.T) {
 
 func TestGetLoanInfo(t *testing.T) {
 	t.Parallel()
+	t.Skip(skipInstitution)
 	testGetOneArg(t, bi.GetLoanInfo, "", "1", errProductIDEmpty, false, true, true)
 }
 
 func TestGetMarginCoinRatio(t *testing.T) {
 	t.Parallel()
+	t.Skip(skipInstitution)
 	testGetOneArg(t, bi.GetMarginCoinRatio, "", "1", errProductIDEmpty, false, true, true)
 }
 
 func TestGetSpotSymbols(t *testing.T) {
 	t.Parallel()
+	t.Skip(skipInstitution)
 	testGetOneArg(t, bi.GetSpotSymbols, "", "1", errProductIDEmpty, false, true, true)
 }
 
@@ -3485,8 +3490,6 @@ func TestWsHandleData(t *testing.T) {
 			}
 		}
 	}()
-	oldVerbose := bi.Verbose
-	bi.Verbose = true
 	mockJSON := []byte(`pong`)
 	err := bi.wsHandleData(mockJSON)
 	assert.NoError(t, err)
@@ -3504,14 +3507,19 @@ func TestWsHandleData(t *testing.T) {
 	mockJSON = []byte(`{"event":"login","code":0}`)
 	err = bi.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	bi.Verbose = oldVerbose
 	mockJSON = []byte(`{"event":"login","code":1}`)
 	err = bi.wsHandleData(mockJSON)
 	expectedErr = fmt.Sprintf(errWebsocketLoginFailed, "Bitget", "")
 	assert.EqualError(t, err, expectedErr)
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"ticker","instType":"SPOT"},"data":[[]]}`)
 	err = bi.wsHandleData(mockJSON)
-	targetStr2 := "mismatched type with"
+	var targetStr2 string
+	switch json.Implementation {
+	case "bytedance/sonic":
+		targetStr2 = "mismatched type with"
+	case "encoding/json":
+		targetStr2 = "cannot unmarshal array"
+	}
 	assert.ErrorContains(t, err, targetStr2)
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"ticker","instType":"SPOT"},"data":[{}]}`)
 	err = bi.wsHandleData(mockJSON)
