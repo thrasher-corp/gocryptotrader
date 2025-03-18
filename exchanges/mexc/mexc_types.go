@@ -270,7 +270,7 @@ type KYCStatusInfo struct {
 type OrderDetail struct {
 	Symbol              string       `json:"symbol"`
 	OrderID             string       `json:"orderId"`
-	OrderListID         int          `json:"orderListId"`
+	OrderListID         int64        `json:"orderListId"`
 	Price               types.Number `json:"price"`
 	OrigQty             types.Number `json:"origQty"`
 	Type                string       `json:"type"`
@@ -386,34 +386,34 @@ type FundDepositInfo struct {
 	Amount        types.Number `json:"amount"`
 	Coin          string       `json:"coin"`
 	Network       string       `json:"network"`
-	Status        int          `json:"status"`
+	Status        int64        `json:"status"`
 	Address       string       `json:"address"`
 	TransactionID string       `json:"txId"`
-	InsertTime    types.Time   `json:"insertTime"`
 	UnlockConfirm string       `json:"unlockConfirm"`
-	ConfirmTimes  types.Time   `json:"confirmTimes"`
 	Memo          string       `json:"memo"`
+	InsertTime    types.Time   `json:"insertTime"`
+	ConfirmTimes  types.Time   `json:"confirmTimes"`
 }
 
 // WithdrawalInfo represents an asset withdrawal detailed information
 type WithdrawalInfo struct {
 	ID             string       `json:"id"`
-	TransactionID  any          `json:"txId"`
+	TransactionID  string       `json:"txId"`
 	Coin           string       `json:"coin"`
 	Network        string       `json:"network"`
 	Address        string       `json:"address"`
-	Amount         types.Number `json:"amount"`
 	TransferType   int64        `json:"transferType"`
 	Status         int64        `json:"status"`
-	TransactionFee types.Number `json:"transactionFee"`
 	ConfirmNo      any          `json:"confirmNo"`
-	ApplyTime      types.Time   `json:"applyTime"`
 	Remark         string       `json:"remark"`
 	Memo           string       `json:"memo"`
 	TransHash      string       `json:"transHash"`
-	UpdateTime     types.Time   `json:"updateTime"`
 	CoinID         string       `json:"coinId"`
 	VcoinID        string       `json:"vcoinId"`
+	TransactionFee types.Number `json:"transactionFee"`
+	Amount         types.Number `json:"amount"`
+	ApplyTime      types.Time   `json:"applyTime"`
+	UpdateTime     types.Time   `json:"updateTime"`
 }
 
 // DepositAddressInfo represents a deposit address information

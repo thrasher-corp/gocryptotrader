@@ -483,8 +483,9 @@ func (me *MEXC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 	}
 	switch assetType {
 	case asset.Futures:
+		return nil, nil
 	case asset.Spot:
-		
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}

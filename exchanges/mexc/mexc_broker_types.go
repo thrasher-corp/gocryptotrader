@@ -14,12 +14,12 @@ type BrokerAssetTransfer struct {
 	ToAccount           string       `json:"toAccount"`
 	ClientTransactionID string       `json:"clientTranId"`
 	Asset               string       `json:"asset"`
-	Amount              types.Number `json:"amount"`
 	FromAccountType     string       `json:"fromAccountType"`
 	ToAccountType       string       `json:"toAccountType"`
 	FromSymbol          string       `json:"fromSymbol"`
 	ToSymbol            string       `json:"toSymbol"`
 	Status              string       `json:"status"`
+	Amount              types.Number `json:"amount"`
 	Timestamp           types.Time   `json:"timestamp"`
 }
 
