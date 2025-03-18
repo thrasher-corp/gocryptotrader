@@ -402,7 +402,8 @@ func TestGetInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidInstrumentType)
 
 	_, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
-		InstrumentType: instTypeOption, Underlying: ""})
+		InstrumentType: instTypeOption, Underlying: "",
+	})
 	assert.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
 	result, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
@@ -662,6 +663,7 @@ func TestGetTakerVolume(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestGetMarginLendingRatio(t *testing.T) {
 	t.Parallel()
 	result, err := ok.GetMarginLendingRatio(contextGenerate(), currency.BTC, time.Time{}, time.Time{}, kline.FiveMin)
@@ -914,6 +916,7 @@ func TestAmendOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := ok.AmendMultipleOrders(contextGenerate(), []AmendOrderRequestParams{})
@@ -1184,7 +1187,8 @@ func TestPlaceTakeProfitStopLossOrder(t *testing.T) {
 	_, err = ok.PlaceTakeProfitStopLossOrder(contextGenerate(), &AlgoOrderParams{
 		OrderType:                "conditional",
 		StopLossTriggerPrice:     1234,
-		StopLossTriggerPriceType: "abcd"})
+		StopLossTriggerPriceType: "abcd",
+	})
 	require.ErrorIs(t, err, order.ErrUnknownPriceType)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
@@ -1301,7 +1305,8 @@ func TestPlaceTrailingStopOrder(t *testing.T) {
 		AlgoClientOrderID: "681096944655273984", CallbackRatio: 0.01,
 		InstrumentID: "BTC-USDT", OrderType: "move_order_stop",
 		Side: order.Buy.Lower(), TradeMode: "isolated",
-		Size: 2, ActivePrice: 1234})
+		Size: 2, ActivePrice: 1234,
+	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1558,7 +1563,8 @@ func TestSetQuoteProducts(t *testing.T) {
 					Underlying: "ETH-USDT",
 				},
 			},
-		}})
+		},
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1750,19 +1756,23 @@ func TestFundingTransfer(t *testing.T) {
 	_, err := ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{})
 	assert.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
-		BeneficiaryAccountType: "6", RemittingAccountType: "18", Currency: currency.BTC})
+		BeneficiaryAccountType: "6", RemittingAccountType: "18", Currency: currency.BTC,
+	})
 	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
 		Amount: 12.000, BeneficiaryAccountType: "6",
-		RemittingAccountType: "18", Currency: currency.EMPTYCODE})
+		RemittingAccountType: "18", Currency: currency.EMPTYCODE,
+	})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
 		Amount: 12.000, BeneficiaryAccountType: "2",
-		RemittingAccountType: "3", Currency: currency.BTC})
+		RemittingAccountType: "3", Currency: currency.BTC,
+	})
 	assert.ErrorIs(t, err, errAddressRequired)
 	_, err = ok.FundingTransfer(contextGenerate(), &FundingTransferRequestInput{
 		Amount: 12.000, BeneficiaryAccountType: "2",
-		RemittingAccountType: "18", Currency: currency.BTC})
+		RemittingAccountType: "18", Currency: currency.BTC,
+	})
 	assert.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -1869,7 +1879,8 @@ func TestLightningWithdrawal(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	_, err = ok.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{
-		Invoice: "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz", Currency: currency.EMPTYCODE})
+		Invoice: "lnbc100u1psnnvhtpp5yq2x3q5hhrzsuxpwx7ptphwzc4k4wk0j3stp0099968m44cyjg9sdqqcqzpgxqzjcsp5hz", Currency: currency.EMPTYCODE,
+	})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = ok.LightningWithdrawal(contextGenerate(), &LightningWithdrawalRequestInput{Invoice: "", Currency: currency.BTC})
@@ -2170,7 +2181,8 @@ func TestGetBillsDetail(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetBillsDetailLast7Days(contextGenerate(), &BillsDetailQueryParameter{
-		Limit: 3})
+		Limit: 3,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2672,7 +2684,8 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAPIKeyPermission)
 	_, err = ok.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		Permissions: []string{"abc"}, SubAccountName: "sam",
-		APIKey: "sample-api-key"})
+		APIKey: "sample-api-key",
+	})
 	require.ErrorIs(t, err, errInvalidAPIKeyPermission)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -2713,6 +2726,7 @@ func TestGetSubaccountFundingBalance(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestGetSubAccountMaximumWithdrawal(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetSubAccountMaximumWithdrawal(contextGenerate(), "", currency.BTC)
@@ -3162,6 +3176,7 @@ func TestGetGridAIParameter(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestGetOffers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
@@ -3538,7 +3553,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	var arg = &order.Cancel{
+	arg := &order.Cancel{
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		AssetType:     asset.Binary,
@@ -3557,18 +3572,22 @@ func TestCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
 		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
-		AccountID: "1", Pair: spotTP, AssetType: asset.Spot})
+		AccountID: "1", Pair: spotTP, AssetType: asset.Spot,
+	})
 	assert.NoError(t, err)
 
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
 		Type:    order.OCO,
 		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
-		AccountID: "1", Pair: spotTP, AssetType: asset.Spot})
+		AccountID: "1", Pair: spotTP, AssetType: asset.Spot,
+	})
 	assert.NoError(t, err)
 
-	err = ok.CancelOrder(contextGenerate(), &order.Cancel{OrderID: "1",
+	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
+		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress, AccountID: "1",
-		Pair: spreadTP, AssetType: asset.Spread})
+		Pair: spreadTP, AssetType: asset.Spread,
+	})
 	assert.NoError(t, err)
 }
 
@@ -3605,7 +3624,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	var orderCancellationParams = []order.Cancel{
+	orderCancellationParams := []order.Cancel{
 		{
 			OrderID:       "1",
 			WalletAddress: core.BitcoinDonationAddress,
@@ -3827,7 +3846,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -3847,6 +3866,7 @@ func TestGetOrderHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
@@ -4063,7 +4083,8 @@ func TestWSProcessTrades(t *testing.T) {
 			Asset:   a,
 			Pairs:   currency.Pairs{p},
 			Channel: subscription.AllTradesChannel,
-			Key:     fmt.Sprintf("%s-%s", p, a)})
+			Key:     fmt.Sprintf("%s-%s", p, a),
+		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ok.WsHandleData)
@@ -4132,11 +4153,13 @@ func TestTickersSubscription(t *testing.T) {
 	err = ok.TickersSubscription(contextGenerate(), "unsubscribe", asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	assert.NoError(t, err)
 }
+
 func TestOpenInterestSubscription(t *testing.T) {
 	t.Parallel()
 	err := ok.OpenInterestSubscription(contextGenerate(), "subscribe", asset.PerpetualSwap, currency.NewPair(currency.BTC, currency.NewCode("USD-SWAP")))
 	assert.NoError(t, err)
 }
+
 func TestCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
 	enabled, err := ok.GetEnabledPairs(asset.PerpetualSwap)
@@ -4229,6 +4252,7 @@ func TestIndexCandlesticksSubscription(t *testing.T) {
 	err = ok.IndexCandlesticksSubscription(contextGenerate(), "unsubscribe", channelIndexCandle6M, asset.Spot, currency.NewPair(currency.SOL, currency.USD))
 	assert.NoError(t, err)
 }
+
 func TestIndexTickerChannelIndexTickerChannel(t *testing.T) {
 	t.Parallel()
 	err := ok.IndexTickerChannel(contextGenerate(), "subscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD))
@@ -4252,6 +4276,7 @@ func TestPublicStructureBlockTradesSubscription(t *testing.T) {
 	err = ok.PublicStructureBlockTradesSubscription(contextGenerate(), "unsubscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD))
 	assert.NoError(t, err)
 }
+
 func TestBlockTickerSubscription(t *testing.T) {
 	t.Parallel()
 	err := ok.BlockTickerSubscription(contextGenerate(), "subscribe", asset.Options, currency.NewPair(currency.BTC, currency.USDT))
@@ -4970,7 +4995,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestWsProcessOrderbook5(t *testing.T) {
 	t.Parallel()
-	var ob5payload = []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
+	ob5payload := []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
 	err := ok.wsProcessOrderbook5(ob5payload)
 	require.NoError(t, err)
 
@@ -5011,7 +5036,8 @@ func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
 		InstrumentID: "BTC-USDT",
 		LoanCcy:      currency.USDT,
-		Side:         "borrow"})
+		Side:         "borrow",
+	})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = ok.ManualBorrowAndRepayInQuickMarginMode(contextGenerate(), &BorrowAndRepay{
 		Amount:       1,
@@ -5058,6 +5084,7 @@ func TestGetVIPInterestAccruedData(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestGetVIPInterestDeductedData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
@@ -5081,6 +5108,7 @@ func TestGetVIPLoanOrderDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestSetRiskOffsetType(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -5726,8 +5754,10 @@ func TestStopCopying(t *testing.T) {
 		SubPositionCloseType: "manual_close",
 	})
 	require.ErrorIs(t, err, errUniqueCodeRequired)
-	_, err = ok.StopCopying(contextGenerate(), &StopCopyingParameter{InstrumentType: "SWAP",
-		UniqueCode: "25CD5A80241D6FE6"})
+	_, err = ok.StopCopying(contextGenerate(), &StopCopyingParameter{
+		InstrumentType: "SWAP",
+		UniqueCode:     "25CD5A80241D6FE6",
+	})
 	require.ErrorIs(t, err, errSubPositionCloseTypeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -6357,7 +6387,7 @@ func TestGetAccountInstruments(t *testing.T) {
 
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	var orderTypesToStringMap = map[order.Type]struct {
+	orderTypesToStringMap := map[order.Type]struct {
 		Expected string
 		Error    error
 	}{

@@ -37,7 +37,8 @@ var (
 				Name:   "lOg",
 				Level:  "INFO|DEBUG|WARN|ERROR",
 				Output: "stdout",
-			}},
+			},
+		},
 	}
 	testConfigDisabled = &Config{
 		Enabled:         convert.BoolPtr(false),

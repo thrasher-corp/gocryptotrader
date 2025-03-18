@@ -34,9 +34,7 @@ type exchange struct {
 	FIX         bool
 }
 
-var (
-	errInvalidExchangeName = errors.New("invalid exchange name")
-)
+var errInvalidExchangeName = errors.New("invalid exchange name")
 
 func main() {
 	var newExchangeName string
@@ -260,7 +258,7 @@ func runCommand(dir, param string) error {
 func newFile(path string) {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		var file, err = os.Create(path)
+		file, err := os.Create(path)
 		if err != nil {
 			log.Fatal(err)
 		}

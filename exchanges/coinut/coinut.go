@@ -153,7 +153,7 @@ func (c *COINUT) CancelExistingOrder(ctx context.Context, instrumentID, orderID 
 		OrderID      int64 `json:"order_id"`
 	}
 
-	var entry = Request{
+	entry := Request{
 		InstrumentID: instrumentID,
 		OrderID:      orderID,
 	}

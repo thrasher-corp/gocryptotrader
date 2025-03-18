@@ -962,7 +962,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			return nil, err
 		}
 		var formattedType SpotNewOrderRequestParamsType
-		var params = SpotNewOrderRequestParams{
+		params := SpotNewOrderRequestParams{
 			Amount:    s.Amount,
 			Source:    "api",
 			Symbol:    s.Pair,
@@ -1261,7 +1261,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		if respData.ID == 0 {
 			return nil, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
 		}
-		var responseID = strconv.FormatInt(respData.ID, 10)
+		responseID := strconv.FormatInt(respData.ID, 10)
 		if responseID != orderID {
 			return nil, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
 				orderID + " Received: " + responseID)
