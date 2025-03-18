@@ -138,7 +138,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 		if errUUID != nil {
 			return errUUID
 		}
-		var tempInsert = modelSQLite.Exchange{
+		tempInsert := modelSQLite.Exchange{
 			Name: strings.ToLower(in[x].Name),
 			ID:   tempUUID.String(),
 		}
@@ -158,7 +158,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 
 func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 	for x := range in {
-		var tempInsert = modelPSQL.Exchange{
+		tempInsert := modelPSQL.Exchange{
 			Name: strings.ToLower(in[x].Name),
 		}
 

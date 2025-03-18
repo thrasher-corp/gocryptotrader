@@ -230,7 +230,7 @@ func (a *Alphapoint) GetUserInfo(ctx context.Context) (UserInfo, error) {
 func (a *Alphapoint) SetUserInfo(ctx context.Context, firstName, lastName, cell2FACountryCode, cell2FAValue string, useAuthy2FA, use2FAForWithdraw bool) (UserInfoSet, error) {
 	response := UserInfoSet{}
 
-	var userInfoKVPs = []UserInfoKVP{
+	userInfoKVPs := []UserInfoKVP{
 		{
 			Key:   "FirstName",
 			Value: firstName,
@@ -562,7 +562,8 @@ func (a *Alphapoint) SendHTTPRequest(_ context.Context, ep exchange.URL, method,
 		Result:        result,
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
-		HTTPRecording: a.HTTPRecording}
+		HTTPRecording: a.HTTPRecording,
+	}
 
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
@@ -612,7 +613,8 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 		NonceEnabled:  true,
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
-		HTTPRecording: a.HTTPRecording}
+		HTTPRecording: a.HTTPRecording,
+	}
 
 	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)

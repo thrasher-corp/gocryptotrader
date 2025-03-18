@@ -112,7 +112,7 @@ func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 
 // FormatPairs formats a string array to a list of currency pairs with the supplied currency pair format
 func FormatPairs(pairs []string, delimiter string) (Pairs, error) {
-	var result = make(Pairs, len(pairs))
+	result := make(Pairs, len(pairs))
 	for x := range pairs {
 		if pairs[x] == "" {
 			return nil, fmt.Errorf("%w in slice %v", errEmptyPairString, pairs)

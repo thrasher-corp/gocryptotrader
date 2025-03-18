@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -4088,6 +4091,76 @@ func setupWS() {
 	err := ok.WsConnect()
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func TestWSProcessTrades(t *testing.T) {
+	t.Parallel()
+
+	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+	assets, err := ok.getAssetsFromInstrumentID("BTC-USDT")
+	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+
+	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+
+	for _, a := range assets {
+		err := ok.Websocket.AddSubscriptions(ok.Websocket.Conn, &subscription.Subscription{
+			Asset:   a,
+			Pairs:   currency.Pairs{p},
+			Channel: subscription.AllTradesChannel,
+			Key:     fmt.Sprintf("%s-%s", p, a),
+		})
+		require.NoError(t, err, "AddSubscriptions must not error")
+	}
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", ok.WsHandleData)
+
+	exp := []trade.Data{
+		{
+			Timestamp: time.UnixMilli(1740394561685).UTC(),
+			Price:     95634.9,
+			Amount:    0.00011186,
+			Side:      order.Buy,
+			TID:       "674510826",
+		},
+		{
+			Timestamp: time.UnixMilli(1740394561686).UTC(),
+			Price:     95635.3,
+			Amount:    0.00011194,
+			Side:      order.Sell,
+			TID:       "674510827",
+		},
+	}
+
+	total := len(assets) * len(exp)
+	require.Len(t, ok.Websocket.DataHandler, total, "Must see correct number of trades")
+
+	trades := make(map[asset.Item][]trade.Data)
+
+	for len(ok.Websocket.DataHandler) > 0 {
+		resp := <-ok.Websocket.DataHandler
+		switch v := resp.(type) {
+		case trade.Data:
+			trades[v.AssetType] = append(trades[v.AssetType], v)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
+		}
+	}
+
+	for _, assetType := range assets {
+		require.Len(t, trades[assetType], len(exp), "Must have received %d trades for asset %v", len(exp), assetType)
+		slices.SortFunc(trades[assetType], func(a, b trade.Data) int {
+			return strings.Compare(a.TID, b.TID)
+		})
+		for i, tradeData := range trades[assetType] {
+			expected := exp[i]
+			expected.AssetType = assetType
+			expected.Exchange = ok.Name
+			expected.CurrencyPair = p
+			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
+		}
 	}
 }
 
