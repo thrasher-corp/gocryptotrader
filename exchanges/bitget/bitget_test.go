@@ -3214,6 +3214,7 @@ func TestRepayLoan(t *testing.T) {
 	_, err = bi.RepayLoan(context.Background(), resp[0].OrderID, 0, true, true)
 	assert.NoError(t, err)
 }
+
 func TestModifyFuturesOrder(t *testing.T) {
 	_, err := bi.ModifyFuturesOrder(context.Background(), 0, "", "", "", currency.Pair{}, 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
