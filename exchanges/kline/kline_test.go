@@ -457,7 +457,7 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 
 func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	t.Parallel()
-	var tempKline = Item{
+	tempKline := Item{
 		Exchange: "testExchange",
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -1143,7 +1143,8 @@ func TestAddPadding(t *testing.T) {
 			Low:    1337,
 			Close:  6969,
 			Volume: 2520,
-		}}
+		},
+	}
 
 	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
 	if !errors.Is(err, errCandleOpenTimeIsNotUTCAligned) {
@@ -1174,7 +1175,8 @@ func TestAddPadding(t *testing.T) {
 			Low:    1337,
 			Close:  6969,
 			Volume: 2520,
-		}}
+		},
+	}
 
 	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
 	if !errors.Is(err, nil) {

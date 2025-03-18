@@ -117,12 +117,10 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 		return nil
 	}
 	switch direction {
-	case order.Buy,
-		order.Bid:
+	case order.Buy, order.Bid:
 		h.BoughtAmount = h.BoughtAmount.Add(amount)
 		h.CommittedFunds = h.BaseSize.Mul(price)
-	case order.Sell,
-		order.Ask:
+	case order.Sell, order.Ask:
 		h.SoldAmount = h.SoldAmount.Add(amount)
 		h.CommittedFunds = h.BaseSize.Mul(price)
 	}

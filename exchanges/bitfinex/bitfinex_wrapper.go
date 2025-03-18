@@ -41,33 +41,23 @@ func (b *Bitfinex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.Margin, fmt2)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.MarginFunding, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		if a == asset.Margin {
+			ps.ConfigFormat.Delimiter = ":"
+		}
+		if err := b.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+		}
 	}
 
 	// Margin WS Currently not fully implemented and causes subscription collisions with spot
-	err = b.DisableAssetWebsocketSupport(asset.Margin)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := b.DisableAssetWebsocketSupport(asset.Margin); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, asset.Margin, err)
 	}
 
 	// TODO: Implement Futures and Securities asset types.
@@ -162,6 +152,7 @@ func (b *Bitfinex) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -323,7 +314,8 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Volume:       val.Volume,
 			Pair:         pair,
 			AssetType:    a,
-			ExchangeName: b.Name})
+			ExchangeName: b.Name,
+		})
 		if err != nil {
 			errs = common.AppendError(errs, err)
 		}
@@ -363,7 +355,7 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return o, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	b.appendOptionalDelimiter(&fPair)
-	var prefix = "t"
+	prefix := "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
@@ -428,7 +420,7 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		return response, err
 	}
 
-	var Accounts = []account.SubAccount{
+	Accounts := []account.SubAccount{
 		{ID: "deposit", AssetType: assetType},
 		{ID: "exchange", AssetType: assetType},
 		{ID: "trading", AssetType: assetType},

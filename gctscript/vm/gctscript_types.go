@@ -28,10 +28,8 @@ type Error struct {
 	Cause  error
 }
 
-var (
-	// ScriptPath path to load/save scripts
-	ScriptPath string
-)
+// ScriptPath path to load/save scripts
+var ScriptPath string
 
 var (
 	// ErrScriptingDisabled error message displayed when gctscript is disabled
