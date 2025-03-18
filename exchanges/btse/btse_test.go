@@ -492,16 +492,17 @@ func TestWSTrades(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", b.wsHandleData)
 	close(b.Websocket.DataHandler)
 
-	exp := []trade.Data{{
-		Exchange:     b.Name,
-		CurrencyPair: spotPair,
-		Timestamp:    time.UnixMilli(1741836562893).UTC(),
-		Price:        83894.01,
-		Amount:       0.00067,
-		Side:         order.Buy,
-		TID:          "74040596",
-		AssetType:    asset.Spot,
-	},
+	exp := []trade.Data{
+		{
+			Exchange:     b.Name,
+			CurrencyPair: spotPair,
+			Timestamp:    time.UnixMilli(1741836562893).UTC(),
+			Price:        83894.01,
+			Amount:       0.00067,
+			Side:         order.Buy,
+			TID:          "74040596",
+			AssetType:    asset.Spot,
+		},
 		{
 			Exchange:     b.Name,
 			CurrencyPair: spotPair,
