@@ -240,7 +240,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 			}
 		}
-	case strings.Contains(topic, "tradeHistory"):
+	case strings.Contains(topic, "tradeHistoryApi"):
 		saveTradeData := b.IsSaveTradeDataEnabled()
 		tradeFeed := b.IsTradeFeedEnabled()
 		if !saveTradeData && !tradeFeed {
@@ -254,7 +254,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		var trades []trade.Data
 		for x := range tradeHistory.Data {
-
 			var p currency.Pair
 			p, err = currency.NewPairFromString(tradeHistory.Data[x].Symbol)
 			if err != nil {
