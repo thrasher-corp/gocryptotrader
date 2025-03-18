@@ -30,6 +30,7 @@ func (m *MockProvider) IsPrimaryProvider() bool   { return true }
 func (m *MockProvider) GetSupportedCurrencies() ([]string, error) {
 	return storage.defaultFiatCurrencies.Strings(), nil
 }
+
 func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	c := map[string]float64{}
 	for _, s := range strings.Split(symbols, ",") {

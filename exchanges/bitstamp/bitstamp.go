@@ -356,7 +356,7 @@ func (b *Bitstamp) GetOrderStatus(ctx context.Context, orderID int64) (OrderStat
 
 // CancelExistingOrder cancels order by ID
 func (b *Bitstamp) CancelExistingOrder(ctx context.Context, orderID int64) (CancelOrder, error) {
-	var req = url.Values{}
+	req := url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
 
 	var result CancelOrder
@@ -378,7 +378,7 @@ func (b *Bitstamp) CancelAllExistingOrders(ctx context.Context) (bool, error) {
 
 // PlaceOrder places an order on the exchange.
 func (b *Bitstamp) PlaceOrder(ctx context.Context, currencyPair string, price, amount float64, buy, market bool) (Order, error) {
-	var req = url.Values{}
+	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
 	response := Order{}
@@ -425,7 +425,7 @@ func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) (
 // symbol - the type of crypto ie "ltc", "btc", "eth"
 // destTag - only for XRP  default to ""
 func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address, symbol, destTag string) (*CryptoWithdrawalResponse, error) {
-	var req = url.Values{}
+	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("address", address)
 
@@ -449,8 +449,9 @@ func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address
 // OpenBankWithdrawal Opens a bank withdrawal request (SEPA or international)
 func (b *Bitstamp) OpenBankWithdrawal(ctx context.Context, amount float64, currency,
 	name, iban, bic, address, postalCode, city, country,
-	comment, withdrawalType string) (FIATWithdrawalResponse, error) {
-	var req = url.Values{}
+	comment, withdrawalType string,
+) (FIATWithdrawalResponse, error) {
+	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("account_currency", currency)
 	req.Add("name", name)
@@ -471,8 +472,9 @@ func (b *Bitstamp) OpenBankWithdrawal(ctx context.Context, amount float64, curre
 func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount float64, currency,
 	name, iban, bic, address, postalCode, city, country,
 	bankName, bankAddress, bankPostCode, bankCity, bankCountry, internationalCurrency,
-	comment, withdrawalType string) (FIATWithdrawalResponse, error) {
-	var req = url.Values{}
+	comment, withdrawalType string,
+) (FIATWithdrawalResponse, error) {
+	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("account_currency", currency)
 	req.Add("name", name)
@@ -513,7 +515,7 @@ func (b *Bitstamp) GetUnconfirmedBitcoinDeposits(ctx context.Context) ([]Unconfi
 
 // OHLC returns OHLCV data for step (interval)
 func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Time, step, limit string) (resp OHLCResponse, err error) {
-	var v = url.Values{}
+	v := url.Values{}
 	v.Add("limit", limit)
 	v.Add("step", step)
 
@@ -535,7 +537,7 @@ func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Ti
 // subaccount - name of account
 // toMain - bool either to or from account
 func (b *Bitstamp) TransferAccountBalance(ctx context.Context, amount float64, currency, subAccount string, toMain bool) error {
-	var req = url.Values{}
+	req := url.Values{}
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("currency", currency)
 

@@ -23,7 +23,7 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-func TestSubmit_Validate(t *testing.T) {
+func TestSubmitValidate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
@@ -47,7 +47,6 @@ func TestSubmit_Validate(t *testing.T) {
 			Submit:      &Submit{Exchange: "test"},
 		}, // empty pair
 		{
-
 			ExpectedErr: ErrAssetNotSet,
 			Submit:      &Submit{Exchange: "test", Pair: testPair},
 		}, // valid pair but invalid asset
@@ -316,7 +315,7 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 func TestOrderSides(t *testing.T) {
 	t.Parallel()
 
-	var os = Buy
+	os := Buy
 	if os.String() != "BUY" {
 		t.Errorf("unexpected string %s", os.String())
 	}
@@ -442,7 +441,7 @@ func TestInferCostsAndTimes(t *testing.T) {
 func TestFilterOrdersByType(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Type: ImmediateOrCancel,
 		},
@@ -486,7 +485,7 @@ var filterOrdersByTypeBenchmark = &[]Detail{
 // 392455	      3226 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 9486490	       109.5 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByType(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		FilterOrdersByType(filterOrdersByTypeBenchmark, Limit)
 	}
 }
@@ -494,7 +493,7 @@ func BenchmarkFilterOrdersByType(b *testing.B) {
 func TestFilterOrdersBySide(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Side: Buy,
 		},
@@ -538,7 +537,7 @@ var filterOrdersBySideBenchmark = &[]Detail{
 // 372594	      3049 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 7412187	       148.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersBySide(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		FilterOrdersBySide(filterOrdersBySideBenchmark, Ask)
 	}
 }
@@ -546,7 +545,7 @@ func BenchmarkFilterOrdersBySide(b *testing.B) {
 func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Date: time.Unix(100, 0),
 		},
@@ -623,7 +622,7 @@ var filterOrdersByTimeRangeBenchmark = &[]Detail{
 // 390822	      3335 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 6201034	       172.1 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		err := FilterOrdersByTimeRange(filterOrdersByTimeRangeBenchmark, time.Unix(50, 0), time.Unix(150, 0))
 		if err != nil {
 			b.Fatal(err)
@@ -634,7 +633,7 @@ func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
 func TestFilterOrdersByPairs(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Pair: currency.NewPair(currency.BTC, currency.USD),
 		},
@@ -647,16 +646,20 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		{}, // Unpopulated fields are preserved for API differences
 	}
 
-	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+	currencies := []currency.Pair{
+		currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
-		currency.NewPair(currency.DOGE, currency.RUB)}
+		currency.NewPair(currency.DOGE, currency.RUB),
+	}
 	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 4 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
-		currency.NewPair(currency.LTC, currency.EUR)}
+	currencies = []currency.Pair{
+		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.EUR),
+	}
 	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 3 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
@@ -705,7 +708,7 @@ var filterOrdersByPairsBenchmark = &[]Detail{
 // 6977242	       172.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByPairs(b *testing.B) {
 	pairs := []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		FilterOrdersByPairs(filterOrdersByPairsBenchmark, pairs)
 	}
 }
@@ -908,7 +911,7 @@ var sideBenchmark Side
 // 9756914	       126.7 ns/op	       0 B/op	       0 allocs/op // PREV
 // 25200660	        57.63 ns/op	       3 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderSide(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		sideBenchmark, _ = StringToOrderSide("any")
 	}
 }
@@ -986,7 +989,7 @@ var typeBenchmark Type
 // 5703705	       299.9 ns/op	       0 B/op	       0 allocs/op // PREV
 // 16353608	        81.23 ns/op	       8 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderType(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		typeBenchmark, _ = StringToOrderType("trigger")
 	}
 }
@@ -1063,7 +1066,7 @@ var statusBenchmark Status
 // 3569052	       351.8 ns/op	       0 B/op	       0 allocs/op // PREV
 // 11126791	       101.9 ns/op	      24 B/op	       1 allocs/op // CURRENT
 func BenchmarkStringToOrderStatus(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		statusBenchmark, _ = StringToOrderStatus("market_unavailable")
 	}
 }
@@ -1143,7 +1146,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
-	var leet = "1337"
+	leet := "1337"
 
 	updated := time.Now()
 
@@ -1432,7 +1435,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrUnrecognisedOrderType)
 	}
 
-	var errTestError = errors.New("test error")
+	errTestError := errors.New("test error")
 	getOrders.Type = AnyType
 	err = getOrders.Validate(validate.Check(func() error {
 		return errTestError
@@ -1662,7 +1665,7 @@ var activeBenchmark = Detail{Status: Pending, Amount: 1}
 // 610732089	         2.414 ns/op	       0 B/op	       0 allocs/op // PREV
 // 1000000000	         1.188 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsActive(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		if !activeBenchmark.IsActive() {
 			b.Fatal("expected true")
 		}
@@ -1730,7 +1733,7 @@ var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
 
 // 1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsInactive(b *testing.B) {
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		if !inactiveBenchmark.IsInactive() {
 			b.Fatal("expected true")
 		}
@@ -1875,9 +1878,8 @@ func TestDetail_CopyPointerOrderSlice(t *testing.T) {
 func TestDeriveModify(t *testing.T) {
 	t.Parallel()
 	var o *Detail
-	if _, err := o.DeriveModify(); !errors.Is(err, errOrderDetailIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
-	}
+	_, err := o.DeriveModify()
+	require.ErrorIs(t, err, errOrderDetailIsNil)
 
 	pair := currency.NewPair(currency.BTC, currency.AUD)
 
@@ -1892,31 +1894,26 @@ func TestDeriveModify(t *testing.T) {
 	}
 
 	mod, err := o.DeriveModify()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, mod)
 
-	if mod == nil {
-		t.Fatal("should not be nil")
+	exp := &Modify{
+		Exchange:      "wow",
+		OrderID:       "wow2",
+		ClientOrderID: "wow3",
+		Type:          Market,
+		Side:          Long,
+		AssetType:     asset.Futures,
+		Pair:          pair,
 	}
-
-	if mod.Exchange != "wow" ||
-		mod.OrderID != "wow2" ||
-		mod.ClientOrderID != "wow3" ||
-		mod.Type != Market ||
-		mod.Side != Long ||
-		mod.AssetType != asset.Futures ||
-		!mod.Pair.Equal(pair) {
-		t.Fatal("unexpected values")
-	}
+	assert.Equal(t, exp, mod)
 }
 
 func TestDeriveModifyResponse(t *testing.T) {
 	t.Parallel()
 	var mod *Modify
-	if _, err := mod.DeriveModifyResponse(); !errors.Is(err, errOrderDetailIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errOrderDetailIsNil)
-	}
+	_, err := mod.DeriveModifyResponse()
+	require.ErrorIs(t, err, errOrderDetailIsNil)
 
 	pair := currency.NewPair(currency.BTC, currency.AUD)
 
@@ -1931,23 +1928,19 @@ func TestDeriveModifyResponse(t *testing.T) {
 	}
 
 	modresp, err := mod.DeriveModifyResponse()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "DeriveModifyResponse must not error")
+	require.NotNil(t, modresp)
 
-	if modresp == nil {
-		t.Fatal("should not be nil")
+	exp := &ModifyResponse{
+		Exchange:      "wow",
+		OrderID:       "wow2",
+		ClientOrderID: "wow3",
+		Type:          Market,
+		Side:          Long,
+		AssetType:     asset.Futures,
+		Pair:          pair,
 	}
-
-	if modresp.Exchange != "wow" ||
-		modresp.OrderID != "wow2" ||
-		modresp.ClientOrderID != "wow3" ||
-		modresp.Type != Market ||
-		modresp.Side != Long ||
-		modresp.AssetType != asset.Futures ||
-		!modresp.Pair.Equal(pair) {
-		t.Fatal("unexpected values")
-	}
+	assert.Equal(t, exp, modresp)
 }
 
 func TestDeriveCancel(t *testing.T) {
@@ -1995,7 +1988,7 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 	request.Type = AnyType
 	request.Side = AnySide
 
-	var orders = []Detail{
+	orders := []Detail{
 		{OrderID: "0", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
 		{OrderID: "1", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
 		{OrderID: "2", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},

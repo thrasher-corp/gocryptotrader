@@ -46,7 +46,8 @@ func TestSubscribeTicker(t *testing.T) {
 	err = ProcessTicker(&Price{
 		Pair:         p,
 		ExchangeName: "subscribetest",
-		AssetType:    asset.Spot})
+		AssetType:    asset.Spot,
+	})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -56,7 +57,8 @@ func TestSubscribeTicker(t *testing.T) {
 	err = ProcessTicker(&Price{
 		Pair:         sillyP,
 		ExchangeName: "subscribetest",
-		AssetType:    asset.Spot})
+		AssetType:    asset.Spot,
+	})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -65,7 +67,8 @@ func TestSubscribeTicker(t *testing.T) {
 	err = ProcessTicker(&Price{
 		Pair:         sillyP,
 		ExchangeName: "subscribetest",
-		AssetType:    asset.Spot})
+		AssetType:    asset.Spot,
+	})
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -84,7 +87,8 @@ func TestSubscribeTicker(t *testing.T) {
 	err = ProcessTicker(&Price{
 		Pair:         p,
 		ExchangeName: "subscribetest",
-		AssetType:    asset.Spot})
+		AssetType:    asset.Spot,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +110,8 @@ func TestSubscribeToExchangeTickers(t *testing.T) {
 	err = ProcessTicker(&Price{
 		Pair:         p,
 		ExchangeName: "subscribeExchangeTest",
-		AssetType:    asset.Spot})
+		AssetType:    asset.Spot,
+	})
 	if err != nil {
 		t.Error(err)
 	}

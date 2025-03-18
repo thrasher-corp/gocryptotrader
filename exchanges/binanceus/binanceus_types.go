@@ -192,7 +192,7 @@ type OrderBook struct {
 type KlinesRequestParams struct {
 	Symbol    currency.Pair // Required field; example LTCBTC, BTCUSDT
 	Interval  string        // Time interval period
-	Limit     int64         // Default 500; max 500.
+	Limit     uint64        // Default 500; max 500.
 	StartTime time.Time
 	EndTime   time.Time
 }

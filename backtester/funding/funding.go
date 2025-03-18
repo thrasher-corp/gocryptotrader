@@ -633,7 +633,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 			if usd.IsZero() && exchangeCollateralCalculator.CalculateOffline {
 				continue
 			}
-			var side = gctorder.Buy
+			side := gctorder.Buy
 			if !f.items[y].available.GreaterThan(decimal.Zero) {
 				side = gctorder.Sell
 			}
@@ -718,7 +718,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 		if usd.IsZero() {
 			continue
 		}
-		var side = gctorder.Buy
+		side := gctorder.Buy
 		if !f.items[i].available.GreaterThan(decimal.Zero) {
 			side = gctorder.Sell
 		}

@@ -597,7 +597,6 @@ func (p OrderBookGetL2Params) IsNil() bool {
 
 // PositionGetParams contains all the parameters to send to the API endpoint
 type PositionGetParams struct {
-
 	// Columns - Which columns to fetch. For example, send ["columnName"].
 	Columns string `json:"columns,omitempty"`
 
@@ -822,7 +821,7 @@ type TradeGetBucketedParams struct {
 	Reverse bool `json:"reverse,omitempty"`
 
 	// Start - Starting point for results.
-	Start int32 `json:"start,omitempty"`
+	Start int64 `json:"start,omitempty"`
 
 	// StartTime - Starting date filter for results.
 	StartTime string `json:"startTime,omitempty"`

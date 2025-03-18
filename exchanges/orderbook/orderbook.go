@@ -231,10 +231,10 @@ func (b *Base) Verify() error {
 
 // checker defines specific functionality to determine ascending/descending
 // validation
-type checker func(current Tranche, previous Tranche) error
+type checker func(current, previous Tranche) error
 
 // asc specifically defines ascending price check
-var asc = func(current Tranche, previous Tranche) error {
+var asc = func(current, previous Tranche) error {
 	if current.Price < previous.Price {
 		return errPriceOutOfOrder
 	}
@@ -242,7 +242,7 @@ var asc = func(current Tranche, previous Tranche) error {
 }
 
 // dsc specifically defines descending price check
-var dsc = func(current Tranche, previous Tranche) error {
+var dsc = func(current, previous Tranche) error {
 	if current.Price > previous.Price {
 		return errPriceOutOfOrder
 	}

@@ -265,7 +265,7 @@ func TestMux(t *testing.T) {
 	pipe, err := mux.Subscribe(id)
 	require.NoError(t, err, "Subscribe should not error")
 
-	var ready = make(chan bool)
+	ready := make(chan bool)
 
 	payload := "string"
 
@@ -386,7 +386,7 @@ func BenchmarkSubscribe(b *testing.B) {
 	newID, err := mux.GetID()
 	require.NoError(b, err, "GetID should not error")
 
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := mux.Subscribe(newID)
 		if err != nil {
 			b.Error(err)

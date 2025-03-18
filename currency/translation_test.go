@@ -146,7 +146,7 @@ func BenchmarkFindMatchingPairsBetween(b *testing.B) {
 		BTCM: BTC,
 	})
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = FindMatchingPairsBetween(PairsWithTranslation{spotPairs, translations}, PairsWithTranslation{futuresPairs, translations})
 	}
 }

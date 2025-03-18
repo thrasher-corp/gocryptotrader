@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	saltRandomLength = 12
+	saltRandomLength  = 12
+	encryptionVersion = 1
+	versionSize       = 2 // 2 bytes as uint16, allows for 65535 versions (at our current rate of 1 version per decade, should last a few generations)
 )
 
 // Public errors
@@ -27,14 +29,16 @@ var (
 )
 
 var (
-	errAESBlockSize = errors.New("config file data is too small for the AES required block size")
-	errNoPrefix     = errors.New("data does not start with Encryption Prefix")
-	errKeyIsEmpty   = errors.New("key is empty")
-	errUserInput    = errors.New("error getting user input")
+	errAESBlockSize                 = errors.New("config file data is too small for the AES required block size")
+	errNoPrefix                     = errors.New("data does not start with Encryption Prefix")
+	errKeyIsEmpty                   = errors.New("key is empty")
+	errUserInput                    = errors.New("error getting user input")
+	errUnsupportedEncryptionVersion = errors.New("unsupported encryption version")
 
 	// encryptionPrefix is a prefix to tell us the file is encrypted
-	encryptionPrefix = []byte("THORS-HAMMER")
-	saltPrefix       = []byte("~GCT~SO~SALTY~")
+	encryptionPrefix        = []byte("THORS-HAMMER")
+	saltPrefix              = []byte("~GCT~SO~SALTY~")
+	encryptionVersionPrefix = []byte("ENCVER")
 )
 
 // promptForConfigEncryption asks for encryption confirmation
@@ -120,18 +124,24 @@ func (c *Config) encryptConfigData(configData []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	ciphertext := make([]byte, aes.BlockSize+len(configData))
-	iv := ciphertext[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+	aead, err := cipher.NewGCMWithRandomNonce(block)
+	if err != nil {
 		return nil, err
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
+	ciphertext := aead.Seal(nil, nil, configData, nil)
 
-	appendedFile := append(bytes.Clone(encryptionPrefix), c.storedSalt...)
-	appendedFile = append(appendedFile, ciphertext...)
+	appendedFile := make([]byte, len(encryptionPrefix)+len(c.storedSalt)+len(encryptionVersionPrefix)+versionSize+len(ciphertext))
+	offset := 0
+	copy(appendedFile[offset:], encryptionPrefix)
+	offset += len(encryptionPrefix)
+	copy(appendedFile[offset:], c.storedSalt)
+	offset += len(c.storedSalt)
+	copy(appendedFile[offset:], encryptionVersionPrefix)
+	offset += len(encryptionVersionPrefix)
+	binary.BigEndian.PutUint16(appendedFile[offset:offset+versionSize], encryptionVersion)
+	offset += versionSize
+	copy(appendedFile[offset:], ciphertext)
 	return appendedFile, nil
 }
 
@@ -165,23 +175,63 @@ func (c *Config) decryptConfigData(d, key []byte) ([]byte, error) {
 		d = d[len(salt):]
 	}
 
-	blockDecrypt, err := aes.NewCipher(key)
+	var ciphertext []byte
+	if !bytes.HasPrefix(d, encryptionVersionPrefix) {
+		ciphertext, err = decryptAESCFBCiphertext(d, key)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		d = d[len(encryptionVersionPrefix):]
+		switch ver := binary.BigEndian.Uint16(d[:versionSize]); ver {
+		case 1: // TODO: Intertwine this with the existing config versioning system
+			d = d[versionSize:]
+			ciphertext, err = decryptAESGCMCiphertext(d, key)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("%w: %d", errUnsupportedEncryptionVersion, ver)
+		}
+	}
+
+	c.sessionDK, c.storedSalt = sessionDK, storedSalt
+	return ciphertext, nil
+}
+
+// decryptAESGCMCiphertext decrypts the ciphertext using AES-GCM
+func decryptAESGCMCiphertext(data, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(d) < aes.BlockSize {
+	cipherAEAD, err := cipher.NewGCMWithRandomNonce(block)
+	if err != nil {
+		return nil, err
+	}
+
+	return cipherAEAD.Open(nil, nil, data, nil)
+}
+
+// decryptAESCFBCiphertext decrypts the ciphertext using AES-CFB (legacy mode)
+func decryptAESCFBCiphertext(data, key []byte) ([]byte, error) {
+	if len(data) < aes.BlockSize {
 		return nil, errAESBlockSize
 	}
 
-	iv, d := d[:aes.BlockSize], d[aes.BlockSize:]
+	iv := data[:aes.BlockSize]
+	ciphertext := data[aes.BlockSize:]
 
-	stream := cipher.NewCFBDecrypter(blockDecrypt, iv)
-	stream.XORKeyStream(d, d)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
 
-	c.sessionDK, c.storedSalt = sessionDK, storedSalt
-
-	return d, nil
+	stream := cipher.NewCFBDecrypter(block, iv) //nolint:staticcheck // Deprecated CFB is used for legacy mode
+	plaintext := make([]byte, len(ciphertext))
+	stream.XORKeyStream(plaintext, ciphertext)
+	return plaintext, nil
 }
 
 // IsEncrypted returns if the data sequence is encrypted
