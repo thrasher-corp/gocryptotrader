@@ -1849,7 +1849,7 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 					MaxTotalOrders: resp[i].MaximumSymbolOrderNumber,
 				}
 			}
-			limits = append(limits, limitsTemp...)
+			limits = slices.Concat(limits, limitsTemp)
 		}
 	case asset.Margin, asset.CrossMargin:
 		resp, err := bi.GetSupportedCurrencies(ctx)
