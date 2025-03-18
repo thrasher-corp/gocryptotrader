@@ -642,7 +642,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
 
-	r, err = ok.GetInsuranceFundInformation(request.WithVerbose(contextGenerate()), &InsuranceFundInformationRequestParams{
+	r, err = ok.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
 		InstrumentType: instTypeFutures,
 		Underlying:     btcusdt,
 		Limit:          2,
