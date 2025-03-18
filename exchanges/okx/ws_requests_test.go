@@ -20,7 +20,7 @@ func TestWSPlaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	out := &PlaceOrderRequestParam{
-		InstrumentID: "BTC-USDT",
+		InstrumentID: btcusdt,
 		TradeMode:    TradeModeCash,
 		Side:         "Buy",
 		OrderType:    "limit",
@@ -46,7 +46,7 @@ func TestWSPlaceMultipleOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	out := PlaceOrderRequestParam{
-		InstrumentID: "BTC-USDT",
+		InstrumentID: btcusdt,
 		TradeMode:    TradeModeCash,
 		Side:         "Buy",
 		OrderType:    "limit",
@@ -69,12 +69,12 @@ func TestWSCancelOrder(t *testing.T) {
 	_, err = ok.WSCancelOrder(t.Context(), &CancelOrderRequestParam{})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: "BTC-USDT"})
+	_, err = ok.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: btcusdt})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	got, err := ok.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: "BTC-USDT", OrderID: "2341161427393388544"})
+	got, err := ok.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: btcusdt, OrderID: "2341161427393388544"})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -88,12 +88,12 @@ func TestWSCancleMultipleOrder(t *testing.T) {
 	_, err = ok.WSCancelMultipleOrder(t.Context(), []CancelOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WSCancelMultipleOrder(t.Context(), []CancelOrderRequestParam{{InstrumentID: "BTC-USDT"}})
+	_, err = ok.WSCancelMultipleOrder(t.Context(), []CancelOrderRequestParam{{InstrumentID: btcusdt}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	got, err := ok.WSCancelMultipleOrder(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: "BTC-USDT", OrderID: "2341184920998715392"}})
+	got, err := ok.WSCancelMultipleOrder(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: btcusdt, OrderID: "2341184920998715392"}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -108,7 +108,7 @@ func TestWSAmendOrder(t *testing.T) {
 	_, err = ok.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	out.InstrumentID = "BTC-USDT"
+	out.InstrumentID = btcusdt
 	_, err = ok.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -134,7 +134,7 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	_, err = ok.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	out.InstrumentID = "BTC-USDT"
+	out.InstrumentID = btcusdt
 	_, err = ok.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 

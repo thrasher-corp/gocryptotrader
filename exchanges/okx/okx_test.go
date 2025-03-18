@@ -164,11 +164,7 @@ func syncLeadTraderUniqueID() {
 // contextGenerate sends an optional value to allow test requests
 // named this way, so it shows up in auto-complete and reminds you to use it
 func contextGenerate() context.Context {
-	ctx := context.Background()
-	if useTestNet {
-		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
-	}
-	return ctx
+	return context.WithValue(context.Background(), testNetVal, useTestNet)
 }
 
 func TestGetTickers(t *testing.T) {
@@ -646,7 +642,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
 
-	r, err = ok.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
+	r, err = ok.GetInsuranceFundInformation(request.WithVerbose(contextGenerate()), &InsuranceFundInformationRequestParams{
 		InstrumentType: instTypeFutures,
 		Underlying:     btcusdt,
 		Limit:          2,
@@ -4501,7 +4497,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap, asset.Spread} {
-		result, err := ok.GetFuturesContractDetails(context.Background(), a)
+		result, err := ok.GetFuturesContractDetails(contextGenerate(), a)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 	}
