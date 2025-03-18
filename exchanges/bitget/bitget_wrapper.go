@@ -278,8 +278,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			if (resp[x].PricePrecision == 0 && resp[x].QuantityPrecision == 0 && resp[x].QuotePrecision == 0) || resp[x].OpenTime.Time().After(time.Now().Add(time.Hour*24*365)) {
 				continue
 			}
-			pair := currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
-			pairs[filter] = pair
+			pairs[filter] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
 			filter++
 		}
 		return pairs[:filter], nil
@@ -308,10 +307,15 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			return nil, err
 		}
 		pairs := make(currency.Pairs, len(resp))
+		var filter int
 		for x := range resp {
-			pairs[x] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
+			if resp[x].Symbol == "BNXUSDT" {
+				continue
+			}
+			pairs[filter] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
+			filter++
 		}
-		return pairs, nil
+		return pairs[:filter], nil
 	}
 	return nil, asset.ErrNotSupported
 }
@@ -1120,7 +1124,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			return nil, err
 		}
 		if len(ordInfo) == 0 {
-			return nil, errOrderNotFound
+			return nil, order.ErrOrderNotFound
 		}
 		resp.AccountID = strconv.FormatUint(ordInfo[0].UserID, 10)
 		resp.ClientOrderID = ordInfo[0].ClientOrderID
@@ -1221,7 +1225,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			return nil, err
 		}
 		if len(ordInfo.OrderList) == 0 {
-			return nil, errOrderNotFound
+			return nil, order.ErrOrderNotFound
 		}
 		resp.Type = typeDecoder(ordInfo.OrderList[0].OrderType)
 		resp.ClientOrderID = ordInfo.OrderList[0].ClientOrderID
@@ -1351,27 +1355,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				}
 				resp = append(resp, tempOrds...)
 			}
-			if !getOrdersRequest.Pairs[x].IsEmpty() {
-				resp, err = bi.spotCurrentPlanOrdersHelper(ctx, getOrdersRequest.Pairs[x], resp)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				newPairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
-				if err != nil {
-					return nil, err
-				}
-				for y := range newPairs {
-					callStr, err := bi.FormatExchangeCurrency(newPairs[y], asset.Spot)
-					if err != nil {
-						return nil, err
-					}
-					resp, err = bi.spotCurrentPlanOrdersHelper(ctx, callStr, resp)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
+			// TODO: Return spot plan orders once GetOrderInfo has more parameters to handle that
 		case asset.Futures:
 			if !getOrdersRequest.Pairs[x].IsEmpty() {
 				resp, err = bi.activeFuturesOrderHelper(ctx, getProductType(getOrdersRequest.Pairs[x]), getOrdersRequest.Pairs[x], resp)
@@ -1849,7 +1833,7 @@ func (bi *Bitget) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 					MaxTotalOrders: resp[i].MaximumSymbolOrderNumber,
 				}
 			}
-			limits = slices.Concat(limits, limitsTemp)
+			limits = append(limits, limitsTemp...) //nolint:makezero // False positive; the non-zero make is in a different branch
 		}
 	case asset.Margin, asset.CrossMargin:
 		resp, err := bi.GetSupportedCurrencies(ctx)
@@ -2416,44 +2400,6 @@ func pairFromStringHelper(s string) (currency.Pair, error) {
 	}
 	pair = pair.Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
 	return pair, nil
-}
-
-// SpotPlanOrdersHelper is a helper function that repeatedly calls GetCurrentSpotPlanOrders and returns all data
-func (bi *Bitget) spotCurrentPlanOrdersHelper(ctx context.Context, pairCan currency.Pair, resp []order.Detail) ([]order.Detail, error) {
-	var pagination int64
-	for {
-		genOrds, err := bi.GetCurrentSpotPlanOrders(ctx, pairCan, time.Time{}, time.Time{}, 100, pagination)
-		if err != nil {
-			return nil, err
-		}
-		if genOrds == nil || len(genOrds.OrderList) == 0 || pagination == int64(genOrds.IDLessThan) {
-			break
-		}
-		pagination = int64(genOrds.IDLessThan)
-		tempOrds := make([]order.Detail, len(genOrds.OrderList))
-		for i := range genOrds.OrderList {
-			tempOrds[i] = order.Detail{
-				Exchange:      bi.Name,
-				AssetType:     asset.Spot,
-				OrderID:       strconv.FormatInt(genOrds.OrderList[i].OrderID, 10),
-				ClientOrderID: genOrds.OrderList[i].ClientOrderID,
-				TriggerPrice:  genOrds.OrderList[i].TriggerPrice,
-				Type:          typeDecoder(genOrds.OrderList[i].OrderType),
-				Price:         float64(genOrds.OrderList[i].ExecutePrice),
-				Amount:        genOrds.OrderList[i].Size,
-				Status:        statusDecoder(genOrds.OrderList[i].Status),
-				Side:          sideDecoder(genOrds.OrderList[i].Side),
-				Date:          genOrds.OrderList[i].CreationTime.Time(),
-				LastUpdated:   genOrds.OrderList[i].UpdateTime.Time(),
-			}
-			tempOrds[i].Pair = pairCan
-		}
-		resp = append(resp, tempOrds...)
-		if !genOrds.NextFlag {
-			break
-		}
-	}
-	return resp, nil
 }
 
 // MarginDecoder is a helper function that returns the appropriate margin type for a given string

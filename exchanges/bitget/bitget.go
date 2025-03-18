@@ -308,7 +308,6 @@ var (
 	errReviseTypeEmpty                = errors.New("reviseType cannot be empty")
 	errUnknownPairQuote               = errors.New("unknown pair quote; pair can't be split due to lack of delimiter and unclear base length")
 	errStrategyMutex                  = errors.New("only one of immediate or cancel, fill or kill, and post only can be set to true")
-	errOrderNotFound                  = errors.New("order not found")
 	errReturnEmpty                    = errors.New("returned data unexpectedly empty")
 	errInvalidChecksum                = errors.New("invalid checksum")
 	errAuthenticatedWebsocketDisabled = errors.New("authenticatedWebsocketAPISupport not enabled")
