@@ -313,7 +313,7 @@ func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID s
 	return &resp[0], nil
 }
 
-// WsCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
+// WSCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
 func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) (bool, error) {
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
@@ -343,7 +343,7 @@ func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) (bo
 }
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
-func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id string, operation string, payload, result any) error {
+func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
 	if operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}
