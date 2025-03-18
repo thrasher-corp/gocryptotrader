@@ -1101,7 +1101,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForce,
-			Text:        s.ClientOrderID})
+			Text:        s.ClientOrderID,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1109,7 +1110,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		var status = order.Open
+		status := order.Open
 		if fOrder.Status != "open" {
 			status, err = order.StringToOrderStatus(fOrder.FinishAs)
 			if err != nil {
@@ -1156,7 +1157,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		var status = order.Open
+		status := order.Open
 		if newOrder.Status != "open" {
 			status, err = order.StringToOrderStatus(newOrder.FinishAs)
 			if err != nil {

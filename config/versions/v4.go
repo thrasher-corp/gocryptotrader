@@ -16,8 +16,7 @@ var (
 )
 
 // Version4 is an Exchange upgrade to move currencyPairs.assetTypes to currencyPairs.pairs.*.assetEnabled
-type Version4 struct {
-}
+type Version4 struct{}
 
 func init() {
 	Manager.registerVersion(4, &Version4{})
@@ -40,7 +39,7 @@ func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		return e, fmt.Errorf("%w: %w", errUpgradingAssetTypes, err)
 	}
 
-	assetEnabledFn := func(assetBytes []byte, v []byte, _ jsonparser.ValueType, _ int) (err error) {
+	assetEnabledFn := func(assetBytes, v []byte, _ jsonparser.ValueType, _ int) (err error) {
 		asset := string(assetBytes)
 		if toEnable[asset] {
 			e, err = jsonparser.Set(e, []byte(`true`), "currencyPairs", "pairs", asset, "assetEnabled")
@@ -70,7 +69,7 @@ func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 func (v *Version4) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	assetTypes := []string{}
 
-	assetEnabledFn := func(asset []byte, v []byte, _ jsonparser.ValueType, _ int) error {
+	assetEnabledFn := func(asset, v []byte, _ jsonparser.ValueType, _ int) error {
 		if b, err := jsonparser.GetBoolean(v, "assetEnabled"); err == nil {
 			if b {
 				assetTypes = append(assetTypes, fmt.Sprintf("%q", asset))

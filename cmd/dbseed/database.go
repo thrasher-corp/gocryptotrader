@@ -13,9 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var (
-	dbConn *database.Instance
-)
+var dbConn *database.Instance
 
 func load(c *cli.Context) error {
 	var conf config.Config

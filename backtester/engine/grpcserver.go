@@ -110,7 +110,8 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 	}
 
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
 			Username: s.config.GRPC.Username,
 			Password: s.config.GRPC.Password,
