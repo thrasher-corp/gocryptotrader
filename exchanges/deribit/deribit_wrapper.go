@@ -537,7 +537,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
-	var hasMore = true
+	hasMore := true
 	for hasMore {
 		if d.Websocket.IsConnected() {
 			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(instrumentID, "asc", 100, true, timestampStart, timestampEnd)
@@ -875,7 +875,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if len(getOrdersRequest.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	var resp = []order.Detail{}
+	resp := []order.Detail{}
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {

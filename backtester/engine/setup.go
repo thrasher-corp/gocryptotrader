@@ -663,7 +663,8 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 		return decimal.Zero, decimal.Zero, currency.ErrCurrencyPairEmpty
 	}
 	fTakerFee, err := exch.GetFeeByType(ctx,
-		&gctexchange.FeeBuilder{FeeType: gctexchange.OfflineTradeFee,
+		&gctexchange.FeeBuilder{
+			FeeType:       gctexchange.OfflineTradeFee,
 			Pair:          fPair,
 			IsMaker:       false,
 			PurchasePrice: 1,

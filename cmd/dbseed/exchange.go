@@ -122,7 +122,6 @@ func addSingleExchange(c *cli.Context) error {
 	err = exchangeDB.Insert(exchangeDB.Details{
 		Name: exchangeName,
 	})
-
 	if err != nil {
 		return err
 	}

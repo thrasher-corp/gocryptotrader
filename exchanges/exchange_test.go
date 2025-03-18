@@ -37,9 +37,7 @@ const (
 	defaultTestExchange = "Bitfinex"
 )
 
-var (
-	btcusdPair = currency.NewPairWithDelimiter("BTC", "USD", "-")
-)
+var btcusdPair = currency.NewPairWithDelimiter("BTC", "USD", "-")
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	t.Parallel()
@@ -205,7 +203,8 @@ func TestSetClientProxyAddress(t *testing.T) {
 
 	newBase := Base{
 		Name:      "rawr",
-		Requester: requester}
+		Requester: requester,
+	}
 
 	newBase.Websocket = stream.NewWebsocket()
 	err = newBase.SetClientProxyAddress("")
@@ -404,7 +403,7 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var b = Base{Name: "Bitfinex"}
+	b := Base{Name: "Bitfinex"}
 	r, err := b.GetExchangeBankAccounts("", "USD")
 	if err != nil {
 		t.Error(err)
@@ -760,7 +759,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 		},
 	}
 
-	var pairs = []currency.Pair{
+	pairs := []currency.Pair{
 		currency.NewPairWithDelimiter("BTC", "USD", "_"),
 		currency.NewPairWithDelimiter("LTC", "BTC", "_"),
 	}
@@ -824,7 +823,7 @@ func TestSetupDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var b = Base{
+	b := Base{
 		Name:      "awesomeTest",
 		Requester: newRequester,
 	}
@@ -980,10 +979,12 @@ func TestUpdatePairs(t *testing.T) {
 		},
 	}
 	UAC.Config = exchCfg
-	exchangeProducts, err := currency.NewPairsFromStrings([]string{"ltcusd",
+	exchangeProducts, err := currency.NewPairsFromStrings([]string{
+		"ltcusd",
 		"btcusd",
 		"usdbtc",
-		"audusd"})
+		"audusd",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1015,10 +1016,12 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	// Test updating exchange products
-	exchangeProducts, err = currency.NewPairsFromStrings([]string{"ltcusd",
+	exchangeProducts, err = currency.NewPairsFromStrings([]string{
+		"ltcusd",
 		"btcusd",
 		"usdbtc",
-		"audbtc"})
+		"audbtc",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1311,6 +1314,7 @@ func TestPrintEnabledPairs(t *testing.T) {
 
 	b.PrintEnabledPairs()
 }
+
 func TestGetBase(t *testing.T) {
 	t.Parallel()
 
@@ -1412,19 +1416,22 @@ func TestSetAssetPairStore(t *testing.T) {
 
 	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true}})
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter)
 
 	err = b.SetAssetPairStore(asset.Futures, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	})
 	assert.NoError(t, err)
 	assert.False(t, b.CurrencyPairs.Pairs[asset.Futures].AssetEnabled, "SetAssetPairStore should not magically enable AssetTypes")
 
 	err = b.SetAssetPairStore(asset.Futures, currency.PairStore{
 		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}})
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	})
 	assert.NoError(t, err)
 	assert.True(t, b.CurrencyPairs.Pairs[asset.Futures].AssetEnabled, "AssetEnabled should be respected")
 }
@@ -2636,7 +2643,8 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
-		Available:    []currency.Pair{whatIWant}})
+		Available:    []currency.Pair{whatIWant},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
