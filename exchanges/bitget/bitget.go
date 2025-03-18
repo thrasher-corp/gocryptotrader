@@ -416,7 +416,9 @@ func (bi *Bitget) GetMarginTransactionRecords(ctx context.Context, marginType st
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("marginType", marginType)
+	if marginType != "" {
+		params.Values.Set("marginType", marginType)
+	}
 	if !currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
@@ -650,7 +652,9 @@ func (bi *Bitget) GetSpotFundFlows(ctx context.Context, pair currency.Pair, peri
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	vals.Set("period", period)
+	if period != "" {
+		vals.Set("period", period)
+	}
 	path := bitgetSpot + bitgetMarket + bitgetFundFlow
 	var resp struct {
 		FundFlowResp `json:"data"`

@@ -439,7 +439,7 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		var filter int
 		newTick := make([]TickerResp, len(tick))
 		for i := range tick {
-			if tick[i].Symbol == "BABYBONKUSDT" || tick[i].Symbol == "CARUSDT" {
+			if tick[i].Symbol == "BABYBONKUSDT" || tick[i].Symbol == "CARUSDT" || tick[i].Symbol == "PAWSUSDT" {
 				continue
 			}
 			newTick[filter] = tick[i]

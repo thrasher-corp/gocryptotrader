@@ -214,7 +214,7 @@ func TestGetMarginTransactionRecords(t *testing.T) {
 	_, err := bi.GetMarginTransactionRecords(context.Background(), "", currency.Code{}, time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetMarginTransactionRecords(context.Background(), "", testFiat, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
+	_, err = bi.GetMarginTransactionRecords(context.Background(), "crossed", testFiat, time.Now().Add(-time.Hour*24*30), time.Now(), 5, 1<<62)
 	assert.NoError(t, err)
 }
 
@@ -322,7 +322,7 @@ func TestGetSpotFundFlows(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetSpotFundFlows(context.Background(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	resp, err := bi.GetSpotFundFlows(context.Background(), testPair, "")
+	resp, err := bi.GetSpotFundFlows(context.Background(), testPair, "15m")
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -2464,10 +2464,8 @@ func TestGetSpotSymbols(t *testing.T) {
 func TestGetLoanToValue(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetLoanToValue(context.Background(), "")
-	assert.NoError(t, err)
 	tarID := riskUnitHelper(t)
-	_, err = bi.GetLoanToValue(context.Background(), tarID)
+	_, err := bi.GetLoanToValue(context.Background(), tarID)
 	assert.NoError(t, err)
 }
 
