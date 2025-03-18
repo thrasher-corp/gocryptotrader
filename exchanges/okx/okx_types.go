@@ -2,8 +2,10 @@ package okx
 
 import (
 	"errors"
-	"reflect"
+	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -81,7 +83,6 @@ var (
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")
 	errInvalidTradeModeValue                = errors.New("invalid trade mode value")
 	errCurrencyQuantityTypeRequired         = errors.New("only base_ccy and quote_ccy quantity types are supported")
-	errWebsocketStreamNotAuthenticated      = errors.New("websocket stream not authenticated")
 	errInvalidNewSizeOrPriceInformation     = errors.New("invalid new size or price information")
 	errSizeOrPriceIsRequired                = errors.New("either size or price is required")
 	errInvalidPriceLimit                    = errors.New("invalid price limit value")
@@ -114,8 +115,6 @@ var (
 	errMissingSubOrderType                  = errors.New("missing sub order type")
 	errMissingQuantity                      = errors.New("invalid quantity to buy or sell")
 	errAddressRequired                      = errors.New("address is required")
-	errInvalidWebsocketEvent                = errors.New("invalid websocket event")
-	errMissingValidChannelInformation       = errors.New("missing channel information")
 	errMaxRFQOrdersToCancel                 = errors.New("no more than 100 RFQ cancel order parameter is allowed")
 	errInvalidUnderlying                    = errors.New("invalid underlying")
 	errInstrumentFamilyOrUnderlyingRequired = errors.New("either underlying or instrument family is required")
@@ -231,8 +230,7 @@ type OrderbookItemDetail struct {
 
 // UnmarshalJSON deserializes byte data into OrderbookItemDetail instance
 func (o *OrderbookItemDetail) UnmarshalJSON(data []byte) error {
-	target := [4]any{&o.DepthPrice, &o.Amount, &o.LiquidationOrders, &o.NumberOfOrders}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[4]any{&o.DepthPrice, &o.Amount, &o.LiquidationOrders, &o.NumberOfOrders})
 }
 
 // CandlestickHistoryItem retrieves historical candlestick charts for the index or mark price from recent years.
@@ -248,9 +246,7 @@ type CandlestickHistoryItem struct {
 // UnmarshalJSON converts the data slice into a CandlestickHistoryItem instance.
 func (c *CandlestickHistoryItem) UnmarshalJSON(data []byte) error {
 	var state string
-	target := []any{&c.Timestamp, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &state}
-	err := json.Unmarshal(data, &target)
-	if err != nil {
+	if err := json.Unmarshal(data, &[6]any{&c.Timestamp, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &state}); err != nil {
 		return err
 	}
 	if state == "1" {
@@ -274,8 +270,7 @@ type CandleStick struct {
 
 // UnmarshalJSON deserializes slice of data into Candlestick structure
 func (c *CandleStick) UnmarshalJSON(data []byte) error {
-	target := [7]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[7]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume})
 }
 
 // TradeResponse represents the recent transaction instance
@@ -639,8 +634,7 @@ type TakerVolume struct {
 
 // UnmarshalJSON deserializes a slice of data into TakerVolume
 func (t *TakerVolume) UnmarshalJSON(data []byte) error {
-	deploy := [3]any{&t.Timestamp, &t.SellVolume, &t.BuyVolume}
-	return json.Unmarshal(data, &deploy)
+	return json.Unmarshal(data, &[3]any{&t.Timestamp, &t.SellVolume, &t.BuyVolume})
 }
 
 // MarginLendRatioItem represents margin lend ration information and creation timestamp
@@ -651,8 +645,7 @@ type MarginLendRatioItem struct {
 
 // UnmarshalJSON deserializes a slice of data into MarginLendRatio
 func (m *MarginLendRatioItem) UnmarshalJSON(data []byte) error {
-	target := [2]any{&m.Timestamp, &m.MarginLendRatio}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[2]any{&m.Timestamp, &m.MarginLendRatio})
 }
 
 // LongShortRatio represents the ratio of users with net long vs net short positions for futures and perpetual swaps
@@ -663,8 +656,7 @@ type LongShortRatio struct {
 
 // UnmarshalJSON deserializes a slice of data into LongShortRatio
 func (l *LongShortRatio) UnmarshalJSON(data []byte) error {
-	target := [2]any{&l.Timestamp, &l.MarginLendRatio}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[2]any{&l.Timestamp, &l.MarginLendRatio})
 }
 
 // OpenInterestVolume represents open interest and trading volume item for currencies of futures and perpetual swaps
@@ -676,8 +668,7 @@ type OpenInterestVolume struct {
 
 // UnmarshalJSON deserializes json data into OpenInterestVolume struct
 func (p *OpenInterestVolume) UnmarshalJSON(data []byte) error {
-	deploy := [3]any{&p.Timestamp, &p.OpenInterest, &p.Volume}
-	return json.Unmarshal(data, &deploy)
+	return json.Unmarshal(data, &[3]any{&p.Timestamp, &p.OpenInterest, &p.Volume})
 }
 
 // OpenInterestVolumeRatio represents open interest and trading volume ratio for currencies of futures and perpetual swaps
@@ -689,8 +680,7 @@ type OpenInterestVolumeRatio struct {
 
 // UnmarshalJSON deserializes json data into OpenInterestVolumeRatio
 func (o *OpenInterestVolumeRatio) UnmarshalJSON(data []byte) error {
-	deploy := [3]any{&o.Timestamp, &o.OpenInterestRatio, &o.VolumeRatio}
-	return json.Unmarshal(data, &deploy)
+	return json.Unmarshal(data, &[3]any{&o.Timestamp, &o.OpenInterestRatio, &o.VolumeRatio})
 }
 
 // ExpiryOpenInterestAndVolume represents  open interest and trading volume of calls and puts for each upcoming expiration
@@ -756,8 +746,7 @@ type StrikeOpenInterestAndVolume struct {
 
 // UnmarshalJSON deserializes slice of byte data into StrikeOpenInterestAndVolume
 func (s *StrikeOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
-	target := [6]any{&s.Timestamp, &s.Strike, &s.CallOpenInterest, &s.PutOpenInterest, &s.CallVolume, &s.PutVolume}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[6]any{&s.Timestamp, &s.Strike, &s.CallOpenInterest, &s.PutOpenInterest, &s.CallVolume, &s.PutVolume})
 }
 
 // CurrencyTakerFlow holds the taker volume information for a single currency
@@ -773,46 +762,85 @@ type CurrencyTakerFlow struct {
 
 // UnmarshalJSON deserializes a slice of byte data into CurrencyTakerFlow
 func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
-	target := [7]any{&c.Timestamp, &c.CallBuyVolume, &c.CallSellVolume, &c.PutBuyVolume, &c.PutSellVolume, &c.CallBlockVolume, &c.PutBlockVolume}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.CallBuyVolume, &c.CallSellVolume, &c.PutBuyVolume, &c.PutSellVolume, &c.CallBlockVolume, &c.PutBlockVolume})
 }
 
 // PlaceOrderRequestParam requesting parameter for placing an order
 type PlaceOrderRequestParam struct {
 	AssetType     asset.Item `json:"-"`
 	InstrumentID  string     `json:"instId"`
-	TradeMode     string     `json:"tdMode,omitempty"` // cash isolated
+	TradeMode     string     `json:"tdMode"` // cash isolated
 	ClientOrderID string     `json:"clOrdId,omitempty"`
 	Currency      string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
 	OrderTag      string     `json:"tag,omitempty"`
-	Side          string     `json:"side,omitempty"`
-	PositionSide  string     `json:"posSide,omitempty"`
-	OrderType     string     `json:"ordType,omitempty"`
-	Amount        float64    `json:"sz,string,omitempty"`
-	Price         float64    `json:"px,string,omitempty"`
-	ReduceOnly    bool       `json:"reduceOnly,string,omitempty"`
-	QuantityType  string     `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
+	Side          string     `json:"side"`
+	PositionSide  string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
+	OrderType     string     `json:"ordType"`           // Time in force for the order
+	Amount        float64    `json:"sz,string"`
+	Price         float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
+	// Options orders
+	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
+	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
+
+	ReduceOnly              bool   `json:"reduceOnly,string,omitempty"`
+	TargetCurrency          string `json:"tgtCcy,omitempty"`  // values base_ccy and quote_ccy for spot market orders
+	SelfTradePreventionMode string `json:"stpMode,omitempty"` // Default to cancel maker, `cancel_maker`,`cancel_taker`, `cancel_both``
 	// Added in the websocket requests
-	BanAmend   bool       `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
-	ExpiryTime types.Time `json:"expTime,omitempty"`
+	BanAmend bool `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
+}
+
+// Validate validates the PlaceOrderRequestParam
+func (arg *PlaceOrderRequestParam) Validate() error {
+	if arg == nil {
+		return fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
+	}
+	if arg.InstrumentID == "" {
+		return errMissingInstrumentID
+	}
+	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
+		arg.Side = strings.ToLower(arg.Side)
+		if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
+			return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
+		}
+	}
+	if !slices.Contains([]string{"", TradeModeCross, TradeModeIsolated, TradeModeCash}, arg.TradeMode) {
+		return fmt.Errorf("%w %s", errInvalidTradeModeValue, arg.TradeMode)
+	}
+	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
+		arg.PositionSide = strings.ToLower(arg.PositionSide)
+		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
+			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+		}
+	}
+	arg.OrderType = strings.ToLower(arg.OrderType)
+	if !slices.Contains([]string{orderMarket, orderLimit, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only"}, arg.OrderType) {
+		return fmt.Errorf("%w: '%v'", order.ErrTypeIsInvalid, arg.OrderType)
+	}
+	if arg.Amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.TargetCurrency) {
+		return errCurrencyQuantityTypeRequired
+	}
+	return nil
 }
 
 // OrderData response message for place, cancel, and amend an order requests.
 type OrderData struct {
-	OrderID       string `json:"ordId,omitempty"`
-	RequestID     string `json:"reqId,omitempty"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
-	Tag           string `json:"tag,omitempty"`
-	StatusCode    string `json:"sCode,omitempty"`
-	StatusMessage string `json:"sMsg,omitempty"`
+	OrderID       string `json:"ordId"`
+	RequestID     string `json:"reqId"`
+	ClientOrderID string `json:"clOrdId"`
+	Tag           string `json:"tag"`
+	StatusCode    int64  `json:"sCode,string"` // Anything above 0 is an error with an attached message
+	StatusMessage string `json:"sMsg"`
+	Timestamp     string `json:"ts"`
 }
 
 // ResponseSuccess holds responses having a status result value
 type ResponseSuccess struct {
-	Result bool `json:"result"`
-
-	StatusCode    string `json:"sCode,omitempty"`
-	StatusMessage string `json:"sMsg,omitempty"`
+	Result        bool   `json:"result"`
+	StatusCode    int64  `json:"sCode,string"`
+	StatusMessage string `json:"sMsg"`
 }
 
 // CancelOrderRequestParam represents order parameters to cancel an order
@@ -2931,9 +2959,35 @@ type SpreadOrderParam struct {
 	Tag           string  `json:"tag,omitempty"`
 }
 
+// Validate checks if the parameters are valid
+func (arg *SpreadOrderParam) Validate() error {
+	if arg == nil {
+		return fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
+	}
+	if arg.SpreadID == "" {
+		return fmt.Errorf("%w, spread ID missing", errMissingInstrumentID)
+	}
+	if arg.OrderType == "" {
+		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
+	}
+	if arg.Size <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	if arg.Price <= 0 {
+		return order.ErrPriceBelowMin
+	}
+	arg.Side = strings.ToLower(arg.Side)
+	switch arg.Side {
+	case order.Buy.Lower(), order.Sell.Lower():
+	default:
+		return fmt.Errorf("%w %s", order.ErrSideIsInvalid, arg.Side)
+	}
+	return nil
+}
+
 // SpreadOrderResponse represents a spread create order response
 type SpreadOrderResponse struct {
-	StatusCode    string `json:"sCode"`
+	StatusCode    int64  `json:"sCode,string"` // Anything above 0 is an error with an attached message
 	StatusMessage string `json:"sMsg"`
 	ClientOrderID string `json:"clOrdId"`
 	OrderID       string `json:"ordId"`
@@ -3110,20 +3164,6 @@ type WSSubscriptionInformationList struct {
 	Arguments []SubscriptionInfo `json:"args"`
 }
 
-// OperationResponse holds common operation identification
-type OperationResponse struct {
-	ID        string `json:"id"`
-	Operation string `json:"op"`
-	Code      string `json:"code"`
-	Msg       string `json:"msg"`
-}
-
-// WsPlaceOrderResponse place order response thought the websocket connection
-type WsPlaceOrderResponse struct {
-	OperationResponse
-	Data []OrderData `json:"data"`
-}
-
 // SpreadOrderInfo holds spread order response information
 type SpreadOrderInfo struct {
 	ClientOrderID string `json:"clOrdId"`
@@ -3131,15 +3171,6 @@ type SpreadOrderInfo struct {
 	Tag           string `json:"tag"`
 	StatusCode    string `json:"sCode"`
 	StatusMessage string `json:"sMsg"`
-}
-
-type wsRequestInfo struct {
-	ID             string
-	Chan           chan *wsIncomingData
-	Event          string
-	Channel        string
-	InstrumentType string
-	InstrumentID   string
 }
 
 type wsIncomingData struct {
@@ -3152,37 +3183,6 @@ type wsIncomingData struct {
 	ID        string          `json:"id,omitempty"`
 	Operation string          `json:"op,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
-}
-
-// copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
-func (w *wsIncomingData) copyToPlaceOrderResponse() (*WsPlaceOrderResponse, error) {
-	if len(w.Data) == 0 {
-		return nil, common.ErrNoResponse
-	}
-	var placeOrds []OrderData
-	err := json.Unmarshal(w.Data, &placeOrds)
-	if err != nil {
-		return nil, err
-	}
-	return &WsPlaceOrderResponse{
-		OperationResponse: OperationResponse{
-			Operation: w.Operation,
-			ID:        w.ID,
-		},
-		Data: placeOrds,
-	}, nil
-}
-
-// copyResponseToInterface unmarshals the response data into the dataHolder interface.
-func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
-	rv := reflect.ValueOf(dataHolder)
-	if rv.Kind() != reflect.Pointer {
-		return errInvalidResponseParam
-	}
-	if len(w.Data) == 0 {
-		return common.ErrNoResponse
-	}
-	return json.Unmarshal(w.Data, &[]any{dataHolder})
 }
 
 // WSInstrumentResponse represents websocket instruments push message
@@ -3217,17 +3217,6 @@ type WsOrderActionResponse struct {
 	Data      []OrderData `json:"data"`
 	Code      string      `json:"code"`
 	Msg       string      `json:"msg"`
-}
-
-func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingData) error {
-	if incoming == nil {
-		return common.ErrNilPointer
-	}
-	a.ID = incoming.ID
-	a.Code = incoming.StatusCode
-	a.Operation = incoming.Operation
-	a.Msg = incoming.Message
-	return nil
 }
 
 // SubscriptionOperationInput represents the account channel input data
@@ -4313,24 +4302,6 @@ type APYItem struct {
 	Timestamp types.Time   `json:"ts"`
 }
 
-// wsRequestDataChannelsMultiplexer a single multiplexer instance to multiplex websocket messages multiplexer channels
-type wsRequestDataChannelsMultiplexer struct {
-	// To Synchronize incoming messages coming through the websocket channel
-	WsResponseChannelsMap map[string]*wsRequestInfo
-	Register              chan *wsRequestInfo
-	Unregister            chan string
-	Message               chan *wsIncomingData
-	shutdown              chan bool
-}
-
-// wsSubscriptionParameters represents toggling boolean values for subscription parameters
-type wsSubscriptionParameters struct {
-	InstrumentType bool
-	InstrumentID   bool
-	Underlying     bool
-	Currency       bool
-}
-
 // WsOrderbook5 stores the orderbook data for orderbook 5 websocket
 type WsOrderbook5 struct {
 	Argument struct {
@@ -4936,8 +4907,7 @@ type ContractTakerVolume struct {
 
 // UnmarshalJSON deserializes a slice data into ContractTakerVolume
 func (c *ContractTakerVolume) UnmarshalJSON(data []byte) error {
-	target := [3]any{&c.Timestamp, &c.TakerSellVolume, &c.TakerBuyVolume}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[3]any{&c.Timestamp, &c.TakerSellVolume, &c.TakerBuyVolume})
 }
 
 // ContractOpenInterestHistoryItem represents an open interest information for contract
@@ -4950,8 +4920,7 @@ type ContractOpenInterestHistoryItem struct {
 
 // UnmarshalJSON deserializes slice data into ContractOpenInterestHistoryItem instance
 func (c *ContractOpenInterestHistoryItem) UnmarshalJSON(data []byte) error {
-	target := [4]any{&c.Timestamp, &c.OpenInterestInContract, &c.OpenInterestInCurrency, &c.OpenInterestInUSD}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[4]any{&c.Timestamp, &c.OpenInterestInContract, &c.OpenInterestInCurrency, &c.OpenInterestInUSD})
 }
 
 // TopTraderContractsLongShortRatio represents the timestamp and ratio information of top traders long and short accounts/positions
@@ -4962,8 +4931,7 @@ type TopTraderContractsLongShortRatio struct {
 
 // UnmarshalJSON deserializes slice data into TopTraderContractsLongShortRatio instance
 func (t *TopTraderContractsLongShortRatio) UnmarshalJSON(data []byte) error {
-	target := [2]any{&t.Timestamp, &t.Ratio}
-	return json.Unmarshal(data, &target)
+	return json.Unmarshal(data, &[2]any{&t.Timestamp, &t.Ratio})
 }
 
 // AccountInstrument represents an account instrument

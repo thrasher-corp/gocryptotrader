@@ -41,7 +41,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getOneClickRepayHistory":                        getOneClickRepayHistoryEPL,
 		"oneClickRepayCurrencyList":                      oneClickRepayCurrencyListEPL,
 		"tradeOneClickRepay":                             tradeOneClickRepayEPL,
-		"massCancemMMPOrder":                             massCancemMMPOrderEPL,
+		"massCancelMMPOrder":                             massCancelMMPOrderEPL,
 		"getCounterparties":                              getCounterpartiesEPL,
 		"createRFQ":                                      createRFQEPL,
 		"cancelRFQ":                                      cancelRFQEPL,
@@ -268,7 +268,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getUserAffilateRebateInformation":               getUserAffiliateRebateInformationEPL,
 	}
 
-	rl, err := request.New("RateLimit_Static", http.DefaultClient, request.WithLimiter(GetRateLimit()))
+	rl, err := request.New("RateLimit_Static", http.DefaultClient, request.WithLimiter(rateLimits))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {
