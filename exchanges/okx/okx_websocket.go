@@ -1066,7 +1066,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 			pair,
 			err)
 	}
-	if signedChecksum != data.Checksum {
+	if signedChecksum != uint32(data.Checksum) { //nolint:gosec // Requires type casting
 		return fmt.Errorf("%w %v",
 			errInvalidChecksum,
 			pair)
@@ -1115,7 +1115,7 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum)
+	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
 		ob := update
 		ob.Asset = assets[i]
@@ -1163,7 +1163,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32, error) {
+func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1185,7 +1185,7 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
+	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
@@ -1219,6 +1219,13 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	if err != nil {
 		return err
 	}
+
+	saveTradeData := ok.IsSaveTradeDataEnabled()
+	tradeFeed := ok.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
+		return nil
+	}
+
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -1245,13 +1252,21 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
 				Side:         response.Data[i].Side,
-				Timestamp:    response.Data[i].Timestamp.Time(),
+				Timestamp:    response.Data[i].Timestamp.Time().UTC(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price.Float64(),
 			})
 		}
 	}
-	return trade.AddTradesToBuffer(trades...)
+	if tradeFeed {
+		for i := range trades {
+			ok.Websocket.DataHandler <- trades[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(trades...)
+	}
+	return nil
 }
 
 // wsProcessOrders handles websocket order push data responses.

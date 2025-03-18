@@ -789,7 +789,7 @@ func TestCounter(t *testing.T) {
 // 683185328	         1.787 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkCounter(b *testing.B) {
 	c := Counter{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		c.IncrementAndGet()
 	}
 }

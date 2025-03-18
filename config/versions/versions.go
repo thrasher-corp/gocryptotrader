@@ -168,7 +168,7 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 		defer func() { i++ }()
 		name, err := jsonparser.GetString(exchOrig, "name")
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w: %w `name`: %w", errModifyingExchange, common.ErrGettingField, err))
+			errs = common.AppendError(errs, fmt.Errorf("%w [%d]: %w `name`: %w", errModifyingExchange, i, common.ErrGettingField, err))
 			return
 		}
 		for _, want := range wanted {
@@ -177,12 +177,12 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			}
 			exchNew, err := method(patch, ctx, exchOrig)
 			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w: %w", errModifyingExchange, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w for `%s`: %w", errModifyingExchange, name, err))
 				continue
 			}
 			if !bytes.Equal(exchNew, exchOrig) {
 				if j, err = jsonparser.Set(j, exchNew, "exchanges", "["+strconv.Itoa(i)+"]"); err != nil {
-					errs = common.AppendError(errs, fmt.Errorf("%w: %w `exchanges.[%d]`: %w", errModifyingExchange, common.ErrSettingField, i, err))
+					errs = common.AppendError(errs, fmt.Errorf("%w `%s`/exchanges[%d]: %w: %w", errModifyingExchange, name, i, common.ErrSettingField, err))
 				}
 			}
 		}
@@ -217,7 +217,7 @@ func (m *manager) latest() (uint16, error) {
 	if len(m.versions) == 0 {
 		return 0, errNoVersions
 	}
-	return uint16(len(m.versions)) - 1, nil
+	return uint16(len(m.versions)) - 1, nil //nolint:gosec // Ignore this as we hardcode version numbers
 }
 
 // checkVersions ensures that registered versions are consistent

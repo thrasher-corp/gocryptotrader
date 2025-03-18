@@ -908,16 +908,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			continue
 		}
 
-		for _, a := range assets {
-			if err := e.CurrencyPairs.IsAssetEnabled(a); errors.Is(err, currency.ErrAssetIsNil) {
-				// Checks if we have an old config without the ability to enable disable the entire asset
-				log.Warnf(log.ConfigMgr, "Exchange %s: upgrading config for asset type %s and setting enabled.\n", e.Name, a)
-				if err := e.CurrencyPairs.SetAssetEnabled(a, true); err != nil {
-					return err
-				}
-			}
-		}
-
 		if enabled := e.CurrencyPairs.GetAssetTypes(true); len(enabled) == 0 {
 			// turn on an asset if all disabled
 			log.Warnf(log.ConfigMgr, "%s assets disabled, turning on asset %s", e.Name, assets[0])

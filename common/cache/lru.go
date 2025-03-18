@@ -94,7 +94,7 @@ func (l *LRU) Clear() {
 
 // Len returns length of l
 func (l *LRU) Len() uint64 {
-	return uint64(l.l.Len())
+	return uint64(l.l.Len()) //nolint:gosec // False positive as uint64 (2^64-1) can support both 2^31-1 on 32bit systems and 2^63-1 on 64bit systems
 }
 
 // removeOldest removes the oldest item from the cache.

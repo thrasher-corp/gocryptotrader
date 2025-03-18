@@ -243,7 +243,8 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Pair:         pair,
 			LastUpdated:  tick[x].Timestamp,
 			ExchangeName: h.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -520,10 +521,9 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 	for i := range resp {
 		if resp[i].Status != "canceled" {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] =
-				fmt.Sprintf("Could not cancel order %v. Status: %v",
-					resp[i].ID,
-					resp[i].Status)
+			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v",
+				resp[i].ID,
+				resp[i].Status)
 		}
 	}
 
@@ -790,7 +790,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 	data, err := h.GetCandles(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(req.RequestLimit, 10),
+		strconv.FormatUint(req.RequestLimit, 10),
 		formattedInterval,
 		req.Start,
 		req.End)
@@ -829,7 +829,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(req.RequestLimit, 10),
+			strconv.FormatUint(req.RequestLimit, 10),
 			formattedInterval,
 			req.RangeHolder.Ranges[y].Start.Time,
 			req.RangeHolder.Ranges[y].End.Time)

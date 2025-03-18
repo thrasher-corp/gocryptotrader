@@ -32,9 +32,7 @@ const (
 	proxyURL      = "http://212.186.171.4:80" // Replace with a usable proxy server
 )
 
-var (
-	errDastardlyReason = errors.New("some dastardly reason")
-)
+var errDastardlyReason = errors.New("some dastardly reason")
 
 type testStruct struct {
 	Error error
@@ -166,7 +164,7 @@ func TestSetup(t *testing.T) {
 
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
-	var wsWrong = &Websocket{}
+	wsWrong := &Websocket{}
 	wsWrong.connector = func() error { return nil }
 	err := wsWrong.Connect()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
@@ -657,7 +655,7 @@ func TestDial(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
-	var testCases = []testStruct{
+	testCases := []testStruct{
 		{
 			WC: WebsocketConnection{
 				ExchangeName:     "test1",
@@ -709,7 +707,7 @@ func TestSendMessage(t *testing.T) {
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
 
-	var testCases = []testStruct{
+	testCases := []testStruct{
 		{
 			WC: WebsocketConnection{
 				ExchangeName:     "test1",
@@ -999,7 +997,7 @@ func TestGenerateMessageID(t *testing.T) {
 // 7002502	       166.7 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_High(b *testing.B) {
 	wc := WebsocketConnection{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = wc.GenerateMessageID(true)
 	}
 }
@@ -1007,7 +1005,7 @@ func BenchmarkGenerateMessageID_High(b *testing.B) {
 // 6536250	       186.1 ns/op	      48 B/op	       3 allocs/op
 func BenchmarkGenerateMessageID_Low(b *testing.B) {
 	wc := WebsocketConnection{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = wc.GenerateMessageID(false)
 	}
 }

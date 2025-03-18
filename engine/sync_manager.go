@@ -266,6 +266,7 @@ func newCurrencyPairSyncAgent(k key.ExchangePairAsset) *currencyPairSyncAgent {
 		trackers: make([]*syncBase, SyncItemTrade+1),
 	}
 }
+
 func (m *SyncManager) add(k key.ExchangePairAsset, s syncBase) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()

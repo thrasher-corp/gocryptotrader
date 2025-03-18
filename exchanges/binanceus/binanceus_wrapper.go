@@ -40,15 +40,15 @@ func (bi *Binanceus) SetDefaults() {
 	bi.SetValues()
 
 	fmt1 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
 		},
 	}
-	err := bi.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := bi.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
 	bi.Features = exchange.Features{
@@ -122,6 +122,8 @@ func (bi *Binanceus) SetDefaults() {
 			},
 		},
 	}
+
+	var err error
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -618,7 +620,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
+	orderIDInt, err := strconv.ParseUint(orderID, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid orderID %w", err)
 	}
@@ -632,7 +634,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	var orderType order.Type
 	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
 		Symbol:  symbolValue,
-		OrderID: uint64(orderIDInt),
+		OrderID: orderIDInt,
 	})
 	if err != nil {
 		return nil, err
@@ -653,7 +655,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	return &order.Detail{
 		Amount:         resp.OrigQty,
 		Exchange:       bi.Name,
-		OrderID:        strconv.FormatInt(int64(resp.OrderID), 10),
+		OrderID:        strconv.FormatUint(resp.OrderID, 10),
 		ClientOrderID:  resp.ClientOrderID,
 		Side:           orderSide,
 		Type:           orderType,
@@ -764,7 +766,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time,
 			Exchange:      bi.Name,
-			OrderID:       strconv.FormatInt(int64(resp[x].OrderID), 10),
+			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
 			Side:          orderSide,
 			Type:          orderType,
