@@ -732,7 +732,7 @@ type FuturesContractDetail struct {
 	SettleCoin                 string   `json:"settleCoin"`
 	ContractSize               float64  `json:"contractSize"`
 	MinLeverage                int64    `json:"minLeverage"`
-	MaxLeverage                int64    `json:"maxLeverage"`
+	MaxLeverage                float64  `json:"maxLeverage"`
 	PriceScale                 int64    `json:"priceScale"`
 	VolumeScale                int64    `json:"volScale"`
 	AmountScale                int64    `json:"amountScale"`

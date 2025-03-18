@@ -194,16 +194,14 @@ func (me *MEXC) GetContractFundingRateHistory(ctx context.Context, symbol string
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	if pageNumber <= 0 {
-		return nil, errPageNumberRequired
-	}
-	if pageSize <= 0 {
-		return nil, errPageSizeRequired
-	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("page_num", strconv.FormatInt(pageNumber, 10))
-	params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	if pageNumber > 0 {
+		params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
 	var resp *ContractFundingRateHistory
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, contractFundingRateHistoryEPL, http.MethodGet, "contract/funding_rate/history", params, nil, &resp)
 }

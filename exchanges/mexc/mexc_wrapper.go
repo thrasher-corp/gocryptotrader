@@ -3,6 +3,7 @@ package mexc
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -114,37 +115,33 @@ func (me *MEXC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	/*
-		wsRunningEndpoint, err := me.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
+	// wsRunningEndpoint, err := me.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	// if err != nil {
+	// 	return err
+	// }
 
-		// If websocket is supported, please fill out the following
+	// err = me.Websocket.Setup(
+	// 	&stream.WebsocketSetup{
+	// 		ExchangeConfig: exch,
+	// 		DefaultURL:     mexcWSAPIURL,
+	// 		RunningURL:     wsRunningEndpoint,
+	// 		Connector:      me.WsConnect,
+	// 		Subscriber:     me.Subscribe,
+	// 		UnSubscriber:   me.Unsubscribe,
+	// 		Features:       &me.Features.Supports.WebsocketCapabilities,
+	// 	})
+	// if err != nil {
+	// 	return err
+	// }
 
-		err = me.Websocket.Setup(
-			&stream.WebsocketSetup{
-				ExchangeConfig:  exch,
-				DefaultURL:      mexcWSAPIURL,
-				RunningURL:      wsRunningEndpoint,
-				Connector:       me.WsConnect,
-				Subscriber:      me.Subscribe,
-				UnSubscriber:    me.Unsubscribe,
-				Features:        &me.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		me.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         me.Name,
-			URL:                  me.Websocket.GetWebsocketURL(),
-			ProxyURL:             me.Websocket.GetProxyAddress(),
-			Verbose:              me.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-	*/
+	// me.WebsocketConn = &stream.WebsocketConnection{
+	// 	ExchangeName:         me.Name,
+	// 	URL:                  me.Websocket.GetWebsocketURL(),
+	// 	ProxyURL:             me.Websocket.GetProxyAddress(),
+	// 	Verbose:              me.Verbose,
+	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	// }
 	return nil
 }
 
@@ -480,12 +477,23 @@ func (me *MEXC) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (me *MEXC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	p, err := me.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	switch assetType {
+	case asset.Futures:
+	case asset.Spot:
+		
+	default:
+		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+	}
 }
 
 // GetServerTime returns the current exchange server time.
 func (me *MEXC) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
-	return time.Time{}, common.ErrNotYetImplemented
+	serverTime, err := me.GetSystemTime(ctx)
+	return serverTime.Time(), err
 }
 
 // SubmitOrder submits a new order
@@ -614,7 +622,7 @@ func (me *MEXC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	if err != nil {
 		return nil, err
 	}
-	pFormat, err := me.GetPairFormat(a, true)
+	pair, err = me.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +632,7 @@ func (me *MEXC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	}
 	switch a {
 	case asset.Spot:
-		result, err := me.GetCandlestick(ctx, pFormat.Format(pair), intervalString, start, end, 0)
+		result, err := me.GetCandlestick(ctx, pair.String(), intervalString, start, end, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -641,7 +649,7 @@ func (me *MEXC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		}
 		return req.ProcessResponse(timeSeries)
 	case asset.Futures:
-		result, err := me.GetContractsCandlestickData(ctx, pFormat.Format(pair), req.ExchangeInterval, start, end)
+		result, err := me.GetContractsCandlestickData(ctx, pair.String(), req.ExchangeInterval, start, end)
 		if err != nil {
 			return nil, err
 		}
@@ -727,13 +735,86 @@ func (me *MEXC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (me *MEXC) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrNotYetImplemented
+func (me *MEXC) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if item != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	contracts, err := me.GetContractsDetail(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, len(contracts.Data))
+	for a := range contracts.Data {
+		cp, err := currency.NewPairFromString(contracts.Data[a].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		// var settleType futures.ContractSettlementType
+		var contractType futures.ContractType
+		switch {
+		case strings.HasSuffix(contracts.Data[a].DisplayNameEn, "PERPETUAL"):
+			contractType = futures.Perpetual
+			// TODO: other scenarios
+		}
+		resp[a] = futures.Contract{
+			Exchange:             me.Name,
+			Name:                 cp,
+			Asset:                item,
+			SettlementCurrencies: []currency.Code{currency.NewCode(contracts.Data[a].SettleCoin)},
+			Type:                 contractType,
+			MaxLeverage:          contracts.Data[a].MaxLeverage,
+			// IsActive: contracts.Data[a].State,
+		}
+	}
+	return resp, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (me *MEXC) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
+func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if !me.SupportsAsset(r.Asset) {
+		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+	}
+	isPerpetual, err := me.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+	if err != nil {
+		return nil, err
+	}
+	if !isPerpetual {
+		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
+	}
+	pFmt, err := me.CurrencyPairs.GetFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	cp := r.Pair.Format(pFmt)
+	println(cp.String())
+
+	fundingRates, err := me.GetContractFundingRateHistory(ctx, cp.String(), 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]fundingrate.LatestRateResponse, 1)
+	latestRate := fundingRates.Data.ResultList[0]
+	for i := range fundingRates.Data.ResultList {
+		if fundingRates.Data.ResultList[i].SettleTime.Time().Before(latestRate.SettleTime.Time()) {
+			latestRate = fundingRates.Data.ResultList[i]
+		}
+		resp[0] = fundingrate.LatestRateResponse{
+			Exchange: me.Name,
+			Asset:    asset.Futures,
+			Pair:     cp,
+			// LatestRate: latestRate.FundingRate.
+			// PredictedUpcomingRate
+			// TimeOfNextRate
+			// TimeChecked
+		}
+	}
+	return resp, nil
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
