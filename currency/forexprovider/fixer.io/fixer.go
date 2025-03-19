@@ -238,7 +238,8 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,
-		Verbose: f.Verbose}
+		Verbose: f.Verbose,
+	}
 	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, auth)

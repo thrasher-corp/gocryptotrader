@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -904,16 +904,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			continue
 		}
 
-		for _, a := range assets {
-			if err := e.CurrencyPairs.IsAssetEnabled(a); errors.Is(err, currency.ErrAssetIsNil) {
-				// Checks if we have an old config without the ability to enable disable the entire asset
-				log.Warnf(log.ConfigMgr, "Exchange %s: upgrading config for asset type %s and setting enabled.\n", e.Name, a)
-				if err := e.CurrencyPairs.SetAssetEnabled(a, true); err != nil {
-					return err
-				}
-			}
-		}
-
 		if enabled := e.CurrencyPairs.GetAssetTypes(true); len(enabled) == 0 {
 			// turn on an asset if all disabled
 			log.Warnf(log.ConfigMgr, "%s assets disabled, turning on asset %s", e.Name, assets[0])
@@ -1001,14 +991,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				e.Name,
 				defaultWebsocketOrderbookBufferLimit)
 			e.Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
-		}
-		if e.Orderbook.PublishPeriod == nil || e.Orderbook.PublishPeriod.Nanoseconds() < 0 {
-			log.Warnf(log.ConfigMgr,
-				"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
-				e.Name,
-				DefaultOrderbookPublishPeriod)
-			publishPeriod := DefaultOrderbookPublishPeriod
-			e.Orderbook.PublishPeriod = &publishPeriod
 		}
 		err := c.CheckPairConsistency(e.Name)
 		if err != nil {
@@ -1348,24 +1330,6 @@ func (c *Config) CheckCurrencyStateManager() {
 	}
 }
 
-// CheckOrderManagerConfig ensures the order manager is setup correctly
-func (c *Config) CheckOrderManagerConfig() {
-	m.Lock()
-	defer m.Unlock()
-	if c.OrderManager.Enabled == nil {
-		c.OrderManager.Enabled = convert.BoolPtr(true)
-		c.OrderManager.ActivelyTrackFuturesPositions = true
-	}
-	if c.OrderManager.RespectOrderHistoryLimits == nil {
-		c.OrderManager.RespectOrderHistoryLimits = convert.BoolPtr(true)
-	}
-	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
-		// one isn't likely to have a perpetual futures order open
-		// for longer than a year
-		c.OrderManager.FuturesTrackingSeekDuration = -time.Hour * 24 * 365
-	}
-}
-
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1512,7 +1476,7 @@ func (c *Config) readConfig(d io.Reader) error {
 		}
 	}
 
-	if j, err = versions.Manager.Deploy(context.Background(), j); err != nil {
+	if j, err = versions.Manager.Deploy(context.Background(), j, versions.UseLatestVersion); err != nil {
 		return err
 	}
 
@@ -1603,7 +1567,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 			}
 			c.sessionDK, c.storedSalt = sessionDK, storedSalt
 		}
-		payload, err = c.encryptConfigFile(payload)
+		payload, err = c.encryptConfigData(payload)
 		if err != nil {
 			return err
 		}
@@ -1680,7 +1644,6 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
 	c.CheckCurrencyStateManager()
-	c.CheckOrderManagerConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()

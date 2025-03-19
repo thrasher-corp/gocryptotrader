@@ -218,7 +218,7 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 	}
 
-	var balances = []account.Balance{
+	balances := []account.Balance{
 		{
 			Currency: currency.BCH,
 			Total:    bal.BCH,
@@ -294,19 +294,6 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return info, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (c *COINUT) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := c.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(c.Name, creds, assetType)
-	if err != nil {
-		return c.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (c *COINUT) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
@@ -350,30 +337,13 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Pair:         p,
 		LastUpdated:  time.Unix(0, tick.Timestamp),
 		ExchangeName: c.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return ticker.GetTicker(c.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (c *COINUT) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
-	if err != nil {
-		return c.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (c *COINUT) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(c.Name, p, assetType)
-	if err != nil {
-		return c.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair

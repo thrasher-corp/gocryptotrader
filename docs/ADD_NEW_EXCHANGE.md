@@ -156,6 +156,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 ```go
 	spot := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "/",
@@ -166,6 +167,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 		},
 	}
 	futures := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
@@ -176,14 +178,14 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 		},
 	}
 
-	err := f.StoreAssetPairFormat(asset.Spot, spot)
+	err := f.SetAssetPairStore(asset.Spot, spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
-	err = f.StoreAssetPairFormat(asset.Futures, futures)
+	err = f.SetAssetPairStore(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `futures` default asset formats: %s", bi.Name, err)
 	}
 ```
 
@@ -281,13 +283,13 @@ for i := range bot.Exchanges {
 pair := currency.NewPair(currency.BTC, currency.USD)
 
 // Fetches current ticker information
-tick, err := e.FetchTicker(context.Background(), pair, asset.Spot) // e -> f 
+tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot) // e -> f 
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := e.FetchOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
+ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
 if err != nil {
   // Handle error
 }

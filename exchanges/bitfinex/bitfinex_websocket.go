@@ -2,10 +2,10 @@ package bitfinex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -31,6 +32,63 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+const (
+	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
+	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
+	pong                                   = "pong"
+	wsHeartbeat                            = "hb"
+	wsChecksum                             = "cs"
+	wsPositionSnapshot                     = "ps"
+	wsPositionNew                          = "pn"
+	wsPositionUpdate                       = "pu"
+	wsPositionClose                        = "pc"
+	wsWalletSnapshot                       = "ws"
+	wsWalletUpdate                         = "wu"
+	wsTradeUpdated                         = "tu"
+	wsTradeExecuted                        = "te"
+	wsFundingCreditSnapshot                = "fcs"
+	wsFundingCreditNew                     = "fcn"
+	wsFundingCreditUpdate                  = "fcu"
+	wsFundingCreditCancel                  = "fcc"
+	wsFundingLoanSnapshot                  = "fls"
+	wsFundingLoanNew                       = "fln"
+	wsFundingLoanUpdate                    = "flu"
+	wsFundingLoanCancel                    = "flc"
+	wsFundingTradeExecuted                 = "fte"
+	wsFundingTradeUpdated                  = "ftu"
+	wsFundingInfoUpdate                    = "fiu"
+	wsBalanceUpdate                        = "bu"
+	wsMarginInfoUpdate                     = "miu"
+	wsNotification                         = "n"
+	wsOrderSnapshot                        = "os"
+	wsOrderNew                             = "on"
+	wsOrderUpdate                          = "ou"
+	wsOrderCancel                          = "oc"
+	wsRequest                              = "-req"
+	wsOrderNewRequest                      = wsOrderNew + wsRequest
+	wsOrderUpdateRequest                   = wsOrderUpdate + wsRequest
+	wsOrderCancelRequest                   = wsOrderCancel + wsRequest
+	wsFundingOfferSnapshot                 = "fos"
+	wsFundingOfferNew                      = "fon"
+	wsFundingOfferUpdate                   = "fou"
+	wsFundingOfferCancel                   = "foc"
+	wsFundingOfferNewRequest               = wsFundingOfferNew + wsRequest
+	wsFundingOfferUpdateRequest            = wsFundingOfferUpdate + wsRequest
+	wsFundingOfferCancelRequest            = wsFundingOfferCancel + wsRequest
+	wsCancelMultipleOrders                 = "oc_multi"
+	wsBookChannel                          = "book"
+	wsCandlesChannel                       = "candles"
+	wsTickerChannel                        = "ticker"
+	wsTradesChannel                        = "trades"
+	wsError                                = "error"
+	wsEventSubscribed                      = "subscribed"
+	wsEventUnsubscribed                    = "unsubscribed"
+	wsEventAuth                            = "auth"
+	wsEventError                           = "error"
+	wsEventConf                            = "conf"
+	wsEventInfo                            = "info"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -45,19 +103,21 @@ var defaultSubscriptions = subscription.List{
 var comms = make(chan stream.Response)
 
 type checksum struct {
-	Token    int
+	Token    uint32
 	Sequence int64
 }
 
 // checksumStore quick global for now
-var checksumStore = make(map[int]*checksum)
-var cMtx sync.Mutex
+var (
+	checksumStore = make(map[int]*checksum)
+	cMtx          sync.Mutex
+)
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    wsTicker,
-	subscription.OrderbookChannel: wsBook,
-	subscription.CandlesChannel:   wsCandles,
-	subscription.AllTradesChannel: wsTrades,
+	subscription.TickerChannel:    wsTickerChannel,
+	subscription.OrderbookChannel: wsBookChannel,
+	subscription.CandlesChannel:   wsCandlesChannel,
+	subscription.AllTradesChannel: wsTradesChannel,
 }
 
 // WsConnect starts a new websocket connection
@@ -162,8 +222,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		eventType, hasEventType := d[1].(string)
 
 		if chanID != 0 {
-			if c := b.Websocket.GetSubscription(chanID); c != nil {
-				return b.handleWSChannelUpdate(c, eventType, d)
+			if s := b.Websocket.GetSubscription(chanID); s != nil {
+				return b.handleWSChannelUpdate(s, respRaw, eventType, d)
 			}
 			if b.Verbose {
 				log.Warnf(log.ExchangeSys, "%s %s; dropped WS message: %s", b.Name, subscription.ErrNotFound, respRaw)
@@ -201,8 +261,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			return b.handleWSPositionSnapshot(d)
 		case wsPositionNew, wsPositionUpdate, wsPositionClose:
 			return b.handleWSPositionUpdate(d)
-		case wsTradeExecuted, wsTradeExecutionUpdate:
-			return b.handleWSTradeUpdate(d, eventType)
+		case wsTradeExecuted, wsTradeUpdated:
+			return b.handleWSMyTradeUpdate(d, eventType)
 		case wsFundingOfferSnapshot:
 			if snapBundle, ok := d[2].([]interface{}); ok && len(snapBundle) > 0 {
 				if _, ok := snapBundle[0].([]interface{}); ok {
@@ -398,7 +458,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					b.Websocket.DataHandler <- fundingInfo
 				}
 			}
-		case wsFundingTradeExecuted, wsFundingTradeUpdate:
+		case wsFundingTradeExecuted, wsFundingTradeUpdated:
 			if data, ok := d[2].([]interface{}); ok && len(data) > 0 {
 				var wsFundingTrade WsFundingTrade
 				tradeID, ok := data[0].(float64)
@@ -446,7 +506,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
-		return fmt.Errorf("%w 'event': %w from message: %s", errParsingWSField, err, respRaw)
+		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 	}
 	switch event {
 	case wsEventSubscribed:
@@ -454,7 +514,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventUnsubscribed:
 		chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId")
 		if err != nil {
-			return fmt.Errorf("%w 'chanId': %w from message: %s", errParsingWSField, err, respRaw)
+			return fmt.Errorf("%w 'chanId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
 		err = b.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
 		if err != nil {
@@ -477,7 +537,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventAuth:
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
-			return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, respRaw)
+			return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
 		if status == "OK" {
 			var glob map[string]interface{}
@@ -489,7 +549,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 		} else {
 			errCode, err := jsonparser.GetInt(respRaw, "code")
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, errParsingWSField, err, respRaw)
+				log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, common.ErrParsingWSField, err, respRaw)
 			}
 			return fmt.Errorf("WS auth subscription error; Status: %s Error Code: %d", status, errCode)
 		}
@@ -499,7 +559,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	case wsEventConf:
 		status, err := jsonparser.GetUnsafeString(respRaw, "status")
 		if err != nil {
-			return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, respRaw)
+			return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
 		if status != "OK" {
 			return fmt.Errorf("WS configure channel error; Status: %s", status)
@@ -516,7 +576,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 	if err != nil {
-		return fmt.Errorf("%w 'subId': %w from message: %s", errParsingWSField, err, respRaw)
+		return fmt.Errorf("%w 'subId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 	}
 
 	c := b.Websocket.GetSubscription(subID)
@@ -526,7 +586,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 
 	chanID, err := jsonparser.GetInt(respRaw, "chanId")
 	if err != nil {
-		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Pairs)
+		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
 	}
 
 	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
@@ -546,16 +606,15 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	return b.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
 
-func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, eventType string, d []interface{}) error {
+func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, respRaw []byte, eventType string, d []interface{}) error {
 	if s == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
 
-	if eventType == wsChecksum {
+	switch eventType {
+	case wsChecksum:
 		return b.handleWSChecksum(s, d)
-	}
-
-	if eventType == wsHeartbeat {
+	case wsHeartbeat:
 		return nil
 	}
 
@@ -571,7 +630,7 @@ func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, eventType
 	case subscription.TickerChannel:
 		return b.handleWSTickerUpdate(s, d)
 	case subscription.AllTradesChannel:
-		return b.handleWSTradesUpdate(s, eventType, d)
+		return b.handleWSAllTrades(s, respRaw)
 	}
 
 	return fmt.Errorf("%s unhandled channel update: %s", b.Name, s.Channel)
@@ -581,11 +640,11 @@ func (b *Bitfinex) handleWSChecksum(c *subscription.Subscription, d []interface{
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
-	var token int
+	var token uint32
 	if f, ok := d[2].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[2], "checksum")
 	} else { //nolint:revive // using lexical variable requires else statement
-		token = int(f)
+		token = uint32(f)
 	}
 	if len(d) < 4 {
 		return errNoSeqNo
@@ -663,12 +722,14 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interfac
 					ID:     int64(id),
 					Period: int64(pricePeriod),
 					Price:  rateAmount,
-					Amount: amount})
+					Amount: amount,
+				})
 			} else {
 				newOrderbook = append(newOrderbook, WebsocketBook{
 					ID:     int64(id),
 					Price:  pricePeriod,
-					Amount: rateAmount})
+					Amount: rateAmount,
+				})
 			}
 		}
 		if err := b.WsInsertSnapshot(c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
@@ -695,12 +756,14 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interfac
 				ID:     int64(id),
 				Period: int64(pricePeriod),
 				Price:  amountRate,
-				Amount: amount})
+				Amount: amount,
+			})
 		} else {
 			newOrderbook = append(newOrderbook, WebsocketBook{
 				ID:     int64(id),
 				Price:  pricePeriod,
-				Amount: amountRate})
+				Amount: amountRate,
+			})
 		}
 
 		if err := b.WsUpdateOrderbook(c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
@@ -871,139 +934,77 @@ func (b *Bitfinex) handleWSTickerUpdate(c *subscription.Subscription, d []interf
 	return nil
 }
 
-func (b *Bitfinex) handleWSTradesUpdate(c *subscription.Subscription, eventType string, d []interface{}) error {
-	if c == nil {
+func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byte) error {
+	feedEnabled := b.IsTradeFeedEnabled()
+	if !feedEnabled && !b.IsSaveTradeDataEnabled() {
+		return nil
+	}
+	if s == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
-	if len(c.Pairs) != 1 {
+	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	if !b.IsSaveTradeDataEnabled() {
-		return nil
+	v, valueType, _, err := jsonparser.Get(respRaw, "[1]")
+	if err != nil {
+		return fmt.Errorf("%w `tradesUpdate[1]`: %w", common.ErrParsingWSField, err)
 	}
-	if c.Asset == asset.MarginFunding {
-		return nil
+	var wsTrades []*wsTrade
+	switch valueType {
+	case jsonparser.String:
+		t, err := b.handleWSPublicTradeUpdate(respRaw)
+		if err != nil {
+			return fmt.Errorf("%w `tradesUpdate[2]`: %w", common.ErrParsingWSField, err)
+		}
+		wsTrades = []*wsTrade{t}
+	case jsonparser.Array:
+		if wsTrades, err = b.handleWSPublicTradesSnapshot(v); err != nil {
+			return fmt.Errorf("%w `tradesSnapshot`: %w", common.ErrParsingWSField, err)
+		}
+	default:
+		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
 	}
-	var tradeHolder []WebsocketTrade
-	switch len(d) {
-	case 2:
-		snapshot, ok := d[1].([]interface{})
-		if !ok {
-			return errors.New("unable to type assert trade snapshot data")
-		}
-		for i := range snapshot {
-			elem, ok := snapshot[i].([]interface{})
-			if !ok {
-				return errors.New("unable to type assert trade snapshot element data")
-			}
-			tradeID, ok := elem[0].(float64)
-			if !ok {
-				return errors.New("unable to type assert trade ID")
-			}
-			timestamp, ok := elem[1].(float64)
-			if !ok {
-				return errors.New("unable to type assert trade timestamp")
-			}
-			amount, ok := elem[2].(float64)
-			if !ok {
-				return errors.New("unable to type assert trade amount")
-			}
-			wsTrade := WebsocketTrade{
-				ID:        int64(tradeID),
-				Timestamp: int64(timestamp),
-				Amount:    amount,
-			}
-			if len(elem) == 5 {
-				rate, ok := elem[3].(float64)
-				if !ok {
-					return errors.New("unable to type assert trade rate")
-				}
-				wsTrade.Rate = rate
-				period, ok := elem[4].(float64)
-				if !ok {
-					return errors.New("unable to type assert trade period")
-				}
-				wsTrade.Period = int64(period)
-			} else {
-				price, ok := elem[3].(float64)
-				if !ok {
-					return errors.New("unable to type assert trade price")
-				}
-				wsTrade.Rate = price
-			}
-			tradeHolder = append(tradeHolder, wsTrade)
-		}
-	case 3:
-		if eventType != wsFundingTradeUpdate && eventType != wsTradeExecutionUpdate {
-			return fmt.Errorf("unhandled WS trade update event: %s", eventType)
-		}
-		data, ok := d[2].([]interface{})
-		if !ok {
-			return errors.New("trade data type assertion error")
-		}
-
-		tradeID, ok := data[0].(float64)
-		if !ok {
-			return errors.New("unable to type assert trade ID")
-		}
-		timestamp, ok := data[1].(float64)
-		if !ok {
-			return errors.New("unable to type assert trade timestamp")
-		}
-		amount, ok := data[2].(float64)
-		if !ok {
-			return errors.New("unable to type assert trade amount")
-		}
-		wsTrade := WebsocketTrade{
-			ID:        int64(tradeID),
-			Timestamp: int64(timestamp),
-			Amount:    amount,
-		}
-		if len(data) == 5 {
-			rate, ok := data[3].(float64)
-			if !ok {
-				return errors.New("unable to type assert trade rate")
-			}
-			period, ok := data[4].(float64)
-			if !ok {
-				return errors.New("unable to type assert trade period")
-			}
-			wsTrade.Rate = rate
-			wsTrade.Period = int64(period)
-		} else {
-			price, ok := data[3].(float64)
-			if !ok {
-				return errors.New("unable to type assert trade price")
-			}
-			wsTrade.Price = price
-		}
-		tradeHolder = append(tradeHolder, wsTrade)
-	}
-	trades := make([]trade.Data, len(tradeHolder))
-	for i := range tradeHolder {
-		side := order.Buy
-		newAmount := tradeHolder[i].Amount
-		if newAmount < 0 {
-			side = order.Sell
-			newAmount *= -1
-		}
-		price := tradeHolder[i].Price
-		if price == 0 && tradeHolder[i].Rate > 0 {
-			price = tradeHolder[i].Rate
-		}
-		trades[i] = trade.Data{
-			TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
-			CurrencyPair: c.Pairs[0],
-			Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
-			Price:        price,
-			Amount:       newAmount,
+	trades := make([]trade.Data, len(wsTrades))
+	for _, w := range wsTrades {
+		t := trade.Data{
 			Exchange:     b.Name,
-			AssetType:    c.Asset,
-			Side:         side,
+			AssetType:    s.Asset,
+			CurrencyPair: s.Pairs[0],
+			TID:          strconv.FormatInt(w.ID, 10),
+			Timestamp:    w.Timestamp.Time().UTC(),
+			Side:         order.Buy,
+			Amount:       w.Amount,
+			Price:        w.Price,
+		}
+		if w.Period != 0 {
+			t.AssetType = asset.MarginFunding
+		}
+		if t.Amount < 0 {
+			t.Side = order.Sell
+			t.Amount = math.Abs(t.Amount)
+		}
+		if feedEnabled {
+			b.Websocket.DataHandler <- t
 		}
 	}
+	if b.IsSaveTradeDataEnabled() {
+		err = trade.AddTradesToBuffer(trades...)
+	}
+	return err
+}
 
-	return b.AddTradesToBuffer(trades...)
+func (b *Bitfinex) handleWSPublicTradesSnapshot(v []byte) ([]*wsTrade, error) {
+	var trades []*wsTrade
+	return trades, json.Unmarshal(v, &trades)
+}
+
+func (b *Bitfinex) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
+	v, _, _, err := jsonparser.Get(respRaw, "[2]")
+	if err != nil {
+		return nil, err
+	}
+	t := &wsTrade{}
+	return t, json.Unmarshal(v, t)
 }
 
 func (b *Bitfinex) handleWSNotification(d []interface{}, respRaw []byte) error {
@@ -1175,7 +1176,7 @@ func (b *Bitfinex) handleWSPositionUpdate(d []interface{}) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSTradeUpdate(d []interface{}, eventType string) error {
+func (b *Bitfinex) handleWSMyTradeUpdate(d []interface{}, eventType string) error {
 	tradeData, ok := d[2].([]interface{})
 	if !ok {
 		return common.GetTypeAssertError("[]interface{}", d[2], "tradeUpdate")
@@ -1748,7 +1749,7 @@ func (b *Bitfinex) subscribeToChan(subs subscription.List) error {
 	}
 
 	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
-	// Although docs only mention subId for wsBook, it works for all chans
+	// Although docs only mention subId for wsBookChannel, it works for all chans
 	subID := strconv.FormatInt(b.Websocket.Conn.GenerateMessageID(false), 10)
 	req["subId"] = subID
 
@@ -1815,19 +1816,19 @@ func (b *Bitfinex) unsubscribeFromChan(subs subscription.List) error {
 func (b *Bitfinex) getErrResp(resp []byte) error {
 	event, err := jsonparser.GetUnsafeString(resp, "event")
 	if err != nil {
-		return fmt.Errorf("%w 'event': %w from message: %s", errParsingWSField, err, resp)
+		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, resp)
 	}
 	if event != "error" {
 		return nil
 	}
 	errCode, err := jsonparser.GetInt(resp, "code")
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, errParsingWSField, err, resp)
+		log.Errorf(log.ExchangeSys, "%s %s 'code': %s from message: %s", b.Name, common.ErrParsingWSField, err, resp)
 	}
 
 	var apiErr error
 	if msg, e2 := jsonparser.GetString(resp, "msg"); e2 != nil {
-		log.Errorf(log.ExchangeSys, "%s %s 'msg': %s from message: %s", b.Name, errParsingWSField, e2, resp)
+		log.Errorf(log.ExchangeSys, "%s %s 'msg': %s from message: %s", b.Name, common.ErrParsingWSField, e2, resp)
 		apiErr = common.ErrUnknownError
 	} else {
 		apiErr = errors.New(msg)
@@ -2081,7 +2082,7 @@ func makeRequestInterface(channelName string, data interface{}) []interface{} {
 	return []interface{}{0, channelName, nil, data}
 }
 
-func validateCRC32(book *orderbook.Base, token int) error {
+func validateCRC32(book *orderbook.Base, token uint32) error {
 	// Order ID's need to be sub-sorted in ascending order, this needs to be
 	// done on the main book to ensure that we do not cut price levels out below
 	reOrderByID(book.Bids)
@@ -2129,14 +2130,14 @@ func validateCRC32(book *orderbook.Base, token int) error {
 
 	checksumStr := strings.TrimSuffix(check.String(), ":")
 	checksum := crc32.ChecksumIEEE([]byte(checksumStr))
-	if checksum == uint32(token) {
+	if checksum == token {
 		return nil
 	}
 	return fmt.Errorf("invalid checksum for %s %s: calculated [%d] does not match [%d]",
 		book.Asset,
 		book.Pair,
 		checksum,
-		uint32(token))
+		token)
 }
 
 // reOrderByID sub sorts orderbook items by its corresponding ID when price
@@ -2192,11 +2193,11 @@ func subToMap(s *subscription.Subscription, a asset.Item, p currency.Pair) map[s
 	for k, v := range s.Params {
 		switch k {
 		case CandlesPeriodKey:
-			if s, ok := v.(string); !ok {
+			s, ok := v.(string)
+			if !ok {
 				panic(common.GetTypeAssertError("string", v, "subscription.CandlesPeriodKey"))
-			} else {
-				fundingPeriod = ":" + s
 			}
+			fundingPeriod = ":" + s
 		case "key", "symbol", "len":
 			panic(fmt.Errorf("%w: %s", errParamNotAllowed, k)) // Ensure user's Params aren't silently overwritten
 		default:
@@ -2218,7 +2219,7 @@ func subToMap(s *subscription.Subscription, a asset.Item, p currency.Pair) map[s
 		pairFmt.Delimiter = ":"
 	}
 	symbol := p.Format(pairFmt).String()
-	if c == wsCandles {
+	if c == wsCandlesChannel {
 		req["key"] = "trade:" + s.Interval.Short() + ":" + prefix + symbol + fundingPeriod
 	} else {
 		req["symbol"] = prefix + symbol

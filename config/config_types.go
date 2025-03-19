@@ -38,7 +38,6 @@ const (
 	defaultDataHistoryMonitorCheckTimer  = time.Minute
 	defaultCurrencyStateManagerDelay     = time.Minute
 	defaultMaxJobsPerCycle               = 5
-	DefaultOrderbookPublishPeriod        = time.Second * 10
 	// DefaultSyncerWorkers limits the number of sync workers
 	DefaultSyncerWorkers = 15
 	// DefaultSyncerTimeoutREST the default time to switch from REST to websocket protocols without a response
@@ -129,11 +128,11 @@ type EncryptionKeyProvider func(confirmKey bool) ([]byte, error)
 
 // OrderManager holds settings used for the order manager
 type OrderManager struct {
-	Enabled                       *bool         `json:"enabled"`
+	Enabled                       bool          `json:"enabled"`
 	Verbose                       bool          `json:"verbose"`
 	ActivelyTrackFuturesPositions bool          `json:"activelyTrackFuturesPositions"`
 	FuturesTrackingSeekDuration   time.Duration `json:"futuresTrackingSeekDuration"`
-	RespectOrderHistoryLimits     *bool         `json:"respectOrderHistoryLimits"`
+	RespectOrderHistoryLimits     bool          `json:"respectOrderHistoryLimits"`
 	CancelOrdersOnShutdown        bool          `json:"cancelOrdersOnShutdown"`
 }
 
@@ -368,7 +367,4 @@ type Orderbook struct {
 	VerificationBypass     bool `json:"verificationBypass"`
 	WebsocketBufferLimit   int  `json:"websocketBufferLimit"`
 	WebsocketBufferEnabled bool `json:"websocketBufferEnabled"`
-	// PublishPeriod here is a pointer because we want to distinguish
-	// between zeroed out and missing.
-	PublishPeriod *time.Duration `json:"publishPeriod"`
 }

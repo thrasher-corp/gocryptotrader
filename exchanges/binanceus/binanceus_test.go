@@ -2,7 +2,6 @@ package binanceus
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -133,14 +133,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestFetchAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	if _, err := bi.FetchAccountInfo(context.Background(), asset.Spot); err != nil {
-		t.Error("Binanceus FetchAccountInfo() error", err)
-	}
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -190,7 +182,7 @@ func TestGetFeeByType(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.XRP,
 			Quote: currency.USD,
@@ -234,7 +226,7 @@ func TestCancelOrder(t *testing.T) {
 	if err != nil && !(errors.Is(err, errEitherOrderIDOrClientOrderIDIsRequired) || strings.Contains(err.Error(), "ID not set")) {
 		t.Errorf("Binanceus CancelOrder() expecting %v, but found %v", errEitherOrderIDOrClientOrderIDIsRequired, err)
 	}
-	var cancellationOrder = &order.Cancel{
+	cancellationOrder := &order.Cancel{
 		OrderID:   "1",
 		Pair:      pair,
 		AssetType: asset.Spot,
@@ -248,7 +240,7 @@ func TestCancelOrder(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		Pair:      currency.NewPair(currency.LTC, currency.BTC),
 		AssetType: asset.Spot,
 	}
@@ -317,7 +309,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -357,7 +349,7 @@ func TestWithdraw(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	var feeBuilder = &exchange.FeeBuilder{
+	feeBuilder := &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
@@ -367,7 +359,7 @@ func TestGetFee(t *testing.T) {
 	if er != nil {
 		t.Fatal("Binanceus GetFeeByType() error", er)
 	}
-	var withdrawalFeeBuilder = &exchange.FeeBuilder{
+	withdrawalFeeBuilder := &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.CryptocurrencyWithdrawalFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
@@ -377,7 +369,7 @@ func TestGetFee(t *testing.T) {
 	if er != nil {
 		t.Fatal("Binanceus GetFeeByType() error", er)
 	}
-	var offlineFeeTradeBuilder = &exchange.FeeBuilder{
+	offlineFeeTradeBuilder := &exchange.FeeBuilder{
 		Amount:        1,
 		FeeType:       exchange.OfflineTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
@@ -567,6 +559,7 @@ func TestGetUserAPITradingStatus(t *testing.T) {
 		t.Error("Binanceus GetUserAPITradingStatus() error", er)
 	}
 }
+
 func TestGetTradeFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -1230,6 +1223,7 @@ func TestDepositHistory(t *testing.T) {
 		t.Error("Binanceus DepositHistory() error", er)
 	}
 }
+
 func TestFiatDepositHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
@@ -1548,7 +1542,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 
 func TestWebsocketBookTicker(t *testing.T) {
 	t.Parallel()
-	var bookTickerJSON = []byte(
+	bookTickerJSON := []byte(
 		`{
 		"stream": "btcusdt@bookTicker",
 		"data": {
@@ -1563,7 +1557,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 	if err := bi.wsHandleData(bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
-	var bookTickerForAllSymbols = []byte(`
+	bookTickerForAllSymbols := []byte(`
 	{
 		"stream" : "!bookTicker",
 		"data":{
@@ -1582,7 +1576,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 
 func TestWebsocketAggTrade(t *testing.T) {
 	t.Parallel()
-	var aggTradejson = []byte(
+	aggTradejson := []byte(
 		`{  
 			"stream":"btcusdt@aggTrade", 
 			"data": {
@@ -1612,9 +1606,7 @@ var balanceUpdateInputJSON = `
 		"E": 1573200697110,           
 		"a": "BTC",                   
 		"d": "100.00000000",          
-		"T": 1573200697068            
-  }
-}`
+		"T": 1573200697068}}`
 
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()
@@ -1795,6 +1787,7 @@ func TestQuickEnableCryptoWithdrawal(t *testing.T) {
 		t.Errorf("Binanceus QuickEnableCryptoWithdrawal() expecting %s, but found %v", "unexpected end of JSON input", er)
 	}
 }
+
 func TestQuickDisableCryptoWithdrawal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)

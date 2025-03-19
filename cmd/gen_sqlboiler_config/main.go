@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (
@@ -24,7 +24,7 @@ var sqlboilerConfig map[string]driverConfig
 type driverConfig struct {
 	DBName    string   `json:"dbname,omitempty"`
 	Host      string   `json:"host,omitempty"`
-	Port      uint16   `json:"port,omitempty"`
+	Port      uint32   `json:"port,omitempty"`
 	User      string   `json:"user,omitempty"`
 	Pass      string   `json:"pass,omitempty"`
 	Schema    string   `json:"schema,omitempty"`

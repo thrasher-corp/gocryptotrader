@@ -3,7 +3,6 @@ package kraken
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -158,7 +158,8 @@ func (k *Kraken) FuturesEditOrder(ctx context.Context, orderID, clientOrderID st
 // FuturesSendOrder sends a futures order
 func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string,
 	ioc bool,
-	size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
+	size, limitPrice, stopPrice float64,
+) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
 
 	if ioc && orderType != order.Market {

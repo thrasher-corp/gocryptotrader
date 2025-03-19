@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -595,7 +595,8 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 					TokenData:     tempData.TokenData,
 					TokenDataEnd:  tempData.TokenDataEnd,
 					Val:           tempData.Val,
-					Path:          tempData.Path},
+					Path:          tempData.Path,
+				},
 			},
 		}, nil
 	default:
@@ -1235,7 +1236,8 @@ func sendGetReq(path string, result interface{}) error {
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
-		Verbose: verbose}
+		Verbose: verbose,
+	}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
@@ -1253,7 +1255,8 @@ func sendAuthReq(method, path string, result interface{}) error {
 		Method:  method,
 		Path:    path,
 		Result:  result,
-		Verbose: verbose}
+		Verbose: verbose,
+	}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)

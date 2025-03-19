@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -104,7 +105,7 @@ func main() {
 	flag.StringVar(&settings.GlobalHTTPProxy, "globalhttpproxy", "", "sets the common HTTP client's proxy server")
 
 	// GCTScript tuning settings
-	flag.UintVar(&settings.MaxVirtualMachines, "maxvirtualmachines", uint(gctscriptVM.DefaultMaxVirtualMachines), "set max virtual machines that can load")
+	flag.Uint64Var(&settings.MaxVirtualMachines, "maxvirtualmachines", gctscriptVM.DefaultMaxVirtualMachines, "set max virtual machines that can load")
 
 	// Withdraw Cache tuning settings
 	flag.Uint64Var(&settings.WithdrawCacheSize, "withdrawcachesize", withdraw.CacheSize, "set cache size for withdrawal requests")
@@ -139,6 +140,8 @@ func main() {
 	config.SetConfig(engine.Bot.Config)
 
 	gctscript.Setup()
+
+	gctlog.Infof(gctlog.Global, "JSON encoding is set to package `%s`", json.Implementation)
 
 	engine.Bot.Settings.PrintLoadedSettings()
 

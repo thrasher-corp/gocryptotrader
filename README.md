@@ -100,15 +100,11 @@ When submitting a PR, please abide by our coding guidelines:
 + Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
-## Compiling instructions
+## Compiling and Running instructions
 
-Download and install Go from [Go Downloads](https://golang.org/dl/) for your
-platform.
+Download and install Go from [Go Downloads](https://golang.org/dl/) for your platform.
 
-### Linux/OSX
-
-GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
-Using Go Modules you now clone this repository **outside** your GOPATH
+### Linux/macOS
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
@@ -124,11 +120,18 @@ cp config_example.json ~/.gocryptotrader/config.json
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader
 go build
+mkdir %AppData%\GoCryptoTrader
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
+By default, GoCryptoTrader uses the [Sonic JSON](https://github.com/bytedance/sonic) library for improved performance unless compiling for 32-bit or arm64 architectures. To disable Sonic and revert to Go's encoding/json, build with the sonic_off tag:
+
+```bash
+go build -tags=sonic_off
+```
+
 + Make any necessary changes to the `config.json` file.
-+ Run the `gocryptotrader` binary file inside your GOPATH bin folder.
++ Run the `gocryptotrader` binary file.
 
 ## Donations
 
@@ -148,21 +151,21 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 703 |
-| [shazbert](https://github.com/shazbert) | 355 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 331 |
+| [thrasher-](https://github.com/thrasher-) | 704 |
+| [shazbert](https://github.com/shazbert) | 361 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 351 |
 | [gloriousCode](https://github.com/gloriousCode) | 236 |
-| [gbjk](https://github.com/gbjk) | 107 |
+| [gbjk](https://github.com/gbjk) | 115 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [Beadko](https://github.com/Beadko) | 17 |
+| [Beadko](https://github.com/Beadko) | 18 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [samuael](https://github.com/samuael) | 10 |
+| [samuael](https://github.com/samuael) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |

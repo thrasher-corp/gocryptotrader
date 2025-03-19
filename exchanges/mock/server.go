@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // DefaultDirectory defines the main mock directory
@@ -249,7 +249,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		var mockVals = url.Values{}
+		mockVals := url.Values{}
 		var err error
 		if json.Valid([]byte(data)) {
 			something := make(map[string]interface{})

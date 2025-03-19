@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -25,7 +26,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -100,14 +103,9 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	b := exch.GetBase()
 
 	assets := b.CurrencyPairs.GetAssetTypes(false)
-	if len(assets) == 0 {
-		t.Fatalf("Cannot setup %v, exchange has no assets", name)
-	}
-	for j := range assets {
-		err = b.CurrencyPairs.SetAssetEnabled(assets[j], true)
-		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-			t.Fatalf("Cannot setup %v SetAssetEnabled %v", name, err)
-		}
+	require.NotEmpty(t, assets, "exchange %s must have assets", name)
+	for _, a := range assets {
+		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "exchange %s SetAssetEnabled must not error for %s", name, a)
 	}
 
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
@@ -641,6 +639,9 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
+	account.ErrExchangeHoldingsNotFound,
+	ticker.ErrTickerNotFound,
+	orderbook.ErrOrderbookNotFound,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
@@ -681,7 +682,7 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 // isFiat helps determine fiat currency without using currency.storage
 func isFiat(t *testing.T, c string) bool {
 	t.Helper()
-	var fiats = []string{
+	fiats := []string{
 		currency.USD.Item.Lower,
 		currency.AUD.Item.Lower,
 		currency.EUR.Item.Lower,

@@ -3,7 +3,6 @@ package btcmarkets
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -726,7 +726,8 @@ func (b *BTCMarkets) GetReport(ctx context.Context, reportID string) (ReportData
 
 // RequestWithdraw requests withdrawals
 func (b *BTCMarkets) RequestWithdraw(ctx context.Context, assetName string, amount float64,
-	toAddress, accountName, accountNumber, bsbNumber, bankName string) (TransferData, error) {
+	toAddress, accountName, accountNumber, bsbNumber, bankName string,
+) (TransferData, error) {
 	var resp TransferData
 	req := make(map[string]interface{})
 	req["assetName"] = assetName

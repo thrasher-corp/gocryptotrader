@@ -1,13 +1,13 @@
 package kucoin
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1819,7 +1819,7 @@ type SubAccountResponse struct {
 type SubAccount struct {
 	UserID    string     `json:"userId"`
 	SubName   string     `json:"subName"`
-	Type      int64      `json:"type"` //type:1-rebot  or type:0-nomal
+	Type      int64      `json:"type"` // type:1-robot  or type:0-nomal
 	Remarks   string     `json:"remarks"`
 	UID       int64      `json:"uid"`
 	Status    int64      `json:"status"`

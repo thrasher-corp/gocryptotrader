@@ -2,7 +2,6 @@ package btse
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -280,7 +280,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(b.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)

@@ -101,15 +101,11 @@ When submitting a PR, please abide by our coding guidelines:
 + Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
-## Compiling instructions
+## Compiling and Running instructions
 
-Download and install Go from [Go Downloads](https://golang.org/dl/) for your
-platform.
+Download and install Go from [Go Downloads](https://golang.org/dl/) for your platform.
 
-### Linux/OSX
-
-GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
-Using Go Modules you now clone this repository **outside** your GOPATH
+### Linux/macOS
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
@@ -125,11 +121,18 @@ cp config_example.json ~/.gocryptotrader/config.json
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader
 go build
+mkdir %AppData%\GoCryptoTrader
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
+By default, GoCryptoTrader uses the [Sonic JSON](https://github.com/bytedance/sonic) library for improved performance unless compiling for 32-bit or arm64 architectures. To disable Sonic and revert to Go's encoding/json, build with the sonic_off tag:
+
+```bash
+go build -tags=sonic_off
+```
+
 + Make any necessary changes to the `config.json` file.
-+ Run the `gocryptotrader` binary file inside your GOPATH bin folder.
++ Run the `gocryptotrader` binary file.
 
 {{template "donations" .}}
 

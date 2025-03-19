@@ -26,8 +26,8 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	b.SetDefaults()
 
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	ob, err := b.FetchOrderbook(context.Background(), cp, asset.Spot)
-	require.NoError(t, err, "FetchOrderbook must not error")
+	ob, err := b.UpdateOrderbook(context.Background(), cp, asset.Spot)
+	require.NoError(t, err, "UpdateOrderbook must not error")
 
 	amountOfFunds := decimal.NewFromInt(1000)
 	feeRate := decimal.NewFromFloat(0.03)

@@ -251,19 +251,6 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return response, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gemini) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := g.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(g.Name, creds, assetType)
-	if err != nil {
-		return g.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (g *Gemini) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
@@ -290,40 +277,13 @@ func (g *Gemini) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Close:        tick.Close,
 		Pair:         fPair,
 		ExchangeName: g.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return ticker.GetTicker(g.Name, fPair, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (g *Gemini) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := g.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	tickerNew, err := ticker.GetTicker(g.Name, fPair, assetType)
-	if err != nil {
-		return g.UpdateTicker(ctx, fPair, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (g *Gemini) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := g.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	ob, err := orderbook.Get(g.Name, fPair, assetType)
-	if err != nil {
-		return g.UpdateOrderbook(ctx, fPair, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair

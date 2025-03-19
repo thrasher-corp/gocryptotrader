@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -38,7 +38,8 @@ const (
 
 var (
 	// DefaultExcludedDirectories defines the basic directory exclusion list for GCT
-	DefaultExcludedDirectories = []string{".github",
+	DefaultExcludedDirectories = []string{
+		".github",
 		".git",
 		"node_modules",
 		".vscode",
@@ -335,7 +336,8 @@ func main() {
 		dirList,
 		tmpl,
 		contributors,
-		&config})
+		&config,
+	})
 
 	fmt.Println("\nDocumentation Generation Tool - Finished")
 }

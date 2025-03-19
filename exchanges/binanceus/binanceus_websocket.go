@@ -2,7 +2,6 @@ package binanceus
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -541,7 +541,7 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 
 // GenerateSubscriptions generates the default subscription set
 func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
+	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)

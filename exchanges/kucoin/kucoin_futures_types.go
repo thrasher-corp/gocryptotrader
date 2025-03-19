@@ -7,11 +7,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var (
-	validGranularity = []string{
-		"1", "5", "15", "30", "60", "120", "240", "480", "720", "1440", "10080",
-	}
-)
+var validGranularity = []string{
+	"1", "5", "15", "30", "60", "120", "240", "480", "720", "1440", "10080",
+}
 
 // Contract store contract details
 type Contract struct {

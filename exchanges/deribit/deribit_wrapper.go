@@ -43,13 +43,12 @@ func (d *Deribit) SetDefaults() {
 
 	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := d.SetAssetPairStore(asset.Spot, currency.PairStore{AssetEnabled: true, RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat}); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, asset.Spot, err)
 	}
-	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
-			log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err := d.SetAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, a, err)
 		}
 	}
 
@@ -128,6 +127,8 @@ func (d *Deribit) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
+
+	var err error
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()),
@@ -294,24 +295,6 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	return ticker.GetTicker(d.Name, p, assetType)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (d *Deribit) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(d.Name, p, assetType)
-	if err != nil {
-		return d.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (d *Deribit) FetchOrderbook(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(d.Name, currencyPair, assetType)
-	if err != nil {
-		return d.UpdateOrderbook(ctx, currencyPair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	p, err := d.FormatExchangeCurrency(p, assetType)
@@ -389,19 +372,6 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.
 		resp.Accounts[x] = subAcc
 	}
 	return resp, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (d *Deribit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := d.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	accountData, err := account.GetHoldings(d.Name, creds, assetType)
-	if err != nil {
-		return d.UpdateAccountInfo(ctx, assetType)
-	}
-	return accountData, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -567,7 +537,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
-	var hasMore = true
+	hasMore := true
 	for hasMore {
 		if d.Websocket.IsConnected() {
 			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(instrumentID, "asc", 100, true, timestampStart, timestampEnd)
@@ -890,7 +860,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if len(getOrdersRequest.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	var resp = []order.Detail{}
+	resp := []order.Detail{}
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {

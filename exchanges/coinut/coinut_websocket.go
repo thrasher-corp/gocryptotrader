@@ -2,7 +2,6 @@ package coinut
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -31,9 +31,7 @@ const (
 	coinutWebsocketRateLimit = 30
 )
 
-var (
-	channels map[string]chan []byte
-)
+var channels map[string]chan []byte
 
 // NOTE for speed considerations
 // wss://wsapi-as.coinut.com
@@ -310,7 +308,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(c.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	case "inst_trade_update":
 		if !c.IsSaveTradeDataEnabled() {
 			return nil
@@ -341,7 +339,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			}
 		}
 
-		return trade.AddTradesToBuffer(c.Name, trade.Data{
+		return trade.AddTradesToBuffer(trade.Data{
 			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -389,7 +387,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 	var oSide order.Side
 	var oStatus order.Status
 	var err error
-	var orderID = strconv.FormatInt(oContainer.OrderID, 10)
+	orderID := strconv.FormatInt(oContainer.OrderID, 10)
 	if oContainer.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Side)
 		if err != nil {
@@ -582,7 +580,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
+	channels := []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions subscription.List
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {

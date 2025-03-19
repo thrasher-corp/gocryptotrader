@@ -30,10 +30,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -48,14 +46,14 @@ func CreateTestBot(tb testing.TB) *Engine {
 
 	pairs1 := map[asset.Item]*currency.PairStore{
 		asset.Spot: {
-			AssetEnabled: convert.BoolPtr(true),
+			AssetEnabled: true,
 			Available:    currency.Pairs{cp1},
 			Enabled:      currency.Pairs{cp1},
 		},
 	}
 	pairs2 := map[asset.Item]*currency.PairStore{
 		asset.Spot: {
-			AssetEnabled: convert.BoolPtr(true),
+			AssetEnabled: true,
 			Available:    currency.Pairs{cp2},
 			Enabled:      currency.Pairs{cp2},
 		},
@@ -91,7 +89,8 @@ func CreateTestBot(tb testing.TB) *Engine {
 					Pairs:           pairs2,
 				},
 			},
-		}}}
+		}},
+	}
 	err := bot.LoadExchange(testExchange)
 	assert.NoError(tb, err, "LoadExchange should not error")
 
@@ -195,12 +194,14 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 			Subsystem:    grpcName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  errGRPCManagementFault,
-			DisableError: errGRPCManagementFault},
+			DisableError: errGRPCManagementFault,
+		},
 		{
 			Subsystem:    grpcProxyName,
 			Engine:       &Engine{Config: &config.Config{}},
 			EnableError:  errGRPCManagementFault,
-			DisableError: errGRPCManagementFault},
+			DisableError: errGRPCManagementFault,
+		},
 		{
 			Subsystem:    dataHistoryManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
@@ -374,7 +375,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 				Name:    testExchange,
 				CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
-						AssetEnabled: convert.BoolPtr(true),
+						AssetEnabled: true,
 						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
 						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
 						ConfigFormat: &currency.PairFormat{
@@ -679,7 +680,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
 
-	var pairs = []currency.Pair{
+	pairs := []currency.Pair{
 		currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
@@ -719,7 +720,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		Name:    bf,
 		CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled:      currency.Pairs{btcjpy},
 				Available:    currency.Pairs{btcjpy},
 				ConfigFormat: &currency.PairFormat{
@@ -749,98 +750,6 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		assetType)
 	if len(result) > 0 {
 		t.Fatal("Unexpected result")
-	}
-}
-
-func TestGetSpecificOrderbook(t *testing.T) {
-	t.Parallel()
-	e := CreateTestBot(t)
-
-	base := orderbook.Base{
-		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Bids:     []orderbook.Tranche{{Price: 1000, Amount: 1}},
-		Exchange: "Bitstamp",
-		Asset:    asset.Spot,
-	}
-
-	err := base.Process()
-	if err != nil {
-		t.Fatal("Unexpected result", err)
-	}
-
-	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ob, err := e.GetSpecificOrderbook(context.Background(),
-		btsusd, testExchange, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if ob.Bids[0].Price != 1000 {
-		t.Fatal("Unexpected result")
-	}
-
-	ethltc, err := currency.NewPairFromStrings("ETH", "LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = e.GetSpecificOrderbook(context.Background(),
-		ethltc, testExchange, asset.Spot)
-	if err == nil {
-		t.Fatal("Unexpected result")
-	}
-
-	err = e.UnloadExchange(testExchange)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetSpecificTicker(t *testing.T) {
-	t.Parallel()
-	e := CreateTestBot(t)
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ticker.ProcessTicker(&ticker.Price{
-		Pair:         p,
-		Last:         1000,
-		AssetType:    asset.Spot,
-		ExchangeName: testExchange})
-	if err != nil {
-		t.Fatal("ProcessTicker error", err)
-	}
-
-	tick, err := e.GetSpecificTicker(context.Background(),
-		p, testExchange, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if tick.Last != 1000 {
-		t.Fatal("Unexpected result")
-	}
-
-	ethltc, err := currency.NewPairFromStrings("ETH", "LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = e.GetSpecificTicker(context.Background(),
-		ethltc, testExchange, asset.Spot)
-	if err == nil {
-		t.Fatal("Unexpected result")
-	}
-
-	err = e.UnloadExchange(testExchange)
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -1044,7 +953,7 @@ func (f fakeDepositExchange) GetDepositAddress(_ context.Context, _ currency.Cod
 
 func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 	ps := currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		Enabled: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USDT),
 			currency.NewPair(currency.XRP, currency.USDT),

@@ -41,10 +41,8 @@ const (
 	NumberCharacters = "0123456789"
 )
 
-var (
-	// emailRX represents email address matching pattern
-	emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-)
+// emailRX represents email address matching pattern
+var emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 // Vars for common.go operations
 var (
@@ -68,9 +66,11 @@ var (
 	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse             = errors.New("no response")
 	ErrTypeAssertFailure      = errors.New("type assert failure")
+	ErrNoResults              = errors.New("no results found")
 	ErrUnknownError           = errors.New("unknown error")
 	ErrGettingField           = errors.New("error getting field")
 	ErrSettingField           = errors.New("error setting field")
+	ErrParsingWSField         = errors.New("error parsing websocket field")
 )
 
 var (
@@ -134,7 +134,8 @@ func NewHTTPClientWithTimeout(t time.Duration) *http.Client {
 	}
 	h := &http.Client{
 		Transport: tr,
-		Timeout:   t}
+		Timeout:   t,
+	}
 	return h
 }
 

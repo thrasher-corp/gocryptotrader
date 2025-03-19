@@ -2,7 +2,6 @@ package portfolio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -157,12 +157,15 @@ func (b *Base) ExchangeAddressExists(exchangeName string, coinType currency.Code
 func (b *Base) AddExchangeAddress(exchangeName string, coinType currency.Code, balance float64) {
 	if b.ExchangeAddressExists(exchangeName, coinType) {
 		b.UpdateExchangeAddressBalance(exchangeName, coinType, balance)
-	} else {
-		b.Addresses = append(
-			b.Addresses, Address{Address: exchangeName, CoinType: coinType,
-				Balance: balance, Description: ExchangeAddress},
-		)
+		return
 	}
+
+	b.Addresses = append(b.Addresses, Address{
+		Address:     exchangeName,
+		CoinType:    coinType,
+		Balance:     balance,
+		Description: ExchangeAddress,
+	})
 }
 
 // UpdateAddressBalance updates the portfolio base balance
@@ -206,22 +209,25 @@ func (b *Base) AddAddress(address, description string, coinType currency.Code, b
 
 	if description == ExchangeAddress {
 		b.AddExchangeAddress(address, coinType, balance)
+		return nil
 	}
+
 	if !b.AddressExists(address) {
-		b.Addresses = append(
-			b.Addresses, Address{Address: address, CoinType: coinType,
-				Balance: balance, Description: description},
-		)
-	} else {
-		if balance <= 0 {
-			err := b.RemoveAddress(address, description, coinType)
-			if err != nil {
-				return err
-			}
-		} else {
-			b.UpdateAddressBalance(address, balance)
+		b.Addresses = append(b.Addresses, Address{
+			Address:     address,
+			CoinType:    coinType,
+			Balance:     balance,
+			Description: description,
+		})
+		return nil
+	}
+
+	if balance <= 0 {
+		if err := b.RemoveAddress(address, description, coinType); err != nil {
+			return err
 		}
 	}
+	b.UpdateAddressBalance(address, balance)
 	return nil
 }
 

@@ -2,7 +2,6 @@ package bitmex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -978,7 +978,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 // calculateTradingFee returns the fee for trading any currency on Bitmex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
-	var fee = 0.000750
+	fee := 0.000750
 	if isMaker {
 		fee -= 0.000250
 	}

@@ -165,7 +165,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	b.Settings = *s
 
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
-	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled != nil && *b.Config.OrderManager.Enabled)
+	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled)
 
 	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
@@ -202,7 +202,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("deprecatedrpc", &b.Settings.EnableDeprecatedRPC, b.Config.RemoteControl.DeprecatedRPC.Enabled)
 
 	if flagSet["maxvirtualmachines"] {
-		maxMachines := uint8(b.Settings.MaxVirtualMachines)
+		maxMachines := b.Settings.MaxVirtualMachines
 		b.gctScriptManager.MaxVirtualMachines = &maxMachines
 	}
 
