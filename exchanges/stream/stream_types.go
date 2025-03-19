@@ -37,6 +37,9 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+
+	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
+	RequireMatchWithData(signature any, incoming []byte) error
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
@@ -79,7 +82,7 @@ type ConnectionSetup struct {
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
-	Handler func(ctx context.Context, incoming []byte) error
+	Handler func(ctx context.Context, conn Connection, incoming []byte) error
 	// BespokeGenerateMessageID is a function that returns a unique message ID.
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
