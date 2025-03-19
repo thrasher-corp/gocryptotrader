@@ -36,6 +36,8 @@ var assetsAndErrors = map[asset.Item]error{
 	asset.Options: asset.ErrNotSupported,
 }
 
+var spotTradablePair, futuresTradablePair currency.Pair
+
 func TestMain(m *testing.M) {
 	me = new(MEXC)
 	if err := testexch.Setup(me); err != nil {
@@ -48,7 +50,35 @@ func TestMain(m *testing.M) {
 		me.SetCredentials(apiKey, apiSecret, "", "", "", "")
 		me.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
+	err := populateTradablePairs()
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
+}
+
+func populateTradablePairs() error {
+	err := me.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err := me.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	spotTradablePair, err = me.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err = me.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	futuresTradablePair, err = me.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -773,7 +803,7 @@ func TestGetSubAffiliateData(t *testing.T) {
 
 func TestGetContractsDetail(t *testing.T) {
 	t.Parallel()
-	result, err := me.GetContractsDetail(context.Background(), "")
+	result, err := me.GetFuturesContracts(context.Background(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -781,7 +811,7 @@ func TestGetContractsDetail(t *testing.T) {
 		println(result.Data[s].DisplayNameEn)
 	}
 
-	result, err = me.GetContractsDetail(context.Background(), result.Data[0].Symbol)
+	result, err = me.GetFuturesContracts(context.Background(), result.Data[0].Symbol)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1513,4 +1543,41 @@ func TestGetServerTime(t *testing.T) {
 	sTime, err := me.GetServerTime(context.Background(), asset.Empty)
 	require.NoError(t, err)
 	assert.NotEmpty(t, sTime)
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := me.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = me.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
+
+	instrumentInfo, err := me.GetSymbols(context.Background(), []string{spotTradablePair.String()})
+	require.NoError(t, err)
+	require.NotEmpty(t, instrumentInfo.Symbols[0])
+
+	limits, err := me.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
+	require.NoError(t, err)
+
+	symbolDetail := instrumentInfo.Symbols[0]
+	require.NotNil(t, symbolDetail, "instrument required to be found")
+	require.Equal(t, symbolDetail.QuoteAmountPrecision.Float64(), limits.PriceStepIncrementSize)
+	assert.Equal(t, symbolDetail.BaseSizePrecision.Float64(), limits.MinimumBaseAmount)
+	assert.Equal(t, symbolDetail.MaxQuoteAmount.Float64(), limits.MaximumQuoteAmount)
+
+	err = me.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
+
+	fInstrumentDetail, err := me.GetFuturesContracts(context.Background(), futuresTradablePair.String())
+	require.NoError(t, err)
+	require.NotEmpty(t, fInstrumentDetail.Data[0])
+
+	limits, err = me.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
+	require.NoError(t, err)
+
+	fsymbolDetail := fInstrumentDetail.Data[0]
+	require.NotNil(t, fsymbolDetail)
+	assert.Equal(t, fsymbolDetail.PriceScale, limits.PriceStepIncrementSize)
+	assert.Equal(t, fsymbolDetail.MinVol, limits.MinimumBaseAmount)
 }

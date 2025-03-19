@@ -23,7 +23,7 @@ type ExchangeConfig struct {
 // SymbolDetail represents a symbol detail.
 type SymbolDetail struct {
 	Symbol                     string       `json:"symbol"`
-	Status                     string       `json:"status"`
+	Status                     types.Number `json:"status"`
 	BaseAsset                  string       `json:"baseAsset"`
 	BaseAssetPrecision         float64      `json:"baseAssetPrecision"`
 	QuoteAsset                 string       `json:"quoteAsset"`
@@ -34,11 +34,11 @@ type SymbolDetail struct {
 	OrderTypes                 []string     `json:"orderTypes"`
 	IsSpotTradingAllowed       bool         `json:"isSpotTradingAllowed"`
 	IsMarginTradingAllowed     bool         `json:"isMarginTradingAllowed"`
-	QuoteAmountPrecision       string       `json:"quoteAmountPrecision"`
-	BaseSizePrecision          string       `json:"baseSizePrecision"`
+	QuoteAmountPrecision       types.Number `json:"quoteAmountPrecision"`
+	BaseSizePrecision          types.Number `json:"baseSizePrecision"`
 	Permissions                []string     `json:"permissions"`
 	Filters                    []any        `json:"filters"`
-	MaxQuoteAmount             string       `json:"maxQuoteAmount"`
+	MaxQuoteAmount             types.Number `json:"maxQuoteAmount"`
 	MakerCommission            types.Number `json:"makerCommission"`
 	TakerCommission            types.Number `json:"takerCommission"`
 	QuoteAmountPrecisionMarket types.Number `json:"quoteAmountPrecisionMarket"`
@@ -731,26 +731,26 @@ type FuturesContractDetail struct {
 	QuoteCoin                  string   `json:"quoteCoin"`
 	SettleCoin                 string   `json:"settleCoin"`
 	ContractSize               float64  `json:"contractSize"`
-	MinLeverage                int64    `json:"minLeverage"`
+	MinLeverage                float64  `json:"minLeverage"`
 	MaxLeverage                float64  `json:"maxLeverage"`
-	PriceScale                 int64    `json:"priceScale"`
-	VolumeScale                int64    `json:"volScale"`
-	AmountScale                int64    `json:"amountScale"`
+	PriceScale                 float64  `json:"priceScale"`
+	VolumeScale                float64  `json:"volScale"`
+	AmountScale                float64  `json:"amountScale"`
 	PriceUnit                  float64  `json:"priceUnit"`
-	VolUnit                    int64    `json:"volUnit"`
-	MinVol                     int64    `json:"minVol"`
-	MaxVol                     int64    `json:"maxVol"`
+	VolUnit                    float64  `json:"volUnit"`
+	MinVol                     float64  `json:"minVol"`
+	MaxVol                     float64  `json:"maxVol"`
 	BidLimitPriceRate          float64  `json:"bidLimitPriceRate"`
 	AskLimitPriceRate          float64  `json:"askLimitPriceRate"`
 	TakerFeeRate               float64  `json:"takerFeeRate"`
 	MakerFeeRate               float64  `json:"makerFeeRate"`
 	MaintenanceMarginRate      float64  `json:"maintenanceMarginRate"`
 	InitialMarginRate          float64  `json:"initialMarginRate"`
-	RiskBaseVol                int64    `json:"riskBaseVol"`
-	RiskIncrVol                int64    `json:"riskIncrVol"`
+	RiskBaseVol                float64  `json:"riskBaseVol"`
+	RiskIncrVol                float64  `json:"riskIncrVol"`
 	RiskIncrMmr                float64  `json:"riskIncrMmr"`
 	RiskIncrImr                float64  `json:"riskIncrImr"`
-	RiskLevelLimit             int64    `json:"riskLevelLimit"`
+	RiskLevelLimit             float64  `json:"riskLevelLimit"`
 	PriceCoefficientVariation  float64  `json:"priceCoefficientVariation"`
 	IndexOrigin                []string `json:"indexOrigin"`
 	State                      int64    `json:"state"`

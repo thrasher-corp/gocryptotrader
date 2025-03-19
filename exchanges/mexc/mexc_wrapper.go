@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -153,25 +154,34 @@ func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 		if err != nil {
 			return nil, err
 		}
-		currencyPairs := make(currency.Pairs, len(result.Symbols))
+		currencyPairs := make(currency.Pairs, 0, len(result.Symbols))
 		for i := range result.Symbols {
-			currencyPairs[i], err = currency.NewPairFromString(result.Symbols[i].Symbol)
+			if result.Symbols[i].Status.Int64() != 1 {
+				continue
+			}
+			pair, err := currency.NewPairFromString(result.Symbols[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
+			currencyPairs = append(currencyPairs, pair)
 		}
 		return currencyPairs, nil
 	case asset.Futures:
-		result, err := me.GetContractsDetail(ctx, "")
+		result, err := me.GetFuturesContracts(ctx, "")
 		if err != nil {
 			return nil, err
 		}
-		currencyPairs := make(currency.Pairs, len(result.Data))
+		currencyPairs := make(currency.Pairs, 0, len(result.Data))
 		for i := range result.Data {
-			currencyPairs[i], err = currency.NewPairFromString(result.Data[i].Symbol)
+			switch result.Data[i].State {
+			case 3, 4:
+				continue
+			}
+			pair, err := currency.NewPairFromString(result.Data[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
+			currencyPairs = append(currencyPairs, pair)
 		}
 		return currencyPairs, nil
 	default:
@@ -743,7 +753,7 @@ func (me *MEXC) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	contracts, err := me.GetContractsDetail(ctx, "")
+	contracts, err := me.GetFuturesContracts(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -793,8 +803,6 @@ func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 		return nil, err
 	}
 	cp := r.Pair.Format(pFmt)
-	println(cp.String())
-
 	fundingRates, err := me.GetContractFundingRateHistory(ctx, cp.String(), 0, 0)
 	if err != nil {
 		return nil, err
@@ -809,7 +817,10 @@ func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 			Exchange: me.Name,
 			Asset:    asset.Futures,
 			Pair:     cp,
-			// LatestRate: latestRate.FundingRate.
+			LatestRate: fundingrate.Rate{
+				Rate: decimal.NewFromFloat(fundingRates.Data.ResultList[i].FundingRate),
+				Time: time.Now(),
+			},
 			// PredictedUpcomingRate
 			// TimeOfNextRate
 			// TimeChecked
@@ -820,5 +831,62 @@ func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 
 // UpdateOrderExecutionLimits updates order execution limits
 func (me *MEXC) UpdateOrderExecutionLimits(ctx context.Context, assetType asset.Item) error {
-	return common.ErrNotYetImplemented
+	switch assetType {
+	case asset.Spot:
+		result, err := me.GetSymbols(ctx, nil)
+		if err != nil {
+			return err
+		}
+		limits := make([]order.MinMaxLevel, len(result.Symbols))
+		for a := range result.Symbols {
+			pair, err := currency.NewPairFromString(result.Symbols[a].Symbol)
+			if err != nil {
+				return err
+			}
+			limits[a] = order.MinMaxLevel{
+				Pair:                   pair,
+				Asset:                  assetType,
+				PriceStepIncrementSize: result.Symbols[a].QuoteAmountPrecision.Float64(),
+				QuoteStepIncrementSize: result.Symbols[a].QuoteAmountPrecision.Float64(),
+				MaximumQuoteAmount:     result.Symbols[a].MaxQuoteAmount.Float64(),
+				MinimumBaseAmount:      result.Symbols[a].BaseSizePrecision.Float64(),
+			}
+		}
+		err = me.LoadLimits(limits)
+		if err != nil {
+			return err
+		}
+	case asset.Futures:
+		result, err := me.GetFuturesContracts(ctx, "")
+		if err != nil {
+			return err
+		}
+		limits := make([]order.MinMaxLevel, len(result.Data))
+		for a := range limits {
+			pair, err := currency.NewPairFromString(result.Data[a].Symbol)
+			if err != nil {
+				return err
+			}
+			limits[a] = order.MinMaxLevel{
+				Pair:                   pair,
+				Asset:                  assetType,
+				PriceStepIncrementSize: result.Data[a].PriceScale,
+				MinimumBaseAmount:      result.Data[a].MinVol,
+				MaxTotalOrders: func() int64 {
+					if len(result.Data[a].MaxNumOrders) > 0 {
+						return result.Data[a].MaxNumOrders[0]
+					}
+					return 0
+				}(),
+				MarketMaxQty: result.Data[a].MaxVol,
+			}
+		}
+		err = me.LoadLimits(limits)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
+	}
+	return nil
 }

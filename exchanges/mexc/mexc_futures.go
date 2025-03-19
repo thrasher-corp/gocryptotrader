@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// GetContractsDetail retrieves list of detailed futures contract
-func (me *MEXC) GetContractsDetail(ctx context.Context, symbol string) (*FuturesContractsDetail, error) {
+// GetFuturesContracts retrieves list of detailed futures contract
+func (me *MEXC) GetFuturesContracts(ctx context.Context, symbol string) (*FuturesContractsDetail, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
