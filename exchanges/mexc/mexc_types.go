@@ -308,27 +308,27 @@ type AccountDetail struct {
 	CanDeposit  bool                 `json:"canDeposit"`
 	UpdateTime  types.Time           `json:"updateTime"`
 	AccountType string               `json:"accountType"`
-	Balances    []AccountBalanceInfo `json:"balances"`
 	Permissions []string             `json:"permissions"`
+	Balances    []AccountBalanceInfo `json:"balances"`
 }
 
 // AccountTrade represents an account trade detail
 type AccountTrade struct {
 	Symbol          string       `json:"symbol"`
 	ID              string       `json:"id"`
+	ClientOrderID   int64        `json:"clientOrderId"`
 	OrderID         string       `json:"orderId"`
 	OrderListID     int64        `json:"orderListId"`
-	Price           types.Number `json:"price"`
-	Quantity        types.Number `json:"qty"`
-	QuoteQuantity   types.Number `json:"quoteQty"`
 	Commission      string       `json:"commission"`
 	CommissionAsset string       `json:"commissionAsset"`
-	Time            types.Time   `json:"time"`
 	IsBuyer         bool         `json:"isBuyer"`
 	IsMaker         bool         `json:"isMaker"`
 	IsBestMatch     bool         `json:"isBestMatch"`
 	IsSelfTrade     bool         `json:"isSelfTrade"`
-	ClientOrderID   int64        `json:"clientOrderId"`
+	Price           types.Number `json:"price"`
+	Quantity        types.Number `json:"qty"`
+	QuoteQuantity   types.Number `json:"quoteQty"`
+	Time            types.Time   `json:"time"`
 }
 
 // MXDeductResponse represents an MX deduct response from spot commissions.

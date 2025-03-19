@@ -134,8 +134,8 @@ func (me *MEXC) getCandlestickData(ctx context.Context, symbol, path string, int
 		if err != nil {
 			return nil, err
 		}
-		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("start", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	var resp *ContractCandlestickData
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, getContractsCandlestickEPL, http.MethodGet, path+symbol, params, nil, &resp)

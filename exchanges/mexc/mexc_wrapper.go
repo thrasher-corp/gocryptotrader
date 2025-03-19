@@ -691,12 +691,12 @@ func (me *MEXC) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 	if err != nil {
 		return nil, err
 	}
-	intervalString, err := intervalToString(req.ExchangeInterval)
-	if err != nil {
-		return nil, err
-	}
 	switch a {
 	case asset.Spot:
+		intervalString, err := intervalToString(interval)
+		if err != nil {
+			return nil, err
+		}
 		timeSeries := make([]kline.Candle, 0, req.Size())
 		for x := range req.RangeHolder.Ranges {
 			result, err := me.GetCandlestick(ctx,
@@ -763,12 +763,23 @@ func (me *MEXC) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 		if err != nil {
 			return nil, err
 		}
-		// var settleType futures.ContractSettlementType
 		var contractType futures.ContractType
 		switch {
 		case strings.HasSuffix(contracts.Data[a].DisplayNameEn, "PERPETUAL"):
 			contractType = futures.Perpetual
-			// TODO: other scenarios
+		}
+		var contractStatus string
+		switch contracts.Data[a].State {
+		case 0:
+			contractStatus = "enabled"
+		case 1:
+			contractStatus = "delivery"
+		case 2:
+			contractStatus = "completed"
+		case 3:
+			contractStatus = "offline"
+		case 4:
+			contractStatus = "pause"
 		}
 		resp[a] = futures.Contract{
 			Exchange:             me.Name,
@@ -777,10 +788,28 @@ func (me *MEXC) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 			SettlementCurrencies: []currency.Code{currency.NewCode(contracts.Data[a].SettleCoin)},
 			Type:                 contractType,
 			MaxLeverage:          contracts.Data[a].MaxLeverage,
-			// IsActive: contracts.Data[a].State,
+			IsActive:             contracts.Data[a].State == 0,
+			Status:               contractStatus,
+			Multiplier:           contracts.Data[a].MinVol,
 		}
 	}
 	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (me *MEXC) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
+	if pair.IsEmpty() {
+		return false, currency.ErrCurrencyPairEmpty
+	}
+	if assetType != asset.Futures {
+		return false, futures.ErrNotFuturesAsset
+	}
+	result, err := me.GetFuturesContracts(context.Background(), pair.String())
+	if err != nil {
+		return false, err
+	}
+	return strings.HasSuffix(result.Data[0].DisplayNameEn, "PERPETUAL"), nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
@@ -803,28 +832,21 @@ func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 		return nil, err
 	}
 	cp := r.Pair.Format(pFmt)
-	fundingRates, err := me.GetContractFundingRateHistory(ctx, cp.String(), 0, 0)
+	fundingRates, err := me.GetContractFundingPrice(ctx, cp.String())
 	if err != nil {
 		return nil, err
 	}
 	resp := make([]fundingrate.LatestRateResponse, 1)
-	latestRate := fundingRates.Data.ResultList[0]
-	for i := range fundingRates.Data.ResultList {
-		if fundingRates.Data.ResultList[i].SettleTime.Time().Before(latestRate.SettleTime.Time()) {
-			latestRate = fundingRates.Data.ResultList[i]
-		}
-		resp[0] = fundingrate.LatestRateResponse{
-			Exchange: me.Name,
-			Asset:    asset.Futures,
-			Pair:     cp,
-			LatestRate: fundingrate.Rate{
-				Rate: decimal.NewFromFloat(fundingRates.Data.ResultList[i].FundingRate),
-				Time: time.Now(),
-			},
-			// PredictedUpcomingRate
-			// TimeOfNextRate
-			// TimeChecked
-		}
+	resp[0] = fundingrate.LatestRateResponse{
+		Exchange: me.Name,
+		Asset:    asset.Futures,
+		Pair:     cp,
+		LatestRate: fundingrate.Rate{
+			Rate: decimal.NewFromFloat(fundingRates.Data.FundingRate),
+			Time: fundingRates.Data.Timestamp.Time(),
+		},
+		TimeOfNextRate: fundingRates.Data.NextSettleTime.Time(),
+		TimeChecked:    time.Now(),
 	}
 	return resp, nil
 }
