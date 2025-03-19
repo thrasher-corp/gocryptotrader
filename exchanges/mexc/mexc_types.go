@@ -277,8 +277,8 @@ type OrderDetail struct {
 	Side                string       `json:"side"`
 	TransactTime        types.Time   `json:"transactTime"`
 	ClientOrderID       string       `json:"clientOrderId"`
-	ExecutedQty         string       `json:"executedQty"`
-	CummulativeQuoteQty string       `json:"cummulativeQuoteQty"`
+	ExecutedQty         types.Number `json:"executedQty"`
+	CummulativeQuoteQty types.Number `json:"cummulativeQuoteQty"`
 	TimeInForce         string       `json:"timeInForce"`
 	Status              string       `json:"status"`
 	OrigClientOrderID   string       `json:"origClientOrderId"`

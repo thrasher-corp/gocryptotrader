@@ -601,9 +601,67 @@ func (me *MEXC) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdr
 
 // GetActiveOrders retrieves any orders that are active/open
 func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	switch getOrdersRequest.AssetType {
+	case asset.Spot:
+		if len(getOrdersRequest.Pairs) == 0 {
+			return nil, currency.ErrCurrencyPairsEmpty
+		}
+		var details order.FilteredOrders
+		for p := range getOrdersRequest.Pairs {
+			result, err := me.GetOpenOrders(ctx, getOrdersRequest.Pairs[p].String())
+			if err != nil {
+				return nil, err
+			}
+			for r := range result {
+				var oStatus order.Status
+				switch result[r].Status {
+				case "NEW":
+					oStatus = order.New
+				case "FILLED":
+					oStatus = order.Filled
+				case "PARTIALLY_FILLED":
+					oStatus = order.PartiallyFilled
+				case "CANCELED":
+					oStatus = order.Cancelled
+				case "PARTIALLY_CANCELED":
+					oStatus = order.PartiallyCancelled
+				}
+				oSide, err := order.StringToOrderSide(result[r].Side)
+				if err != nil {
+					return nil, err
+				}
+				oType, err := order.StringToOrderType(result[r].Type)
+				if err != nil {
+					return nil, err
+				}
+				details = append(details, order.Detail{
+					Price:                result[r].Price.Float64(),
+					Amount:               result[r].OrigQty.Float64(),
+					AverageExecutedPrice: result[r].Price.Float64(),
+					QuoteAmount:          result[r].CummulativeQuoteQty.Float64(),
+					ExecutedAmount:       result[r].ExecutedQty.Float64(),
+					RemainingAmount:      result[r].OrigQty.Float64() - result[r].ExecutedQty.Float64(),
+					Exchange:             me.Name,
+					OrderID:              result[r].OrderID,
+					ClientOrderID:        result[r].ClientOrderID,
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            asset.Spot,
+					LastUpdated:          result[r].TransactTime.Time(),
+				})
+			}
+		}
+		return details, nil
+	case asset.Futures:
+		// result, err := me.
+		// TODO: ---
+	default:
+
+	}
 	return nil, common.ErrNotYetImplemented
 }
 

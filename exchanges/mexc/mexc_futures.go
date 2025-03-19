@@ -658,11 +658,9 @@ func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 
 // PostFuturesBatchOrders
 func (me *MEXC) PostFuturesBatchOrders(ctx context.Context, args []PlaceFuturesOrderParams) ([]FuturesOrderInfo, error) {
-
 	// for a := range args {
 	// 	params, err :=
 	// }
-
 	return nil, nil
 }
 
