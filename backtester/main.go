@@ -20,8 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var singleTaskStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
-var printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf bool
+var (
+	singleTaskStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
+	printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf              bool
+)
 
 func main() {
 	wd, err := os.Getwd()

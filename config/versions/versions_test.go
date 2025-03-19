@@ -58,6 +58,7 @@ func TestDeploy(t *testing.T) {
 	_, err = m.Deploy(context.Background(), in, UseLatestVersion)
 	require.Implements(t, (*ExchangeVersion)(nil), m.versions[1])
 	require.ErrorIs(t, err, errUpgrade)
+	require.ErrorContains(t, err, "for `Juan`")
 
 	j2, err = m.Deploy(context.Background(), j, 0)
 	require.NoError(t, err)
@@ -83,6 +84,7 @@ func TestExchangeDeploy(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrGettingField)
 	require.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
 	require.ErrorContains(t, err, "`name`")
+	require.ErrorContains(t, err, "[0]")
 
 	in = []byte(`{"version":0,"exchanges":[{"name":"Juan"},{"name":"Megashaft"}]}`)
 	_, err = exchangeDeploy(context.Background(), v, ExchangeVersion.UpgradeExchange, in)

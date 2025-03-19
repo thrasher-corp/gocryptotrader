@@ -55,22 +55,24 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	// can use this example below:
 
 	fmt1 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	}
 
 	fmt2 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	err = {{.Variable}}.StoreAssetPairFormat(asset.Spot, fmt1)
+	err = {{.Variable}}.SetAssetPairStore(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", {{.Variable}}.Name, asset.Spot, err)
 	}
-	err = {{.Variable}}.StoreAssetPairFormat(asset.Margin, fmt2)
+	err = {{.Variable}}.SetAssetPairStore(asset.Margin, fmt2)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", {{.Variable}}.Name, asset.Margin, err)
 	}
 
 	// Fill out the capabilities/features that the exchange supports

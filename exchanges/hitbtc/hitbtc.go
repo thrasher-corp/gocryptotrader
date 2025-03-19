@@ -359,7 +359,6 @@ func (h *HitBTC) CancelExistingOrder(ctx context.Context, orderID int64) (bool, 
 		values,
 		tradingRequests,
 		&result)
-
 	if err != nil {
 		return false, err
 	}
@@ -396,7 +395,6 @@ func (h *HitBTC) Withdraw(ctx context.Context, currency, address string, amount 
 		values,
 		otherRequests,
 		&result)
-
 	if err != nil {
 		return false, err
 	}
@@ -481,7 +479,6 @@ func (h *HitBTC) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 			feeBuilder.Pair.Base.String()+
 				feeBuilder.Pair.Delimiter+
 				feeBuilder.Pair.Quote.String())
-
 		if err != nil {
 			return 0, err
 		}

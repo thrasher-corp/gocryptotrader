@@ -31,7 +31,6 @@ import (
 const UseLatestVersion = math.MaxUint16
 
 var (
-	errMissingVersion        = errors.New("missing version")
 	errVersionIncompatible   = errors.New("version does not implement ConfigVersion or ExchangeVersion")
 	errModifyingExchange     = errors.New("error modifying exchange config")
 	errNoVersions            = errors.New("error retrieving latest config version: No config versions are registered")
@@ -124,9 +123,19 @@ func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte,
 			exchMethod = ExchangeVersion.DowngradeExchange
 		}
 
-		log.Printf("Running %s config version %v\n", action, patchVersion)
-
 		patch := m.versions[patchVersion]
+
+		current = patchVersion
+		if target < current {
+			current = patchVersion - 1
+		}
+
+		if patch == nil {
+			log.Printf("Skipping missing config version %v\n", patchVersion)
+			continue
+		}
+
+		log.Printf("Running %s config version %v\n", action, patchVersion)
 
 		if cPatch, ok := patch.(ConfigVersion); ok {
 			if j, err = configMethod(cPatch, ctx, j); err != nil {
@@ -168,7 +177,7 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 		defer func() { i++ }()
 		name, err := jsonparser.GetString(exchOrig, "name")
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w: %w `name`: %w", errModifyingExchange, common.ErrGettingField, err))
+			errs = common.AppendError(errs, fmt.Errorf("%w [%d]: %w `name`: %w", errModifyingExchange, i, common.ErrGettingField, err))
 			return
 		}
 		for _, want := range wanted {
@@ -177,12 +186,12 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			}
 			exchNew, err := method(patch, ctx, exchOrig)
 			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w: %w", errModifyingExchange, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w for `%s`: %w", errModifyingExchange, name, err))
 				continue
 			}
 			if !bytes.Equal(exchNew, exchOrig) {
 				if j, err = jsonparser.Set(j, exchNew, "exchanges", "["+strconv.Itoa(i)+"]"); err != nil {
-					errs = common.AppendError(errs, fmt.Errorf("%w: %w `exchanges.[%d]`: %w", errModifyingExchange, common.ErrSettingField, i, err))
+					errs = common.AppendError(errs, fmt.Errorf("%w `%s`/exchanges[%d]: %w: %w", errModifyingExchange, name, i, common.ErrSettingField, err))
 				}
 			}
 		}
@@ -226,12 +235,9 @@ func (m *manager) checkVersions() error {
 	defer m.m.RUnlock()
 	for ver, v := range m.versions {
 		switch v.(type) {
-		case ExchangeVersion, ConfigVersion:
+		case ExchangeVersion, ConfigVersion, nil:
 		default:
 			return fmt.Errorf("%w: %v", errVersionIncompatible, ver)
-		}
-		if v == nil {
-			return fmt.Errorf("%w: v%v", errMissingVersion, ver)
 		}
 	}
 	return nil
