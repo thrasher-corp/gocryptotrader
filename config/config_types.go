@@ -83,7 +83,6 @@ var (
 
 	errNoEnabledExchanges   = errors.New("no exchanges enabled")
 	errCheckingConfigValues = errors.New("fatal error checking config values")
-	errExchangeNameEmpty    = errors.New("exchange name is empty")
 )
 
 // Config is the overarching object that holds all the information for

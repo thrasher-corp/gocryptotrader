@@ -844,8 +844,8 @@ func TestSetFunding(t *testing.T) {
 	t.Parallel()
 	f := &FundManager{}
 	err := f.SetFunding("", 0, nil, false)
-	if !errors.Is(err, engine.ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected  '%v'", err, engine.ErrExchangeNameIsEmpty)
+	if !errors.Is(err, gctcommon.ErrExchangeNameUnset) {
+		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrExchangeNameUnset)
 	}
 
 	err = f.SetFunding(exchName, 0, nil, false)

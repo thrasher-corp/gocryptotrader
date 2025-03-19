@@ -916,7 +916,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			continue
 		}
 		if e.Name == "" {
-			log.Errorf(log.ConfigMgr, "%s: #%d", errExchangeNameEmpty, i)
+			log.Errorf(log.ConfigMgr, "%s: #%d", common.ErrExchangeNameUnset, i)
 			e.Enabled = false
 			continue
 		}

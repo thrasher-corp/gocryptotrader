@@ -55,6 +55,7 @@ var (
 // Public common Errors
 var (
 	ErrNotYetImplemented      = errors.New("not yet implemented")
+	ErrExchangeNameUnset      = errors.New("exchange name unset")
 	ErrFunctionNotSupported   = errors.New("unsupported wrapper function")
 	errInvalidCryptoCurrency  = errors.New("invalid crypto currency")
 	ErrDateUnset              = errors.New("date unset")
