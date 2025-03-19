@@ -819,7 +819,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 
 	exp := subscription.List{
-		{Channel: subscription.AllTradesChannel, QualifiedChannel: "tradeHistory:BTC-USD", Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+		{Channel: subscription.AllTradesChannel, QualifiedChannel: "tradeHistoryApi:BTC-USD", Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: "notificationApi"},
 	}
 
