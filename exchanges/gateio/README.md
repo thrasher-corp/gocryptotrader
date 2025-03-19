@@ -24,6 +24,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + REST functions
 
+## Trading Methods Supported
+
+### Protocol: REST
+
+| Method Name | cross_margin | delivery | futures | margin | options | spot |
+|------------|---|---|---|---|---|---|
+| CancelAllOrders | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| CancelBatchOrders | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| CancelOrder | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| GetActiveOrders | 🟢  | 🚫  | 🟢  | 🟢  | 🟢  | 🟢  |
+| GetOrderHistory | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| GetOrderInfo | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+| ModifyOrder | 🚫  | 🚫  | 🚫  | 🚫  | 🚫  | 🚫  |
+| SubmitOrder | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  | 🟢  |
+
 ### How to enable
 
 + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)

@@ -25,6 +25,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + REST Support
 + Websocket Support
 
+## Trading Methods Supported
+
+### Protocol: REST
+
+| Method Name | futures | margin | spot |
+|------------|---|---|---|
+| CancelAllOrders | 🟢  | 🟢  | 🟢  |
+| CancelBatchOrders | 🚫  | 🚫  | 🚫  |
+| CancelOrder | 🟢  | 🟢  | 🟢  |
+| GetActiveOrders | 🟢  | 🟢  | 🟢  |
+| GetOrderHistory | 🟢  | 🟢  | 🟢  |
+| GetOrderInfo | 🟢  | 🟢  | 🟢  |
+| ModifyOrder | 🚫  | 🚫  | 🚫  |
+| SubmitOrder | 🟢  | 🟢  | 🟢  |
+
 ### Subscriptions
 
 Default Public Subscriptions:
