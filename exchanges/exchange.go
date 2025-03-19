@@ -57,7 +57,6 @@ var (
 )
 
 var (
-	errSetAssetPairStore                 = errors.New("error storing asset pair store")
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")

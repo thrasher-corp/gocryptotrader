@@ -3128,11 +3128,6 @@ func TestGetTradingRequirements(t *testing.T) {
 	require.NotEmpty(t, requirements)
 }
 
-<<<<<<< HEAD
-func TestWebsocketSubmitOrder(t *testing.T) {
-	_, err := (&Base{}).WebsocketSubmitOrder(context.Background(), nil)
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-=======
 func TestSetConfigPairFormatFromExchange(t *testing.T) {
 	t.Parallel()
 	b := Base{Config: &config.Exchange{CurrencyPairs: &currency.PairsManager{}}}
@@ -3148,5 +3143,9 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "🐋", b.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat.Delimiter, "ConfigFormat should be correct and have a blow hole")
 	assert.Equal(t, "🦥", b.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter, "RequestFormat should be correct and kinda lazy")
->>>>>>> master
+}
+
+func TestWebsocketSubmitOrder(t *testing.T) {
+	_, err := (&Base{}).WebsocketSubmitOrder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
