@@ -451,6 +451,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
 			Leverage:          1,
+			MarginType:        margin.Isolated,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
@@ -464,6 +465,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			ClientOrderID:     "13371337",
 			OrderID:           "1337",
 			ImmediateOrCancel: true,
+			TriggerPrice:      149,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{
@@ -578,7 +580,6 @@ var excludedMethodNames = map[string]struct{}{
 	"CalculatePNL":                     {},
 	"CalculateTotalCollateral":         {},
 	"ScaleCollateral":                  {},
-	"GetPositionSummary":               {},
 	"GetFuturesPositionSummary":        {},
 	"GetFuturesPositionOrders":         {},
 	"SetCollateralMode":                {},
