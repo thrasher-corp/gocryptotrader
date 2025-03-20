@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -313,6 +314,10 @@ func main() {
 				Contributions: 1,
 			},
 		}...)
+
+		sort.Slice(contributors, func(i, j int) bool {
+			return contributors[i].Contributions > contributors[j].Contributions
+		})
 
 		if verbose {
 			fmt.Println("Contributor List Fetched")
