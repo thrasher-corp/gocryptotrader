@@ -250,7 +250,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange:      b.GetName(),
 		Pair:          spotTradablePair,
 		Side:          order.Buy,
@@ -372,7 +372,8 @@ func TestCancelOrder(t *testing.T) {
 		Exchange:  b.Name,
 		AssetType: asset.Spot,
 		Pair:      spotTradablePair,
-		OrderID:   "1234"})
+		OrderID:   "1234",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -380,7 +381,8 @@ func TestCancelOrder(t *testing.T) {
 		Exchange:  b.Name,
 		AssetType: asset.USDTMarginedFutures,
 		Pair:      usdtMarginedTradablePair,
-		OrderID:   "1234"})
+		OrderID:   "1234",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -389,7 +391,8 @@ func TestCancelOrder(t *testing.T) {
 		Exchange:  b.Name,
 		AssetType: asset.CoinMarginedFutures,
 		Pair:      inverseTradablePair,
-		OrderID:   "1234"})
+		OrderID:   "1234",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -397,7 +400,8 @@ func TestCancelOrder(t *testing.T) {
 		Exchange:  b.Name,
 		AssetType: asset.Options,
 		Pair:      optionsTradablePair,
-		OrderID:   "1234"})
+		OrderID:   "1234",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -465,7 +469,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	var getOrdersRequestSpot = order.MultiOrderRequest{
+	getOrdersRequestSpot := order.MultiOrderRequest{
 		Pairs:     currency.Pairs{spotTradablePair},
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -475,17 +479,17 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestLinear = order.MultiOrderRequest{Pairs: currency.Pairs{usdtMarginedTradablePair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType}
+	getOrdersRequestLinear := order.MultiOrderRequest{Pairs: currency.Pairs{usdtMarginedTradablePair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType}
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestLinear)
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestInverse = order.MultiOrderRequest{Pairs: currency.Pairs{inverseTradablePair}, AssetType: asset.CoinMarginedFutures, Side: order.AnySide, Type: order.AnyType}
+	getOrdersRequestInverse := order.MultiOrderRequest{Pairs: currency.Pairs{inverseTradablePair}, AssetType: asset.CoinMarginedFutures, Side: order.AnySide, Type: order.AnyType}
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestInverse)
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestFutures = order.MultiOrderRequest{Pairs: currency.Pairs{optionsTradablePair}, AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType}
+	getOrdersRequestFutures := order.MultiOrderRequest{Pairs: currency.Pairs{optionsTradablePair}, AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType}
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestFutures)
 	if err != nil {
 		t.Error(err)
@@ -507,7 +511,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	var getOrdersRequestSpot = order.MultiOrderRequest{
+	getOrdersRequestSpot := order.MultiOrderRequest{
 		Pairs:     currency.Pairs{spotTradablePair},
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -517,7 +521,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestUMF = order.MultiOrderRequest{
+	getOrdersRequestUMF := order.MultiOrderRequest{
 		Pairs:     currency.Pairs{usdtMarginedTradablePair},
 		AssetType: asset.USDTMarginedFutures,
 		Type:      order.AnyType,
@@ -533,7 +537,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestCMF = order.MultiOrderRequest{
+	getOrdersRequestCMF := order.MultiOrderRequest{
 		Pairs:     currency.Pairs{inverseTradablePair},
 		AssetType: asset.CoinMarginedFutures,
 		Type:      order.AnyType,
@@ -543,7 +547,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestFutures = order.MultiOrderRequest{
+	getOrdersRequestFutures := order.MultiOrderRequest{
 		Pairs:     currency.Pairs{optionsTradablePair},
 		AssetType: asset.Options,
 		Type:      order.AnyType,
@@ -593,7 +597,8 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 			Chain:      currency.LTC.String(),
 			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",
 			AddressTag: "",
-		}})
+		},
+	})
 	if err != nil && err.Error() != "Withdraw address chain or destination tag are not equal" {
 		t.Fatal(err)
 	}
@@ -866,41 +871,51 @@ func TestPlaceOrder(t *testing.T) {
 		t.Error(err)
 	}
 	// Spot TP/SL order
-	arg = &PlaceOrderParams{Category: "spot",
-		Symbol: spotTradablePair,
-		Side:   "Buy", OrderType: "Limit",
+	arg = &PlaceOrderParams{
+		Category: "spot",
+		Symbol:   spotTradablePair,
+		Side:     "Buy", OrderType: "Limit",
 		OrderQuantity: 0.1, Price: 15600, TriggerPrice: 15000,
-		TimeInForce: "GTC", OrderLinkID: "spot-test-02", IsLeverage: 0, OrderFilter: "tpslOrder"}
+		TimeInForce: "GTC", OrderLinkID: "spot-test-02", IsLeverage: 0, OrderFilter: "tpslOrder",
+	}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
 	}
 	// Spot margin normal order (UTA)
-	arg = &PlaceOrderParams{Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit",
-		OrderQuantity: 0.1, Price: 15600, TimeInForce: "IOC", OrderLinkID: "spot-test-limit", IsLeverage: 1, OrderFilter: "Order"}
+	arg = &PlaceOrderParams{
+		Category: "spot", Symbol: spotTradablePair, Side: "Buy", OrderType: "Limit",
+		OrderQuantity: 0.1, Price: 15600, TimeInForce: "IOC", OrderLinkID: "spot-test-limit", IsLeverage: 1, OrderFilter: "Order",
+	}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
 	}
-	arg = &PlaceOrderParams{Category: "spot",
-		Symbol: spotTradablePair,
-		Side:   "Buy", OrderType: "Market", OrderQuantity: 200,
+	arg = &PlaceOrderParams{
+		Category: "spot",
+		Symbol:   spotTradablePair,
+		Side:     "Buy", OrderType: "Market", OrderQuantity: 200,
 		TimeInForce: "IOC", OrderLinkID: "spot-test-04",
-		IsLeverage: 0, OrderFilter: "Order"}
+		IsLeverage: 0, OrderFilter: "Order",
+	}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
 	}
 	// USDT Perp open long position (one-way mode)
-	arg = &PlaceOrderParams{Category: "linear",
-		Symbol: usdcMarginedTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500}
+	arg = &PlaceOrderParams{
+		Category: "linear",
+		Symbol:   usdcMarginedTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500,
+	}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
 	}
 	// USDT Perp close long position (one-way mode)
-	arg = &PlaceOrderParams{Category: "linear", Symbol: usdtMarginedTradablePair, Side: "Sell",
-		OrderType: "Limit", OrderQuantity: 1, Price: 3000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-02", ReduceOnly: true}
+	arg = &PlaceOrderParams{
+		Category: "linear", Symbol: usdtMarginedTradablePair, Side: "Sell",
+		OrderType: "Limit", OrderQuantity: 1, Price: 3000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-02", ReduceOnly: true,
+	}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
@@ -929,13 +944,15 @@ func TestAmendOrder(t *testing.T) {
 	}
 	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "mycat"})
+		Category: "mycat",
+	})
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
 	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "option"})
+		Category: "option",
+	})
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	}
@@ -947,7 +964,8 @@ func TestAmendOrder(t *testing.T) {
 		OrderQuantity:   0.15,
 		Price:           1050,
 		TakeProfitPrice: 0,
-		StopLossPrice:   0})
+		StopLossPrice:   0,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -975,13 +993,15 @@ func TestCancelTradeOrder(t *testing.T) {
 	}
 	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "mycat"})
+		Category: "mycat",
+	})
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
 	_, err = b.CancelTradeOrder(context.Background(), &CancelOrderParams{
 		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "option"})
+		Category: "option",
+	})
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	}
@@ -1147,7 +1167,8 @@ func TestBatchAmendOrder(t *testing.T) {
 			Symbol:                 optionsTradablePair,
 			OrderImpliedVolatility: "6.8",
 			OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
-		}})
+		},
+	})
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
 	}
@@ -1265,6 +1286,7 @@ func TestGetPositionInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestSetLeverageLevel(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -1498,6 +1520,7 @@ func TestSetAutoAddMargin(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestAddOrReduceMargin(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -1958,6 +1981,7 @@ func TestGetDeliveryRecord(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestGetUSDCSessionSettlement(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -2066,20 +2090,26 @@ func TestCreateInternalTransfer(t *testing.T) {
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
-		Coin: currency.BTC, Amount: 123.456})
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456,
+	})
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
-		Coin: currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED"})
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+	})
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{TransferID: transferID,
-		Coin: currency.BTC, Amount: 123.456,
+	_, err = b.CreateInternalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456,
 		ToAccountType:   "CONTRACT",
-		FromAccountType: "UNIFIED"})
+		FromAccountType: "UNIFIED",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -2171,20 +2201,26 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
-		Coin: currency.BTC, Amount: 123.456})
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456,
+	})
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
-		Coin: currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED"})
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+	})
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
 	}
-	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{TransferID: transferID,
-		Coin: currency.BTC, Amount: 123.456,
+	_, err = b.CreateUniversalTransfer(context.Background(), &TransferParams{
+		TransferID: transferID,
+		Coin:       currency.BTC, Amount: 123.456,
 		ToAccountType:   "CONTRACT",
-		FromAccountType: "UNIFIED"})
+		FromAccountType: "UNIFIED",
+	})
 	if !errors.Is(err, errMemberIDRequired) {
 		t.Fatalf("expected %v, got %v", errMemberIDRequired, err)
 	}
@@ -2752,6 +2788,7 @@ func TestBorrow(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestRepay(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3093,13 +3130,15 @@ func TestCancelBatchOrders(t *testing.T) {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	var orderCancellationParams = []order.Cancel{{
+	orderCancellationParams := []order.Cancel{{
 		OrderID:   "1",
 		Pair:      spotTradablePair,
-		AssetType: asset.Spot}, {
+		AssetType: asset.Spot,
+	}, {
 		OrderID:   "1",
 		Pair:      usdtMarginedTradablePair,
-		AssetType: asset.USDTMarginedFutures}}
+		AssetType: asset.USDTMarginedFutures,
+	}}
 	_, err := b.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
@@ -3108,10 +3147,12 @@ func TestCancelBatchOrders(t *testing.T) {
 		OrderID:   "1",
 		AccountID: "1",
 		Pair:      optionsTradablePair,
-		AssetType: asset.Options}, {
+		AssetType: asset.Options,
+	}, {
 		OrderID:   "2",
 		Pair:      optionsTradablePair,
-		AssetType: asset.Options}}
+		AssetType: asset.Options,
+	}}
 	_, err = b.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if err != nil {
 		t.Error(err)
@@ -3128,6 +3169,7 @@ func TestWsConnect(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestWsLinearConnect(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3138,6 +3180,7 @@ func TestWsLinearConnect(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestWsInverseConnect(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3148,6 +3191,7 @@ func TestWsInverseConnect(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestWsOptionsConnect(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3340,7 +3384,7 @@ func TestWsTicker(t *testing.T) {
 
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = &exchange.FeeBuilder{
+	feeBuilder := &exchange.FeeBuilder{
 		Amount:              1,
 		FeeType:             exchange.CryptocurrencyTradeFee,
 		Pair:                spotTradablePair,

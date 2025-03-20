@@ -258,7 +258,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		var mockVals = url.Values{}
+		mockVals := url.Values{}
 		var err error
 		if json.Valid([]byte(data)) {
 			something := make(map[string]interface{})

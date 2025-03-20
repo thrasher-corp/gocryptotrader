@@ -345,7 +345,27 @@
      "spot": {
       "assetEnabled": true,
       "enabled": "BTC-USD",
-      "available": "BTC-CNY,BTC-EUR,BTC-GBP,BTC-HKD,BTC-JPY,BTC-SGD,BTC-USD,ETH-CNY,ETH-EUR,ETH-GBP,ETH-HKD,ETH-JPY,ETH-SGD,ETH-USD,LTC-CNY,LTC-EUR,LTC-GBP,LTC-HKD,LTC-JPY,LTC-SGD,LTC-USD,USDT-CNY,USDT-EUR,USDT-GBP,USDT-HKD,USDT-JPY,USDT-SGD,USDT-USD,XMR-CNY,XMR-EUR,XMR-GBP,XMR-HKD,XMR-JPY,XMR-SGD,XMR-USD"
+      "available": "BTC-CNY,BTC-EUR,BTC-GBP,BTC-HKD,BTC-JPY,BTC-SGD,BTC-USD,ETH-CNY,ETH-EUR,ETH-GBP,ETH-HKD,ETH-JPY,ETH-SGD,ETH-USD,LTC-CNY,LTC-EUR,LTC-GBP,LTC-HKD,LTC-JPY,LTC-SGD,LTC-USD,USDT-CNY,USDT-EUR,USDT-GBP,USDT-HKD,USDT-JPY,USDT-SGD,USDT-USD,XMR-CNY,XMR-EUR,XMR-GBP,XMR-HKD,XMR-JPY,XMR-SGD,XMR-USD",
+      "requestFormat": {
+       "uppercase": true
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "futures": {
+      "assetEnabled": true,
+      "enabled": "BTC-PFC",
+      "available": "PENDLE-PFC,RUNE-PFC,1KSHIB-PFC,ALGO-PFC,BAND-PFC,BNB-PFC,CRV-PFC,C98-PFC,DOGE-PFC,ENS-PFC,JUP-PFC,LINK-PFC,SUI-PFC,1KPEPE-PFC,ARB-PFC,BAL-PFC,CHR-PFC,DYDX-PFC,W-PFC,YFI-PFC,ZIL-PFC,ONDO-PFC,BTC-U24,1INCH-PFC,CELR-PFC,CHZ-PFC,CTSI-PFC,ENA-PFC,FET-PFC,FTM-PFC,WLD-PFC,BTC-PFC,BOME-PFC,MAVIA-PFC,TIA-PFC,ETH-U24,BAT-PFC,ENJ-PFC,ORDI-PFC,WIF-PFC,TAO-PFC,EGLD-PFC,FIL-PFC,KSM-PFC,NEO-PFC,PEOPLE-PFC,SEI-PFC,APE-PFC,APT-PFC,GRT-PFC,INJ-PFC,MANA-PFC,NEAR-PFC,SKL-PFC,TOKEN-PFC,UNI-PFC,ZK-PFC,ETH-Z24,NOT-PFC,STX-PFC,TON-PFC,ETC-PFC,1KFLOKI-PFC,BCH-PFC,DOT-PFC,EOS-PFC,ETHFI-PFC,GALA-PFC,LDO-PFC,OMG-PFC,PYTH-PFC,BTC-Z24,KAS-PFC,MASK-PFC,STORJ-PFC,SUSHI-PFC,XTZ-PFC,ETH-PFC,LTC-PFC,ALICE-PFC,COMP-PFC,GMT-PFC,IOTX-PFC,KLAY-PFC,KNC-PFC,OP-PFC,SNX-PFC,TRX-PFC,XMR-PFC,XRP-PFC,AAVE-PFC,ATOM-PFC,IMX-PFC,MATIC-PFC,MKR-PFC,ONE-PFC,SAND-PFC,SOL-PFC,TRB-PFC,THETA-PFC,ADA-PFC,AVAX-PFC,AXS-PFC,IO-PFC",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
      }
     }
    },
@@ -377,7 +397,9 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": true
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": true
     }
    },
    "bankAccounts": [
@@ -2273,7 +2295,7 @@
      "autoPairUpdates": true,
      "websocketAPI": true,
      "saveTradeData": false,
-     "tradeFeed": false,
+     "tradeFeed": true,
      "fillsFeed": false
     }
    },

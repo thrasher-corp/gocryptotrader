@@ -38,7 +38,8 @@ const (
 
 var (
 	// DefaultExcludedDirectories defines the basic directory exclusion list for GCT
-	DefaultExcludedDirectories = []string{".github",
+	DefaultExcludedDirectories = []string{
+		".github",
 		".git",
 		"node_modules",
 		".vscode",
@@ -296,6 +297,11 @@ func main() {
 				Contributions: 1,
 			},
 			{
+				Login:         "soxipy",
+				URL:           "https://github.com/soxipy",
+				Contributions: 2,
+			},
+			{
 				Login:         "starit",
 				URL:           "https://github.com/starit",
 				Contributions: 1,
@@ -335,7 +341,8 @@ func main() {
 		dirList,
 		tmpl,
 		contributors,
-		&config})
+		&config,
+	})
 
 	fmt.Println("\nDocumentation Generation Tool - Finished")
 }

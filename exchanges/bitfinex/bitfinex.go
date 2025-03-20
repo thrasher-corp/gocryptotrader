@@ -638,7 +638,7 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]*Ticker, erro
 	}
 
 	var tickErrs error
-	var tickers = make(map[string]*Ticker)
+	tickers := make(map[string]*Ticker)
 	for _, tickResp := range response {
 		symbol, ok := tickResp[0].(string)
 		if !ok {
@@ -841,7 +841,7 @@ func (b *Bitfinex) GetTrades(ctx context.Context, currencyPair string, limit, ti
 // Values can contain limit amounts for both the asks and bids - Example
 // "len" = 100
 func (b *Bitfinex) GetOrderbook(ctx context.Context, symbol, precision string, limit int64) (Orderbook, error) {
-	var u = url.Values{}
+	u := url.Values{}
 	if limit > 0 {
 		u.Set("len", strconv.FormatInt(limit, 10))
 	}
@@ -1000,7 +1000,7 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 		fundingPeriod = ":p30"
 	}
 
-	var path = bitfinexAPIVersion2 +
+	path := bitfinexAPIVersion2 +
 		bitfinexCandles +
 		":" +
 		timeFrame +
@@ -2071,7 +2071,8 @@ func (b *Bitfinex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
+		HTTPRecording: b.HTTPRecording,
+	}
 
 	return b.SendPayload(ctx, e, func() (*request.Item, error) {
 		return item, nil
@@ -2126,7 +2127,8 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 }
 
@@ -2203,7 +2205,7 @@ func (b *Bitfinex) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 			return 0, err
 		}
 	case exchange.CryptocurrencyDepositFee:
-		//TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
+		// TODO: fee is charged when < $1000USD is transferred, need to infer value in some way
 		fee = 0
 	case exchange.CryptocurrencyWithdrawalFee:
 		acc, err := b.GetWithdrawalFees(ctx)

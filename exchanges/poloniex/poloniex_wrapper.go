@@ -42,14 +42,16 @@ func (p *Poloniex) SetDefaults() {
 	p.API.CredentialsValidator.RequiresKey = true
 	p.API.CredentialsValidator.RequiresSecret = true
 
-	err := p.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+	err := p.SetAssetPairStore(asset.Spot, currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = p.StoreAssetPairFormat(asset.Futures, currency.PairStore{
+	err = p.SetAssetPairStore(asset.Futures, currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	})

@@ -63,8 +63,30 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder := setFeeBuilder()
+
+	if sharedtestvalues.AreAPICredentialsSet(p) || mockTests {
+		// CryptocurrencyTradeFee Basic
+		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
+			t.Error(err)
+		}
+
+		// CryptocurrencyTradeFee High quantity
+		feeBuilder = setFeeBuilder()
+		feeBuilder.Amount = 1000
+		feeBuilder.PurchasePrice = 1000
+		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
+			t.Error(err)
+		}
+
+		// CryptocurrencyTradeFee Negative purchase price
+		feeBuilder = setFeeBuilder()
+		feeBuilder.PurchasePrice = -1000
+		if _, err := p.GetFee(context.Background(), feeBuilder); err != nil {
+			t.Error(err)
+		}
+	}
+	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	result, err := p.GetFee(context.Background(), feeBuilder)
 	require.NoError(t, err)
@@ -149,7 +171,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.SubmitOrder(context.Background(), &order.Submit{
 		Exchange: p.Name,
 		Pair: currency.Pair{
@@ -188,7 +212,9 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	err := p.CancelOrder(context.Background(), &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
@@ -201,7 +227,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CancelAllOrders(context.Background(), &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,

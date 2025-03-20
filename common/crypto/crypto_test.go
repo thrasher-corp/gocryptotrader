@@ -71,8 +71,8 @@ func TestGetRandomSalt(t *testing.T) {
 
 func TestGetMD5(t *testing.T) {
 	t.Parallel()
-	var originalString = []byte("I am testing the MD5 function in common!")
-	var expectedOutput = []byte("18fddf4a41ba90a7352765e62e7a8744")
+	originalString := []byte("I am testing the MD5 function in common!")
+	expectedOutput := []byte("18fddf4a41ba90a7352765e62e7a8744")
 	actualOutput, err := GetMD5(originalString)
 	if err != nil {
 		t.Fatal(err)
@@ -86,8 +86,8 @@ func TestGetMD5(t *testing.T) {
 
 func TestGetSHA512(t *testing.T) {
 	t.Parallel()
-	var originalString = []byte("I am testing the GetSHA512 function in common!")
-	var expectedOutput = []byte(
+	originalString := []byte("I am testing the GetSHA512 function in common!")
+	expectedOutput := []byte(
 		`a2273f492ea73fddc4f25c267b34b3b74998bd8a6301149e1e1c835678e3c0b90859fce22e4e7af33bde1711cbb924809aedf5d759d648d61774b7185c5dc02b`,
 	)
 	actualOutput, err := GetSHA512(originalString)
@@ -103,8 +103,8 @@ func TestGetSHA512(t *testing.T) {
 
 func TestGetSHA256(t *testing.T) {
 	t.Parallel()
-	var originalString = []byte("I am testing the GetSHA256 function in common!")
-	var expectedOutput = []byte(
+	originalString := []byte("I am testing the GetSHA256 function in common!")
+	expectedOutput := []byte(
 		"0962813d7a9f739cdcb7f0c0be0c2a13bd630167e6e54468266e4af6b1ad9303",
 	)
 	actualOutput, err := GetSHA256(originalString)
