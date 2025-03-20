@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
+	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
 	canManipulateRealOrders = false
 )
 
@@ -212,61 +212,146 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	arg := &order.Cancel{
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
 	}
-	err := p.CancelOrder(context.Background(), &order.Cancel{
+	err := p.CancelOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	arg.OrderID = "123"
+	err = p.CancelOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	arg.AssetType = asset.Spot
+	err = p.CancelOrder(context.Background(), arg)
+	assert.NoError(t, err)
+
+	arg.Type = order.StopLimit
+	err = p.CancelOrder(context.Background(), arg)
+	assert.NoError(t, err)
+
+	err = p.CancelOrder(context.Background(), &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		Pair:          spotTradablePair,
-		AssetType:     asset.Spot,
+		AssetType:     asset.Futures,
 	})
 	assert.NoError(t, err)
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+	result, err := p.CancelAllOrders(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	result, err = p.CancelAllOrders(context.Background(), &order.Cancel{
+		AssetType: asset.Options,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
-	result, err := p.CancelAllOrders(context.Background(), &order.Cancel{
+	arg := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          spotTradablePair,
 		AssetType:     asset.Spot,
-	})
+	}
+	arg.Type = order.Stop
+	result, err = p.CancelAllOrders(context.Background(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.Limit
+	result, err = p.CancelAllOrders(context.Background(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Pair = futuresTradablePair
+	result, err = p.CancelAllOrders(context.Background(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.Type = order.StopLimit
+	result, err = p.CancelAllOrders(context.Background(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.ModifyOrder(context.Background(), &order.Modify{
-		OrderID:   "1337",
-		Price:     1337,
-		AssetType: asset.Spot,
-		Pair:      spotTradablePair,
-	})
+	_, err := p.ModifyOrder(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &order.Modify{
+		OrderID: "1337",
+		Price:   1337,
+	}
+	_, err = p.ModifyOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	arg.Pair = spotTradablePair
+	_, err = p.ModifyOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, order.ErrAssetNotSet)
+
+	arg.AssetType = asset.Futures
+	_, err = p.ModifyOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.AssetType = asset.Spot
+	_, err = p.ModifyOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	arg.Type = order.Limit
+	arg.TimeInForce = order.GoodTillTime
+	_, err = p.ModifyOrder(context.Background(), arg)
+	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
+	arg.TimeInForce = order.GoodTillCancel
+	result, err := p.ModifyOrder(context.Background(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	withdrawCryptoRequest := withdraw.Request{
-		Exchange: p.Name,
+	_, err := p.WithdrawCryptocurrencyFunds(context.Background(), nil)
+	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
+
+	arg := &withdraw.Request{
 		Crypto: withdraw.CryptoRequest{
-			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 0,
 		},
-		Amount:        1,
-		Currency:      currency.LTC,
-		Description:   "WITHDRAW IT ALL",
-		TradePassword: "Password",
+	}
+	_, err = p.WithdrawCryptocurrencyFunds(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.Amount = 1000
+	_, err = p.WithdrawCryptocurrencyFunds(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.Currency = currency.LTC
+	_, err = p.WithdrawCryptocurrencyFunds(context.Background(), arg)
+	require.ErrorIs(t, err, errAddressRequired)
+
+	withdrawCryptoRequest := withdraw.Request{
+		Crypto: withdraw.CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+		Amount:   1,
+		Currency: currency.BTC,
+	}
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
 	result, err := p.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
 	require.NoError(t, err)
@@ -275,8 +360,17 @@ func TestWithdraw(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+
+	_, err := p.UpdateAccountInfo(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.UpdateAccountInfo(context.Background(), asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = p.UpdateAccountInfo(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -404,7 +498,9 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",
@@ -883,19 +979,20 @@ func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{})
 	require.ErrorIs(t, err, errNilArgument)
+
 	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
-		Currency: currency.BTC,
+		Currency: currency.BTC.String() + "TRON", // Sends BTC through the TRON chain
 	})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
-		Currency: currency.BTC,
+		Currency: currency.BTC.String(),
 		Amount:   1,
 	})
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
-		Currency: currency.BTC,
+		Currency: currency.BTC.String(),
 		Amount:   1,
 		Address:  "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4",
 	})
@@ -1217,7 +1314,9 @@ func TestCancelMultipleSmartOrders(t *testing.T) {
 
 func TestCancelAllSmartOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CancelAllSmartOrders(context.Background(), []string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1324,7 +1423,9 @@ func TestWsCreateOrder(t *testing.T) {
 
 func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1332,7 +1433,9 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 
 func TestWsCancelAllTradeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.WsCancelAllTradeOrders([]string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1526,7 +1629,9 @@ func TestFuturesCancelOrderByID(t *testing.T) {
 
 func TestCancelAllFuturesLimitOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CancelAllFuturesLimitOrders(context.Background(), futuresTradablePair.String(), "sell")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1545,7 +1650,9 @@ func TestCancelMultipleFuturesLimitOrders(t *testing.T) {
 
 func TestCancelAllFuturesStopOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CancelAllFuturesStopOrders(context.Background(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1747,7 +1854,9 @@ func TestCloseAtMarketPrice(t *testing.T) {
 
 func TestCloseAllAtMarketPrice(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CloseAllAtMarketPrice(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)

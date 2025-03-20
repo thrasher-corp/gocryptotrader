@@ -34,6 +34,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var assetPairStores = map[asset.Item]currency.PairStore{
+	asset.Futures: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+	asset.Spot: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+}
+
 // SetDefaults sets default settings for poloniex
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"
@@ -42,21 +55,10 @@ func (p *Poloniex) SetDefaults() {
 	p.API.CredentialsValidator.RequiresKey = true
 	p.API.CredentialsValidator.RequiresSecret = true
 
-	err := p.SetAssetPairStore(asset.Spot, currency.PairStore{
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-	})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = p.SetAssetPairStore(asset.Futures, currency.PairStore{
-		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
-	})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for a, ps := range assetPairStores {
+		if err := p.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", p.Name, a, err)
+		}
 	}
 
 	p.Features = exchange.Features{
@@ -125,7 +127,7 @@ func (p *Poloniex) SetDefaults() {
 			},
 		},
 	}
-
+	var err error
 	p.Requester, err = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -136,8 +138,7 @@ func (p *Poloniex) SetDefaults() {
 	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      poloniexAPIURL,
 		exchange.WebsocketSpot: poloniexWebsocketAddress,
-		exchange.RestFutures:   poloniexFuturesAPIURL,
-	})
+		exchange.RestFutures:   poloniexFuturesAPIURL})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -406,42 +407,47 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
+func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
-	accountBalance, err := p.GetSubAccountBalances(ctx)
-	if err != nil {
-		return response, err
-	}
+	switch assetType {
+	case asset.Spot, asset.Futures:
+		accountBalance, err := p.GetSubAccountBalances(ctx)
+		if err != nil {
+			return response, err
+		}
 
-	subAccounts := make([]account.SubAccount, len(accountBalance))
-	for i := range accountBalance {
-		subAccount := account.SubAccount{
-			ID:        accountBalance[i].AccountID,
-			AssetType: stringToAccountType(accountBalance[i].AccountType),
-		}
-		currencyBalances := make([]account.Balance, len(accountBalance[i].Balances))
-		for x := range accountBalance[i].Balances {
-			currencyBalances[x] = account.Balance{
-				Currency:               currency.NewCode(accountBalance[i].Balances[x].Currency),
-				Total:                  accountBalance[i].Balances[x].AvailableBalance.Float64(),
-				Hold:                   accountBalance[i].Balances[x].Hold.Float64(),
-				Free:                   accountBalance[i].Balances[x].Available.Float64(),
-				AvailableWithoutBorrow: accountBalance[i].Balances[x].AvailableBalance.Float64(),
+		subAccounts := make([]account.SubAccount, len(accountBalance))
+		for i := range accountBalance {
+			subAccount := account.SubAccount{
+				ID:        accountBalance[i].AccountID,
+				AssetType: stringToAccountType(accountBalance[i].AccountType),
 			}
+			currencyBalances := make([]account.Balance, len(accountBalance[i].Balances))
+			for x := range accountBalance[i].Balances {
+				currencyBalances[x] = account.Balance{
+					Currency:               currency.NewCode(accountBalance[i].Balances[x].Currency),
+					Total:                  accountBalance[i].Balances[x].AvailableBalance.Float64(),
+					Hold:                   accountBalance[i].Balances[x].Hold.Float64(),
+					Free:                   accountBalance[i].Balances[x].Available.Float64(),
+					AvailableWithoutBorrow: accountBalance[i].Balances[x].AvailableBalance.Float64(),
+				}
+			}
+			subAccounts[i] = subAccount
 		}
-		subAccounts[i] = subAccount
-	}
-	response = account.Holdings{
-		Exchange: p.Name,
-		Accounts: subAccounts,
-	}
-	creds, err := p.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
+		response = account.Holdings{
+			Exchange: p.Name,
+			Accounts: subAccounts,
+		}
+		creds, err := p.GetCredentials(ctx)
+		if err != nil {
+			return response, err
+		}
+		err = account.Process(&response, creds)
+		if err != nil {
+			return response, err
+		}
+	default:
+		return response, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	return response, nil
 }
@@ -862,22 +868,20 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 // CancelOrder cancels an order by its corresponding ID number
 func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
-	if err := o.Validate(o.StandardCancel()); err != nil {
-		return err
-	}
 	if o.OrderID == "" && o.ClientOrderID == "" {
 		return order.ErrOrderIDNotSet
+	}
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
 	}
 	var err error
 	switch o.AssetType {
 	case asset.Spot:
 		switch o.Type {
-		case order.Limit, order.Market:
-			_, err = p.CancelOrderByID(ctx, o.OrderID)
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			_, err = p.CancelSmartOrderByID(ctx, o.OrderID, o.ClientOrderID)
 		default:
-			return fmt.Errorf("%w order type: %v", order.ErrUnsupportedOrderType, o.Type)
+			_, err = p.CancelOrderByID(ctx, o.OrderID)
 		}
 	case asset.Futures:
 		_, err = p.CancelFuturesOrderByID(ctx, o.OrderID)
@@ -1003,7 +1007,28 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	switch cancelOrd.AssetType {
 	case asset.Spot:
 		switch cancelOrd.Type {
-		case order.Market, order.Limit:
+		case order.TrailingStop, order.TrailingStopLimit, order.StopLimit, order.Stop:
+			pairsString := []string{}
+			if !cancelOrd.Pair.IsEmpty() {
+				pairsString = append(pairsString, cancelOrd.Pair.String())
+			}
+			orderTypes := []string{}
+			oTypeString, err := OrderTypeString(order.StopLimit)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+			if cancelOrd.Type != order.UnknownType {
+				orderTypes = append(orderTypes, oTypeString)
+			}
+			var resp []CancelOrderResponse
+			resp, err = p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+			for x := range resp {
+				cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
+			}
+		default:
 			if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				var wsResponse []WsCancelOrderResponse
 				wsResponse, err = p.WsCancelAllTradeOrders(pairs.Strings(), []string{accountTypeString(cancelOrd.AssetType)})
@@ -1022,45 +1047,20 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
 				}
 			}
-		case order.TrailingStop, order.TrailingStopLimit, order.StopLimit, order.Stop:
-			pairsString := []string{}
-			if !cancelOrd.Pair.IsEmpty() {
-				pairsString = append(pairsString, cancelOrd.Pair.String())
-			}
-			orderTypes := []string{}
-			oTypeString, err := OrderTypeString(cancelOrd.Type)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			if cancelOrd.Type != order.UnknownType {
-				orderTypes = append(orderTypes, oTypeString)
-			}
-			var resp []CancelOrderResponse
-			resp, err = p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			for x := range resp {
-				cancelAllOrdersResponse.Status[resp[x].OrderID] = resp[x].State
-			}
-		default:
-			return cancelAllOrdersResponse, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, cancelOrd.Type)
 		}
 	case asset.Futures:
 		var result *FuturesCancelOrderResponse
 		switch cancelOrd.Type {
-		case order.Limit:
-			result, err = p.CancelAllFuturesLimitOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			result, err = p.CancelAllFuturesStopOrders(ctx, cancelOrd.Pair.String())
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
 		default:
-			return cancelAllOrdersResponse, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, cancelOrd.Type)
+			result, err = p.CancelAllFuturesLimitOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
 		}
 		for x := range result.CancelledOrderIDs {
 			cancelAllOrdersResponse.Status[result.CancelledOrderIDs[x]] = "Cancelled"
@@ -1316,14 +1316,17 @@ func (p *Poloniex) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 // submitted
 func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if withdrawRequest == nil {
-		return nil, common.ErrNilPointer
+		return nil, withdraw.ErrRequestCannotBeNil
 	}
-	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
+	if withdrawRequest.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if withdrawRequest.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	v, err := p.WithdrawCurrency(ctx, &WithdrawCurrencyParam{
-		Currency: withdrawRequest.Currency,
-		Address:  withdrawRequest.Crypto.Address,
+		Currency: withdrawRequest.Currency.String() + withdrawRequest.Crypto.Chain,
+		Address:  withdrawRequest.Crypto.Address, // Withdrawal address
 		Amount:   withdrawRequest.Amount})
 	if err != nil {
 		return nil, err
@@ -1968,7 +1971,6 @@ func (p *Poloniex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-
 		limits[x] = order.MinMaxLevel{
 			Pair:                    pair,
 			Asset:                   a,

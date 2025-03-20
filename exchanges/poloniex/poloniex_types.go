@@ -440,11 +440,11 @@ type Withdraw struct {
 
 // WithdrawCurrencyParam represents a currency withdrawal parameter.
 type WithdrawCurrencyParam struct {
-	Currency    currency.Code `json:"currency"`
-	Amount      float64       `json:"amount,string"`
-	Address     string        `json:"address"`
-	PaymentID   string        `json:"paymentId,omitempty"`
-	AllowBorrow bool          `json:"allowBorrow,omitempty"`
+	Currency    string  `json:"currency"`
+	Amount      float64 `json:"amount,string"`
+	Address     string  `json:"address"`
+	PaymentID   string  `json:"paymentId,omitempty"`
+	AllowBorrow bool    `json:"allowBorrow,omitempty"`
 }
 
 // WithdrawCurrencyV2Param represents a V2 currency withdrawal parameter.

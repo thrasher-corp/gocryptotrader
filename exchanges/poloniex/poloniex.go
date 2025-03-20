@@ -527,7 +527,7 @@ func (p *Poloniex) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyPa
 	if *arg == (WithdrawCurrencyParam{}) {
 		return nil, errNilArgument
 	}
-	if arg.Currency.IsEmpty() {
+	if arg.Currency == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
