@@ -34,7 +34,7 @@ type EndpointLimit uint16
 // Weight defines the number of reservations to be used. This is a generalised
 // weight for rate limiting. e.g. n weight = n request. i.e. 50 Weight = 50
 // requests.
-type Weight uint8
+type Weight uint32
 
 // RateLimitDefinitions is a map of endpoint limits to rate limiters
 type RateLimitDefinitions map[interface{}]*RateLimiterWithWeight
