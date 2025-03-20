@@ -81,7 +81,7 @@ func (s *CustomStrategy) createSignal(d data.Handler) (*signal.Signal, error) {
 }
 
 // SetCustomSettings can override default settings
-func (s *CustomStrategy) SetCustomSettings(map[string]interface{}) error {
+func (s *CustomStrategy) SetCustomSettings(map[string]any) error {
 	return base.ErrCustomSettingsUnsupported
 }
 

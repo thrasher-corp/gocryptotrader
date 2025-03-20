@@ -1462,7 +1462,7 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 }
 
 // wsProcessPushData processes push data coming through the websocket channel
-func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
+func (ok *Okx) wsProcessPushData(data []byte, resp any) error {
 	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}

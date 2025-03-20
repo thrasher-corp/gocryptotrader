@@ -139,7 +139,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	req := Authenticate{
 		RequestID: strconv.FormatInt(by.Websocket.AuthConn.GenerateMessageID(false), 10),
 		Operation: "auth",
-		Args:      []interface{}{creds.Key, intNonce, sign},
+		Args:      []any{creds.Key, intNonce, sign},
 	}
 	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
 	if err != nil {

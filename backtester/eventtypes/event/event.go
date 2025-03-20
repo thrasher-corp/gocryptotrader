@@ -62,7 +62,7 @@ func (b *Base) AppendReason(y string) {
 
 // AppendReasonf adds reasoning for a decision being made
 // but with formatting
-func (b *Base) AppendReasonf(y string, addons ...interface{}) {
+func (b *Base) AppendReasonf(y string, addons ...any) {
 	y = fmt.Sprintf(y, addons...)
 	b.Reasons = append(b.Reasons, y)
 }
