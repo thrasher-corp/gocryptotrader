@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
@@ -85,12 +84,9 @@ updates:
 				continue
 			}
 
-			if y < len(*ts) {
-				copy((*ts)[y:], (*ts)[y+1:])
-				*ts = (*ts)[:len(*ts)-1]
-			} else {
-				*ts = slices.Delete(*ts, y, y+1)
-			}
+			copy((*ts)[y:], (*ts)[y+1:])
+			*ts = (*ts)[:len(*ts)-1]
+
 			continue updates
 		}
 		if !bypassErr {
