@@ -143,7 +143,7 @@ func convertATR(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.AverageTrueRange,
 		},
@@ -178,7 +178,7 @@ func convertBollingerBands(a objects.Object) ([][]string, error) {
 		MAType = "MA_TYPE:EMA"
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.BollingerBands, "", MAType,
 		},
@@ -220,7 +220,7 @@ func convertEMA(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.ExponentialMovingAverage,
 		},
@@ -246,7 +246,7 @@ func convertMACD(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.MovingAverageConvergenceDivergence,
 			fmt.Sprintf("Period:%d Fast:%d Slow:%d",
@@ -293,7 +293,7 @@ func convertMFI(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.MoneyFlowIndex,
 		},
@@ -314,7 +314,7 @@ func convertMFI(a objects.Object) ([][]string, error) {
 }
 
 func convertOBV(a objects.Object) ([][]string, error) {
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.OnBalanceVolume,
 		},
@@ -345,7 +345,7 @@ func convertRSI(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.RelativeStrengthIndex,
 		},
@@ -371,7 +371,7 @@ func convertSMA(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.SimpleMovingAverage,
 		},
@@ -397,7 +397,7 @@ func convertCorrelationCoefficient(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.CorrelationCoefficient,
 		},
@@ -443,7 +443,7 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 		return nil, errors.New("cannot convert object to string")
 	}
 
-	var bucket = [][]string{
+	bucket := [][]string{
 		{
 			indicators.OHLCV, "Exchange:" + exchange, pair, asset, interval, "",
 		},

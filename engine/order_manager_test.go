@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -162,30 +161,23 @@ func (f omfExchange) GetFuturesPositions(_ context.Context, req *futures.Positio
 
 func TestSetupOrderManager(t *testing.T) {
 	_, err := SetupOrderManager(nil, nil, nil, nil)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
+
 	_, err = SetupOrderManager(NewExchangeManager(), nil, nil, nil)
-	if !errors.Is(err, errNilCommunicationsManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
-	}
+	assert.ErrorIs(t, err, errNilCommunicationsManager)
+
 	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, nil, &config.OrderManager{})
-	if !errors.Is(err, errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
-	}
+	assert.ErrorIs(t, err, errNilWaitGroup)
+
 	var wg sync.WaitGroup
 	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: 0})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true})
+	require.ErrorIs(t, err, errInvalidFuturesTrackingSeekDuration)
+
 	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestOrderManagerStart(t *testing.T) {
@@ -807,12 +799,12 @@ func TestProcessOrders(t *testing.T) {
 		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled:      pairs,
 				Available:    pairs,
 			},
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled:      pairs,
 				Available:    pairs,
 			},
@@ -831,12 +823,12 @@ func TestProcessOrders(t *testing.T) {
 			},
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					AssetEnabled: convert.BoolPtr(true),
+					AssetEnabled: true,
 					Enabled:      pairs,
 					Available:    pairs,
 				},
 				asset.Futures: {
-					AssetEnabled: convert.BoolPtr(true),
+					AssetEnabled: true,
 					Enabled:      pairs,
 					Available:    pairs,
 				},
@@ -1193,7 +1185,8 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Amount:    1,
-		Price:     1})
+		Price:     1,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1240,7 +1233,8 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Amount:    1,
-		Price:     1})
+		Price:     1,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1291,7 +1285,8 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		Pair:      cp,
 		Side:      order.Buy,
 		Amount:    1,
-		Price:     1})
+		Price:     1,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1522,14 +1517,14 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -1543,7 +1538,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, &config.OrderManager{
-		Enabled:                       convert.BoolPtr(true),
+		Enabled:                       true,
 		FuturesTrackingSeekDuration:   time.Hour,
 		Verbose:                       true,
 		ActivelyTrackFuturesPositions: true,
@@ -1616,14 +1611,14 @@ func TestProcessFuturesPositions(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp, cp2},
 		Enabled:       currency.Pairs{cp, cp2},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp, cp2},

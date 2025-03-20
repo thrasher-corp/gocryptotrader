@@ -44,7 +44,7 @@ func (by *Bybit) WsLinearConnect() error {
 // GenerateLinearDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
-	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
+	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err

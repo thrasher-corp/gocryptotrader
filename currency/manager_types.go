@@ -24,7 +24,7 @@ type FullStore map[asset.Item]*PairStore
 
 // PairStore stores a currency pair store
 type PairStore struct {
-	AssetEnabled  *bool       `json:"assetEnabled"`
+	AssetEnabled  bool        `json:"assetEnabled"`
 	Enabled       Pairs       `json:"enabled"`
 	Available     Pairs       `json:"available"`
 	RequestFormat *PairFormat `json:"requestFormat,omitempty"`

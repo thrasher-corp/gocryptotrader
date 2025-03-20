@@ -23,7 +23,7 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-func TestSubmit_Validate(t *testing.T) {
+func TestSubmitValidate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
@@ -47,7 +47,6 @@ func TestSubmit_Validate(t *testing.T) {
 			Submit:      &Submit{Exchange: "test"},
 		}, // empty pair
 		{
-
 			ExpectedErr: ErrAssetNotSet,
 			Submit:      &Submit{Exchange: "test", Pair: testPair},
 		}, // valid pair but invalid asset
@@ -373,7 +372,7 @@ func TestInferCostsAndTimes(t *testing.T) {
 func TestFilterOrdersByType(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Type: Limit,
 		},
@@ -416,7 +415,7 @@ func BenchmarkFilterOrdersByType(b *testing.B) {
 func TestFilterOrdersBySide(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Side: Buy,
 		},
@@ -462,7 +461,7 @@ func BenchmarkFilterOrdersBySide(b *testing.B) {
 func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Date: time.Unix(100, 0),
 		},
@@ -527,7 +526,7 @@ func BenchmarkFilterOrdersByTimeRange(b *testing.B) {
 func TestFilterOrdersByPairs(t *testing.T) {
 	t.Parallel()
 
-	var orders = []Detail{
+	orders := []Detail{
 		{
 			Pair: currency.NewPair(currency.BTC, currency.USD),
 		},
@@ -540,14 +539,18 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		{}, // Unpopulated fields are preserved for API differences
 	}
 
-	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+	currencies := []currency.Pair{
+		currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
-		currency.NewPair(currency.DOGE, currency.RUB)}
+		currency.NewPair(currency.DOGE, currency.RUB),
+	}
 	FilterOrdersByPairs(&orders, currencies)
 	assert.Lenf(t, orders, 4, "Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 
-	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
-		currency.NewPair(currency.LTC, currency.EUR)}
+	currencies = []currency.Pair{
+		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewPair(currency.LTC, currency.EUR),
+	}
 	FilterOrdersByPairs(&orders, currencies)
 	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
@@ -952,7 +955,7 @@ func TestTimeInForceIs(t *testing.T) {
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
-	var leet = "1337"
+	leet := "1337"
 
 	updated := time.Now()
 
@@ -1116,7 +1119,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	err = getOrders.Validate()
 	require.ErrorIs(t, err, errUnrecognisedOrderType)
 
-	var errTestError = errors.New("test error")
+	errTestError := errors.New("test error")
 	getOrders.Type = AnyType
 	err = getOrders.Validate(validate.Check(func() error {
 		return errTestError
@@ -1603,7 +1606,7 @@ func TestGetOrdersRequest_Filter(t *testing.T) {
 	request.Type = AnyType
 	request.Side = AnySide
 
-	var orders = []Detail{
+	orders := []Detail{
 		{OrderID: "0", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Buy},
 		{OrderID: "1", Pair: btcusd, AssetType: asset.Spot, Type: Limit, Side: Sell},
 		{OrderID: "2", Pair: btcusd, AssetType: asset.Spot, Type: Market, Side: Buy},

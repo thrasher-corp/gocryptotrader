@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -924,7 +923,8 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:    currency.Pairs{cp, cp2},
 		Enabled:      currency.Pairs{cp, cp2},
-		AssetEnabled: convert.BoolPtr(true)}
+		AssetEnabled: true,
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -940,7 +940,7 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp, cp2},
 		Enabled:       currency.Pairs{cp, cp2},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}

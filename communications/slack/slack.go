@@ -295,6 +295,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 	}
 	return nil
 }
+
 func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	if data.Error.Msg == "Socket URL has expired" {
 		if s.Verbose {
