@@ -286,7 +286,7 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 
 func TestOrderSides(t *testing.T) {
 	t.Parallel()
-	var os = Buy
+	os := Buy
 	assert.Equal(t, "BUY", os.String())
 	assert.Equal(t, "buy", os.Lower())
 	assert.Equal(t, "Buy", os.Title())
@@ -1709,7 +1709,7 @@ func TestSideUnmarshal(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	t.Parallel()
-	var timeInForceValidityMap = map[TimeInForce]bool{
+	timeInForceValidityMap := map[TimeInForce]bool{
 		TimeInForce(1):    false,
 		ImmediateOrCancel: true,
 		GoodTillTime:      true,
@@ -1728,7 +1728,7 @@ func TestIsValid(t *testing.T) {
 
 func TestStringToTimeInForce(t *testing.T) {
 	t.Parallel()
-	var timeInForceStringToValueMap = map[string]struct {
+	timeInForceStringToValueMap := map[string]struct {
 		TIF   TimeInForce
 		Error error
 	}{
