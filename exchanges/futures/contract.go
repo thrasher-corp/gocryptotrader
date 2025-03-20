@@ -14,6 +14,7 @@ import (
 // var error definitions
 var (
 	ErrInvalidContractSettlementType = errors.New("invalid contract settlement type")
+	ErrContractNotSupported          = errors.New("unsupported contract")
 )
 
 // Contract holds details on futures contracts
