@@ -554,8 +554,8 @@ func parseStratName(name string, strategiesToUse []string) (string, error) {
 	return "", errors.New("unrecognised strategy")
 }
 
-func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
-	resp := make(map[string]interface{})
+func customSettingsLoop(reader *bufio.Reader) map[string]any {
+	resp := make(map[string]any)
 	customSettingField := "loopTime!"
 	for customSettingField != "" {
 		fmt.Println("Enter a custom setting name. Enter nothing to stop")

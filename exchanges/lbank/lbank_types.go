@@ -26,8 +26,8 @@ type TickerResponse struct {
 
 // MarketDepthResponse stores arrays for asks, bids and a timestamp for a currency pair
 type MarketDepthResponse struct {
-	ErrCapture `json:",omitempty"`
-	Data       struct {
+	ErrCapture
+	Data struct {
 		Asks      [][2]string `json:"asks"`
 		Bids      [][2]string `json:"bids"`
 		Timestamp int64       `json:"timestamp"`
@@ -62,22 +62,22 @@ type InfoResponse struct {
 
 // InfoFinalResponse stores info
 type InfoFinalResponse struct {
-	ErrCapture `json:",omitempty"`
-	Info       InfoResponse `json:"info"`
+	ErrCapture
+	Info InfoResponse `json:"info"`
 }
 
 // CreateOrderResponse stores the result of the Order and
 type CreateOrderResponse struct {
-	ErrCapture `json:",omitempty"`
-	OrderID    string `json:"order_id"`
+	ErrCapture
+	OrderID string `json:"order_id"`
 }
 
 // RemoveOrderResponse stores the result when an order is cancelled
 type RemoveOrderResponse struct {
-	ErrCapture `json:",omitempty"`
-	Err        string `json:"error"`
-	OrderID    string `json:"order_id"`
-	Success    string `json:"success"`
+	ErrCapture
+	Err     string `json:"error"`
+	OrderID string `json:"order_id"`
+	Success string `json:"success"`
 }
 
 // OrderResponse stores the data related to the given OrderIDs
@@ -95,8 +95,8 @@ type OrderResponse struct {
 
 // QueryOrderResponse stores the data from queries
 type QueryOrderResponse struct {
-	ErrCapture `json:",omitempty"`
-	Orders     json.RawMessage `json:"orders"`
+	ErrCapture
+	Orders json.RawMessage `json:"orders"`
 }
 
 // QueryOrderFinalResponse stores data from queries
@@ -117,7 +117,7 @@ type OrderHistory struct {
 
 // OrderHistoryResponse stores past orders
 type OrderHistoryResponse struct {
-	ErrCapture  `json:",omitempty"`
+	ErrCapture
 	PageLength  uint8           `json:"page_length"`
 	Orders      json.RawMessage `json:"orders"`
 	CurrentPage uint8           `json:"current_page"`
@@ -154,13 +154,13 @@ type TransactionTemp struct {
 
 // TransactionHistoryResp stores details about past transactions
 type TransactionHistoryResp struct {
-	ErrCapture  `json:",omitempty"`
+	ErrCapture
 	Transaction []TransactionTemp `json:"transaction"`
 }
 
 // OpenOrderResponse stores information about the opening orders
 type OpenOrderResponse struct {
-	ErrCapture `json:",omitempty"`
+	ErrCapture
 	PageLength uint8           `json:"page_length"`
 	PageNumber uint8           `json:"page_number"`
 	Total      string          `json:"total"`
@@ -191,33 +191,33 @@ type WithdrawConfigResponse struct {
 
 // WithdrawResponse stores info about the withdrawal
 type WithdrawResponse struct {
-	ErrCapture `json:",omitempty"`
+	ErrCapture
 	WithdrawID string  `json:"withdrawId"`
 	Fee        float64 `json:"fee"`
 }
 
 // RevokeWithdrawResponse stores info about the revoked withdrawal
 type RevokeWithdrawResponse struct {
-	ErrCapture `json:",omitempty"`
+	ErrCapture
 	WithdrawID string `json:"string"`
 }
 
 // ListDataResponse contains some of withdrawal data
 type ListDataResponse struct {
-	ErrCapture `json:",omitempty"`
-	Amount     float64 `json:"amount"`
-	AssetCode  string  `json:"assetCode"`
-	Address    string  `json:"address"`
-	Fee        float64 `json:"fee"`
-	ID         int64   `json:"id"`
-	Time       int64   `json:"time"`
-	TXHash     string  `json:"txhash"`
-	Status     string  `json:"status"`
+	ErrCapture
+	Amount    float64 `json:"amount"`
+	AssetCode string  `json:"assetCode"`
+	Address   string  `json:"address"`
+	Fee       float64 `json:"fee"`
+	ID        int64   `json:"id"`
+	Time      int64   `json:"time"`
+	TXHash    string  `json:"txhash"`
+	Status    string  `json:"status"`
 }
 
 // WithdrawalResponse stores data for withdrawals
 type WithdrawalResponse struct {
-	ErrCapture `json:",omitempty"`
+	ErrCapture
 	TotalPages int64              `json:"totalPages"`
 	PageSize   int64              `json:"pageSize"`
 	PageNo     int64              `json:"pageNo"`

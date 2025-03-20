@@ -196,14 +196,14 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		return nil, err
 	}
 
-	ohlcData, ok := result[translatedAsset].([]interface{})
+	ohlcData, ok := result[translatedAsset].([]any)
 	if !ok {
 		return nil, errors.New("invalid data returned")
 	}
 
 	OHLC := make([]OpenHighLowClose, len(ohlcData))
 	for x := range ohlcData {
-		subData, ok := ohlcData[x].([]interface{})
+		subData, ok := ohlcData[x].([]any)
 		if !ok {
 			return nil, errors.New("unable to type assert subData")
 		}
@@ -304,15 +304,15 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		return nil, err
 	}
 
-	trades, ok := data[translatedAsset].([]interface{})
+	trades, ok := data[translatedAsset].([]any)
 	if !ok {
 		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
 	}
 
-	var individualTrade []interface{}
+	var individualTrade []any
 	recentTrades := make([]RecentTrades, len(trades))
 	for x := range trades {
-		individualTrade, ok = trades[x].([]interface{})
+		individualTrade, ok = trades[x].([]any)
 		if !ok {
 			return nil, errors.New("unable to parse individual trade data")
 		}
@@ -385,14 +385,14 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		return nil, fmt.Errorf("unable to find %s in spread data", symbolValue)
 	}
 
-	spreadData, ok := data.([]interface{})
+	spreadData, ok := data.([]any)
 	if !ok {
 		return nil, errors.New("unable to type assert spreadData")
 	}
 
 	peanutButter := make([]Spread, len(spreadData))
 	for x := range spreadData {
-		subData, ok := spreadData[x].([]interface{})
+		subData, ok := spreadData[x].([]any)
 		if !ok {
 			return nil, errors.New("unable to type assert subData")
 		}
@@ -816,7 +816,7 @@ func (k *Kraken) CancelExistingOrder(ctx context.Context, txid string) (*CancelO
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
-func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := k.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -864,7 +864,7 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result interface{}) error {
+func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result any) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
 		return err

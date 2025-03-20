@@ -292,8 +292,8 @@ func (k *Kraken) wsProcessSystemStatus(respRaw []byte) error {
 	return nil
 }
 
-func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
-	if data, ok := ownOrders.([]interface{}); ok {
+func (k *Kraken) wsProcessOwnTrades(ownOrders any) error {
+	if data, ok := ownOrders.([]any); ok {
 		for i := range data {
 			trades, err := json.Marshal(data[i])
 			if err != nil {
@@ -343,8 +343,8 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 	return errors.New(k.Name + " - Invalid own trades data")
 }
 
-func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
-	if data, ok := ownOrders.([]interface{}); ok {
+func (k *Kraken) wsProcessOpenOrders(ownOrders any) error {
+	if data, ok := ownOrders.([]any); ok {
 		for i := range data {
 			orders, err := json.Marshal(data[i])
 			if err != nil {
@@ -541,7 +541,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 	}
 	trades := make([]trade.Data, len(data))
 	for i := range data {
-		t, ok := data[i].([]interface{})
+		t, ok := data[i].([]any)
 		if !ok {
 			return errors.New("unidentified trade data received")
 		}
@@ -642,8 +642,8 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 	}
 	// NOTE: Updates are a priority so check if it's an update first as we don't
 	// need multiple map lookups to check for snapshot.
-	askData, asksExist := ob["a"].([]interface{})
-	bidData, bidsExist := ob["b"].([]interface{})
+	askData, asksExist := ob["a"].([]any)
+	bidData, bidsExist := ob["b"].([]any)
 	if asksExist || bidsExist {
 		checksum, ok := ob["c"].(string)
 		if !ok {
@@ -662,8 +662,8 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 		return err
 	}
 
-	askSnapshot, askSnapshotExists := ob["as"].([]interface{})
-	bidSnapshot, bidSnapshotExists := ob["bs"].([]interface{})
+	askSnapshot, askSnapshotExists := ob["as"].([]any)
+	bidSnapshot, bidSnapshotExists := ob["bs"].([]any)
 	if !askSnapshotExists && !bidSnapshotExists {
 		return fmt.Errorf("%w for %v %v", errNoWebsocketOrderbookData, pair, asset.Spot)
 	}
@@ -687,9 +687,9 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 	// to respect both within a reasonable degree
 	var highestLastUpdate time.Time
 	for i := range askData {
-		asks, ok := askData[i].([]interface{})
+		asks, ok := askData[i].([]any)
 		if !ok {
-			return common.GetTypeAssertError("[]interface{}", askData[i], "asks")
+			return common.GetTypeAssertError("[]any", askData[i], "asks")
 		}
 		if len(asks) < 3 {
 			return errors.New("unexpected asks length")
@@ -731,9 +731,9 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 	}
 
 	for i := range bidData {
-		bids, ok := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]any)
 		if !ok {
-			return common.GetTypeAssertError("[]interface{}", bidData[i], "bids")
+			return common.GetTypeAssertError("[]any", bidData[i], "bids")
 		}
 		if len(bids) < 3 {
 			return errors.New("unexpected bids length")
@@ -796,7 +796,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	for i := range askData {
-		asks, ok := askData[i].([]interface{})
+		asks, ok := askData[i].([]any)
 		if !ok {
 			return errors.New("asks type assertion failure")
 		}
@@ -846,9 +846,9 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 
 	// Bid data is not always sent
 	for i := range bidData {
-		bids, ok := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]any)
 		if !ok {
-			return common.GetTypeAssertError("[]interface{}", bidData[i], "bids")
+			return common.GetTypeAssertError("[]any", bidData[i], "bids")
 		}
 
 		priceStr, ok := bids[0].(string)

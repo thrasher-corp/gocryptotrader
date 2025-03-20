@@ -277,16 +277,16 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date          string      `json:"datetime"`
-		TransactionID int64       `json:"id"`
-		Type          int         `json:"type,string"`
-		USD           interface{} `json:"usd"`
-		EUR           interface{} `json:"eur"`
-		XRP           interface{} `json:"xrp"`
-		BTC           interface{} `json:"btc"`
-		BTCUSD        interface{} `json:"btc_usd"`
-		Fee           float64     `json:"fee,string"`
-		OrderID       int64       `json:"order_id"`
+		Date          string  `json:"datetime"`
+		TransactionID int64   `json:"id"`
+		Type          int     `json:"type,string"`
+		USD           any     `json:"usd"`
+		EUR           any     `json:"eur"`
+		XRP           any     `json:"xrp"`
+		BTC           any     `json:"btc"`
+		BTCUSD        any     `json:"btc_usd"`
+		Fee           float64 `json:"fee,string"`
+		OrderID       int64   `json:"order_id"`
 	}
 	var response []Response
 
@@ -306,7 +306,7 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 		}
 	}
 
-	processNumber := func(i interface{}) float64 {
+	processNumber := func(i any) float64 {
 		switch t := i.(type) {
 		case float64:
 			return t
@@ -554,13 +554,13 @@ func (b *Bitstamp) TransferAccountBalance(ctx context.Context, amount float64, c
 		path = bitstampAPITransferFromMain
 	}
 
-	var resp interface{}
+	var resp any
 
 	return b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, req, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -579,7 +579,7 @@ func (b *Bitstamp) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
-func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, v2 bool, values url.Values, result interface{}) error {
+func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, v2 bool, values url.Values, result any) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -640,9 +640,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	errCap := struct {
-		Error  string      `json:"error"`  // v1 errors
-		Status string      `json:"status"` // v2 errors
-		Reason interface{} `json:"reason"` // v2 errors
+		Error  string `json:"error"`  // v1 errors
+		Status string `json:"status"` // v2 errors
+		Reason any    `json:"reason"` // v2 errors
 	}{}
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" || errCap.Status == errStr {
@@ -650,7 +650,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
 			switch data := errCap.Reason.(type) { // v2 errors
-			case map[string]interface{}:
+			case map[string]any:
 				var details strings.Builder
 				for k, v := range data {
 					details.WriteString(fmt.Sprintf("%s: %v", k, v))

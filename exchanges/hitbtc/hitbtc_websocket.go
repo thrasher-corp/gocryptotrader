@@ -117,7 +117,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 		return init.Method, nil
 	}
 	switch resultType := init.Result.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		if reportType, ok := resultType["reportType"].(string); ok {
 			return reportType, nil
 		}
@@ -128,13 +128,13 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 				return "", nil
 			}
 		}
-	case []interface{}:
+	case []any:
 		if len(resultType) == 0 {
 			h.Websocket.DataHandler <- fmt.Sprintf("No data returned. ID: %v", init.ID)
 			return "", nil
 		}
 
-		data, ok := resultType[0].(map[string]interface{})
+		data, ok := resultType[0].(map[string]any)
 		if !ok {
 			return "", errors.New("unable to type assert data")
 		}

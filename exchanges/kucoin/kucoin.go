@@ -1092,7 +1092,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	if symbol == "" {
 		return "", currency.ErrSymbolStringEmpty
 	}
-	arg := make(map[string]interface{})
+	arg := make(map[string]any)
 	arg["clientOid"] = clientOID
 	arg["side"] = strings.ToLower(side)
 	arg["symbol"] = symbol
@@ -2377,7 +2377,7 @@ func (ku *Kucoin) ModifySubscriptionOrder(ctx context.Context, ccy currency.Code
 	if purchaseOrderNo == "" {
 		return nil, errMissingPurchaseOrderNumber
 	}
-	arg := map[string]interface{}{
+	arg := map[string]any{
 		"currency":        ccy.String(),
 		"interestRate":    interestRate,
 		"purchaseOrderNo": purchaseOrderNo,
@@ -2436,7 +2436,7 @@ func (ku *Kucoin) GetSubscriptionOrders(ctx context.Context, ccy currency.Code, 
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
+func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	value := reflect.ValueOf(result)
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
@@ -2470,7 +2470,7 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl r
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 // Request parameters are added to path variable for GET and DELETE request and for other requests its passed in params variable
-func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, method, path string, arg, result interface{}) error {
+func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, method, path string, arg, result any) error {
 	value := reflect.ValueOf(result)
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
@@ -2622,7 +2622,7 @@ func (ku *Kucoin) SubscribeToEarnFixedIncomeProduct(ctx context.Context, product
 	}
 	var resp *SusbcribeEarn
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, subscribeToEarnEPL, http.MethodPost, "/v1/earn/orders",
-		&map[string]interface{}{
+		&map[string]any{
 			"productId":     productID,
 			"accountType":   accountType,
 			"amount,string": amount,

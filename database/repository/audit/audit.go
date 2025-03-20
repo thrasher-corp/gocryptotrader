@@ -61,7 +61,7 @@ func Event(id, msgtype, message string) {
 }
 
 // GetEvent () returns list of order events matching query
-func GetEvent(startTime, endTime time.Time, order string, limit int) (interface{}, error) {
+func GetEvent(startTime, endTime time.Time, order string, limit int) (any, error) {
 	if database.DB.SQL == nil {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
