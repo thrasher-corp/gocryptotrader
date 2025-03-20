@@ -980,10 +980,11 @@ type WsTradeUpdate struct {
 
 // OrderVars stores side, status and type for any order/trade
 type OrderVars struct {
-	Side      order.Side
-	Status    order.Status
-	OrderType order.Type
-	Fee       float64
+	Side        order.Side
+	Status      order.Status
+	OrderType   order.Type
+	TimeInForce order.TimeInForce
+	Fee         float64
 }
 
 // Variables below are used to check api requests being sent out
