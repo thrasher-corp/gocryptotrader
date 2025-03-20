@@ -47,7 +47,7 @@ const (
 	getOneClickRepayHistoryEPL
 	oneClickRepayCurrencyListEPL
 	tradeOneClickRepayEPL
-	massCancemMMPOrderEPL
+	massCancelMMPOrderEPL
 	getCounterpartiesEPL
 	createRFQEPL
 	cancelRFQEPL
@@ -323,8 +323,7 @@ const (
 	getFiatDepositPaymentMethodsEPL
 )
 
-// GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func GetRateLimit() request.RateLimitDefinitions {
+var rateLimits = func() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// Trade Endpoints
 		placeOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
@@ -358,7 +357,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getOneClickRepayHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
 		oneClickRepayCurrencyListEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
 		tradeOneClickRepayEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		massCancemMMPOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		massCancelMMPOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Block Trading endpoints
 		getCounterpartiesEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -661,4 +660,4 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getWithdrawalPaymentMethodsEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getFiatDepositPaymentMethodsEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 	}
-}
+}()

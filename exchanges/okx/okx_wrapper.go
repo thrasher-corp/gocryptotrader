@@ -46,7 +46,6 @@ func (ok *Okx) SetDefaults() {
 	ok.Enabled = true
 	ok.Verbose = true
 
-	ok.WsRequestSemaphore = make(chan int, 20)
 	ok.API.CredentialsValidator.RequiresKey = true
 	ok.API.CredentialsValidator.RequiresSecret = true
 	ok.API.CredentialsValidator.RequiresClientID = true
@@ -163,7 +162,7 @@ func (ok *Okx) SetDefaults() {
 	}
 	ok.Requester, err = request.New(ok.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()))
+		request.WithLimiter(rateLimits))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -181,14 +180,6 @@ func (ok *Okx) SetDefaults() {
 	ok.WebsocketResponseMaxLimit = websocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = websocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-
-	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
-		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
-		Register:              make(chan *wsRequestInfo),
-		Unregister:            make(chan string),
-		Message:               make(chan *wsIncomingData),
-		shutdown:              make(chan bool),
-	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -218,44 +209,30 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:                  ok.generateSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{
-			Checksum: ok.CalculateUpdateOrderbookChecksum,
-		},
-		RateLimitDefinitions: ok.Requester.GetRateLimiterDefinitions(),
+		OrderbookBufferConfig:                  buffer.Config{Checksum: ok.CalculateUpdateOrderbookChecksum},
+		RateLimitDefinitions:                   rateLimits,
 	}); err != nil {
 		return err
 	}
 
-	go ok.WsResponseMultiplexer.Run()
-
 	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  apiWebsocketPublicURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     websocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                      apiWebsocketPublicURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         websocketResponseMaxLimit,
+		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
+		BespokeGenerateMessageID: func(bool) int64 { return ok.counter.IncrementAndGet() },
 	}); err != nil {
 		return err
 	}
 
 	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  apiWebsocketPrivateURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     websocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		URL:                      apiWebsocketPrivateURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         websocketResponseMaxLimit,
+		Authenticated:            true,
+		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
+		BespokeGenerateMessageID: func(bool) int64 { return ok.counter.IncrementAndGet() },
 	})
-}
-
-// Shutdown calls Base.Shutdown and then shuts down the response multiplexer
-func (ok *Okx) Shutdown() error {
-	if err := ok.Base.Shutdown(); err != nil {
-		return err
-	}
-
-	// Must happen after the Websocket shutdown in Base.Shutdown, so there are no new blocking writes to the multiplexer
-	ok.WsResponseMultiplexer.Shutdown()
-
-	return nil
 }
 
 // GetServerTime returns the current exchange server time.
@@ -904,7 +881,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		var placeSpreadOrderResponse *SpreadOrderResponse
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			placeSpreadOrderResponse, err = ok.WsPlaceSpreadOrder(ctx, spreadParam)
+			placeSpreadOrderResponse, err = ok.WSPlaceSpreadOrder(ctx, spreadParam)
 			if err != nil {
 				return nil, err
 			}
@@ -925,16 +902,16 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	switch orderTypeString {
 	case orderLimit, orderMarket, orderPostOnly, orderFOK, orderIOC, orderOptimalLimitIOC, "mmp", "mmp_and_post_only":
 		orderRequest := &PlaceOrderRequestParam{
-			InstrumentID:  pairString,
-			TradeMode:     tradeMode,
-			Side:          sideType,
-			PositionSide:  positionSide,
-			OrderType:     orderTypeString,
-			Amount:        amount,
-			ClientOrderID: s.ClientOrderID,
-			Price:         s.Price,
-			QuantityType:  targetCurrency,
-			AssetType:     s.AssetType,
+			InstrumentID:   pairString,
+			TradeMode:      tradeMode,
+			Side:           sideType,
+			PositionSide:   positionSide,
+			OrderType:      orderTypeString,
+			Amount:         amount,
+			ClientOrderID:  s.ClientOrderID,
+			Price:          s.Price,
+			TargetCurrency: targetCurrency,
+			AssetType:      s.AssetType,
 		}
 		switch s.Type.Lower() {
 		case orderLimit, orderPostOnly, orderFOK, orderIOC:
@@ -952,15 +929,12 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			}
 		}
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			placeOrderResponse, err = ok.WsPlaceOrder(ctx, orderRequest)
-			if err != nil {
-				return nil, err
-			}
+			placeOrderResponse, err = ok.WSPlaceOrder(ctx, orderRequest)
 		} else {
 			placeOrderResponse, err = ok.PlaceOrder(ctx, orderRequest)
-			if err != nil {
-				return nil, err
-			}
+		}
+		if err != nil {
+			return nil, err
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
 	case "trigger":
@@ -1130,7 +1104,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 			NewPrice:      action.Price,
 		}
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = ok.WsAmandSpreadOrder(ctx, amendSpreadOrder)
+			_, err = ok.WSAmendSpreadOrder(ctx, amendSpreadOrder)
 		} else {
 			_, err = ok.AmendSpreadOrder(ctx, amendSpreadOrder)
 		}
@@ -1158,7 +1132,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 			ClientOrderID: action.ClientOrderID,
 		}
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = ok.WsAmendOrder(ctx, &amendRequest)
+			_, err = ok.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = ok.AmendOrder(ctx, &amendRequest)
 		}
@@ -1262,7 +1236,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			ClientOrderID: ord.ClientOrderID,
 		}
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = ok.WsCancelOrder(ctx, &req)
+			_, err = ok.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = ok.CancelSingleOrder(ctx, &req)
 		}
@@ -1279,7 +1253,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			return err
 		}
 		if response.StatusCode != "0" {
-			return fmt.Errorf("sCode: %s sMessage: %s", response.StatusCode, response.StatusMessage)
+			return fmt.Errorf("statusCode: %s statusMessage: %s", response.StatusCode, response.StatusMessage)
 		}
 		return nil
 	default:
@@ -1339,7 +1313,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []OrderData
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			canceledOrders, err = ok.WsCancelMultipleOrder(ctx, cancelOrderParams)
+			canceledOrders, err = ok.WSCancelMultipleOrder(ctx, cancelOrderParams)
 		} else {
 			canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
 		}
@@ -1348,7 +1322,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		}
 		for x := range canceledOrders {
 			resp.Status[canceledOrders[x].OrderID] = func() string {
-				if canceledOrders[x].StatusCode != "0" && canceledOrders[x].StatusCode != "2" {
+				if canceledOrders[x].StatusCode != 0 {
 					return ""
 				}
 				return order.Cancelled.String()
@@ -1366,7 +1340,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			if len(resp.Status) > 0 {
 				return resp, nil
 			}
-			return resp, fmt.Errorf("sCode: %s sMessage: %s", cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
+			return resp, fmt.Errorf("statusCode: %s statusMessage: %s", cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
 		}
 		for x := range cancelAlgoOrderParams {
 			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()
@@ -1457,14 +1431,14 @@ ordersLoop:
 		var response []OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = ok.WsCancelMultipleOrder(ctx, remaining[:20])
+				response, err = ok.WSCancelMultipleOrder(ctx, remaining[:20])
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = ok.WsCancelMultipleOrder(ctx, remaining)
+				response, err = ok.WSCancelMultipleOrder(ctx, remaining)
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining)
 			}
@@ -1475,7 +1449,7 @@ ordersLoop:
 			}
 		}
 		for y := range response {
-			if response[y].StatusCode == "0" {
+			if response[y].StatusCode == 0 {
 				cancelAllResponse.Status[response[y].OrderID] = order.Cancelled.String()
 			} else {
 				cancelAllResponse.Status[response[y].OrderID] = response[y].StatusMessage
@@ -3027,29 +3001,4 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-}
-
-func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, error) {
-	ok.instrumentsInfoMapLock.Lock()
-	defer ok.instrumentsInfoMapLock.Unlock()
-	if instrumentType != "" {
-		insts, okay := ok.instrumentsInfoMap[instrumentType]
-		if !okay {
-			return "", errInvalidInstrumentType
-		}
-		for a := range insts {
-			if insts[a].InstrumentID == instID {
-				return insts[a].Underlying, nil
-			}
-		}
-	} else {
-		for _, insts := range ok.instrumentsInfoMap {
-			for a := range insts {
-				if insts[a].InstrumentID == instID {
-					return insts[a].Underlying, nil
-				}
-			}
-		}
-	}
-	return "", fmt.Errorf("underlying not found for instrument %s", instID)
 }
