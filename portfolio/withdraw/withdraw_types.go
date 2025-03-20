@@ -101,8 +101,8 @@ type Request struct {
 	OneTimePassword int64
 	PIN             int64
 
-	Crypto CryptoRequest `json:",omitempty"`
-	Fiat   FiatRequest   `json:",omitempty"`
+	Crypto CryptoRequest `json:"crypto"`
+	Fiat   FiatRequest   `json:"fiat"`
 }
 
 // Response holds complete details for Response

@@ -137,7 +137,7 @@ func (s *customStrategy) createSignal(_ data.Handler) (*signal.Signal, error) {
 	return nil, nil
 }
 
-func (s *customStrategy) SetCustomSettings(map[string]interface{}) error {
+func (s *customStrategy) SetCustomSettings(map[string]any) error {
 	return nil
 }
 

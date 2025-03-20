@@ -54,7 +54,7 @@ func TestWsHandleData(t *testing.T) {
 				},
 			},
 			Websocket: &stream.Websocket{
-				DataHandler: make(chan interface{}, 1),
+				DataHandler: make(chan any, 1),
 			},
 		},
 	}

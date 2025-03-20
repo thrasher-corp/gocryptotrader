@@ -52,7 +52,7 @@ type Event interface {
 	GetReasons() []string
 	GetClosePrice() decimal.Decimal
 	AppendReason(string)
-	AppendReasonf(string, ...interface{})
+	AppendReasonf(string, ...any)
 }
 
 // custom subloggers for backtester use

@@ -211,7 +211,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 }
 
 // SetCustomSettings allows a user to modify the MFI limits in their config
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
+func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 	for k, v := range customSettings {
 		switch k {
 		case mfiHighKey:
