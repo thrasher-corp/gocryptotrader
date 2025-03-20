@@ -78,23 +78,25 @@ updates:
 
 // deleteByID deletes reference by ID
 func (ts *Tranches) deleteByID(updts Tranches, bypassErr bool) error {
+updates:
 	for x := range updts {
-		idx := slices.IndexFunc(*ts, func(t Tranche) bool {
-			return t.ID == updts[x].ID
-		})
-
-		if idx == -1 {
-			if !bypassErr {
-				return fmt.Errorf("delete error: %w %d not found", errIDCannotBeMatched, updts[x].ID)
+		for y := range *ts {
+			if updts[x].ID != (*ts)[y].ID {
+				continue
 			}
-			continue
+
+			if y < len(*ts) {
+				copy((*ts)[y:], (*ts)[y+1:])
+				*ts = (*ts)[:len(*ts)-1]
+			} else {
+				*ts = slices.Delete(*ts, y, y+1)
+			}
+			continue updates
 		}
-
-		*ts = slices.Delete(*ts, idx, idx+1)
+		if !bypassErr {
+			return fmt.Errorf("delete error: %w %d not found", errIDCannotBeMatched, updts[x].ID)
+		}
 	}
-
-	*ts = slices.Clip(*ts)
-
 	return nil
 }
 
