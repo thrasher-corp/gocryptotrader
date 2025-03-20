@@ -27,7 +27,8 @@ func TestCollateralTakeProfit(t *testing.T) {
 			asset:        asset.Futures,
 			isCollateral: true,
 		},
-		contract: &Item{asset: asset.Futures,
+		contract: &Item{
+			asset:     asset.Futures,
 			available: decimal.NewFromInt(1),
 		},
 	}
@@ -287,7 +288,8 @@ func TestCollateralLiquidate(t *testing.T) {
 			isCollateral: true,
 			available:    decimal.NewFromInt(1337),
 		},
-		contract: &Item{asset: asset.Futures,
+		contract: &Item{
+			asset:     asset.Futures,
 			available: decimal.NewFromInt(1337),
 		},
 	}

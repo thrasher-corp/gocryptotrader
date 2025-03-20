@@ -184,7 +184,8 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Volume:       tick.Volume,
 			LastUpdated:  time.Unix(tick.Updated, 0),
 			ExchangeName: e.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
