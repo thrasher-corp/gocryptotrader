@@ -297,6 +297,11 @@ func main() {
 				Contributions: 1,
 			},
 			{
+				Login:         "soxipy",
+				URL:           "https://github.com/soxipy",
+				Contributions: 2,
+			},
+			{
 				Login:         "starit",
 				URL:           "https://github.com/starit",
 				Contributions: 1,
