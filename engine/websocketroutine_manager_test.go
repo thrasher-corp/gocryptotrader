@@ -122,7 +122,7 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 }
 
 func TestWebsocketRoutineManagerHandleData(t *testing.T) {
-	var exchName = "Bitstamp"
+	exchName := "Bitstamp"
 	var wg sync.WaitGroup
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
@@ -154,7 +154,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	var orderID = "1337"
+	orderID := "1337"
 	err = m.websocketDataHandler(exchName, errors.New("error"))
 	if err == nil {
 		t.Error("Error not handled correctly")
@@ -225,7 +225,8 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	}
 
 	err = m.websocketDataHandler(exchName, stream.UnhandledMessageWarning{
-		Message: "there's an issue here's a tissue"},
+		Message: "there's an issue here's a tissue",
+	},
 	)
 	if err != nil {
 		t.Error(err)

@@ -37,6 +37,33 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var defaultAssetPairStores = map[asset.Item]currency.PairStore{
+	asset.Spot: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+	},
+	asset.Margin: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+	},
+	asset.CoinMarginedFutures: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+	asset.USDTMarginedFutures: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+	asset.Options: {
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	},
+}
+
 // SetDefaults sets the basic defaults for Binance
 func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
@@ -45,79 +72,18 @@ func (b *Binance) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.SetValues()
+	for a, ps := range defaultAssetPairStores {
+		if err := b.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+		}
+	}
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
+	for _, a := range []asset.Item{asset.Margin, asset.Options, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		if err := b.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, a, err)
+		}
 	}
-	coinFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-	usdtFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-	europeanOptions := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.Margin, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.Margin)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.Options, europeanOptions)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
@@ -218,6 +184,7 @@ func (b *Binance) SetDefaults() {
 		},
 	}
 
+	var err error
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()))
@@ -725,7 +692,6 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 					Symbol: p,
 					Limit:  1000})
 		}
-
 	case asset.USDTMarginedFutures:
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p.String(), 1000)
 	case asset.CoinMarginedFutures:

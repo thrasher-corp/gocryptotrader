@@ -314,7 +314,8 @@ var keyURLs = []URL{
 	ChainAnalysis,
 	EdgeCase1,
 	EdgeCase2,
-	EdgeCase3}
+	EdgeCase3,
+}
 
 // URL stores uint conversions
 type URL uint16

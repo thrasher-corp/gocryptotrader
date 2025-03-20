@@ -265,7 +265,7 @@ func TestMux(t *testing.T) {
 	pipe, err := mux.Subscribe(id)
 	require.NoError(t, err, "Subscribe should not error")
 
-	var ready = make(chan bool)
+	ready := make(chan bool)
 
 	payload := "string"
 

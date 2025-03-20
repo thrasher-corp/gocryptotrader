@@ -83,7 +83,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	o.BuyLimit = ev.GetBuyLimit()
 	o.SellLimit = ev.GetSellLimit()
 	var sizingFunds decimal.Decimal
-	var side = ev.GetDirection()
+	side := ev.GetDirection()
 	if ev.GetAssetType() == asset.Spot {
 		if side == gctorder.ClosePosition {
 			side = gctorder.Sell

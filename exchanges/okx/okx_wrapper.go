@@ -2341,7 +2341,7 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	if err != nil {
 		return 0, err
 	}
-	switch cfg[0].AccountLevel {
+	switch cfg.AccountLevel {
 	case "1":
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
@@ -2354,7 +2354,7 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	case "4":
 		return collateral.PortfolioMode, nil
 	default:
-		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
+		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg.AccountLevel)
 	}
 }
 

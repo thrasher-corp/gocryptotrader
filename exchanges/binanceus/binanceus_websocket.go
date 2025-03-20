@@ -541,7 +541,7 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 
 // GenerateSubscriptions generates the default subscription set
 func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
+	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)
