@@ -3448,7 +3448,7 @@ func TestGetFutureOrderSize(t *testing.T) {
 func TestGetTimeInForce(t *testing.T) {
 	t.Parallel()
 
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.PostOnly})
+	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.GoodTillTime})
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
