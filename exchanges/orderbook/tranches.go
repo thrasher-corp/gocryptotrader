@@ -117,7 +117,7 @@ func (ts Tranches) retrieve(count int) Tranches {
 		count = len(ts)
 	}
 	result := make(Tranches, count)
-	copy(result, ts[:count])
+	copy(result, ts)
 	return result
 }
 
