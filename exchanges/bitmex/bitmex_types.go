@@ -25,15 +25,15 @@ type Announcement struct {
 
 // APIKey Persistent API Keys for Developers
 type APIKey struct {
-	Cidr        string        `json:"cidr"`
-	Created     string        `json:"created"`
-	Enabled     bool          `json:"enabled"`
-	ID          string        `json:"id"`
-	Name        string        `json:"name"`
-	Nonce       int64         `json:"nonce"`
-	Permissions []interface{} `json:"permissions"`
-	Secret      string        `json:"secret"`
-	UserID      int32         `json:"userId"`
+	Cidr        string `json:"cidr"`
+	Created     string `json:"created"`
+	Enabled     bool   `json:"enabled"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Nonce       int64  `json:"nonce"`
+	Permissions []any  `json:"permissions"`
+	Secret      string `json:"secret"`
+	UserID      int32  `json:"userId"`
 }
 
 // Chat Trollbox Data
@@ -514,32 +514,32 @@ type User struct {
 
 // UserPreferences user preferences
 type UserPreferences struct {
-	AlertOnLiquidations     bool        `json:"alertOnLiquidations"`
-	AnimationsEnabled       bool        `json:"animationsEnabled"`
-	AnnouncementsLastSeen   string      `json:"announcementsLastSeen"`
-	ChatChannelID           float64     `json:"chatChannelID"`
-	ColorTheme              string      `json:"colorTheme"`
-	Currency                string      `json:"currency"`
-	Debug                   bool        `json:"debug"`
-	DisableEmails           []string    `json:"disableEmails"`
-	HideConfirmDialogs      []string    `json:"hideConfirmDialogs"`
-	HideConnectionModal     bool        `json:"hideConnectionModal"`
-	HideFromLeaderboard     bool        `json:"hideFromLeaderboard"`
-	HideNameFromLeaderboard bool        `json:"hideNameFromLeaderboard"`
-	HideNotifications       []string    `json:"hideNotifications"`
-	Locale                  string      `json:"locale"`
-	MsgsSeen                []string    `json:"msgsSeen"`
-	OrderBookBinning        interface{} `json:"orderBookBinning"`
-	OrderBookType           string      `json:"orderBookType"`
-	OrderClearImmediate     bool        `json:"orderClearImmediate"`
-	OrderControlsPlusMinus  bool        `json:"orderControlsPlusMinus"`
-	ShowLocaleNumbers       bool        `json:"showLocaleNumbers"`
-	Sounds                  []string    `json:"sounds"`
-	StrictIPCheck           bool        `json:"strictIPCheck"`
-	StrictTimeout           bool        `json:"strictTimeout"`
-	TickerGroup             string      `json:"tickerGroup"`
-	TickerPinned            bool        `json:"tickerPinned"`
-	TradeLayout             string      `json:"tradeLayout"`
+	AlertOnLiquidations     bool     `json:"alertOnLiquidations"`
+	AnimationsEnabled       bool     `json:"animationsEnabled"`
+	AnnouncementsLastSeen   string   `json:"announcementsLastSeen"`
+	ChatChannelID           float64  `json:"chatChannelID"`
+	ColorTheme              string   `json:"colorTheme"`
+	Currency                string   `json:"currency"`
+	Debug                   bool     `json:"debug"`
+	DisableEmails           []string `json:"disableEmails"`
+	HideConfirmDialogs      []string `json:"hideConfirmDialogs"`
+	HideConnectionModal     bool     `json:"hideConnectionModal"`
+	HideFromLeaderboard     bool     `json:"hideFromLeaderboard"`
+	HideNameFromLeaderboard bool     `json:"hideNameFromLeaderboard"`
+	HideNotifications       []string `json:"hideNotifications"`
+	Locale                  string   `json:"locale"`
+	MsgsSeen                []string `json:"msgsSeen"`
+	OrderBookBinning        any      `json:"orderBookBinning"`
+	OrderBookType           string   `json:"orderBookType"`
+	OrderClearImmediate     bool     `json:"orderClearImmediate"`
+	OrderControlsPlusMinus  bool     `json:"orderControlsPlusMinus"`
+	ShowLocaleNumbers       bool     `json:"showLocaleNumbers"`
+	Sounds                  []string `json:"sounds"`
+	StrictIPCheck           bool     `json:"strictIPCheck"`
+	StrictTimeout           bool     `json:"strictTimeout"`
+	TickerGroup             string   `json:"tickerGroup"`
+	TickerPinned            bool     `json:"tickerPinned"`
+	TradeLayout             string   `json:"tradeLayout"`
 }
 
 // AffiliateStatus affiliate Status details

@@ -565,7 +565,7 @@ func TestEnableDisableRateLimit(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	var resp interface{}
+	var resp any
 	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
 		return &Item{
 			Method: http.MethodGet,

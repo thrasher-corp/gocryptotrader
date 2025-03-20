@@ -362,7 +362,7 @@ func TestPrintSettings(t *testing.T) {
 		Goal:     "To demonstrate rendering of settings",
 		StrategySettings: StrategySettings{
 			Name: dca,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"dca-dummy1": 30.0,
 				"dca-dummy2": 30.0,
 				"dca-dummy3": 30.0,
@@ -963,7 +963,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
 		StrategySettings: StrategySettings{
 			Name: "rsi",
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"rsi-low":    30.0,
 				"rsi-high":   70.0,
 				"rsi-period": 14,
@@ -1206,7 +1206,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			Name:                         top2bottom2.Name,
 			SimultaneousSignalProcessing: true,
 
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"mfi-low":    32,
 				"mfi-high":   68,
 				"mfi-period": 14,

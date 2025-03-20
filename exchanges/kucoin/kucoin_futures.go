@@ -622,7 +622,7 @@ func (ku *Kucoin) SetAutoDepositMargin(ctx context.Context, symbol string, statu
 	if symbol == "" {
 		return false, currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	params["status"] = status
 	var resp bool
@@ -658,7 +658,7 @@ func (ku *Kucoin) AddMargin(ctx context.Context, symbol, uniqueID string, margin
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	if uniqueID == "" {
 		return nil, errors.New("uniqueID cannot be empty")
@@ -686,7 +686,7 @@ func (ku *Kucoin) FuturesUpdateRiskLmitLevel(ctx context.Context, symbol string,
 	if symbol == "" {
 		return false, currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	params["level"] = strconv.FormatInt(level, 10)
 	var resp bool
@@ -765,7 +765,7 @@ func (ku *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist
 	if passphrase == "" {
 		return nil, errInvalidPassPhraseInstance
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["passphrase"] = passphrase
 	params["remark"] = remark
 	params["subName"] = subName
@@ -790,7 +790,7 @@ func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount 
 	if recAccountType == "" {
 		return nil, fmt.Errorf("%w, invalid receive account type", errAccountTypeMissing)
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["amount"] = amount
 	params["currency"] = ccy.String()
 	params["recAccountType"] = recAccountType
@@ -809,7 +809,7 @@ func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount floa
 	if payAccountType == "" {
 		return fmt.Errorf("%w, payAccountType cannot be empty", errAccountTypeMissing)
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["amount"] = amount
 	params["currency"] = ccy.String()
 	params["payAccountType"] = payAccountType

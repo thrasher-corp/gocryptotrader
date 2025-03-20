@@ -358,7 +358,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 
-	customSettings := make(map[string]interface{}, len(request.Config.StrategySettings.CustomSettings))
+	customSettings := make(map[string]any, len(request.Config.StrategySettings.CustomSettings))
 	for i := range request.Config.StrategySettings.CustomSettings {
 		customSettings[request.Config.StrategySettings.CustomSettings[i].KeyField] = request.Config.StrategySettings.CustomSettings[i].KeyValue
 	}

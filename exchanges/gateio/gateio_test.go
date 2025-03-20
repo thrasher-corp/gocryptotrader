@@ -2742,7 +2742,7 @@ func TestOptionsOrderbookPushData(t *testing.T) {
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookTickerPushDataJSON)))
 	avail, err := g.GetAvailablePairs(asset.Options)
 	require.NoError(t, err, "GetAvailablePairs must not error")
-	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(fmt.Sprintf(optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String()))))
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String())))
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotPushDataJSON)))
 	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
 }

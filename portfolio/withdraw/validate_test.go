@@ -163,7 +163,7 @@ func TestValidateFiat(t *testing.T) {
 		request       *Request
 		requestType   RequestType
 		bankAccountID string
-		output        interface{}
+		output        any
 		validate      validate.Checker
 	}{
 		{
@@ -256,7 +256,7 @@ func TestValidateCrypto(t *testing.T) {
 	testCases := []struct {
 		name    string
 		request *Request
-		output  interface{}
+		output  any
 	}{
 		{
 			"Valid",

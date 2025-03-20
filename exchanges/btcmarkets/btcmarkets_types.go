@@ -320,12 +320,12 @@ type PlaceBatch struct {
 
 // PlaceOrderMethod stores data for place request
 type PlaceOrderMethod struct {
-	PlaceOrder PlaceBatch `json:"placeOrder,omitempty"`
+	PlaceOrder PlaceBatch `json:"placeOrder"`
 }
 
 // CancelOrderMethod stores data for Cancel request
 type CancelOrderMethod struct {
-	CancelOrder CancelBatch `json:"cancelOrder,omitempty"`
+	CancelOrder CancelBatch `json:"cancelOrder"`
 }
 
 // TradingFeeData stores trading fee data
