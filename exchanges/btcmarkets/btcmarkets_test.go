@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
@@ -542,18 +543,53 @@ func TestWsTicker(t *testing.T) {
 	}
 }
 
-func TestWsTrade(t *testing.T) {
-	pressXToJSON := []byte(` { "marketId": "BTC-AUD",
-    "timestamp": "2019-04-08T20:54:27.632Z",
-    "tradeId": 3153171493,
-    "price": "7370.11",
-    "volume": "0.10901605",
-    "side": "Ask",
-    "messageType": "trade"
-  }`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+func TestWSTrade(t *testing.T) {
+	t.Parallel()
+
+	b := new(BTCMarkets) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", b.wsHandleData)
+	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
+	assert.ErrorIs(t, fErrs[0].Err, order.ErrSideIsInvalid, "Side.UnmarshalJSON errors should propagate correctly")
+	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
+	assert.ErrorIs(t, fErrs[1].Err, order.ErrSideIsInvalid, "wsHandleData errors should propagate correctly")
+	assert.ErrorContains(t, fErrs[1].Err, "ANY", "wsHandleData errors should propagate correctly")
+	close(b.Websocket.DataHandler)
+
+	exp := []trade.Data{
+		{
+			Exchange:     b.Name,
+			CurrencyPair: currency.NewPairWithDelimiter("BTC", "AUD", currency.DashDelimiter),
+			Timestamp:    time.Date(2025, 3, 13, 8, 27, 55, 691000000, time.UTC),
+			Price:        131200.34,
+			Amount:       0.00151228,
+			Side:         order.Buy,
+			TID:          "7006384466",
+			AssetType:    asset.Spot,
+		},
+		{
+			Exchange:     b.Name,
+			CurrencyPair: currency.NewPairWithDelimiter("BTC", "AUD", currency.DashDelimiter),
+			Timestamp:    time.Date(2025, 3, 13, 8, 28, 2, 273000000, time.UTC),
+			Price:        131065.01,
+			Amount:       0.05,
+			Side:         order.Sell,
+			TID:          "7006384467",
+			AssetType:    asset.Spot,
+		},
+	}
+	require.Len(t, b.Websocket.DataHandler, 2, "Must see correct number of trades")
+
+	for resp := range b.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case trade.Data:
+			i := 1 - len(b.Websocket.DataHandler)
+			require.Equalf(t, exp[i], v, "Trade[%d] must be correct", i)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
+		}
 	}
 }
 
