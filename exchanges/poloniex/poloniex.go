@@ -63,6 +63,14 @@ func (p *Poloniex) GetCurrencyInformations(ctx context.Context) ([]CurrencyDetai
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
 }
 
+// GetVolume returns a list of currencies with associated volume
+func (p *Poloniex) GetVolume(ctx context.Context) (any, error) {
+	var resp any
+	path := "/public?command=return24hVolume"
+
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
+}
+
 // GetCurrencyInformation retrieves currency and their detailed information.
 func (p *Poloniex) GetCurrencyInformation(ctx context.Context, ccy currency.Code) (CurrencyDetail, error) {
 	if ccy.IsEmpty() {

@@ -47,7 +47,7 @@ type ExchangeInfo struct {
 		Interval      string `json:"interval"`
 		Limit         int    `json:"limit"`
 	} `json:"rateLimits"`
-	ExchangeFilters interface{} `json:"exchangeFilters"`
+	ExchangeFilters any `json:"exchangeFilters"`
 	Symbols         []*struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
@@ -125,7 +125,7 @@ type CoinInfo struct {
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int           `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+	Limit  int           `json:"limit"`  // Default 100; max 5000. If limit > 5000, then the response will truncate to 5000
 }
 
 // OrderbookItem stores an individual orderbook item
@@ -157,7 +157,7 @@ type OrderBook struct {
 type DepthUpdateParams []struct {
 	PriceLevel float64
 	Quantity   float64
-	ignore     []interface{}
+	ignore     []any
 }
 
 // WebsocketDepthStream is the difference for the update depth stream

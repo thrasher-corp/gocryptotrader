@@ -344,7 +344,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 }
 
 // processData used to deserialize and forward the data to DataHandler.
-func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
+func (ku *Kucoin) processData(respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}

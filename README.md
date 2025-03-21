@@ -160,11 +160,11 @@ Binaries will be published once the codebase reaches a stable condition.
 | [shazbert](https://github.com/shazbert) | 362 |
 | [dependabot[bot]](https://github.com/apps/dependabot) | 361 |
 | [gloriousCode](https://github.com/gloriousCode) | 237 |
-| [gbjk](https://github.com/gbjk) | 119 |
+| [gbjk](https://github.com/gbjk) | 121 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [Beadko](https://github.com/Beadko) | 21 |
+| [Beadko](https://github.com/Beadko) | 22 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
@@ -195,6 +195,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
@@ -210,6 +211,5 @@ Binaries will be published once the codebase reaches a stable condition.
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
-| [soxipy](https://github.com/soxipy) | 2 |
 | [starit](https://github.com/starit) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
