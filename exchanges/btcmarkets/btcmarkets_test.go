@@ -549,9 +549,11 @@ func TestWSTrade(t *testing.T) {
 	b := new(BTCMarkets) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", b.wsHandleData)
-	for _, fErr := range fErrs {
-		require.ErrorIs(t, fErr.Err, order.ErrSideIsInvalid)
-	}
+	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
+	assert.ErrorIs(t, fErrs[0].Err, order.ErrSideIsInvalid, "Side.UnmarshalJSON errors should propagate correctly")
+	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
+	assert.ErrorIs(t, fErrs[1].Err, order.ErrSideIsInvalid, "wsHandleData errors should propagate correctly")
+	assert.ErrorContains(t, fErrs[1].Err, "ANY", "wsHandleData errors should propagate correctly")
 	close(b.Websocket.DataHandler)
 
 	exp := []trade.Data{
