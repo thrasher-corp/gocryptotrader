@@ -40,6 +40,7 @@ var (
 	errInvalidResponse         = errors.New("invalid response data")
 	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
 	errPositionModeInvalid     = errors.New("invalid position mode")
+	errOrderAssetTypeMismatch  = errors.New("order asset type mismatch detected")
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -273,7 +274,7 @@ func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTi
 	if activityType != 0 {
 		params.Set("activityType", strconv.FormatInt(activityType, 10))
 	}
-	if limit != 0 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if from != 0 {

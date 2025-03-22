@@ -50,11 +50,11 @@ type BillDetail struct {
 	AccountType  string       `json:"actType"`
 	BillType     string       `json:"type"`
 	Currency     string       `json:"ccy"`
-	CreationTime types.Time   `json:"cTime"`
-	Size         types.Number `json:"sz"`
 	Symbol       string       `json:"symbol"`
 	MarginMode   string       `json:"mgnMode"`
 	PositionSide string       `json:"posSide"`
+	CreationTime types.Time   `json:"cTime"`
+	Size         types.Number `json:"sz"`
 }
 
 // FuturesV2Params represents a futures order parameters
@@ -74,8 +74,8 @@ type FuturesV2Params struct {
 
 // FuturesV3OrderIDResponse represents a futures order creation response
 type FuturesV3OrderIDResponse struct {
-	ClOrdID string `json:"clOrdId"`
-	OrdID   string `json:"ordId"`
+	ClientOrderID string `json:"clOrdId"`
+	OrderID       string `json:"ordId"`
 
 	Code    int64  `json:"code"`
 	Message string `json:"msg"`

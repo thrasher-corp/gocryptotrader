@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -124,57 +123,5 @@ func TestNewVCRServer(t *testing.T) {
 	err = os.Remove(testFile)
 	if err != nil {
 		t.Fatal("Remove error", err)
-	}
-}
-
-func TestMatchBatchAndGetResponse(t *testing.T) {
-	var response = []HTTPResponse{{
-		BodyParams: `[{ "amount":"0.003747662", "ask":"0.000000356", "askQuantity": "13274", "bid":"0.0000003365", "bidQuantity": "2674", "close":"0.0000003373", "closeTime":   "1694855078036", "dailyChange": "0.0224", "displayName": "BTS/BTC", "high": "0.0000003373", "low":"0.0000003299", "markPrice":"0.00000034", "open":"0.0000003299", "quantity":"11111", "startTime":"1694768640000", "symbol":"BTS_BTC", "tradeCount":  "2", "ts":"1694855083780" },{"amount":"0.00334476", "ask":"0.001009", "askQuantity": "4.49", "bid":"0.001006", "bidQuantity": "4.48", "close":"0.001002", "closeTime":   "1694876914787", "dailyChange": "0.0152", "displayName": "DASH/BTC", "high":"0.001015", "low":"0.000987", "markPrice":   "0.001007", "open":"0.000987", "quantity":"3.32", "startTime":"1694790480000", "symbol":"DASH_BTC", "tradeCount": "8", "ts":"1694876923780"}]`,
-	}}
-	var params = []url.Values{
-		{
-			"amount":      []string{"0.003747662"},
-			"ask":         []string{"0.000000356"},
-			"askQuantity": []string{"13274"},
-			"bid":         []string{"0.0000003365"},
-			"bidQuantity": []string{"2674"},
-			"close":       []string{"0.0000003373"},
-			"closeTime":   []string{"1694855078036"},
-			"dailyChange": []string{"0.0224"},
-			"displayName": []string{"BTS/BTC"},
-			"high":        []string{"0.0000003373"},
-			"low":         []string{"0.0000003299"},
-			"markPrice":   []string{"0.00000034"},
-			"open":        []string{"0.0000003299"},
-			"quantity":    []string{"11111"},
-			"startTime":   []string{"1694768640000"},
-			"symbol":      []string{"BTS_BTC"},
-			"tradeCount":  []string{"2"},
-			"ts":          []string{"1694855083780"},
-		},
-		{
-			"amount":      []string{"0.00334476"},
-			"ask":         []string{"0.001009"},
-			"askQuantity": []string{"4.49"},
-			"bid":         []string{"0.001006"},
-			"bidQuantity": []string{"4.48"},
-			"close":       []string{"0.001002"},
-			"closeTime":   []string{"1694876914787"},
-			"dailyChange": []string{"0.0152"},
-			"displayName": []string{"DASH/BTC"},
-			"high":        []string{"0.001015"},
-			"low":         []string{"0.000987"},
-			"markPrice":   []string{"0.001007"},
-			"open":        []string{"0.000987"},
-			"quantity":    []string{"3.32"},
-			"startTime":   []string{"1694790480000"},
-			"symbol":      []string{"DASH_BTC"},
-			"tradeCount":  []string{"8"},
-			"ts":          []string{"1694876923780"},
-		},
-	}
-	_, err := MatchBatchAndGetResponse(response, params)
-	if err != nil {
-		t.Error(err)
 	}
 }

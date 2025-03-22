@@ -53,6 +53,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	result, err := p.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
+
 	if !sharedtestvalues.AreAPICredentialsSet(p) {
 		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
@@ -171,6 +172,15 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	_, err := p.SubmitOrder(context.Background(), &order.Submit{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err = p.SubmitOrder(context.Background(), &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing})
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+	_, err = p.SubmitOrder(context.Background(), &order.Submit{AssetType: asset.Options})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = p.SubmitOrder(context.Background(), &order.Submit{AssetType: asset.Futures, Type: order.Liquidation})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
@@ -360,9 +370,9 @@ func TestWithdraw(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-
 	_, err := p.UpdateAccountInfo(context.Background(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
@@ -458,6 +468,9 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	_, err := p.UpdateTicker(context.Background(), spotTradablePair, asset.Binary)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := p.UpdateTicker(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -469,12 +482,21 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := p.UpdateTickers(context.Background(), asset.Spot)
+	err := p.UpdateTickers(context.Background(), asset.Options)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = p.UpdateTickers(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+
+	err = p.UpdateTickers(context.Background(), asset.Spot)
 	assert.NoError(t, err)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetAvailableTransferChains(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err, currency.ErrCurrencyCodeEmpty)
+
 	result, err := p.GetAvailableTransferChains(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -498,6 +520,24 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
+	_, err := p.CancelBatchOrders(context.Background(), []order.Cancel{})
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Options}})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures}})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Spot}})
+	require.ErrorIs(t, err, errOrderAssetTypeMismatch)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233", Type: order.StopLimit}, {AssetType: asset.Futures, OrderID: "123444", Type: order.StopLimit}})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Spot, OrderID: "1233", Type: order.StopLimit}, {AssetType: asset.Spot, OrderID: "123444", Type: order.StopLimit}})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
@@ -524,6 +564,9 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetServerTime(context.Background(), asset.Binary)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	st, err := p.GetServerTime(context.Background(), asset.Spot)
 	require.NoError(t, err)
 	require.NotZero(t, st)
@@ -538,6 +581,9 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err := p.GetFuturesContractDetails(context.Background(), asset.Spot)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
+	_, err = p.GetFuturesContractDetails(context.Background(), asset.FutureCombo)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := p.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -545,7 +591,13 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+	_, err := p.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{})
+	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = p.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{Pair: currency.NewPair(currency.BTC, currency.LTC)})
+	require.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	_, err = p.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Spot,
 		Pair:                 spotTradablePair,
 		IncludePredictedRate: false,
@@ -574,6 +626,9 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
+	_, err := p.FetchTradablePairs(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := p.FetchTradablePairs(context.Background(), asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -665,7 +720,6 @@ func TestGetOrderbook(t *testing.T) {
 	_, err := p.GetOrderbook(context.Background(), currency.EMPTYPAIR, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	p.Verbose = true
 	result, err := p.GetOrderbook(context.Background(), spotTradablePair, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -675,6 +729,9 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := p.UpdateOrderbook(context.Background(), currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = p.UpdateOrderbook(context.Background(), currency.EMPTYPAIR, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	result, err := p.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
@@ -689,7 +746,7 @@ func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetCandlesticks(context.Background(), currency.EMPTYPAIR, kline.FiveMin, time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = p.GetCandlesticks(context.Background(), spotTradablePair, kline.HundredMilliseconds, time.Time{}, time.Time{}, 0)
+	_, err = p.GetCandlesticks(context.Background(), spotTradablePair, kline.HundredMilliseconds, time.Now().Add(-time.Hour*48), time.Time{}, 0)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	result, err := p.GetCandlesticks(context.Background(), spotTradablePair, kline.FiveMin, time.Time{}, time.Time{}, 0)
@@ -984,18 +1041,14 @@ func TestWithdrawCurrency(t *testing.T) {
 		Currency: currency.BTC.String() + "TRON", // Sends BTC through the TRON chain
 	})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
-	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
-		Currency: currency.BTC.String(),
-		Amount:   1,
-	})
+	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{Currency: currency.BTC.String(), Amount: 1})
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	result, err := p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
 		Currency: currency.BTC.String(),
 		Amount:   1,
-		Address:  "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4",
-	})
+		Address:  "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

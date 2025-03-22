@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -185,7 +184,6 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	err = p.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -415,7 +413,6 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		if err != nil {
 			return response, err
 		}
-
 		subAccounts := make([]account.SubAccount, len(accountBalance))
 		for i := range accountBalance {
 			subAccount := account.SubAccount{
@@ -665,8 +662,8 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 
 // SubmitOrder submits a new order
 func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if s == nil {
-		return nil, common.ErrNilPointer
+	if s == nil || *s == (order.Submit{}) {
+		return nil, common.ErrEmptyParams
 	}
 	if err := s.Validate(p.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -691,7 +688,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
 			smartOrder = true
-		case order.Limit, order.Market, order.LimitMaker:
+		case order.Limit, order.Market, order.LimitMaker, order.UnknownType:
 		default:
 			return nil, fmt.Errorf("%v order type %v is not supported", order.ErrTypeIsInvalid, s.Type)
 		}
@@ -768,14 +765,6 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					stopOrderBoundary = "up"
 				}
 			}
-		}
-		tif, err := TimeInForceString(s.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
-		oTypeString, err := OrderTypeString(s.Type)
-		if err != nil {
-			return nil, err
 		}
 		response, err := p.PlaceFuturesOrder(ctx, &FuturesOrderParams{
 			ClientOrderID: s.ClientOrderID,
@@ -901,8 +890,13 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	assetType := o[0].AssetType
 	commonOrderType := o[0].Type
 	for i := range o {
+		switch o[i].AssetType {
+		case asset.Spot, asset.Futures:
+		default:
+			return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
+		}
 		if assetType != o[i].AssetType {
-			return nil, errors.New("order asset type mismatch detected")
+			return nil, errOrderAssetTypeMismatch
 		}
 		if commonOrderType != o[i].Type {
 			commonOrderType = order.AnyType
@@ -919,10 +913,9 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	switch assetType {
-	case asset.Spot:
+	if assetType == asset.Spot {
 		switch commonOrderType {
-		case order.Market, order.Limit:
+		case order.Market, order.Limit, order.AnyType:
 			if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
 				if err != nil {
@@ -965,11 +958,11 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				resp.Status[cancelledOrders[i].OrderID] = cancelledOrders[i].State + " " + cancelledOrders[i].Message
 			}
 		default:
-			return nil, fmt.Errorf("%w %s", order.ErrUnsupportedOrderType, commonOrderType.String())
+			return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
 		}
-	case asset.Futures:
+	} else {
 		switch commonOrderType {
-		case order.Limit, order.Market:
+		case order.Limit, order.Market, order.AnyType:
 			cancelledOrders, err := p.CancelMultipleFuturesLimitOrders(ctx, orderIDs, clientOrderIDs)
 			if err != nil {
 				return nil, err
@@ -982,10 +975,8 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				resp.Status[cancelledOrders.CancelFailedOrderIDs[x]] = "Failed"
 			}
 		default:
-			return nil, fmt.Errorf("futures order cancellation for %s orders is not supported", commonOrderType.String())
+			return nil, fmt.Errorf("%w: order type: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
 		}
-	default:
-		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	return resp, nil
 }
@@ -1888,24 +1879,22 @@ func (p *Poloniex) GetFuturesContractDetails(ctx context.Context, assetType asse
 
 // GetLatestFundingRates returns the latest funding rates data
 func (p *Poloniex) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	if r == nil || *r == (fundingrate.LatestRateRequest{}) {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrEmptyParams)
 	}
+	var pairString string
 	if !r.Pair.IsEmpty() {
 		is, err := p.IsPerpetualFutureCurrency(r.Asset, r.Pair)
 		if err != nil {
 			return nil, err
-		}
-		if !is {
+		} else if !is {
 			return nil, fmt.Errorf("%w %s %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 		}
+		pairString = r.Pair.String()
 	}
-	contracts, err := p.GetV3FuturesHistoricalFundingRates(ctx, r.Pair.String(), time.Time{}, time.Time{}, 0)
+	contracts, err := p.GetV3FuturesHistoricalFundingRates(ctx, pairString, time.Time{}, time.Time{}, 0)
 	if err != nil {
 		return nil, err
-	}
-	if r.IncludePredictedRate {
-		log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", p.Name, len(contracts))
 	}
 	timeChecked := time.Now()
 	resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
@@ -1919,11 +1908,9 @@ func (p *Poloniex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		isPerp, err = p.IsPerpetualFutureCurrency(r.Asset, cp)
 		if err != nil {
 			return nil, err
-		}
-		if !isPerp {
+		} else if !isPerp {
 			continue
 		}
-
 		rate := fundingrate.LatestRateResponse{
 			Exchange: p.Name,
 			Asset:    r.Asset,

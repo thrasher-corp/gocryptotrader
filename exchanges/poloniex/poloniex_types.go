@@ -424,13 +424,13 @@ type WalletWithdrawals struct {
 	WithdrawalRequestsID int64        `json:"withdrawalRequestsId"`
 	Currency             string       `json:"currency"`
 	Address              string       `json:"address"`
-	Amount               types.Number `json:"amount"`
-	Fee                  types.Number `json:"fee"`
-	Timestamp            types.Time   `json:"timestamp"`
 	Status               string       `json:"status"`
 	TransactionID        string       `json:"txid"`
 	IPAddress            string       `json:"ipAddress"`
 	PaymentID            string       `json:"paymentID"`
+	Amount               types.Number `json:"amount"`
+	Fee                  types.Number `json:"fee"`
+	Timestamp            types.Time   `json:"timestamp"`
 }
 
 // Withdraw holds withdraw information
