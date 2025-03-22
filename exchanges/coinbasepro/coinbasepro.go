@@ -335,7 +335,7 @@ func (c *CoinbasePro) GetHolds(ctx context.Context, accountID string) ([]Account
 // timeInforce - [optional] GTC, GTT, IOC, or FOK (default is GTC)
 // cancelAfter - [optional] min, hour, day * Requires time_in_force to be GTT
 // postOnly - [optional] Post only flag Invalid when time_in_force is IOC or FOK
-func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, price, amount float64, side string, timeInforce RequestParamsTimeForceType, cancelAfter, productID, stp string, postOnly bool) (string, error) {
+func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef, side, timeInforce, cancelAfter, productID, stp string, price, amount float64, postOnly bool) (string, error) {
 	resp := GeneralizedOrderResponse{}
 	req := make(map[string]any)
 	req["type"] = order.Limit.Lower()
