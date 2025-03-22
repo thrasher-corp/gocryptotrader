@@ -31738,6 +31738,47 @@
     }
    ]
   },
+  "/feeinfo": {
+   "GET": [
+    {
+     "data": {
+      "makerRate": "0.002",
+      "specialFeeRates": [
+       {
+        "makerRate": "0",
+        "symbol": "WSTUSDT_USDT",
+        "takerRate": "0"
+       }
+      ],
+      "takerRate": "0.002",
+      "trxDiscount": false,
+      "volume30D": "0"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "T83DAYauEchEZAYU98uGLqwTpf1QLigb6xOe6FLhHIc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742638905189"
+      ]
+     }
+    }
+   ]
+  },
   "/markets": {
    "GET": [
     {

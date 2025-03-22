@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	var err error
 	err = p.Websocket.Enable()
 	if err != nil {
 		log.Fatal(err)
@@ -41,6 +42,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	p.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

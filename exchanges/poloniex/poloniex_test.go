@@ -804,7 +804,9 @@ func TestGetBorrowRateInfo(t *testing.T) {
 
 func TestGetAccountInformation(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetAccountInformation(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
