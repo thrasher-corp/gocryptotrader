@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -1326,7 +1327,7 @@ type wsTrade struct {
 	MarkPrice      float64    `json:"mark_price"`
 	InstrumentName string     `json:"instrument_name"`
 	IndexPrice     float64    `json:"index_price"`
-	Direction      string     `json:"direction"`
+	Direction      order.Side `json:"direction"`
 	Amount         float64    `json:"amount"`
 }
 
