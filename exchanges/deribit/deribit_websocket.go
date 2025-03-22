@@ -475,6 +475,12 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
+	tradeFeed := d.IsTradeFeedEnabled()
+	saveTradeData := d.IsSaveTradeDataEnabled()
+	if !tradeFeed && !saveTradeData {
+		return nil
+	}
+
 	if len(channels) < 3 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -496,22 +502,26 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(tradeList[x].Direction)
-		if err != nil {
-			return err
-		}
 		tradeDatas[x] = trade.Data{
 			CurrencyPair: cp,
 			Exchange:     d.Name,
-			Timestamp:    tradeList[x].Timestamp.Time(),
+			Timestamp:    tradeList[x].Timestamp.Time().UTC(),
 			Price:        tradeList[x].Price,
 			Amount:       tradeList[x].Amount,
-			Side:         side,
+			Side:         tradeList[x].Direction,
 			TID:          tradeList[x].TradeID,
 			AssetType:    a,
 		}
 	}
-	return trade.AddTradesToBuffer(tradeDatas...)
+	if tradeFeed {
+		for i := range tradeDatas {
+			d.Websocket.DataHandler <- tradeDatas[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(tradeDatas...)
+	}
+	return nil
 }
 
 func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) error {
