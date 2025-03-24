@@ -36,7 +36,7 @@ import (
 var assetPairStores = map[asset.Item]currency.PairStore{
 	asset.Futures: {
 		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	},
 	asset.Spot: {
@@ -235,6 +235,7 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 			if !strings.EqualFold(instruments[i].Status, "Open") {
 				continue
 			}
+			println("instruments[i].Symbol: ", instruments[i].Symbol)
 			cp, err = currency.NewPairFromString(instruments[i].Symbol)
 			if err != nil {
 				return nil, err
@@ -305,7 +306,7 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for i := range ticks {
-			pair, err := currency.NewPairFromString(ticks[i].Symbol)
+			pair, err := currency.NewPairDelimiter(ticks[i].Symbol, currency.UnderscoreDelimiter)
 			if err != nil {
 				return err
 			}
@@ -895,6 +896,9 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		if assetType != o[i].AssetType {
 			return nil, errOrderAssetTypeMismatch
 		}
+		if !slices.Contains([]order.Type{order.Market, order.Limit, order.AnyType, order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit, order.UnknownType}, o[i].Type) {
+			return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
+		}
 		if commonOrderType != o[i].Type {
 			commonOrderType = order.AnyType
 		}
@@ -912,7 +916,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	if assetType == asset.Spot {
 		switch commonOrderType {
-		case order.Market, order.Limit, order.AnyType:
+		case order.Market, order.Limit, order.AnyType, order.UnknownType:
 			if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
 				if err != nil {
@@ -959,7 +963,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	} else {
 		switch commonOrderType {
-		case order.Limit, order.Market, order.AnyType:
+		case order.Limit, order.Market, order.AnyType, order.UnknownType:
 			cancelledOrders, err := p.CancelMultipleFuturesLimitOrders(ctx, orderIDs, clientOrderIDs)
 			if err != nil {
 				return nil, err

@@ -323,6 +323,25 @@ type AccountTransferRecord struct {
 	Amount      types.Number `json:"amount"`
 }
 
+// AccountTransferRecords holds list of account transfer records
+type AccountTransferRecords []AccountTransferRecord
+
+// UnmarshalJSON deserializes a byte data into a slice of AccountTransferRecord instances
+func (a *AccountTransferRecords) UnmarshalJSON(data []byte) error {
+	var sTarget []AccountTransferRecord
+	err := json.Unmarshal(data, &sTarget)
+	if err != nil {
+		oTarget := &AccountTransferRecord{}
+		err = json.Unmarshal(data, &oTarget)
+		if err != nil {
+			return err
+		}
+		sTarget = append(sTarget, *oTarget)
+	}
+	*a = sTarget
+	return nil
+}
+
 // FeeInfo represents an account transfer information.
 type FeeInfo struct {
 	TransactionDiscount bool         `json:"trxDiscount"`

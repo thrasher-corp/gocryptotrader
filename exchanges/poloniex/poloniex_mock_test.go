@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDT", "_")
-	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDTPERP", "")
+	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDT_PERP", "")
 	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
 	if err != nil {
 		log.Fatal(err)

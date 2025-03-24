@@ -175,10 +175,12 @@ func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []CandlestickData
@@ -265,10 +267,12 @@ func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType str
 func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time,
 	activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
 	params := url.Values{}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if activityType != 0 {
@@ -314,10 +318,12 @@ func (p *Poloniex) AccountsTransfer(ctx context.Context, arg *AccountTransferPar
 // GetAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
 func (p *Poloniex) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]AccountTransferRecord, error) {
 	params := url.Values{}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if !ccy.IsEmpty() {
@@ -338,7 +344,7 @@ func (p *Poloniex) GetAccountTransferRecords(ctx context.Context, startTime, end
 
 // GetAccountTransferRecord gets a transfer records of a user.
 func (p *Poloniex) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
-	var resp []AccountTransferRecord
+	var resp AccountTransferRecords
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer/"+accountID, nil, nil, &resp)
 }
 
@@ -353,10 +359,12 @@ func (p *Poloniex) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 // If no start/end time params are specified then records for last 7 days will be returned.
 func (p *Poloniex) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]InterestHistory, error) {
 	params := url.Values{}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if direction != "" {
@@ -430,10 +438,12 @@ func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currenc
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", startTime.String())
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", endTime.String())
 	}
 	if fromAccountID != "" {
@@ -851,7 +861,7 @@ func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTyp
 
 func orderFillParams(symbol currency.Pair,
 	accountType, orderType, side, direction, states string,
-	from, limit int64, startTime, endTime time.Time, hideCancel bool) url.Values {
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) (url.Values, error) {
 	params := url.Values{}
 	if accountType != "" {
 		params.Set("accountType", accountType)
@@ -880,13 +890,15 @@ func orderFillParams(symbol currency.Pair,
 	if hideCancel {
 		params.Set("hideCancel", "true")
 	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", startTime.String())
+		params.Set("endTime", endTime.String())
 	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	return params
+	return params, nil
 }
 
 // GetOrdersHistory get a list of historical orders in an account.
@@ -898,10 +910,14 @@ func orderFillParams(symbol currency.Pair,
 func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
 	accountType, orderType, side, direction, states string,
 	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
+	params, err := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
+	if err != nil {
+		return nil, err
+	}
 	var resp []TradeOrder
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet,
 		"/orders/history",
-		orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel),
+		params,
 		nil, &resp)
 }
 
@@ -912,10 +928,14 @@ func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
 func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pair,
 	accountType, orderType, side, direction, states string,
 	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
+	params, err := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
+	if err != nil {
+		return nil, err
+	}
 	var resp []SmartOrderItem
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
 		authResourceIntensiveEPL, http.MethodGet, "/smartorders/history",
-		orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel),
+		params,
 		nil, &resp)
 }
 
@@ -928,10 +948,12 @@ func (p *Poloniex) GetTradeHistory(ctx context.Context, symbols currency.Pairs, 
 	if len(symbols) == 0 {
 		params.Set("symbols", symbols.Join())
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if from > 0 {

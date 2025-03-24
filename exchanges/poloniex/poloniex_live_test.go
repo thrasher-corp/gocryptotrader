@@ -38,7 +38,25 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = populateTradablePairs()
+	// err = populateTradablePairs()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDT", "_")
+	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDT_PERP", "")
+	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
 	if err != nil {
 		log.Fatal(err)
 	}
