@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -313,6 +315,10 @@ func main() {
 			},
 		}...)
 
+		sort.Slice(contributors, func(i, j int) bool {
+			return contributors[i].Contributions > contributors[j].Contributions
+		})
+
 		if verbose {
 			fmt.Println("Contributor List Fetched")
 			for i := range contributors {
@@ -391,16 +397,6 @@ func GetConfiguration() (Config, error) {
 	return c, nil
 }
 
-// IsExcluded returns if the file path is included in the exclusion list
-func IsExcluded(path string, exclusion []string) bool {
-	for i := range exclusion {
-		if path == exclusion[i] {
-			return true
-		}
-	}
-	return false
-}
-
 // GetProjectDirectoryTree uses filepath walk functions to get each individual
 // directory name and path to match templates with
 func GetProjectDirectoryTree(c *Config) ([]string, error) {
@@ -423,7 +419,7 @@ func GetProjectDirectoryTree(c *Config) ([]string, error) {
 		}
 		if info.IsDir() {
 			// Bypass what is contained in config.json directory exclusion
-			if IsExcluded(info.Name(), c.Exclusions.Directories) {
+			if slices.Contains(c.Exclusions.Directories, info.Name()) {
 				if verbose {
 					fmt.Println("Excluding Directory:", info.Name())
 				}
@@ -559,7 +555,7 @@ func UpdateDocumentation(details DocumentationDetails) {
 			name = strings.Join(temp, " ")
 		}
 
-		if IsExcluded(name, details.Config.Exclusions.Files) {
+		if slices.Contains(details.Config.Exclusions.Files, name) {
 			if verbose {
 				fmt.Println("Excluding file:", name)
 			}

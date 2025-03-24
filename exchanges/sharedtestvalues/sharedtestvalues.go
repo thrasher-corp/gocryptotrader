@@ -40,8 +40,8 @@ const (
 
 // GetWebsocketInterfaceChannelOverride returns a new interface based channel
 // with the capacity set to WebsocketChannelOverrideCapacity
-func GetWebsocketInterfaceChannelOverride() chan interface{} {
-	return make(chan interface{}, WebsocketChannelOverrideCapacity)
+func GetWebsocketInterfaceChannelOverride() chan any {
+	return make(chan any, WebsocketChannelOverrideCapacity)
 }
 
 // GetWebsocketStructChannelOverride returns a new struct based channel
@@ -53,8 +53,8 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
 	w := stream.NewWebsocket()
-	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
-	w.ToRoutine = make(chan interface{}, 1000)
+	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan any, 1000)
 	return w
 }
 

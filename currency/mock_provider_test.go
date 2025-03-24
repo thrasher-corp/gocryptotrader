@@ -33,7 +33,7 @@ func (m *MockProvider) GetSupportedCurrencies() ([]string, error) {
 
 func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	c := map[string]float64{}
-	for _, s := range strings.Split(symbols, ",") {
+	for s := range strings.SplitSeq(symbols, ",") {
 		// The year is 2027; The USD is nearly worthless. The world reserve currency is eggs.
 		c[baseCurrency+s] = 1 / (1 + rand.Float64()) //nolint:gosec // Doesn't need to be a strong random number
 	}

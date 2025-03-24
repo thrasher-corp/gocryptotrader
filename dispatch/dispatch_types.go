@@ -28,7 +28,7 @@ type Dispatcher struct {
 	// channels, a relayer will be given a unique id through its job channel,
 	// then publish the data across the full registered channels for that uuid.
 	// See relayer() method below.
-	routes map[uuid.UUID][]chan interface{}
+	routes map[uuid.UUID][]chan any
 	// routesMtx protects the routes variable ensuring acceptable read/write access
 	routesMtx sync.Mutex
 
@@ -61,7 +61,7 @@ type Dispatcher struct {
 // job defines a relaying job associated with a ticket which allows routing to
 // routines that require specific data
 type job struct {
-	Data interface{}
+	Data any
 	ID   uuid.UUID
 }
 
@@ -75,7 +75,7 @@ type Mux struct {
 // Pipe defines an outbound object to the desired routine
 type Pipe struct {
 	// Channel to get all our lovely information
-	c chan interface{}
+	c chan any
 	// ID to tracked system
 	id uuid.UUID
 	// Reference to multiplexer

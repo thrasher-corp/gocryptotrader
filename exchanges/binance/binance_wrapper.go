@@ -66,7 +66,6 @@ func (b *Binance) SetDefaults() {
 	b.Verbose = true
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
-	b.SetValues()
 
 	for a, ps := range defaultAssetPairStores {
 		if err := b.SetAssetPairStore(a, ps); err != nil {
