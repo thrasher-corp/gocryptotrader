@@ -18,9 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	underlying "github.com/gorilla/websocket"
-
 	gws "github.com/gorilla/websocket"
+	underlying "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
