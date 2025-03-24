@@ -19,7 +19,6 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	underlying "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -122,7 +121,7 @@ type connection struct {
 	URL                      string
 	ProxyURL                 string
 	Wg                       *sync.WaitGroup
-	Connection               *underlying.Conn
+	Connection               *gws.Conn
 	shutdown                 chan struct{}
 	Match                    *Match
 	ResponseMaxLimit         time.Duration
