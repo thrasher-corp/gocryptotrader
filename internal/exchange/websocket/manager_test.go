@@ -1081,7 +1081,7 @@ func TestSetupNewConnection(t *testing.T) {
 	require.Nil(t, multi.Conn)
 
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errconnectionWrapperDuplication)
+	require.ErrorIs(t, err, errDuplicateConnectionSetup)
 }
 
 func TestConnectionShutdown(t *testing.T) {

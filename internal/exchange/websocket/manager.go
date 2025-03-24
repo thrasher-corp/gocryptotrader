@@ -55,7 +55,7 @@ var (
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 	errConnSetup                            = errors.New("error in connection setup")
 	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
-	errconnectionWrapperDuplication         = errors.New("connection wrapper duplication")
+	errDuplicateConnectionSetup             = errors.New("duplicate connection setup")
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
@@ -367,7 +367,7 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
 			// a spot connection.
 			if m.connectionManager[x].Setup.URL == c.URL && c.MessageFilter == m.connectionManager[x].Setup.MessageFilter {
-				return fmt.Errorf("%w: %w", errConnSetup, errconnectionWrapperDuplication)
+				return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
 			}
 		}
 		m.connectionManager = append(m.connectionManager, &connectionWrapper{
