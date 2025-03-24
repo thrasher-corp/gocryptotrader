@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -2329,14 +2330,14 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
-	var limits []order.MinMaxLevel
+	var l []limits
 	switch a {
 	case asset.Spot, asset.Margin:
 		symbols, err := ku.GetSymbols(ctx, "")
 		if err != nil {
 			return err
 		}
-		limits = make([]order.MinMaxLevel, 0, len(symbols))
+		l = make([]limits.MinMaxLevel, 0, len(symbols))
 		for x := range symbols {
 			if a == asset.Margin && !symbols[x].IsMarginEnabled {
 				continue
@@ -2348,7 +2349,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			if !enabled {
 				continue
 			}
-			limits = append(limits, order.MinMaxLevel{
+			l = append(l, limits.MinMaxLevel{
 				Pair:                    pair,
 				Asset:                   a,
 				AmountStepIncrementSize: symbols[x].BaseIncrement,
@@ -2365,7 +2366,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		if err != nil {
 			return err
 		}
-		limits = make([]order.MinMaxLevel, 0, len(contract))
+		l = make([]limits.MinMaxLevel, 0, len(contract))
 		for x := range contract {
 			pair, enabled, err := ku.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
@@ -2374,9 +2375,8 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			if !enabled {
 				continue
 			}
-			limits = append(limits, order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangePairAssetKey(ku.Name, a, pair),
 				AmountStepIncrementSize: contract[x].LotSize,
 				QuoteStepIncrementSize:  contract[x].TickSize,
 				MaximumBaseAmount:       contract[x].MaxOrderQty,
@@ -2385,7 +2385,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		}
 	}
 
-	return ku.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
@@ -2422,12 +2422,7 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: ku.Name,
-				Base:     symbol.Base.Item,
-				Quote:    symbol.Quote.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangePairAssetKey(ku.Name, asset.Futures, symbol),
 			OpenInterest: contracts[i].OpenInterest.Float64(),
 		})
 	}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -28,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1015,7 +1017,7 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		return err
 	}
 
-	limits := make([]order.MinMaxLevel, len(markets))
+	l := make([]limits.MinMaxLevel, len(markets))
 	for x := range markets {
 		var pair currency.Pair
 		pair, err = currency.NewPairFromStrings(markets[x].BaseAsset, markets[x].QuoteAsset)
@@ -1023,16 +1025,20 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 			return err
 		}
 
-		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   asset.Spot,
+		l[x] = limits.MinMaxLevel{
+			Key: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     pair.Base.Item,
+				Quote:    pair.Quote.Item,
+				Asset:    asset.Spot,
+			},
 			MinimumBaseAmount:       markets[x].MinOrderAmount,
 			MaximumBaseAmount:       markets[x].MaxOrderAmount,
 			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),
 			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}
 	}
-	return b.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {

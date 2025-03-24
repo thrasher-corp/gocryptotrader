@@ -164,13 +164,13 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			continue
 		}
 		for _, pair := range pairs {
-			limits, err := b.GetOrderExecutionLimits(assetItem, pair)
+			l, err := b.GetOrderExecutionLimits(assetItem, pair)
 			if err != nil {
 				t.Errorf("GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, pair, err)
 				continue
 			}
-			if limits.MinimumBaseAmount == 0 {
-				t.Errorf("UpdateOrderExecutionLimits empty minimum base amount; Pair: %s Expected Limit: %v", pair, limits.MinimumBaseAmount)
+			if l.MinimumBaseAmount == 0 {
+				t.Errorf("UpdateOrderExecutionLimits empty minimum base amount; Pair: %s Expected Limit: %v", pair, l.MinimumBaseAmount)
 			}
 		}
 	}

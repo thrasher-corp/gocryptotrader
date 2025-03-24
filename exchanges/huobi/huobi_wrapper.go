@@ -2250,12 +2250,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 				}
 				return []futures.OpenInterest{
 					{
-						Key: key.ExchangePairAsset{
-							Exchange: h.Name,
-							Base:     p.Base.Item,
-							Quote:    p.Quote.Item,
-							Asset:    k[0].Asset,
-						},
+						Key:          key.NewExchangePairAssetKey(h.Name, k[0].Asset, p),
 						OpenInterest: data.Data[i].Amount,
 					},
 				}, nil
@@ -2276,12 +2271,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 				}
 				return []futures.OpenInterest{
 					{
-						Key: key.ExchangePairAsset{
-							Exchange: h.Name,
-							Base:     p.Base.Item,
-							Quote:    p.Quote.Item,
-							Asset:    k[0].Asset,
-						},
+						Key:          key.NewExchangePairAssetKey(h.Name, k[0].Asset, p),
 						OpenInterest: data.Data[i].Amount,
 					},
 				}, nil
@@ -2323,12 +2313,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: h.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    a,
-					},
+					Key:          key.NewExchangePairAssetKey(h.Name, a, p),
 					OpenInterest: allData[i].Amount,
 				})
 			}
@@ -2356,12 +2341,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: h.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    a,
-					},
+					Key:          key.NewExchangePairAssetKey(h.Name, a, p),
 					OpenInterest: data.Data[i].Amount,
 				})
 			}

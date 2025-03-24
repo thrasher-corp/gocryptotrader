@@ -1,4 +1,4 @@
-package order
+package limits
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	order2 "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -17,7 +18,7 @@ var (
 
 func TestLoadLimits(t *testing.T) {
 	t.Parallel()
-	e := ExecutionLimits{}
+	e := executionLimits{}
 	err := e.LoadLimits(nil)
 	if !errors.Is(err, errCannotLoadLimit) {
 		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
@@ -143,7 +144,7 @@ func TestLoadLimits(t *testing.T) {
 
 func TestGetOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	e := ExecutionLimits{}
+	e := executionLimits{}
 	_, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
 	if !errors.Is(err, ErrExchangeLimitNotLoaded) {
 		t.Fatalf("expected error %v but received %v", ErrExchangeLimitNotLoaded, err)
@@ -195,8 +196,8 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 
 func TestCheckLimit(t *testing.T) {
 	t.Parallel()
-	e := ExecutionLimits{}
-	err := e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, Limit)
+	e := executionLimits{}
+	err := e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, order2.Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
@@ -217,47 +218,47 @@ func TestCheckLimit(t *testing.T) {
 		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Futures, ltcusd, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Futures, ltcusd, 1337, 1337, order2.Limit)
 	if !errors.Is(err, ErrCannotValidateAsset) {
 		t.Fatalf("expected error %v but received %v", ErrCannotValidateAsset, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, ltcusd, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, ltcusd, 1337, 1337, order2.Limit)
 	if !errors.Is(err, ErrCannotValidateBaseCurrency) {
 		t.Fatalf("expected error %v but received %v", ErrCannotValidateBaseCurrency, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcltc, 1337, 1337, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcltc, 1337, 1337, order2.Limit)
 	if !errors.Is(err, ErrCannotValidateQuoteCurrency) {
 		t.Fatalf("expected error %v but received %v", ErrCannotValidateQuoteCurrency, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 9, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 9, order2.Limit)
 	if !errors.Is(err, ErrPriceBelowMin) {
 		t.Fatalf("expected error %v but received %v", ErrPriceBelowMin, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 9, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1000001, 9, order2.Limit)
 	if !errors.Is(err, ErrPriceExceedsMax) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsMax, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, .5, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, .5, order2.Limit)
 	if !errors.Is(err, ErrAmountBelowMin) {
 		t.Fatalf("expected error %v but received %v", ErrAmountBelowMin, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 11, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 11, order2.Limit)
 	if !errors.Is(err, ErrAmountExceedsMax) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsMax, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Limit)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, order2.Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
-	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, Market)
+	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 999999, 7, order2.Market)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
@@ -266,7 +267,7 @@ func TestCheckLimit(t *testing.T) {
 func TestConforms(t *testing.T) {
 	t.Parallel()
 	var tt MinMaxLevel
-	err := tt.Conforms(0, 0, Limit)
+	err := tt.Conforms(0, 0, order2.Limit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,32 +276,32 @@ func TestConforms(t *testing.T) {
 		MinNotional: 100,
 	}
 
-	err = tt.Conforms(1, 1, Limit)
+	err = tt.Conforms(1, 1, order2.Limit)
 	if !errors.Is(err, ErrNotionalValue) {
 		t.Fatalf("expected error %v but received %v", ErrNotionalValue, err)
 	}
 
-	err = tt.Conforms(200, .5, Limit)
+	err = tt.Conforms(200, .5, order2.Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
 	tt.PriceStepIncrementSize = 0.001
-	err = tt.Conforms(200.0001, .5, Limit)
+	err = tt.Conforms(200.0001, .5, order2.Limit)
 	if !errors.Is(err, ErrPriceExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrPriceExceedsStep, err)
 	}
-	err = tt.Conforms(200.004, .5, Limit)
+	err = tt.Conforms(200.004, .5, order2.Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
 
 	tt.AmountStepIncrementSize = 0.001
-	err = tt.Conforms(200, .0002, Limit)
+	err = tt.Conforms(200, .0002, order2.Limit)
 	if !errors.Is(err, ErrAmountExceedsStep) {
 		t.Fatalf("expected error %v but received %v", ErrAmountExceedsStep, err)
 	}
-	err = tt.Conforms(200000, .003, Limit)
+	err = tt.Conforms(200000, .003, order2.Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)
 	}
@@ -310,23 +311,23 @@ func TestConforms(t *testing.T) {
 	tt.MarketMinQty = 1.1
 	tt.MarketMaxQty = 9.9
 
-	err = tt.Conforms(200000, 1, Market)
+	err = tt.Conforms(200000, 1, order2.Market)
 	if !errors.Is(err, ErrMarketAmountBelowMin) {
 		t.Fatalf("expected error %v but received: %v", ErrMarketAmountBelowMin, err)
 	}
 
-	err = tt.Conforms(200000, 10, Market)
+	err = tt.Conforms(200000, 10, order2.Market)
 	if !errors.Is(err, ErrMarketAmountExceedsMax) {
 		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsMax, err)
 	}
 
 	tt.MarketStepIncrementSize = 10
-	err = tt.Conforms(200000, 9.1, Market)
+	err = tt.Conforms(200000, 9.1, order2.Market)
 	if !errors.Is(err, ErrMarketAmountExceedsStep) {
 		t.Fatalf("expected error %v but received: %v", ErrMarketAmountExceedsStep, err)
 	}
 	tt.MarketStepIncrementSize = 1
-	err = tt.Conforms(200000, 9.1, Market)
+	err = tt.Conforms(200000, 9.1, order2.Market)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received: %v", nil, err)
 	}

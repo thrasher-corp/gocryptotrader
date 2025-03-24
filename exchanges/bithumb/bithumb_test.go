@@ -598,7 +598,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
 	err = limit.Conforms(46241000, 0.00001, order.Limit)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin, "expected error: %v, but got: %v", order.ErrAmountBelowMin, err)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin, "expected error: %v, but got: %v", limits.ErrAmountBelowMin, err)
 
 	err = limit.Conforms(46241000, 0.0001, order.Limit)
 	assert.NoError(t, err, "expected no error, but got: %v", err)

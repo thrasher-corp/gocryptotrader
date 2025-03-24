@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -3168,7 +3169,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if mm == (order.MinMaxLevel{}) {
+		if mm == (limits.MinMaxLevel{}) {
 			t.Fatal("expected a value")
 		}
 

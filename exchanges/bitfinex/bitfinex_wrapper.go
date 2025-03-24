@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -277,11 +278,11 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if a != asset.Spot {
 		return common.ErrNotYetImplemented
 	}
-	limits, err := b.GetSiteInfoConfigData(ctx, a)
+	l, err := b.GetSiteInfoConfigData(ctx, a)
 	if err != nil {
 		return err
 	}
-	if err := b.LoadLimits(limits); err != nil {
+	if err := limits.LoadLimits(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
 	}
 	return nil

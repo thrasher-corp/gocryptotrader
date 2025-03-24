@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -393,7 +394,7 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *AlgoOrder
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, "trade/order-algo", arg, &resp, request.AuthenticatedRequest)
@@ -406,7 +407,7 @@ func (ok *Okx) PlaceStopOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 		return nil, common.ErrEmptyParams
 	}
 	if arg.TakeProfitTriggerPrice <= 0 {
-		return nil, fmt.Errorf("%w, take profit trigger price is required", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w, take profit trigger price is required", limits.ErrPriceBelowMin)
 	}
 	if arg.TakeProfitTriggerPriceType == "" {
 		return nil, order.ErrUnknownPriceType
@@ -476,7 +477,7 @@ func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderP
 		return nil, fmt.Errorf("%w for TPSL: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.StopLossTriggerPrice <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	switch arg.StopLossTriggerPriceType {
 	case "", "last", "index", "mark":
@@ -510,7 +511,7 @@ func (ok *Okx) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) 
 		return nil, fmt.Errorf("%w for Trigger: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.TriggerPrice <= 0 {
-		return nil, fmt.Errorf("%w, trigger price must be greater than 0", order.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w, trigger price must be greater than 0", limits.ErrPriceBelowMin)
 	}
 	switch arg.TriggerPriceType {
 	case "", "last", "index", "mark":
@@ -808,7 +809,7 @@ func (ok *Okx) PreCheckOrder(ctx context.Context, arg *OrderPreCheckParams) (*Or
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *OrderPreCheckResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, orderPreCheckEPL, http.MethodPost, "trade/order-precheck", arg, &resp, request.AuthenticatedRequest)
@@ -1139,7 +1140,7 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 		return nil, common.ErrEmptyParams
 	}
 	if arg.Amount <= 0 {
-		return nil, fmt.Errorf("%w, funding amount must be greater than 0", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, funding amount must be greater than 0", limits.ErrAmountBelowMin)
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1208,7 +1209,7 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, ccy currency.Code, amou
 	params := url.Values{}
 	params.Set("ccy", ccy.String())
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params.Set("amt", strconv.FormatFloat(amount, 'f', 0, 64))
 	if to == 6 || to == 18 {
@@ -1271,7 +1272,7 @@ func (ok *Okx) Withdrawal(ctx context.Context, arg *WithdrawalInput) (*Withdrawa
 	case arg.Currency.IsEmpty():
 		return nil, currency.ErrCurrencyCodeEmpty
 	case arg.Amount <= 0:
-		return nil, fmt.Errorf("%w, withdrawal amount required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, withdrawal amount required", limits.ErrAmountBelowMin)
 	case arg.WithdrawalDestination == "":
 		return nil, fmt.Errorf("%w, withdrawal destination required", errAddressRequired)
 	case arg.ToAddress == "":
@@ -1401,7 +1402,7 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	case arg.Currency.IsEmpty():
 		return nil, currency.ErrCurrencyCodeEmpty
 	case arg.Amount <= 0:
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
 		return nil, fmt.Errorf("%w, side has to be either 'redempt' or 'purchase'", order.ErrSideIsInvalid)
 	case arg.ActionType == "purchase" && (arg.Rate < 0.01 || arg.Rate > 3.65):
@@ -1537,7 +1538,7 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.RFQAmount <= 0 {
-		return nil, fmt.Errorf("%w, RFQ amount required", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, RFQ amount required", limits.ErrAmountBelowMin)
 	}
 	if arg.RFQSzCurrency == "" {
 		return nil, fmt.Errorf("%w, missing RFQ currency", currency.ErrCurrencyCodeEmpty)
@@ -1564,7 +1565,7 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Size <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.SizeCurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1902,7 +1903,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecrease
 		return nil, fmt.Errorf("%w, missing valid 'type', 'add': add margin 'reduce': reduce margin are allowed", order.ErrTypeIsInvalid)
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *IncreaseDecreaseMargin
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, "account/position/margin-balance", &arg, &resp, request.AuthenticatedRequest)
@@ -2116,7 +2117,7 @@ func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *B
 		return nil, common.ErrEmptyParams
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.LoanCcy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -2191,7 +2192,7 @@ func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg *LoanBorrowAndRep
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *LoanBorrowAndReplay
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, "account/borrow-repay", &arg, &resp, request.AuthenticatedRequest)
@@ -2338,7 +2339,7 @@ func (ok *Okx) GetFixedLoanBorrowQuote(ctx context.Context, borrowingCurrency cu
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
 		if amount <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 		if maxRate <= 0 {
 			return nil, errMaxRateRequired
@@ -2378,7 +2379,7 @@ func (ok *Okx) PlaceFixedLoanBorrowingOrder(ctx context.Context, ccy currency.Co
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if maxRate <= 0 {
 		return nil, errMaxRateRequired
@@ -2516,7 +2517,7 @@ func (ok *Okx) ManualBorrowOrRepay(ctx context.Context, ccy currency.Code, side 
 		return nil, errLendingSideRequired
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	arg := &struct {
 		Currency string  `json:"ccy"`
@@ -2580,7 +2581,7 @@ func (ok *Okx) SetRiskOffsetAmount(ctx context.Context, ccy currency.Code, clien
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if clientSpotInUseAmount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	arg := &struct {
 		Currency              string  `json:"ccy"`
@@ -2860,7 +2861,7 @@ func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Conte
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.From == 0 {
 		return nil, errInvalidSubaccount
@@ -2953,10 +2954,10 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 		return nil, errMissingAlgoOrderType
 	}
 	if arg.MaxPrice <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if arg.MinPrice <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if arg.GridQuantity < 0 {
 		return nil, errInvalidGridQuantity
@@ -3054,7 +3055,7 @@ func (ok *Okx) ClosePositionForContractID(ctx context.Context, arg *ClosePositio
 		return nil, fmt.Errorf("%w 'size' is required", order.ErrAmountMustBeSet)
 	}
 	if !arg.MarketCloseAllPositions && arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	var resp *ClosePositionContractGridResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionForForContractGridEPL, http.MethodPost, "tradingBot/grid/close-position", arg, &resp, request.AuthenticatedRequest)
@@ -3278,10 +3279,10 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 		return nil, errInvalidAlgoOrderType
 	}
 	if arg.MaxPrice <= 0 {
-		return nil, fmt.Errorf("%w, maxPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
+		return nil, fmt.Errorf("%w, maxPrice = %f", limits.ErrPriceBelowMin, arg.MaxPrice)
 	}
 	if arg.MinPrice <= 0 {
-		return nil, fmt.Errorf("%w, minPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
+		return nil, fmt.Errorf("%w, minPrice = %f", limits.ErrPriceBelowMin, arg.MaxPrice)
 	}
 	if arg.GridNumber == 0 {
 		return nil, fmt.Errorf("%w, grid number is required", errInvalidGridQuantity)
@@ -3301,7 +3302,7 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 	}
 	for x := range arg.InvestmentData {
 		if arg.InvestmentData[x].Amount <= 0 {
-			return nil, fmt.Errorf("%w, investment amt = %f", order.ErrAmountBelowMin, arg.InvestmentData[x].Amount)
+			return nil, fmt.Errorf("%w, investment amt = %f", limits.ErrAmountBelowMin, arg.InvestmentData[x].Amount)
 		}
 		if arg.InvestmentData[x].Currency.IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
@@ -3745,7 +3746,7 @@ func validateFirstCopySettings(arg *FirstCopySettings) error {
 		return errCopyInstrumentIDTypeRequired
 	}
 	if arg.CopyTotalAmount <= 0 {
-		return fmt.Errorf("%w, copyTotalAmount value %f", order.ErrAmountBelowMin, arg.CopyTotalAmount)
+		return fmt.Errorf("%w, copyTotalAmount value %f", limits.ErrAmountBelowMin, arg.CopyTotalAmount)
 	}
 	if arg.SubPosCloseType == "" {
 		return errSubPositionCloseTypeRequired
@@ -4043,7 +4044,7 @@ func (ok *Okx) Purchase(ctx context.Context, arg *PurchaseRequestParam) (*OrderI
 			return nil, fmt.Errorf("%w, currency information for investment is required", currency.ErrCurrencyCodeEmpty)
 		}
 		if arg.InvestData[x].Amount <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 	}
 	var resp *OrderIDResponse
@@ -4144,7 +4145,7 @@ func (ok *Okx) GetProductInfo(ctx context.Context) (*ProductInfo, error) {
 // Only the assets in the funding account can be used
 func (ok *Okx) PurchaseETHStaking(ctx context.Context, amount float64) error {
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	var resp []string
 	return ok.SendHTTPRequest(ctx, exchange.RestSpot, purchaseETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/purchase", map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
@@ -4153,7 +4154,7 @@ func (ok *Okx) PurchaseETHStaking(ctx context.Context, amount float64) error {
 // RedeemETHStaking only the assets in the funding account can be used. If your BETH is in your trading account, you can make funding transfer first
 func (ok *Okx) RedeemETHStaking(ctx context.Context, amount float64) error {
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	var resp []string
 	return ok.SendHTTPRequest(ctx, exchange.RestSpot, redeemETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/redeem",
@@ -4630,10 +4631,10 @@ func (ok *Okx) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
 		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
 	}
 	if arg.Size <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return order.ErrPriceBelowMin
+		return limits.ErrPriceBelowMin
 	}
 	arg.Side = strings.ToLower(arg.Side)
 	switch arg.Side {
@@ -5482,7 +5483,7 @@ func (ok *Okx) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam) (*
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Rate <= 0 {
 		return nil, errRateRequired
@@ -5786,7 +5787,7 @@ func (ok *Okx) CreateWithdrawalOrder(ctx context.Context, ccy currency.Code, pay
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if paymentMethod == "" {
 		return nil, errPaymentMethodRequired

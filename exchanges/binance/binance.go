@@ -15,12 +15,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 )
 
 // Binance is the overarching type across the Binance package
@@ -1210,7 +1211,7 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 }
 
 // FetchExchangeLimits fetches order execution limits filtered by asset
-func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]order.MinMaxLevel, error) {
+func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]limits.MinMaxLevel, error) {
 	if a != asset.Spot && a != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -1222,7 +1223,7 @@ func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]orde
 
 	aUpper := strings.ToUpper(a.String())
 
-	limits := make([]order.MinMaxLevel, 0, len(resp.Symbols))
+	l := make([]limits.MinMaxLevel, 0, len(resp.Symbols))
 	for _, s := range resp.Symbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
@@ -1234,44 +1235,43 @@ func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]orde
 			if !slices.Contains(s.PermissionSets[i], aUpper) {
 				continue
 			}
-			l := order.MinMaxLevel{
-				Pair:  cp,
-				Asset: a,
+			mml := limits.MinMaxLevel{
+				Key: key.NewExchangePairAssetKey(b.Name, a, cp),
 			}
 			for _, f := range s.Filters {
 				// TODO: Unhandled filters:
 				// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
 				switch f.FilterType {
 				case priceFilter:
-					l.MinPrice = f.MinPrice
-					l.MaxPrice = f.MaxPrice
-					l.PriceStepIncrementSize = f.TickSize
+					mml.MinPrice = f.MinPrice
+					mml.MaxPrice = f.MaxPrice
+					mml.PriceStepIncrementSize = f.TickSize
 				case percentPriceFilter:
-					l.MultiplierUp = f.MultiplierUp
-					l.MultiplierDown = f.MultiplierDown
-					l.AveragePriceMinutes = f.AvgPriceMinutes
+					mml.MultiplierUp = f.MultiplierUp
+					mml.MultiplierDown = f.MultiplierDown
+					mml.AveragePriceMinutes = f.AvgPriceMinutes
 				case lotSizeFilter:
-					l.MaximumBaseAmount = f.MaxQty
-					l.MinimumBaseAmount = f.MinQty
-					l.AmountStepIncrementSize = f.StepSize
+					mml.MaximumBaseAmount = f.MaxQty
+					mml.MinimumBaseAmount = f.MinQty
+					mml.AmountStepIncrementSize = f.StepSize
 				case notionalFilter:
-					l.MinNotional = f.MinNotional
+					mml.MinNotional = f.MinNotional
 				case icebergPartsFilter:
-					l.MaxIcebergParts = f.Limit
+					mml.MaxIcebergParts = f.Limit
 				case marketLotSizeFilter:
-					l.MarketMinQty = f.MinQty
-					l.MarketMaxQty = f.MaxQty
-					l.MarketStepIncrementSize = f.StepSize
+					mml.MarketMinQty = f.MinQty
+					mml.MarketMaxQty = f.MaxQty
+					mml.MarketStepIncrementSize = f.StepSize
 				case maxNumOrdersFilter:
-					l.MaxTotalOrders = f.MaxNumOrders
-					l.MaxAlgoOrders = f.MaxNumAlgoOrders
+					mml.MaxTotalOrders = f.MaxNumOrders
+					mml.MaxAlgoOrders = f.MaxNumAlgoOrders
 				}
 			}
-			limits = append(limits, l)
+			l = append(l, mml)
 			break
 		}
 	}
-	return limits, nil
+	return l, nil
 }
 
 // CryptoLoanIncomeHistory returns crypto loan income history

@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -259,18 +260,17 @@ func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(pairInfo))
+	l := make([]limits.MinMaxLevel, 0, len(pairInfo))
 
 	for pair, info := range pairInfo {
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                  a,
-			Pair:                   pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:                    key.NewExchangePairAssetKey(k.Name, a, pair),
 			PriceStepIncrementSize: info.TickSize,
 			MinimumBaseAmount:      info.OrderMinimum,
 		})
 	}
 
-	if err := k.LoadLimits(limits); err != nil {
+	if err := limits.LoadLimits(l); err != nil {
 		return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
 	}
 
@@ -1748,12 +1748,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: k.Name,
-				Base:     p.Base.Item,
-				Quote:    p.Quote.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangePairAssetKey(k.Name, asset.Futures, p),
 			OpenInterest: futuresTickersData.Tickers[i].OpenInterest,
 		})
 	}

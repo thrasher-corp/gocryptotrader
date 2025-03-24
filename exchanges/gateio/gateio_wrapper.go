@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -2145,7 +2146,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	switch a {
 	case asset.Spot:
 		var pairsData []CurrencyPairDetail
@@ -2154,7 +2155,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			return err
 		}
 
-		limits = make([]order.MinMaxLevel, 0, len(pairsData))
+		l = make([]limits.MinMaxLevel, 0, len(pairsData))
 		for x := range pairsData {
 			if pairsData[x].TradeStatus == "untradable" {
 				continue
@@ -2172,21 +2173,108 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				minBaseAmount = math.Pow10(-int(pairsData[x].AmountPrecision))
 			}
 
-			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    pair,
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangePairAssetKey(g.Name, a, pair),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[x].Precision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[x].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[x].MinQuoteAmount.Float64(),
 			})
 		}
-	default:
-		// TODO: Add in other assets
-		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+	case asset.Futures:
+		btcContracts, err := g.GetAllFutureContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := g.GetAllFutureContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			if btcContracts[x].InDelisting {
+				continue
+			}
+			p := strings.ToUpper(btcContracts[x].Name)
+			if !g.IsValidPairString(p) {
+				continue
+			}
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				MarketStepIncrementSize: 1,
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.DeliveryFutures:
+		btcContracts, err := g.GetAllDeliveryContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := g.GetAllDeliveryContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			if btcContracts[x].InDelisting {
+				continue
+			}
+			p := strings.ToUpper(btcContracts[x].Name)
+			if !g.IsValidPairString(p) {
+				continue
+			}
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				MarketStepIncrementSize: 1,
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.Options:
+		underlyings, err := g.GetAllOptionsUnderlyings(ctx)
+		if err != nil {
+			return err
+		}
+		for x := range underlyings {
+			contracts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
+			if err != nil {
+				return err
+			}
+			l = make([]limits.MinMaxLevel, 0, len(contracts))
+			for c := range contracts {
+				if !g.IsValidPairString(contracts[c].Name) {
+					continue
+				}
+				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
+				if err != nil {
+					return err
+				}
+				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+				l = append(l, limits.MinMaxLevel{
+					Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
+					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
+					MarketStepIncrementSize: 1,
+					AmountStepIncrementSize: 1,
+				})
+			}
+		}
 	}
 
-	return g.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract
@@ -2388,12 +2476,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			openInterest := contractResp.QuantoMultiplier.Float64() * float64(contractResp.PositionSize) * contractResp.IndexPrice.Float64()
 			return []futures.OpenInterest{
 				{
-					Key: key.ExchangePairAsset{
-						Exchange: g.Name,
-						Base:     k[0].Base,
-						Quote:    k[0].Quote,
-						Asset:    k[0].Asset,
-					},
+					Key:          key.NewExchangePairAssetKey(g.Name, k[0].Asset, k[0].Pair()),
 					OpenInterest: openInterest,
 				},
 			}, nil
@@ -2406,12 +2489,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 				openInterest := contractResp.QuantoMultiplier.Float64() * float64(contractResp.PositionSize) * contractResp.IndexPrice.Float64()
 				return []futures.OpenInterest{
 					{
-						Key: key.ExchangePairAsset{
-							Exchange: g.Name,
-							Base:     k[0].Base,
-							Quote:    k[0].Quote,
-							Asset:    k[0].Asset,
-						},
+						Key:          key.NewExchangePairAssetKey(g.Name, k[0].Asset, k[0].Pair()),
 						OpenInterest: openInterest,
 					},
 				}, nil
@@ -2447,12 +2525,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 				}
 				openInterest := contractResp[i].QuantoMultiplier.Float64() * float64(contractResp[i].PositionSize) * contractResp[i].IndexPrice.Float64()
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: g.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    a,
-					},
+					Key:          key.NewExchangePairAssetKey(g.Name, a, p),
 					OpenInterest: openInterest,
 				})
 			}
@@ -2483,12 +2556,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 					}
 					openInterest := contractResp[i].QuantoMultiplier.Float64() * float64(contractResp[i].PositionSize) * contractResp[i].IndexPrice.Float64()
 					resp = append(resp, futures.OpenInterest{
-						Key: key.ExchangePairAsset{
-							Exchange: g.Name,
-							Base:     p.Base.Item,
-							Quote:    p.Quote.Item,
-							Asset:    a,
-						},
+						Key:          key.NewExchangePairAssetKey(g.Name, a, p),
 						OpenInterest: openInterest,
 					})
 				}

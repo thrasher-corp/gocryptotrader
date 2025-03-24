@@ -15,6 +15,16 @@ type ExchangePairAsset struct {
 	Asset    asset.Item
 }
 
+// NewExchangePairAssetKey helps reduce the usage of currency.Item across codebase
+func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
+	return ExchangePairAsset{
+		Exchange: strings.ToLower(exch),
+		Base:     cp.Base.Item,
+		Quote:    cp.Quote.Item,
+		Asset:    a,
+	}
+}
+
 // ExchangeAsset is a unique map key signature for exchange and asset
 type ExchangeAsset struct {
 	Exchange string

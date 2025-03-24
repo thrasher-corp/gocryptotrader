@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 )
 
 const (
@@ -1118,13 +1119,13 @@ func (b *Binance) GetPerpMarkets(ctx context.Context) (PerpsExchangeInfo, error)
 }
 
 // FetchUSDTMarginExchangeLimits fetches USDT margined order execution limits
-func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	usdtFutures, err := b.UExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(usdtFutures.Symbols))
+	l := make([]limits.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
 		var cp currency.Pair
 		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
@@ -1137,9 +1138,13 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 			continue
 		}
 
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   asset.USDTMarginedFutures,
+		l = append(l, limits.MinMaxLevel{
+			Key: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     cp.Base.Item,
+				Quote:    cp.Quote.Item,
+				Asset:    asset.USDTMarginedFutures,
+			},
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,
@@ -1157,7 +1162,7 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 			MultiplierDecimal:       usdtFutures.Symbols[x].Filters[6].MultiplierDecimal,
 		})
 	}
-	return limits, nil
+	return l, nil
 }
 
 // SetAssetsMode sets the current asset margin type, true for multi, false for single

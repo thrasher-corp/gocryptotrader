@@ -3810,7 +3810,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	instrumentInfo, err := d.GetInstruments(context.Background(), currency.BTC, d.GetAssetKind(asset.Spot), false)
 	require.NoError(t, err)
 	require.NotEmpty(t, instrumentInfo, "instrument information must not be empty")
-	limits, err := d.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
+	l, err := d.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
 	var instrumentDetail *InstrumentData
 	for a := range instrumentInfo {
@@ -3820,8 +3820,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 	}
 	require.NotNil(t, instrumentDetail, "instrument required to be found")
-	require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %f Got: %f", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
-	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %f Got: %f", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
+	require.Equalf(t, instrumentDetail.TickSize, l.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %f Got: %f", asset.Spot, spotTradablePair, instrumentDetail.TickSize, l.MinimumBaseAmount)
+	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, l.MinimumBaseAmount, "Pair: %s Expected: %f Got: %f", spotTradablePair, instrumentDetail.MinimumTradeAmount, l.MinimumBaseAmount)
 }
 
 func TestGetLockedStatus(t *testing.T) {

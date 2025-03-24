@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1215,13 +1216,13 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	if !d.SupportsAsset(a) {
 		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, a)
 	}
-	for _, x := range baseCurrencies {
+	for _, bc := range baseCurrencies {
 		var instrumentsData []InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
-			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(x), d.GetAssetKind(a), false)
+			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(bc), d.GetAssetKind(a), false)
 		} else {
-			instrumentsData, err = d.GetInstruments(ctx, currency.NewCode(x), d.GetAssetKind(a), false)
+			instrumentsData, err = d.GetInstruments(ctx, currency.NewCode(bc), d.GetAssetKind(a), false)
 		}
 		if err != nil {
 			return err
@@ -1229,21 +1230,25 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			continue
 		}
 
-		limits := make([]order.MinMaxLevel, len(instrumentsData))
-		for x := range instrumentsData {
+		l := make([]limits.MinMaxLevel, len(instrumentsData))
+		for j := range instrumentsData {
 			var pair currency.Pair
-			pair, err = currency.NewPairFromString(instrumentsData[x].InstrumentName)
+			pair, err = currency.NewPairFromString(instrumentsData[j].InstrumentName)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
-				PriceStepIncrementSize: instrumentsData[x].TickSize,
-				MinimumBaseAmount:      instrumentsData[x].MinimumTradeAmount,
+			l[j] = limits.MinMaxLevel{
+				Key: key.ExchangePairAsset{
+					Exchange: d.Name,
+					Base:     pair.Base.Item,
+					Quote:    pair.Quote.Item,
+					Asset:    a,
+				},
+				PriceStepIncrementSize: instrumentsData[j].TickSize,
+				MinimumBaseAmount:      instrumentsData[j].MinimumTradeAmount,
 			}
 		}
-		err = d.LoadLimits(limits)
+		err = limits.LoadLimits(l)
 		if err != nil {
 			return err
 		}

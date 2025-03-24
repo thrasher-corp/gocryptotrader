@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1840,24 +1841,24 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	var err error
 	switch a {
 	case asset.Spot:
-		limits, err = b.FetchExchangeLimits(ctx, asset.Spot)
+		l, err = b.FetchExchangeLimits(ctx, asset.Spot)
 	case asset.USDTMarginedFutures:
-		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
+		l, err = b.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
-		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
+		l, err = b.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
-		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
+		l, err = b.FetchExchangeLimits(ctx, asset.Margin)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return b.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

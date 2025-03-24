@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	testws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -782,10 +783,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatal("Bybit GetAvailablePairs() error", err)
 	}
 	for x := range availablePairs {
-		var limits order.MinMaxLevel
-		limits, err = b.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
+		var l limits.MinMaxLevel
+		l, err = b.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
 		require.NoError(t, err)
-		if limits == (order.MinMaxLevel{}) {
+		if l == (limits.MinMaxLevel{}) {
 			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
 		}
 	}
@@ -839,8 +840,8 @@ func TestPlaceOrder(t *testing.T) {
 		Side:      "buy",
 		OrderType: "limit",
 	})
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	if !errors.Is(err, limits.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, got %v", limits.ErrAmountBelowMin, err)
 	}
 	_, err = b.PlaceOrder(ctx, &PlaceOrderParams{
 		Category:         "spot",
@@ -2397,8 +2398,8 @@ func TestWithdrawCurrency(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errMissingAddressInfo, err)
 	}
 	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234"})
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	if !errors.Is(err, limits.ErrAmountBelowMin) {
+		t.Fatalf("expected %v, got %v", limits.ErrAmountBelowMin, err)
 	}
 	_, err = b.WithdrawCurrency(context.Background(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 123})
 	if err != nil {
@@ -2781,8 +2782,8 @@ func TestBorrow(t *testing.T) {
 		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
 	}
 	_, err = b.Borrow(context.Background(), &LendArgument{Coin: currency.BTC})
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	if !errors.Is(err, limits.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", limits.ErrAmountBelowMin, err)
 	}
 	_, err = b.Borrow(context.Background(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
 	if err != nil {
@@ -2805,8 +2806,8 @@ func TestRepay(t *testing.T) {
 		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
 	}
 	_, err = b.Repay(context.Background(), &LendArgument{Coin: currency.BTC})
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	if !errors.Is(err, limits.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", limits.ErrAmountBelowMin, err)
 	}
 	_, err = b.Repay(context.Background(), &LendArgument{Coin: currency.BTC, AmountToBorrow: 0.1})
 	if err != nil {
@@ -2941,8 +2942,8 @@ func TestC2CDepositFunds(t *testing.T) {
 		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
 	}
 	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC})
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	if !errors.Is(err, limits.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", limits.ErrAmountBelowMin, err)
 	}
 	_, err = b.C2CDepositFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
 	if err != nil {
@@ -2965,8 +2966,8 @@ func TestC2CRedeemFunds(t *testing.T) {
 		t.Errorf("expected %v, got %v", currency.ErrCurrencyCodeEmpty, err)
 	}
 	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC})
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Errorf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	if !errors.Is(err, limits.ErrAmountBelowMin) {
+		t.Errorf("expected %v, got %v", limits.ErrAmountBelowMin, err)
 	}
 	_, err = b.C2CRedeemFunds(context.Background(), &C2CLendingFundsParams{Coin: currency.BTC, Quantity: 1232})
 	if err != nil {

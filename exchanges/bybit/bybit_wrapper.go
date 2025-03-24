@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1562,7 +1563,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	limits := make([]order.MinMaxLevel, 0, len(allInstrumentsInfo.List))
+	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
 	for x := range allInstrumentsInfo.List {
 		if allInstrumentsInfo.List[x].Status != "Trading" {
 			continue
@@ -1573,9 +1574,13 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", by.Name, a, symbol)
 			continue
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+		l = append(l, limits.MinMaxLevel{
+			Key: key.ExchangePairAsset{
+				Exchange: by.Name,
+				Base:     pair.Base.Item,
+				Quote:    pair.Quote.Item,
+				Asset:    a,
+			},
 			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
 			MaximumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
 			MinPrice:                allInstrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
@@ -1587,7 +1592,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			MaximumQuoteAmount:      allInstrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * allInstrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
-	return by.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair

@@ -681,12 +681,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	tt := time.Now()
-	s, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     cp.Base.Item,
-		Quote:    cp.Quote.Item,
-		Asset:    asset.Spot,
-	}]
+	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAsset(testExchange, cp, asset.Spot)]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -740,12 +735,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	s, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     cp.Base.Item,
-		Quote:    cp.Quote.Item,
-		Asset:    asset.Spot,
-	}]
+	s, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, asset.Spot, cp)]
 	if !ok {
 		t.Fatal("couldn't get settings")
 	}
@@ -861,12 +851,7 @@ func TestCalculatePNL(t *testing.T) {
 	}
 
 	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: testExchange,
-		Base:     pair.Base.Item,
-		Quote:    pair.Quote.Item,
-		Asset:    ev.AssetType,
-	}] = s
+	p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(testExchange, a, pair)] = s
 	ev.Close = leet
 	err = s.ComplianceManager.AddSnapshot(&compliance.Snapshot{
 		Timestamp: tt0,

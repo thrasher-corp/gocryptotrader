@@ -40,7 +40,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -261,12 +261,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
-		portfolioRisk.CurrencySettings[key.ExchangePairAsset{
-			Exchange: cfg.CurrencySettings[i].ExchangeName,
-			Base:     cfg.CurrencySettings[i].Base.Item,
-			Quote:    cfg.CurrencySettings[i].Quote.Item,
-			Asset:    a,
-		}] = portSet
+		portfolioRisk.CurrencySettings[key.NewExchangePairAssetKey(cfg.CurrencySettings[i].ExchangeName, a, curr)] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {
@@ -584,12 +579,12 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 			MaximumTotal: cfg.CurrencySettings[i].SellSide.MaximumTotal,
 		}
 
-		limits, err := exch.GetOrderExecutionLimits(a, pair)
-		if err != nil && !errors.Is(err, gctorder.ErrExchangeLimitNotLoaded) {
+		l, err := exch.GetOrderExecutionLimits(a, pair)
+		if err != nil && !errors.Is(err, limits.ErrExchangeLimitNotLoaded) {
 			return resp, err
 		}
 
-		if limits != (gctorder.MinMaxLevel{}) {
+		if l != (limits.MinMaxLevel{}) {
 			if !cfg.CurrencySettings[i].CanUseExchangeLimits {
 				if realOrders {
 					log.Warnf(common.Setup, "Exchange %s order execution limits enabled for %s %s due to using real orders",
@@ -626,7 +621,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 			BuySide:                   buyRule,
 			SellSide:                  sellRule,
 			Leverage:                  lev,
-			Limits:                    limits,
 			SkipCandleVolumeFitting:   cfg.CurrencySettings[i].SkipCandleVolumeFitting,
 			CanUseExchangeLimits:      cfg.CurrencySettings[i].CanUseExchangeLimits,
 			UseExchangePNLCalculation: cfg.CurrencySettings[i].UseExchangePNLCalculation,

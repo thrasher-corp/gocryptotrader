@@ -261,20 +261,20 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
 		}
 		for _, limitTest := range limitTests {
-			limits, err := b.GetOrderExecutionLimits(assetItem, limitTest.pair)
+			l, err := b.GetOrderExecutionLimits(assetItem, limitTest.pair)
 			if err != nil {
 				t.Errorf("Bitstamp GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
 				continue
 			}
-			assert.NotEmpty(t, limits.Pair, "Pair should not be empty")
-			assert.Positive(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, limits.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
+			assert.NotEmpty(t, l.Pair, "Pair should not be empty")
+			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
 			if mockTests {
-				if got := limits.PriceStepIncrementSize; got != limitTest.step {
+				if got := l.PriceStepIncrementSize; got != limitTest.step {
 					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
 				}
-				if got := limits.MinimumQuoteAmount; got != limitTest.min {
+				if got := l.MinimumQuoteAmount; got != limitTest.min {
 					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
 				}
 			}

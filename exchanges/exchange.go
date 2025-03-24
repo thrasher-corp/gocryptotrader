@@ -35,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1931,4 +1932,27 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 		return account.Holdings{}, err
 	}
 	return account.GetHoldings(b.Name, creds, assetType)
+}
+
+func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
+	return limits.GetOrderExecutionLimits(key.ExchangePairAsset{
+		Exchange: b.Name,
+		Base:     cp.Base.Item,
+		Quote:    cp.Quote.Item,
+		Asset:    a,
+	})
+}
+
+func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount, price float64, orderType order.Type) error {
+	return limits.CheckOrderExecutionLimits(
+		key.ExchangePairAsset{
+			Exchange: b.Name,
+			Base:     cp.Base.Item,
+			Quote:    cp.Quote.Item,
+			Asset:    a,
+		},
+		amount,
+		price,
+		orderType,
+	)
 }

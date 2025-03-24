@@ -460,12 +460,7 @@ func TestGetExchangeTickers(t *testing.T) {
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)
 
-	s.Tickers[key.ExchangePairAsset{
-		Exchange: "test",
-		Base:     currency.XBT.Item,
-		Quote:    currency.DOGE.Item,
-		Asset:    asset.Futures,
-	}] = &Ticker{
+	s.Tickers[key.NewExchangePairAssetKey("test", asset.Spot, currency.NewPair(currency.XBT, currency.DOGE))] = &Ticker{
 		Price: Price{
 			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
 			ExchangeName: "test",

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -387,23 +388,23 @@ func (ku *Kucoin) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) err
 			return errInvalidStopPriceType
 		}
 		if arg.StopPrice <= 0 {
-			return fmt.Errorf("%w, stopPrice is required", order.ErrPriceBelowMin)
+			return fmt.Errorf("%w, stopPrice is required", limits.ErrPriceBelowMin)
 		}
 	}
 	switch arg.OrderType {
 	case "limit", "":
 		if arg.Price <= 0 {
-			return fmt.Errorf("%w %f", order.ErrPriceBelowMin, arg.Price)
+			return fmt.Errorf("%w %f", limits.ErrPriceBelowMin, arg.Price)
 		}
 		if arg.Size <= 0 {
-			return fmt.Errorf("%w, must be non-zero positive value", order.ErrAmountBelowMin)
+			return fmt.Errorf("%w, must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
 		if arg.VisibleSize < 0 {
-			return fmt.Errorf("%w, visible size must be non-zero positive value", order.ErrAmountBelowMin)
+			return fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
 	case "market":
 		if arg.Size <= 0 {
-			return fmt.Errorf("%w, market size must be > 0", order.ErrAmountBelowMin)
+			return fmt.Errorf("%w, market size must be > 0", limits.ErrAmountBelowMin)
 		}
 	default:
 		return fmt.Errorf("%w, order type= %s", order.ErrTypeIsInvalid, arg.OrderType)
@@ -647,7 +648,7 @@ func (ku *Kucoin) RemoveMarginManually(ctx context.Context, arg *WithdrawMarginR
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.WithdrawAmount <= 0 {
-		return nil, fmt.Errorf("%w, withdrawAmount must be greater than 0", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, withdrawAmount must be greater than 0", limits.ErrAmountBelowMin)
 	}
 	var resp *MarginRemovingResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, removeMarginManuallyEPL, http.MethodPost, "/v1/margin/withdrawMargin", arg, &resp)
@@ -782,7 +783,7 @@ func (ku *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist
 // TransferFuturesFundsToMainAccount helps in transferring funds from futures to main/trade account
 func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount float64, ccy currency.Code, recAccountType string) (*TransferRes, error) {
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -801,7 +802,7 @@ func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount 
 // TransferFundsToFuturesAccount helps in transferring funds from payee account to futures account
 func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount float64, ccy currency.Code, payAccountType string) error {
 	if amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if ccy.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
@@ -900,7 +901,7 @@ func (ku *Kucoin) GetMaximumOpenPositionSize(ctx context.Context, symbol string,
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	if leverage <= 0 {
 		return nil, fmt.Errorf("%w, leverage is required", errInvalidLeverage)

@@ -87,10 +87,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		currency.NewPair(currency.ETH, currency.USDT),
 		currency.NewPair(currency.XBT, currency.USDT),
 	} {
-		limits, err := k.GetOrderExecutionLimits(asset.Spot, p)
+		l, err := k.GetOrderExecutionLimits(asset.Spot, p)
 		require.NoErrorf(t, err, "%s GetOrderExecutionLimits must not error", p)
-		assert.Positivef(t, limits.PriceStepIncrementSize, "%s PriceStepIncrementSize should be positive", p)
-		assert.Positivef(t, limits.MinimumBaseAmount, "%s MinimumBaseAmount should be positive", p)
+		assert.Positivef(t, l.PriceStepIncrementSize, "%s PriceStepIncrementSize should be positive", p)
+		assert.Positivef(t, l.MinimumBaseAmount, "%s MinimumBaseAmount should be positive", p)
 	}
 }
 

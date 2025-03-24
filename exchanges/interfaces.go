@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -84,7 +85,7 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool
-	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)

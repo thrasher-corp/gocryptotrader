@@ -56,13 +56,8 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return o, errInvalidDirection
 	}
 
-	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: ev.GetExchange(),
-		Base:     ev.Pair().Base.Item,
-		Quote:    ev.Pair().Quote.Item,
-		Asset:    ev.GetAssetType(),
-	}]
-	if lookup == nil {
+	lookup, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
+	if !ok || lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v",
 			errNoPortfolioSettings,
 			ev.GetExchange(),
@@ -240,13 +235,8 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
-	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: ev.GetExchange(),
-		Base:     ev.Pair().Base.Item,
-		Quote:    ev.Pair().Quote.Item,
-		Asset:    ev.GetAssetType(),
-	}]
-	if lookup == nil {
+	lookup, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
+	if !ok || lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
 
@@ -310,12 +300,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 
 // GetLatestOrderSnapshotForEvent gets orders related to the event
 func (p *Portfolio) GetLatestOrderSnapshotForEvent(ev common.Event) (compliance.Snapshot, error) {
-	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: ev.GetExchange(),
-		Base:     ev.Pair().Base.Item,
-		Quote:    ev.Pair().Quote.Item,
-		Asset:    ev.GetAssetType(),
-	}]
+	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
 	if !ok {
 		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
@@ -347,13 +332,8 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair
 func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
-	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: exchangeName,
-		Base:     cp.Base.Item,
-		Quote:    cp.Quote.Item,
-		Asset:    a,
-	}]
-	if lookup == nil {
+	lookup, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(exchangeName, a, cp)]
+	if !ok || lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
 	return &lookup.ComplianceManager, nil
@@ -615,12 +595,7 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 
 func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {
 	exch = strings.ToLower(exch)
-	settings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     pair.Base.Item,
-		Quote:    pair.Quote.Item,
-		Asset:    item,
-	}]
+	settings, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(exch, item, pair)]
 	if !ok {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, exch, item, pair)
 	}

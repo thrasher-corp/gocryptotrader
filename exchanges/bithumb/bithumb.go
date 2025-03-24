@@ -14,12 +14,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 )
 
 const (
@@ -705,21 +706,25 @@ func (b *Bithumb) GetCandleStick(ctx context.Context, symbol, interval string) (
 }
 
 // FetchExchangeLimits fetches spot order execution limits
-func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
 	ticks, err := b.GetAllTickers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	limits := make([]order.MinMaxLevel, 0, len(ticks))
+	l := make([]limits.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
-		limits = append(limits, order.MinMaxLevel{
-			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
-			Asset:             asset.Spot,
+		l = append(l, limits.MinMaxLevel{
+			Key: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     currency.NewCode(code).Item,
+				Quote:    currency.KRW.Item,
+				Asset:    asset.Spot,
+			},
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}
-	return limits, nil
+	return l, nil
 }
 
 // getAmountMinimum derives the minimum amount based on current price. This

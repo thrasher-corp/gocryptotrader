@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 )
 
 // Bybit is the overarching type across this package
@@ -528,7 +529,7 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.OrderQuantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	switch arg.TriggerDirection {
 	case 0, 1, 2: // 0: None, 1: triggered when market price rises to triggerPrice, 2: triggered when market price falls to triggerPrice
@@ -737,7 +738,7 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 			return nil, order.ErrTypeIsInvalid
 		}
 		if arg.Request[a].OrderQuantity <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 	}
 	var resp BatchOrdersList
@@ -1893,7 +1894,7 @@ func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (st
 		return "", errMissingAddressInfo
 	}
 	if arg.Amount <= 0 {
-		return "", order.ErrAmountBelowMin
+		return "", limits.ErrAmountBelowMin
 	}
 	if arg.Timestamp == 0 {
 		arg.Timestamp = time.Now().UnixMilli()
@@ -2106,7 +2107,7 @@ func (by *Bybit) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	arg := &struct {
 		LTCoin       string  `json:"ltCoin"`
@@ -2127,7 +2128,7 @@ func (by *Bybit) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, 
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if quantity <= 0 {
-		return nil, fmt.Errorf("%w, quantity=%f", order.ErrAmountBelowMin, quantity)
+		return nil, fmt.Errorf("%w, quantity=%f", limits.ErrAmountBelowMin, quantity)
 	}
 	arg := &struct {
 		LTCoin       string  `json:"ltCoin"`
@@ -2258,7 +2259,7 @@ func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.AmountToBorrow <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *BorrowResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/loan", nil, arg, &resp, spotCrossMarginTradeLoanEPL)
@@ -2273,7 +2274,7 @@ func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.AmountToBorrow <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *RepayResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-cross-margin-trade/repay", nil, arg, &resp, spotCrossMarginTradeRepayEPL)
@@ -2443,7 +2444,7 @@ func (by *Bybit) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/purchase", nil, &arg, &resp, defaultEPL)
@@ -2458,7 +2459,7 @@ func (by *Bybit) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams)
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Quantity <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *C2CLendingFundResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/lending/redeem", nil, &arg, &resp, defaultEPL)

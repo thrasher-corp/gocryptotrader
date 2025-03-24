@@ -30,12 +30,7 @@ func (h *HandlerHolder) SetDataForCurrency(e string, a asset.Item, p currency.Pa
 		h.data = make(map[key.ExchangePairAsset]Handler)
 	}
 	e = strings.ToLower(e)
-	h.data[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}] = k
+	h.data[key.NewExchangePairAssetKey(e, a, p)] = k
 	return nil
 }
 
@@ -66,12 +61,7 @@ func (h *HandlerHolder) GetDataForCurrency(ev common.Event) (Handler, error) {
 	exch := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
-	handler, ok := h.data[key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	handler, ok := h.data[key.NewExchangePairAssetKey(exch, a, p)]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", exch, a, p, ErrHandlerNotFound)
 	}
