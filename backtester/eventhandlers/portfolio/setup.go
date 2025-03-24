@@ -98,11 +98,6 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		}
 		settings.FuturesTracker = tracker
 	}
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
-		Exchange: name,
-		Base:     setup.Pair.Base.Item,
-		Quote:    setup.Pair.Quote.Item,
-		Asset:    setup.Asset,
-	}] = settings
+	p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(name, setup.Asset, setup.Pair)] = settings
 	return nil
 }

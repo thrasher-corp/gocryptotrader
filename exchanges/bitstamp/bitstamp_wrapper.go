@@ -227,12 +227,7 @@ func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 		l = append(l, limits.MinMaxLevel{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     pair.Base.Item,
-				Quote:    pair.Quote.Item,
-				Asset:    a,
-			},
+			Key:                     key.NewExchangePairAssetKey(b.Name, a, pair),
 			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
 			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,

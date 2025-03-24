@@ -1139,12 +1139,7 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.M
 		}
 
 		l = append(l, limits.MinMaxLevel{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     cp.Base.Item,
-				Quote:    cp.Quote.Item,
-				Asset:    asset.USDTMarginedFutures,
-			},
+			Key:                     key.NewExchangePairAssetKey(b.Name, asset.USDTMarginedFutures, cp),
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,

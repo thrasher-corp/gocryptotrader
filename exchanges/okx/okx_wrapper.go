@@ -347,8 +347,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 				return err
 			}
 			l[x] = limits.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
+				Key:                    key.NewExchangePairAssetKey(ok.Name, a, pair),
 				PriceStepIncrementSize: insts[x].TickSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 			}
@@ -369,8 +368,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 				return err
 			}
 			l[x] = limits.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
+				Key:                    key.NewExchangePairAssetKey(ok.Name, a, pair),
 				PriceStepIncrementSize: insts[x].MinSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinSize.Float64(),
 				QuoteStepIncrementSize: insts[x].TickSize.Float64(),

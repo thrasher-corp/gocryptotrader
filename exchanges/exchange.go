@@ -1316,12 +1316,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     ticks[i].Pair.Base.Item,
-					Quote:    ticks[i].Pair.Quote.Item,
-					Asset:    ticks[i].AssetType,
-				},
+				Key:          key.NewExchangePairAssetKey(b.Name, ticks[i].AssetType, ticks[i].Pair),
 				OpenInterest: ticks[i].OpenInterest,
 			})
 		}
@@ -1337,12 +1332,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 			return nil, err
 		}
 		resp[i] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     t.Pair.Base.Item,
-				Quote:    t.Pair.Quote.Item,
-				Asset:    t.AssetType,
-			},
+			Key:          key.NewExchangePairAssetKey(b.Name, t.AssetType, t.Pair),
 			OpenInterest: t.OpenInterest,
 		}
 	}
@@ -1935,22 +1925,12 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 }
 
 func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
-	return limits.GetOrderExecutionLimits(key.ExchangePairAsset{
-		Exchange: b.Name,
-		Base:     cp.Base.Item,
-		Quote:    cp.Quote.Item,
-		Asset:    a,
-	})
+	return limits.GetOrderExecutionLimits(key.NewExchangePairAssetKey(b.Name, a, cp))
 }
 
 func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount, price float64, orderType order.Type) error {
 	return limits.CheckOrderExecutionLimits(
-		key.ExchangePairAsset{
-			Exchange: b.Name,
-			Base:     cp.Base.Item,
-			Quote:    cp.Quote.Item,
-			Asset:    a,
-		},
+		key.NewExchangePairAssetKey(b.Name, a, cp),
 		amount,
 		price,
 		orderType,

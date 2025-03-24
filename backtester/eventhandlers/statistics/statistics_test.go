@@ -86,12 +86,7 @@ func TestAddDataEventForTime(t *testing.T) {
 	if s.ExchangeAssetPairStatistics == nil {
 		t.Error("expected not nil")
 	}
-	if len(s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].Events) != 1 {
+	if len(s.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(exch, a, p)].Events) != 1 {
 		t.Error("expected 1 event")
 	}
 }
@@ -732,18 +727,8 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	mapKey1 := key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}
-	mapKey2 := key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p2.Base.Item,
-		Quote:    p2.Quote.Item,
-		Asset:    a,
-	}
+	mapKey1 := key.NewExchangePairAssetKey(exch, a, p)
+	mapKey2 := key.NewExchangePairAssetKey(exch, a, p2)
 	s.ExchangeAssetPairStatistics[mapKey1].Events[1].Holdings.QuoteInitialFunds = eleet
 	s.ExchangeAssetPairStatistics[mapKey1].Events[1].Holdings.TotalValue = eleeet
 	s.ExchangeAssetPairStatistics[mapKey2].Events[1].Holdings.QuoteInitialFunds = eleet

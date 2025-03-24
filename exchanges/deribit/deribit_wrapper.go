@@ -1238,12 +1238,7 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				return err
 			}
 			l[j] = limits.MinMaxLevel{
-				Key: key.ExchangePairAsset{
-					Exchange: d.Name,
-					Base:     pair.Base.Item,
-					Quote:    pair.Quote.Item,
-					Asset:    a,
-				},
+				Key:                    key.NewExchangePairAssetKey(d.Name, a, pair),
 				PriceStepIncrementSize: instrumentsData[j].TickSize,
 				MinimumBaseAmount:      instrumentsData[j].MinimumTradeAmount,
 			}
@@ -1363,12 +1358,7 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		}
 		for a := range oi {
 			result = append(result, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: d.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
+				Key:          key.NewExchangePairAssetKey(d.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi[a].OpenInterest,
 			})
 			break

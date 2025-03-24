@@ -544,12 +544,7 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 			return nil, err
 		}
 		l = append(l, limits.MinMaxLevel{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     pair.Base.Item,
-				Quote:    pair.Quote.Item,
-				Asset:    assetType,
-			},
+			Key:               key.NewExchangePairAssetKey(b.Name, assetType, pair),
 			MinimumBaseAmount: minOrder,
 			MaximumBaseAmount: maxOrder,
 		})

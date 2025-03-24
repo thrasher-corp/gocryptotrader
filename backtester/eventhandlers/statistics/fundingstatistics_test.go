@@ -100,12 +100,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs[key.ExchangePairAsset{
-		Exchange: "binance",
-		Base:     currency.LTC.Item,
-		Quote:    currency.USD.Item,
-		Asset:    asset.Spot,
-	}] = &CurrencyPairStatistic{}
+	cs[key.NewExchangePairAssetKey("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
@@ -118,12 +113,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs[key.ExchangePairAsset{
-		Exchange: "binance",
-		Base:     currency.LTC.Item,
-		Quote:    currency.USD.Item,
-		Asset:    asset.Spot,
-	}] = &CurrencyPairStatistic{}
+	cs[key.NewExchangePairAssetKey("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)

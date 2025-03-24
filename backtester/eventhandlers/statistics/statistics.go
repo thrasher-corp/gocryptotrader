@@ -64,12 +64,7 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	}
-	mapKey := key.ExchangePairAsset{
-		Exchange: ex,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}
+	mapKey := key.NewExchangePairAssetKey(ex, a, p)
 	stats, ok := s.ExchangeAssetPairStatistics[mapKey]
 	if !ok {
 		stats = &CurrencyPairStatistic{
@@ -138,13 +133,8 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: h.Exchange,
-		Base:     h.Pair.Base.Item,
-		Quote:    h.Pair.Quote.Item,
-		Asset:    h.Asset,
-	}]
-	if lookup == nil {
+	lookup, ok := s.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(h.Exchange, h.Asset, h.Pair)]
+	if !ok || lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
@@ -164,12 +154,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: pnl.Exchange,
-		Base:     pnl.Pair.Base.Item,
-		Quote:    pnl.Pair.Quote.Item,
-		Asset:    pnl.Asset,
-	}]
+	lookup := s.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(pnl.Exchange, pnl.Asset, pnl.Pair)]
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set pnl", errCurrencyStatisticsUnset, pnl.Exchange, pnl.Asset, pnl.Pair)
 	}
@@ -197,12 +182,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e commo
 	exch := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
-	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
-		Exchange: exch,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	lookup := s.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(exch, a, p)]
 	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set compliance snapshot", errCurrencyStatisticsUnset, exch, a, p)
 	}

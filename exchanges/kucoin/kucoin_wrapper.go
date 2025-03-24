@@ -2330,7 +2330,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
-	var l []limits
+	var l []limits.MinMaxLevel
 	switch a {
 	case asset.Spot, asset.Margin:
 		symbols, err := ku.GetSymbols(ctx, "")
@@ -2350,8 +2350,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				continue
 			}
 			l = append(l, limits.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+				Key:                     key.NewExchangePairAssetKey(ku.Name, a, pair),
 				AmountStepIncrementSize: symbols[x].BaseIncrement,
 				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
 				PriceStepIncrementSize:  symbols[x].PriceIncrement,

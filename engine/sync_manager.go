@@ -177,12 +177,7 @@ func (m *SyncManager) Start() error {
 				continue
 			}
 			for i := range enabledPairs {
-				k := key.ExchangePairAsset{
-					Asset:    assetTypes[y],
-					Exchange: exchangeName,
-					Base:     enabledPairs[i].Base.Item,
-					Quote:    enabledPairs[i].Quote.Item,
-				}
+				k := key.NewExchangePairAssetKey(exchangeName, assetTypes[y], enabledPairs[i])
 				if e := m.get(k); e != nil {
 					continue
 				}
@@ -373,13 +368,7 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
 
-	k := key.ExchangePairAsset{
-		Asset:    a,
-		Exchange: exchangeName,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-	}
-
+	k := key.NewExchangePairAssetKey(exchangeName, a, p)
 	c, exists := m.currencyPairs[k]
 	if !exists {
 		return fmt.Errorf("%w for %s %s %s %s %s",
@@ -507,12 +496,7 @@ func (m *SyncManager) worker() {
 							return
 						}
 
-						k := key.ExchangePairAsset{
-							Asset:    assetTypes[y],
-							Exchange: exchangeName,
-							Base:     enabledPairs[i].Base.Item,
-							Quote:    enabledPairs[i].Quote.Item,
-						}
+						k := key.NewExchangePairAssetKey(exchangeName, assetTypes[y], enabledPairs[i])
 						c := m.get(k)
 						if c == nil {
 							c = m.add(k, syncBase{
