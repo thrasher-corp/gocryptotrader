@@ -101685,6 +101685,184 @@
     }
    ]
   },
+  "/orders": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "g0e27R/NXykcQb6M9Tjt345t0CYeN4PbJPo0/XhcYJ8="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742737633291"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/123": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "N3gSB/PZbfI8rCnXEw2bjTjDOJJ2m6lxoT0XjEnncqw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742815284618"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/history": {
+   "GET": [
+    {
+     "data": {
+      "code": 601,
+      "message": "Invalid side: ANY"
+     },
+     "queryString": "accountType=SPOT\u0026limit=100\u0026side=ANY\u0026type=LIMIT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "qd3BP/RP1dLbOhorM1VehUsSCCvLNTCAnwimGCNJamc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742737815103"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=100\u0026side=BUY\u0026type=LIMIT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "FWE2Qh0xO3OU61pa8rEFWVcImHm3l3fsXRPCJ6WFmN4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742738478103"
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=100\u0026side=SELL\u0026type=LIMIT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "vLrPlBLMnPlfHNwHCMa6CzBXGPWPWgbIS4dB6YEBwck="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742738478585"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/123": {
+   "DELETE": [
+    {
+     "data": {
+      "clientOrderId": "",
+      "code": 25009,
+      "message": "Failed to cancel the order",
+      "orderId": "",
+      "state": ""
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "V5UN7wqorXtSAJN6Wvku8ju1CUW94iMgpoBjW3DHbBc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742815285115"
+      ]
+     }
+    }
+   ]
+  },
   "/timestamp": {
    "GET": [
     {
@@ -134773,6 +134951,39 @@
     }
    ]
   },
+  "/v3/account/bills": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026type=PNL",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "eurJokxq1oY5qD2oNXPoOyO4lMUg8xxN3mV5vg0y5iE="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742816082635"
+      ]
+     }
+    }
+   ]
+  },
   "/v3/market/allInstruments": {
    "GET": [
     {
@@ -141616,6 +141827,126 @@
       ],
       "Signtimestamp": [
        "1734072945304"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "limit=100\u0026side=BUY",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "0PTi5rDNckq3rQFKkj5aWIeGrKa2cycguQ265zhwG+0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742738479200"
+      ]
+     }
+    }
+   ]
+  },
+  "/v3/trade/order/opens": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=1000SHIB_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "INhUHS0L8ZbA4eOplgPBA5NAfu8TPOVgXy/ru/X9ZrM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742815597964"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BNB_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "1AnQh1qkJnet3+daLrhOETD0nKX98GFtjIhHqmhK2Gw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742815628852"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BCH_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "sa85IqzmC9gUoVcGqFmCZIU9EqKfo+z9O9l0lfSoN7A="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1742815737015"
       ]
      }
     }

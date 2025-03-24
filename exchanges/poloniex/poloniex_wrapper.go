@@ -665,9 +665,6 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if s == nil || *s == (order.Submit{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if err := s.Validate(p.GetTradingRequirements()); err != nil {
-		return nil, err
-	}
 	var err error
 	s.Pair, err = p.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
@@ -1515,8 +1512,11 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	switch req.AssetType {
 	case asset.Spot:
+		if req.Side != order.Buy && req.Side != order.Sell {
+			return nil, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, req.Side)
+		}
 		switch req.Type {
-		case order.Market, order.Limit:
+		case order.Market, order.Limit, order.UnknownType, order.AnyType:
 			oTypeString, err := OrderTypeString(req.Type)
 			if err != nil {
 				return nil, err
@@ -1525,7 +1525,6 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-
 			var oSide order.Side
 			var oType order.Type
 			orders := make([]order.Detail, 0, len(resp))

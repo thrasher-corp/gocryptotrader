@@ -148,6 +148,14 @@ func TestGetFee(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetActiveOrders(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
+		Type: order.Liquidation, AssetType: asset.Futures,
+		Side: order.AnySide})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
@@ -160,13 +168,42 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	result, err := p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
-		Type:      order.AnyType,
+	_, err := p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:      order.Limit,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	})
-	require.NoError(t, err)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:      order.Liquidation,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:      order.Limit,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+	})
+	assert.NoErrorf(t, err, "error: %v", err)
+	assert.NotNil(t, result)
+
+	result, err = p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:      order.Limit,
+		AssetType: asset.Spot,
+		Side:      order.Sell,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		Type:      order.Limit,
+		AssetType: asset.Futures,
+		Side:      order.Buy,
+	})
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -174,12 +211,21 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := p.SubmitOrder(context.Background(), &order.Submit{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = p.SubmitOrder(context.Background(), &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing})
+	arg := &order.Submit{AssetType: asset.Futures, TimeInForce: order.GoodTillCrossing}
+	_, err = p.SubmitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	arg.Pair = futuresTradablePair
+	_, err = p.SubmitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
-	_, err = p.SubmitOrder(context.Background(), &order.Submit{AssetType: asset.Options})
+	arg.TimeInForce = order.GoodTillCancel
+	arg.AssetType = asset.Options
+	_, err = p.SubmitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = p.SubmitOrder(context.Background(), &order.Submit{AssetType: asset.Futures, Type: order.Liquidation})
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	arg.AssetType = asset.Spot
+	arg.Type = order.Liquidation
+	arg.Pair = spotTradablePair
+	_, err = p.SubmitOrder(context.Background(), arg)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
@@ -233,9 +279,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 	err = p.CancelOrder(context.Background(), arg)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	}
+	// if !mockTests {
+	// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	// }
 	arg.AssetType = asset.Spot
 	err = p.CancelOrder(context.Background(), arg)
 	assert.NoError(t, err)
@@ -1757,7 +1803,6 @@ func TestGetAccountBalance(t *testing.T) {
 func TestGetAccountBills(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	p.Verbose = true
 	result, err := p.GetAccountBills(context.Background(), time.Time{}, time.Time{}, 0, 0, "NEXT", "PNL")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
