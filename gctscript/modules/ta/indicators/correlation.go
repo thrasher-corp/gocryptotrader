@@ -43,14 +43,14 @@ func correlationCoefficient(args ...objects.Object) (objects.Object, error) {
 	var allErrors []string
 	ohlcvProcessor := func(args []objects.Object, idx int) ([]float64, error) {
 		ohlcvInput := objects.ToInterface(args[idx])
-		ohlcvInputData, valid := ohlcvInput.([]interface{})
+		ohlcvInputData, valid := ohlcvInput.([]any)
 		if !valid {
 			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 
 		var ohlcvClose []float64
 		for x := range ohlcvInputData {
-			t, ok := ohlcvInputData[x].([]interface{})
+			t, ok := ohlcvInputData[x].([]any)
 			if !ok {
 				return nil, errors.New("ohlcvInputData type assert failed")
 			}

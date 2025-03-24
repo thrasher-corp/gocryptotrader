@@ -170,6 +170,17 @@ func isUnacceptableError(t *testing.T, err error) error {
 	return err
 }
 
+var validWrapperParams = []reflect.Type{
+	assetParam,
+	orderSubmitParam,
+	orderModifyParam,
+	orderCancelParam,
+	orderCancelsParam,
+	pairKeySliceParam,
+	getOrdersRequestParam,
+	latestRateRequest,
+}
+
 func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
@@ -184,15 +195,11 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 		var assetLen int
 		for y := range method.Type().NumIn() {
 			input := method.Type().In(y)
-			for _, t := range []reflect.Type{
-				assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
-			} {
-				if input.AssignableTo(t) {
-					// this allows wrapper functions that support assets types
-					// to be tested with all supported assets
-					assetLen = len(assetParams) - 1
-					break
-				}
+			if slices.ContainsFunc(validWrapperParams, func(t reflect.Type) bool {
+				return input.AssignableTo(t)
+			}) {
+				assetLen = len(assetParams) - 1
+				break
 			}
 		}
 		tt := time.Now()
@@ -239,7 +246,7 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 			continue
 		}
 		if isUnacceptableError(t, err) != nil {
-			literalInputs := make([]interface{}, len(methodValues))
+			literalInputs := make([]any, len(methodValues))
 			for j := range methodValues {
 				if methodValues[j].Kind() == reflect.Ptr {
 					// dereference pointers just to add a bit more clarity
@@ -699,12 +706,7 @@ func isFiat(t *testing.T, c string) bool {
 		currency.ZCAD.Item.Lower,
 		currency.ZJPY.Item.Lower,
 	}
-	for i := range fiats {
-		if fiats[i] == c {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(fiats, c)
 }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to

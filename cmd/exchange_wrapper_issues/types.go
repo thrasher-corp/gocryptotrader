@@ -57,7 +57,7 @@ type ExchangeAssetPairResponses struct {
 type EndpointResponse struct {
 	Function   string          `json:"function"`
 	Error      string          `json:"error"`
-	Response   interface{}     `json:"response"`
+	Response   any             `json:"response"`
 	SentParams json.RawMessage `json:"sentParams"`
 }
 

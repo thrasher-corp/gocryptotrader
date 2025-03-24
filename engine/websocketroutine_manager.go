@@ -194,7 +194,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 // websocketDataHandler is the default central point for exchange websocket
 // implementations to send processed data which will then pass that to an
 // appropriate handler.
-func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
+func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any) error {
 	switch d := data.(type) {
 	case string:
 		log.Infoln(log.WebsocketMgr, d)

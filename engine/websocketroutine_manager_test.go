@@ -275,8 +275,8 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	// externally defined capture device
-	dataChan := make(chan interface{})
-	fn := func(_ string, data interface{}) error {
+	dataChan := make(chan any)
+	fn := func(_ string, data any) error {
 		switch data.(type) {
 		case string:
 			dataChan <- data
@@ -295,7 +295,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	mock := stream.NewWebsocket()
-	mock.ToRoutine = make(chan interface{})
+	mock.ToRoutine = make(chan any)
 	m.state = readyState
 	err = m.websocketDataReceiver(mock)
 	if err != nil {

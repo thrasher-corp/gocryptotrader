@@ -415,7 +415,7 @@ type OrderBook struct {
 type DepthUpdateParams []struct {
 	PriceLevel float64
 	Quantity   float64
-	ignore     []interface{}
+	ignore     []any
 }
 
 // WebsocketDepthStream is the difference for the update depth stream

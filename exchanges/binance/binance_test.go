@@ -3243,8 +3243,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 			<-b.Websocket.DataHandler
 		}
 	}()
-	bb.ResetTimer()
-	for range bb.N {
+	for bb.Loop() {
 		for x := range lines {
 			require.NoError(bb, b.wsHandleData(lines[x]))
 		}
@@ -3264,7 +3263,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
-			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
+			return w.WriteMessage(websocket.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
 		}
 		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -3286,7 +3285,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal should not error")
-		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
+		return w.WriteMessage(websocket.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)

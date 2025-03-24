@@ -648,7 +648,7 @@ type UFuturesSymbolInfo struct {
 
 // CExchangeInfo stores exchange info for cfutures
 type CExchangeInfo struct {
-	ExchangeFilters []interface{} `json:"exchangeFilters"`
+	ExchangeFilters []any `json:"exchangeFilters"`
 	RateLimits      []struct {
 		Interval      string `json:"interval"`
 		IntervalNum   int64  `json:"intervalNul"`

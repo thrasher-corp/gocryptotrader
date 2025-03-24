@@ -276,7 +276,7 @@ func generateWhereQuery(columns, id []string, limit int) []qm.QueryMod {
 	return queries
 }
 
-func generateWhereBetweenQuery(column string, start, end interface{}, limit int) []qm.QueryMod {
+func generateWhereBetweenQuery(column string, start, end any, limit int) []qm.QueryMod {
 	return []qm.QueryMod{
 		qm.Limit(limit),
 		qm.Where(column+" BETWEEN ? AND ?", start, end),
