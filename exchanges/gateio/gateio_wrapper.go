@@ -2557,7 +2557,7 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 func getTimeInForce(s *order.Submit) (string, error) {
 	switch {
 	case s.TimeInForce.Is(order.ImmediateOrCancel):
-		return "ioc", nil // market taker only
+		return "ioc", nil
 	case s.TimeInForce.Is(order.FillOrKill):
 		return "fok", nil
 	case s.TimeInForce.Is(order.PostOnly):

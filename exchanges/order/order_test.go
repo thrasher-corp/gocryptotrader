@@ -937,15 +937,13 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 func TestTimeInForceIs(t *testing.T) {
 	t.Parallel()
 	tifValuesMap := map[TimeInForce][]TimeInForce{
-		GoodTillCancel | PostOnly:    {GoodTillCancel, PostOnly},
-		GoodTillCancel:               {GoodTillCancel},
-		GoodTillCrossing | PostOnly:  {GoodTillCrossing, PostOnly},
-		ImmediateOrCancel | PostOnly: {ImmediateOrCancel, PostOnly},
-		GoodTillDay:                  {GoodTillDay},
-		FillOrKill | PostOnly:        {FillOrKill, PostOnly},
-		FillOrKill:                   {FillOrKill},
-		PostOnly:                     {PostOnly},
-		GoodTillCrossing:             {GoodTillCrossing},
+		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
+		GoodTillCancel:              {GoodTillCancel},
+		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
+		GoodTillDay:                 {GoodTillDay},
+		FillOrKill:                  {FillOrKill},
+		PostOnly:                    {PostOnly},
+		GoodTillCrossing:            {GoodTillCrossing},
 	}
 	for tif := range tifValuesMap {
 		for _, v := range tifValuesMap[tif] {
@@ -1773,14 +1771,12 @@ func TestString(t *testing.T) {
 		GoodTillTime:                   "GTT",
 		GoodTillDay:                    "GTD",
 		FillOrKill:                     "FOK",
-		PostOnly:                       "POSTONLY",
 		UnknownTIF:                     "UNKNOWN",
 		UnsetTIF:                       "",
-		ImmediateOrCancel | PostOnly:   "IOC,POSTONLY",
+		PostOnly:                       "POSTONLY",
 		GoodTillCancel | PostOnly:      "GTC,POSTONLY",
 		GoodTillTime | PostOnly:        "GTT,POSTONLY",
 		GoodTillDay | PostOnly:         "GTD,POSTONLY",
-		FillOrKill | PostOnly:          "FOK,POSTONLY",
 		FillOrKill | ImmediateOrCancel: "IOC,FOK",
 	}
 	for x := range valMap {

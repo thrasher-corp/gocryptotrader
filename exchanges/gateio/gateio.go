@@ -172,6 +172,9 @@ var (
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 )
 
+// tifValues holds a list of supported time-in-force values
+var tifValues = []string{gtcTIF, iocTIF, pocTIF, fokTIF}
+
 // Gateio is the overarching type across this package
 type Gateio struct {
 	Counter common.Counter // Must be first	due to alignment requirements
@@ -2851,8 +2854,8 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
 	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
-	if !slices.Contains([]string{gtcTIF, iocTIF, pocTIF, fokTIF}, arg.TimeInForce) {
-		return nil, errInvalidTimeInForce
+	if !slices.Contains(tifValues, arg.TimeInForce) {
+		return nil, fmt.Errorf("%w: time-in-force: %s", errInvalidTimeInForce, arg.TimeInForce)
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
