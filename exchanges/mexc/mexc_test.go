@@ -1619,3 +1619,31 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.UpdateAccountInfo(context.Background(), asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.UpdateAccountInfo(context.Background(), asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Empty)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetAccountFundingHistory(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

@@ -447,37 +447,171 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (me *MEXC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// If fetching requires more than one asset type please set
-	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
-	// var info account.Holdings
-	// accAssets,err := me.GetSubAccountAsset(ctx, )
-	return account.Holdings{}, common.ErrNotYetImplemented
+	resp := account.Holdings{
+		Exchange: me.Name,
+	}
+	subAccounts, err := me.GetSubAccountList(ctx, "", false, 0, 0)
+	if err != nil {
+		return resp, err
+	}
+	resp.Accounts = make([]account.SubAccount, len(subAccounts.SubAccounts))
+	for sacc := range subAccounts.SubAccounts {
+		accAssets, err := me.GetSubAccountAsset(ctx, subAccounts.SubAccounts[sacc].SubAccount, assetType)
+		if err != nil {
+			return resp, err
+		}
+		currBalances := make([]account.Balance, len(accAssets.Balances))
+		for b := range accAssets.Balances {
+			currBalances = append(currBalances, account.Balance{
+				Currency: currency.NewCode(accAssets.Balances[b].Asset),
+				Total:    accAssets.Balances[b].Free.Float64() + accAssets.Balances[b].Locked.Float64(),
+				Hold:     accAssets.Balances[b].Locked.Float64(),
+			})
+		}
+		resp.Accounts = append(resp.Accounts, account.SubAccount{
+			ID:         subAccounts.SubAccounts[sacc].SubAccount,
+			AssetType:  assetType,
+			Currencies: currBalances,
+		})
+	}
+	return resp, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (me *MEXC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// Example implementation below:
-	// 	creds, err := me.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	acc, err := account.GetHoldings(me.Name, creds, assetType)
-	// 	if err != nil {
-	// 		return me.UpdateAccountInfo(ctx, assetType)
-	// 	}
-	// 	return acc, nil
-	return account.Holdings{}, common.ErrNotYetImplemented
+	creds, err := me.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(me.Name, creds, assetType)
+	if err != nil {
+		return me.UpdateAccountInfo(ctx, assetType)
+	}
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	var err error
+	var resp []exchange.FundingHistory
+	result, err := me.GetFundDepositHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		return nil, err
+	}
+	for a := range result {
+		var statusString string
+		switch result[a].Status {
+		case 1:
+			statusString = "SMALL"
+		case 2:
+			statusString = "TIME_DELAY"
+		case 3:
+			statusString = "LARGE_DELAY"
+		case 4:
+			statusString = "PENDING"
+		case 5:
+			statusString = "SUCCESS"
+		case 6:
+			statusString = "AUDITING"
+		case 7:
+			statusString = "REJECTED"
+		}
+		resp = append(resp, exchange.FundingHistory{
+			ExchangeName:    me.Name,
+			Status:          statusString,
+			TransferID:      result[a].TransactionID,
+			Timestamp:       result[a].ConfirmTimes.Time(),
+			Currency:        result[a].Coin,
+			Amount:          result[a].Amount.Float64(),
+			CryptoToAddress: result[a].Address,
+			TransferType:    "diposit",
+		})
+	}
+	withdrawals, err := me.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		return nil, err
+	}
+	for w := range withdrawals {
+		var wdrStatus string
+		switch withdrawals[w].Status {
+		case 1:
+			wdrStatus = "APPLY"
+		case 2:
+			wdrStatus = "AUDITING"
+		case 3:
+			wdrStatus = "WAIT"
+		case 4:
+			wdrStatus = "PROCESSING"
+		case 5:
+			wdrStatus = "WAIT_PACKAGING"
+		case 6:
+			wdrStatus = "WAIT_CONFIRM"
+		case 7:
+			wdrStatus = "SUCCESS"
+		case 8:
+			wdrStatus = "FAILED"
+		case 9:
+			wdrStatus = "CANCEL"
+		case 10:
+			wdrStatus = "MANUAL"
+		}
+		resp = append(resp, exchange.FundingHistory{
+			ExchangeName:    me.Name,
+			Status:          wdrStatus,
+			TransferID:      withdrawals[w].TransactionID,
+			Timestamp:       withdrawals[w].UpdateTime.Time(),
+			Currency:        withdrawals[w].Coin,
+			Amount:          withdrawals[w].Amount.Float64(),
+			CryptoToAddress: withdrawals[w].Address,
+			TransferType:    "withdrawal",
+		})
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []exchange.WithdrawalHistory
+	withdrawals, err := me.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		return nil, err
+	}
+	for w := range withdrawals {
+		var wdrStatus string
+		switch withdrawals[w].Status {
+		case 1:
+			wdrStatus = "APPLY"
+		case 2:
+			wdrStatus = "AUDITING"
+		case 3:
+			wdrStatus = "WAIT"
+		case 4:
+			wdrStatus = "PROCESSING"
+		case 5:
+			wdrStatus = "WAIT_PACKAGING"
+		case 6:
+			wdrStatus = "WAIT_CONFIRM"
+		case 7:
+			wdrStatus = "SUCCESS"
+		case 8:
+			wdrStatus = "FAILED"
+		case 9:
+			wdrStatus = "CANCEL"
+		case 10:
+			wdrStatus = "MANUAL"
+		}
+		resp = append(resp, exchange.WithdrawalHistory{
+			Status:          wdrStatus,
+			TransferID:      withdrawals[w].TransactionID,
+			Timestamp:       withdrawals[w].UpdateTime.Time(),
+			Currency:        withdrawals[w].Coin,
+			Amount:          withdrawals[w].Amount.Float64(),
+			CryptoToAddress: withdrawals[w].Address,
+			TransferType:    "withdrawal",
+		})
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
