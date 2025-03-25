@@ -379,10 +379,8 @@ func WithVerbose(ctx context.Context) context.Context {
 // IsVerbose checks main verbosity first then checks context verbose values
 // for specific request verbosity.
 func IsVerbose(ctx context.Context, verbose bool) bool {
-	if verbose {
-		return true
+	if !verbose {
+		verbose, _ = ctx.Value(contextVerboseFlag).(bool)
 	}
-
-	isCtxVerbose, _ := ctx.Value(contextVerboseFlag).(bool)
-	return isCtxVerbose
+	return verbose
 }
