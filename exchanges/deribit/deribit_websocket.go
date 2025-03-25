@@ -105,8 +105,6 @@ var defaultSubscriptions = subscription.List{
 }
 
 var (
-	indexENUMS = []string{"ada_usd", "algo_usd", "avax_usd", "bch_usd", "bnb_usd", "btc_usd", "doge_usd", "dot_usd", "eth_usd", "link_usd", "ltc_usd", "luna_usd", "matic_usd", "near_usd", "shib_usd", "sol_usd", "trx_usd", "uni_usd", "usdc_usd", "xrp_usd", "ada_usdc", "bch_usdc", "algo_usdc", "avax_usdc", "btc_usdc", "doge_usdc", "dot_usdc", "bch_usdc", "bnb_usdc", "eth_usdc", "link_usdc", "ltc_usdc", "luna_usdc", "matic_usdc", "near_usdc", "shib_usdc", "sol_usdc", "trx_usdc", "uni_usdc", "xrp_usdc", "btcdvol_usdc", "ethdvol_usdc"}
-
 	pingMessage = WsSubscriptionInput{
 		ID:             2,
 		JSONRPCVersion: rpcVersion,
@@ -117,7 +115,7 @@ var (
 		ID:             1,
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/set_heartbeat",
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"interval": 15,
 		},
 	}
@@ -168,7 +166,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
@@ -592,7 +590,7 @@ func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processData(respRaw []byte, result interface{}) error {
+func (d *Deribit) processData(respRaw []byte, result any) error {
 	var response WsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)

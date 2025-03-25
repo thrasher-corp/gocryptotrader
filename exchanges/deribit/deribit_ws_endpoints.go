@@ -160,7 +160,7 @@ func (d *Deribit) WSRetrieveHistoricalVolatility(ccy currency.Code) ([]Historica
 	}{
 		Currency: ccy,
 	}
-	var data [][2]interface{}
+	var data [][2]any
 	err := d.SendWSRequest(nonMatchingEPL, getHistoricalVolatility, input, &data, false)
 	if err != nil {
 		return nil, err
@@ -1889,7 +1889,7 @@ func (d *Deribit) WSSetMMPConfig(ccy currency.Code, interval kline.Interval, fro
 	if ccy.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["currency"] = ccy
 	intervalString, err := d.GetResolutionFromInterval(interval)
 	if err != nil {
@@ -2015,7 +2015,7 @@ func (d *Deribit) WSCreateCombo(args []ComboParam) (*ComboDetail, error) {
 		}
 	}
 	var resp *ComboDetail
-	return resp, d.SendWSRequest(nonMatchingEPL, createCombos, map[string]interface{}{"trades": args}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, createCombos, map[string]any{"trades": args}, &resp, true)
 }
 
 // WsLogout gracefully close websocket connection, when COD (Cancel On Disconnect) is enabled orders are not cancelled
@@ -2355,7 +2355,7 @@ func (d *Deribit) WsSimulateBlockTrade(role string, trades []BlockTradeParam) (b
 
 // SendWSRequest sends a request through the websocket connection.
 // both authenticated and public endpoints are allowed.
-func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params, response interface{}, authenticated bool) error {
+func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params, response any, authenticated bool) error {
 	if authenticated && !d.Websocket.CanUseAuthenticatedEndpoints() {
 		return errWebsocketConnectionNotAuthenticated
 	}
@@ -2418,10 +2418,8 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 		case 10040:
 			after := 100 * time.Millisecond // because all the request rate will be reset after 1 sec interval
 			backoff := request.DefaultBackoff()(attempt)
-			delay := backoff
-			if after > backoff {
-				delay = after
-			}
+			delay := max(after, backoff)
+
 			if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 				return errors.New("deadline would be exceeded by retry")
 			}

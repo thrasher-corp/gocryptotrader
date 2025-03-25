@@ -808,7 +808,7 @@ func (f fakeEvent) GetUnderlyingPair() currency.Pair {
 	return f.Pair()
 }
 
-func (f fakeEvent) AppendReasonf(string, ...interface{}) {}
+func (f fakeEvent) AppendReasonf(string, ...any) {}
 
 func (f fakeEvent) GetBase() *event.Base {
 	return &event.Base{}

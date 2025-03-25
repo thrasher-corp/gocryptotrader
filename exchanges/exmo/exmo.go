@@ -192,14 +192,14 @@ func (e *EXMO) GetRequiredAmount(ctx context.Context, pair string, amount float6
 
 // GetCryptoDepositAddress returns a list of addresses for cryptocurrency deposits
 func (e *EXMO) GetCryptoDepositAddress(ctx context.Context) (map[string]string, error) {
-	var result interface{}
+	var result any
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, exmoDepositAddress, url.Values{}, &result)
 	if err != nil {
 		return nil, err
 	}
 
 	switch r := result.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		mapString := make(map[string]string)
 		for key, value := range r {
 			if key == "error" {
@@ -285,7 +285,7 @@ func (e *EXMO) GetWalletHistory(ctx context.Context, date int64) (WalletHistory,
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path string, result interface{}) error {
+func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path string, result any) error {
 	urlPath, err := e.API.Endpoints.GetURL(endpoint)
 	if err != nil {
 		return err
@@ -305,7 +305,7 @@ func (e *EXMO) SendHTTPRequest(ctx context.Context, endpoint exchange.URL, path 
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.URL, method, endpoint string, vals url.Values, result interface{}) error {
+func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.URL, method, endpoint string, vals url.Values, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err

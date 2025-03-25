@@ -173,7 +173,7 @@ type CurrencyPairStatistic struct {
 
 	Events []DataAtOffset `json:"-"`
 
-	MaxDrawdown           Swing               `json:"max-drawdown,omitempty"`
+	MaxDrawdown           Swing               `json:"max-drawdown"`
 	HighestCommittedFunds ValueAtTime         `json:"highest-committed-funds"`
 	GeometricRatios       *Ratios             `json:"geometric-ratios"`
 	ArithmeticRatios      *Ratios             `json:"arithmetic-ratios"`

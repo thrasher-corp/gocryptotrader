@@ -45,7 +45,7 @@ type Item struct {
 	Path          string
 	Headers       map[string]string
 	Body          io.Reader
-	Result        interface{}
+	Result        any
 	NonceEnabled  bool
 	Verbose       bool
 	HTTPDebugging bool

@@ -34,7 +34,7 @@ var (
 )
 
 // Setup sets private variables
-func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- interface{}) error {
+func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- any) error {
 	if exchangeConfig == nil { // exchange config fields are checked in stream package
 		// prior to calling this, so further checks are not needed.
 		return fmt.Errorf(packageError, errExchangeConfigNil)
