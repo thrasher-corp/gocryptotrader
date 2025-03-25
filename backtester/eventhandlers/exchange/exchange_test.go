@@ -221,6 +221,10 @@ func TestPlaceOrder(t *testing.T) {
 	}
 
 	f.Exchange = testExchange
+	err = exch.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = e.placeOrder(context.Background(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
 		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPairIsEmpty)

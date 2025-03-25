@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -598,7 +599,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
 	err = limit.Conforms(46241000, 0.00001, order.Limit)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin, "expected error: %v, but got: %v", order.ErrAmountBelowMin, err)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin, "expected error: %v, but got: %v", limits.ErrAmountBelowMin, err)
 
 	err = limit.Conforms(46241000, 0.0001, order.Limit)
 	assert.NoError(t, err, "expected no error, but got: %v", err)

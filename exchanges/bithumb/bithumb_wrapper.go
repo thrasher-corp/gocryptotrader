@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -794,11 +795,11 @@ func (b *Bithumb) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair,
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (b *Bithumb) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
-	limits, err := b.FetchExchangeLimits(ctx)
+	l, err := b.FetchExchangeLimits(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return b.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // UpdateCurrencyStates updates currency states for exchange

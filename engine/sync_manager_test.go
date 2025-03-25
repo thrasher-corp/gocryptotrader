@@ -315,9 +315,7 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
 	}
 
-	m.add(key.ExchangePairAsset{
-		Asset: asset.Spot,
-	}, syncBase{})
+	m.add(key.NewExchangePairAssetKey("", asset.Spot, currency.EMPTYPAIR), syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, errors.New("test"))

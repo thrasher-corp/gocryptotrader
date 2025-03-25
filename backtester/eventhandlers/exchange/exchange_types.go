@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 )
 
 var (
@@ -57,8 +57,8 @@ type Settings struct {
 	MinimumSlippageRate decimal.Decimal
 	MaximumSlippageRate decimal.Decimal
 
-	Limits                  gctorder.MinMaxLevel
 	CanUseExchangeLimits    bool
+	Limits                  limits.MinMaxLevel
 	SkipCandleVolumeFitting bool
 
 	UseExchangePNLCalculation bool

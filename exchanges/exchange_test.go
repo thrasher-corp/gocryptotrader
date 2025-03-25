@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -475,11 +476,11 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	if spot.Delimiter != "~" {
 		t.Error("incorrect pair format delimiter")
 	}
-	futures, err := b.GetPairFormat(asset.Futures, false)
+	f, err := b.GetPairFormat(asset.Futures, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if futures.Delimiter != ":)" {
+	if f.Delimiter != ":)" {
 		t.Error("incorrect pair format delimiter")
 	}
 }
@@ -2963,12 +2964,7 @@ type FakeBase struct{ Base }
 func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return []futures.OpenInterest{
 		{
-			Key: key.ExchangePairAsset{
-				Exchange: f.Name,
-				Base:     currency.BTC.Item,
-				Quote:    currency.BONK.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangePairAssetKey(f.Name, asset.Futures, currency.NewPair(currency.BTC, currency.BONK)),
 			OpenInterest: 1337,
 		},
 	}, nil
@@ -3143,4 +3139,42 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "🐋", b.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat.Delimiter, "ConfigFormat should be correct and have a blow hole")
 	assert.Equal(t, "🦥", b.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter, "RequestFormat should be correct and kinda lazy")
+}
+
+func TestGetOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	exch := Base{
+		Name: "TESTNAME",
+	}
+	cp := currency.NewBTCUSDT()
+	k := key.NewExchangePairAssetKey("TESTNAME", asset.Spread, cp)
+	l := limits.MinMaxLevel{
+		Key:      k,
+		MaxPrice: 1337,
+	}
+	err := limits.LoadLimits([]limits.MinMaxLevel{l})
+	require.NoError(t, err)
+
+	_, err = exch.GetOrderExecutionLimits(asset.Spread, cp)
+	require.NoError(t, err)
+}
+
+func TestCheckOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	exch := Base{
+		Name: "TESTNAME",
+	}
+	cp := currency.NewBTCUSDT()
+	k := key.NewExchangePairAssetKey("TESTNAME", asset.Spread, cp)
+	l := limits.MinMaxLevel{
+		Key:      k,
+		MaxPrice: 1337,
+	}
+	err := limits.LoadLimits([]limits.MinMaxLevel{
+		l,
+	})
+	require.NoError(t, err)
+
+	err = exch.CheckOrderExecutionLimits(asset.Spread, cp, 1338.0, 1.0, order.Market)
+	require.NoError(t, err)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1279,12 +1280,12 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	for x := range availPairs {
-		var limit order.MinMaxLevel
-		limit, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])
+		var l limits.MinMaxLevel
+		l, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])
 		if err != nil {
 			t.Fatal(err, availPairs[x])
 		}
-		if limit == (order.MinMaxLevel{}) {
+		if l == (limits.MinMaxLevel{}) {
 			t.Fatal("exchange limit should be loaded")
 		}
 	}

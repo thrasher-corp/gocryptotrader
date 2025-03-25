@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -27,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -786,7 +788,7 @@ func (g *Gemini) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	resp := make([]order.MinMaxLevel, 0, len(details))
+	resp := make([]limits.MinMaxLevel, 0, len(details))
 	for i := range details {
 		status := strings.ToLower(details[i].Status)
 		if status != "open" && status != "limit_only" {
@@ -796,15 +798,14 @@ func (g *Gemini) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		if err != nil {
 			return err
 		}
-		resp = append(resp, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   a,
+		resp = append(resp, limits.MinMaxLevel{
+			Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 			AmountStepIncrementSize: details[i].TickSize,
 			MinimumBaseAmount:       details[i].MinOrderSize.Float64(),
 			QuoteStepIncrementSize:  details[i].QuoteIncrement,
 		})
 	}
-	return g.LoadLimits(resp)
+	return limits.LoadLimits(resp)
 }
 
 // GetLatestFundingRates returns the latest funding rates data
