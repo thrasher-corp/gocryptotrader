@@ -745,7 +745,7 @@ func TestWSProcessTrades(t *testing.T) {
 			AssetType:    a,
 		},
 	}
-	require.Len(t, d.Websocket.DataHandler, 2, "Must see the correct number of trades")
+	require.Len(t, d.Websocket.DataHandler, len(exp), "Must see the correct number of trades")
 	for resp := range d.Websocket.DataHandler {
 		switch v := resp.(type) {
 		case trade.Data:
