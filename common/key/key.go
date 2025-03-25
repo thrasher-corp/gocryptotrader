@@ -15,7 +15,7 @@ type ExchangePairAsset struct {
 	Asset    asset.Item
 }
 
-// NewExchangePairAssetKey helps reduce the usage of currency.Item across codebase
+// NewExchangePairAssetKey is a helper to reduce the amount of code needed to create a key
 func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
 	return ExchangePairAsset{
 		Exchange: strings.ToLower(exch),
@@ -23,34 +23,6 @@ func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) Exchan
 		Quote:    cp.Quote.Item,
 		Asset:    a,
 	}
-}
-
-// ExchangeAsset is a unique map key signature for exchange and asset
-type ExchangeAsset struct {
-	Exchange string
-	Asset    asset.Item
-}
-
-// PairAsset is a unique map key signature for currency pair and asset
-type PairAsset struct {
-	Base  *currency.Item
-	Quote *currency.Item
-	Asset asset.Item
-}
-
-// SubAccountCurrencyAsset is a unique map key signature for subaccount, currency code and asset
-type SubAccountCurrencyAsset struct {
-	SubAccount string
-	Currency   *currency.Item
-	Asset      asset.Item
-}
-
-// Pair combines the base and quote into a pair
-func (k *PairAsset) Pair() currency.Pair {
-	if k == nil || (k.Base == nil && k.Quote == nil) {
-		return currency.EMPTYPAIR
-	}
-	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
 // Pair combines the base and quote into a pair
@@ -85,4 +57,32 @@ func (k *ExchangePairAsset) MatchesExchange(exch string) bool {
 		return false
 	}
 	return strings.EqualFold(k.Exchange, exch)
+}
+
+// ExchangeAsset is a unique map key signature for exchange and asset
+type ExchangeAsset struct {
+	Exchange string
+	Asset    asset.Item
+}
+
+// PairAsset is a unique map key signature for currency pair and asset
+type PairAsset struct {
+	Base  *currency.Item
+	Quote *currency.Item
+	Asset asset.Item
+}
+
+// SubAccountCurrencyAsset is a unique map key signature for subaccount, currency code and asset
+type SubAccountCurrencyAsset struct {
+	SubAccount string
+	Currency   *currency.Item
+	Asset      asset.Item
+}
+
+// Pair combines the base and quote into a pair
+func (k *PairAsset) Pair() currency.Pair {
+	if k == nil || (k.Base == nil && k.Quote == nil) {
+		return currency.EMPTYPAIR
+	}
+	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }

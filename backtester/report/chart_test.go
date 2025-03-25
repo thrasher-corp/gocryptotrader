@@ -110,7 +110,7 @@ func TestCreatePNLCharts(t *testing.T) {
 	var d Data
 	d.Statistics = &statistics.Statistic{}
 	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewPBTCUSDT())] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(testExchange, asset.Spot, currency.NewBTCUSDT())] = &statistics.CurrencyPairStatistic{
 		Events: []statistics.DataAtOffset{
 			{
 				PNL: &portfolio.PNLSummary{

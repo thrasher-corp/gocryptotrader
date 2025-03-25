@@ -52,14 +52,10 @@ const (
 	DefaultWebsocketOrderbookBufferLimit = 5
 )
 
-// Public Errors
-var (
-	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
-	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
-)
+// ErrSymbolCannotBeMatched returned on symbol matching failure
+var ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
 
 var (
-	errSetAssetPairStore                 = errors.New("error storing asset pair store")
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
@@ -1924,10 +1920,12 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 	return account.GetHoldings(b.Name, creds, assetType)
 }
 
+// GetOrderExecutionLimits returns a limit based on the exchange, asset and pair from storage
 func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
 	return limits.GetOrderExecutionLimits(key.NewExchangePairAssetKey(b.Name, a, cp))
 }
 
+// CheckOrderExecutionLimits checks if the order execution limits are within the defined limits from storage
 func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount, price float64, orderType order.Type) error {
 	return limits.CheckOrderExecutionLimits(
 		key.NewExchangePairAssetKey(b.Name, a, cp),

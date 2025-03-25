@@ -266,7 +266,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				t.Errorf("Bitstamp GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
 				continue
 			}
-			assert.NotEmpty(t, l.Pair, "Pair should not be empty")
+			assert.NotEmpty(t, l.Key.Pair(), "Pair should not be empty")
 			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
 			assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")

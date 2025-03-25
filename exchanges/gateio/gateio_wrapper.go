@@ -2182,6 +2182,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			})
 		}
 	case asset.Futures:
+		// TODO: split after #1786
 		btcContracts, err := g.GetAllFutureContracts(ctx, currency.BTC)
 		if err != nil {
 			return err
