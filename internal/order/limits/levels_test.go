@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -12,14 +13,11 @@ func TestConforms(t *testing.T) {
 	t.Parallel()
 	tt := &MinMaxLevel{}
 	err := tt.Conforms(0, 0, order.Limit)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	tt = &MinMaxLevel{
 		MinNotional: 100,
 	}
-
 	err = tt.Conforms(1, 1, order.Limit)
 	assert.ErrorIs(t, err, ErrNotionalValue)
 

@@ -2209,8 +2209,8 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
-				MarketStepIncrementSize: 1,
-				AmountStepIncrementSize: 1,
+				MarketStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
 			})
 		}
 	case asset.DeliveryFutures:
@@ -2240,8 +2240,8 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
-				MarketStepIncrementSize: 1,
-				AmountStepIncrementSize: 1,
+				MarketStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
 			})
 		}
 	case asset.Options:
@@ -2268,11 +2268,13 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 					Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
-					MarketStepIncrementSize: 1,
-					AmountStepIncrementSize: 1,
+					MarketStepIncrementSize: contracts[c].OrderPriceRound.Float64(),
+					AmountStepIncrementSize: contracts[c].OrderPriceRound.Float64(),
 				})
 			}
 		}
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
 	return limits.LoadLimits(l)

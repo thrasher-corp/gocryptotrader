@@ -1,7 +1,6 @@
 package limits
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,9 +17,7 @@ func TestLoadLimits(t *testing.T) {
 	t.Parallel()
 	e := executionLimits{}
 	err := e.loadLimits(nil)
-	if !errors.Is(err, ErrCannotLoadLimit) {
-		t.Fatalf("expected error %v but received %v", ErrCannotLoadLimit, err)
-	}
+	require.ErrorIs(t, err, ErrCannotLoadLimit)
 
 	badKeyNoExchange := []MinMaxLevel{
 		{

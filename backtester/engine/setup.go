@@ -580,7 +580,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 		}
 
 		l, err := exch.GetOrderExecutionLimits(a, pair)
-		if err != nil && !errors.Is(err, limits.ErrExchangeLimitNotLoaded) {
+		if err != nil && !errors.Is(err, limits.ErrOrderLimitNotFound) {
 			return resp, err
 		}
 
@@ -621,6 +621,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 			BuySide:                   buyRule,
 			SellSide:                  sellRule,
 			Leverage:                  lev,
+			Limits:                    l,
 			SkipCandleVolumeFitting:   cfg.CurrencySettings[i].SkipCandleVolumeFitting,
 			CanUseExchangeLimits:      cfg.CurrencySettings[i].CanUseExchangeLimits,
 			UseExchangePNLCalculation: cfg.CurrencySettings[i].UseExchangePNLCalculation,

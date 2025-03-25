@@ -3143,17 +3143,25 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, g)
 
-	err := g.UpdateOrderExecutionLimits(context.Background(), 1336)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received %v, expected %v", err, asset.ErrNotSupported)
+	scenarios := []struct {
+		assetType     asset.Item
+		expectedError error
+	}{
+		{assetType: asset.Spot, expectedError: nil},
+		{assetType: asset.Futures, expectedError: nil},
+		{assetType: asset.DeliveryFutures, expectedError: nil},
+		{assetType: asset.Options, expectedError: nil},
+		{assetType: asset.CrossMargin, expectedError: asset.ErrNotSupported},
+		{assetType: asset.Margin, expectedError: asset.ErrNotSupported},
 	}
 
-	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Options)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received %v, expected %v", err, common.ErrNotYetImplemented)
+	for _, scen := range scenarios {
+		err := g.UpdateOrderExecutionLimits(context.Background(), scen.assetType)
+		assert.ErrorIs(t, err, scen.expectedError)
 	}
 
-	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	// test its loaded
+	err := g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
