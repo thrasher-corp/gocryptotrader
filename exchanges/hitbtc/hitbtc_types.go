@@ -98,7 +98,6 @@ type Balance struct {
 	Currency  string  `json:"currency"`
 	Available float64 `json:"available,string"` // Amount available for trading or transfer to main account
 	Reserved  float64 `json:"reserved,string"`  // Amount reserved for active orders or incomplete transfers to main account
-
 }
 
 // DepositCryptoAddresses contains address information
@@ -281,8 +280,8 @@ type LendingHistory struct {
 
 type capture struct {
 	Method string        `json:"method,omitempty"`
-	Result interface{}   `json:"result"`
-	Error  ResponseError `json:"error,omitempty"`
+	Result any           `json:"result"`
+	Error  ResponseError `json:"error"`
 	ID     int64         `json:"id,omitempty"`
 }
 
@@ -373,7 +372,7 @@ type WsLoginData struct {
 // wsActiveOrdersResponse Active order response for auth subscription to reports
 type wsActiveOrdersResponse struct {
 	Params []wsOrderData `json:"params"`
-	Error  ResponseError `json:"error,omitempty"`
+	Error  ResponseError `json:"error"`
 }
 
 type wsReportResponse struct {
@@ -417,7 +416,7 @@ type wsOrderData struct {
 // WsReportResponse report response for auth subscription to reports
 type WsReportResponse struct {
 	Params WsReportResponseData `json:"params"`
-	Error  ResponseError        `json:"error,omitempty"`
+	Error  ResponseError        `json:"error"`
 }
 
 // WsReportResponseData Report data for WsReportResponse
@@ -462,7 +461,7 @@ type WsSubmitOrderRequestData struct {
 type WsSubmitOrderSuccessResponse struct {
 	Result WsSubmitOrderSuccessResponseData `json:"result"`
 	ID     int64                            `json:"id"`
-	Error  ResponseError                    `json:"error,omitempty"`
+	Error  ResponseError                    `json:"error"`
 }
 
 // WsSubmitOrderSuccessResponseData WS response data
@@ -485,7 +484,7 @@ type WsSubmitOrderSuccessResponseData struct {
 
 // WsSubmitOrderErrorResponse WS error response
 type WsSubmitOrderErrorResponse struct {
-	Error WsSubmitOrderErrorResponseData `json:"error,omitempty"`
+	Error WsSubmitOrderErrorResponseData `json:"error"`
 	ID    int64                          `json:"id"`
 }
 
@@ -500,7 +499,7 @@ type WsSubmitOrderErrorResponseData struct {
 type WsCancelOrderResponse struct {
 	Result WsCancelOrderResponseData `json:"result"`
 	ID     int64                     `json:"id"`
-	Error  ResponseError             `json:"error,omitempty"`
+	Error  ResponseError             `json:"error"`
 }
 
 // WsCancelOrderResponseData WS response data
@@ -525,7 +524,7 @@ type WsCancelOrderResponseData struct {
 type WsReplaceOrderResponse struct {
 	Result WsReplaceOrderResponseData `json:"result"`
 	ID     int64                      `json:"id"`
-	Error  ResponseError              `json:"error,omitempty"`
+	Error  ResponseError              `json:"error"`
 }
 
 // WsReplaceOrderResponseData WS response data
@@ -551,7 +550,7 @@ type WsReplaceOrderResponseData struct {
 type WsGetActiveOrdersResponse struct {
 	Result []WsGetActiveOrdersResponseData `json:"result"`
 	ID     int64                           `json:"id"`
-	Error  ResponseError                   `json:"error,omitempty"`
+	Error  ResponseError                   `json:"error"`
 }
 
 // WsGetActiveOrdersResponseData WS response data
@@ -577,7 +576,7 @@ type WsGetActiveOrdersResponseData struct {
 type WsGetTradingBalanceResponse struct {
 	Result []WsGetTradingBalanceResponseData `json:"result"`
 	ID     int64                             `json:"id"`
-	Error  ResponseError                     `json:"error,omitempty"`
+	Error  ResponseError                     `json:"error"`
 }
 
 // WsGetTradingBalanceResponseData WS response data
@@ -630,7 +629,7 @@ type WsGetCurrenciesRequestParameters struct {
 type WsGetCurrenciesResponse struct {
 	Result WsGetCurrenciesResponseData `json:"result"`
 	ID     int64                       `json:"id"`
-	Error  ResponseError               `json:"error,omitempty"`
+	Error  ResponseError               `json:"error"`
 }
 
 // WsGetCurrenciesResponseData currency response data
@@ -664,7 +663,7 @@ type WsGetSymbolsRequestParameters struct {
 type WsGetSymbolsResponse struct {
 	Result WsGetSymbolsResponseData `json:"result"`
 	ID     int64                    `json:"id"`
-	Error  ResponseError            `json:"error,omitempty"`
+	Error  ResponseError            `json:"error"`
 }
 
 // WsGetSymbolsResponseData symbol response data
@@ -699,7 +698,7 @@ type WsGetTradesResponse struct {
 	Jsonrpc string                  `json:"jsonrpc"`
 	Result  WsGetTradesResponseData `json:"result"`
 	ID      int64                   `json:"id"`
-	Error   ResponseError           `json:"error,omitempty"`
+	Error   ResponseError           `json:"error"`
 }
 
 // WsGetTradesResponseData trade response data

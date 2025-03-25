@@ -174,7 +174,8 @@ func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Last:         tickerNew.Last,
 		Volume:       tickerNew.Volume,
 		ExchangeName: b.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}

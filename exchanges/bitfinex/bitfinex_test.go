@@ -39,8 +39,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b *Bitfinex
-var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+var (
+	b          *Bitfinex
+	btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+)
 
 func TestMain(m *testing.M) {
 	b = new(Bitfinex)
@@ -791,7 +793,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := b.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
@@ -808,7 +810,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	t.Parallel()
 
 	if sharedtestvalues.AreAPICredentialsSet(b) {
@@ -883,7 +885,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -900,7 +902,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -916,7 +918,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
@@ -948,7 +950,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -970,7 +972,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -1036,7 +1038,7 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
@@ -1058,7 +1060,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -1112,11 +1114,11 @@ func TestWSAuth(t *testing.T) {
 	testexch.SetupWs(t, b)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be turned on")
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	catcher := func() (ok bool) {
 		select {
 		case v := <-b.Websocket.ToRoutine:
-			resp, ok = v.(map[string]interface{})
+			resp, ok = v.(map[string]any)
 		default:
 		}
 		return
@@ -1148,15 +1150,23 @@ func TestGenerateSubscriptions(t *testing.T) {
 				s := baseSub.Clone()
 				s.Asset = a
 				s.Pairs = currency.Pairs{p}
+				prefix := "t"
+				if a == asset.MarginFunding {
+					prefix = "f"
+				}
 				switch s.Channel {
 				case subscription.TickerChannel:
-					s.QualifiedChannel = `{"channel":"ticker","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"ticker","symbol":"` + prefix + p.String() + `"}`
 				case subscription.CandlesChannel:
-					s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:t` + p.String() + `"}`
+					if a == asset.MarginFunding {
+						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `:p30"}`
+					} else {
+						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `"}`
+					}
 				case subscription.OrderbookChannel:
-					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"` + prefix + p.String() + `"}`
 				case subscription.AllTradesChannel:
-					s.QualifiedChannel = `{"channel":"trades","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"trades","symbol":"` + prefix + p.String() + `"}`
 				}
 				exp = append(exp, s)
 			}

@@ -720,10 +720,10 @@ func TestCheckPairConsistency(t *testing.T) {
 	t.Parallel()
 
 	var c Config
-	err := c.CheckPairConsistency("asdf")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' buy expected: '%v'", err, ErrExchangeNotFound)
-	}
+	p1 := currency.NewPairWithDelimiter("LTC", "USD", "_")
+	p2 := currency.NewPairWithDelimiter("BTC", "USD", "_")
+
+	assert.ErrorIs(t, c.CheckPairConsistency("asdf"), ErrExchangeNotFound)
 
 	c.Exchanges = append(c.Exchanges,
 		Exchange{
@@ -731,18 +731,9 @@ func TestCheckPairConsistency(t *testing.T) {
 		},
 	)
 
-	// Test nil pair store
-	err = c.CheckPairConsistency(testFakeExchangeName)
-	if !errors.Is(err, errPairsManagerIsNil) {
-		t.Fatalf("received: '%v' buy expected: '%v'", err, errPairsManagerIsNil)
-	}
+	assert.ErrorIs(t, c.CheckPairConsistency(testFakeExchangeName), errPairsManagerIsNil)
 
-	enabled, err := currency.NewPairDelimiter("BTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+	pm := &currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
 				RequestFormat: &currency.PairFormat{
@@ -754,123 +745,51 @@ func TestCheckPairConsistency(t *testing.T) {
 					Delimiter: "_",
 				},
 				Enabled: currency.Pairs{
-					enabled,
+					p2,
 				},
 			},
 		},
 	}
+	c.Exchanges[0].CurrencyPairs = pm
 
-	// Test for nil avail pairs
-	err = c.CheckPairConsistency(testFakeExchangeName)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' buy expected: '%v'", err, nil)
-	}
-
-	p1, err := currency.NewPairDelimiter("LTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error on empty available pairs")
+	assert.Empty(t, pm.Pairs[asset.Spot].Enabled, "Unavailable pairs should be removed from enabled")
 
 	// Test that enabled pair is not found in the available pairs
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		p1,
-	}
+	pm.Pairs[asset.Spot].Available = currency.Pairs{p1}
 
 	// LTC_USD is only found in the available pairs list and should therefore
-	// be added to the enabled pairs list due to the atLestOneEnabled code
-	err = c.CheckPairConsistency(testFakeExchangeName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// be added to the enabled pairs list due to the atLeastOneEnabled code
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error when adding a pair from available to enabled")
+	require.Equal(t, 1, len(pm.Pairs[asset.Spot].Enabled), "One pair must be enabled")
+	assert.True(t, slices.Contains(pm.Pairs[asset.Spot].Enabled, p1), "Newly enabled pair should be in Enabled")
 
-	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatal("there should be at least one pair located in this list")
-	}
+	pm.Pairs[asset.Spot].Available = currency.Pairs{p1, p2}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error with no changes to be made")
 
-	if !c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled[0].Equal(p1) {
-		t.Fatal("LTC_USD should be contained in the enabled pairs list")
-	}
+	pm.Pairs[asset.Spot].Enabled = nil
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error when adding a pair from available to enabled to fulfil atLeastOne")
+	assert.NotEmpty(t, pm.Pairs[asset.Spot].Enabled, "One pair should be enabled")
 
-	p2, err := currency.NewPairDelimiter("BTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{p1, p2}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with when removing an invalid pair")
 
-	// Add the BTC_USD pair and see result
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		p1, p2,
-	}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with consistent pairs")
 
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Fatal(err)
-	}
+	pm.Pairs[asset.Spot].AssetEnabled = true
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset enabled but no pairs")
 
-	// Test that an empty enabled pair is populated with an available pair
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result", err)
-	}
+	pm.Pairs[asset.Spot].AssetEnabled = true
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset enabled and enabled pairs")
 
-	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatal("should be populated with at least one currency pair")
-	}
+	pm.Pairs[asset.Spot].AssetEnabled = false
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset disabled and no enabled pairs")
 
-	// Test that an invalid enabled pair is removed from the list
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		p1,
-		p2,
-	}
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	// Test when no update is required as the available pairs and enabled pairs
-	// are consistent
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
-
-	// Test no conflict and at least one on enabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
-
-	// Test with conflict and at least one on enabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
-
-	// Test no conflict and at least one on disabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPair(currency.DASH, currency.USD),
-		p1,
-		p2,
-	}
-
-	// Test with conflict and at least one on disabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = nil
-
-	// assetType enabled failure check
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD), p1, p2}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset disabled but enabled pairs")
 }
 
 func TestSupportsPair(t *testing.T) {
@@ -884,7 +803,7 @@ func TestSupportsPair(t *testing.T) {
 				CurrencyPairs: &currency.PairsManager{
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
-							AssetEnabled:  convert.BoolPtr(true),
+							AssetEnabled:  true,
 							Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
 							ConfigFormat:  fmt,
 							RequestFormat: fmt,
@@ -1450,8 +1369,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
-	//nolint: gocritic
-	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
+	cpy := slices.Clone(cfg.Exchanges)
 
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
@@ -1538,7 +1456,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges = append(cfg.Exchanges, cpy[0])
 
 	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
+	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = false
 	err = cfg.CheckExchangeConfigValues()
 	require.NoError(t, err)
 
@@ -1711,7 +1629,7 @@ func TestCheckConfig(t *testing.T) {
 					LastUpdated:     0,
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
-							AssetEnabled:  convert.BoolPtr(true),
+							AssetEnabled:  true,
 							Available:     currency.Pairs{cp1, cp2},
 							Enabled:       currency.Pairs{cp1},
 							ConfigFormat:  &currency.EMPTYFORMAT,

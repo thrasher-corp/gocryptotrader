@@ -110,7 +110,8 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 	}
 
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
 			Username: s.config.GRPC.Username,
 			Password: s.config.GRPC.Password,
@@ -357,7 +358,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 
-	customSettings := make(map[string]interface{}, len(request.Config.StrategySettings.CustomSettings))
+	customSettings := make(map[string]any, len(request.Config.StrategySettings.CustomSettings))
 	for i := range request.Config.StrategySettings.CustomSettings {
 		customSettings[request.Config.StrategySettings.CustomSettings[i].KeyField] = request.Config.StrategySettings.CustomSettings[i].KeyValue
 	}

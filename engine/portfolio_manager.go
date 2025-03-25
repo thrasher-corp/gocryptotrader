@@ -18,10 +18,8 @@ import (
 // PortfolioManagerName is an exported subsystem name
 const PortfolioManagerName = "portfolio"
 
-var (
-	// PortfolioSleepDelay defines the default sleep time between portfolio manager runs
-	PortfolioSleepDelay = time.Minute
-)
+// PortfolioSleepDelay defines the default sleep time between portfolio manager runs
+var PortfolioSleepDelay = time.Minute
 
 // portfolioManager routinely retrieves a user's holdings through exchange APIs as well
 // as through addresses provided in the config

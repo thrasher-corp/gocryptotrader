@@ -54,13 +54,17 @@ type WalletDataV2 struct {
 }
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote non-contract order types.
-var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
+var AcceptedOrderType = []string{
+	"market", "limit", "stop", "trailing-stop",
 	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
-	"exchange trailing-stop", "exchange fill-or-kill"}
+	"exchange trailing-stop", "exchange fill-or-kill",
+}
 
 // AcceptedWalletNames defines different wallets supported by the exchange
-var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
-	"funding"}
+var AcceptedWalletNames = []string{
+	"trading", "exchange", "deposit", "margin",
+	"funding",
+}
 
 type acceptableMethodStore struct {
 	a map[string][]string
@@ -250,7 +254,7 @@ type AccountInfoFees struct {
 
 // AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
-	Withdraw map[string]interface{} `json:"withdraw"`
+	Withdraw map[string]any `json:"withdraw"`
 }
 
 // AccountSummary holds account summary data
@@ -635,7 +639,7 @@ type WsFundingOffer struct {
 	Amount         float64
 	OriginalAmount float64
 	Type           string
-	Flags          interface{}
+	Flags          any
 	Status         string
 	Rate           float64
 	Period         int64
@@ -654,7 +658,7 @@ type WsCredit struct {
 	Created      time.Time
 	Updated      time.Time
 	Amount       float64
-	Flags        interface{} // Future params object (stay tuned)
+	Flags        any // Future params object (stay tuned)
 	Status       string
 	Rate         float64
 	Period       int64

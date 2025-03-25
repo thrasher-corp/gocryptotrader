@@ -109,13 +109,11 @@ func processOB(ob [][2]types.Number) []orderbook.Tranche {
 
 // constructOrderbook parse checks and constructs an *Orderbook instance from *orderbookResponse.
 func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Bids: processOB(o.Bids),
-			Asks: processOB(o.Asks),
-			Time: o.Time.Time(),
-		}
-	)
+	s := Orderbook{
+		Bids: processOB(o.Bids),
+		Asks: processOB(o.Asks),
+		Time: o.Time.Time(),
+	}
 	if o.Sequence != "" {
 		var err error
 		s.Sequence, err = strconv.ParseInt(o.Sequence, 10, 64)
@@ -338,7 +336,8 @@ func (ku *Kucoin) PostMarginBorrowOrder(ctx context.Context, arg *MarginBorrowPa
 func (ku *Kucoin) GetMarginBorrowingHistory(ctx context.Context, ccy currency.Code, isIsolated bool,
 	symbol, orderNo string,
 	startTime, endTime time.Time,
-	currentPage, pageSize int64) (*BorrowRepayDetailResponse, error) {
+	currentPage, pageSize int64,
+) (*BorrowRepayDetailResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -417,7 +416,8 @@ func (ku *Kucoin) GetCrossIsolatedMarginInterestRecords(ctx context.Context, isI
 func (ku *Kucoin) GetRepaymentHistory(ctx context.Context, ccy currency.Code, isIsolated bool,
 	symbol, orderNo string,
 	startTime, endTime time.Time,
-	currentPage, pageSize int64) (*BorrowRepayDetailResponse, error) {
+	currentPage, pageSize int64,
+) (*BorrowRepayDetailResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1081,7 +1081,8 @@ func (ku *Kucoin) GetRecentFills(ctx context.Context) ([]Fill, error) {
 // PostStopOrder used to place two types of stop orders: limit and market
 func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp,
 	tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize,
-	funds float64, postOnly, hidden, iceberg bool) (string, error) {
+	funds float64, postOnly, hidden, iceberg bool,
+) (string, error) {
 	if clientOID == "" {
 		return "", order.ErrClientOrderIDMustBeSet
 	}
@@ -1091,7 +1092,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	if symbol == "" {
 		return "", currency.ErrSymbolStringEmpty
 	}
-	arg := make(map[string]interface{})
+	arg := make(map[string]any)
 	arg["clientOid"] = clientOID
 	arg["side"] = strings.ToLower(side)
 	arg["symbol"] = symbol
@@ -2376,7 +2377,7 @@ func (ku *Kucoin) ModifySubscriptionOrder(ctx context.Context, ccy currency.Code
 	if purchaseOrderNo == "" {
 		return nil, errMissingPurchaseOrderNumber
 	}
-	arg := map[string]interface{}{
+	arg := map[string]any{
 		"currency":        ccy.String(),
 		"interestRate":    interestRate,
 		"purchaseOrderNo": purchaseOrderNo,
@@ -2435,7 +2436,7 @@ func (ku *Kucoin) GetSubscriptionOrders(ctx context.Context, ccy currency.Code, 
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
+func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	value := reflect.ValueOf(result)
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
@@ -2455,7 +2456,8 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl r
 			Result:        resp,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
-			HTTPRecording: ku.HTTPRecording}, nil
+			HTTPRecording: ku.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
@@ -2468,7 +2470,7 @@ func (ku *Kucoin) SendHTTPRequest(ctx context.Context, ePath exchange.URL, epl r
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 // Request parameters are added to path variable for GET and DELETE request and for other requests its passed in params variable
-func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, method, path string, arg, result interface{}) error {
+func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, method, path string, arg, result any) error {
 	value := reflect.ValueOf(result)
 	if value.Kind() != reflect.Pointer {
 		return errInvalidResultInterface
@@ -2526,7 +2528,8 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 			Result:        &resp,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
-			HTTPRecording: ku.HTTPRecording}, nil
+			HTTPRecording: ku.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
@@ -2619,7 +2622,7 @@ func (ku *Kucoin) SubscribeToEarnFixedIncomeProduct(ctx context.Context, product
 	}
 	var resp *SusbcribeEarn
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, subscribeToEarnEPL, http.MethodPost, "/v1/earn/orders",
-		&map[string]interface{}{
+		&map[string]any{
 			"productId":     productID,
 			"accountType":   accountType,
 			"amount,string": amount,

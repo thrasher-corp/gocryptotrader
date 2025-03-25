@@ -211,8 +211,9 @@ func TestUnloadExchange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	e := &Engine{ExchangeManager: em,
-		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
+	e := &Engine{
+		ExchangeManager: em,
+		Config:          &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}
 	err = e.UnloadExchange("asdf")
 	if !errors.Is(err, config.ErrExchangeNotFound) {
@@ -326,7 +327,7 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 	}
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
-	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
+	err = e.RegisterWebsocketDataHandler(func(_ string, _ any) error { return nil }, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

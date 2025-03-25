@@ -43,13 +43,12 @@ func (d *Deribit) SetDefaults() {
 
 	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := d.SetAssetPairStore(asset.Spot, currency.PairStore{AssetEnabled: true, RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat}); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, asset.Spot, err)
 	}
-	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
-			log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err := d.SetAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, a, err)
 		}
 	}
 
@@ -128,6 +127,8 @@ func (d *Deribit) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
+
+	var err error
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()),
@@ -536,7 +537,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
-	var hasMore = true
+	hasMore := true
 	for hasMore {
 		if d.Websocket.IsConnected() {
 			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(instrumentID, "asc", 100, true, timestampStart, timestampEnd)
@@ -859,7 +860,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if len(getOrdersRequest.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	var resp = []order.Detail{}
+	resp := []order.Detail{}
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {

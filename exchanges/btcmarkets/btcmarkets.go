@@ -388,7 +388,7 @@ func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
 
 // NewOrder requests a new order and returns an ID
 func (b *BTCMarkets) NewOrder(ctx context.Context, price, amount, triggerPrice, targetAmount float64, marketID, orderType, side, timeInForce, selfTrade, clientOrderID string, postOnly bool) (OrderData, error) {
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["marketId"] = marketID
 	if price != 0 {
 		req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
@@ -454,7 +454,7 @@ func (b *BTCMarkets) GetOrders(ctx context.Context, marketID string, before, aft
 // CancelAllOpenOrdersByPairs cancels all open orders unless pairs are specified
 func (b *BTCMarkets) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs []string) ([]CancelOrderResp, error) {
 	var resp []CancelOrderResp
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if len(marketIDs) > 0 {
 		var strTemp strings.Builder
 		for x := range marketIDs {
@@ -503,7 +503,7 @@ func (b *BTCMarkets) ReplaceOrder(ctx context.Context, id, clientOrderID string,
 		return nil, errIDRequired
 	}
 
-	req := make(map[string]interface{}, 3)
+	req := make(map[string]any, 3)
 	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	if clientOrderID != "" {
@@ -704,7 +704,7 @@ func (b *BTCMarkets) GetTransactions(ctx context.Context, assetName string, befo
 // CreateNewReport creates a new report
 func (b *BTCMarkets) CreateNewReport(ctx context.Context, reportType, format string) (CreateReportResp, error) {
 	var resp CreateReportResp
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["type"] = reportType
 	req["format"] = format
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodPost,
@@ -726,9 +726,10 @@ func (b *BTCMarkets) GetReport(ctx context.Context, reportID string) (ReportData
 
 // RequestWithdraw requests withdrawals
 func (b *BTCMarkets) RequestWithdraw(ctx context.Context, assetName string, amount float64,
-	toAddress, accountName, accountNumber, bsbNumber, bankName string) (TransferData, error) {
+	toAddress, accountName, accountNumber, bsbNumber, bankName string,
+) (TransferData, error) {
 	var resp TransferData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["assetName"] = assetName
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	if assetName != "AUD" {
@@ -761,7 +762,7 @@ func (b *BTCMarkets) BatchPlaceCancelOrders(ctx context.Context, cancelOrders []
 		return nil, errors.New("BTCMarkets can only handle 4 orders at a time")
 	}
 
-	orderRequests := make([]interface{}, numActions)
+	orderRequests := make([]any, numActions)
 	for x := range cancelOrders {
 		orderRequests[x] = CancelOrderMethod{CancelOrder: cancelOrders[x]}
 	}
@@ -805,7 +806,7 @@ func (b *BTCMarkets) CancelBatch(ctx context.Context, ids []string) (BatchCancel
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result interface{}) error {
+func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
@@ -820,7 +821,7 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result in
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path string, data, result interface{}, f request.EndpointLimit) (err error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path string, data, result any, f request.EndpointLimit) (err error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -831,7 +832,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 		var body io.Reader
 		var payload, hmac []byte
 		switch data.(type) {
-		case map[string]interface{}, []interface{}:
+		case map[string]any, []any:
 			payload, err = json.Marshal(data)
 			if err != nil {
 				return nil, err

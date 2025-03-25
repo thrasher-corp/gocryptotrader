@@ -67,8 +67,8 @@ type StrategySettings struct {
 
 	// If true, won't track USD values against currency pair
 	// bool language is opposite to encourage use by default
-	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
-	CustomSettings     map[string]interface{} `json:"custom-settings,omitempty"`
+	DisableUSDTracking bool           `json:"disable-usd-tracking"`
+	CustomSettings     map[string]any `json:"custom-settings,omitempty"`
 }
 
 // ExchangeLevelFunding allows the portfolio manager to access

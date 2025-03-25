@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -16,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -83,6 +83,7 @@ func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
 	}
 	return p, nil
 }
+
 func (f *fakeFund) CollateralReleaser() (funding.ICollateralReleaser, error) {
 	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {
@@ -245,31 +246,22 @@ func TestExecuteOrder(t *testing.T) {
 	em := engine.NewExchangeManager()
 	const testExchange = "binanceus"
 	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
 	exch.SetDefaults()
 	exchB := exch.GetBase()
 	exchB.States = currencystate.NewCurrencyStates()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "ExchangeManager.Add exchange must not error")
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err, "engine.SetupOrderManager must not error")
 	err = bot.OrderManager.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err, "OrderManager.Start must not error")
 
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.Spot
+	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(context.Background(), p, a)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "UpdateOrderbook must not error")
 	f := &binanceus.Binanceus{}
 	f.Name = testExchange
 	cs := Settings{
@@ -381,7 +373,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 			},
 		},
 	}

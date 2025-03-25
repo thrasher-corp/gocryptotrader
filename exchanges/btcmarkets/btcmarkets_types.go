@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -320,12 +321,12 @@ type PlaceBatch struct {
 
 // PlaceOrderMethod stores data for place request
 type PlaceOrderMethod struct {
-	PlaceOrder PlaceBatch `json:"placeOrder,omitempty"`
+	PlaceOrder PlaceBatch `json:"placeOrder"`
 }
 
 // CancelOrderMethod stores data for Cancel request
 type CancelOrderMethod struct {
-	CancelOrder CancelBatch `json:"cancelOrder,omitempty"`
+	CancelOrder CancelBatch `json:"cancelOrder"`
 }
 
 // TradingFeeData stores trading fee data
@@ -373,13 +374,13 @@ type WsTick struct {
 
 // WsTrade message received for trade data
 type WsTrade struct {
-	Currency    string    `json:"marketId"`
-	Timestamp   time.Time `json:"timestamp"`
-	TradeID     int64     `json:"tradeId"`
-	Price       float64   `json:"price,string"`
-	Volume      float64   `json:"volume,string"`
-	Side        string    `json:"side"`
-	MessageType string    `json:"messageType"`
+	Currency    string     `json:"marketId"`
+	Timestamp   time.Time  `json:"timestamp"`
+	TradeID     int64      `json:"tradeId"`
+	Price       float64    `json:"price,string"`
+	Volume      float64    `json:"volume,string"`
+	Side        order.Side `json:"side"`
+	MessageType string     `json:"messageType"`
 }
 
 // WsOrderbook message received for orderbook data

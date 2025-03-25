@@ -35,7 +35,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -93,7 +92,7 @@ func TestSetupFromConfig(t *testing.T) {
 
 	cfg.StrategySettings = config.StrategySettings{
 		Name: dollarcostaverage.Name,
-		CustomSettings: map[string]interface{}{
+		CustomSettings: map[string]any{
 			"hello": "moto",
 		},
 	}
@@ -163,10 +162,11 @@ func TestLoadDataAPI(t *testing.T) {
 			APIData: &config.APIData{
 				StartDate: time.Now().Truncate(gctkline.OneMin.Duration()).Add(-time.Minute * 5),
 				EndDate:   time.Now().Truncate(gctkline.OneMin.Duration()),
-			}},
+			},
+		},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -182,9 +182,10 @@ func TestLoadDataAPI(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil {
@@ -217,10 +218,11 @@ func TestLoadDataCSV(t *testing.T) {
 			Interval: gctkline.OneMin,
 			CSVData: &config.CSVData{
 				FullPath: "test",
-			}},
+			},
+		},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -236,9 +238,10 @@ func TestLoadDataCSV(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if err != nil &&
 		!strings.Contains(err.Error(), "The system cannot find the file specified.") &&
@@ -282,10 +285,11 @@ func TestLoadDataDatabase(t *testing.T) {
 				StartDate:        time.Now().Add(-time.Minute),
 				EndDate:          time.Now(),
 				InclusiveEndDate: true,
-			}},
+			},
+		},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -301,9 +305,10 @@ func TestLoadDataDatabase(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
 	if err != nil {
 		t.Fatal(err)
@@ -358,10 +363,11 @@ func TestLoadDataLive(t *testing.T) {
 					},
 				},
 				RealOrders: true,
-			}},
+			},
+		},
 		StrategySettings: config.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"hello": "moto",
 			},
 		},
@@ -384,9 +390,10 @@ func TestLoadDataLive(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
 	if !errors.Is(err, gctkline.ErrCannotConstructInterval) {
 		t.Errorf("received: %v, expected: %v", err, gctkline.ErrCannotConstructInterval)
@@ -718,9 +725,11 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	a := asset.USDTMarginedFutures
 	expectedError = gctcommon.ErrNilPointer
 	ev := &evkline.Kline{
-		Base: &event.Base{Exchange: testExchange,
+		Base: &event.Base{
+			Exchange:     testExchange,
 			AssetType:    a,
-			CurrencyPair: cp},
+			CurrencyPair: cp,
+		},
 	}
 	err = bt.triggerLiquidationsForExchange(ev, nil)
 	if !errors.Is(err, expectedError) {
@@ -886,9 +895,11 @@ func TestProcessSignalEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.USDTMarginedFutures
 	de := &evkline.Kline{
-		Base: &event.Base{Exchange: testExchange,
+		Base: &event.Base{
+			Exchange:     testExchange,
 			AssetType:    a,
-			CurrencyPair: cp},
+			CurrencyPair: cp,
+		},
 	}
 	err := bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {
@@ -952,9 +963,11 @@ func TestProcessOrderEvent(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.USDT)
 	a := asset.USDTMarginedFutures
 	de := &evkline.Kline{
-		Base: &event.Base{Exchange: testExchange,
+		Base: &event.Base{
+			Exchange:     testExchange,
 			AssetType:    a,
-			CurrencyPair: cp},
+			CurrencyPair: cp,
+		},
 	}
 	err = bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {
@@ -1187,7 +1200,8 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     testExchange,
 			AssetType:    a,
-			CurrencyPair: cp},
+			CurrencyPair: cp,
+		},
 	}
 	err := bt.Statistic.SetEventForOffset(de)
 	if !errors.Is(err, expectedError) {

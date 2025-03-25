@@ -218,7 +218,7 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		}
 	}
 
-	var balances = []account.Balance{
+	balances := []account.Balance{
 		{
 			Currency: currency.BCH,
 			Total:    bal.BCH,
@@ -337,7 +337,8 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Pair:         p,
 		LastUpdated:  time.Unix(0, tick.Timestamp),
 		ExchangeName: c.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +505,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 			return nil, errLookupInstrumentID
 		}
 
-		var APIResponse interface{}
+		var APIResponse any
 		var clientIDInt uint64
 		clientIDInt, err = strconv.ParseUint(o.ClientID, 10, 32)
 		if err != nil {
@@ -519,7 +520,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		responseMap, ok := APIResponse.(map[string]interface{})
+		responseMap, ok := APIResponse.(map[string]any)
 		if !ok {
 			return nil, errors.New("unable to type assert responseMap")
 		}

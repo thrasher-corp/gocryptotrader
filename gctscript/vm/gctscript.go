@@ -52,7 +52,7 @@ func (g *GctScriptManager) ShutdownAll() (err error) {
 	}
 
 	var shutdownErrors []error
-	AllVMSync.Range(func(_, v interface{}) bool {
+	AllVMSync.Range(func(_, v any) bool {
 		vm, ok := v.(*VM)
 		if !ok {
 			shutdownErrors = append(shutdownErrors, common.GetTypeAssertError("*VM", v))

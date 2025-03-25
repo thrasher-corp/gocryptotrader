@@ -150,7 +150,7 @@ func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	var res = 60
+	res := 60
 	if resolution != 0 {
 		res = resolution
 	}
@@ -225,7 +225,7 @@ func (b *BTSE) GetWalletAddress(ctx context.Context, currency string) (WalletAdd
 // CreateWalletAddress create new deposit address for requested currency
 func (b *BTSE) CreateWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
 	var resp WalletAddress
-	req := make(map[string]interface{}, 1)
+	req := make(map[string]any, 1)
 	req["currency"] = currency
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
 	if err != nil {
@@ -252,7 +252,7 @@ func (b *BTSE) CreateWalletAddress(ctx context.Context, currency string) (Wallet
 // WalletWithdrawal submit request to withdraw crypto currency
 func (b *BTSE) WalletWithdrawal(ctx context.Context, currency, address, tag, amount string) (WithdrawalResponse, error) {
 	var resp WithdrawalResponse
-	req := make(map[string]interface{}, 4)
+	req := make(map[string]any, 4)
 	req["currency"] = currency
 	req["address"] = address
 	req["tag"] = tag
@@ -262,7 +262,7 @@ func (b *BTSE) WalletWithdrawal(ctx context.Context, currency, address, tag, amo
 
 // CreateOrder creates an order
 func (b *BTSE) CreateOrder(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if clOrderID != "" {
 		req["clOrderID"] = clOrderID
 	}
@@ -341,7 +341,7 @@ func (b *BTSE) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrder
 
 // CancelAllAfter cancels all orders after timeout
 func (b *BTSE) CancelAllAfter(ctx context.Context, timeout int) error {
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["timeout"] = timeout
 	return b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
@@ -349,7 +349,7 @@ func (b *BTSE) CancelAllAfter(ctx context.Context, timeout int) error {
 // IndexOrderPeg create peg order that will track a certain percentage above/below the index price
 func (b *BTSE) IndexOrderPeg(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	var o []Order
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if clOrderID != "" {
 		req["clOrderID"] = clOrderID
 	}
@@ -432,7 +432,7 @@ func (b *BTSE) TradeHistory(ctx context.Context, symbol string, start, end time.
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, result interface{}, spotEndpoint bool, f request.EndpointLimit) error {
+func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, result any, spotEndpoint bool, f request.EndpointLimit) error {
 	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -455,7 +455,7 @@ func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, end
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]interface{}, result interface{}, f request.EndpointLimit) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]any, result any, f request.EndpointLimit) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err

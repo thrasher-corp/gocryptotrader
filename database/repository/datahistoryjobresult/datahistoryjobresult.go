@@ -116,7 +116,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobRes
 			results[i].ID = freshUUID.String()
 		}
 
-		var tempEvent = sqlite3.Datahistoryjobresult{
+		tempEvent := sqlite3.Datahistoryjobresult{
 			ID:                results[i].ID,
 			JobID:             results[i].JobID,
 			Result:            null.NewString(results[i].Result, results[i].Result != ""),
@@ -145,7 +145,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, results ...*DataHistoryJobR
 			}
 			results[i].ID = freshUUID.String()
 		}
-		var tempEvent = postgres.Datahistoryjobresult{
+		tempEvent := postgres.Datahistoryjobresult{
 			ID:                results[i].ID,
 			JobID:             results[i].JobID,
 			Result:            null.NewString(results[i].Result, results[i].Result != ""),

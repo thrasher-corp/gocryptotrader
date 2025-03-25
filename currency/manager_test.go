@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -24,7 +23,7 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	spot := &PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		Available:     spotAvailable,
 		Enabled:       spotEnabled,
 		RequestFormat: &PairFormat{Uppercase: true},
@@ -32,7 +31,7 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	futures := &PairStore{
-		AssetEnabled:  convert.BoolPtr(false),
+		AssetEnabled:  false,
 		Available:     spotAvailable,
 		Enabled:       spotEnabled,
 		RequestFormat: &PairFormat{Uppercase: true},
@@ -463,72 +462,54 @@ func TestEnablePair(t *testing.T) {
 	}
 }
 
-func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
+func TestAssetEnabled(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
 
 	err := p.IsAssetEnabled(asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	p.Pairs = nil
+
 	// Test enabling a pair when the pair manager is not initialised
 	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised)
 
 	err = p.SetAssetEnabled(asset.Spot, true)
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised)
 
 	// Test asset type which doesn't exist
 	p = initTest(t)
 
-	p.Pairs[asset.Spot].AssetEnabled = nil
+	p.Pairs[asset.Spot].AssetEnabled = false
 
 	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
 	err = p.SetAssetEnabled(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = p.SetAssetEnabled(asset.Spot, false)
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	assert.NoError(t, err, "Setting to disabled twice should not error")
 
 	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
 	err = p.SetAssetEnabled(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	err = p.SetAssetEnabled(asset.Spot, true)
-	if err == nil {
-		t.Fatal("unexpected result")
-	}
+	assert.NoError(t, err, "Setting to enabled twice should not error")
 
 	err = p.IsAssetEnabled(asset.Spot)
-	if err != nil {
-		t.Error("unexpected result")
-	}
+	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
 // TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
-	var um = make(FullStore)
-	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
+	um := make(FullStore)
+	um[asset.Spot] = &PairStore{AssetEnabled: true}
 
 	data, err := json.Marshal(um)
 	if err != nil {
@@ -591,7 +572,7 @@ func TestIsPairAvailable(t *testing.T) {
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
 	_, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
-	assert.ErrorIs(t, err, ErrAssetIsNil, "Should error when store AssetEnabled is nil")
+	require.NoError(t, err, "Must not error when store is empty")
 
 	_, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
 	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Should error when currency pair is empty")
@@ -602,62 +583,35 @@ func TestIsPairEnabled(t *testing.T) {
 	pm := initTest(t)
 	cp := NewPairWithDelimiter("BTC", "USD", "-")
 	enabled, err := pm.IsPairEnabled(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !enabled {
-		t.Fatal("expected pair to be enabled")
-	}
+	require.NoError(t, err)
+	assert.True(t, enabled, "IsPairEnabled should return true when pair is enabled")
 
 	enabled, err = pm.IsPairEnabled(NewPair(SAFE, MOONRISE), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if enabled {
-		t.Fatal("expected pair to be disabled")
-	}
+	require.NoError(t, err)
+	assert.False(t, enabled, "IsPairEnabled should return false when pair does not exist")
 
 	enabled, err = pm.IsPairEnabled(cp, asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if enabled {
-		t.Fatal("expected pair to be disabled because asset type is not enabled")
-	}
+	require.NoError(t, err)
+	assert.False(t, enabled, "IsPairEnabled should return false when asset not enabled")
 
 	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
 	enabled, err = pm.IsPairEnabled(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if enabled {
-		t.Fatal("expected pair to be disabled because pair not found in enabled list")
-	}
+	require.NoError(t, err)
+	assert.False(t, enabled, "IsPairEnabled should return false when pair not in enabled list")
 
 	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
-	if !errors.Is(err, ErrAssetNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetNotFound)
-	}
+	assert.ErrorIs(t, err, ErrAssetNotFound)
 
 	_, err = pm.IsPairEnabled(cp, asset.Item(1337))
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
-	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
-	if !errors.Is(err, ErrAssetIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetIsNil)
-	}
+	enabled, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
+	require.NoError(t, err, "Must not error when store is empty")
+	assert.False(t, enabled, "Should return false when store is empty")
 
 	_, err = pm.IsPairEnabled(EMPTYPAIR, asset.PerpetualSwap)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty)
 }
 
 func TestEnsureOnePairEnabled(t *testing.T) {
@@ -667,7 +621,7 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {},
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available: []Pair{
 					p,
 				},
@@ -700,13 +654,13 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	pm = PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available: []Pair{
 					NewPair(BTC, USDC),
 				},
 			},
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled: []Pair{
 					p,
 				},
@@ -733,11 +687,11 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	pm = PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{p},
 			},
 			asset.Options: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{},
 			},
 		},
@@ -776,20 +730,20 @@ func TestLoad(t *testing.T) {
 		RequestFormat:   fmt2,
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{p},
 			},
 			asset.Options: {
-				AssetEnabled: convert.BoolPtr(false),
+				AssetEnabled: false,
 				Available:    []Pair{},
 			},
 		},
 	}
 
 	base.Load(&seed)
-	assert.True(t, *base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
+	assert.True(t, base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
 	assert.True(t, base.Pairs[asset.Futures].Available.Contains(p, true), "Futures Available Pairs should contain BTCUSDT")
-	assert.False(t, *base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
+	assert.False(t, base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
 	assert.Equal(t, tt, base.LastUpdated, "Last Updated should be correct")
 	assert.Equal(t, fmt1.Uppercase, base.ConfigFormat.Uppercase, "ConfigFormat Uppercase should be correct")
 	assert.Equal(t, fmt2.Delimiter, base.RequestFormat.Delimiter, "RequestFormat Delimiter should be correct")
@@ -909,7 +863,7 @@ func TestIsAssetSupported(t *testing.T) {
 	p := PairsManager{
 		Pairs: FullStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(false),
+				AssetEnabled: false,
 			},
 		},
 	}

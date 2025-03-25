@@ -1219,6 +1219,13 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	if err != nil {
 		return err
 	}
+
+	saveTradeData := ok.IsSaveTradeDataEnabled()
+	tradeFeed := ok.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
+		return nil
+	}
+
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -1245,13 +1252,21 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
 				Side:         response.Data[i].Side,
-				Timestamp:    response.Data[i].Timestamp.Time(),
+				Timestamp:    response.Data[i].Timestamp.Time().UTC(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price.Float64(),
 			})
 		}
 	}
-	return trade.AddTradesToBuffer(trades...)
+	if tradeFeed {
+		for i := range trades {
+			ok.Websocket.DataHandler <- trades[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(trades...)
+	}
+	return nil
 }
 
 // wsProcessOrders handles websocket order push data responses.
@@ -1504,7 +1519,7 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 }
 
 // wsProcessPushData processes push data coming through the websocket channel
-func (ok *Okx) wsProcessPushData(data []byte, resp interface{}) error {
+func (ok *Okx) wsProcessPushData(data []byte, resp any) error {
 	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}

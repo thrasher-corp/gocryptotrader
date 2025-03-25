@@ -55,7 +55,8 @@ var errSymbolIsEmpty = errors.New("symbol cannot be empty")
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
 	exchange.Base
-	obm orderbookManager
+	location *time.Location
+	obm      orderbookManager
 }
 
 // GetTradablePairs returns a list of tradable currencies
@@ -207,7 +208,7 @@ func (b *Bithumb) GetAccountInformation(ctx context.Context, orderCurrency, paym
 // GetAccountBalance returns customer wallet information
 func (b *Bithumb) GetAccountBalance(ctx context.Context, c string) (FullBalance, error) {
 	var response Balance
-	var fullBalance = FullBalance{
+	fullBalance := FullBalance{
 		make(map[string]float64),
 		make(map[string]float64),
 		make(map[string]float64),
@@ -529,7 +530,7 @@ func (b *Bithumb) MarketSellOrder(ctx context.Context, pair currency.Pair, units
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bithumb) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (b *Bithumb) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -548,7 +549,7 @@ func (b *Bithumb) SendHTTPRequest(ctx context.Context, ep exchange.URL, path str
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
-func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result interface{}) error {
+func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result any) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -596,7 +597,8 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 			NonceEnabled:  true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err

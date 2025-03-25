@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -301,19 +302,16 @@ func checkExistingExchanges(exchName string) bool {
 
 // checkMissingExchanges checks if any supported exchanges are missing api checker functionality
 func checkMissingExchanges() []string {
-	tempArray := make([]string, len(usageData.Exchanges))
-	for x := range usageData.Exchanges {
-		tempArray[x] = usageData.Exchanges[x].Name
+	exchanges := make([]string, len(usageData.Exchanges))
+	for i, exch := range usageData.Exchanges {
+		exchanges[i] = exch.Name
 	}
-	supportedExchs := exchange.Exchanges
-	for z := 0; z < len(supportedExchs); {
-		if common.StringSliceContainsInsensitive(tempArray, supportedExchs[z]) {
-			supportedExchs = append(supportedExchs[:z], supportedExchs[z+1:]...)
-			continue
-		}
-		z++
-	}
-	return supportedExchs
+
+	supportedExchs := slices.Clone(exchange.Exchanges)
+
+	return slices.DeleteFunc(supportedExchs, func(exchName string) bool {
+		return common.StringSliceContainsInsensitive(exchanges, exchName)
+	})
 }
 
 // readFileData reads the file data from the given json file
@@ -461,8 +459,6 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = htmlScrapeBitfinex(htmlData)
 	case pathBitmex:
 		dataStrings, err = htmlScrapeBitmex(htmlData)
-	case pathANX:
-		dataStrings, err = htmlScrapeANX(htmlData)
 	case pathPoloniex:
 		dataStrings, err = htmlScrapePoloniex(htmlData)
 	case pathBTCMarkets:
@@ -513,7 +509,7 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 }
 
 // addExch appends exchange data to updates.json for future api checks
-func addExch(exchName, checkType string, data interface{}, isUpdate bool) error {
+func addExch(exchName, checkType string, data any, isUpdate bool) error {
 	var file []byte
 	if !isUpdate {
 		if checkExistingExchanges(exchName) {
@@ -554,7 +550,7 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 }
 
 // fillData fills exchange data based on the given checkType
-func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error) {
+func fillData(exchName, checkType string, data any) (ExchangeInfo, error) {
 	switch checkType {
 	case github:
 		tempData, ok := data.(GithubData)
@@ -595,7 +591,8 @@ func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 					TokenData:     tempData.TokenData,
 					TokenDataEnd:  tempData.TokenDataEnd,
 					Val:           tempData.Val,
-					Path:          tempData.Path},
+					Path:          tempData.Path,
+				},
 			},
 		}, nil
 	default:
@@ -742,27 +739,13 @@ func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	aBody := string(a)
+
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindAllString(aBody, -1)
-	var resp []string
-	for x := range str {
-		tempStr := strings.Replace(str[x], "section-v-", "", 1)
-		var repeat bool
-		for y := range resp {
-			if tempStr == resp[y] {
-				repeat = true
-				break
-			}
-		}
-		if !repeat {
-			resp = append(resp, tempStr)
-		}
-	}
-	return resp, nil
+
+	return r.FindAllString(string(a), -1), nil
 }
 
 // htmlScrapeBTCMarkets gets the check string for BTCMarkets exchange
@@ -839,41 +822,6 @@ loop:
 	}
 	if len(resp) > 1 {
 		resp = resp[:1]
-	}
-	return resp, nil
-}
-
-// htmlScrapeANX gets the check string for BTCMarkets exchange
-func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer temp.Body.Close()
-
-	a, err := io.ReadAll(temp.Body)
-	if err != nil {
-		return nil, err
-	}
-	aBody := string(a)
-	r, err := regexp.Compile(htmlData.RegExp)
-	if err != nil {
-		return nil, err
-	}
-	str := r.FindAllString(aBody, -1)
-	var resp []string
-	for x := range str {
-		tempStr := strings.Replace(str[x], "section-v-", "", 1)
-		var repeat bool
-		for y := range resp {
-			if tempStr == resp[y] {
-				repeat = true
-				break
-			}
-		}
-		if !repeat {
-			resp = append(resp, tempStr)
-		}
 	}
 	return resp, nil
 }
@@ -1097,7 +1045,7 @@ func trelloCreateNewCheck(newCheckName string) error {
 	if err != nil {
 		return err
 	}
-	var resp interface{}
+	var resp any
 	params := url.Values{}
 	params.Set("name", newName)
 	return sendAuthReq(http.MethodPost,
@@ -1179,7 +1127,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 
 // trelloUpdateCheckItem updates a check item for trello
 func trelloUpdateCheckItem(checkItemID, name, state string) error {
-	var resp interface{}
+	var resp any
 	params := url.Values{}
 	newName, err := nameStateChanges(name, state)
 	if err != nil {
@@ -1216,7 +1164,7 @@ func updateFile(name string) error {
 }
 
 // SendGetReq sends get req
-func sendGetReq(path string, result interface{}) error {
+func sendGetReq(path string, result any) error {
 	var requester *request.Requester
 	var err error
 	if strings.Contains(path, "github") {
@@ -1235,14 +1183,15 @@ func sendGetReq(path string, result interface{}) error {
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
-		Verbose: verbose}
+		Verbose: verbose,
+	}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // sendAuthReq sends auth req
-func sendAuthReq(method, path string, result interface{}) error {
+func sendAuthReq(method, path string, result any) error {
 	requester, err := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100, 1)))
@@ -1253,7 +1202,8 @@ func sendAuthReq(method, path string, result interface{}) error {
 		Method:  method,
 		Path:    path,
 		Result:  result,
-		Verbose: verbose}
+		Verbose: verbose,
+	}
 	return requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
@@ -1289,7 +1239,7 @@ func trelloCreateNewList() error {
 	if trelloBoardID == "" {
 		return errors.New("trelloBoardID not set, cannot create a new list")
 	}
-	var resp interface{}
+	var resp any
 	listName := createList
 	if configData.CreateListName != "" {
 		listName = configData.CreateListName
@@ -1324,7 +1274,7 @@ func trelloDeleteCheckItem(checkitemID string) error {
 	if checkitemID == "" {
 		return errors.New("checkitemID cannot be empty")
 	}
-	var resp interface{}
+	var resp any
 	return sendAuthReq(http.MethodDelete,
 		fmt.Sprintf(pathDeleteCheckitems, trelloChecklistID, checkitemID, apiKey, apiToken),
 		&resp)
@@ -1341,7 +1291,7 @@ func trelloCreateNewCard() error {
 	if trelloListID == "" {
 		return errors.New("trelloListID not set, cannot create a new checklist")
 	}
-	var resp interface{}
+	var resp any
 	cardName := createCard
 	if configData.CreateCardName != "" {
 		cardName = configData.CreateCardName
@@ -1382,7 +1332,7 @@ func trelloCreateNewChecklist() error {
 	if !areAPIKeysSet() || (trelloCardID == "") {
 		return errors.New("apikeys or trelloCardID not set, cannot create a new checklist")
 	}
-	var resp interface{}
+	var resp any
 	checklistName := createChecklist
 	if configData.CreateChecklistName != "" {
 		checklistName = configData.CreateChecklistName
@@ -1537,22 +1487,14 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindAllString(string(a), -1)
-	var resp []string
-	for x := range str {
-		tempStr := strings.Replace(str[x], "section-v-", "", 1)
-		var repeat bool
-		for y := range resp {
-			if tempStr == resp[y] {
-				repeat = true
-				break
-			}
-		}
-		if !repeat {
-			resp = append(resp, tempStr)
-		}
+	matches := r.FindAllString(string(a), -1)
+	results := make([]string, 0, len(matches))
+	for _, match := range matches {
+		s := strings.Replace(match, "section-v-", "", 1)
+		results = append(results, s)
 	}
-	return resp, nil
+	slices.Sort(results)
+	return slices.Clip(slices.Compact(results)), nil
 }
 
 // htmlScrapeBinance gets checkstring for binance exchange

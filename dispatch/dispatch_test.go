@@ -93,7 +93,7 @@ func TestSubscribe(t *testing.T) {
 	_, err = d.subscribe(nonEmptyUUID)
 	assert.ErrorIs(t, err, errDispatcherUUIDNotFoundInRouteList, "subscribe should error correctly")
 
-	d.outbound.New = func() interface{} { return "omg" }
+	d.outbound.New = func() any { return "omg" }
 	_, err = d.subscribe(id)
 	assert.ErrorIs(t, err, errTypeAssertionFailure, "subscribe should error correctly")
 
@@ -119,19 +119,19 @@ func TestUnsubscribe(t *testing.T) {
 	assert.ErrorIs(t, err, errChannelIsNil, "unsubscribe should error correctly")
 
 	// will return nil if not running
-	err = d.unsubscribe(nonEmptyUUID, make(chan interface{}))
+	err = d.unsubscribe(nonEmptyUUID, make(chan any))
 	assert.NoError(t, err, "unsubscribe should not error")
 
 	err = d.start(0, 0)
 	require.NoError(t, err, "start should not error")
 
-	err = d.unsubscribe(nonEmptyUUID, make(chan interface{}))
+	err = d.unsubscribe(nonEmptyUUID, make(chan any))
 	assert.ErrorIs(t, err, errDispatcherUUIDNotFoundInRouteList, "unsubscribe should error correctly")
 
 	id, err := d.getNewID(uuid.NewV4)
 	require.NoError(t, err, "getNewID should not error")
 
-	err = d.unsubscribe(id, make(chan interface{}))
+	err = d.unsubscribe(id, make(chan any))
 	assert.ErrorIs(t, err, errChannelNotFoundInUUIDRef, "unsubscribe should error correctly")
 
 	ch, err := d.subscribe(id)
@@ -169,8 +169,8 @@ func TestPublish(t *testing.T) {
 	assert.ErrorIs(t, err, errNoData, "publish should error correctly")
 
 	// demonstrate job limit error
-	d.routes[nonEmptyUUID] = []chan interface{}{
-		make(chan interface{}),
+	d.routes[nonEmptyUUID] = []chan any{
+		make(chan any),
 	}
 	for range 200 {
 		if err = d.publish(nonEmptyUUID, "test"); err != nil {
@@ -265,7 +265,7 @@ func TestMux(t *testing.T) {
 	pipe, err := mux.Subscribe(id)
 	require.NoError(t, err, "Subscribe should not error")
 
-	var ready = make(chan bool)
+	ready := make(chan bool)
 
 	payload := "string"
 

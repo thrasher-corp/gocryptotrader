@@ -26,8 +26,10 @@ import (
 
 const unexpected = "unexpected values"
 
-var testURL string
-var serverLimit *RateLimiterWithWeight
+var (
+	testURL     string
+	serverLimit *RateLimiterWithWeight
+)
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
@@ -202,7 +204,8 @@ func TestCheckRequest(t *testing.T) {
 
 var globalshell = RateLimitDefinitions{
 	Auth:   NewWeightedRateLimitByDuration(time.Millisecond * 600),
-	UnAuth: NewRateLimitWithWeight(time.Second*1, 100, 1)}
+	UnAuth: NewRateLimitWithWeight(time.Second*1, 100, 1),
+}
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
@@ -301,7 +304,7 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	// Check header contents
-	var passback = http.Header{}
+	passback := http.Header{}
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return &Item{
 			Method:         http.MethodGet,
@@ -562,7 +565,7 @@ func TestEnableDisableRateLimit(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	var resp interface{}
+	var resp any
 	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
 		return &Item{
 			Method: http.MethodGet,

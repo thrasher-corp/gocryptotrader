@@ -18,8 +18,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var startTime, endTime, orderingDirection string
-var limit int
+var (
+	startTime, endTime, orderingDirection string
+	limit                                 int
+)
 
 var getInfoCommand = &cli.Command{
 	Name:   "getinfo",
@@ -38,7 +40,6 @@ func getInfo(c *cli.Context) error {
 	result, err := client.GetInfo(c.Context,
 		&gctrpc.GetInfoRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -64,7 +65,6 @@ func getSubsystems(c *cli.Context) error {
 	result, err := client.GetSubsystems(c.Context,
 		&gctrpc.GetSubsystemsRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,6 @@ func enableSubsystem(c *cli.Context) error {
 			Subsystem: subsystemName,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -164,7 +163,6 @@ func disableSubsystem(c *cli.Context) error {
 			Subsystem: subsystemName,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -190,7 +188,6 @@ func getRPCEndpoints(c *cli.Context) error {
 	result, err := client.GetRPCEndpoints(c.Context,
 		&gctrpc.GetRPCEndpointsRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -216,7 +213,6 @@ func getCommunicationRelayers(c *cli.Context) error {
 	result, err := client.GetCommunicationRelayers(c.Context,
 		&gctrpc.GetCommunicationRelayersRequest{},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -256,7 +252,6 @@ func getExchanges(c *cli.Context) error {
 			Enabled: enabledOnly,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -302,7 +297,6 @@ func enableExchange(c *cli.Context) error {
 			Exchange: exchangeName,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -348,7 +342,6 @@ func disableExchange(c *cli.Context) error {
 			Exchange: exchangeName,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -394,7 +387,6 @@ func getExchangeOTPCode(c *cli.Context) error {
 			Exchange: exchangeName,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -419,7 +411,6 @@ func getExchangeOTPCodes(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetExchangeOTPCodes(c.Context,
 		&gctrpc.GetExchangeOTPsRequest{})
-
 	if err != nil {
 		return err
 	}
@@ -465,7 +456,6 @@ func getExchangeInfo(c *cli.Context) error {
 			Exchange: exchangeName,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -554,7 +544,6 @@ func getTicker(c *cli.Context) error {
 			AssetType: assetType,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -951,7 +940,6 @@ func addPortfolioAddress(c *cli.Context) error {
 			ColdStorage:        coldstorage,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -1022,7 +1010,6 @@ func removePortfolioAddress(c *cli.Context) error {
 			Description: description,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -3240,7 +3227,6 @@ func getTickerStream(c *cli.Context) error {
 			AssetType: assetType,
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -3308,7 +3294,6 @@ func getExchangeTickerStream(c *cli.Context) error {
 		&gctrpc.GetExchangeTickerStreamRequest{
 			Exchange: exchangeName,
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3430,7 +3415,6 @@ func getAuditEvent(c *cli.Context) error {
 			Limit:     int32(limit), //nolint:gosec // TODO: SQL boiler's QueryMode limit only accepts the int type
 			OrderBy:   orderingDirection,
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3439,118 +3423,120 @@ func getAuditEvent(c *cli.Context) error {
 	return nil
 }
 
-var uuid, filename, path string
-var gctScriptCommand = &cli.Command{
-	Name:      "script",
-	Usage:     "execute scripting management command",
-	ArgsUsage: "<command> <args>",
-	Subcommands: []*cli.Command{
-		{
-			Name:      "execute",
-			Usage:     "execute script filename",
-			ArgsUsage: "<filename> <path>",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:        "filename",
-					Usage:       "the script filename",
-					Destination: &filename,
+var (
+	uuid, filename, path string
+	gctScriptCommand     = &cli.Command{
+		Name:      "script",
+		Usage:     "execute scripting management command",
+		ArgsUsage: "<command> <args>",
+		Subcommands: []*cli.Command{
+			{
+				Name:      "execute",
+				Usage:     "execute script filename",
+				ArgsUsage: "<filename> <path>",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "filename",
+						Usage:       "the script filename",
+						Destination: &filename,
+					},
+					&cli.StringFlag{
+						Name:        "path",
+						Usage:       "the directory of the script file",
+						Destination: &path,
+					},
 				},
-				&cli.StringFlag{
-					Name:        "path",
-					Usage:       "the directory of the script file",
-					Destination: &path,
-				},
+				Action: gctScriptExecute,
 			},
-			Action: gctScriptExecute,
-		},
-		{
-			Name:  "query",
-			Usage: "query running virtual machine",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:        "uuid",
-					Usage:       "the unique id of the script in memory",
-					Destination: &uuid,
+			{
+				Name:  "query",
+				Usage: "query running virtual machine",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "uuid",
+						Usage:       "the unique id of the script in memory",
+						Destination: &uuid,
+					},
 				},
+				Action: gctScriptQuery,
 			},
-			Action: gctScriptQuery,
-		},
-		{
-			Name:  "read",
-			Usage: "read script",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:        "name",
-					Usage:       "the script name",
-					Destination: &uuid,
+			{
+				Name:  "read",
+				Usage: "read script",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "name",
+						Usage:       "the script name",
+						Destination: &uuid,
+					},
 				},
+				Action: gctScriptRead,
 			},
-			Action: gctScriptRead,
-		},
-		{
-			Name:   "status",
-			Usage:  "get status of running scripts",
-			Action: gctScriptStatus,
-		},
-		{
-			Name:   "list",
-			Usage:  "lists all scripts in default scriptpath",
-			Action: gctScriptList,
-		},
-		{
-			Name:  "stop",
-			Usage: "terminate running script",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:        "uuid",
-					Usage:       "the unique id of the script in memory",
-					Destination: &uuid,
-				},
+			{
+				Name:   "status",
+				Usage:  "get status of running scripts",
+				Action: gctScriptStatus,
 			},
-			Action: gctScriptStop,
-		},
-		{
-			Name:   "stopall",
-			Usage:  "terminate running script",
-			Action: gctScriptStopAll,
-		},
-		{
-			Name:  "upload",
-			Usage: "upload a new script/archive",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:        "path",
-					Usage:       "<path> to single script or zip collection",
-					Destination: &filename,
-				},
-				&cli.BoolFlag{
-					Name:  "overwrite",
-					Usage: "<true/false>",
-				},
-				&cli.BoolFlag{
-					Name:  "archived",
-					Usage: "<true/false>",
-				},
+			{
+				Name:   "list",
+				Usage:  "lists all scripts in default scriptpath",
+				Action: gctScriptList,
 			},
-			Action: gctScriptUpload,
-		},
-		{
-			Name:  "autoload",
-			Usage: "add or remove script from autoload list",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "command",
-					Usage: "<add/remove>",
+			{
+				Name:  "stop",
+				Usage: "terminate running script",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "uuid",
+						Usage:       "the unique id of the script in memory",
+						Destination: &uuid,
+					},
 				},
-				&cli.StringFlag{
-					Name:  "script",
-					Usage: "<script name>",
-				},
+				Action: gctScriptStop,
 			},
-			Action: gctScriptAutoload,
+			{
+				Name:   "stopall",
+				Usage:  "terminate running script",
+				Action: gctScriptStopAll,
+			},
+			{
+				Name:  "upload",
+				Usage: "upload a new script/archive",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "path",
+						Usage:       "<path> to single script or zip collection",
+						Destination: &filename,
+					},
+					&cli.BoolFlag{
+						Name:  "overwrite",
+						Usage: "<true/false>",
+					},
+					&cli.BoolFlag{
+						Name:  "archived",
+						Usage: "<true/false>",
+					},
+				},
+				Action: gctScriptUpload,
+			},
+			{
+				Name:  "autoload",
+				Usage: "add or remove script from autoload list",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "command",
+						Usage: "<add/remove>",
+					},
+					&cli.StringFlag{
+						Name:  "script",
+						Usage: "<script name>",
+					},
+				},
+				Action: gctScriptAutoload,
+			},
 		},
-	},
-}
+	}
+)
 
 func gctScriptAutoload(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
@@ -3592,7 +3578,6 @@ func gctScriptAutoload(c *cli.Context) error {
 			Script: script,
 			Status: status,
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3632,7 +3617,6 @@ func gctScriptExecute(c *cli.Context) error {
 				Path: path,
 			},
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3652,7 +3636,6 @@ func gctScriptStatus(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptStatus(c.Context,
 		&gctrpc.GCTScriptStatusRequest{})
-
 	if err != nil {
 		return err
 	}
@@ -3671,7 +3654,6 @@ func gctScriptList(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptListAll(c.Context,
 		&gctrpc.GCTScriptListAllRequest{})
-
 	if err != nil {
 		return err
 	}
@@ -3702,7 +3684,6 @@ func gctScriptStop(c *cli.Context) error {
 		&gctrpc.GCTScriptStopRequest{
 			Script: &gctrpc.GCTScript{Uuid: uuid},
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3721,7 +3702,6 @@ func gctScriptStopAll(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptStopAll(c.Context,
 		&gctrpc.GCTScriptStopAllRequest{})
-
 	if err != nil {
 		return err
 	}
@@ -3754,7 +3734,6 @@ func gctScriptRead(c *cli.Context) error {
 				Name: uuid,
 			},
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3787,7 +3766,6 @@ func gctScriptQuery(c *cli.Context) error {
 				Uuid: uuid,
 			},
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3856,7 +3834,6 @@ func gctScriptUpload(c *cli.Context) error {
 			Archived:   archived,
 			Overwrite:  overwrite,
 		})
-
 	if err != nil {
 		return err
 	}
@@ -3869,46 +3846,48 @@ const klineMessage = `interval in seconds. supported values are: 15, 60(1min), 1
 		900(15min) 1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h),
 		86400(1d), 259200(3d) 604800(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)`
 
-var candleRangeSize, candleGranularity int64
-var getHistoricCandlesCommand = &cli.Command{
-	Name:      "gethistoriccandles",
-	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
-	ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
-	Action:    getHistoricCandles,
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "exchange",
-			Aliases: []string{"e"},
-			Usage:   "the exchange to get the candles from",
+var (
+	candleRangeSize, candleGranularity int64
+	getHistoricCandlesCommand          = &cli.Command{
+		Name:      "gethistoriccandles",
+		Usage:     "gets historical candles for the specified granularity up to range size time from now",
+		ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
+		Action:    getHistoricCandles,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "exchange",
+				Aliases: []string{"e"},
+				Usage:   "the exchange to get the candles from",
+			},
+			&cli.StringFlag{
+				Name:  "pair",
+				Usage: "the currency pair to get the candles for",
+			},
+			&cli.StringFlag{
+				Name:  "asset",
+				Usage: "the asset type of the currency pair",
+			},
+			&cli.Int64Flag{
+				Name:        "rangesize",
+				Aliases:     []string{"r"},
+				Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
+				Value:       10,
+				Destination: &candleRangeSize,
+			},
+			&cli.Int64Flag{
+				Name:        "granularity",
+				Aliases:     []string{"g"},
+				Usage:       klineMessage,
+				Value:       86400,
+				Destination: &candleGranularity,
+			},
+			&cli.BoolFlag{
+				Name:  "fillmissingdatawithtrades, fill",
+				Usage: "will create candles for missing intervals using stored trade data <true/false>",
+			},
 		},
-		&cli.StringFlag{
-			Name:  "pair",
-			Usage: "the currency pair to get the candles for",
-		},
-		&cli.StringFlag{
-			Name:  "asset",
-			Usage: "the asset type of the currency pair",
-		},
-		&cli.Int64Flag{
-			Name:        "rangesize",
-			Aliases:     []string{"r"},
-			Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
-			Value:       10,
-			Destination: &candleRangeSize,
-		},
-		&cli.Int64Flag{
-			Name:        "granularity",
-			Aliases:     []string{"g"},
-			Usage:       klineMessage,
-			Value:       86400,
-			Destination: &candleGranularity,
-		},
-		&cli.BoolFlag{
-			Name:  "fillmissingdatawithtrades, fill",
-			Usage: "will create candles for missing intervals using stored trade data <true/false>",
-		},
-	},
-}
+	}
+)
 
 func getHistoricCandles(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {

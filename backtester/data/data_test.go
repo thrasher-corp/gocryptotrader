@@ -16,8 +16,10 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const exch = "binance"
-const a = asset.Spot
+const (
+	exch = "binance"
+	a    = asset.Spot
+)
 
 var p = currency.NewPair(currency.BTC, currency.USD)
 
@@ -806,7 +808,7 @@ func (f fakeEvent) GetUnderlyingPair() currency.Pair {
 	return f.Pair()
 }
 
-func (f fakeEvent) AppendReasonf(string, ...interface{}) {}
+func (f fakeEvent) AppendReasonf(string, ...any) {}
 
 func (f fakeEvent) GetBase() *event.Base {
 	return &event.Base{}
