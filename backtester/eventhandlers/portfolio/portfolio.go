@@ -56,8 +56,8 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return o, errInvalidDirection
 	}
 
-	lookup, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
-	if !ok || lookup == nil {
+	lookup := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
+	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v",
 			errNoPortfolioSettings,
 			ev.GetExchange(),
@@ -235,8 +235,8 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
-	lookup, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
-	if !ok || lookup == nil {
+	lookup := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(ev.GetExchange(), ev.GetAssetType(), ev.Pair())]
+	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
 
@@ -332,8 +332,8 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair
 func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
-	lookup, ok := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(exchangeName, a, cp)]
-	if !ok || lookup == nil {
+	lookup := p.exchangeAssetPairPortfolioSettings[key.NewExchangePairAssetKey(exchangeName, a, cp)]
+	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
 	return &lookup.ComplianceManager, nil

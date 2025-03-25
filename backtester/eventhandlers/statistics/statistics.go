@@ -133,8 +133,8 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	lookup, ok := s.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(h.Exchange, h.Asset, h.Pair)]
-	if !ok || lookup == nil {
+	lookup := s.ExchangeAssetPairStatistics[key.NewExchangePairAssetKey(h.Exchange, h.Asset, h.Pair)]
+	if lookup == nil {
 		return fmt.Errorf("%w for %v %v %v to set holding event", errCurrencyStatisticsUnset, h.Exchange, h.Asset, h.Pair)
 	}
 	for i := len(lookup.Events) - 1; i >= 0; i-- {
