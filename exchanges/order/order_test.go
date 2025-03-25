@@ -1736,7 +1736,7 @@ func TestStringToTimeInForce(t *testing.T) {
 		"GTT":                          {TIF: GoodTillTime},
 		"GOOD_TIL_TIME":                {TIF: GoodTillTime},
 		"FILLORKILL":                   {TIF: FillOrKill},
-		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel},
+		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel | PostOnly},
 		"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
 		"":                             {TIF: UnsetTIF},
 		"IOC":                          {TIF: ImmediateOrCancel},

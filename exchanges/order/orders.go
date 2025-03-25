@@ -1258,27 +1258,35 @@ func StringToOrderStatus(status string) (Status, error) {
 
 // StringToTimeInForce converts time in force string value to TimeInForce instance.
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
+	var result TimeInForce
 	timeInForce = strings.ToUpper(timeInForce)
-	switch timeInForce {
-	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
-		return ImmediateOrCancel, nil
-	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
-		return GoodTillCancel, nil
-	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
-		return GoodTillDay, nil
-	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
-		return GoodTillTime, nil
-	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
-		return GoodTillCrossing, nil
-	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
-		return FillOrKill, nil
-	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
-		return PostOnly, nil
-	case "":
-		return UnsetTIF, nil
-	default:
+	if slices.Contains([]string{"IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String()}, timeInForce) {
+		result |= ImmediateOrCancel
+	}
+	if slices.Contains([]string{"GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED"}, timeInForce) {
+		result |= GoodTillCancel
+	}
+	if slices.Contains([]string{"GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY"}, timeInForce) {
+		result |= GoodTillDay
+	}
+	if slices.Contains([]string{"GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String()}, timeInForce) {
+		result |= GoodTillTime
+	}
+	if slices.Contains([]string{"GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING"}, timeInForce) {
+		result |= GoodTillCrossing
+	}
+	if slices.Contains([]string{"FILLORKILL", "FILL_OR_KILL", FillOrKill.String()}, timeInForce) {
+		result |= FillOrKill
+	}
+	if slices.Contains([]string{PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL"}, timeInForce) {
+		result |= PostOnly
+	}
+	if timeInForce == "POST_ONLY_GOOD_TIL_CANCELLED" {
+		result |= PostOnly
+	} else if result == UnsetTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
+	return result, nil
 }
 
 // IsValid returns whether or not the supplied time in force value is valid or
