@@ -115,7 +115,7 @@ var (
 		ID:             1,
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/set_heartbeat",
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"interval": 15,
 		},
 	}
@@ -166,7 +166,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
@@ -590,7 +590,7 @@ func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processData(respRaw []byte, result interface{}) error {
+func (d *Deribit) processData(respRaw []byte, result any) error {
 	var response WsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)

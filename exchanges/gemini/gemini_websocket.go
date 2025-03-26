@@ -287,7 +287,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	}
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return fmt.Errorf("%v Error: %v, Raw: %v", g.Name, err, string(respRaw))

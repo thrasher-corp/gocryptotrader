@@ -608,34 +608,17 @@ func TestCurrencyMapInstrumentIDs(t *testing.T) {
 	t.Parallel()
 
 	var i instrumentMap
-	if r := i.GetInstrumentIDs(); len(r) > 0 {
-		t.Error("non initialised instrument map shouldn't return any ids")
-	}
+	assert.Empty(t, i.GetInstrumentIDs())
 
 	// Seed the instrument map
 	i.Seed("BTCUSD", 1234)
 	i.Seed("LTCUSD", 1337)
 
-	f := func(ids []int64, target int64) bool {
-		for x := range ids {
-			if ids[x] == target {
-				return true
-			}
-		}
-		return false
-	}
-
 	// Test 2 valid instruments and one invalid
 	ids := i.GetInstrumentIDs()
-	if r := f(ids, 1234); !r {
-		t.Error("unexpected result")
-	}
-	if r := f(ids, 1337); !r {
-		t.Error("unexpected result")
-	}
-	if r := f(ids, 4321); r {
-		t.Error("unexpected result")
-	}
+	assert.Contains(t, ids, int64(1234))
+	assert.Contains(t, ids, int64(1337))
+	assert.NotContains(t, ids, int64(4321))
 }
 
 func TestGetNonce(t *testing.T) {

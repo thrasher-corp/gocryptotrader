@@ -26,12 +26,12 @@ var (
 	// GlobalLogFile hold global configuration options for file logger
 	globalLogFile = &Rotate{}
 
-	jobsPool    = &sync.Pool{New: func() interface{} { return new(job) }}
+	jobsPool    = &sync.Pool{New: func() any { return new(job) }}
 	jobsChannel = make(chan *job, defaultJobChannelCapacity)
 
 	// Note: Logger state within logFields will be persistent until it's garbage
 	// collected. This is a little bit more efficient.
-	logFieldsPool = &sync.Pool{New: func() interface{} { return &fields{logger: logger} }}
+	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: logger} }}
 
 	// LogPath system path to store log files in
 	logPath string
@@ -49,7 +49,7 @@ type job struct {
 	TimestampFormat   string
 	ShowLogSystemName bool
 	Instance          string
-	StructuredFields  map[Key]interface{}
+	StructuredFields  map[Key]any
 	StructuredLogging bool
 	Severity          string
 	Passback          chan<- struct{}
@@ -115,7 +115,7 @@ type multiWriterHolder struct {
 
 // ExtraFields is a map of key value pairs that can be added to a structured
 // log output.
-type ExtraFields map[Key]interface{}
+type ExtraFields map[Key]any
 
 // Key is used for structured logging fields to ensure no collisions occur.
 // Unexported keys are default fields which cannot be overwritten.

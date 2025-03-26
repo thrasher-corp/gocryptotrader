@@ -40,7 +40,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]any)
 	if !valid {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
@@ -48,7 +48,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 	ohlcvData := make([][]float64, 6)
 	var allErrors []string
 	for x := range ohlcvInputData {
-		t, ok := ohlcvInputData[x].([]interface{})
+		t, ok := ohlcvInputData[x].([]any)
 		if !ok {
 			return nil, errors.New("ohlcvInputData type assert failed")
 		}
