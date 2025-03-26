@@ -1260,27 +1260,40 @@ func StringToOrderStatus(status string) (Status, error) {
 
 // StringToTimeInForce converts time in force string value to TimeInForce instance.
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
+	var result TimeInForce
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
 	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
-		return ImmediateOrCancel, nil
+		result |= ImmediateOrCancel
+	}
+	switch timeInForce {
 	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
-		return GoodTillCancel, nil
+		result |= GoodTillCancel
+	}
+	switch timeInForce {
 	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
-		return GoodTillDay, nil
+		result |= GoodTillDay
+	}
+	switch timeInForce {
 	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
-		return GoodTillTime, nil
+		result |= GoodTillTime
+	}
+	switch timeInForce {
 	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
-		return GoodTillCrossing, nil
+		result |= GoodTillCrossing
+	}
+	switch timeInForce {
 	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
-		return FillOrKill, nil
-	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
-		return PostOnly, nil
-	case "":
-		return UnsetTIF, nil
-	default:
+		result |= FillOrKill
+	}
+	switch timeInForce {
+	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL", "POST_ONLY_GOOD_TIL_CANCELLED":
+		result |= PostOnly
+	}
+	if result == UnsetTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
+	return result, nil
 }
 
 // IsValid returns whether or not the supplied time in force value is valid or
