@@ -29,7 +29,8 @@ const (
 	// PersonalAddress is a label for a personal/offline address
 	PersonalAddress = "Personal"
 
-	defaultAPIKey = "Key"
+	defaultAPIKey   = "Key"
+	defaultInterval = 10 * time.Second
 )
 
 var (
@@ -39,7 +40,7 @@ var (
 	errProviderNotEnabled      = errors.New("provider not enabled")
 	errProviderAPIKeyNotSet    = errors.New("provider API key not set")
 	errPortfolioItemNotFound   = errors.New("portfolio item not found")
-	errUnsupportedCoinType     = errors.New("unsupported coin type")
+	errUnsupportedCoin         = errors.New("unsupported coin")
 	errNoPortfolioItemsToWatch = errors.New("no portfolio items to watch")
 )
 
@@ -54,7 +55,7 @@ func (b *Base) GetEthereumAddressBalance(ctx context.Context, address string) (f
 		apiKey = p.APIKey
 	}
 
-	urlPath := fmt.Sprintf("%s/%s/%s?apiKey=%s", ethplorerAPIURL, ethplorerAddressInfo, address, apiKey)
+	urlPath := ethplorerAPIURL + "/" + ethplorerAddressInfo + "/" + address + "?apiKey=" + apiKey
 
 	var result EthplorerResponse
 	contents, err := common.SendHTTPRequest(ctx, http.MethodGet, urlPath, nil, nil, b.Verbose)
@@ -93,7 +94,7 @@ func (b *Base) GetCryptoIDAddressBalance(ctx context.Context, address string, co
 		return 0, fmt.Errorf("rate limiter wait error: %w", err)
 	}
 
-	urlPath := fmt.Sprintf("%s/%s/api.dws?q=getbalance&a=%s&key=%s", cryptoIDAPIURL, coinType.Lower(), address, p.APIKey)
+	urlPath := cryptoIDAPIURL + "/" + coinType.Lower().String() + "/api.dws?q=getbalance&a=" + address + "&key=" + p.APIKey
 
 	contents, err := common.SendHTTPRequest(ctx, http.MethodGet, urlPath, nil, nil, b.Verbose)
 	if err != nil {
@@ -276,7 +277,7 @@ func (b *Base) RemoveAddress(address, description string, coinType currency.Code
 }
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
-func (b *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error {
+func (b *Base) UpdatePortfolio(ctx context.Context, addresses []string, coinType currency.Code) error {
 	if slices.ContainsFunc(addresses, func(a string) bool {
 		return a == PersonalAddress || a == ExchangeAddress
 	}) {
@@ -301,7 +302,7 @@ func (b *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error
 			return b.GetCryptoIDAddressBalance(ctx, address, coinType)
 		}
 	default:
-		return fmt.Errorf("%w: %s", errUnsupportedCoinType, coinType)
+		return fmt.Errorf("%w: %s", errUnsupportedCoin, coinType)
 	}
 
 	p, ok := b.Providers.GetProvider(providerName)
@@ -319,7 +320,7 @@ func (b *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error
 
 	var errs error
 	for x := range addresses {
-		balance, err := getBalance(context.TODO(), addresses[x])
+		balance, err := getBalance(ctx, addresses[x])
 		if err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("error getting balance for %s: %w", addresses[x], err))
 			continue
@@ -508,18 +509,30 @@ func (b *Base) GetPortfolioAddressesGroupedByCoin() map[currency.Code][]string {
 }
 
 // StartPortfolioWatcher observes the portfolio object
-func (b *Base) StartPortfolioWatcher(ctx context.Context, sleepDelay time.Duration) error {
+func (b *Base) StartPortfolioWatcher(ctx context.Context, interval time.Duration) error {
 	if len(b.Addresses) == 0 {
 		return errNoPortfolioItemsToWatch
 	}
 
-	if sleepDelay <= 0 {
-		sleepDelay = time.Minute * 10
+	if interval <= 0 {
+		interval = defaultInterval
 	}
 
 	log.Infof(log.PortfolioMgr, "PortfolioWatcher started: Have %d entries in portfolio.\n", len(b.Addresses))
 
-	ticker := time.NewTicker(sleepDelay)
+	updatePortfolio := func() {
+		for key, value := range b.GetPortfolioAddressesGroupedByCoin() {
+			if err := b.UpdatePortfolio(ctx, value, key); err != nil {
+				log.Errorf(log.PortfolioMgr, "PortfolioWatcher: UpdatePortfolio error: %s for currency %s", err, key)
+				continue
+			}
+			log.Debugf(log.PortfolioMgr, "PortfolioWatcher: Successfully updated address balance for %s", key)
+		}
+	}
+
+	updatePortfolio()
+
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -528,16 +541,7 @@ func (b *Base) StartPortfolioWatcher(ctx context.Context, sleepDelay time.Durati
 			log.Debugf(log.PortfolioMgr, "PortfolioWatcher stopped: context cancelled")
 			return ctx.Err()
 		case <-ticker.C:
-			data := b.GetPortfolioAddressesGroupedByCoin()
-
-			for key, value := range data {
-				if err := b.UpdatePortfolio(value, key); err != nil {
-					log.Errorf(log.PortfolioMgr, "PortfolioWatcher: UpdatePortfolio error: %s for currency %s", err, key)
-					continue
-				}
-
-				log.Debugf(log.PortfolioMgr, "PortfolioWatcher: Successfully updated address balance for %s", key)
-			}
+			updatePortfolio()
 		}
 	}
 }

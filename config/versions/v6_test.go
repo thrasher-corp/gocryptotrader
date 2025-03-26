@@ -22,6 +22,7 @@ var testData = []byte(`{
 		"ColdStorage": false,
 		"SupportedExchanges": ""
 	   }
+	  ]
 	}
 }`)
 
@@ -29,7 +30,11 @@ func TestUpgrade(t *testing.T) {
 	t.Parallel()
 	r, err := new(Version6).UpgradeConfig(context.Background(), testData)
 	require.NoError(t, err, "UpgradeConfig must not error")
-	assert.True(t, bytes.Contains(r, defaultConfigV6))
+	assert.Contains(t, string(r), string(defaultConfigV6))
+
+	r2, err := new(Version6).UpgradeConfig(context.Background(), r)
+	require.NoError(t, err, "UpgradeConfig must not error")
+	assert.Equal(t, r, r2, "UpgradeConfig should not affect an already upgraded config")
 }
 
 func TestDowngrade(t *testing.T) {

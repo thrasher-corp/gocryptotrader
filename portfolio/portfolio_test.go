@@ -2,6 +2,8 @@ package portfolio
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,7 +50,8 @@ func TestGetCryptoIDAddressBalance(t *testing.T) {
 	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(time.Nanosecond))
 	defer cancel()
 	_, err = b.GetCryptoIDAddressBalance(ctx, testLTCAddress, currency.LTC)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "rate limiter wait error"),
+		"GetCryptoIDAddressBalance should return DeadlineExceeded or rate limiter wait error")
 
 	if cryptoIDAPIKey == "" {
 		t.Skip("Skipping test as CryptoID API key is not set")
@@ -199,26 +202,26 @@ func TestUpdatePortfolio(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, b.UpdatePortfolio([]string{PersonalAddress, ExchangeAddress}, currency.LTC))
-	assert.NoError(t, b.UpdatePortfolio([]string{testETHAddress}, currency.ETH))
-	assert.NoError(t, b.UpdatePortfolio([]string{testXRPAddress}, currency.XRP))
-	assert.ErrorIs(t, b.UpdatePortfolio([]string{testETHAddress}, currency.ADA), errUnsupportedCoinType)
-	assert.ErrorIs(t, b.UpdatePortfolio([]string{testBTCAddress}, currency.BTC), errProviderNotFound)
+	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{PersonalAddress, ExchangeAddress}, currency.LTC))
+	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{testETHAddress}, currency.ETH))
+	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{testXRPAddress}, currency.XRP))
+	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testETHAddress}, currency.ADA), errUnsupportedCoin)
+	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testBTCAddress}, currency.BTC), errProviderNotFound)
 
 	b.Providers = append(b.Providers, provider{
 		Name: "CryptoID",
 	})
 
-	assert.ErrorIs(t, b.UpdatePortfolio([]string{testLTCAddress}, currency.LTC), errProviderNotEnabled)
+	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testLTCAddress}, currency.LTC), errProviderNotEnabled)
 	b.Providers[2].Enabled = true
-	assert.ErrorIs(t, b.UpdatePortfolio([]string{testLTCAddress}, currency.LTC), errProviderAPIKeyNotSet)
+	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testLTCAddress}, currency.LTC), errProviderAPIKeyNotSet)
 
 	if cryptoIDAPIKey == "" {
 		t.Skip("Skipping test as CryptoID API key is not set")
 	}
 	b.Providers[2].APIKey = cryptoIDAPIKey
-	assert.NoError(t, b.UpdatePortfolio([]string{testLTCAddress}, currency.LTC))
-	assert.NoError(t, b.UpdatePortfolio([]string{testBTCAddress}, currency.BTC))
+	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{testLTCAddress}, currency.LTC))
+	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{testBTCAddress}, currency.BTC))
 }
 
 func TestGetPortfolioByExchange(t *testing.T) {

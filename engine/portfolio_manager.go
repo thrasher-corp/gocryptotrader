@@ -133,8 +133,8 @@ func (m *portfolioManager) processPortfolio() {
 
 	data := m.base.GetPortfolioAddressesGroupedByCoin()
 	for key, value := range data {
-		if err := m.base.UpdatePortfolio(value, key); err != nil {
-			log.Errorf(log.PortfolioMgr, "PortfolioWatcher: UpdatePortfolio error: %s for currency %s\n", err, key)
+		if err := m.base.UpdatePortfolio(context.TODO(), value, key); err != nil {
+			log.Errorf(log.PortfolioMgr, "Portfolio manager: UpdatePortfolio error: %s for currency %s\n", err, key)
 			continue
 		}
 
