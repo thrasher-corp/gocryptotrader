@@ -499,7 +499,6 @@ func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
 }
 
 func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
-	fmt.Println(string(incoming))
 	var data WsFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
