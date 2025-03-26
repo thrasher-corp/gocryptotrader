@@ -693,6 +693,11 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	return g.UpdateOrderbookWithLimit(ctx, p, a, 0)
+}
+
+// UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
+func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Base, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -708,23 +713,23 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		if a != asset.Spot && !available {
 			return nil, fmt.Errorf("%v instrument %v does not have orderbook data", a, p)
 		}
-		orderbookNew, err = g.GetOrderbook(ctx, p.String(), "", 0, true)
+		orderbookNew, err = g.GetOrderbook(ctx, p.String(), "", limit, true)
 	case asset.Futures:
 		var settle currency.Code
 		settle, err = getSettlementFromCurrency(p)
 		if err != nil {
 			return nil, err
 		}
-		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, p.String(), "", 0, true)
+		orderbookNew, err = g.GetFuturesOrderbook(ctx, settle, p.String(), "", limit, true)
 	case asset.DeliveryFutures:
 		var settle currency.Code
 		settle, err = getSettlementFromCurrency(p.Upper())
 		if err != nil {
 			return nil, err
 		}
-		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", p, 0, true)
+		orderbookNew, err = g.GetDeliveryOrderbook(ctx, settle, "", p, limit, true)
 	case asset.Options:
-		orderbookNew, err = g.GetOptionsOrderbook(ctx, p, "", 0, true)
+		orderbookNew, err = g.GetOptionsOrderbook(ctx, p, "", limit, true)
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}

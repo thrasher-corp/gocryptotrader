@@ -500,7 +500,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	})
-	require.ErrorIs(t, err, errDepthNotFound)
+	require.ErrorIs(t, err, ErrDepthNotFound)
 }
 
 // TestRunUpdateWithoutAnyUpdates logic test
@@ -722,6 +722,12 @@ func TestGetOrderbook(t *testing.T) {
 
 	holder, _, _, err := createSnapshot(cp)
 	require.NoError(t, err)
+
+	_, err = holder.GetOrderbook(currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = holder.GetOrderbook(cp, 0)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	require.NoError(t, err)
@@ -982,7 +988,7 @@ func TestFlushOrderbook(t *testing.T) {
 	}
 
 	_, err = w.GetOrderbook(cp, asset.Spot)
-	require.ErrorIs(t, err, errDepthNotFound)
+	require.ErrorIs(t, err, ErrDepthNotFound)
 
 	require.NoError(t, w.LoadSnapshot(&snapShot1))
 	require.NoError(t, w.FlushOrderbook(cp, asset.Spot))

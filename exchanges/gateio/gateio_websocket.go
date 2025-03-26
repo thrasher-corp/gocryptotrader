@@ -57,14 +57,13 @@ const (
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	// spot.order_book_update is locked to 100ms updates and 100 book size
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
 	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 }
-
-var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
 	subscription.TickerChannel:    spotTickerChannel,
@@ -166,7 +165,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -190,7 +189,7 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	case spotOrderbookTickerChannel:
 		return g.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result, push.Time)
+		return g.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return g.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
@@ -361,7 +360,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	}
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Exchange:       g.Name,
-		Pair:           data.CurrencyPair,
+		Pair:           data.Pair,
 		Asset:          asset.Spot,
 		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
@@ -370,41 +369,11 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-
-	if len(data.Asks) == 0 && len(data.Bids) == 0 {
-		return nil
-	}
-
-	enabledAssets := make([]asset.Item, 0, len(standardMarginAssetTypes))
-	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			enabledAssets = append(enabledAssets, a)
-		}
-	}
-
-	sPair := data.CurrencyPair.String()
-	if !fetchedCurrencyPairSnapshotOrderbook[sPair] {
-		orderbooks, err := g.UpdateOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
-		if err != nil {
-			return err
-		}
-		// TODO: handle orderbook update synchronisation
-		for _, a := range enabledAssets {
-			assetOrderbook := *orderbooks
-			assetOrderbook.Asset = a
-			err = g.Websocket.Orderbook.LoadSnapshot(&assetOrderbook)
-			if err != nil {
-				return err
-			}
-		}
-		fetchedCurrencyPairSnapshotOrderbook[sPair] = true
-	}
-
 	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
@@ -415,21 +384,16 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-
-	for _, a := range enabledAssets {
-		if err := g.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateTime:     data.UpdateTime.Time(),
-			UpdatePushedAt: updatePushedAt,
-			Pair:           data.CurrencyPair,
-			Asset:          a,
-			Asks:           asks,
-			Bids:           bids,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return wsOBUpdateMgr.applyUpdate(ctx, g, 100, data.FirstUpdateID, &orderbook.Update{
+		UpdateID:       data.LastUpdateID,
+		UpdateTime:     data.UpdateTime.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Pair:           data.Pair,
+		Asset:          asset.Spot,
+		Asks:           asks,
+		Bids:           bids,
+		AllowEmpty:     true,
+	})
 }
 
 func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {

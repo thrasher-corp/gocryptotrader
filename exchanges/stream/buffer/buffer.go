@@ -15,6 +15,11 @@ import (
 
 const packageError = "websocket orderbook buffer error: %w"
 
+// Public err vars
+var (
+	ErrDepthNotFound = errors.New("orderbook depth not found")
+)
+
 var (
 	errExchangeConfigNil            = errors.New("exchange config is nil")
 	errBufferConfigNil              = errors.New("buffer config is nil")
@@ -22,7 +27,6 @@ var (
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
-	errDepthNotFound                = errors.New("orderbook depth not found")
 	errRESTOverwrite                = errors.New("orderbook has been overwritten by REST protocol")
 	errInvalidAction                = errors.New("invalid action")
 	errAmendFailure                 = errors.New("orderbook amend update failure")
@@ -72,7 +76,7 @@ func (w *Orderbook) validate(u *orderbook.Update) error {
 	if u == nil {
 		return fmt.Errorf(packageError, errUpdateIsNil)
 	}
-	if len(u.Bids) == 0 && len(u.Asks) == 0 {
+	if len(u.Bids) == 0 && len(u.Asks) == 0 && !u.AllowEmpty {
 		return fmt.Errorf(packageError, errUpdateNoTargets)
 	}
 	return nil
@@ -89,7 +93,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	book, ok := w.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
-			errDepthNotFound,
+			ErrDepthNotFound,
 			w.exchangeName,
 			u.Pair,
 			u.Asset)
@@ -311,11 +315,17 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 // GetOrderbook returns an orderbook copy as orderbook.Base
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return nil, asset.ErrInvalidAsset
+	}
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, errDepthNotFound)
+		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, ErrDepthNotFound)
 	}
 	return book.ob.Retrieve()
 }
@@ -334,11 +344,7 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	defer w.mtx.Unlock()
 	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		return fmt.Errorf("cannot flush orderbook %s %s %s %w",
-			w.exchangeName,
-			p,
-			a,
-			errDepthNotFound)
+		return fmt.Errorf("cannot flush orderbook %s %s %s %w", w.exchangeName, p, a, ErrDepthNotFound)
 	}
 	// error not needed in this return
 	_ = book.ob.Invalidate(errOrderbookFlushed)

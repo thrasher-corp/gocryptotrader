@@ -52,7 +52,6 @@ const (
 var defaultFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
-	futuresOrderbookChannel,
 	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
@@ -119,8 +118,9 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			case futuresOrderbookUpdateChannel:
-				params["frequency"] = kline.ThousandMilliseconds
-				params["level"] = "100"
+				// This is the fastest frequency available for futures orderbook updates 20 levels every 20ms
+				params["frequency"] = kline.Interval(time.Millisecond * 20)
+				params["level"] = "20"
 			}
 			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
 			if err != nil {
@@ -148,7 +148,7 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection,
 }
 
 // WsHandleFuturesData handles futures websocket data
-func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
+func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, a)
+		return g.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
@@ -412,50 +412,31 @@ func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
 	var data WsFuturesAndOptionsOrderbookUpdate
-	err := json.Unmarshal(incoming, &data)
-	if err != nil {
+	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()]) ||
-		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()]) {
-		orderbooks, err := g.UpdateOrderbook(context.Background(), data.ContractName, assetType)
-		if err != nil {
-			return err
-		}
-		if orderbooks.LastUpdateID < data.FirstUpdatedID || orderbooks.LastUpdateID > data.LastUpdatedID {
-			return nil
-		}
-		err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
-		if err != nil {
-			return err
-		}
-		if assetType == asset.Options {
-			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
-		} else {
-			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
-		}
-	}
-	updates := orderbook.Update{
-		UpdateTime: data.Timestamp.Time(),
-		Pair:       data.ContractName,
-		Asset:      assetType,
-	}
-	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
-		updates.Asks[x].Amount = data.Asks[x].Size
-		updates.Asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Amount = data.Asks[x].Size
 	}
-	updates.Bids = make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
-		updates.Bids[x].Amount = data.Bids[x].Size
-		updates.Bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Amount = data.Bids[x].Size
 	}
-	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
-		return errors.New("malformed orderbook data")
-	}
-	return g.Websocket.Orderbook.Update(&updates)
+	return wsOBUpdateMgr.applyUpdate(ctx, g, 20, data.FirstUpdatedID, &orderbook.Update{
+		UpdateID:       data.LastUpdatedID,
+		UpdateTime:     data.Timestamp.Time(),
+		UpdatePushedAt: pushTime,
+		Pair:           data.ContractName,
+		Asset:          a,
+		Asks:           asks,
+		Bids:           bids,
+		AllowEmpty:     true,
+	})
 }
 
 func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
