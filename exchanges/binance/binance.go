@@ -7295,7 +7295,7 @@ func (b *Binance) GetFuturesBrokerCommissionRebateRecentRecord(ctx context.Conte
 
 // GetSpotInfoAboutIfUserIsNew retrieves client details including information about whether the client is new or not
 func (b *Binance) GetSpotInfoAboutIfUserIsNew(ctx context.Context, apiAgentCode string) (*UserIsNewUserDetail, error) {
-	if apiAgentCode != "" {
+	if apiAgentCode == "" {
 		return nil, fmt.Errorf("%w: apiAgentCode is required", errCodeRequired)
 	}
 	params := url.Values{}
