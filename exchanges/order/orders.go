@@ -1260,30 +1260,35 @@ func StringToOrderStatus(status string) (Status, error) {
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	var result TimeInForce
 	timeInForce = strings.ToUpper(timeInForce)
-	if slices.Contains([]string{"IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String()}, timeInForce) {
+	switch timeInForce {
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
 		result |= ImmediateOrCancel
 	}
-	if slices.Contains([]string{"GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED"}, timeInForce) {
+	switch timeInForce {
+	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
 		result |= GoodTillCancel
 	}
-	if slices.Contains([]string{"GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY"}, timeInForce) {
+	switch timeInForce {
+	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
 		result |= GoodTillDay
 	}
-	if slices.Contains([]string{"GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String()}, timeInForce) {
+	switch timeInForce {
+	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
 		result |= GoodTillTime
 	}
-	if slices.Contains([]string{"GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING"}, timeInForce) {
+	switch timeInForce {
+	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
 		result |= GoodTillCrossing
 	}
-	if slices.Contains([]string{"FILLORKILL", "FILL_OR_KILL", FillOrKill.String()}, timeInForce) {
+	switch timeInForce {
+	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
 		result |= FillOrKill
 	}
-	if slices.Contains([]string{PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL"}, timeInForce) {
+	switch timeInForce {
+	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL", "POST_ONLY_GOOD_TIL_CANCELLED":
 		result |= PostOnly
 	}
-	if timeInForce == "POST_ONLY_GOOD_TIL_CANCELLED" {
-		result |= PostOnly
-	} else if result == UnsetTIF && timeInForce != "" {
+	if result == UnsetTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
 	return result, nil
