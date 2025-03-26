@@ -2547,6 +2547,10 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 	if err != nil {
 		return nil, err
 	}
+	contractsMap := make(map[currency.Pair]*futures.Contract)
+	for i := range contracts {
+		contractsMap[contracts[i].Name] = &contracts[i]
+	}
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
@@ -2554,18 +2558,12 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 		}
 		instrumentType := GetInstrumentTypeFromAssetItem(req.Asset)
 
-		multiplier := 1.0
-		var contractSettlementType futures.ContractSettlementType
-		if req.Asset.IsFutures() {
-			for j := range contracts {
-				if !contracts[j].Name.Equal(fPair) {
-					continue
-				}
-				multiplier = contracts[j].Multiplier
-				contractSettlementType = contracts[j].SettlementType
-				break
-			}
+		contract, exist := contractsMap[fPair]
+		if !exist {
+			return nil, fmt.Errorf("%w %v", futures.ErrContractNotSupported, fPair)
 		}
+		multiplier := contract.Multiplier
+		contractSettlementType := contract.SettlementType
 
 		resp[i] = futures.PositionResponse{
 			Pair:                   req.Pairs[i],
@@ -2591,7 +2589,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			return nil, err
 		}
 		for j := range positions {
-			if req.Pairs[i].String() != positions[j].InstrumentID {
+			if fPair.String() != positions[j].InstrumentID {
 				continue
 			}
 			var orderStatus order.Status

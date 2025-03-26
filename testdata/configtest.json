@@ -297,7 +297,9 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false,
+     "tradeFeed": true
     }
    },
    "bankAccounts": [
