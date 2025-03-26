@@ -36,7 +36,7 @@ func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 	}
 
 	if resp[0].StatusCode > 0 {
-		return nil, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return &resp[0], nil
@@ -89,7 +89,7 @@ func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 	}
 
 	if resp[0].StatusCode > 0 {
-		return nil, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return &resp[0], nil
@@ -148,7 +148,7 @@ func (ok *Okx) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 	}
 
 	if resp[0].StatusCode > 0 {
-		return nil, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return &resp[0], nil
@@ -237,7 +237,7 @@ func (ok *Okx) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*
 	}
 
 	if resp[0].StatusCode > 0 {
-		return nil, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return &resp[0], nil
@@ -271,7 +271,7 @@ func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 	}
 
 	if resp[0].StatusCode > 0 {
-		return nil, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return &resp[0], nil
@@ -307,7 +307,7 @@ func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID s
 	}
 
 	if resp[0].StatusCode > 0 {
-		return nil, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return &resp[0], nil
@@ -336,7 +336,7 @@ func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) (bo
 	}
 
 	if resp[0].StatusCode > 0 {
-		return false, fmt.Errorf("status code: %d message: %s", resp[0].StatusCode, resp[0].StatusMessage)
+		return false, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
 	}
 
 	return resp[0].Result, nil
@@ -386,7 +386,7 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl reques
 	// Codes 0-2 have responses and can be handled individually by the caller, while codes > 2 are endpoint errors with
 	// messages and no responses, checked here.
 	if intermediary.Code > 2 {
-		return fmt.Errorf("status code: %d message: %s", intermediary.Code, intermediary.Message)
+		return getStatusError(intermediary.Code, intermediary.Message)
 	}
 
 	return nil

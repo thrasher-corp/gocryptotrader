@@ -1252,8 +1252,8 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if err != nil {
 			return err
 		}
-		if response.StatusCode != "0" {
-			return fmt.Errorf("statusCode: %s statusMessage: %s", response.StatusCode, response.StatusMessage)
+		if response.StatusCode != 0 {
+			return getStatusError(response.StatusCode, response.StatusMessage)
 		}
 		return nil
 	default:
@@ -1336,11 +1336,11 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 				return resp, nil
 			}
 			return nil, err
-		} else if cancelationResponse.StatusCode != "0" {
+		} else if cancelationResponse.StatusCode != 0 {
 			if len(resp.Status) > 0 {
 				return resp, nil
 			}
-			return resp, fmt.Errorf("statusCode: %s statusMessage: %s", cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
+			return resp, getStatusError(cancelationResponse.StatusCode, cancelationResponse.StatusMessage)
 		}
 		for x := range cancelAlgoOrderParams {
 			resp.Status[cancelAlgoOrderParams[x].AlgoOrderID] = order.Cancelled.String()

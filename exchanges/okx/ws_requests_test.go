@@ -25,7 +25,7 @@ func TestWSPlaceOrder(t *testing.T) {
 		Side:         "Buy",
 		OrderType:    "limit",
 		Amount:       0.0001,
-		Price:        20000, // Intentional fail
+		Price:        20000,
 		Currency:     "USDT",
 	}
 
@@ -51,7 +51,7 @@ func TestWSPlaceMultipleOrder(t *testing.T) {
 		Side:         "Buy",
 		OrderType:    "limit",
 		Amount:       0.0001,
-		Price:        -1, // Intentional fail
+		Price:        20000,
 		Currency:     "USDT",
 	}
 

@@ -1133,7 +1133,7 @@ type AlgoOrderParams struct {
 // AlgoOrder algo order requests response
 type AlgoOrder struct {
 	AlgoID            string `json:"algoId"`
-	StatusCode        string `json:"sCode"`
+	StatusCode        int64  `json:"sCode,string"`
 	StatusMessage     string `json:"sMsg"`
 	ClientOrderID     string `json:"clOrdId"`
 	AlgoClientOrderID string `json:"algoClOrdId"`
@@ -2760,7 +2760,7 @@ type GridAlgoOrder struct {
 // GridAlgoOrderIDResponse represents grid algo order
 type GridAlgoOrderIDResponse struct {
 	AlgoOrderID   string `json:"algoId"`
-	StatusCode    string `json:"sCode"`
+	StatusCode    int64  `json:"sCode,string"`
 	StatusMessage string `json:"sMsg"`
 }
 
