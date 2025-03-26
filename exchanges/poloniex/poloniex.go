@@ -16,67 +16,52 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
-	poloniexAPIURL               = "https://poloniex.com"
-	tradeSpot                    = "/trade/"
-	tradeFutures                 = "/futures" + tradeSpot
-	poloniexAltAPIUrl            = "https://api.poloniex.com"
-	poloniexAPITradingEndpoint   = "tradingApi"
-	poloniexAPIVersion           = "1"
-	poloniexBalances             = "returnBalances"
-	poloniexBalancesComplete     = "returnCompleteBalances"
-	poloniexDepositAddresses     = "returnDepositAddresses"
-	poloniexGenerateNewAddress   = "generateNewAddress"
-	poloniexDepositsWithdrawals  = "returnDepositsWithdrawals"
-	poloniexOrders               = "returnOpenOrders"
-	poloniexTradeHistory         = "returnTradeHistory"
-	poloniexOrderTrades          = "returnOrderTrades"
-	poloniexOrderStatus          = "returnOrderStatus"
-	poloniexOrderCancel          = "cancelOrder"
-	poloniexOrderMove            = "moveOrder"
-	poloniexWithdraw             = "withdraw"
-	poloniexFeeInfo              = "returnFeeInfo"
-	poloniexAvailableBalances    = "returnAvailableAccountBalances"
-	poloniexTradableBalances     = "returnTradableBalances"
-	poloniexTransferBalance      = "transferBalance"
-	poloniexMarginAccountSummary = "returnMarginAccountSummary"
-	poloniexMarginBuy            = "marginBuy"
-	poloniexMarginSell           = "marginSell"
-	poloniexMarginPosition       = "getMarginPosition"
-	poloniexMarginPositionClose  = "closeMarginPosition"
-	poloniexCreateLoanOffer      = "createLoanOffer"
-	poloniexCancelLoanOffer      = "cancelLoanOffer"
-	poloniexOpenLoanOffers       = "returnOpenLoanOffers"
-	poloniexActiveLoans          = "returnActiveLoans"
-	poloniexLendingHistory       = "returnLendingHistory"
-	poloniexAutoRenew            = "toggleAutoRenew"
-	poloniexCancelByIDs          = "/orders/cancelByIds"
-	poloniexTimestamp            = "/timestamp"
-	poloniexWalletActivity       = "/wallets/activity"
-	poloniexMaxOrderbookDepth    = 100
+	poloniexAPIURL = "https://api.poloniex.com"
+	tradeSpot      = "/trade/"
+	tradeFutures   = "/futures" + tradeSpot
+	marketEps      = "/markets/"
+)
+
+var (
+	errNilArgument             = errors.New("nil argument")
+	errAddressRequired         = errors.New("address is required")
+	errInvalidWithdrawalChain  = errors.New("invalid withdrawal chain")
+	errInvalidTimeout          = errors.New("timeout must not be empty")
+	errChainsNotFound          = errors.New("chains not found")
+	errChannelNotSupported     = errors.New("channel not supported")
+	errAccountIDRequired       = errors.New("missing account ID")
+	errAccountTypeRequired     = errors.New("account type required")
+	errInvalidResponse         = errors.New("invalid response data")
+	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
+	errPositionModeInvalid     = errors.New("invalid position mode")
+	errOrderAssetTypeMismatch  = errors.New("order asset type mismatch detected")
 )
 
 // Poloniex is the overarching type across the poloniex package
 type Poloniex struct {
 	exchange.Base
-	details CurrencyDetails
 }
 
-// GetTicker returns current ticker information
-func (p *Poloniex) GetTicker(ctx context.Context) (map[string]Ticker, error) {
-	type response struct {
-		Data map[string]Ticker
+// GetSymbolInformation all symbols and their tradeLimit info. priceScale is referring to the max number of decimals allowed for a given symbol.
+func (p *Poloniex) GetSymbolInformation(ctx context.Context, symbol currency.Pair) ([]SymbolDetail, error) {
+	path := "/markets"
+	if !symbol.IsEmpty() {
+		path = path + "/" + symbol.String()
 	}
+	var resp []SymbolDetail
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
+}
 
-	resp := response{}
-	path := "/public?command=returnTicker"
-
-	return resp.Data, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
+// GetCurrencyInformations retrieves list of currencies and theiir detailed information.
+func (p *Poloniex) GetCurrencyInformations(ctx context.Context) ([]CurrencyDetail, error) {
+	var resp []CurrencyDetail
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
 }
 
 // GetVolume returns a list of currencies with associated volume
@@ -84,785 +69,422 @@ func (p *Poloniex) GetVolume(ctx context.Context) (any, error) {
 	var resp any
 	path := "/public?command=return24hVolume"
 
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
 }
 
-// GetOrderbook returns the full orderbook from poloniex
-func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth int) (OrderbookAll, error) {
-	vals := url.Values{}
-
-	if depth != 0 {
-		vals.Set("depth", strconv.Itoa(depth))
+// GetCurrencyInformation retrieves currency and their detailed information.
+func (p *Poloniex) GetCurrencyInformation(ctx context.Context, ccy currency.Code) (CurrencyDetail, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
-
-	oba := OrderbookAll{Data: make(map[string]Orderbook)}
-	if currencyPair != "" {
-		vals.Set("currencyPair", currencyPair)
-		resp := OrderbookResponse{}
-		path := "/public?command=returnOrderBook&" + vals.Encode()
-		err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-		if err != nil {
-			return oba, err
-		}
-		if resp.Error != "" {
-			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
-		}
-		ob := Orderbook{
-			Bids: make([]OrderbookItem, len(resp.Bids)),
-			Asks: make([]OrderbookItem, len(resp.Asks)),
-		}
-		for x := range resp.Asks {
-			ob.Asks[x] = OrderbookItem{
-				Price:  resp.Asks[x][0].Float64(),
-				Amount: resp.Asks[x][1].Float64(),
-			}
-		}
-		for x := range resp.Bids {
-			ob.Bids[x] = OrderbookItem{
-				Price:  resp.Bids[x][0].Float64(),
-				Amount: resp.Bids[x][1].Float64(),
-			}
-		}
-		oba.Data[currencyPair] = ob
-	} else {
-		vals.Set("currencyPair", "all")
-		resp := OrderbookResponseAll{}
-		path := "/public?command=returnOrderBook&" + vals.Encode()
-		err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
-		if err != nil {
-			return oba, err
-		}
-		for currency, orderbook := range resp.Data {
-			ob := Orderbook{
-				Bids: make([]OrderbookItem, len(orderbook.Bids)),
-				Asks: make([]OrderbookItem, len(orderbook.Asks)),
-			}
-			for x := range orderbook.Asks {
-				ob.Asks[x] = OrderbookItem{
-					Price:  orderbook.Asks[x][0].Float64(),
-					Amount: orderbook.Asks[x][1].Float64(),
-				}
-			}
-			for x := range orderbook.Bids {
-				ob.Bids[x] = OrderbookItem{
-					Price:  orderbook.Bids[x][0].Float64(),
-					Amount: orderbook.Bids[x][1].Float64(),
-				}
-			}
-			oba.Data[currency] = ob
-		}
-	}
-	return oba, nil
+	var resp CurrencyDetail
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies/"+ccy.String(), &resp)
 }
 
-// GetTradeHistory returns trades history from poloniex
-func (p *Poloniex) GetTradeHistory(ctx context.Context, currencyPair string, start, end int64) ([]TradeHistory, error) {
-	vals := url.Values{}
-	vals.Set("currencyPair", currencyPair)
-
-	if start > 0 {
-		vals.Set("start", strconv.FormatInt(start, 10))
-	}
-
-	if end > 0 {
-		vals.Set("end", strconv.FormatInt(end, 10))
-	}
-
-	var resp []TradeHistory
-	path := "/public?command=returnTradeHistory&" + vals.Encode()
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+// GetV2CurrencyInformations retrieves list of currency details for V2 API.
+func (p *Poloniex) GetV2CurrencyInformations(ctx context.Context) ([]CurrencyV2Information, error) {
+	var resp []CurrencyV2Information
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
 
-// GetChartData returns chart data for a specific currency pair
-func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start, end time.Time, period string) ([]ChartData, error) {
-	vals := url.Values{}
-	vals.Set("currencyPair", currencyPair)
-
-	if !start.IsZero() {
-		vals.Set("start", strconv.FormatInt(start.Unix(), 10))
+// GetV2FuturesCurrencyInformation retrieves currency details for V2 API.
+func (p *Poloniex) GetV2FuturesCurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyV2Information, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	var resp *CurrencyV2Information
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies/"+ccy.String(), &resp)
+}
 
-	if !end.IsZero() {
-		vals.Set("end", strconv.FormatInt(end.Unix(), 10))
+// GetSystemTimestamp retrieves current server time.
+func (p *Poloniex) GetSystemTimestamp(ctx context.Context) (*ServerSystemTime, error) {
+	var resp *ServerSystemTime
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/timestamp", &resp)
+}
+
+// GetMarketPrices retrieves latest trade price for all symbols.
+func (p *Poloniex) GetMarketPrices(ctx context.Context) ([]MarketPrice, error) {
+	var resp []MarketPrice
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/price", &resp)
+}
+
+// GetMarketPrice retrieves latest trade price for all symbols.
+func (p *Poloniex) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
+	var resp *MarketPrice
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/price", &resp)
+}
 
-	if period != "" {
-		vals.Set("period", period)
+// GetMarkPrices retrieves latest mark price for a single cross margin
+func (p *Poloniex) GetMarkPrices(ctx context.Context) ([]MarkPrice, error) {
+	var resp []MarkPrice
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/markPrice", &resp)
+}
+
+// GetMarkPrice retrieves latest mark price for all cross margin symbol.
+func (p *Poloniex) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*MarkPrice, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
+	var resp *MarkPrice
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPrice", &resp)
+}
 
-	var temp json.RawMessage
-	path := "/public?command=returnChartData&" + vals.Encode()
-	err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &temp)
+// MarkPriceComponents retrieves components of the mark price for a given symbol.
+func (p *Poloniex) MarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponent, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var resp *MarkPriceComponent
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPriceComponents", &resp)
+}
+
+// GetOrderbook retrieves the order book for a given symbol. Scale and limit values are optional.
+// For valid scale values, please refer to the scale values defined for each symbol .
+// If scale is not supplied, then no grouping/aggregation will be applied.
+func (p *Poloniex) GetOrderbook(ctx context.Context, symbol currency.Pair, scale, limit int64) (*OrderbookData, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	if scale > 0 {
+		params.Set("scale", strconv.FormatInt(scale, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *OrderbookData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/orderBook", params), &resp)
+}
+
+// GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
+func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	intervalString, err := IntervalString(interval)
 	if err != nil {
 		return nil, err
+	} else if intervalString == "" {
+		return nil, kline.ErrUnsupportedInterval
 	}
-
-	var resp []ChartData
-	err = json.Unmarshal(temp, &resp)
-	if err != nil {
-		var errResp struct {
-			Error string `json:"error"`
-		}
-		if errRet := json.Unmarshal(temp, &errResp); errRet != nil {
-			return nil, errRet
-		}
-		if errResp.Error != "" {
-			return nil, errors.New(errResp.Error)
-		}
-	}
-
-	return resp, err
-}
-
-// GetCurrencies returns information about currencies
-func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, error) {
-	type Response struct {
-		Data map[string]*Currencies
-	}
-	resp := Response{}
-	return resp.Data, p.SendHTTPRequest(ctx,
-		exchange.RestSpot,
-		"/public?command=returnCurrencies&includeMultiChainCurrencies=true",
-		&resp.Data,
-	)
-}
-
-// GetTimestamp returns server time
-func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
-	var resp TimeStampResponse
-	err := p.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		poloniexTimestamp,
-		&resp,
-	)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.UnixMilli(resp.ServerTime), nil
-}
-
-// GetLoanOrders returns the list of loan offers and demands for a given
-// currency, specified by the "currency" GET parameter.
-func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrders, error) {
-	resp := LoanOrders{}
-	path := "/public?command=returnLoanOrders&currency=" + currency
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-}
-
-// GetBalances returns balances for your account.
-func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
-	var result any
-	if err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
-		return Balance{}, err
-	}
-
-	data, ok := result.(map[string]any)
-	if !ok {
-		return Balance{}, common.GetTypeAssertError("map[string]any", result, "balance result")
-	}
-
-	balance := Balance{
-		Currency: make(map[string]float64),
-	}
-
-	for x, y := range data {
-		bal, ok := y.(string)
-		if !ok {
-			return Balance{}, common.GetTypeAssertError("string", y, "balance amount")
-		}
-
-		var err error
-		balance.Currency[x], err = strconv.ParseFloat(bal, 64)
-		if err != nil {
-			return Balance{}, err
-		}
-	}
-
-	return balance, nil
-}
-
-// GetCompleteBalances returns complete balances from your account.
-func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, error) {
-	var result CompleteBalances
-	vals := url.Values{}
-	vals.Set("account", "all")
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
-		http.MethodPost,
-		poloniexBalancesComplete,
-		vals,
-		&result)
-	return result, err
-}
-
-// GetDepositAddresses returns deposit addresses for all enabled cryptos.
-func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, error) {
-	var result any
-	addresses := DepositAddresses{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexDepositAddresses, url.Values{}, &result)
-	if err != nil {
-		return addresses, err
-	}
-
-	addresses.Addresses = make(map[string]string)
-	data, ok := result.(map[string]any)
-	if !ok {
-		return addresses, errors.New("return val not map[string]any")
-	}
-
-	for x, y := range data {
-		addresses.Addresses[x], ok = y.(string)
-		if !ok {
-			return addresses, common.GetTypeAssertError("string", y, "address")
-		}
-	}
-
-	return addresses, nil
-}
-
-// GenerateNewAddress generates a new address for a currency
-func (p *Poloniex) GenerateNewAddress(ctx context.Context, curr string) (string, error) {
-	type Response struct {
-		Success  int
-		Error    string
-		Response string
-	}
-	resp := Response{}
-	values := url.Values{}
-	values.Set("currency", curr)
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexGenerateNewAddress, values, &resp)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.Error != "" {
-		return "", errors.New(resp.Error)
-	}
-
-	return resp.Response, nil
-}
-
-// GetDepositsWithdrawals returns a list of deposits and withdrawals
-func (p *Poloniex) GetDepositsWithdrawals(ctx context.Context, start, end string) (DepositsWithdrawals, error) {
-	resp := DepositsWithdrawals{}
-	values := url.Values{}
-
-	if start != "" {
-		values.Set("start", start)
-	} else {
-		values.Set("start", "0")
-	}
-
-	if end != "" {
-		values.Set("end", end)
-	} else {
-		values.Set("end", strconv.FormatInt(time.Now().Unix(), 10))
-	}
-
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexDepositsWithdrawals, values, &resp)
-}
-
-// GetOpenOrders returns current unfilled opened orders
-func (p *Poloniex) GetOpenOrders(ctx context.Context, currency string) (OpenOrdersResponse, error) {
-	values := url.Values{}
-	values.Set("currencyPair", currency)
-	result := OpenOrdersResponse{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrders, values, &result.Data)
-}
-
-// GetOpenOrdersForAllCurrencies returns all open orders
-func (p *Poloniex) GetOpenOrdersForAllCurrencies(ctx context.Context) (OpenOrdersResponseAll, error) {
-	values := url.Values{}
-	values.Set("currencyPair", "all")
-	result := OpenOrdersResponseAll{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrders, values, &result.Data)
-}
-
-// GetAuthenticatedTradeHistoryForCurrency returns account trade history
-func (p *Poloniex) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, currency string, start, end, limit int64) (AuthenticatedTradeHistoryResponse, error) {
-	values := url.Values{}
-
-	if start > 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
-	}
-
+	params := url.Values{}
+	params.Set("interval", intervalString)
 	if limit > 0 {
-		values.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-
-	if end > 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
-	}
-
-	values.Set("currencyPair", currency)
-	result := AuthenticatedTradeHistoryResponse{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexTradeHistory, values, &result.Data)
-}
-
-// GetAuthenticatedTradeHistory returns account trade history
-func (p *Poloniex) GetAuthenticatedTradeHistory(ctx context.Context, start, end, limit int64) (AuthenticatedTradeHistoryAll, error) {
-	values := url.Values{}
-
-	if start > 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
-	}
-
-	if limit > 0 {
-		values.Set("limit", strconv.FormatInt(limit, 10))
-	}
-
-	if end > 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
-	}
-
-	values.Set("currencyPair", "all")
-	var result json.RawMessage
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexTradeHistory, values, &result)
-	if err != nil {
-		return AuthenticatedTradeHistoryAll{}, err
-	}
-
-	var nodata []any
-	err = json.Unmarshal(result, &nodata)
-	if err == nil {
-		return AuthenticatedTradeHistoryAll{}, nil
-	}
-
-	var mainResult AuthenticatedTradeHistoryAll
-	return mainResult, json.Unmarshal(result, &mainResult.Data)
-}
-
-// GetAuthenticatedOrderStatus returns the status of a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderStatus(ctx context.Context, orderID string) (o OrderStatusData, err error) {
-	values := url.Values{}
-
-	if orderID == "" {
-		return o, errors.New("no orderID passed")
-	}
-
-	values.Set("orderNumber", orderID)
-	var rawOrderStatus OrderStatus
-	err = p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrderStatus, values, &rawOrderStatus)
-	if err != nil {
-		return o, err
-	}
-
-	switch rawOrderStatus.Success {
-	case 0: // fail
-		var errMsg GenericResponse
-		err = json.Unmarshal(rawOrderStatus.Result, &errMsg)
-		if err != nil {
-			return o, err
-		}
-		return o, errors.New(errMsg.Error)
-	case 1: // success
-		var status map[string]OrderStatusData
-		err = json.Unmarshal(rawOrderStatus.Result, &status)
-		if err != nil {
-			return o, err
-		}
-
-		for _, o = range status {
-			return o, err
-		}
-	}
-
-	return o, err
-}
-
-// GetAuthenticatedOrderTrades returns all trades involving a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID string) (o []OrderTrade, err error) {
-	values := url.Values{}
-
-	if orderID == "" {
-		return nil, errors.New("no orderID passed")
-	}
-
-	values.Set("orderNumber", orderID)
-	var result json.RawMessage
-	err = p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrderTrades, values, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(result) == 0 {
-		return nil, errors.New("received unexpected response")
-	}
-
-	switch result[0] {
-	case '{': // error message received
-		var resp GenericResponse
-		err = json.Unmarshal(result, &resp)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
 			return nil, err
 		}
-		if resp.Error != "" {
-			err = errors.New(resp.Error)
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp []CandlestickData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/candles", params), &resp)
+}
+
+// GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
+func (p *Poloniex) GetTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]Trade, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []Trade
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(marketEps+symbol.String()+"/trades", params), &resp)
+}
+
+// GetTickers retrieve ticker in last 24 hours for all symbols.
+func (p *Poloniex) GetTickers(ctx context.Context) ([]TickerData, error) {
+	var resp []TickerData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/ticker24h", &resp)
+}
+
+// GetTicker retrieve ticker in last 24 hours for provided symbols.
+func (p *Poloniex) GetTicker(ctx context.Context, symbol currency.Pair) (*TickerData, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var resp *TickerData
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketEps+symbol.String()+"/ticker24h", &resp)
+}
+
+// GetCollateralInfos retrieves collateral information for all currencies.
+func (p *Poloniex) GetCollateralInfos(ctx context.Context) ([]CollateralInfo, error) {
+	var resp []CollateralInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/collateralInfo", &resp)
+}
+
+// GetCollateralInfo retrieves collateral information for all currencies.
+func (p *Poloniex) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
+	var resp *CollateralInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+ccy.String()+"/collateralInfo", &resp)
+}
+
+// GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.
+func (p *Poloniex) GetBorrowRateInfo(ctx context.Context) ([]BorrowRateInfo, error) {
+	var resp []BorrowRateInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/borrowRatesInfo", &resp)
+}
+
+// GetAccountInformation retrieves all accounts of a user.
+func (p *Poloniex) GetAccountInformation(ctx context.Context) ([]AccountInformation, error) {
+	var resp []AccountInformation
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts", nil, nil, &resp)
+}
+
+// GetAllBalances get a list of all accounts of a user with each account’s id, type and balances (assets).
+func (p *Poloniex) GetAllBalances(ctx context.Context, accountType string) ([]AccountBalance, error) {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp []AccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/balances", params, nil, &resp)
+}
+
+// GetAllBalance get an accounts of a user with each account’s id, type and balances (assets).
+func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType string) ([]AccountBalance, error) {
+	if accountID == "" {
+		return nil, errAccountIDRequired
+	}
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp []AccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/"+accountID+"/balances", params, nil, &resp)
+}
+
+// GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
+// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERRAL_REBATE: 204, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
+func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time,
+	activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
 		}
-	case '[': // data received
-		err = json.Unmarshal(result, &o)
-	default:
-		return nil, errors.New("received unexpected response")
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-
-	return o, err
+	if activityType != 0 {
+		params.Set("activityType", strconv.FormatInt(activityType, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []AccountActivity
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/accounts/activity", params, nil, &resp)
 }
 
-// PlaceOrder places a new order on the exchange
-func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
-	result := OrderResponse{}
-	values := url.Values{}
-
-	var orderType string
-	if buy {
-		orderType = order.Buy.Lower()
-	} else {
-		orderType = order.Sell.Lower()
+// AccountsTransfer transfer amount of currency from an account to another account for a user.
+func (p *Poloniex) AccountsTransfer(ctx context.Context, arg *AccountTransferParams) (*AccountTransferResponse, error) {
+	if *arg == (AccountTransferParams{}) {
+		return nil, errNilArgument
 	}
-
-	values.Set("currencyPair", currency)
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-
-	if immediate {
-		values.Set("immediateOrCancel", "1")
+	if arg.Ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
-
-	if fillOrKill {
-		values.Set("fillOrKill", "1")
+	if arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w, amount has to be greater than zero", order.ErrAmountIsInvalid)
 	}
-
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, &result)
+	if arg.FromAccount == "" {
+		return nil, fmt.Errorf("%w, fromAccount=''", errAddressRequired)
+	}
+	if arg.ToAccount == "" {
+		return nil, fmt.Errorf("%w, toAccount=''", errAddressRequired)
+	}
+	var resp *AccountTransferResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
-// CancelExistingOrder cancels and order by orderID
-func (p *Poloniex) CancelExistingOrder(ctx context.Context, orderID int64) error {
-	result := GenericResponse{}
-	values := url.Values{}
-	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOrderCancel, values, &result)
-	if err != nil {
-		return err
-	}
-
-	if result.Success != 1 {
-		return errors.New(result.Error)
-	}
-
-	return nil
-}
-
-// MoveOrder moves an order
-func (p *Poloniex) MoveOrder(ctx context.Context, orderID int64, rate, amount float64, postOnly, immediateOrCancel bool) (MoveOrderResponse, error) {
-	result := MoveOrderResponse{}
-	values := url.Values{}
-
-	if orderID == 0 {
-		return result, errors.New("orderID cannot be zero")
-	}
-
-	if rate == 0 {
-		return result, errors.New("rate cannot be zero")
-	}
-
-	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-
-	if postOnly {
-		values.Set("postOnly", "true")
-	}
-
-	if immediateOrCancel {
-		values.Set("immediateOrCancel", "true")
-	}
-
-	if amount != 0 {
-		values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		poloniexOrderMove,
-		values,
-		&result)
-	if err != nil {
-		return result, err
-	}
-
-	if result.Success != 1 {
-		return result, errors.New(result.Error)
-	}
-
-	return result, nil
-}
-
-// Withdraw withdraws a currency to a specific delegated address.
-// For currencies where there are multiple networks to choose from (like USDT or BTC),
-// you can specify the chain by setting the "currency" parameter to be a multiChain currency
-// name, like USDTTRON, USDTETH, or BTCTRON
-func (p *Poloniex) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
-	result := &Withdraw{}
-	values := url.Values{}
-
-	values.Set("currency", strings.ToUpper(currency))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	values.Set("address", address)
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexWithdraw, values, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	if result.Error != "" {
-		return nil, errors.New(result.Error)
-	}
-
-	return result, nil
-}
-
-// GetFeeInfo returns fee information
-func (p *Poloniex) GetFeeInfo(ctx context.Context) (Fee, error) {
-	result := Fee{}
-
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexFeeInfo, url.Values{}, &result)
-}
-
-// GetTradableBalances returns tradable balances
-func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[string]float64, error) {
-	type Response struct {
-		Data map[string]map[string]any
-	}
-	result := Response{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexTradableBalances, url.Values{}, &result.Data)
-	if err != nil {
-		return nil, err
-	}
-
-	balances := make(map[string]map[string]float64)
-
-	for x, y := range result.Data {
-		balances[x] = make(map[string]float64)
-		for z, w := range y {
-			bal, ok := w.(string)
-			if !ok {
-				return nil, common.GetTypeAssertError("string", w, "balance")
-			}
-			balances[x][z], err = strconv.ParseFloat(bal, 64)
-			if err != nil {
-				return nil, err
-			}
+// GetAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
+func (p *Poloniex) GetAccountTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit int64) ([]AccountTransferRecord, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
 		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-
-	return balances, nil
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []AccountTransferRecord
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
-// TransferBalance transfers balances between your accounts
-func (p *Poloniex) TransferBalance(ctx context.Context, currency, from, to string, amount float64) (bool, error) {
-	values := url.Values{}
-	result := GenericResponse{}
-
-	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	values.Set("fromAccount", from)
-	values.Set("toAccount", to)
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexTransferBalance, values, &result)
-	if err != nil {
-		return false, err
-	}
-
-	if result.Error != "" && result.Success != 1 {
-		return false, errors.New(result.Error)
-	}
-
-	return true, nil
+// GetAccountTransferRecord gets a transfer records of a user.
+func (p *Poloniex) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
+	var resp AccountTransferRecords
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer/"+accountID, nil, nil, &resp)
 }
 
-// GetMarginAccountSummary returns a summary on your margin accounts
-func (p *Poloniex) GetMarginAccountSummary(ctx context.Context) (Margin, error) {
-	result := Margin{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginAccountSummary, url.Values{}, &result)
+// GetFeeInfo retrieves fee rate for an account
+func (p *Poloniex) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
+	var resp *FeeInfo
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/feeinfo", nil, nil, &resp)
 }
 
-// PlaceMarginOrder places a margin order
-func (p *Poloniex) PlaceMarginOrder(ctx context.Context, currency string, rate, amount, lendingRate float64, buy bool) (OrderResponse, error) {
-	result := OrderResponse{}
-	values := url.Values{}
-
-	var orderType string
-	if buy {
-		orderType = poloniexMarginBuy
-	} else {
-		orderType = poloniexMarginSell
+// GetInterestHistory get a list of interest collection records of a user.
+// Max interval for start and end time is 90 days.
+// If no start/end time params are specified then records for last 7 days will be returned.
+func (p *Poloniex) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit int64) ([]InterestHistory, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-
-	values.Set("currencyPair", currency)
-	values.Set("rate", strconv.FormatFloat(rate, 'f', -1, 64))
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-
-	if lendingRate != 0 {
-		values.Set("lendingRate", strconv.FormatFloat(lendingRate, 'f', -1, 64))
+	if direction != "" {
+		params.Set("direction", direction)
 	}
-
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, orderType, values, &result)
+	if from != 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []InterestHistory
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
 }
 
-// GetMarginPosition returns a position on a margin order
-func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (any, error) {
-	values := url.Values{}
-
-	if currency != "" && currency != "all" {
-		values.Set("currencyPair", currency)
-		result := MarginPosition{}
-		return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginPosition, values, &result)
-	}
-	values.Set("currencyPair", "all")
-
-	type Response struct {
-		Data map[string]MarginPosition
-	}
-	result := Response{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginPosition, values, &result.Data)
+// GetSubAccountInformations get a list of all the accounts within an Account Group for a user.
+func (p *Poloniex) GetSubAccountInformations(ctx context.Context) ([]SubAccount, error) {
+	var resp []SubAccount
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
 
-// CloseMarginPosition closes a current margin position
-func (p *Poloniex) CloseMarginPosition(ctx context.Context, currency string) (bool, error) {
-	values := url.Values{}
-	values.Set("currencyPair", currency)
-	result := GenericResponse{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginPositionClose, values, &result)
-	if err != nil {
-		return false, err
-	}
-
-	if result.Success == 0 {
-		return false, errors.New(result.Error)
-	}
-
-	return true, nil
+// GetSubAccountBalances get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
+// This is only functional for a primary user.
+// A subaccount user can call /accounts/balances for SPOT account type and the futures API overview for its FUTURES balances.
+func (p *Poloniex) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalance, error) {
+	var resp []SubAccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
-// CreateLoanOffer places a loan offer on the exchange
-func (p *Poloniex) CreateLoanOffer(ctx context.Context, currency string, amount, rate float64, duration int, autoRenew bool) (int64, error) {
-	values := url.Values{}
-	values.Set("currency", currency)
-	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	values.Set("duration", strconv.Itoa(duration))
-
-	if autoRenew {
-		values.Set("autoRenew", "1")
-	} else {
-		values.Set("autoRenew", "0")
-	}
-
-	values.Set("lendingRate", strconv.FormatFloat(rate, 'f', -1, 64))
-
-	type Response struct {
-		Success int    `json:"success"`
-		Error   string `json:"error"`
-		OrderID int64  `json:"orderID"`
-	}
-
-	result := Response{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexCreateLoanOffer, values, &result)
-	if err != nil {
-		return 0, err
-	}
-
-	if result.Success == 0 {
-		return 0, errors.New(result.Error)
-	}
-
-	return result.OrderID, nil
+// GetSubAccountBalance get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
+func (p *Poloniex) GetSubAccountBalance(ctx context.Context, id string) ([]SubAccountBalance, error) {
+	var resp []SubAccountBalance
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+id+"/balances", nil, nil, &resp)
 }
 
-// CancelLoanOffer cancels a loan offer order
-func (p *Poloniex) CancelLoanOffer(ctx context.Context, orderNumber int64) (bool, error) {
-	result := GenericResponse{}
-	values := url.Values{}
-	values.Set("orderID", strconv.FormatInt(orderNumber, 10))
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexCancelLoanOffer, values, &result)
-	if err != nil {
-		return false, err
+// SubAccountTransfer transfer amount of currency from an account and account type to another account and account type among the accounts in the account group.
+// Primary account can transfer to and from any subaccounts as well as transfer between 2 subaccounts across account types.
+// Subaccount can only transfer to the primary account across account types.
+func (p *Poloniex) SubAccountTransfer(ctx context.Context, arg *SubAccountTransferParam) (*AccountTransferResponse, error) {
+	if *arg == (SubAccountTransferParam{}) {
+		return nil, errNilArgument
 	}
-
-	if result.Success == 0 {
-		return false, errors.New(result.Error)
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
-
-	return true, nil
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	if arg.FromAccountID == "" {
+		return nil, fmt.Errorf("%w, fromAccountID=''", errAccountIDRequired)
+	}
+	if arg.ToAccountID == "" {
+		return nil, fmt.Errorf("%w, toAccountID=''", errAccountIDRequired)
+	}
+	if arg.FromAccountType == "" {
+		return nil, fmt.Errorf("%w, fromAccountType=''", errAccountTypeRequired)
+	}
+	if arg.ToAccountType == "" {
+		return nil, fmt.Errorf("%w, toAccountType=''", errAccountTypeRequired)
+	}
+	var resp *AccountTransferResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
 }
 
-// GetOpenLoanOffers returns all open loan offers
-func (p *Poloniex) GetOpenLoanOffers(ctx context.Context) (map[string][]LoanOffer, error) {
-	type Response struct {
-		Data map[string][]LoanOffer
+// GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months.
+// If no start/end time params are specified then records for last 7 days will be returned.
+func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime,
+	endTime time.Time, fromAccountID, toAccountID, fromAccountType,
+	toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
-	result := Response{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexOpenLoanOffers, url.Values{}, &result.Data)
-	if err != nil {
-		return nil, err
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", startTime.String())
+		params.Set("endTime", endTime.String())
 	}
-
-	if result.Data == nil {
-		return nil, errors.New("there are no open loan offers")
+	if fromAccountID != "" {
+		params.Set("fromAccountID", fromAccountID)
 	}
-
-	return result.Data, nil
+	if toAccountID != "" {
+		params.Set("toAccountID", toAccountID)
+	}
+	if fromAccountType != "" {
+		params.Set("fromAccountType", fromAccountType)
+	}
+	if toAccountType != "" {
+		params.Set("toAccountType", toAccountType)
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if from > 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubAccountTransfer
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer", params, nil, &resp)
 }
 
-// GetActiveLoans returns active loans
-func (p *Poloniex) GetActiveLoans(ctx context.Context) (ActiveLoans, error) {
-	result := ActiveLoans{}
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexActiveLoans, url.Values{}, &result)
+// GetSubAccountTransferRecord retrieves a subaccount transfer record.
+func (p *Poloniex) GetSubAccountTransferRecord(ctx context.Context, id string) ([]SubAccountTransfer, error) {
+	var resp []SubAccountTransfer
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
 }
 
-// GetLendingHistory returns lending history for the account
-func (p *Poloniex) GetLendingHistory(ctx context.Context, start, end string) ([]LendingHistory, error) {
-	vals := url.Values{}
-
-	if start != "" {
-		vals.Set("start", start)
+// GetDepositAddresses get all deposit addresses for a user.
+func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*DepositAddressesResponse, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
-
-	if end != "" {
-		vals.Set("end", end)
-	}
-
-	var resp []LendingHistory
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		poloniexLendingHistory,
-		vals,
-		&resp)
-}
-
-// ToggleAutoRenew allows for the autorenew of a contract
-func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool, error) {
-	values := url.Values{}
-	values.Set("orderNumber", strconv.FormatInt(orderNumber, 10))
-	result := GenericResponse{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
-		poloniexAutoRenew,
-		values,
-		&result)
-	if err != nil {
-		return false, err
-	}
-
-	if result.Success == 0 {
-		return false, errors.New(result.Error)
-	}
-
-	return true, nil
+	var addresses *DepositAddressesResponse
+	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, addresses)
 }
 
 // WalletActivity returns the wallet activity between set start and end time
@@ -877,52 +499,516 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 	if activityType != "" {
 		values.Set("activityType", activityType)
 	}
-	var resp WalletActivityResponse
-	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		poloniexWalletActivity,
-		values,
-		&resp)
+	var resp *WalletActivityResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/activity", values, nil, &resp)
 }
 
-// CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
-func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
-	values := url.Values{}
-	if len(orderIDs) > 0 {
-		values.Set("orderIds", strings.Join(orderIDs, ","))
+// NewCurrencyDepositAddress create a new address for a currency.
+// Some currencies use a common deposit address for everyone on the exchange and designate the account
+// for which this payment is destined by populating paymentID field.
+// In these cases, use /currencies to look up the mainAccount for the currency to find
+// the deposit address and use the address returned here as the paymentID.
+// Note: currencies will only include a mainAccount property for currencies which require a paymentID.
+func (p *Poloniex) NewCurrencyDepositAddress(ctx context.Context, ccy currency.Code) (string, error) {
+	if ccy.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if len(clientOrderIDs) > 0 {
-		values.Set("clientOrderIds", strings.Join(clientOrderIDs, ","))
+	resp := &struct {
+		Address string `json:"address"`
+	}{}
+	return resp.Address, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/address", nil, map[string]string{"currency": ccy.String()}, &resp)
+}
+
+var intervalMap = map[string]kline.Interval{"MINUTE_1": kline.OneMin, "MINUTE_5": kline.FiveMin, "MINUTE_10": kline.TenMin, "MINUTE_15": kline.FifteenMin, "MINUTE_30": kline.ThirtyMin, "HOUR_1": kline.OneHour, "HOUR_2": kline.TwoHour, "HOUR_4": kline.FourHour, "HOUR_6": kline.SixHour, "HOUR_12": kline.TwelveHour, "DAY_1": kline.OneDay, "DAY_3": kline.ThreeDay, "WEEK_1": kline.SevenDay, "MONTH_1": kline.OneMonth}
+
+func stringToInterval(interval string) (kline.Interval, error) {
+	intervalInstance, okay := intervalMap[strings.ToUpper(interval)]
+	if okay {
+		return intervalInstance, nil
 	}
-	var result []CancelOrdersResponse
-	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
-		poloniexCancelByIDs,
-		values,
-		&result)
+	return kline.Interval(0), kline.ErrUnsupportedInterval
+}
+
+// WithdrawCurrency withdraws a currency to a specific delegated address.
+// Immediately places a withdrawal for a given currency, with no email confirmation.
+// In order to use this method, withdrawal privilege must be enabled for your API key.
+// Some currencies use a common deposit address for everyone on the exchange and designate the account for
+// which this payment is destined by populating paymentID field.
+// In these cases, use /currencies to look up the mainAccount for the currency to find the deposit address and
+// use the address returned by /wallets/addresses or generate one using /wallets/address as the paymentId.
+// Note: currencies will only include a mainAccount property for currencies which require a paymentID.
+// For currencies where there are multiple networks to choose from (like USDT or BTC), you can specify the chain by setting the "currency" parameter
+//
+//	to be a multiChain currency name, like USDTTRON, USDTETH, or BTCTRON. You can get information on these currencies,
+//
+// like fees or if they"re disabled, by adding the "includeMultiChainCurrencies" optional parameter to the /currencies endpoint.
+func (p *Poloniex) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyParam) (*Withdraw, error) {
+	if *arg == (WithdrawCurrencyParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.Currency == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Address == "" {
+		return nil, errAddressRequired
+	}
+	var result *Withdraw
+	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/wallets/withdraw", nil, arg, &result)
+}
+
+// WithdrawCurrencyV2 withdraws a currency to a specific delegated address.
+// Immediately places a withdrawal for a given currency, with no email confirmation.
+// In order to use this method, withdrawal privilege must be enabled for your API key.
+func (p *Poloniex) WithdrawCurrencyV2(ctx context.Context, arg *WithdrawCurrencyV2Param) (*Withdraw, error) {
+	if *arg == (WithdrawCurrencyV2Param{}) {
+		return nil, errNilArgument
+	}
+	if arg.Coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Network == "" {
+		return nil, errInvalidWithdrawalChain
+	}
+	if arg.Address == "" {
+		return nil, errAddressRequired
+	}
+	var resp *Withdraw
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
+}
+
+// GetAccountMarginInformation retrieves account margin information
+func (p *Poloniex) GetAccountMarginInformation(ctx context.Context, accountType string) (*AccountMargin, error) {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp *AccountMargin
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
+}
+
+// GetBorrowStatus retrieves borrow status of currencies
+func (p *Poloniex) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]BorroweStatus, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []BorroweStatus
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
+}
+
+// MaximumBuySellAmount get maximum and available buy/sell amount for a given symbol.
+func (p *Poloniex) MaximumBuySellAmount(ctx context.Context, symbol currency.Pair) (*MaxBuySellAmount, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	var resp MaxBuySellAmount
+	return &resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/margin/maxSize", params, nil, &resp)
+}
+
+// PlaceOrder places an order for an account.
+func (p *Poloniex) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*PlaceOrderResponse, error) {
+	if *arg == (PlaceOrderParams{}) {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	var resp *PlaceOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp)
+}
+
+// PlaceBatchOrders places a batch of order for an account.
+func (p *Poloniex) PlaceBatchOrders(ctx context.Context, args []PlaceOrderParams) ([]PlaceBatchOrderRespItem, error) {
+	if len(args) == 0 {
+		return nil, errNilArgument
+	}
+	for x := range args {
+		if args[x].Symbol.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if args[x].Side == "" {
+			return nil, order.ErrSideIsInvalid
+		}
+	}
+	var resp []PlaceBatchOrderRespItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders/batch", nil, args, &resp)
+}
+
+// CancelReplaceOrder cancel an existing active order, new or partially filled, and place a new order on the same
+// symbol with details from existing order unless amended by new parameters.
+// The replacement order can amend price, quantity, amount, type, timeInForce, and allowBorrow fields.
+// Specify the existing order id in the path; if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
+// The proceedOnFailure flag is intended to specify whether to continue with new order placement in case cancellation of the existing order fails.
+// Please note that since the new order placement does not wait for funds to clear from the existing order cancellation,
+// it is possible that the new order will fail due to low available balance.
+func (p *Poloniex) CancelReplaceOrder(ctx context.Context, arg *CancelReplaceOrderParam) (*CancelReplaceOrderResponse, error) {
+	if *arg == (CancelReplaceOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *CancelReplaceOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPut, "/orders/"+arg.orderID, nil, arg, &resp)
+}
+
+// GetOpenOrders retrieves a list of active orders for an account.
+func (p *Poloniex) GetOpenOrders(ctx context.Context, symbol currency.Pair, side, direction, fromOrderID string, limit int64) ([]TradeOrder, error) {
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if fromOrderID != "" {
+		params.Set("from", fromOrderID)
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []TradeOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/orders", nil, nil, &resp)
+}
+
+// GetOrderDetail get an order’s status. Either by specifying orderId or clientOrderId. If id is a clientOrderId, prefix with cid: e.g. cid:myId-1
+func (p *Poloniex) GetOrderDetail(ctx context.Context, id, clientOrderID string) (*TradeOrder, error) {
+	var path string
+	switch {
+	case id != "":
+		path = "/orders/" + id
+	case clientOrderID != "":
+		path = "/orders/cid:" + id
+	default:
+		return nil, fmt.Errorf("%w, orderid or client order id is required", order.ErrOrderIDNotSet)
+	}
+	var resp *TradeOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
+}
+
+// CancelOrderByID cancel an active order.
+func (p *Poloniex) CancelOrderByID(ctx context.Context, id string) (*CancelOrderResponse, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w; order 'id' is required", order.ErrOrderIDNotSet)
+	}
+	var resp *CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/"+id, nil, nil, &resp)
+}
+
+// CancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs.
+func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
+	if args == nil {
+		return nil, errNilArgument
+	}
+	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders/cancelByIds", nil, args, &resp)
+}
+
+// CancelAllTradeOrders batch cancel all orders in an account.
+func (p *Poloniex) CancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]CancelOrderResponse, error) {
+	args := make(map[string][]string)
+	if len(symbols) > 0 {
+		args["symbols"] = symbols
+	}
+	if len(accountTypes) > 0 {
+		args["accountTypes"] = accountTypes
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/orders", nil, args, &resp)
+}
+
+// KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
+// Timeout can be reset by calling this command again with a new timeout value.
+// A timeout value of -1 disables the timer. Timeout is defined in seconds.
+// timeout value in seconds; range is -1 and 10 to 600
+func (p *Poloniex) KillSwitch(ctx context.Context, timeout string) (*KillSwitchStatus, error) {
+	if timeout == "" {
+		return nil, errInvalidTimeout
+	}
+	var resp *KillSwitchStatus
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]string{"timeout": timeout}, &resp)
+}
+
+// GetKillSwitchStatus get status of kill switch.
+// If there is an active kill switch then the start and cancellation time is returned.
+// If no active kill switch then an error message with code is returned
+func (p *Poloniex) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, error) {
+	var resp *KillSwitchStatus
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
+}
+
+// CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation.
+func (p *Poloniex) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestParam) (*PlaceOrderResponse, error) {
+	if *arg == (SmartOrderRequestParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	var resp *PlaceOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
+}
+
+// CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters.
+// The replacement smart order can amend price, stopPrice, quantity, amount, type, and timeInForce fields. Specify the existing smart order id in the path;
+// if id is a clientOrderId, prefix with cid: e.g. cid:myId-1.
+// The proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
+func (p *Poloniex) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderParam) (*CancelReplaceSmartOrderResponse, error) {
+	if *arg == (CancelReplaceSmartOrderParam{}) {
+		return nil, errNilArgument
+	}
+	var path string
+	switch {
+	case arg.orderID != "":
+		path = "/smartorders/" + arg.orderID
+	case arg.ClientOrderID != "":
+		path = "/smartorders/cid:" + arg.ClientOrderID
+	default:
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *CancelReplaceSmartOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPut, path, nil, arg, &resp)
+}
+
+// GetSmartOpenOrders get a list of (pending) smart orders for an account.
+func (p *Poloniex) GetSmartOpenOrders(ctx context.Context, limit int64) ([]SmartOrderItem, error) {
+	params := url.Values{}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SmartOrderItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/smartorders", params, nil, &resp)
+}
+
+// GetSmartOrderDetail get a smart order’s status. {id} can be smart order’s id or its clientOrderId (prefix with cid: ).
+// If smart order’s state is TRIGGERED, the response will include the triggered order’s data
+func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppliedID string) ([]SmartOrderDetail, error) {
+	var path string
+	switch {
+	case orderID != "":
+		path = "/smartorders/" + orderID
+	case clientSuppliedID != "":
+		path = "/smartorders/cid:" + clientSuppliedID
+	default:
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []SmartOrderDetail
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
+}
+
+// CancelSmartOrderByID cancel a smart order by its id.
+func (p *Poloniex) CancelSmartOrderByID(ctx context.Context, id, clientSuppliedID string) (*CancelSmartOrderResponse, error) {
+	var path string
+	switch {
+	case id != "":
+		path = "/smartorders/" + id
+	case clientSuppliedID != "":
+		path = "/smartorders/cid:" + clientSuppliedID
+	default:
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *CancelSmartOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodDelete, path, nil, nil, &resp)
+}
+
+// CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
+func (p *Poloniex) CancelMultipleSmartOrders(ctx context.Context, args *OrderCancellationParams) ([]CancelOrderResponse, error) {
+	if args == nil {
+		return nil, errNilArgument
+	}
+	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders/cancelByIds", nil, args, &resp)
+}
+
+// CancelAllSmartOrders batch cancel all smart orders in an account.
+func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTypes, orderTypes []string) ([]CancelOrderResponse, error) {
+	args := make(map[string][]string)
+	if len(symbols) > 0 {
+		args["symbols"] = symbols
+	}
+	if len(accountTypes) > 0 {
+		args["accountTypes"] = accountTypes
+	}
+	if len(orderTypes) > 0 {
+		args["orderTypes"] = orderTypes
+	}
+	var resp []CancelOrderResponse
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
+}
+
+func orderFillParams(symbol currency.Pair,
+	accountType, orderType, side, direction, states string,
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) (url.Values, error) {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	if from > 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	if states != "" {
+		params.Set("states", states)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if hideCancel {
+		params.Set("hideCancel", "true")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", startTime.String())
+		params.Set("endTime", endTime.String())
+	}
+	return params, nil
+}
+
+// GetOrdersHistory get a list of historical orders in an account.
+// Interval between startTime and endTime cannot exceed 30 days.
+// If only endTime is populated then startTime will default to 7 days before endTime.
+// If only startTime is populated then endTime will be defaulted to 7 days after startTime.
+// Please note that canceled orders that are before 7 days from current time will be archived.
+// Rest of the orders will be archived before 90 days from current time.
+func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
+	accountType, orderType, side, direction, states string,
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
+	params, err := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
+	if err != nil {
+		return nil, err
+	}
+	var resp []TradeOrder
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet,
+		"/orders/history",
+		params,
+		nil, &resp)
+}
+
+// GetSmartOrderHistory get a list of historical smart orders in an account.
+// Interval between startTime and endTime cannot exceed 30 days.
+// If only endTime is populated then startTime will default to 7 days before endTime.
+// If only startTime is populated then endTime will be defaulted to 7 days after startTime.
+func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pair,
+	accountType, orderType, side, direction, states string,
+	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
+	params, err := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
+	if err != nil {
+		return nil, err
+	}
+	var resp []SmartOrderItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
+		authResourceIntensiveEPL, http.MethodGet, "/smartorders/history",
+		params,
+		nil, &resp)
+}
+
+// GetTradeHistory get a list of all trades for an account. Currently, trade history is supported since 07/30/2021.
+// Interval between startTime and endTime cannot exceed 90 days.
+// If only endTime is populated then startTime will default to 7 days before endTime.
+// If only startTime is populated then endTime will be defaulted to 7 days after startTime.
+func (p *Poloniex) GetTradeHistory(ctx context.Context, symbols currency.Pairs, direction string, from, limit int64, startTime, endTime time.Time) ([]TradeHistoryItem, error) {
+	params := url.Values{}
+	if len(symbols) == 0 {
+		params.Set("symbols", symbols.Join())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if from > 0 {
+		params.Set("from", strconv.FormatInt(from, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if direction != "" {
+		params.Set("direction", direction)
+	}
+	var resp []TradeHistoryItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/trades", params, nil, &resp)
+}
+
+// GetTradesByOrderID get a list of all trades for an order specified by its orderId.
+func (p *Poloniex) GetTradesByOrderID(ctx context.Context, orderID string) ([]TradeHistoryItem, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []TradeHistoryItem
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/orders/"+orderID+"/trades", nil, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}, useAsItIs ...bool) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
-
+	var resp = result
+	if len(useAsItIs) > 0 && useAsItIs[0] {
+		resp = &struct {
+			Code int64       `json:"code"`
+			Msg  string      `json:"msg"`
+			Data interface{} `json:"data"`
+		}{
+			Data: result,
+		}
+	}
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
-		Result:        result,
+		Result:        &resp,
 		Verbose:       p.Verbose,
 		HTTPDebugging: p.HTTPDebugging,
 		HTTPRecording: p.HTTPRecording,
 	}
-
-	return p.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
+	return p.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result any) error {
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, values url.Values, body, result interface{}, useAsData ...bool) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -931,35 +1017,78 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
-
-	return p.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
+	requestFunc := func() (*request.Item, error) {
 		headers := make(map[string]string)
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
-		headers["Key"] = creds.Key
-		values.Set("nonce", p.Requester.GetNonce(nonce.UnixNano).String())
-		values.Set("command", endpoint)
-
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(values.Encode()),
+		headers["Content-Type"] = "application/json"
+		headers["key"] = creds.Key
+		headers["recvWindow"] = strconv.FormatInt(1500, 10)
+		if values == nil {
+			values = url.Values{}
+		}
+		var bodyPayload []byte
+		var signatureStrings string
+		bodyPayload, err = json.Marshal(&struct{}{})
+		timestamp := time.Now()
+		values.Set("signTimestamp", strconv.FormatInt(timestamp.UnixMilli(), 10))
+		switch method {
+		case http.MethodGet, "get":
+			signatureStrings = fmt.Sprintf("%s\n%s\n%s", http.MethodGet, endpoint, values.Encode())
+		default:
+			if body != nil {
+				bodyPayload, err = json.Marshal(body)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if string(bodyPayload) != "{}" {
+				signatureStrings = fmt.Sprintf("%s\n%s\n%s&%s", method, endpoint, "requestBody="+string(bodyPayload), values.Encode())
+			} else {
+				signatureStrings = fmt.Sprintf("%s\n%s\n%s", method, endpoint, values.Encode())
+			}
+		}
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(signatureStrings),
 			[]byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		headers["Sign"] = crypto.HexEncodeToString(hmac)
 
-		path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)
-		return &request.Item{
+		headers["signatureMethod"] = "hmacSHA256"
+		headers["signature"] = crypto.Base64Encode(hmac)
+		headers["signTimestamp"] = strconv.FormatInt(timestamp.UnixMilli(), 10)
+		values.Del("signTimestamp")
+		resp := result
+		if len(useAsData) > 0 && useAsData[0] {
+			resp = &struct {
+				Code int64       `json:"code"`
+				Msg  string      `json:"msg"`
+				Data interface{} `json:"data"`
+			}{
+				Data: result,
+			}
+		}
+
+		path := common.EncodeURLValues(ePoint+endpoint, values)
+		req := &request.Item{
 			Method:        method,
 			Path:          path,
+			Result:        resp,
 			Headers:       headers,
-			Body:          bytes.NewBufferString(values.Encode()),
-			Result:        result,
-			NonceEnabled:  true,
 			Verbose:       p.Verbose,
 			HTTPDebugging: p.HTTPDebugging,
 			HTTPRecording: p.HTTPRecording,
-		}, nil
-	}, request.AuthenticatedRequest)
+		}
+		if method != http.MethodGet && len(bodyPayload) > 0 {
+			req.Body = bytes.NewBuffer(bodyPayload)
+		}
+		return req, nil
+	}
+	err = p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
+	if err != nil {
+		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -984,7 +1113,6 @@ func (p *Poloniex) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	if fee < 0 {
 		fee = 0
 	}
-
 	return fee, nil
 }
 
@@ -993,11 +1121,11 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.002 * price * amount
 }
 
-func calculateTradingFee(feeInfo Fee, purchasePrice, amount float64, isMaker bool) (fee float64) {
+func calculateTradingFee(feeInfo *FeeInfo, purchasePrice, amount float64, isMaker bool) (fee float64) {
 	if isMaker {
-		fee = feeInfo.MakerFee
+		fee = feeInfo.MakerRate.Float64()
 	} else {
-		fee = feeInfo.TakerFee
+		fee = feeInfo.TakerRate.Float64()
 	}
 	return fee * amount * purchasePrice
 }
