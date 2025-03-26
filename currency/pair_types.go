@@ -5,8 +5,8 @@ package currency
 // is a delimiter present in the string, otherwise it will return an error.
 type Pair struct {
 	Delimiter string `json:"delimiter,omitempty"`
-	Base      Code   `json:"base,omitempty"`
-	Quote     Code   `json:"quote,omitempty"`
+	Base      Code   `json:"base"`
+	Quote     Code   `json:"quote"`
 }
 
 // Pairs defines a list of pairs

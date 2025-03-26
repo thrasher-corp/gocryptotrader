@@ -1773,7 +1773,7 @@ type IsolatedMarginBorrowing struct {
 
 // Response represents response model and implements UnmarshalTo interface
 type Response struct {
-	Data interface{} `json:"data"`
+	Data any `json:"data"`
 	Error
 }
 

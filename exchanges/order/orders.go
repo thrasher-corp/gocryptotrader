@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -996,12 +997,11 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 			continue
 		}
 
-		for y := range pairs {
-			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
-				(*orders)[target] = (*orders)[x]
-				target++
-				break
-			}
+		if slices.ContainsFunc(pairs, func(p currency.Pair) bool {
+			return (*orders)[x].Pair.EqualIncludeReciprocal(p)
+		}) {
+			(*orders)[target] = (*orders)[x]
+			target++
 		}
 	}
 	*orders = (*orders)[:target]

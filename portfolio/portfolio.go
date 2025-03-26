@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -179,12 +180,9 @@ func (b *Base) UpdateAddressBalance(address string, amount float64) {
 
 // RemoveExchangeAddress removes an exchange address from the portfolio.
 func (b *Base) RemoveExchangeAddress(exchangeName string, coinType currency.Code) {
-	for x := range b.Addresses {
-		if b.Addresses[x].Address == exchangeName && b.Addresses[x].CoinType.Equal(coinType) {
-			b.Addresses = append(b.Addresses[:x], b.Addresses[x+1:]...)
-			return
-		}
-	}
+	b.Addresses = slices.Clip(slices.DeleteFunc(b.Addresses, func(a Address) bool {
+		return a.Address == exchangeName && a.CoinType.Equal(coinType)
+	}))
 }
 
 // UpdateExchangeAddressBalance updates the portfolio balance when checked
@@ -242,16 +240,14 @@ func (b *Base) RemoveAddress(address, description string, coinType currency.Code
 		return errors.New("coin type is empty")
 	}
 
-	for x := range b.Addresses {
-		if b.Addresses[x].Address == address &&
-			b.Addresses[x].CoinType.Equal(coinType) &&
-			b.Addresses[x].Description == description {
-			b.Addresses = append(b.Addresses[:x], b.Addresses[x+1:]...)
-			return nil
-		}
+	idx := slices.IndexFunc(b.Addresses, func(a Address) bool {
+		return a.Address == address && a.CoinType.Equal(coinType) && a.Description == description
+	})
+	if idx == -1 {
+		return errors.New("portfolio item does not exist")
 	}
-
-	return errors.New("portfolio item does not exist")
+	b.Addresses = slices.Clip(slices.Delete(b.Addresses, idx, idx+1))
+	return nil
 }
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
@@ -380,11 +376,7 @@ func getPercentageSpecific(input float64, target currency.Code, totals map[curre
 func (b *Base) GetPortfolioSummary() Summary {
 	personalHoldings := b.GetPersonalPortfolio()
 	exchangeHoldings := b.GetExchangePortfolio()
-	totalCoins := make(map[currency.Code]float64)
-
-	for x, y := range personalHoldings {
-		totalCoins[x] = y
-	}
+	totalCoins := maps.Clone(personalHoldings)
 
 	for x, y := range exchangeHoldings {
 		balance, ok := totalCoins[x]

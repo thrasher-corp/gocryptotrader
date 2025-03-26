@@ -37,7 +37,6 @@ func (bi *Binanceus) SetDefaults() {
 	bi.Verbose = true
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
-	bi.SetValues()
 
 	fmt1 := currency.PairStore{
 		AssetEnabled:  true,

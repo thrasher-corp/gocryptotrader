@@ -39,16 +39,16 @@ func init() {
 // NewDispatcher creates a new Dispatcher for relaying data.
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
-		routes: make(map[uuid.UUID][]chan interface{}),
+		routes: make(map[uuid.UUID][]chan any),
 		outbound: sync.Pool{
 			New: getChan,
 		},
 	}
 }
 
-func getChan() interface{} {
+func getChan() any {
 	// Create unbuffered channel for data pass
-	return make(chan interface{})
+	return make(chan any)
 }
 
 // Start starts the dispatch system by spawning workers and allocating memory
@@ -202,7 +202,7 @@ func (d *Dispatcher) relayer() {
 }
 
 // publish relays data to the subscribed subsystems
-func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
+func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	if d == nil {
 		return errDispatcherNotInitialized
 	}
@@ -235,7 +235,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data interface{}) error {
 
 // Subscribe subscribes a system and returns a communication chan, this does not
 // ensure initial push.
-func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
+func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	if d == nil {
 		return nil, errDispatcherNotInitialized
 	}
@@ -258,7 +258,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 	}
 
 	// Get an unused channel from the channel pool
-	ch, ok := d.outbound.Get().(chan interface{})
+	ch, ok := d.outbound.Get().(chan any)
 	if !ok {
 		return nil, errTypeAssertionFailure
 	}
@@ -269,7 +269,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 }
 
 // Unsubscribe unsubs a routine from the dispatcher
-func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error {
+func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 	if d == nil {
 		return errDispatcherNotInitialized
 	}

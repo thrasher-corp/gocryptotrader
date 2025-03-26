@@ -1114,11 +1114,11 @@ func TestWSAuth(t *testing.T) {
 	testexch.SetupWs(t, b)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be turned on")
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	catcher := func() (ok bool) {
 		select {
 		case v := <-b.Websocket.ToRoutine:
-			resp, ok = v.(map[string]interface{})
+			resp, ok = v.(map[string]any)
 		default:
 		}
 		return

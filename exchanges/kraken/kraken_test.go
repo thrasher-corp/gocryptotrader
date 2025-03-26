@@ -1232,7 +1232,7 @@ func TestWSProcessTrades(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", k.wsHandleData)
 	close(k.Websocket.DataHandler)
 
-	invalid := []any{"trades", []any{[]interface{}{"95873.80000", "0.00051182", "1708731380.3791859"}}}
+	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
 	pair := currency.NewPair(currency.XBT, currency.USD)
 	err = k.wsProcessTrades(invalid, pair)
 	require.ErrorContains(t, err, "unexpected trade data length")

@@ -16,12 +16,12 @@ func NewLRUCache(capacity uint64) *LRU {
 	return &LRU{
 		Cap:   capacity,
 		l:     list.New(),
-		items: make(map[interface{}]*list.Element),
+		items: make(map[any]*list.Element),
 	}
 }
 
 // Add adds a value to the cache
-func (l *LRU) Add(key, value interface{}) {
+func (l *LRU) Add(key, value any) {
 	if f, o := l.items[key]; o {
 		l.l.MoveToFront(f)
 		if v, ok := f.Value.(*item); ok {
@@ -39,7 +39,7 @@ func (l *LRU) Add(key, value interface{}) {
 }
 
 // Get returns keys value from cache if found
-func (l *LRU) Get(key interface{}) interface{} {
+func (l *LRU) Get(key any) any {
 	if i, f := l.items[key]; f {
 		l.l.MoveToFront(i)
 		if v, ok := i.Value.(*item); ok {
@@ -50,7 +50,7 @@ func (l *LRU) Get(key interface{}) interface{} {
 }
 
 // GetOldest returns the oldest entry
-func (l *LRU) getOldest() (key, value interface{}) {
+func (l *LRU) getOldest() (key, value any) {
 	if x := l.l.Back(); x != nil {
 		if v, ok := x.Value.(*item); ok {
 			return v.key, v.value
@@ -60,7 +60,7 @@ func (l *LRU) getOldest() (key, value interface{}) {
 }
 
 // GetNewest returns the newest entry
-func (l *LRU) getNewest() (key, value interface{}) {
+func (l *LRU) getNewest() (key, value any) {
 	if x := l.l.Front(); x != nil {
 		if v, ok := x.Value.(*item); ok {
 			return v.key, v.value
@@ -70,13 +70,13 @@ func (l *LRU) getNewest() (key, value interface{}) {
 }
 
 // Contains check if key is in cache this does not update LRU
-func (l *LRU) Contains(key interface{}) (f bool) {
+func (l *LRU) Contains(key any) (f bool) {
 	_, f = l.items[key]
 	return
 }
 
 // Remove removes key from the cache, if the key was removed.
-func (l *LRU) Remove(key interface{}) bool {
+func (l *LRU) Remove(key any) bool {
 	if i, f := l.items[key]; f {
 		l.removeElement(i)
 		return true

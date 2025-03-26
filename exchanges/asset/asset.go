@@ -3,6 +3,7 @@ package asset
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -144,14 +145,7 @@ func (a Items) Strings() []string {
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
 func (a Items) Contains(i Item) bool {
-	if i.IsValid() {
-		for x := range a {
-			if a[x] == i {
-				return true
-			}
-		}
-	}
-	return false
+	return slices.Contains(a, i)
 }
 
 // JoinToString joins an asset type array and converts it to a string
