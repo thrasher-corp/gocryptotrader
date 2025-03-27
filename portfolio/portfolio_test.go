@@ -350,9 +350,9 @@ func TestStartPortfolioWatcher(t *testing.T) {
 
 	assert.NoError(t, b.AddAddress(testXRPAddress, PersonalAddress, currency.XRP, 0.02))
 
-	ctx, cancel := context.WithTimeout(t.Context(), 0)
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	assert.ErrorIs(t, b.StartPortfolioWatcher(ctx, 0), context.DeadlineExceeded, "StartPortfolioWatcher should return DeadlineExceeded error")
+	assert.ErrorIs(t, b.StartPortfolioWatcher(ctx, 0), context.Canceled, "StartPortfolioWatcher should return context.Canceled")
 
 	b.Providers = append(b.Providers, provider{
 		Name:    "XRPScan",
