@@ -6,17 +6,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Coinbasepro rate limit conts
+// Coinbase pro rate limits
 const (
-	coinbaseproRateInterval = time.Second
-	coinbaseproAuthRate     = 5
-	coinbaseproUnauthRate   = 2
+	V2Rate request.EndpointLimit = iota
+	V3Rate
+	WSAuthRate
+	WSUnauthRate
+	PubRate
 )
 
 // GetRateLimit returns the rate limit for the exchange
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		request.Auth:   request.NewRateLimitWithWeight(coinbaseproRateInterval, coinbaseproAuthRate, 1),
-		request.UnAuth: request.NewRateLimitWithWeight(coinbaseproRateInterval, coinbaseproUnauthRate, 1),
+		V2Rate:       request.NewRateLimitWithWeight(time.Hour, 10000, 1),
+		V3Rate:       request.NewRateLimitWithWeight(time.Second, 27, 1),
+		WSAuthRate:   request.NewRateLimitWithWeight(time.Second, 750, 1),
+		WSUnauthRate: request.NewRateLimitWithWeight(time.Second, 8, 1),
+		PubRate:      request.NewRateLimitWithWeight(time.Second, 10, 1),
 	}
 }

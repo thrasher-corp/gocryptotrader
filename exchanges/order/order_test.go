@@ -39,7 +39,7 @@ func TestSubmitValidate(t *testing.T) {
 			Submit:      nil,
 		}, // nil struct
 		{
-			ExpectedErr: errExchangeNameUnset,
+			ExpectedErr: common.ErrExchangeNameUnset,
 			Submit:      &Submit{},
 		}, // empty exchange
 		{
@@ -957,7 +957,7 @@ func TestStringToOrderType(t *testing.T) {
 		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
-		{"woahMan", UnknownType, errUnrecognisedOrderType},
+		{"woahMan", UnknownType, ErrUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
@@ -1431,8 +1431,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.Side = AnySide
 	err = getOrders.Validate()
-	if !errors.Is(err, errUnrecognisedOrderType) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderType)
+	if !errors.Is(err, ErrUnrecognisedOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrUnrecognisedOrderType)
 	}
 
 	errTestError := errors.New("test error")
