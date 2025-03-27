@@ -196,7 +196,7 @@ func TestNumberToHumanFriendlyString(t *testing.T) {
 }
 
 func TestInterfaceToFloat64OrZeroValue(t *testing.T) {
-	var x interface{}
+	var x any
 	if r := InterfaceToFloat64OrZeroValue(x); r != 0 {
 		t.Errorf("expected 0, got: %v", r)
 	}
@@ -207,7 +207,7 @@ func TestInterfaceToFloat64OrZeroValue(t *testing.T) {
 }
 
 func TestInterfaceToIntOrZeroValue(t *testing.T) {
-	var x interface{}
+	var x any
 	if r := InterfaceToIntOrZeroValue(x); r != 0 {
 		t.Errorf("expected 0, got: %v", r)
 	}
@@ -218,7 +218,7 @@ func TestInterfaceToIntOrZeroValue(t *testing.T) {
 }
 
 func TestInterfaceToStringOrZeroValue(t *testing.T) {
-	var x interface{}
+	var x any
 	if r := InterfaceToStringOrZeroValue(x); r != "" {
 		t.Errorf("expected empty string, got: %v", r)
 	}

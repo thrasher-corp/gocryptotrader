@@ -30,7 +30,6 @@ import (
 const UseLatestVersion = math.MaxUint16
 
 var (
-	errMissingVersion        = errors.New("missing version")
 	errVersionIncompatible   = errors.New("version does not implement ConfigVersion or ExchangeVersion")
 	errModifyingExchange     = errors.New("error modifying exchange config")
 	errNoVersions            = errors.New("error retrieving latest config version: No config versions are registered")
@@ -123,9 +122,19 @@ func (m *manager) Deploy(ctx context.Context, j []byte, version uint16) ([]byte,
 			exchMethod = ExchangeVersion.DowngradeExchange
 		}
 
-		log.Printf("Running %s config version %v\n", action, patchVersion)
-
 		patch := m.versions[patchVersion]
+
+		current = patchVersion
+		if target < current {
+			current = patchVersion - 1
+		}
+
+		if patch == nil {
+			log.Printf("Skipping missing config version %v\n", patchVersion)
+			continue
+		}
+
+		log.Printf("Running %s config version %v\n", action, patchVersion)
 
 		if cPatch, ok := patch.(ConfigVersion); ok {
 			if j, err = configMethod(cPatch, ctx, j); err != nil {
@@ -225,12 +234,9 @@ func (m *manager) checkVersions() error {
 	defer m.m.RUnlock()
 	for ver, v := range m.versions {
 		switch v.(type) {
-		case ExchangeVersion, ConfigVersion:
+		case ExchangeVersion, ConfigVersion, nil:
 		default:
 			return fmt.Errorf("%w: %v", errVersionIncompatible, ver)
-		}
-		if v == nil {
-			return fmt.Errorf("%w: v%v", errMissingVersion, ver)
 		}
 	}
 	return nil

@@ -2040,7 +2040,7 @@ func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	arg := &struct {
 		SubMemberID string `json:"subMemberId"`
 	}{SubMemberID: subMemberID}
-	var resp interface{}
+	var resp any
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
 }
 
@@ -2545,7 +2545,7 @@ func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -2577,7 +2577,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result interface{}, f request.EndpointLimit) error {
+func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
 	val := reflect.ValueOf(result)
 	if val.Kind() != reflect.Ptr {
 		return errNonePointerArgument

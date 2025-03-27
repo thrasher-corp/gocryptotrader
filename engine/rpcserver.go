@@ -2541,7 +2541,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.gctScriptManager.GetMaxVirtualMachines()),
 	}
 
-	gctscript.AllVMSync.Range(func(_, v interface{}) bool {
+	gctscript.AllVMSync.Range(func(_, v any) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
 			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))

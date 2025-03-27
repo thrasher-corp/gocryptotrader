@@ -36,7 +36,7 @@ var (
 
 const defaultTimeout = time.Second * 30
 
-func jsonOutput(in interface{}) {
+func jsonOutput(in any) {
 	j, err := json.MarshalIndent(in, "", " ")
 	if err != nil {
 		return

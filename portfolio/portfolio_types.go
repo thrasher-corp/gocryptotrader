@@ -29,13 +29,13 @@ type Address struct {
 type EtherchainBalanceResponse struct {
 	Status int `json:"status"`
 	Data   []struct {
-		Address   string      `json:"address"`
-		Balance   float64     `json:"balance"`
-		Nonce     interface{} `json:"nonce"`
-		Code      string      `json:"code"`
-		Name      interface{} `json:"name"`
-		Storage   interface{} `json:"storage"`
-		FirstSeen interface{} `json:"firstSeen"`
+		Address   string  `json:"address"`
+		Balance   float64 `json:"balance"`
+		Nonce     any     `json:"nonce"`
+		Code      string  `json:"code"`
+		Name      any     `json:"name"`
+		Storage   any     `json:"storage"`
+		FirstSeen any     `json:"firstSeen"`
 	} `json:"data"`
 }
 
@@ -147,7 +147,7 @@ type XRPScanAccount struct {
 	TxHash         string      `json:"tx_hash"`
 	AccountName    AccountInfo `json:"accountName"`
 	ParentName     AccountInfo `json:"parentName"`
-	Advisory       interface{} `json:"advisory"`
+	Advisory       any         `json:"advisory"`
 }
 
 // AccountInfo is a XRPScan subtype for account associations

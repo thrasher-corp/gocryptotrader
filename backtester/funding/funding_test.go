@@ -1016,22 +1016,22 @@ var leet = decimal.NewFromInt(1337)
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 
-func (f *fakeEvent) GetHighPrice() decimal.Decimal            { return leet }
-func (f *fakeEvent) GetLowPrice() decimal.Decimal             { return leet }
-func (f *fakeEvent) GetOpenPrice() decimal.Decimal            { return leet }
-func (f *fakeEvent) GetVolume() decimal.Decimal               { return leet }
-func (f *fakeEvent) GetOffset() int64                         { return 0 }
-func (f *fakeEvent) SetOffset(int64)                          {}
-func (f *fakeEvent) IsEvent() bool                            { return true }
-func (f *fakeEvent) GetTime() time.Time                       { return time.Now() }
-func (f *fakeEvent) Pair() currency.Pair                      { return pair }
-func (f *fakeEvent) GetExchange() string                      { return exchName }
-func (f *fakeEvent) GetInterval() gctkline.Interval           { return gctkline.OneMin }
-func (f *fakeEvent) GetAssetType() asset.Item                 { return asset.Spot }
-func (f *fakeEvent) AppendReason(string)                      {}
-func (f *fakeEvent) GetClosePrice() decimal.Decimal           { return elite }
-func (f *fakeEvent) AppendReasonf(_ string, _ ...interface{}) {}
-func (f *fakeEvent) GetBase() *event.Base                     { return &event.Base{} }
-func (f *fakeEvent) GetUnderlyingPair() currency.Pair         { return pair }
-func (f *fakeEvent) GetConcatReasons() string                 { return "" }
-func (f *fakeEvent) GetReasons() []string                     { return nil }
+func (f *fakeEvent) GetHighPrice() decimal.Decimal    { return leet }
+func (f *fakeEvent) GetLowPrice() decimal.Decimal     { return leet }
+func (f *fakeEvent) GetOpenPrice() decimal.Decimal    { return leet }
+func (f *fakeEvent) GetVolume() decimal.Decimal       { return leet }
+func (f *fakeEvent) GetOffset() int64                 { return 0 }
+func (f *fakeEvent) SetOffset(int64)                  {}
+func (f *fakeEvent) IsEvent() bool                    { return true }
+func (f *fakeEvent) GetTime() time.Time               { return time.Now() }
+func (f *fakeEvent) Pair() currency.Pair              { return pair }
+func (f *fakeEvent) GetExchange() string              { return exchName }
+func (f *fakeEvent) GetInterval() gctkline.Interval   { return gctkline.OneMin }
+func (f *fakeEvent) GetAssetType() asset.Item         { return asset.Spot }
+func (f *fakeEvent) AppendReason(string)              {}
+func (f *fakeEvent) GetClosePrice() decimal.Decimal   { return elite }
+func (f *fakeEvent) AppendReasonf(_ string, _ ...any) {}
+func (f *fakeEvent) GetBase() *event.Base             { return &event.Base{} }
+func (f *fakeEvent) GetUnderlyingPair() currency.Pair { return pair }
+func (f *fakeEvent) GetConcatReasons() string         { return "" }
+func (f *fakeEvent) GetReasons() []string             { return nil }

@@ -108,9 +108,7 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 			err)
 	}
 
-	for key, val := range rateNew {
-		rates[key] = val
-	}
+	maps.Copy(rates, rateNew)
 	return rates, nil
 }
 

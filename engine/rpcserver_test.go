@@ -1216,8 +1216,8 @@ func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
 func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
 func (d *dummyServer) SetTrailer(metadata.MD)                 {}
 func (d *dummyServer) Context() context.Context               { return context.Background() }
-func (d *dummyServer) SendMsg(_ interface{}) error            { return nil }
-func (d *dummyServer) RecvMsg(_ interface{}) error            { return nil }
+func (d *dummyServer) SendMsg(_ any) error                    { return nil }
+func (d *dummyServer) RecvMsg(_ any) error                    { return nil }
 
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)

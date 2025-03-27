@@ -80,8 +80,8 @@ func (p *Poloniex) GetTicker(ctx context.Context) (map[string]Ticker, error) {
 }
 
 // GetVolume returns a list of currencies with associated volume
-func (p *Poloniex) GetVolume(ctx context.Context) (interface{}, error) {
-	var resp interface{}
+func (p *Poloniex) GetVolume(ctx context.Context) (any, error) {
+	var resp any
 	path := "/public?command=return24hVolume"
 
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
@@ -258,7 +258,7 @@ func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 
 	data, ok := result.(map[string]any)
 	if !ok {
-		return Balance{}, common.GetTypeAssertError("map[string]interface{}", result, "balance result")
+		return Balance{}, common.GetTypeAssertError("map[string]any", result, "balance result")
 	}
 
 	balance := Balance{
@@ -296,7 +296,7 @@ func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, e
 
 // GetDepositAddresses returns deposit addresses for all enabled cryptos.
 func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, error) {
-	var result interface{}
+	var result any
 	addresses := DepositAddresses{}
 
 	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexDepositAddresses, url.Values{}, &result)
@@ -305,9 +305,9 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, e
 	}
 
 	addresses.Addresses = make(map[string]string)
-	data, ok := result.(map[string]interface{})
+	data, ok := result.(map[string]any)
 	if !ok {
-		return addresses, errors.New("return val not map[string]interface{}")
+		return addresses, errors.New("return val not map[string]any")
 	}
 
 	for x, y := range data {
@@ -424,7 +424,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(ctx context.Context, start, end,
 		return AuthenticatedTradeHistoryAll{}, err
 	}
 
-	var nodata []interface{}
+	var nodata []any
 	err = json.Unmarshal(result, &nodata)
 	if err == nil {
 		return AuthenticatedTradeHistoryAll{}, nil
@@ -632,7 +632,7 @@ func (p *Poloniex) GetFeeInfo(ctx context.Context) (Fee, error) {
 // GetTradableBalances returns tradable balances
 func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[string]float64, error) {
 	type Response struct {
-		Data map[string]map[string]interface{}
+		Data map[string]map[string]any
 	}
 	result := Response{}
 
@@ -712,7 +712,7 @@ func (p *Poloniex) PlaceMarginOrder(ctx context.Context, currency string, rate, 
 }
 
 // GetMarginPosition returns a position on a margin order
-func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (interface{}, error) {
+func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (any, error) {
 	values := url.Values{}
 
 	if currency != "" && currency != "all" {
@@ -901,7 +901,7 @@ func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clie
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -922,7 +922,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result interface{}) error {
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result any) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err
