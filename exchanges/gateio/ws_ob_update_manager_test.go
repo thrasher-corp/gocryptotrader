@@ -32,13 +32,6 @@ func TestApplyUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = m.applyUpdate(t.Context(), g, 20, 1335, &orderbook.Update{
-		UpdateID: 1336,
-		Pair:     pair,
-		Asset:    asset.Futures,
-	})
-	require.ErrorIs(t, err, errOutOfOrder)
-
 	err = m.applyUpdate(t.Context(), g, 20, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,

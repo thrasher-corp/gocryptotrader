@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	errOutOfOrder              = errors.New("out of order update")
 	errOrderbookSnapshotBehind = errors.New("orderbook snapshot is behind update")
 	wsOBUpdateMgr              = &wsOBUpdateManager{m: make(map[key.PairAsset]*updateCache)}
 )
@@ -63,11 +62,6 @@ func (m *wsOBUpdateManager) applyUpdate(ctx context.Context, g *Gateio, limit ui
 		cache.buffer = append(cache.buffer, updateWithFirstID{update: update, firstID: firstID})
 		return nil
 	}
-
-	if book.LastUpdateID+1 > update.UpdateID {
-		return fmt.Errorf("%w for LastUpdateID:%d while baseID+1:%d", errOutOfOrder, update.UpdateID, book.LastUpdateID+1)
-	}
-
 	return cache.applyUpdate(g, update)
 }
 
