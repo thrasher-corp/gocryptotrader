@@ -47,6 +47,8 @@ const (
 	futuresReduceRiskLimitsChannel  = "futures.reduce_risk_limits"
 	futuresPositionsChannel         = "futures.positions"
 	futuresAutoOrdersChannel        = "futures.autoorders"
+
+	futuresOrderbookUpdateLimit uint64 = 20
 )
 
 var defaultFuturesSubscriptions = []string{
@@ -120,7 +122,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			case futuresOrderbookUpdateChannel:
 				// This is the fastest frequency available for futures orderbook updates 20 levels every 20ms
 				params["frequency"] = kline.Interval(time.Millisecond * 20)
-				params["level"] = "20"
+				params["level"] = strconv.FormatUint(futuresOrderbookUpdateLimit, 10)
 			}
 			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
 			if err != nil {
@@ -427,7 +429,13 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
-	return wsOBUpdateMgr.applyUpdate(ctx, g, 20, data.FirstUpdatedID, &orderbook.Update{
+
+	limit := futuresOrderbookUpdateLimit
+	if a == asset.DeliveryFutures {
+		limit = 100
+	}
+
+	return wsOBUpdateMgr.applyUpdate(ctx, g, limit, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:       data.LastUpdatedID,
 		UpdateTime:     data.Timestamp.Time(),
 		UpdatePushedAt: pushTime,

@@ -51,6 +51,8 @@ const (
 	optionsPositionCloseChannel          = "options.position_closes"
 	optionsBalancesChannel               = "options.balances"
 	optionsPositionsChannel              = "options.positions"
+
+	optionOrderbookUpdateLimit uint64 = 50
 )
 
 var defaultOptionsSubscriptions = []string{
@@ -138,7 +140,7 @@ getEnabledPairs:
 				params["interval"] = kline.FiveMin
 			case optionsOrderbookUpdateChannel:
 				params["interval"] = kline.HundredMilliseconds
-				params["level"] = "50"
+				params["level"] = strconv.FormatUint(optionOrderbookUpdateLimit, 10)
 			case optionsOrdersChannel,
 				optionsUserTradesChannel,
 				optionsLiquidatesChannel,
@@ -513,7 +515,7 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
-	return wsOBUpdateMgr.applyUpdate(ctx, g, 50, data.FirstUpdatedID, &orderbook.Update{
+	return wsOBUpdateMgr.applyUpdate(ctx, g, optionOrderbookUpdateLimit, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:       data.LastUpdatedID,
 		UpdateTime:     data.Timestamp.Time(),
 		UpdatePushedAt: pushTime,
