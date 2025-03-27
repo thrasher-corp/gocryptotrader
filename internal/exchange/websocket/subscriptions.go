@@ -30,8 +30,8 @@ func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.Lis
 		return nil // No channels to unsubscribe from is not an error
 	}
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		return m.unsubscribe(wrapper.Subscriptions, channels, func(channels subscription.List) error {
-			return wrapper.Setup.Unsubscriber(context.TODO(), conn, channels)
+		return m.unsubscribe(wrapper.subscriptions, channels, func(channels subscription.List) error {
+			return wrapper.setup.Unsubscriber(context.TODO(), conn, channels)
 		})
 	}
 
@@ -81,7 +81,7 @@ func (m *Manager) SubscribeToChannels(conn Connection, subs subscription.List) e
 	}
 
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		return wrapper.Setup.Subscriber(context.TODO(), conn, subs)
+		return wrapper.setup.Subscriber(context.TODO(), conn, subs)
 	}
 
 	if m.Subscriber == nil {
@@ -102,7 +102,7 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 	}
 	var subscriptionStore **subscription.Store
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = &wrapper.Subscriptions
+		subscriptionStore = &wrapper.subscriptions
 	} else {
 		subscriptionStore = &m.subscriptions
 	}
@@ -132,7 +132,7 @@ func (m *Manager) AddSuccessfulSubscriptions(conn Connection, subs ...*subscript
 
 	var subscriptionStore **subscription.Store
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = &wrapper.Subscriptions
+		subscriptionStore = &wrapper.subscriptions
 	} else {
 		subscriptionStore = &m.subscriptions
 	}
@@ -161,7 +161,7 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 
 	var subscriptionStore *subscription.Store
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = wrapper.Subscriptions
+		subscriptionStore = wrapper.subscriptions
 	} else {
 		subscriptionStore = m.subscriptions
 	}
@@ -190,10 +190,10 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 		return nil
 	}
 	for _, c := range m.connectionManager {
-		if c.Subscriptions == nil {
+		if c.subscriptions == nil {
 			continue
 		}
-		sub := c.Subscriptions.Get(key)
+		sub := c.subscriptions.Get(key)
 		if sub != nil {
 			return sub
 		}
@@ -211,8 +211,8 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	}
 	var subs subscription.List
 	for _, c := range m.connectionManager {
-		if c.Subscriptions != nil {
-			subs = append(subs, c.Subscriptions.List()...)
+		if c.subscriptions != nil {
+			subs = append(subs, c.subscriptions.List()...)
 		}
 	}
 	if m.subscriptions != nil {
@@ -226,7 +226,7 @@ func (m *Manager) GetSubscriptions() subscription.List {
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = wrapper.Subscriptions
+		subscriptionStore = wrapper.subscriptions
 	} else {
 		subscriptionStore = m.subscriptions
 	}
@@ -285,40 +285,40 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	for x := range m.connectionManager {
-		newSubs, err := m.connectionManager[x].Setup.GenerateSubscriptions()
+		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
 		if err != nil {
 			return err
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && m.connectionManager[x].Connection == nil {
+		if len(newSubs) == 0 && m.connectionManager[x].connection == nil {
 			continue
 		}
 
 		// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
-		if m.connectionManager[x].Connection == nil {
-			conn := m.getConnectionFromSetup(m.connectionManager[x].Setup)
-			if err := m.connectionManager[x].Setup.Connector(context.TODO(), conn); err != nil {
+		if m.connectionManager[x].connection == nil {
+			conn := m.getConnectionFromSetup(m.connectionManager[x].setup)
+			if err := m.connectionManager[x].setup.Connector(context.TODO(), conn); err != nil {
 				return err
 			}
 			m.Wg.Add(1)
-			go m.Reader(context.TODO(), conn, m.connectionManager[x].Setup.Handler)
+			go m.Reader(context.TODO(), conn, m.connectionManager[x].setup.Handler)
 			m.connections[conn] = m.connectionManager[x]
-			m.connectionManager[x].Connection = conn
+			m.connectionManager[x].connection = conn
 		}
 
-		err = m.updateChannelSubscriptions(m.connectionManager[x].Connection, m.connectionManager[x].Subscriptions, newSubs)
+		err = m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs)
 		if err != nil {
 			return err
 		}
 
 		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
-		if m.connectionManager[x].Subscriptions.Len() == 0 {
-			delete(m.connections, m.connectionManager[x].Connection) // Remove from lookup map
-			if err := m.connectionManager[x].Connection.Shutdown(); err != nil {
+		if m.connectionManager[x].subscriptions.Len() == 0 {
+			delete(m.connections, m.connectionManager[x].connection) // Remove from lookup map
+			if err := m.connectionManager[x].connection.Shutdown(); err != nil {
 				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 			}
-			m.connectionManager[x].Connection = nil
+			m.connectionManager[x].connection = nil
 		}
 	}
 	return nil
