@@ -284,7 +284,6 @@ type PlaceOrderInfo struct {
 type PlaceOrderResp struct {
 	Success            bool               `json:"success"`
 	FailureReason      string             `json:"failure_reason"`
-	OrderID            string             `json:"order_id"`
 	SuccessResponse    SuccessResponse    `json:"success_response"`
 	OrderConfiguration OrderConfiguration `json:"order_configuration"`
 }

@@ -47,7 +47,8 @@ var (
 	testFiat         = currency.USD
 	testStable       = currency.USDC
 	testWrappedAsset = currency.CBETH
-	testPair         = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
+	testPairFiat     = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
+	testPairStable   = currency.NewPairWithDelimiter(testCrypto.String(), testStable.String(), "-")
 )
 
 // Constants used within tests
@@ -102,6 +103,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	go c.wsReadData()
+	c.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -160,7 +162,7 @@ func TestGetAccountByID(t *testing.T) {
 func TestGetBestBidAsk(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	testPairs := []string{testPair.String(), "ETH-USD"}
+	testPairs := []string{testPairFiat.String(), "ETH-USD"}
 	resp, err := c.GetBestBidAsk(t.Context(), testPairs)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -170,19 +172,19 @@ func TestGetProductBookV3(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetProductBookV3(t.Context(), currency.Pair{}, 0, 0, false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	resp, err := c.GetProductBookV3(t.Context(), testPair, 4, -1, false)
+	resp, err := c.GetProductBookV3(t.Context(), testPairFiat, 4, -1, false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err = c.GetProductBookV3(t.Context(), testPair, 4, -1, true)
+	resp, err = c.GetProductBookV3(t.Context(), testPairFiat, 4, -1, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetAllProducts(t *testing.T) {
 	t.Parallel()
-	testPairs := []string{testPair.String(), "ETH-USD"}
+	testPairs := []string{testPairFiat.String(), "ETH-USD"}
 	resp, err := c.GetAllProducts(t.Context(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL", testPairs, false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -197,12 +199,12 @@ func TestGetProductByID(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetProductByID(t.Context(), "", false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	resp, err := c.GetProductByID(t.Context(), testPair.String(), false)
+	resp, err := c.GetProductByID(t.Context(), testPairFiat.String(), false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err = c.GetProductByID(t.Context(), testPair.String(), true)
+	resp, err = c.GetProductByID(t.Context(), testPairFiat.String(), true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -211,14 +213,14 @@ func TestGetHistoricRates(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetHistoricKlines(t.Context(), "", granUnknown, time.Time{}, time.Time{}, false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	_, err = c.GetHistoricKlines(t.Context(), testPair.String(), "blorbo", time.Time{}, time.Time{}, false)
+	_, err = c.GetHistoricKlines(t.Context(), testPairFiat.String(), "blorbo", time.Time{}, time.Time{}, false)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
-	resp, err := c.GetHistoricKlines(t.Context(), testPair.String(), granOneMin, time.Now().Add(-5*time.Minute), time.Now(), false)
+	resp, err := c.GetHistoricKlines(t.Context(), testPairFiat.String(), granOneMin, time.Now().Add(-5*time.Minute), time.Now(), false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err = c.GetHistoricKlines(t.Context(), testPair.String(), granOneMin, time.Now().Add(-5*time.Minute), time.Now(), true)
+	resp, err = c.GetHistoricKlines(t.Context(), testPairFiat.String(), granOneMin, time.Now().Add(-5*time.Minute), time.Now(), true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -227,12 +229,12 @@ func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetTicker(t.Context(), "", 1, time.Time{}, time.Time{}, false)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	resp, err := c.GetTicker(t.Context(), testPair.String(), 5, time.Now().Add(-time.Minute*5), time.Now(), false)
+	resp, err := c.GetTicker(t.Context(), testPairFiat.String(), 5, time.Now().Add(-time.Minute*5), time.Now(), false)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err = c.GetTicker(t.Context(), testPair.String(), 5, time.Now().Add(-time.Minute*5), time.Now(), true)
+	resp, err = c.GetTicker(t.Context(), testPairFiat.String(), 5, time.Now().Add(-time.Minute*5), time.Now(), true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -245,7 +247,7 @@ func TestPlaceOrder(t *testing.T) {
 	ord.ClientOID = "meow"
 	_, err = c.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	ord.ProductID = testPair.String()
+	ord.ProductID = testPairFiat.String()
 	_, err = c.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
@@ -253,7 +255,7 @@ func TestPlaceOrder(t *testing.T) {
 	assert.NoError(t, err)
 	ord = PlaceOrderInfo{
 		ClientOID:  id.String(),
-		ProductID:  testPair.String(),
+		ProductID:  testPairStable.String(),
 		Side:       order.Sell.String(),
 		OrderType:  order.Limit.String(),
 		MarginType: "CROSS",
@@ -335,7 +337,7 @@ func TestGetFills(t *testing.T) {
 	_, err := c.GetFills(t.Context(), "", "", "", time.Unix(2, 2), time.Unix(1, 1), 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.GetFills(t.Context(), "", testPair.String(), "", time.Unix(1, 1), time.Now(), 5)
+	_, err = c.GetFills(t.Context(), "", testPairStable.String(), "", time.Unix(1, 1), time.Now(), 5)
 	assert.NoError(t, err)
 	status := []string{"OPEN"}
 	ordID, err := c.GetAllOrders(t.Context(), "", "", "", "", "", "", "", "", "", status, nil, 3, time.Time{}, time.Time{})
@@ -369,7 +371,7 @@ func TestPreviewOrder(t *testing.T) {
 	_, err = c.PreviewOrder(t.Context(), "", "", "", "", "", 0, 1, 0, 0, 0, 0, false, false, false, time.Time{})
 	assert.ErrorIs(t, err, errInvalidOrderType)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.PreviewOrder(t.Context(), testPair.String(), "BUY", "MARKET", "", "ISOLATED", 0, testAmount, 0, 0, 0, 0, false, false, false, time.Time{})
+	resp, err := c.PreviewOrder(t.Context(), testPairStable.String(), "BUY", "MARKET", "", "ISOLATED", 0, testAmount, 0, 0, 0, 0, false, false, false, time.Time{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -430,7 +432,8 @@ func TestDeletePortfolio(t *testing.T) {
 	t.Parallel()
 	err := c.DeletePortfolio(t.Context(), "")
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
-	err = c.DeletePortfolio(t.Context(), "")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	err = c.DeletePortfolio(t.Context(), "insert portfolio ID here")
 	// The new JWT-based keys don't have permissions to delete portfolios they aren't assigned to, causing this to fail
 	assert.NoError(t, err)
 }
@@ -441,7 +444,8 @@ func TestEditPortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
 	_, err = c.EditPortfolio(t.Context(), "meow", "")
 	assert.ErrorIs(t, err, errNameEmpty)
-	_, err = c.EditPortfolio(t.Context(), "", "GCT Test Portfolio Edited")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err = c.EditPortfolio(t.Context(), "insert portfolio ID here", "GCT Test Portfolio Edited")
 	// The new JWT-based keys don't have permissions to edit portfolios they aren't assigned to, causing this to fail
 	assert.NoError(t, err)
 }
@@ -518,7 +522,7 @@ func TestGetPerpetualsPositionByID(t *testing.T) {
 	_, err = c.GetPerpetualsPositionByID(t.Context(), "meow", "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	pID := getINTXPortfolio(t)
-	_, err = c.GetPerpetualsPositionByID(t.Context(), pID, testPair.String())
+	_, err = c.GetPerpetualsPositionByID(t.Context(), pID, testPairFiat.String())
 	assert.NoError(t, err)
 }
 
@@ -864,7 +868,7 @@ func TestGetPrice(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetPrice(t.Context(), "", "")
 	assert.ErrorIs(t, err, errInvalidPriceType)
-	resp, err := c.GetPrice(t.Context(), testPair.String(), asset.Spot.String())
+	resp, err := c.GetPrice(t.Context(), testPairFiat.String(), asset.Spot.String())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -897,18 +901,18 @@ func TestGetAllPairVolumes(t *testing.T) {
 
 func TestGetPairDetails(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, c.GetPairDetails, testPair.String(), currency.ErrCurrencyPairEmpty)
+	testGetOneArg(t, c.GetPairDetails, testPairFiat.String(), currency.ErrCurrencyPairEmpty)
 }
 
 func TestGetProductBookV1(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetProductBookV1(t.Context(), "", 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.GetProductBookV1(t.Context(), testPair.String(), 2)
+	resp, err := c.GetProductBookV1(t.Context(), testPairFiat.String(), 2)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
-	resp, err = c.GetProductBookV1(t.Context(), testPair.String(), 3)
+	resp, err = c.GetProductBookV1(t.Context(), testPairFiat.String(), 3)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -917,26 +921,26 @@ func TestGetProductCandles(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetProductCandles(t.Context(), "", 0, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.GetProductCandles(t.Context(), testPair.String(), 300, time.Time{}, time.Time{})
+	resp, err := c.GetProductCandles(t.Context(), testPairFiat.String(), 300, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetProductStats(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, c.GetProductStats, testPair.String(), currency.ErrCurrencyPairEmpty)
+	testGetOneArg(t, c.GetProductStats, testPairFiat.String(), currency.ErrCurrencyPairEmpty)
 }
 
 func TestGetProductTicker(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, c.GetProductTicker, testPair.String(), currency.ErrCurrencyPairEmpty)
+	testGetOneArg(t, c.GetProductTicker, testPairFiat.String(), currency.ErrCurrencyPairEmpty)
 }
 
 func TestGetProductTrades(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetProductTrades(t.Context(), "", "", "", 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.GetProductTrades(t.Context(), testPair.String(), "1", "before", 0)
+	resp, err := c.GetProductTrades(t.Context(), testPairFiat.String(), "1", "before", 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1057,20 +1061,20 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := c.UpdateTicker(t.Context(), currency.Pair{}, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.UpdateTicker(t.Context(), testPair, asset.Spot)
+	resp, err := c.UpdateTicker(t.Context(), testPairFiat, asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-// Not parallel; being parallel causes intermittent errors with the last test here for no discernible reason
+// Not parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
 	_, err := c.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Empty)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = c.UpdateOrderbook(t.Context(), testPair, asset.Empty)
+	_, err = c.UpdateOrderbook(t.Context(), testPairFiat, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = c.UpdateOrderbook(t.Context(), currency.NewPairWithDelimiter("meow", "woof", "-"), asset.Spot)
 	assert.EqualValues(t, errInvalidProductID, err.Error())
-	resp, err := c.UpdateOrderbook(t.Context(), testPair, asset.Futures)
+	resp, err := c.UpdateOrderbook(t.Context(), testPairFiat, asset.Futures)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1098,13 +1102,13 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	ord := order.Submit{
 		Exchange:      c.Name,
-		Pair:          testPair,
+		Pair:          testPairStable,
 		AssetType:     asset.Spot,
 		Side:          order.Buy,
 		Type:          order.Market,
 		StopDirection: order.StopUp,
 		Amount:        testAmount,
-		Price:         testPrice,
+		Price:         testAmount,
 		RetrieveFees:  true,
 		ClientOrderID: strconv.FormatInt(time.Now().UnixMilli(), 18) + "GCTSubmitOrderTest",
 	}
@@ -1113,7 +1117,6 @@ func TestSubmitOrder(t *testing.T) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	}
 	ord.StopDirection = order.StopDown
-	ord.Side = order.Buy
 	resp, err = c.SubmitOrder(t.Context(), &ord)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1133,8 +1136,10 @@ func TestModifyOrder(t *testing.T) {
 	_, err = c.ModifyOrder(t.Context(), &ord)
 	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	ord.OrderID = ""
+	ord.OrderID = "044ba505-7742-466c-b22d-e307e4c37381"
 	ord.Price = testPrice + 1
+	ord.Pair = testPairStable
+	ord.AssetType = asset.Spot
 	resp2, err := c.ModifyOrder(t.Context(), &ord)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp2, errExpectedNonEmpty)
@@ -1164,7 +1169,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = c.CancelBatchOrders(t.Context(), can)
 	assert.ErrorIs(t, err, order.ErrIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	can[0].OrderID = ""
+	can[0].OrderID = "1"
 	resp2, err := c.CancelBatchOrders(t.Context(), can)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp2, errExpectedNonEmpty)
@@ -1173,12 +1178,12 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	ordID, err := c.GetAllOrders(t.Context(), testPair.String(), "", "", "", "", asset.Spot.Upper(), "", "", "", nil, nil, 2, time.Time{}, time.Now())
+	ordID, err := c.GetAllOrders(t.Context(), testPairStable.String(), "", "", "", "", asset.Spot.Upper(), "", "", "", nil, nil, 2, time.Time{}, time.Now())
 	require.NoError(t, err)
 	if ordID == nil || len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	resp, err := c.GetOrderInfo(t.Context(), ordID.Orders[0].OrderID, testPair, asset.Spot)
+	resp, err := c.GetOrderInfo(t.Context(), ordID.Orders[0].OrderID, testPairStable, asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1277,7 +1282,7 @@ func TestGetOrderHistory(t *testing.T) {
 	req.Type = order.AnyType
 	_, err = c.GetOrderHistory(t.Context(), &req)
 	assert.NoError(t, err)
-	req.Pairs = req.Pairs.Add(testPair)
+	req.Pairs = req.Pairs.Add(testPairStable)
 	_, err = c.GetOrderHistory(t.Context(), &req)
 	assert.NoError(t, err)
 }
@@ -1286,7 +1291,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetHistoricCandles(t.Context(), currency.Pair{}, asset.Empty, kline.OneYear, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.SixHour, time.Now().Add(-time.Hour*60), time.Now())
+	resp, err := c.GetHistoricCandles(t.Context(), testPairFiat, asset.Spot, kline.SixHour, time.Now().Add(-time.Hour*60), time.Now())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1295,7 +1300,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetHistoricCandlesExtended(t.Context(), currency.Pair{}, asset.Empty, kline.OneYear, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	resp, err := c.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*9), time.Now())
+	resp, err := c.GetHistoricCandlesExtended(t.Context(), testPairFiat, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*9), time.Now())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1363,29 +1368,29 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 		Settled:     true,
 		EditHistory: []EditHistory{(EditHistory{})},
 	}
-	resp := c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
-	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x1, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPair}
+	resp := c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
+	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x1, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
 	assert.EqualValues(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"
-	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Side = 0x4
 	expected.Status = 0x80
 	assert.EqualValues(t, expected, resp)
 	mockData.Status = "CANCELLED"
-	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x100
 	assert.EqualValues(t, expected, resp)
 	mockData.Status = "EXPIRED"
-	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x2000
 	assert.EqualValues(t, expected, resp)
 	mockData.Status = "FAILED"
-	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x1000
 	assert.EqualValues(t, expected, resp)
 	mockData.Status = "UNKNOWN_ORDER_STATUS"
-	resp = c.getOrderRespToOrderDetail(mockData, testPair, asset.Spot)
+	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x0
 	assert.EqualValues(t, expected, resp)
 }
@@ -1481,7 +1486,7 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
-	p := currency.Pairs{testPair}
+	p := currency.Pairs{testPairFiat}
 	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}

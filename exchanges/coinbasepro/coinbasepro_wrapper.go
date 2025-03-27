@@ -106,9 +106,9 @@ func (c *CoinbasePro) SetDefaults() {
 				GlobalResultLimit: 300,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
+		Subscriptions:       defaultSubscriptions.Clone(),
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketOrderAmountPurchaseQuotationOnly: true,
+			// SpotMarketOrderAmountPurchaseQuotationOnly: true,
 		},
 	}
 	c.Requester, err = request.New(c.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimit()))
@@ -502,9 +502,9 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		}
 	}
 	amount := s.Amount
-	if (s.Type == order.Market || s.Type == order.ImmediateOrCancel) && s.Side == order.Buy {
-		amount = s.QuoteAmount
-	}
+	// if (s.Type == order.Market || s.Type == order.ImmediateOrCancel) && s.Side == order.Buy {
+	// 	amount = s.QuoteAmount
+	// }
 	resp, err := c.PlaceOrder(ctx, PlaceOrderInfo{
 		ClientOID:             s.ClientOrderID,
 		ProductID:             fPair.String(),
@@ -524,13 +524,13 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 	if err != nil {
 		return nil, err
 	}
-	subResp, err := s.DeriveSubmitResponse(resp.OrderID)
+	subResp, err := s.DeriveSubmitResponse(resp.SuccessResponse.OrderID)
 	if err != nil {
 		return nil, err
 	}
 	if s.RetrieveFees {
 		time.Sleep(s.RetrieveFeeDelay)
-		feeResp, err := c.GetOrderByID(ctx, resp.OrderID, s.ClientOrderID, "")
+		feeResp, err := c.GetOrderByID(ctx, resp.SuccessResponse.OrderID, s.ClientOrderID, "")
 		if err != nil {
 			return nil, err
 		}

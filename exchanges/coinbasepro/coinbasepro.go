@@ -97,7 +97,7 @@ const (
 	warnSequenceIssue = "Out of order sequence number. Received %v, expected %v"
 	warnAuth          = "%v authenticated request failed, attempting unauthenticated"
 
-	manyFills = 65535
+	manyFills = 3000
 	manyOrds  = 2147483647
 )
 
@@ -328,7 +328,9 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord PlaceOrderInfo) (*Plac
 		"self_trade_prevention_id": ord.SelfTradePreventionID,
 		"leverage":                 strconv.FormatFloat(ord.Leverage, 'f', -1, 64),
 		"retail_portfolio_id":      ord.RetailPortfolioID,
-		"margin_type":              FormatMarginType(ord.MarginType),
+	}
+	if ord.MarginType != "" {
+		req["margin_type"] = FormatMarginType(ord.MarginType)
 	}
 	var resp PlaceOrderResp
 	return &resp,
@@ -1330,7 +1332,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		headers["CB-VERSION"] = "2024-11-27"
+		headers["CB-VERSION"] = "2025-03-26"
 		headers["Authorization"] = "Bearer " + jwt
 		return &request.Item{
 			Method:        method,
@@ -1351,8 +1353,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	if err != nil {
 		return err
 	}
-	// Doing this error handling because the docs indicate that errors can be returned even with a 200 status
-	// code, and that these errors can be buried in the JSON returned
+	// Doing this error handling because the docs indicate that errors can be returned even with a 200 status code, and that these errors can be buried in the JSON returned
 	singleErrCap := struct {
 		ErrorType             string `json:"error"`
 		Message               string `json:"message"`
@@ -1362,7 +1363,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		NewOrderFailureReason string `json:"new_order_failure_reason"`
 	}{}
 	if err = json.Unmarshal(interim, &singleErrCap); err == nil {
-		if singleErrCap.Message != "" {
+		if singleErrCap.ErrorType != "" {
 			return fmt.Errorf("message: %s, error type: %s, error details: %s, edit failure reason: %s, preview failure reason: %s, new order failure reason: %s", singleErrCap.Message, singleErrCap.ErrorType, singleErrCap.ErrorDetails, singleErrCap.EditFailureReason, singleErrCap.PreviewFailureReason, singleErrCap.NewOrderFailureReason)
 		}
 	}
@@ -1549,12 +1550,12 @@ func createOrderConfig(orderType, side, stopDirection string, amount, limitPrice
 	var orderConfig OrderConfiguration
 	switch orderType {
 	case order.Market.String(), order.ImmediateOrCancel.String():
-		if side == order.Buy.String() {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(amount)}
-		}
-		if side == order.Sell.String() {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(amount)}
-		}
+		// if side == order.Buy.String() {
+		// 	orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(amount)}
+		// }
+		// if side == order.Sell.String() {
+		orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(amount)}
+		// }
 	case order.Limit.String():
 		if endTime.IsZero() {
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
