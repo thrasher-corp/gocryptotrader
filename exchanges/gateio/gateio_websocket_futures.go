@@ -432,7 +432,7 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 
 	limit := futuresOrderbookUpdateLimit
 	if a == asset.DeliveryFutures {
-		limit = 100
+		limit = deliveryFuturesUpdateLimit
 	}
 
 	return wsOBUpdateMgr.applyUpdate(ctx, g, limit, data.FirstUpdatedID, &orderbook.Update{
