@@ -34,20 +34,17 @@ const (
 )
 
 var (
-	errNotETHAddress           = errors.New("not an Ethereum address")
-	errAddressIsEmptyOrInvalid = errors.New("address is empty or invalid")
 	errProviderNotFound        = errors.New("provider not found")
 	errProviderNotEnabled      = errors.New("provider not enabled")
 	errProviderAPIKeyNotSet    = errors.New("provider API key not set")
 	errPortfolioItemNotFound   = errors.New("portfolio item not found")
-	errUnsupportedCoin         = errors.New("unsupported coin")
 	errNoPortfolioItemsToWatch = errors.New("no portfolio items to watch")
 )
 
 // GetEthereumAddressBalance fetches Ethereum address balance for a given address
 func (b *Base) GetEthereumAddressBalance(ctx context.Context, address string) (float64, error) {
-	if ok, _ := common.IsValidCryptoAddress(address, "eth"); !ok {
-		return 0, errNotETHAddress
+	if err := common.IsValidCryptoAddress(address, "eth"); err != nil {
+		return 0, err
 	}
 
 	apiKey := "freekey"
@@ -57,12 +54,12 @@ func (b *Base) GetEthereumAddressBalance(ctx context.Context, address string) (f
 
 	urlPath := ethplorerAPIURL + "/" + ethplorerAddressInfo + "/" + address + "?apiKey=" + apiKey
 
-	var result EthplorerResponse
 	contents, err := common.SendHTTPRequest(ctx, http.MethodGet, urlPath, nil, nil, b.Verbose)
 	if err != nil {
 		return 0, err
 	}
 
+	var result EthplorerResponse
 	if err := json.Unmarshal(contents, &result); err != nil {
 		return 0, err
 	}
@@ -72,9 +69,8 @@ func (b *Base) GetEthereumAddressBalance(ctx context.Context, address string) (f
 
 // GetCryptoIDAddressBalance fetches the address balance for a specified cryptocurrency
 func (b *Base) GetCryptoIDAddressBalance(ctx context.Context, address string, coinType currency.Code) (float64, error) {
-	ok, err := common.IsValidCryptoAddress(address, coinType.String())
-	if !ok || err != nil {
-		return 0, errAddressIsEmptyOrInvalid
+	if err := common.IsValidCryptoAddress(address, coinType.String()); err != nil {
+		return 0, err
 	}
 
 	p, ok := b.Providers.GetProvider("cryptoid")
@@ -223,7 +219,7 @@ func (b *Base) UpdateExchangeAddressBalance(exchangeName string, coinType curren
 // AddAddress adds an address to the portfolio base or updates its balance if it already exists
 func (b *Base) AddAddress(address, description string, coinType currency.Code, balance float64) error {
 	if address == "" {
-		return errAddressIsEmptyOrInvalid
+		return common.ErrAddressIsEmptyOrInvalid
 	}
 
 	if coinType.IsEmpty() {
@@ -256,7 +252,7 @@ func (b *Base) AddAddress(address, description string, coinType currency.Code, b
 // coinType
 func (b *Base) RemoveAddress(address, description string, coinType currency.Code) error {
 	if address == "" {
-		return errAddressIsEmptyOrInvalid
+		return common.ErrAddressIsEmptyOrInvalid
 	}
 
 	if coinType.IsEmpty() {
@@ -284,10 +280,8 @@ func (b *Base) UpdatePortfolio(ctx context.Context, addresses []string, coinType
 		return nil
 	}
 
-	type balanceRetriever func(ctx context.Context, address string) (float64, error)
-
 	var providerName string
-	var getBalance balanceRetriever
+	var getBalance func(ctx context.Context, address string) (float64, error)
 
 	switch coinType {
 	case currency.ETH:
@@ -302,7 +296,7 @@ func (b *Base) UpdatePortfolio(ctx context.Context, addresses []string, coinType
 			return b.GetCryptoIDAddressBalance(ctx, address, coinType)
 		}
 	default:
-		return fmt.Errorf("%w: %s", errUnsupportedCoin, coinType)
+		return fmt.Errorf("%w: %s", currency.ErrCurrencyNotSupported, coinType)
 	}
 
 	p, ok := b.Providers.GetProvider(providerName)

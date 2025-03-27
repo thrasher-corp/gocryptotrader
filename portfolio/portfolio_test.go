@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -26,7 +27,7 @@ func TestGetEthereumAddressBalance(t *testing.T) {
 	b := Base{}
 
 	_, err := b.GetEthereumAddressBalance(t.Context(), testBTCAddress)
-	assert.ErrorIs(t, err, errNotETHAddress)
+	assert.ErrorIs(t, err, common.ErrAddressIsEmptyOrInvalid)
 
 	_, err = b.GetEthereumAddressBalance(t.Context(), testETHAddress)
 	assert.NoError(t, err, "GetEthereumAddressBalance should not error")
@@ -37,7 +38,7 @@ func TestGetCryptoIDAddressBalance(t *testing.T) {
 	b := Base{}
 
 	_, err := b.GetCryptoIDAddressBalance(t.Context(), testInvalidBTCAddress, currency.BTC)
-	assert.ErrorIs(t, err, errAddressIsEmptyOrInvalid)
+	assert.ErrorIs(t, err, common.ErrAddressIsEmptyOrInvalid)
 
 	_, err = b.GetCryptoIDAddressBalance(t.Context(), testLTCAddress, currency.LTC)
 	assert.ErrorIs(t, err, errProviderNotFound)
@@ -148,7 +149,7 @@ func TestRemoveExchangeAddress(t *testing.T) {
 	b.RemoveExchangeAddress("BallerExchange", currency.LTC)
 	bal, ok = b.GetAddressBalance("BallerExchange", ExchangeAddress, currency.LTC)
 	assert.False(t, ok, "GetAddressBalance should return false for non-existent address")
-	assert.Equal(t, 0.0, bal, "GetAddressBalance should return 0 for non-existent address")
+	assert.Zero(t, bal, "GetAddressBalance should return 0 for non-existent address")
 }
 
 func TestUpdateExchangeAddressBalance(t *testing.T) {
@@ -164,7 +165,7 @@ func TestUpdateExchangeAddressBalance(t *testing.T) {
 func TestAddAddress(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	assert.ErrorIs(t, b.AddAddress("", "desc", currency.LTC, 0.02), errAddressIsEmptyOrInvalid)
+	assert.ErrorIs(t, b.AddAddress("", "desc", currency.LTC, 0.02), common.ErrAddressIsEmptyOrInvalid)
 	assert.ErrorIs(t, b.AddAddress("someaddress", "", currency.EMPTYCODE, 0.02), currency.ErrCurrencyCodeEmpty)
 	assert.NoError(t, b.AddAddress("okx", ExchangeAddress, currency.LTC, 0.02))
 	assert.True(t, b.ExchangeAddressCoinExists("okx", currency.LTC), "ExchangeAddressCoinExists should return true for an existing address and coin")
@@ -179,7 +180,7 @@ func TestAddAddress(t *testing.T) {
 func TestRemoveAddress(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	assert.ErrorIs(t, b.RemoveAddress("", "desc", currency.LTC), errAddressIsEmptyOrInvalid)
+	assert.ErrorIs(t, b.RemoveAddress("", "desc", currency.LTC), common.ErrAddressIsEmptyOrInvalid)
 	assert.ErrorIs(t, b.RemoveAddress("someaddress", "", currency.EMPTYCODE), currency.ErrCurrencyCodeEmpty)
 	assert.ErrorIs(t, b.RemoveAddress("someaddress", "desc", currency.LTC), errPortfolioItemNotFound)
 	assert.NoError(t, b.AddAddress("someaddress", "desc", currency.LTC, 0.02))
@@ -205,7 +206,7 @@ func TestUpdatePortfolio(t *testing.T) {
 	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{PersonalAddress, ExchangeAddress}, currency.LTC))
 	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{testETHAddress}, currency.ETH))
 	assert.NoError(t, b.UpdatePortfolio(t.Context(), []string{testXRPAddress}, currency.XRP))
-	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testETHAddress}, currency.ADA), errUnsupportedCoin)
+	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testETHAddress}, currency.ADA), currency.ErrCurrencyNotSupported)
 	assert.ErrorIs(t, b.UpdatePortfolio(t.Context(), []string{testBTCAddress}, currency.BTC), errProviderNotFound)
 
 	b.Providers = append(b.Providers, provider{
@@ -349,20 +350,9 @@ func TestStartPortfolioWatcher(t *testing.T) {
 
 	assert.NoError(t, b.AddAddress(testXRPAddress, PersonalAddress, currency.XRP, 0.02))
 
-	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-	defer cancel()
-
-	doneCh := make(chan error)
-	go func() {
-		doneCh <- b.StartPortfolioWatcher(ctx, 0) // 0 will set the ticker to 10 minutes
-	}()
-
-	select {
-	case err := <-doneCh:
-		assert.ErrorIs(t, err, context.DeadlineExceeded, "StartPortfolioWatcher should return DeadlineExceeded error")
-	case <-time.After(2 * time.Second):
-		assert.Fail(t, "StartPortfolioWatcher should have deadlined")
-	}
+	ctx, cancel := context.WithTimeout(t.Context(), 0)
+	cancel()
+	assert.ErrorIs(t, b.StartPortfolioWatcher(ctx, 0), context.DeadlineExceeded, "StartPortfolioWatcher should return DeadlineExceeded error")
 
 	b.Providers = append(b.Providers, provider{
 		Name:    "XRPScan",
@@ -371,7 +361,7 @@ func TestStartPortfolioWatcher(t *testing.T) {
 
 	ctx2, cancel2 := context.WithCancel(t.Context())
 
-	doneCh = make(chan error)
+	doneCh := make(chan error)
 	go func() {
 		doneCh <- b.StartPortfolioWatcher(ctx2, time.Second)
 	}()
