@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -62,7 +62,7 @@ type apiServerManager struct {
 // websocketClient stores information related to the websocket client
 type websocketClient struct {
 	Hub              *websocketHub
-	Conn             *websocket.Conn
+	Conn             *gws.Conn
 	Authenticated    bool
 	authFailures     int
 	Send             chan []byte
