@@ -57,7 +57,7 @@ type Orderbook struct {
 
 // TradeDetail represents a trade detail
 type TradeDetail struct {
-	ID           any          `json:"id"`
+	ID           string       `json:"id"`
 	Price        types.Number `json:"price"`
 	Quantity     types.Number `json:"qty"`
 	QuoteQty     types.Number `json:"quoteQty"`
@@ -69,9 +69,9 @@ type TradeDetail struct {
 
 // AggregatedTradeDetail represents an aggregated trade detail
 type AggregatedTradeDetail struct {
-	AggregatedTradeID any          `json:"a"`
-	FirstTradeID      any          `json:"f"`
-	LastTradeID       any          `json:"l"`
+	AggregatedTradeID string       `json:"a"`
+	FirstTradeID      string       `json:"f"`
+	LastTradeID       string       `json:"l"`
 	Price             types.Number `json:"p"`
 	Quantity          types.Number `json:"q"`
 	Timestamp         types.Time   `json:"T"`
@@ -1097,7 +1097,7 @@ type FuturesOrderDetail struct {
 	PositionID      int64      `json:"positionId"`
 	Price           float64    `json:"price"`
 	Volume          float64    `json:"vol"`
-	Leverage        int64      `json:"leverage"`
+	Leverage        float64    `json:"leverage"`
 	Side            int64      `json:"side"`
 	Category        int64      `json:"category"`
 	OrderType       int64      `json:"orderType"`
@@ -1110,7 +1110,7 @@ type FuturesOrderDetail struct {
 	FeeCurrency     string     `json:"feeCurrency"`
 	OpenType        int64      `json:"openType"`
 	State           int64      `json:"state"`
-	ExternalOid     string     `json:"externalOid"`
+	ExternalOrderID string     `json:"externalOid"`
 	ErrorCode       int64      `json:"errorCode"`
 	UsedMargin      float64    `json:"usedMargin"`
 	CreateTime      types.Time `json:"createTime"`

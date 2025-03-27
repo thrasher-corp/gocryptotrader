@@ -1647,3 +1647,73 @@ func TestGetFundingHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetRecentTrades(context.Background(), currency.EMPTYPAIR, asset.Options)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = me.GetRecentTrades(context.Background(), spotTradablePair, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := me.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.GetRecentTrades(context.Background(), futuresTradablePair, asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetHistoricTrades(context.Background(), currency.EMPTYPAIR, asset.Options, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = me.GetHistoricTrades(context.Background(), spotTradablePair, asset.Options, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := me.GetHistoricTrades(context.Background(), spotTradablePair, asset.Spot, time.Now().Add(-time.Minute*4), time.Now().Add(-time.Minute*2))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.GetHistoricTrades(context.Background(), futuresTradablePair, asset.Futures, time.Now().Add(-time.Minute*4), time.Now().Add(-time.Minute*2))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	_, err := me.GetDepositAddress(context.Background(), currency.EMPTYCODE, "", "TON")
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = me.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	assert.ErrorIs(t, err, errNetworkNameRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetDepositAddress(context.Background(), currency.BTC, "", "TON")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	arg := &order.MultiOrderRequest{AssetType: asset.Options}
+	_, err := me.GetActiveOrders(context.Background(), arg)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.AssetType = asset.Spot
+	arg.Pairs = currency.Pairs{}
+	_, err = me.GetActiveOrders(context.Background(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	arg.Pairs = currency.Pairs{spotTradablePair}
+	result, err := me.GetActiveOrders(context.Background(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	arg.AssetType = asset.Futures
+	arg.Pairs = currency.Pairs{futuresTradablePair}
+	result, err = me.GetActiveOrders(context.Background(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

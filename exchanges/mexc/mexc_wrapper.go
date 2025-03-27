@@ -616,20 +616,123 @@ func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (me *MEXC) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	p, err := me.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	switch assetType {
+	case asset.Spot:
+		result, err := me.GetRecentTradesList(ctx, p.String(), 0)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]trade.Data, len(result))
+		for t := range result {
+			var side order.Side
+			if result[t].IsBuyerMaker {
+				side = order.Buy
+			} else {
+				side = order.Sell
+			}
+			resp[t] = trade.Data{
+				TID:          result[t].ID,
+				Exchange:     me.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        result[t].Price.Float64(),
+				Amount:       result[t].Quantity.Float64(),
+				Timestamp:    result[t].Time.Time(),
+			}
+		}
+		return resp, nil
+	case asset.Futures:
+		result, err := me.GetContractTransactionData(ctx, p.String(), 0)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]trade.Data, len(result.Data))
+		for t := range result.Data {
+			var oSide order.Side
+			switch result.Data[t].DealType {
+			case 1:
+				oSide = order.Long
+			case 2:
+				oSide = order.Short
+			}
+			resp[t] = trade.Data{
+				Exchange:     me.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         oSide,
+				Price:        result.Data[t].TransactionPrice,
+				Amount:       result.Data[t].Quantity,
+				Timestamp:    result.Data[t].TransactionTime.Time(),
+			}
+		}
+		return resp, nil
+	default:
+		return nil, fmt.Errorf("%w: asset type %v", asset.ErrNotSupported, assetType)
+	}
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (me *MEXC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (me *MEXC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
 	p, err := me.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 	switch assetType {
 	case asset.Futures:
-		return nil, nil
+		result, err := me.GetContractTransactionData(ctx, p.String(), 0)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]trade.Data, len(result.Data))
+		for t := range result.Data {
+			var oSide order.Side
+			switch result.Data[t].DealType {
+			case 1:
+				oSide = order.Long
+			case 2:
+				oSide = order.Short
+			}
+			resp[t] = trade.Data{
+				Exchange:     me.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         oSide,
+				Price:        result.Data[t].TransactionPrice,
+				Amount:       result.Data[t].Quantity,
+				Timestamp:    result.Data[t].TransactionTime.Time(),
+			}
+		}
+		return resp, nil
 	case asset.Spot:
-		return nil, nil
+		result, err := me.GetAggregatedTrades(ctx, p.String(), startTime, endTime, 0)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]trade.Data, len(result))
+		for t := range result {
+			var oSide order.Side
+			if result[t].MakerBuyer {
+				oSide = order.Buy
+			} else {
+				oSide = order.Sell
+			}
+			resp[t] = trade.Data{
+				TID:          result[t].LastTradeID,
+				Exchange:     me.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         oSide,
+				Price:        result[t].Price.Float64(),
+				Amount:       result[t].Quantity.Float64(),
+				Timestamp:    result[t].Timestamp.Time(),
+			}
+		}
+		return resp, nil
 	default:
 		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}
@@ -702,8 +805,19 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (me *MEXC) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
-	return nil, common.ErrNotYetImplemented
+func (me *MEXC) GetDepositAddress(ctx context.Context, c currency.Code, _ string, chain string) (*deposit.Address, error) {
+	result, err := me.GenerateDepositAddress(ctx, currency.BTC, "")
+	if err != nil {
+		return nil, err
+	}
+	if len(result) != 1 {
+		return nil, deposit.ErrAddressNotFound
+	}
+	return &deposit.Address{
+		Address: result[0].Address,
+		Tag:     result[0].Tag,
+		Chain:   result[0].Network,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -791,12 +905,57 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 		}
 		return details, nil
 	case asset.Futures:
-		// result, err := me.
-		// TODO: ---
+		if len(getOrdersRequest.Pairs) == 0 {
+			return nil, currency.ErrCurrencyPairsEmpty
+		}
+		var details order.FilteredOrders
+		for p := range getOrdersRequest.Pairs {
+			result, err := me.GetUserCurrentPendingOrder(ctx, getOrdersRequest.Pairs[p].String(), 0, 0)
+			if err != nil {
+				return nil, err
+			}
+			for od := range result.Data {
+				var oType order.Type
+				// switch result.Data[od].OrderType {
+				// 	case
+				// TODO: update this to
+				// }
+				var oSide order.Side
+				switch result.Data[od].Side {
+				// case
+				}
+				// TODO: ...
+				var oStatus order.Status
+				// switch result.Data[od].State {
+				// // TODO: ...
+				// }
+				details = append(details, order.Detail{
+					Leverage:             result.Data[od].Leverage,
+					Price:                result.Data[od].Price,
+					Amount:               result.Data[od].Volume,
+					ContractAmount:       result.Data[od].DealVol,
+					AverageExecutedPrice: result.Data[od].DealAvgPrice,
+					QuoteAmount:          result.Data[od].DealAvgPrice * result.Data[od].DealVol,
+					ExecutedAmount:       result.Data[od].Volume - result.Data[od].DealVol,
+					RemainingAmount:      result.Data[od].Volume - result.Data[od].DealVol,
+					FeeAsset:             currency.NewCode(result.Data[od].FeeCurrency),
+					Exchange:             me.Name,
+					OrderID:              result.Data[od].ExternalOrderID,
+					ClientOrderID:        result.Data[od].ExternalOrderID,
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            asset.Futures,
+					LastUpdated:          result.Data[od].UpdateTime.Time(),
+					Pair:                 getOrdersRequest.Pairs[p],
+					// Fee: result.Data[od].MakerFee,
+				})
+			}
+		}
+		return details, nil
 	default:
-
+		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
@@ -810,7 +969,24 @@ func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (me *MEXC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	switch feeBuilder.FeeType {
+	case exchange.OfflineTradeFee:
+		// TODO: ...
+	case exchange.CryptocurrencyTradeFee:
+		result, err := me.GetSymbolTradingFee(ctx, feeBuilder.Pair.String())
+		if err != nil {
+			return 0, err
+		}
+		if feeBuilder.IsMaker {
+			return result.Data.MakerCommission, nil
+		}
+		return result.Data.TakerCommission, nil
+	case exchange.CryptocurrencyDepositFee:
+		// TODO: ...
+	case exchange.InternationalBankDepositFee:
+		// TODO: ...
+	}
+	return 0, nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
