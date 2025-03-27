@@ -57,7 +57,7 @@ func (m *wsOBUpdateManager) applyUpdate(ctx context.Context, g *Gateio, limit ui
 			// REST Orderbook IDs are behind the ws update feed by about 50-100 changes; inline rudimentary delay to cache
 			time.Sleep(time.Second)
 			if err := cache.updateOrderbookAndApply(ctx, g, update.Pair, update.Asset, limit); err != nil {
-				g.Websocket.DataHandler <- err
+				g.Websocket.DataHandler <- fmt.Errorf("%v %v update and apply orderbook: %w", update.Pair, update.Asset, err)
 			}
 		}()
 		cache.buffer = append(cache.buffer, updateWithFirstID{update: update, firstID: firstID})
