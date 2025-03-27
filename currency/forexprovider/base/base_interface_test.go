@@ -9,9 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	errCurrencyNotSupported = errors.New("currency not supported")
-)
+var errCurrencyNotSupported = errors.New("currency not supported")
 
 type MockProvider struct {
 	IFXProvider

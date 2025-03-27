@@ -505,7 +505,22 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 	if (s.Type == order.Market || s.Type == order.ImmediateOrCancel) && s.Side == order.Buy {
 		amount = s.QuoteAmount
 	}
-	resp, err := c.PlaceOrder(ctx, s.ClientOrderID, fPair.String(), s.Side.String(), stopDir, s.Type.String(), "", s.MarginType.Upper(), "", amount, s.Price, s.TriggerPrice, s.Leverage, s.PostOnly, s.EndTime)
+	resp, err := c.PlaceOrder(ctx, PlaceOrderInfo{
+		ClientOID:             s.ClientOrderID,
+		ProductID:             fPair.String(),
+		Side:                  s.Side.String(),
+		StopDirection:         stopDir,
+		OrderType:             s.Type.String(),
+		SelfTradePreventionID: "",
+		MarginType:            s.MarginType.Upper(),
+		RetailPortfolioID:     "",
+		Amount:                amount,
+		LimitPrice:            s.Price,
+		StopPrice:             s.TriggerPrice,
+		Leverage:              s.Leverage,
+		PostOnly:              s.PostOnly,
+		EndTime:               s.EndTime,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1251,7 +1266,7 @@ func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity
 	if err != nil {
 		return nil, err
 	}
-	history, err := c.GetHistoricRates(ctx, pair, granString, start, end, verified)
+	history, err := c.GetHistoricKlines(ctx, pair, granString, start, end, verified)
 	if err != nil {
 		if verified {
 			return c.candleHelper(ctx, pair, granularity, start, end, false)
@@ -1276,7 +1291,7 @@ func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity
 func generateIdempotency(am float64) string {
 	t := time.Now().UnixNano()
 	u := math.Float64bits(am)
-	t ^= int64(u)
+	t ^= int64(u) //nolint:gosec // Precise number doesn't matter, it's just being used for entropy, so overflows are fine
 	return strconv.FormatInt(t, 10)
 }
 

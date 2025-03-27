@@ -262,6 +262,24 @@ type SuccessResponse struct {
 	ClientOrderID string        `json:"client_oid"`
 }
 
+// PlaceOrderInfo is a struct used in the formation of requests in PlaceOrder
+type PlaceOrderInfo struct {
+	ClientOID             string
+	ProductID             string
+	Side                  string
+	StopDirection         string
+	OrderType             string
+	SelfTradePreventionID string
+	MarginType            string
+	RetailPortfolioID     string
+	Amount                float64
+	LimitPrice            float64
+	StopPrice             float64
+	Leverage              float64
+	PostOnly              bool
+	EndTime               time.Time
+}
+
 // PlaceOrderResp contains information on an order, returned by PlaceOrder
 type PlaceOrderResp struct {
 	Success            bool               `json:"success"`
