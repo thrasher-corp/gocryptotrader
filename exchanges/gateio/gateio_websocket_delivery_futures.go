@@ -25,25 +25,23 @@ const (
 	// delivery testnet urls
 	deliveryTestNetBTCTradingURL  = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"
 	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt"
+
+	deliveryFuturesUpdateLimit uint64 = 100
 )
 
 var defaultDeliveryFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
-	futuresOrderbookChannel,
+	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
 
-var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
-
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn stream.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
-	if err != nil {
+	if err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
-	if err != nil {
+	if err := conn.DialContext(ctx, &websocket.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -92,6 +90,9 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
+			case futuresOrderbookUpdateChannel:
+				params["frequency"] = kline.HundredMilliseconds
+				params["level"] = strconv.FormatUint(deliveryFuturesUpdateLimit, 10)
 			}
 			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
 			if err != nil {
