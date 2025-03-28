@@ -1827,7 +1827,12 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 	_, err := h.FetchTradablePairs(context.Background(), asset.Futures)
 	require.NoError(t, err)
 
-	n := time.Now().Truncate(24 * time.Hour)
+	tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
+	require.NoError(t, err, "LoadLocation must not error")
+
+	n := time.Now()
+	n = time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, tz) // Do not use Truncate; https://github.com/golang/go/issues/55921
+
 	for _, cType := range contractExpiryNames {
 		p, err := h.pairFromContractExpiryCode(currency.Pair{
 			Base:  currency.BTC,
@@ -1844,8 +1849,6 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		require.True(t, ok, "%s type must be in contractExpiryNames", cType)
 		assert.Equal(t, currency.BTC, p.Base, "pair Base should be the same")
 		assert.Equal(t, exp, p.Quote, "pair Quote should be the same")
-		tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
-		require.NoError(t, err, "LoadLocation must not error")
 		d, err := time.ParseInLocation("060102", p.Quote.String(), tz)
 		require.NoError(t, err, "currency code must be a parsable date")
 		require.Falsef(t, d.Before(n), "%s expiry must be today or after", cType)
