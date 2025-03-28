@@ -149,7 +149,7 @@ type Ticker struct {
 	Volume             float64
 	High               float64
 	Low                float64
-	FFRAmountAvailable float64
+	FRRAmountAvailable float64 // Flash Return Rate amount available
 }
 
 // DerivativeDataResponse stores data for queried derivative

@@ -707,7 +707,7 @@ func tickerFromResp(symbol string, respAny []any) (*Ticker, error) {
 	}, nil
 }
 
-var fundingTickerFields = []string{"FlashReturnRate", "Bid", "BidPeriod", "BidSize", "Ask", "AskPeriod", "AskSize", "DailyChange", "DailyChangePercentage", "LastPrice", "DailyVolume", "DailyHigh", "DailyLow", "", "", "FFRAmountAvailable"}
+var fundingTickerFields = []string{"FlashReturnRate", "Bid", "BidPeriod", "BidSize", "Ask", "AskPeriod", "AskSize", "DailyChange", "DailyChangePercentage", "LastPrice", "DailyVolume", "DailyHigh", "DailyLow", "", "", "FRRAmountAvailable"}
 
 func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
 	if len(respAny) != 16 {
@@ -738,7 +738,7 @@ func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
 		Volume:             resp[10],
 		High:               resp[11],
 		Low:                resp[12],
-		FFRAmountAvailable: resp[15],
+		FRRAmountAvailable: resp[15],
 	}, nil
 }
 
