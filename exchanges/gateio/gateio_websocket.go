@@ -17,6 +17,7 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -61,6 +62,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
 	// spot.order_book_update is locked to 100ms updates and 100 book size
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: int(spotOrderbookUpdateLimit)},
+	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.Interval(10 * time.Millisecond), Levels: 1},
+	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -728,6 +731,148 @@ func singleSymbolChannel(name string) bool {
 		return true
 	}
 	return false
+}
+
+// ValidateSubscriptions implements subscription.SubscriptionsValidator interface
+func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
+	orderbookGuard := map[key.PairAsset]string{}
+	for _, s := range l {
+		n := channelName(s)
+		if !isRestrictedOrderbookChannel(n) {
+			continue
+		}
+		for _, p := range s.Pairs {
+			k := key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: s.Asset}
+			loadedChanName, ok := orderbookGuard[k]
+			if !ok {
+				orderbookGuard[k] = n
+				continue
+			}
+			if loadedChanName != n {
+				return fmt.Errorf("%w for `%s %s` between `%s` and `%s`, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, loadedChanName, n)
+			}
+		}
+	}
+	return nil
+}
+
+// isRestrictedOrderbookChannel returns if the channel is retricted to a single orderbook channel, as multiple orderbook
+// subscriptions enabled will ruin the stored orderbook.
+func isRestrictedOrderbookChannel(name string) bool {
+	switch name {
+	case spotOrderbookUpdateChannel,
+		spotOrderbookChannel,
+		spotOrderbookTickerChannel,
+		futuresOrderbookChannel,
+		futuresOrderbookTickerChannel,
+		futuresOrderbookUpdateChannel,
+		optionsOrderbookChannel,
+		optionsOrderbookTickerChannel,
+		optionsOrderbookUpdateChannel:
+		return true
+	}
+	return false
+}
+
+// ValidateSubscription implements subscription.SubscriptionValidator interface
+func (g *Gateio) ValidateSubscription(s *subscription.Subscription) error {
+	channelName := channelName(s)
+	switch s.Asset {
+	case asset.Spot:
+		switch channelName {
+		case spotOrderbookTickerChannel:
+			if s.Interval != kline.TenMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.TenMilliseconds)
+			}
+			if s.Levels != 1 {
+				return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		case spotOrderbookUpdateChannel:
+			if s.Interval != kline.HundredMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds)
+			}
+			if s.Levels != 100 {
+				return fmt.Errorf("%w for `%s` only `%d` is supported", subscription.ErrInvalidLevel, s.Channel, 100)
+			}
+		case spotOrderbookChannel:
+			if s.Interval != kline.HundredMilliseconds && s.Interval != kline.ThousandMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+			}
+			if s.Levels != 5 && s.Levels != 10 && s.Levels != 20 && s.Levels != 50 && s.Levels != 100 {
+				return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		}
+	case asset.Futures, asset.DeliveryFutures:
+		switch channelName {
+		case futuresOrderbookChannel:
+			if s.Interval != 0 {
+				return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, s.Channel)
+			}
+			if s.Levels != 1 && s.Levels != 5 && s.Levels != 10 && s.Levels != 20 && s.Levels != 50 && s.Levels != 100 {
+				return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		case futuresOrderbookTickerChannel:
+			if s.Interval != 0 {
+				return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, s.Channel)
+			}
+			if s.Levels != 1 {
+				return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		case futuresOrderbookUpdateChannel:
+			if s.Asset == asset.Futures {
+				if s.Levels != 20 && s.Levels != 50 && s.Levels != 100 {
+					return fmt.Errorf("%w for `%s` only `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, s.Channel)
+				}
+				if s.Levels != 20 {
+					if s.Interval == kline.TwentyMilliseconds {
+						return fmt.Errorf("%w for `%s` only `20` levels supports `%s`", subscription.ErrInvalidInterval, s.Channel, kline.TwentyMilliseconds)
+					}
+					if s.Interval != kline.HundredMilliseconds {
+						return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds)
+					}
+				} else {
+					if s.Interval != kline.HundredMilliseconds && s.Interval != kline.TwentyMilliseconds {
+						return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
+					}
+				}
+			} else {
+				if s.Interval != kline.HundredMilliseconds && s.Interval != kline.ThousandMilliseconds {
+					return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+				}
+				if s.Levels != 5 && s.Levels != 10 && s.Levels != 20 && s.Levels != 50 && s.Levels != 100 {
+					return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, s.Channel)
+				}
+			}
+		}
+	case asset.Options:
+		switch channelName {
+		case optionsOrderbookTickerChannel:
+			if s.Interval != 0 {
+				return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, s.Channel)
+			}
+			if s.Levels != 1 {
+				return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		case optionsOrderbookUpdateChannel:
+			if s.Interval != kline.HundredMilliseconds && s.Interval != kline.ThousandMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+			}
+			if s.Levels != 5 && s.Levels != 10 && s.Levels != 20 && s.Levels != 50 {
+				return fmt.Errorf("%w for `%s` only `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		case optionsOrderbookChannel:
+			if s.Interval != kline.TwoHundredAndFiftyMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.TwoHundredAndFiftyMilliseconds)
+			}
+			if s.Levels != 1 && s.Levels != 5 && s.Levels != 10 && s.Levels != 20 && s.Levels != 50 {
+				return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, s.Channel)
+			}
+		}
+	case asset.CrossMargin, asset.Margin:
+	default:
+		return fmt.Errorf("%s: %w", s.Asset, asset.ErrNotSupported)
+	}
+	return nil
 }
 
 const subTplText = `

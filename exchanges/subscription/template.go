@@ -40,6 +40,8 @@ type tplCtx struct {
 // Calls e.GetSubscriptionTemplate to find a template for each subscription
 // Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
 // See README.md for more details
+// The exchange can optionally implement SubscriptionValidator or SubscriptionsValidator to have custom validation on
+// subscriptions
 func (l List) ExpandTemplates(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
 		// Empty list, or already processed
@@ -69,11 +71,29 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 
 	subs := List{}
 	for _, s := range l {
+		// Validate the subscription before expansion to capture fields that may not be used in the template
+		switch v := e.(type) {
+		case SubscriptionValidator:
+			if err := v.ValidateSubscription(s); err != nil {
+				return nil, fmt.Errorf("validate subscription: %w", err)
+			}
+		}
+
 		expanded, err2 := expandTemplate(e, s, maps.Clone(ap), assets)
 		if err2 != nil {
 			err = common.AppendError(err, fmt.Errorf("%s: %w", s, err2))
-		} else {
-			subs = append(subs, expanded...)
+			continue
+		}
+
+		subs = append(subs, expanded...)
+
+	}
+
+	// Validate the subscriptions after expansion to capture fields that will be used in the template
+	switch v := e.(type) {
+	case SubscriptionsValidator:
+		if err := v.ValidateSubscriptions(subs); err != nil {
+			return nil, fmt.Errorf("validate subscriptions: %w", err)
 		}
 	}
 

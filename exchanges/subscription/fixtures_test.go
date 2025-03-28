@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"errors"
 	"maps"
 	"strings"
 	"testing"
@@ -12,6 +13,31 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+var (
+	errNaughtySub  = errors.New("naughty subscription")
+	errNaughtySubs = errors.New("naughty subscriptions")
+)
+
+type mockExWithSubValidator struct {
+	channelThatIsSilly string
+	screenCount        int
+	*mockEx
+}
+
+func (m *mockExWithSubValidator) ValidateSubscription(s *Subscription) error {
+	if s.Channel == m.channelThatIsSilly {
+		return errNaughtySub
+	}
+	return nil
+}
+
+func (m *mockExWithSubValidator) ValidateSubscriptions(l List) error {
+	if len(l) != m.screenCount {
+		return errNaughtySubs
+	}
+	return nil
+}
 
 type mockEx struct {
 	pairs     assetPairs
