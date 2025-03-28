@@ -28,6 +28,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	websocketResponseMaxLimit = time.Second * 3
+)
+
 // SetDefaults sets the basic defaults for Mexc
 func (me *MEXC) SetDefaults() {
 	me.Name = "MEXC"
@@ -92,8 +96,8 @@ func (me *MEXC) SetDefaults() {
 	me.API.Endpoints = me.NewEndpoints()
 	me.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      spotAPIURL,
-		exchange.WebsocketSpot: spotWSAPIURL,
 		exchange.RestFutures:   contractAPIURL,
+		exchange.WebsocketSpot: wsURL,
 	})
 	me.Websocket = stream.NewWebsocket()
 	me.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -116,33 +120,31 @@ func (me *MEXC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// wsRunningEndpoint, err := me.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = me.Websocket.Setup(
-	// 	&stream.WebsocketSetup{
-	// 		ExchangeConfig: exch,
-	// 		DefaultURL:     mexcWSAPIURL,
-	// 		RunningURL:     wsRunningEndpoint,
-	// 		Connector:      me.WsConnect,
-	// 		Subscriber:     me.Subscribe,
-	// 		UnSubscriber:   me.Unsubscribe,
-	// 		Features:       &me.Features.Supports.WebsocketCapabilities,
-	// 	})
-	// if err != nil {
-	// 	return err
-	// }
-
-	// me.WebsocketConn = &stream.WebsocketConnection{
-	// 	ExchangeName:         me.Name,
-	// 	URL:                  me.Websocket.GetWebsocketURL(),
-	// 	ProxyURL:             me.Websocket.GetProxyAddress(),
-	// 	Verbose:              me.Verbose,
-	// 	ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-	// 	ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	// }
+	wsRunningEndpoint, err := me.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	err = me.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            wsURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             me.WsConnect,
+		Subscriber:            me.Subscribe,
+		Unsubscriber:          me.Unsubscribe,
+		GenerateSubscriptions: me.generateSubscriptions,
+		Features:              &me.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	if err := me.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                  wsURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     websocketResponseMaxLimit,
+		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+	}); err != nil {
+		return err
+	}
 	return nil
 }
 

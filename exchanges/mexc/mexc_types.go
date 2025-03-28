@@ -1319,3 +1319,9 @@ type OrderIDDetail struct {
 	Symbol  string `json:"symbol"`
 	OrderID int64  `json:"orderId"`
 }
+
+// WsSubscriptionPayload represents a websocket subscription/unsubscription payload
+type WsSubscriptionPayload struct {
+	Method string   `json:"method"`
+	Params []string `json:"params"`
+}

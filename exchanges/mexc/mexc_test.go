@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	// "google.golang.org/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1716,4 +1717,16 @@ func TestGetActiveOrders(t *testing.T) {
 	result, err = me.GetActiveOrders(context.Background(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := me.WsConnect()
+	require.NoError(t, err)
+	time.Sleep(time.Second * 23)
+}
+
+func TestProtoUnmarshal(t *testing.T) {
+	t.Parallel()
+	// proto.Unmarshal()
 }
