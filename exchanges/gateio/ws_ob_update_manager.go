@@ -79,6 +79,10 @@ func (m *wsOBUpdateManager) getCache(p currency.Pair, a asset.Item) *updateCache
 func (c *updateCache) updateOrderbookAndApply(ctx context.Context, g *Gateio, pair currency.Pair, a asset.Item, limit uint64) error {
 	defer c.mtx.Unlock()
 	defer func() { c.buffer = nil; /*gc buffer; unused until snapshot required*/ c.updating = false }()
+
+	// TODO: When templates are introduced for all assets define channel key and use g.Websocket.GetSubscription(ChannelKey{&subscription.Subscription{Channel: channelName}})
+	// to get the subscription and levels for limit. So that this can scale to config changes. Spot is currently the only
+	// asset with templates but it has only one level.
 	book, err := g.UpdateOrderbookWithLimit(ctx, pair, a, limit)
 	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
 	if err != nil {

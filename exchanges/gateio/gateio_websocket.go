@@ -54,14 +54,14 @@ const (
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
 
-	spotOrderbookUpdateLimit uint64 = 100
+	spotOrderbookUpdateLimit = 100
 )
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
 	// spot.order_book_update is locked to 100ms updates and 100 book size
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: int(spotOrderbookUpdateLimit)},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: spotOrderbookUpdateLimit},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.Interval(10 * time.Millisecond), Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
