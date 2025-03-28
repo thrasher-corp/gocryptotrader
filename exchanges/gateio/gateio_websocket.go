@@ -830,10 +830,8 @@ func (g *Gateio) ValidateSubscription(s *subscription.Subscription) error {
 					if s.Interval != kline.HundredMilliseconds {
 						return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds)
 					}
-				} else {
-					if s.Interval != kline.HundredMilliseconds && s.Interval != kline.TwentyMilliseconds {
-						return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
-					}
+				} else if s.Interval != kline.HundredMilliseconds && s.Interval != kline.TwentyMilliseconds {
+					return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, s.Channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
 				}
 			} else {
 				if s.Interval != kline.HundredMilliseconds && s.Interval != kline.ThousandMilliseconds {

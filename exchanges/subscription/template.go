@@ -72,8 +72,7 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 	subs := List{}
 	for _, s := range l {
 		// Validate the subscription before expansion to capture fields that may not be used in the template
-		switch v := e.(type) {
-		case SubscriptionValidator:
+		if v, ok := e.(SubValidator); ok {
 			if err := v.ValidateSubscription(s); err != nil {
 				return nil, fmt.Errorf("validate subscription: %w", err)
 			}
@@ -86,12 +85,10 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 		}
 
 		subs = append(subs, expanded...)
-
 	}
 
 	// Validate the subscriptions after expansion to capture fields that will be used in the template
-	switch v := e.(type) {
-	case SubscriptionsValidator:
+	if v, ok := e.(ListValidator); ok {
 		if err := v.ValidateSubscriptions(subs); err != nil {
 			return nil, fmt.Errorf("validate subscriptions: %w", err)
 		}

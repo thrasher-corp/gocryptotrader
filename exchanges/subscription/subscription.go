@@ -54,13 +54,13 @@ var (
 // State tracks the status of a subscription channel
 type State uint8
 
-// SubscriptionValidator validates an individual subscription, this is optionally handled through expand templates method
-type SubscriptionValidator interface {
+// SubValidator validates an individual subscription, this is optionally handled through expand templates method
+type SubValidator interface {
 	ValidateSubscription(*Subscription) error
 }
 
-// SubscriptionsValidator validates a list of subscriptions, this is optionally handled through expand templates method
-type SubscriptionsValidator interface {
+// ListValidator validates a list of subscriptions, this is optionally handled through expand templates method
+type ListValidator interface {
 	ValidateSubscriptions(List) error
 }
 
