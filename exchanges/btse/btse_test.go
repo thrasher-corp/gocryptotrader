@@ -21,10 +21,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
@@ -662,7 +662,7 @@ func TestWsUnexpectedData(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{}`)
 	err := b.wsHandleData(data)
-	assert.ErrorContains(t, err, stream.UnhandledMessage, "wsHandleData should error on empty message")
+	assert.ErrorContains(t, err, websocket.UnhandledMessage, "wsHandleData should error on empty message")
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {

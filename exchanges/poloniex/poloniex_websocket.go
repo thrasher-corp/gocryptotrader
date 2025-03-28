@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,10 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -56,9 +56,9 @@ var (
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -262,8 +262,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 				return fmt.Errorf("websocket process trades update: %w", err)
 			}
 		default:
-			p.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-				Message: p.Name + stream.UnhandledMessage + string(respRaw),
+			p.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+				Message: p.Name + websocket.UnhandledMessage + string(respRaw),
 			}
 		}
 	}

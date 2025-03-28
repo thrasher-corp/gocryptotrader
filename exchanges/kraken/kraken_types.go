@@ -76,11 +76,6 @@ const (
 	statusOpen = "open"
 
 	krakenFormat = "2006-01-02T15:04:05.000Z"
-
-	// ChannelOrderbookDepthKey configures the orderbook depth in stream.ChannelSubscription.Params
-	ChannelOrderbookDepthKey = "_depth"
-	// ChannelCandlesTimeframeKey configures the candle bar timeframe in stream.ChannelSubscription.Params
-	ChannelCandlesTimeframeKey = "_timeframe"
 )
 
 var (

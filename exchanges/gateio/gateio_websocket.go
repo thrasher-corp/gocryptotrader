@@ -15,7 +15,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -25,10 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 const (
@@ -76,12 +76,12 @@ var subscriptionNames = map[string]string{
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
 
 // WsConnectSpot initiates a websocket connection
-func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
+func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -89,22 +89,22 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 	return nil
 }
 
 // authenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
+func (g *Gateio) authenticateSpot(ctx context.Context, conn websocket.Connection) error {
 	return g.websocketLogin(ctx, conn, "spot.login")
 }
 
 // websocketLogin authenticates the websocket connection
-func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) error {
+func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
 	if conn == nil {
 		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}
@@ -209,10 +209,10 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 		return g.processCrossMarginLoans(respRaw)
 	case spotPongChannel:
 	default:
-		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: g.Name + websocket.UnhandledMessage + string(respRaw),
 		}
-		return errors.New(stream.UnhandledMessage)
+		return errors.New(websocket.UnhandledMessage)
 	}
 	return nil
 }
@@ -333,10 +333,10 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 		return err
 	}
 
-	out := make([]stream.KlineData, 0, len(standardMarginAssetTypes))
+	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
-			out = append(out, stream.KlineData{
+			out = append(out, websocket.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
 				Exchange:   g.Name,
@@ -670,7 +670,7 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
-func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(g)
 	if errs != nil {
@@ -706,7 +706,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
 		ID:      conn.GenerateMessageID(false),
 		Event:   event,
@@ -733,12 +733,12 @@ func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Con
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
@@ -784,10 +784,10 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+func (g *Gateio) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
 	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err

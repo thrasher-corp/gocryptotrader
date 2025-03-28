@@ -1841,7 +1841,7 @@ type LTKlines []struct {
 	Timestamp types.Time   `json:"timestamp"`
 }
 
-// LTNav represents leveraged token nav stream.
+// LTNav represents leveraged token nav websocket.
 type LTNav struct {
 	Symbol         string       `json:"symbol"`
 	Time           types.Time   `json:"time"`

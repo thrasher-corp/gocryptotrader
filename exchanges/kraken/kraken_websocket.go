@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -23,10 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -58,6 +58,7 @@ const (
 	krakenWsAddOrderStatus       = "addOrderStatus"
 	krakenWsCancelOrderStatus    = "cancelOrderStatus"
 	krakenWsCancelAllOrderStatus = "cancelAllStatus"
+	krakenWsPong                 = "pong"
 	krakenWsPingDelay            = time.Second * 27
 )
 
@@ -96,16 +97,16 @@ var defaultSubscriptions = subscription.List{
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	comms := make(chan stream.Response)
+	comms := make(chan websocket.Response)
 	k.Websocket.Wg.Add(2)
 	go k.wsReadData(comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
@@ -141,7 +142,7 @@ func (k *Kraken) WsConnect() error {
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
-func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
+func (k *Kraken) wsFunnelConnectionData(ws websocket.Connection, comms chan websocket.Response) {
 	defer k.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -153,7 +154,7 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (k *Kraken) wsReadData(comms chan stream.Response) {
+func (k *Kraken) wsReadData(comms chan websocket.Response) {
 	defer k.Websocket.Wg.Done()
 
 	for {
@@ -226,16 +227,16 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 	}
 
 	switch event {
-	case stream.Pong, krakenWsHeartbeat:
+	case krakenWsPong, krakenWsHeartbeat:
 		return nil
 	case krakenWsCancelOrderStatus, krakenWsCancelAllOrderStatus, krakenWsAddOrderStatus, krakenWsSubscriptionStatus:
 		// All of these should have found a listener already
-		return fmt.Errorf("%w: %s %v", stream.ErrSignatureNotMatched, event, reqID)
+		return fmt.Errorf("%w: %s %v", websocket.ErrSignatureNotMatched, event, reqID)
 	case krakenWsSystemStatus:
 		return k.wsProcessSystemStatus(respRaw)
 	default:
-		k.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: fmt.Sprintf("%s: %s", stream.UnhandledMessage, respRaw),
+		k.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: fmt.Sprintf("%s: %s", websocket.UnhandledMessage, respRaw),
 		}
 	}
 
@@ -243,11 +244,11 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 }
 
 // startWsPingHandler sets up a websocket ping handler to maintain a connection
-func (k *Kraken) startWsPingHandler(conn stream.Connection) {
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+func (k *Kraken) startWsPingHandler(conn websocket.Connection) {
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Message:     []byte(`{"event":"ping"}`),
 		Delay:       krakenWsPingDelay,
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 }
 
@@ -973,7 +974,7 @@ func (k *Kraken) wsProcessCandle(c string, resp []any, pair currency.Pair) error
 	}
 	interval := parts[1]
 
-	k.Websocket.DataHandler <- stream.KlineData{
+	k.Websocket.DataHandler <- websocket.KlineData{
 		AssetType:  asset.Spot,
 		Pair:       pair,
 		Timestamp:  time.Now(),
@@ -1097,7 +1098,7 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 	resps, err := conn.SendMessageReturnResponses(context.TODO(), request.Unset, r.RequestID, r, len(s.Pairs))
 
 	// Ignore an overall timeout, because we'll track individual subscriptions in handleSubResps
-	err = common.ExcludeError(err, stream.ErrSignatureTimeout)
+	err = common.ExcludeError(err, websocket.ErrSignatureTimeout)
 	if err != nil {
 		return fmt.Errorf("%w; Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}

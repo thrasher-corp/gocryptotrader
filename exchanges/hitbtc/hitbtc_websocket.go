@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,10 +21,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -53,9 +53,9 @@ var defaultSubscriptions = subscription.List{
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 			return "trading", nil
 		}
 	}
-	h.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: h.Name + stream.UnhandledMessage + string(respRaw)}
+	h.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: h.Name + websocket.UnhandledMessage + string(respRaw)}
 	return "", nil
 }
 
@@ -303,7 +303,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	default:
-		h.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: h.Name + stream.UnhandledMessage + string(respRaw)}
+		h.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: h.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil

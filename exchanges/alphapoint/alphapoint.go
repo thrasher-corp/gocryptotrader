@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -44,7 +44,7 @@ const (
 // Alphapoint is the overarching type across the alphapoint package
 type Alphapoint struct {
 	exchange.Base
-	WebsocketConn *websocket.Conn
+	WebsocketConn *gws.Conn
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected

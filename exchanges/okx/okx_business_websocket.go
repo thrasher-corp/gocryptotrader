@@ -7,15 +7,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -46,9 +46,9 @@ var (
 // WsConnectBusiness connects to a business websocket channel.
 func (ok *Okx) WsConnectBusiness() error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
@@ -63,8 +63,8 @@ func (ok *Okx) WsConnectBusiness() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	ok.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
@@ -150,7 +150,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 	}
 }
 
-// GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business stream.
+// GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business websocket.
 func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscription, error) {
 	var subs []string
 	var subscriptions []subscription.Subscription
