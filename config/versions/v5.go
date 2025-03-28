@@ -20,7 +20,7 @@ func init() {
 // Note: Do not be tempted to use a constant for Duration. Whilst defaults are still written to config, we need to manage default upgrades discretely.
 var defaultFuturesTrackingSeekDuration = strconv.FormatInt(int64(time.Hour)*24*365, 10)
 
-var defaultConfig = []byte(`{
+var defaultConfigV5 = []byte(`{
   "enabled": true,
   "verbose": false,
   "activelyTrackFuturesPositions": true,
@@ -37,7 +37,7 @@ func (v *Version5) UpgradeConfig(_ context.Context, e []byte) ([]byte, error) {
 	_, valueType, _, err := jsonparser.Get(e, "orderManager", "enabled")
 	switch {
 	case errors.Is(err, jsonparser.KeyPathNotFoundError), valueType == jsonparser.Null:
-		return jsonparser.Set(e, defaultConfig, "orderManager")
+		return jsonparser.Set(e, defaultConfigV5, "orderManager")
 	case err != nil:
 		return e, err
 	}
