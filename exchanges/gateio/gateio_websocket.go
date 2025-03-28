@@ -756,7 +756,7 @@ func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
 	return nil
 }
 
-// isRestrictedOrderbookChannel returns if the channel is retricted to a single orderbook channel, as multiple orderbook
+// isRestrictedOrderbookChannel returns if the channel is restricted to a single orderbook channel, as multiple orderbook
 // subscriptions enabled will ruin the stored orderbook.
 func isRestrictedOrderbookChannel(name string) bool {
 	switch name {
