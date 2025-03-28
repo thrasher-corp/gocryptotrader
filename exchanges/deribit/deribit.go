@@ -356,21 +356,19 @@ func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*Instru
 }
 
 // GetInstruments gets data for all available instruments
-func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
+func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
 	params := url.Values{}
-	params.Set("currency", ccy.String())
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
 	if kind != "" {
 		params.Set("kind", kind)
 	}
 	if expired {
 		params.Set("expired", "true")
 	}
-	var resp []InstrumentData
-	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getInstruments, params), &resp)
+	var resp []*InstrumentData
+	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getInstruments, params), &resp)
 }
 
 // GetLastSettlementsByCurrency gets last settlement data by currency
