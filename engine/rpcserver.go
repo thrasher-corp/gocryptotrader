@@ -653,36 +653,6 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	initAcc, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
-	if err != nil {
-		return err
-	}
-
-	accounts := make([]*gctrpc.Account, len(initAcc.Accounts))
-	for x := range initAcc.Accounts {
-		subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(initAcc.Accounts[x].Currencies))
-		for y := range initAcc.Accounts[x].Currencies {
-			subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-				Currency:   initAcc.Accounts[x].Currencies[y].Currency.String(),
-				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
-				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
-				UpdatedAt:  timestamppb.New(initAcc.Accounts[x].Currencies[y].UpdatedAt),
-			}
-		}
-		accounts[x] = &gctrpc.Account{
-			Id:         initAcc.Accounts[x].ID,
-			Currencies: subAccounts,
-		}
-	}
-
-	err = stream.Send(&gctrpc.GetAccountInfoResponse{
-		Exchange: initAcc.Exchange,
-		Accounts: accounts,
-	})
-	if err != nil {
-		return err
-	}
-
 	pipe, err := account.SubscribeToExchangeAccount(r.Exchange)
 	if err != nil {
 		return err
@@ -694,16 +664,23 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			log.Errorln(log.DispatchMgr, pipeErr)
 		}
 	}()
+	init := make(chan struct{}, 1)
+	init <- struct{}{}
 
 	for {
-		data, ok := <-pipe.Channel()
-		if !ok {
-			return errDispatchSystem
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case _, ok := <-pipe.Channel():
+			if !ok {
+				return errDispatchSystem
+			}
+		case <-init:
 		}
 
-		holdings, ok := data.(*account.Holdings)
-		if !ok {
-			return common.GetTypeAssertError("*account.Holdings", data)
+		holdings, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
+		if err != nil {
+			return err
 		}
 
 		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
