@@ -24,10 +24,12 @@ func TestVersion4Upgrade(t *testing.T) {
 	t.Parallel()
 
 	_, err := new(Version4).UpgradeExchange(context.Background(), []byte{})
-	require.ErrorIs(t, err, errUpgradingAssetTypes)
+	require.ErrorIs(t, err, errUpgrading)
+	require.ErrorContains(t, err, `assetTypes`)
 
 	_, err = new(Version4).UpgradeExchange(context.Background(), []byte(`{}`))
-	require.ErrorIs(t, err, errUpgradingCurrencyPairs)
+	require.ErrorIs(t, err, errUpgrading)
+	require.ErrorContains(t, err, `currencyPairs.pairs`)
 
 	in := []byte(`{"name":"Cracken","currencyPairs":{"assetTypes":["spot"],"pairs":{"spot":{"enabled":"BTC-AUD","available":"BTC-AUD"},"futures":{"assetEnabled":true},"options":{},"margin":{"assetEnabled":null}}}}`)
 	out, err := new(Version4).UpgradeExchange(context.Background(), in)

@@ -40,6 +40,7 @@ var (
 	errConfigVersionUnavail  = errors.New("version is higher than the latest available version")
 	errConfigVersionNegative = errors.New("version is negative")
 	errConfigVersionMax      = errors.New("version is above max versions")
+	errUpgrading             = errors.New("error upgrading")
 )
 
 // ConfigVersion is a version that affects the general configuration
