@@ -4,7 +4,7 @@
 // 	protoc        v5.29.3
 // source: PushDataV3ApiWrapper.proto
 
-package mexc
+package mexc_proto_types
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

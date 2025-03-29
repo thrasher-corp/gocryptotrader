@@ -1324,4 +1324,12 @@ type OrderIDDetail struct {
 type WsSubscriptionPayload struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
+	ID     int64    `json:"id"`
+}
+
+// WsSubscriptionResponse represents a websocket subscription status message response detail
+type WsSubscriptionResponse struct {
+	ID      int64  `json:"id"`
+	Code    int64  `json:"code"` // default: 0
+	Message string `json:"msg"`
 }

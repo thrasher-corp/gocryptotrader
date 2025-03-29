@@ -134,10 +134,19 @@ func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTim
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, aggregatedTradesEPL, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
-var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}
+var wsIntervalToStringMap = map[kline.Interval]string{kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30", kline.OneHour: "Min60",
+	kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1", kline.OneWeek: "Week1", kline.OneMonth: "Month1"}
 
-func intervalToString(interval kline.Interval) (string, error) {
-	intervalString, ok := intervalToStringMap[interval]
+var intervalToStringMap = map[kline.Interval]string{kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}
+
+func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, error) {
+	var intervalString string
+	var ok bool
+	if len(isWebsocket) > 0 && isWebsocket[0] {
+		intervalString, ok = wsIntervalToStringMap[interval]
+	} else {
+		intervalString, ok = intervalToStringMap[interval]
+	}
 	if !ok {
 		return "", kline.ErrUnsupportedInterval
 	}

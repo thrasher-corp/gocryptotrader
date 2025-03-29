@@ -6,7 +6,7 @@
 // 	protoc        v5.29.3
 // source: PublicAggreDealsV3Api.proto
 
-package mexc
+package mexc_proto_types
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

@@ -12,6 +12,7 @@ import (
 // Consts here define basic time intervals
 const (
 	Raw                  = Interval(-1)
+	TenMilliseconds      = Interval(10 * time.Millisecond)
 	HundredMilliseconds  = Interval(100 * time.Millisecond)
 	ThousandMilliseconds = 10 * HundredMilliseconds
 	TenSecond            = Interval(10 * time.Second)
@@ -90,6 +91,7 @@ var (
 
 	// SupportedIntervals is a list of all supported intervals
 	SupportedIntervals = []Interval{
+		TenMilliseconds,
 		HundredMilliseconds,
 		ThousandMilliseconds,
 		TenSecond,

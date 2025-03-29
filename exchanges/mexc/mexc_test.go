@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	// "google.golang.org/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1723,7 +1722,7 @@ func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := me.WsConnect()
 	require.NoError(t, err)
-	time.Sleep(time.Second * 23)
+	time.Sleep(time.Second * 10)
 }
 
 func TestProtoUnmarshal(t *testing.T) {
