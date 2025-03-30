@@ -134,23 +134,29 @@ func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTim
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, aggregatedTradesEPL, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
-var wsIntervalToStringMap = map[kline.Interval]string{kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30", kline.OneHour: "Min60",
-	kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1", kline.OneWeek: "Week1", kline.OneMonth: "Month1"}
-
-var intervalToStringMap = map[kline.Interval]string{kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}
+var intervalToStringMap = map[string]map[kline.Interval]string{
+	"wsIntervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30", kline.OneHour: "Min60",
+		kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1", kline.OneWeek: "Week1", kline.OneMonth: "Month1"},
+	"intervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"},
+}
 
 func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, error) {
 	var intervalString string
 	var ok bool
 	if len(isWebsocket) > 0 && isWebsocket[0] {
-		intervalString, ok = wsIntervalToStringMap[interval]
+		intervalString, ok = intervalToStringMap["wsIntervalToStringMap"][interval]
 	} else {
-		intervalString, ok = intervalToStringMap[interval]
+		intervalString, ok = intervalToStringMap["intervalToStringMap"][interval]
 	}
 	if !ok {
 		return "", kline.ErrUnsupportedInterval
 	}
 	return intervalString, nil
+}
+
+var stringToIntervalMap = map[string]map[string]kline.Interval{
+	"wsIntervalToStringMap": {"100ms": kline.HundredMilliseconds, "10ms": kline.TenMilliseconds, "Min1": kline.OneMin, "Min5": kline.FiveMin, "Min15": kline.FifteenMin, "Min30": kline.ThirtyMin, "Min60": kline.OneHour, "Hour4": kline.FourHour, "Hour8": kline.EightHour, "Day1": kline.OneDay, "Week1": kline.OneWeek, "Month1": kline.OneMonth},
+	"intervalToStringMap":   {"100ms": kline.HundredMilliseconds, "10ms": kline.TenMilliseconds, "1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "60m": kline.OneHour, "4h": kline.FourHour, "1d": kline.OneDay, "1W": kline.OneWeek, "1M": kline.OneMonth},
 }
 
 // GetCandlestick retrieves kline/candlestick bars for a symbol.

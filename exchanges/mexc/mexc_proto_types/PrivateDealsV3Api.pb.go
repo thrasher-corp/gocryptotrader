@@ -9,11 +9,13 @@
 package mexc_proto_types
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -36,7 +38,7 @@ type PrivateDealsV3Api struct {
 	OrderId       string                 `protobuf:"bytes,9,opt,name=orderId,proto3" json:"orderId,omitempty"`
 	FeeAmount     string                 `protobuf:"bytes,10,opt,name=feeAmount,proto3" json:"feeAmount,omitempty"`
 	FeeCurrency   string                 `protobuf:"bytes,11,opt,name=feeCurrency,proto3" json:"feeCurrency,omitempty"`
-	Time          int64                  `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
+	Time          types.Time                  `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -148,11 +150,11 @@ func (x *PrivateDealsV3Api) GetFeeCurrency() string {
 	return ""
 }
 
-func (x *PrivateDealsV3Api) GetTime() int64 {
+func (x *PrivateDealsV3Api) GetTime() types.Time {
 	if x != nil {
 		return x.Time
 	}
-	return 0
+	return types.Time{}
 }
 
 var File_PrivateDealsV3Api_proto protoreflect.FileDescriptor

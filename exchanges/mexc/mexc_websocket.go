@@ -11,11 +11,17 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"google.golang.org/protobuf/proto"
 )
@@ -117,15 +123,15 @@ func assetTypeToString(assetType asset.Item) (string, error) {
 func (me *MEXC) handleSubscription(method string, subs subscription.List) error {
 	payloads := make([]WsSubscriptionPayload, len(subs))
 	for s := range subs {
+		assetTypeString, err := assetTypeToString(subs[s].Asset)
+		if err != nil {
+			return err
+		}
 		switch subs[s].Channel {
 		case chnlBookTiker,
 			chnlAggregateDepthV3,
 			chnlAggreDealsV3,
 			chnlKlineV3:
-			assetTypeString, err := assetTypeToString(subs[s].Asset)
-			if err != nil {
-				return err
-			}
 			intervalString, err := intervalToString(subs[s].Interval, true)
 			if err != nil {
 				return err
@@ -150,10 +156,6 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 				return err
 			}
 		case chnlLimitDepthV3:
-			assetTypeString, err := assetTypeToString(subs[s].Asset)
-			if err != nil {
-				return err
-			}
 			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
@@ -170,10 +172,6 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 				return err
 			}
 		case chnlAccountV3, chnlPrivateDealsV3, chnlPrivateOrdersAPI:
-			assetTypeString, err := assetTypeToString(subs[s].Asset)
-			if err != nil {
-				return err
-			}
 			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = []string{assetTypeString + "@" + subs[s].Channel}
@@ -187,10 +185,6 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 				return err
 			}
 		case chnlIncreaseDepthV3, chnlDealsV3, chnlIncreaseDepthBatchV3, chnlBookTickerBatch:
-			assetTypeString, err := assetTypeToString(subs[s].Asset)
-			if err != nil {
-				return err
-			}
 			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
@@ -207,14 +201,6 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 				return err
 			}
 		}
-	}
-
-	for p := range payloads {
-		data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.UnAuth, payloads[p].ID, &payloads[p])
-		if err != nil {
-			return err
-		}
-		println(string(data))
 	}
 	return nil
 }
@@ -234,35 +220,318 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		// Ignore json messages which doesn't have an ID.
 		return nil
 	}
-	channelDetail := strings.Split(string(respRaw), "@")[1]
+	channelDetail := strings.Split(string(respRaw), "@")
 	println("channelDetail: ", channelDetail)
 	println(string(respRaw))
-	switch channelDetail {
+	switch channelDetail[1] {
 	case chnlBookTiker:
+		var result mexc_proto_types.PublicAggreBookTickerV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		return me.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:  cp,
+			Asset: asset.Spot,
+			Asks: []orderbook.Tranche{
+				{
+					Price:  result.AskPrice.Float64(),
+					Amount: result.AskQuantity.Float64(),
+				},
+			},
+			Bids: []orderbook.Tranche{
+				{
+					Price:  result.BidPrice.Float64(),
+					Amount: result.BidQuantity.Float64(),
+				},
+			},
+		})
 	case chnlAggregateDepthV3:
+		var result mexc_proto_types.PublicAggreDepthsV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[3])
+		if err != nil {
+			return err
+		}
+		asks := make(orderbook.Tranches, len(result.Asks))
+		for a := range result.Asks {
+			asks[a] = orderbook.Tranche{
+				Price:  result.Asks[a].Price.Float64(),
+				Amount: result.Asks[a].Quantity.Float64(),
+			}
+		}
+		bids := make(orderbook.Tranches, len(result.Bids))
+		for b := range result.Bids {
+			asks[b] = orderbook.Tranche{
+				Price:  result.Asks[b].Price.Float64(),
+				Amount: result.Asks[b].Quantity.Float64(),
+			}
+		}
+		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Asset:       asset.Spot,
+			Bids:        bids,
+			Asks:        asks,
+			Pair:        cp,
+			LastUpdated: time.Now(),
+		})
 	case chnlDealsV3:
+		var result mexc_proto_types.PublicDealsV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		tradesDetail := make([]trade.Data, len(result.Deals))
+		for t := range result.Deals {
+			tradesDetail[t] = trade.Data{
+				Exchange:     me.Name,
+				CurrencyPair: cp,
+				AssetType:    asset.Spot,
+				Price:        result.Deals[t].Price.Float64(),
+				Amount:       result.Deals[t].Quantity.Float64(),
+				Timestamp:    result.Deals[t].Time.Time(),
+				Side: func() order.Side {
+					if result.Deals[t].TradeType == 1 {
+						return order.Buy
+					}
+					return order.Sell
+				}(),
+			}
+		}
+		me.Websocket.DataHandler <- tradesDetail
+		return nil
 	case chnlIncreaseDepthV3:
-	case chnlAggreDealsV3:
-	case chnlKlineV3:
-	case chnlIncreaseDepthBatchV3:
-	case chnlLimitDepthV3:
-	case chnlBookTickerBatch:
-	case chnlAccountV3:
-	case chnlPrivateDealsV3:
-	case chnlPrivateOrdersAPI:
-		println(string(respRaw))
-	case "":
-	}
-	var depthData mexc_proto_types.PublicAggreDepthsV3Api
-	err := proto.Unmarshal(respRaw, &depthData)
-	if err != nil {
-		println("\n\nERROR " + err.Error() + "\n\n")
-		return err
-		// panic(err)
-	}
-	return nil
-}
+		var result mexc_proto_types.PublicIncreaseDepthsV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		asks := make(orderbook.Tranches, len(result.Asks))
+		for a := range result.Asks {
+			asks[a] = orderbook.Tranche{
+				Price:  result.Asks[a].Price.Float64(),
+				Amount: result.Asks[a].Quantity.Float64(),
+			}
+		}
+		bids := make(orderbook.Tranches, len(result.Bids))
+		for b := range result.Bids {
+			asks[b] = orderbook.Tranche{
+				Price:  result.Asks[b].Price.Float64(),
+				Amount: result.Asks[b].Quantity.Float64(),
+			}
+		}
+		return me.Websocket.Orderbook.Update(&orderbook.Update{
+			Asset: asset.Spot,
+			Bids:  bids,
+			Asks:  asks,
+			Pair:  cp,
 
-func processPublicAggregatedDepth(data []byte, in interface{}) error {
+			UpdateTime: time.Now(),
+		})
+	case chnlAggreDealsV3:
+		var result mexc_proto_types.PublicAggreDealsV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		tradesDetail := make([]trade.Data, len(result.Deals))
+		for t := range result.Deals {
+			tradesDetail[t] = trade.Data{
+				Exchange:     me.Name,
+				CurrencyPair: cp,
+				AssetType:    asset.Spot,
+				Price:        result.Deals[t].Price.Float64(),
+				Amount:       result.Deals[t].Quantity.Float64(),
+				Timestamp:    result.Deals[t].Time.Time(),
+				Side: func() order.Side {
+					if result.Deals[t].TradeType == 1 {
+						return order.Buy
+					}
+					return order.Sell
+				}(),
+			}
+		}
+		me.Websocket.DataHandler <- tradesDetail
+		return nil
+	case chnlKlineV3:
+		var result mexc_proto_types.PublicSpotKlineV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		me.Websocket.DataHandler <- []stream.KlineData{{
+			Pair:       cp,
+			Exchange:   me.Name,
+			AssetType:  asset.Spot,
+			Interval:   result.Interval,
+			CloseTime:  result.WindowEnd.Time(),
+			Volume:     result.Amount.Float64(),
+			StartTime:  result.WindowStart.Time(),
+			LowPrice:   result.LowestPrice.Float64(),
+			OpenPrice:  result.OpeningPrice.Float64(),
+			ClosePrice: result.ClosingPrice.Float64(),
+			HighPrice:  result.HighestPrice.Float64(),
+		}}
+		return nil
+	case chnlIncreaseDepthBatchV3:
+		var result mexc_proto_types.PublicIncreaseDepthsBatchV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		for ob := range result.Items {
+			asks := make(orderbook.Tranches, len(result.Items[ob].Asks))
+			for a := range result.Items[ob].Asks {
+				asks[a] = orderbook.Tranche{
+					Price:  result.Items[ob].Asks[a].Price.Float64(),
+					Amount: result.Items[ob].Asks[a].Quantity.Float64(),
+				}
+			}
+			bids := make(orderbook.Tranches, len(result.Items[ob].Bids))
+			for b := range result.Items[ob].Bids {
+				bids[b] = orderbook.Tranche{
+					Price:  result.Items[ob].Bids[b].Price.Float64(),
+					Amount: result.Items[ob].Bids[b].Quantity.Float64(),
+				}
+			}
+			err = me.Websocket.Orderbook.Update(&orderbook.Update{
+				Pair:       cp,
+				Asks:       asks,
+				Bids:       bids,
+				UpdateTime: time.Now(),
+				Asset:      asset.Spot,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	case chnlLimitDepthV3:
+		var result mexc_proto_types.PublicLimitDepthsV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+
+		asks := make(orderbook.Tranches, len(result.Asks))
+		for a := range result.Asks {
+			asks[a] = orderbook.Tranche{
+				Price:  result.Asks[a].Price.Float64(),
+				Amount: result.Asks[a].Quantity.Float64(),
+			}
+		}
+		bids := make(orderbook.Tranches, len(result.Bids))
+		for b := range result.Bids {
+			asks[b] = orderbook.Tranche{
+				Price:  result.Asks[b].Price.Float64(),
+				Amount: result.Asks[b].Quantity.Float64(),
+			}
+		}
+		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Asset:       asset.Spot,
+			Bids:        bids,
+			Asks:        asks,
+			Pair:        cp,
+			LastUpdated: time.Now(),
+		})
+	case chnlBookTickerBatch:
+		var result mexc_proto_types.PublicBookTickerBatchV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(channelDetail[2])
+		if err != nil {
+			return err
+		}
+		tickersDetail := make([]ticker.Price, len(result.Items))
+		for a := range result.Items {
+			tickersDetail[a] = ticker.Price{
+				Pair:         cp,
+				ExchangeName: me.Name,
+				AssetType:    asset.Spot,
+				Bid:          result.Items[a].BidPrice.Float64(),
+				Ask:          result.Items[a].AskPrice.Float64(),
+				BidSize:      result.Items[a].BidQuantity.Float64(),
+				AskSize:      result.Items[a].AskQuantity.Float64(),
+			}
+		}
+		me.Websocket.DataHandler <- tickersDetail
+		return nil
+	case chnlAccountV3:
+		var result mexc_proto_types.PrivateAccountV3Api
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		me.Websocket.DataHandler <- account.Change{
+			Exchange: me.Name,
+			Currency: currency.NewCode(result.VcoinName),
+			Asset:    asset.Spot,
+			Amount:   result.BalanceAmount.Float64(),
+			Account:  result.Type,
+		}
+		return nil
+	case chnlPrivateDealsV3:
+		// var result mexc_proto_types.PushDataV3ApiWrapper
+		// err := proto.Unmarshal(respRaw, &result)
+		// if err != nil {
+		// 	return err
+		// }
+		// cp, err := currency.NewPairFromString(*result.Symbol)
+		// if err != nil {
+		// 	return err
+		// }
+		// orderFills := make([]fill.Data, len(result.))
+		// me.Websocket.DataHandler <- fill.Data{
+		// 	ID:           result.TradeId,
+		// 	Timestamp:    result.Time.Time(),
+		// 	Exchange:     me.Name,
+		// 	AssetType:    asset.Spot,
+		// 	CurrencyPair: cp,
+		// 	// Side
+		// 	// OrderID
+		// 	// ClientOrderID
+		// 	// TradeID
+		// 	// Price
+		// 	// Amount
+		// }
+		// return nil
+	case chnlPrivateOrdersAPI:
+	default:
+		me.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: string(respRaw) + stream.UnhandledMessage,
+		}
+		return nil
+	}
 	return nil
 }

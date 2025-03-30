@@ -9,11 +9,13 @@
 package mexc_proto_types
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -25,10 +27,10 @@ const (
 
 type PublicBookTickerV3Api struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BidPrice      string                 `protobuf:"bytes,1,opt,name=bidPrice,proto3" json:"bidPrice,omitempty"`
-	BidQuantity   string                 `protobuf:"bytes,2,opt,name=bidQuantity,proto3" json:"bidQuantity,omitempty"`
-	AskPrice      string                 `protobuf:"bytes,3,opt,name=askPrice,proto3" json:"askPrice,omitempty"`
-	AskQuantity   string                 `protobuf:"bytes,4,opt,name=askQuantity,proto3" json:"askQuantity,omitempty"`
+	BidPrice      types.Number                 `protobuf:"bytes,1,opt,name=bidPrice,proto3" json:"bidPrice,omitempty"`
+	BidQuantity   types.Number                 `protobuf:"bytes,2,opt,name=bidQuantity,proto3" json:"bidQuantity,omitempty"`
+	AskPrice      types.Number                 `protobuf:"bytes,3,opt,name=askPrice,proto3" json:"askPrice,omitempty"`
+	AskQuantity   types.Number                 `protobuf:"bytes,4,opt,name=askQuantity,proto3" json:"askQuantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -63,32 +65,32 @@ func (*PublicBookTickerV3Api) Descriptor() ([]byte, []int) {
 	return file_PublicBookTickerV3Api_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PublicBookTickerV3Api) GetBidPrice() string {
+func (x *PublicBookTickerV3Api) GetBidPrice() types.Number {
 	if x != nil {
 		return x.BidPrice
 	}
-	return ""
+	return 0
 }
 
-func (x *PublicBookTickerV3Api) GetBidQuantity() string {
+func (x *PublicBookTickerV3Api) GetBidQuantity() types.Number {
 	if x != nil {
 		return x.BidQuantity
 	}
-	return ""
+	return 0
 }
 
-func (x *PublicBookTickerV3Api) GetAskPrice() string {
+func (x *PublicBookTickerV3Api) GetAskPrice() types.Number {
 	if x != nil {
 		return x.AskPrice
 	}
-	return ""
+	return 0
 }
 
-func (x *PublicBookTickerV3Api) GetAskQuantity() string {
+func (x *PublicBookTickerV3Api) GetAskQuantity() types.Number {
 	if x != nil {
 		return x.AskQuantity
 	}
-	return ""
+	return 0
 }
 
 var File_PublicBookTickerV3Api_proto protoreflect.FileDescriptor

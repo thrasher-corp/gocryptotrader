@@ -9,11 +9,13 @@
 package mexc_proto_types
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -77,10 +79,10 @@ func (x *PublicDealsV3Api) GetEventType() string {
 
 type PublicDealsV3ApiItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Price         types.Number                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity      types.Number                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	TradeType     int32                  `protobuf:"varint,3,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
-	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	Time          types.Time                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -115,18 +117,18 @@ func (*PublicDealsV3ApiItem) Descriptor() ([]byte, []int) {
 	return file_PublicDealsV3Api_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PublicDealsV3ApiItem) GetPrice() string {
+func (x *PublicDealsV3ApiItem) GetPrice() types.Number {
 	if x != nil {
 		return x.Price
 	}
-	return ""
+	return 0
 }
 
-func (x *PublicDealsV3ApiItem) GetQuantity() string {
+func (x *PublicDealsV3ApiItem) GetQuantity() types.Number {
 	if x != nil {
 		return x.Quantity
 	}
-	return ""
+	return 0
 }
 
 func (x *PublicDealsV3ApiItem) GetTradeType() int32 {
@@ -136,11 +138,11 @@ func (x *PublicDealsV3ApiItem) GetTradeType() int32 {
 	return 0
 }
 
-func (x *PublicDealsV3ApiItem) GetTime() int64 {
+func (x *PublicDealsV3ApiItem) GetTime() types.Time {
 	if x != nil {
 		return x.Time
 	}
-	return 0
+	return types.Time{}
 }
 
 var File_PublicDealsV3Api_proto protoreflect.FileDescriptor

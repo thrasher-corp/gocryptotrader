@@ -9,11 +9,13 @@
 package mexc_proto_types
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -93,8 +95,8 @@ func (x *PublicLimitDepthsV3Api) GetVersion() string {
 
 type PublicLimitDepthV3ApiItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Price         types.Number                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity      types.Number                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -129,18 +131,18 @@ func (*PublicLimitDepthV3ApiItem) Descriptor() ([]byte, []int) {
 	return file_PublicLimitDepthsV3Api_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PublicLimitDepthV3ApiItem) GetPrice() string {
+func (x *PublicLimitDepthV3ApiItem) GetPrice() types.Number {
 	if x != nil {
 		return x.Price
 	}
-	return ""
+	return 0
 }
 
-func (x *PublicLimitDepthV3ApiItem) GetQuantity() string {
+func (x *PublicLimitDepthV3ApiItem) GetQuantity() types.Number {
 	if x != nil {
 		return x.Quantity
 	}
-	return ""
+	return 0
 }
 
 var File_PublicLimitDepthsV3Api_proto protoreflect.FileDescriptor
