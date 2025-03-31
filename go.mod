@@ -1,7 +1,6 @@
 module github.com/thrasher-corp/gocryptotrader
 
 go 1.24.1
-
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/buger/jsonparser v1.1.1
@@ -18,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.4.0
 	github.com/shopspring/decimal v1.4.0
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/thrasher-corp/gct-ta v0.0.0-20200623072738-f2b55b7f9f41
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
