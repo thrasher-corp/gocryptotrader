@@ -785,8 +785,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		End:       defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
 		AssetType: asset.Spot.String(),
 	})
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	_, err = s.GetHistoricCandles(context.Background(), &gctrpc.GetHistoricCandlesRequest{
@@ -1374,8 +1374,8 @@ func TestGetOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", ErrExchangeNameIsEmpty, err)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v', expected '%v'", common.ErrExchangeNameUnset, err)
 	}
 
 	_, err = s.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -1965,8 +1965,8 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: asset.Spot.String(),
 		Pair:      p,
 	})
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", ErrExchangeNameIsEmpty, err)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v', expected '%v'", common.ErrExchangeNameUnset, err)
 	}
 
 	_, err = s.GetManagedOrders(context.Background(), &gctrpc.GetOrdersRequest{
@@ -2523,8 +2523,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 	}
 
 	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{})
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	_, err = s.GetTechnicalAnalysis(context.Background(), &gctrpc.GetTechnicalAnalysisRequest{
@@ -2794,8 +2794,8 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	request := &gctrpc.GetMarginRatesHistoryRequest{}
 	_, err = s.GetMarginRatesHistory(context.Background(), request)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v' expected '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	request.Exchange = fakeExchangeName
@@ -2969,8 +2969,8 @@ func TestGetFundingRates(t *testing.T) {
 		IncludePayments:  false,
 	}
 	_, err = s.GetFundingRates(context.Background(), request)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 	request.Exchange = exch.GetName()
 	_, err = s.GetFundingRates(context.Background(), request)
@@ -3072,8 +3072,8 @@ func TestGetLatestFundingRate(t *testing.T) {
 		IncludePredicted: false,
 	}
 	_, err = s.GetLatestFundingRate(context.Background(), request)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 	request.Exchange = exch.GetName()
 	_, err = s.GetLatestFundingRate(context.Background(), request)
@@ -3177,8 +3177,8 @@ func TestGetManagedPosition(t *testing.T) {
 		Quote:     "USD",
 	}
 	_, err = s.GetManagedPosition(context.Background(), request)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Errorf("received '%v', expected '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("received '%v', expected '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	request.Exchange = fakeExchangeName
@@ -3391,8 +3391,8 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 	req := &gctrpc.GetOrderbookMovementRequest{}
 	_, err = s.GetOrderbookMovement(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	req.Exchange = "fake"
@@ -3504,8 +3504,8 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	req := &gctrpc.GetOrderbookAmountByNominalRequest{}
 	_, err = s.GetOrderbookAmountByNominal(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	req.Exchange = "fake"
@@ -3610,8 +3610,8 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	req := &gctrpc.GetOrderbookAmountByImpactRequest{}
 	_, err = s.GetOrderbookAmountByImpact(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%+v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	req.Exchange = "fake"
@@ -4003,7 +4003,7 @@ func TestSetCollateralMode(t *testing.T) {
 
 	req := &gctrpc.SetCollateralModeRequest{}
 	_, err = s.SetCollateralMode(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -4048,7 +4048,7 @@ func TestGetCollateralMode(t *testing.T) {
 
 	req := &gctrpc.GetCollateralModeRequest{}
 	_, err = s.GetCollateralMode(context.Background(), req)
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Error(err)
 	}
 
@@ -4087,7 +4087,7 @@ func TestGetOpenInterest(t *testing.T) {
 
 	req := &gctrpc.GetOpenInterestRequest{}
 	_, err = s.GetOpenInterest(context.Background(), req)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	req.Exchange = fakeExchangeName
 	_, err = s.GetOpenInterest(context.Background(), req)
@@ -4273,7 +4273,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 	req := &gctrpc.GetCurrencyTradeURLRequest{}
 	_, err = s.GetCurrencyTradeURL(context.Background(), req)
-	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	req.Exchange = fakeExchangeName
 	_, err = s.GetCurrencyTradeURL(context.Background(), req)

@@ -39,7 +39,7 @@ func TestSubmitValidate(t *testing.T) {
 			Submit:      nil,
 		}, // nil struct
 		{
-			ExpectedErr: errExchangeNameUnset,
+			ExpectedErr: common.ErrExchangeNameUnset,
 			Submit:      &Submit{},
 		}, // empty exchange
 		{
@@ -957,7 +957,7 @@ func TestStringToOrderType(t *testing.T) {
 		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
-		{"woahMan", UnknownType, errUnrecognisedOrderType},
+		{"woahMan", UnknownType, ErrUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
@@ -1431,8 +1431,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.Side = AnySide
 	err = getOrders.Validate()
-	if !errors.Is(err, errUnrecognisedOrderType) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderType)
+	if !errors.Is(err, ErrUnrecognisedOrderType) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrUnrecognisedOrderType)
 	}
 
 	errTestError := errors.New("test error")
@@ -2203,6 +2203,6 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "json.Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","ImmediateOrCancel":false,"FillOrKill":false,"PostOnly":false,"ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","ImmediateOrCancel":false,"FillOrKill":false,"PostOnly":false,"ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0}`)
 	assert.Equal(t, exp, j)
 }
