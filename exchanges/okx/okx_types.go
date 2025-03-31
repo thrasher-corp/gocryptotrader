@@ -830,11 +830,8 @@ type OrderData struct {
 	Timestamp     string `json:"ts"`
 }
 
-func (o OrderData) Error() error {
-	if o.StatusCode > 0 {
-		return getStatusError(o.StatusCode, o.StatusMessage)
-	}
-	return nil
+func (o *OrderData) Error() error {
+	return getStatusError(o.StatusCode, o.StatusMessage)
 }
 
 // ResponseResult holds responses having a status result value
