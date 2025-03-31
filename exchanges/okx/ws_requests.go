@@ -12,7 +12,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-var errInvalidWebsocketRequest = errors.New("invalid websocket request")
+var (
+	errInvalidWebsocketRequest = errors.New("invalid websocket request")
+	errOperationFailed         = errors.New("operation failed")
+	errPartialSuccess          = errors.New("bulk operation partially succeeded")
+	errMassCancelFailed        = errors.New("mass cancel failed")
+)
 
 // WSPlaceOrder submits an order
 func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
@@ -56,9 +61,14 @@ func (ok *Okx) WSPlaceMultipleOrder(ctx context.Context, args []PlaceOrderReques
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	// Yield success codes to caller in case of partial success in batch operation
 	var resp []OrderData
-	return resp, ok.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
+	err := ok.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
+	if err != nil {
+		if batchError := getOrderStatusErrors(resp); batchError != nil {
+			err = fmt.Errorf("%w: %w", err, batchError)
+		}
+	}
+	return resp, err
 }
 
 // WSCancelOrder cancels an order
@@ -112,9 +122,14 @@ func (ok *Okx) WSCancelMultipleOrder(ctx context.Context, args []CancelOrderRequ
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	// Yield success codes to caller in case of partial success in batch operation
 	var resp []OrderData
-	return resp, ok.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
+	err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
+	if err != nil {
+		if batchError := getOrderStatusErrors(resp); batchError != nil {
+			err = fmt.Errorf("%w: %w", err, batchError)
+		}
+	}
+	return resp, err
 }
 
 // WSAmendOrder amends an order
@@ -174,23 +189,28 @@ func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	// Yield success codes to caller in case of partial success in batch operation
 	var resp []OrderData
-	return resp, ok.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
+	err := ok.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
+	if err != nil {
+		if batchError := getOrderStatusErrors(resp); batchError != nil {
+			err = fmt.Errorf("%w: %w", err, batchError)
+		}
+	}
+	return resp, err
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam) (bool, error) {
+func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam) error {
 	if len(args) == 0 {
-		return false, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
+		return fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
 
 	for x := range args {
 		if args[x].InstrumentType == "" {
-			return false, fmt.Errorf("%w, instrument type can not be empty", errInvalidInstrumentType)
+			return fmt.Errorf("%w, instrument type can not be empty", errInvalidInstrumentType)
 		}
 		if args[x].InstrumentFamily == "" {
-			return false, errInstrumentFamilyRequired
+			return errInstrumentFamilyRequired
 		}
 	}
 
@@ -201,18 +221,22 @@ func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam
 	}
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "mass-cancel", args, &resp)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if len(resp) == 0 {
-		return false, common.ErrNoResponse
+		return common.ErrNoResponse
 	}
 
 	if len(resp) > 1 {
-		return false, fmt.Errorf("expected 1 response, received %d", len(resp))
+		return fmt.Errorf("expected 1 response, received %d", len(resp))
 	}
 
-	return resp[0].Result, nil
+	if !resp[0].Result {
+		return errMassCancelFailed
+	}
+
+	return nil
 }
 
 // WSPlaceSpreadOrder submits a spread order
@@ -322,7 +346,7 @@ func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) (bo
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []ResponseSuccess
+	var resp []ResponseResult
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelAllSpreadOrderEPL, id, "sprd-mass-cancel", []map[string]string{arg}, &resp); err != nil {
 		return false, err
 	}
@@ -363,7 +387,6 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl reques
 
 	incoming, err := ok.Websocket.AuthConn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	if err != nil {
-		fmt.Println("authconn problems bruh", err)
 		return err
 	}
 
@@ -383,11 +406,24 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl reques
 		return err
 	}
 
-	// Codes 0-2 have responses and can be handled individually by the caller, while codes > 2 are endpoint errors with
-	// messages and no responses, checked here.
-	if intermediary.Code > 2 {
+	switch intermediary.Code {
+	case 0:
+		return nil
+	case 1:
+		return errOperationFailed
+	case 2:
+		return errPartialSuccess
+	default:
 		return getStatusError(intermediary.Code, intermediary.Message)
 	}
+}
 
-	return nil
+func getOrderStatusErrors(resp []OrderData) error {
+	var errs error
+	for i := range resp {
+		if err := resp[i].Error(); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("index: `%d` error: `%v`", i+1, err))
+		}
+	}
+	return errs
 }

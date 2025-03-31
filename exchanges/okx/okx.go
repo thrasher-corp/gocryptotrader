@@ -3709,22 +3709,22 @@ func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrument
 }
 
 // SetFirstCopySettings set first copy settings for the certain lead trader. You need to first copy settings after stopping copying
-func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
+func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseResult, error) {
 	err := validateFirstCopySettings(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *ResponseSuccess
+	var resp *ResponseResult
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setFirstCopySettingsEPL, http.MethodPost, "copytrading/first-copy-settings", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendCopySettings amends need to use this endpoint for amending copy settings
-func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
+func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseResult, error) {
 	err := validateFirstCopySettings(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *ResponseSuccess
+	var resp *ResponseResult
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendFirstCopySettingsEPL, http.MethodPost, "copytrading/amend-copy-settings", arg, &resp, request.AuthenticatedRequest)
 }
 
@@ -3748,7 +3748,7 @@ func validateFirstCopySettings(arg *FirstCopySettings) error {
 }
 
 // StopCopying need to use this endpoint for amending copy settings
-func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*ResponseSuccess, error) {
+func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*ResponseResult, error) {
 	if *arg == (StopCopyingParameter{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -3758,7 +3758,7 @@ func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*Res
 	if arg.SubPositionCloseType == "" {
 		return nil, errSubPositionCloseTypeRequired
 	}
-	var resp *ResponseSuccess
+	var resp *ResponseResult
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopCopyingEPL, http.MethodPost, "copytrading/stop-copy-trading", arg, &resp, request.AuthenticatedRequest)
 }
 

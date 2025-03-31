@@ -152,24 +152,23 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 
 func TestWSMassCancelOrders(t *testing.T) {
 	t.Parallel()
-	_, err := ok.WSMassCancelOrders(t.Context(), nil)
+	err := ok.WSMassCancelOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = ok.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{}})
+	err = ok.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{}})
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = ok.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{InstrumentType: "OPTION"}})
+	err = ok.WSMassCancelOrders(t.Context(), []CancelMassReqParam{{InstrumentType: "OPTION"}})
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.WSMassCancelOrders(request.WithVerbose(t.Context()), []CancelMassReqParam{
+	err = ok.WSMassCancelOrders(request.WithVerbose(t.Context()), []CancelMassReqParam{
 		{
 			InstrumentType:   "OPTION",
 			InstrumentFamily: "BTC-USD",
 		},
 	})
 	require.NoError(t, err)
-	assert.True(t, result)
 }
 
 func TestWSPlaceSpreadOrder(t *testing.T) {
