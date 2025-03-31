@@ -238,6 +238,21 @@
     "ColdStorage": false,
     "SupportedExchanges": ""
    }
+  ],
+  "providers": [
+   {
+    "name": "Ethplorer",
+    "enabled": true
+   },
+   {
+    "name": "XRPScan",
+    "enabled": true
+   },
+   {
+    "name": "CryptoID",
+    "enabled": false,
+    "apiKey": "Key"
+   }
   ]
  },
  "exchanges": [
@@ -297,7 +312,9 @@
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": false,
+     "saveTradeData": false,
+     "tradeFeed": true
     }
    },
    "bankAccounts": [
