@@ -236,7 +236,7 @@ func (s *SillyElement) Error() error {
 func TestMergeErrorDetails(t *testing.T) {
 	t.Parallel()
 
-	require.Nil(t, mergeErrorDetails(nil, []interface{ Error() error }(nil)))
+	require.NoError(t, mergeErrorDetails(nil, []interface{ Error() error }(nil)))
 	sillyErr := errors.New("silly error")
 	require.ErrorIs(t, mergeErrorDetails(sillyErr, []interface{ Error() error }(nil)), sillyErr)
 	require.ErrorIs(t, mergeErrorDetails(nil, []*SillyElement{{}}), errElement)
