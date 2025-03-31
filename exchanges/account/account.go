@@ -190,6 +190,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c cur
 }
 
 // Save saves the holdings with new account info
+// incoming should be a full update, and any missing currencies will be zeroed
 func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 	if incoming == nil {
 		return fmt.Errorf("cannot update holdings: %w", errHoldingsIsNil)
