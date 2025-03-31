@@ -1,7 +1,6 @@
 module github.com/thrasher-corp/gocryptotrader
 
 go 1.24.1
-
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/buger/jsonparser v1.1.1
@@ -26,7 +25,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.36.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/term v0.30.0
 	golang.org/x/text v0.23.0
 	golang.org/x/time v0.11.0
