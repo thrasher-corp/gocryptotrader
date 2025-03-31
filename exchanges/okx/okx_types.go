@@ -841,6 +841,10 @@ type ResponseResult struct {
 	StatusMessage string `json:"sMsg"`
 }
 
+func (r *ResponseResult) Error() error {
+	return getStatusError(r.StatusCode, r.StatusMessage)
+}
+
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
 	InstrumentID  string `json:"instId"`
@@ -2992,6 +2996,10 @@ type SpreadOrderResponse struct {
 
 	// Added when amending spread order through websocket
 	RequestID string `json:"reqId"`
+}
+
+func (arg *SpreadOrderResponse) Error() error {
+	return getStatusError(arg.StatusCode, arg.StatusMessage)
 }
 
 // AmendSpreadOrderParam holds amend parameters for spread order

@@ -1311,7 +1311,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	}
 	resp := &order.CancelBatchResponse{Status: make(map[string]string)}
 	if len(cancelOrderParams) > 0 {
-		var canceledOrders []OrderData
+		var canceledOrders []*OrderData
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			canceledOrders, err = ok.WSCancelMultipleOrder(ctx, cancelOrderParams)
 		} else {
@@ -1428,7 +1428,7 @@ ordersLoop:
 	remaining := cancelAllOrdersRequestParams
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
-		var response []OrderData
+		var response []*OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				response, err = ok.WSCancelMultipleOrder(ctx, remaining[:20])

@@ -13,10 +13,12 @@ import (
 )
 
 var (
-	errInvalidWebsocketRequest = errors.New("invalid websocket request")
-	errOperationFailed         = errors.New("operation failed")
-	errPartialSuccess          = errors.New("bulk operation partially succeeded")
-	errMassCancelFailed        = errors.New("mass cancel failed")
+	errInvalidWebsocketRequest     = errors.New("invalid websocket request")
+	errOperationFailed             = errors.New("operation failed")
+	errPartialSuccess              = errors.New("bulk operation partially succeeded")
+	errMassCancelFailed            = errors.New("mass cancel failed")
+	errCancelAllSpreadOrdersFailed = errors.New("cancel all spread orders failed")
+	errMultipleItemsReturned       = errors.New("multiple items returned")
 )
 
 // WSPlaceOrder submits an order
@@ -27,28 +29,17 @@ func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []OrderData
-	if err := ok.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, id, "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
-		return nil, err
+	var resp []*OrderData
+	err := ok.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, id, "order", []PlaceOrderRequestParam{*arg}, &resp)
+	if err != nil {
+		return nil, mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return nil, common.ErrNoResponse
-	}
-
-	if len(resp) > 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if resp[0].StatusCode > 0 {
-		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return &resp[0], nil
+	return extractSingleItem(resp)
 }
 
 // WSPlaceMultipleOrder submits multiple orders
-func (ok *Okx) WSPlaceMultipleOrder(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
+func (ok *Okx) WSPlaceMultipleOrder(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -61,12 +52,10 @@ func (ok *Okx) WSPlaceMultipleOrder(ctx context.Context, args []PlaceOrderReques
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []OrderData
+	var resp []*OrderData
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
 	if err != nil {
-		if batchError := getOrderStatusErrors(resp); batchError != nil {
-			err = fmt.Errorf("%w: %w", err, batchError)
-		}
+		err = mergeErrorDetails(err, resp)
 	}
 	return resp, err
 }
@@ -85,28 +74,16 @@ func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []OrderData
+	var resp []*OrderData
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, id, "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
-		return nil, err
+		return nil, mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return nil, common.ErrNoResponse
-	}
-
-	if len(resp) > 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if resp[0].StatusCode > 0 {
-		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return &resp[0], nil
+	return extractSingleItem(resp)
 }
 
 // WSCancelMultipleOrder cancels multiple orders
-func (ok *Okx) WSCancelMultipleOrder(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
+func (ok *Okx) WSCancelMultipleOrder(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -122,12 +99,10 @@ func (ok *Okx) WSCancelMultipleOrder(ctx context.Context, args []CancelOrderRequ
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []OrderData
+	var resp []*OrderData
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
 	if err != nil {
-		if batchError := getOrderStatusErrors(resp); batchError != nil {
-			err = fmt.Errorf("%w: %w", err, batchError)
-		}
+		err = mergeErrorDetails(err, resp)
 	}
 	return resp, err
 }
@@ -149,28 +124,16 @@ func (ok *Okx) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []OrderData
+	var resp []*OrderData
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "amend-order", []AmendOrderRequestParams{*arg}, &resp); err != nil {
-		return nil, err
+		return nil, mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return nil, common.ErrNoResponse
-	}
-
-	if len(resp) > 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if resp[0].StatusCode > 0 {
-		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return &resp[0], nil
+	return extractSingleItem(resp)
 }
 
 // WSAmendMultipleOrders amends multiple orders
-func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
+func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -189,12 +152,10 @@ func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []OrderData
+	var resp []*OrderData
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
 	if err != nil {
-		if batchError := getOrderStatusErrors(resp); batchError != nil {
-			err = fmt.Errorf("%w: %w", err, batchError)
-		}
+		err = mergeErrorDetails(err, resp)
 	}
 	return resp, err
 }
@@ -216,7 +177,7 @@ func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []struct {
+	var resp []*struct {
 		Result bool `json:"result"`
 	}
 	err := ok.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "mass-cancel", args, &resp)
@@ -224,15 +185,12 @@ func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam
 		return err
 	}
 
-	if len(resp) == 0 {
-		return common.ErrNoResponse
+	single, err := extractSingleItem(resp)
+	if err != nil {
+		return err
 	}
 
-	if len(resp) > 1 {
-		return fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if !resp[0].Result {
+	if !single.Result {
 		return errMassCancelFailed
 	}
 
@@ -247,24 +205,12 @@ func (ok *Okx) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []SpreadOrderResponse
+	var resp []*SpreadOrderResponse
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, placeSpreadOrderEPL, id, "sprd-order", []SpreadOrderParam{*arg}, &resp); err != nil {
-		return nil, err
+		return nil, mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return nil, common.ErrNoResponse
-	}
-
-	if len(resp) > 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if resp[0].StatusCode > 0 {
-		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return &resp[0], nil
+	return extractSingleItem(resp)
 }
 
 // WSAmendSpreadOrder amends a spread order
@@ -281,24 +227,12 @@ func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []SpreadOrderResponse
+	var resp []*SpreadOrderResponse
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, amendSpreadOrderEPL, id, "sprd-amend-order", []AmendSpreadOrderParam{*arg}, &resp); err != nil {
-		return nil, err
+		return nil, mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return nil, common.ErrNoResponse
-	}
-
-	if len(resp) > 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if resp[0].StatusCode > 0 {
-		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return &resp[0], nil
+	return extractSingleItem(resp)
 }
 
 // WsCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
@@ -317,28 +251,16 @@ func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID s
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []SpreadOrderResponse
+	var resp []*SpreadOrderResponse
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelSpreadOrderEPL, id, "sprd-cancel-order", []map[string]string{arg}, &resp); err != nil {
-		return nil, err
+		return nil, mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return nil, common.ErrNoResponse
-	}
-
-	if len(resp) > 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(resp))
-	}
-
-	if resp[0].StatusCode > 0 {
-		return nil, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return &resp[0], nil
+	return extractSingleItem(resp)
 }
 
 // WSCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
-func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) (bool, error) {
+func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) error {
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
 		arg["sprdId"] = spreadID
@@ -346,24 +268,21 @@ func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) (bo
 
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
-	var resp []ResponseResult
+	var resp []*ResponseResult
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelAllSpreadOrderEPL, id, "sprd-mass-cancel", []map[string]string{arg}, &resp); err != nil {
-		return false, err
+		return mergeErrorDetails(err, resp)
 	}
 
-	if len(resp) == 0 {
-		return false, common.ErrNoResponse
+	single, err := extractSingleItem(resp)
+	if err != nil {
+		return err
 	}
 
-	if len(resp) > 1 {
-		return false, fmt.Errorf("expected 1 response, received %d", len(resp))
+	if !single.Result {
+		return errCancelAllSpreadOrdersFailed
 	}
 
-	if resp[0].StatusCode > 0 {
-		return false, getStatusError(resp[0].StatusCode, resp[0].StatusMessage)
-	}
-
-	return resp[0].Result, nil
+	return nil
 }
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
@@ -418,12 +337,28 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl reques
 	}
 }
 
-func getOrderStatusErrors(resp []OrderData) error {
+func mergeErrorDetails[T interface{ Error() error }](err error, resp []T) error {
 	var errs error
 	for i := range resp {
 		if err := resp[i].Error(); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("index: `%d` error: `%v`", i+1, err))
+			errs = common.AppendError(errs, fmt.Errorf("index: `%d` error: `%w`", i+1, err))
 		}
 	}
-	return errs
+	if errs == nil {
+		return err
+	}
+	if err == nil {
+		return errs
+	}
+	return fmt.Errorf("%w: %w", err, errs)
+}
+
+func extractSingleItem[T any](resp []*T) (*T, error) {
+	if len(resp) == 0 {
+		return nil, common.ErrNoResponse
+	}
+	if len(resp) > 1 {
+		return nil, fmt.Errorf("%w, received %d", errMultipleItemsReturned, len(resp))
+	}
+	return resp[0], nil
 }

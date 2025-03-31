@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -220,7 +221,38 @@ func TestWsCancelSpreadOrder(t *testing.T) {
 func TestWSCancelAllSpreadOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.WSCancelAllSpreadOrders(request.WithVerbose(t.Context()), "BTC-USDT_BTC-USDT-SWAP")
+	err := ok.WSCancelAllSpreadOrders(request.WithVerbose(t.Context()), "BTC-USDT_BTC-USDT-SWAP")
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+}
+
+var errElement = errors.New("element error")
+
+type SillyElement struct{}
+
+func (s *SillyElement) Error() error {
+	return errElement
+}
+
+func TestMergeErrorDetails(t *testing.T) {
+	t.Parallel()
+
+	require.Nil(t, mergeErrorDetails(nil, []interface{ Error() error }(nil)))
+	sillyErr := errors.New("silly error")
+	require.ErrorIs(t, mergeErrorDetails(sillyErr, []interface{ Error() error }(nil)), sillyErr)
+	require.ErrorIs(t, mergeErrorDetails(nil, []*SillyElement{{}}), errElement)
+	require.ErrorIs(t, mergeErrorDetails(sillyErr, []*SillyElement{{}}), errElement)
+	require.ErrorIs(t, mergeErrorDetails(sillyErr, []*SillyElement{{}}), sillyErr)
+}
+
+func TestExtractSingleItem(t *testing.T) {
+	t.Parallel()
+
+	_, err := extractSingleItem([]*any(nil))
+	require.ErrorIs(t, err, common.ErrNoResponse)
+	_, err = extractSingleItem([]*SillyElement{{}, {}})
+	require.ErrorIs(t, err, errMultipleItemsReturned)
+
+	got, err := extractSingleItem([]*SillyElement{{}})
+	require.NoError(t, err)
+	require.NotNil(t, got)
 }
