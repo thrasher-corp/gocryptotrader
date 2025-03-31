@@ -272,7 +272,7 @@ type PlaceOrderInfo struct {
 	SelfTradePreventionID string
 	MarginType            string
 	RetailPortfolioID     string
-	Amount                float64
+	BaseAmount            float64
 	LimitPrice            float64
 	StopPrice             float64
 	Leverage              float64
@@ -1499,4 +1499,13 @@ type AllWrappedAssets struct {
 // WrappedAssetConversionRate holds information on a wrapped asset's conversion rate, returned by GetWrappedAssetConversionRate
 type WrappedAssetConversionRate struct {
 	Amount float64 `json:"amount,string"`
+}
+
+// ManyErrors holds information on errors
+type ManyErrors struct {
+	Success              bool   `json:"success"`
+	FailureReason        string `json:"failure_reason"`
+	OrderID              string `json:"order_id"`
+	EditFailureReason    string `json:"edit_failure_reason"`
+	PreviewFailureReason string `json:"preview_failure_reason"`
 }

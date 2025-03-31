@@ -313,10 +313,10 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord PlaceOrderInfo) (*Plac
 	if ord.ProductID == "" {
 		return nil, errProductIDEmpty
 	}
-	if ord.Amount <= 0 {
+	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.Side, ord.StopDirection, ord.Amount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
+	orderConfig, err := createOrderConfig(ord.OrderType, ord.StopDirection, ord.BaseAmount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (c *CoinbasePro) PreviewOrder(ctx context.Context, productID, side, orderTy
 	if amount == 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
+	orderConfig, err := createOrderConfig(orderType, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -1368,23 +1368,25 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}
 	}
 	manyErrCap := struct {
-		Errors []struct {
-			Success              bool   `json:"success"`
-			FailureReason        string `json:"failure_reason"`
-			OrderID              string `json:"order_id"`
-			EditFailureReason    string `json:"edit_failure_reason"`
-			PreviewFailureReason string `json:"preview_failure_reason"`
-		} `json:"results"`
+		Results []ManyErrors `json:"results"`
+		Errors  []ManyErrors `json:"errors"`
 	}{}
 	err = json.Unmarshal(interim, &manyErrCap)
-	if err == nil && len(manyErrCap.Errors) > 0 {
+	if err == nil {
 		errMessage := ""
 		for i := range manyErrCap.Errors {
-			if !manyErrCap.Errors[i].Success || manyErrCap.Errors[i].EditFailureReason != "" || manyErrCap.Errors[i].PreviewFailureReason != "" {
+			if !manyErrCap.Errors[i].Success && (manyErrCap.Errors[i].EditFailureReason != "" || manyErrCap.Errors[i].PreviewFailureReason != "") {
 				errMessage += fmt.Sprintf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s", manyErrCap.Errors[i].OrderID, manyErrCap.Errors[i].FailureReason, manyErrCap.Errors[i].EditFailureReason, manyErrCap.Errors[i].PreviewFailureReason)
 			}
 		}
-		return errors.New(errMessage)
+		for i := range manyErrCap.Results {
+			if !manyErrCap.Results[i].Success && (manyErrCap.Results[i].EditFailureReason != "" || manyErrCap.Results[i].PreviewFailureReason != "") {
+				errMessage += fmt.Sprintf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s", manyErrCap.Results[i].OrderID, manyErrCap.Results[i].FailureReason, manyErrCap.Results[i].EditFailureReason, manyErrCap.Results[i].PreviewFailureReason)
+			}
+		}
+		if errMessage != "" {
+			return errors.New(errMessage)
+		}
 	}
 	if result == nil {
 		return nil
@@ -1546,16 +1548,11 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 }
 
 // createOrderConfig populates the OrderConfiguration struct
-func createOrderConfig(orderType, side, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
+func createOrderConfig(orderType, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
 	case order.Market.String(), order.ImmediateOrCancel.String():
-		// if side == order.Buy.String() {
-		// 	orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(amount)}
-		// }
-		// if side == order.Sell.String() {
 		orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(amount)}
-		// }
 	case order.Limit.String():
 		if endTime.IsZero() {
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{}

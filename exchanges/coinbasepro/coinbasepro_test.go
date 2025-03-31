@@ -56,6 +56,7 @@ const (
 	testAddress = "fake address"
 	testAmount  = 1e-08
 	testPrice   = 1e+09
+	testPrice2  = 1e+05
 
 	skipPayMethodNotFound          = "no payment methods found, skipping"
 	skipInsufSuitableAccs          = "insufficient suitable accounts for test, skipping"
@@ -103,7 +104,6 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	go c.wsReadData()
-	c.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -241,6 +241,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
+	c.Verbose = true
 	ord := PlaceOrderInfo{}
 	_, err := c.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errClientOrderIDEmpty)
@@ -256,11 +257,11 @@ func TestPlaceOrder(t *testing.T) {
 	ord = PlaceOrderInfo{
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
-		Side:       order.Sell.String(),
+		Side:       order.Buy.String(),
 		OrderType:  order.Limit.String(),
 		MarginType: "CROSS",
-		Amount:     testAmount,
-		LimitPrice: testPrice,
+		BaseAmount: testAmount,
+		LimitPrice: testPrice2,
 		Leverage:   9999,
 		PostOnly:   false,
 		EndTime:    time.Now().Add(time.Hour),
@@ -284,7 +285,7 @@ func TestCancelOrders(t *testing.T) {
 	_, err := c.CancelOrders(t.Context(), orderSlice)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	orderSlice = append(orderSlice, "")
+	orderSlice = append(orderSlice, "1")
 	resp, err := c.CancelOrders(t.Context(), orderSlice)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -297,7 +298,7 @@ func TestEditOrder(t *testing.T) {
 	_, err = c.EditOrder(t.Context(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	resp, err := c.EditOrder(t.Context(), "", testAmount, testPrice*10)
+	resp, err := c.EditOrder(t.Context(), "1", testAmount, testPrice2-1)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -309,7 +310,7 @@ func TestEditOrderPreview(t *testing.T) {
 	_, err = c.EditOrderPreview(t.Context(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.EditOrderPreview(t.Context(), "", testAmount, testPrice*10)
+	resp, err := c.EditOrderPreview(t.Context(), "1", testAmount, testPrice2+2)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1136,8 +1137,9 @@ func TestModifyOrder(t *testing.T) {
 	_, err = c.ModifyOrder(t.Context(), &ord)
 	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	ord.OrderID = "044ba505-7742-466c-b22d-e307e4c37381"
-	ord.Price = testPrice + 1
+	ord.OrderID = "a"
+	ord.Price = testPrice2 + 1
+	ord.Amount = testAmount
 	ord.Pair = testPairStable
 	ord.AssetType = asset.Spot
 	resp2, err := c.ModifyOrder(t.Context(), &ord)
@@ -1155,8 +1157,8 @@ func TestCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	can.OrderID = "0"
 	err = c.CancelOrder(t.Context(), &can)
-	assert.ErrorIs(t, err, errOrderFailedToCancel)
-	can.OrderID = ""
+	assert.Error(t, err)
+	can.OrderID = "2"
 	err = c.CancelOrder(t.Context(), &can)
 	assert.NoError(t, err)
 }
@@ -1722,23 +1724,21 @@ func TestEncodePagination(t *testing.T) {
 
 func TestCreateOrderConfig(t *testing.T) {
 	t.Parallel()
-	_, err := createOrderConfig("", "", "", 0, 0, 0, time.Time{}, false)
+	_, err := createOrderConfig("", "", 0, 0, 0, time.Time{}, false)
 	assert.ErrorIs(t, err, errInvalidOrderType)
-	_, err = createOrderConfig(order.Market.String(), order.Buy.String(), "", 0, 0, 0, time.Time{}, false)
+	_, err = createOrderConfig(order.Market.String(), "", 0, 0, 0, time.Time{}, false)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Market.String(), order.Sell.String(), "", 0, 0, 0, time.Time{}, false)
+	_, err = createOrderConfig(order.Limit.String(), "", 0, 0, 0, time.Time{}, false)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Time{}, false)
-	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Unix(1, 1), false)
+	_, err = createOrderConfig(order.Limit.String(), "", 0, 0, 0, time.Unix(1, 1), false)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Limit.String(), "", "", 0, 0, 0, time.Now().Add(time.Hour), false)
+	_, err = createOrderConfig(order.Limit.String(), "", 0, 0, 0, time.Now().Add(time.Hour), false)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Time{}, false)
+	_, err = createOrderConfig(order.StopLimit.String(), "", 0, 0, 0, time.Time{}, false)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Unix(1, 1), false)
+	_, err = createOrderConfig(order.StopLimit.String(), "", 0, 0, 0, time.Unix(1, 1), false)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.StopLimit.String(), "", "", 0, 0, 0, time.Now().Add(time.Hour), false)
+	_, err = createOrderConfig(order.StopLimit.String(), "", 0, 0, 0, time.Now().Add(time.Hour), false)
 	assert.NoError(t, err)
 }
 

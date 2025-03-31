@@ -501,10 +501,6 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			stopDir = "STOP_DIRECTION_STOP_DOWN"
 		}
 	}
-	amount := s.Amount
-	// if (s.Type == order.Market || s.Type == order.ImmediateOrCancel) && s.Side == order.Buy {
-	// 	amount = s.QuoteAmount
-	// }
 	resp, err := c.PlaceOrder(ctx, PlaceOrderInfo{
 		ClientOID:             s.ClientOrderID,
 		ProductID:             fPair.String(),
@@ -514,7 +510,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		SelfTradePreventionID: "",
 		MarginType:            s.MarginType.Upper(),
 		RetailPortfolioID:     "",
-		Amount:                amount,
+		BaseAmount:            s.Amount,
 		LimitPrice:            s.Price,
 		StopPrice:             s.TriggerPrice,
 		Leverage:              s.Leverage,
