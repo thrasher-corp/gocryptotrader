@@ -223,591 +223,112 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 	case "snapshot":
 		switch wsResponse.Arg.Channel {
 		case bitgetTicker:
-			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-			switch respAsset {
-			case asset.Spot:
-				var ticks []WsTickerSnapshotSpot
-				err := json.Unmarshal(wsResponse.Data, &ticks)
-				if err != nil {
-					return err
-				}
-				for i := range ticks {
-					pair, err := pairFromStringHelper(ticks[i].InstrumentID)
-					if err != nil {
-						return err
-					}
-					bi.Websocket.DataHandler <- &ticker.Price{
-						Last:         ticks[i].LastPrice,
-						High:         ticks[i].High24H,
-						Low:          ticks[i].Low24H,
-						Bid:          ticks[i].BidPrice,
-						Ask:          ticks[i].AskPrice,
-						Volume:       ticks[i].BaseVolume,
-						QuoteVolume:  ticks[i].QuoteVolume,
-						Open:         ticks[i].Open24H,
-						Pair:         pair,
-						ExchangeName: bi.Name,
-						AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
-						LastUpdated:  ticks[i].Timestamp.Time(),
-					}
-				}
-			case asset.Futures:
-				var ticks []WsTickerSnapshotFutures
-				err := json.Unmarshal(wsResponse.Data, &ticks)
-				if err != nil {
-					return err
-				}
-				for i := range ticks {
-					pair, err := pairFromStringHelper(ticks[i].InstrumentID)
-					if err != nil {
-						return err
-					}
-					bi.Websocket.DataHandler <- &ticker.Price{
-						Last:         ticks[i].LastPrice,
-						High:         ticks[i].High24H,
-						Low:          ticks[i].Low24H,
-						Bid:          ticks[i].BidPrice,
-						Ask:          ticks[i].AskPrice,
-						Volume:       ticks[i].BaseVolume,
-						QuoteVolume:  ticks[i].QuoteVolume,
-						Open:         ticks[i].Open24H,
-						MarkPrice:    ticks[i].MarkPrice,
-						IndexPrice:   ticks[i].IndexPrice,
-						Pair:         pair,
-						ExchangeName: bi.Name,
-						AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
-						LastUpdated:  ticks[i].Timestamp.Time(),
-					}
-				}
-			}
+			err = bi.tickerDataHandler(&wsResponse, respRaw)
 		case bitgetCandleDailyChannel:
-			resp, err := bi.candleDataHandler(&wsResponse)
-			if err != nil {
-				return err
-			}
-			bi.Websocket.DataHandler <- resp
+			err = bi.candleDataHandler(&wsResponse)
 		case bitgetTrade:
-			resp, err := bi.tradeDataHandler(&wsResponse)
-			if err != nil {
-				return err
-			}
-			bi.Websocket.DataHandler <- resp
+			err = bi.tradeDataHandler(&wsResponse)
 		case bitgetBookFullChannel:
-			err := bi.orderbookDataHandler(&wsResponse)
-			if err != nil {
-				return err
-			}
+			err = bi.orderbookDataHandler(&wsResponse)
 		case bitgetAccount:
-			var hold account.Holdings
-			hold.Exchange = bi.Name
-			var sub account.SubAccount
-			hold.Accounts = append(hold.Accounts, sub)
-			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-			sub.AssetType = respAsset
-			switch respAsset {
-			case asset.Spot:
-				var acc []WsAccountSpotResponse
-				err := json.Unmarshal(wsResponse.Data, &acc)
-				if err != nil {
-					return err
-				}
-				sub.Currencies = make([]account.Balance, len(acc))
-				for i := range acc {
-					sub.Currencies[i] = account.Balance{
-						Currency: acc[i].Coin,
-						Hold:     acc[i].Frozen + acc[i].Locked,
-						Free:     acc[i].Available,
-						Total:    sub.Currencies[i].Hold + sub.Currencies[i].Free,
-					}
-				}
-			case asset.Futures:
-				var acc []WsAccountFuturesResponse
-				err := json.Unmarshal(wsResponse.Data, &acc)
-				if err != nil {
-					return err
-				}
-				sub.Currencies = make([]account.Balance, len(acc))
-				for i := range acc {
-					sub.Currencies[i] = account.Balance{
-						Currency: acc[i].MarginCoin,
-						Hold:     acc[i].Frozen,
-						Free:     acc[i].Available,
-						Total:    acc[i].Available + acc[i].Frozen,
-					}
-				}
-			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
-			}
-			// Plan to add handling of account.Holdings on websocketDataHandler side in a later PR
-			bi.Websocket.DataHandler <- hold
+			err = bi.accountSnapshotDataHandler(&wsResponse, respRaw)
 		case bitgetFillChannel:
-			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-			switch respAsset {
-			case asset.Spot:
-				var fil []WsFillSpotResponse
-				err := json.Unmarshal(wsResponse.Data, &fil)
-				if err != nil {
-					return err
-				}
-				resp := make([]fill.Data, len(fil))
-				for i := range fil {
-					pair, err := pairFromStringHelper(fil[i].Symbol)
-					if err != nil {
-						return err
-					}
-					resp[i] = fill.Data{
-						ID:           strconv.FormatInt(fil[i].TradeID, 10),
-						Timestamp:    fil[i].CreationTime.Time(),
-						Exchange:     bi.Name,
-						AssetType:    asset.Spot,
-						CurrencyPair: pair,
-						Side:         sideDecoder(fil[i].Side),
-						OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
-						TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
-						Price:        fil[i].PriceAverage,
-						Amount:       fil[i].Size,
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			case asset.Futures:
-				var fil []WsFillFuturesResponse
-				err := json.Unmarshal(wsResponse.Data, &fil)
-				if err != nil {
-					return err
-				}
-				resp := make([]fill.Data, len(fil))
-				for i := range fil {
-					pair, err := pairFromStringHelper(fil[i].Symbol)
-					if err != nil {
-						return err
-					}
-					resp[i] = fill.Data{
-						Exchange:     bi.Name,
-						CurrencyPair: pair,
-						OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
-						TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
-						Side:         sideDecoder(fil[i].Side),
-						Price:        fil[i].Price,
-						Amount:       fil[i].BaseVolume,
-						Timestamp:    fil[i].CreationTime.Time(),
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
-			}
+			err = bi.fillDataHandler(&wsResponse, respRaw)
 		case bitgetOrdersChannel:
-			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-			switch respAsset {
-			case asset.Spot:
-				var orders []WsOrderSpotResponse
-				err := json.Unmarshal(wsResponse.Data, &orders)
-				if err != nil {
-					return err
-				}
-				resp := make([]order.Detail, len(orders))
-				for i := range orders {
-					pair, err := pairFromStringHelper(orders[i].InstrumentID)
-					if err != nil {
-						return err
-					}
-					ioc, fok, po := strategyDecoder(orders[i].Force)
-					var baseAmount, quoteAmount float64
-					side := sideDecoder(orders[i].Side)
-					if side == order.Buy {
-						quoteAmount = orders[i].Size
-					}
-					if side == order.Sell {
-						baseAmount = orders[i].Size
-					}
-					orderType := typeDecoder(orders[i].OrderType)
-					if orderType == order.Limit {
-						baseAmount = orders[i].NewSize
-					}
-					resp[i] = order.Detail{
-						Exchange:             bi.Name,
-						AssetType:            asset.Spot,
-						Pair:                 pair,
-						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
-						ClientOrderID:        orders[i].ClientOrderID,
-						Price:                orders[i].PriceAverage,
-						Amount:               baseAmount,
-						QuoteAmount:          quoteAmount,
-						Type:                 orderType,
-						ImmediateOrCancel:    ioc,
-						FillOrKill:           fok,
-						PostOnly:             po,
-						Side:                 side,
-						AverageExecutedPrice: orders[i].PriceAverage,
-						Status:               statusDecoder(orders[i].Status),
-						Date:                 orders[i].CreationTime.Time(),
-						LastUpdated:          orders[i].UpdateTime.Time(),
-					}
-					for x := range orders[i].FeeDetail {
-						resp[i].Fee += orders[i].FeeDetail[x].TotalFee
-						resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			case asset.Futures:
-				var orders []WsOrderFuturesResponse
-				err := json.Unmarshal(wsResponse.Data, &orders)
-				if err != nil {
-					return err
-				}
-				resp := make([]order.Detail, len(orders))
-				for i := range orders {
-					pair, err := pairFromStringHelper(orders[i].InstrumentID)
-					if err != nil {
-						return err
-					}
-					ioc, fok, po := strategyDecoder(orders[i].Force)
-					var baseAmount, quoteAmount float64
-					side := sideDecoder(orders[i].Side)
-					if side == order.Buy {
-						quoteAmount = orders[i].Size
-					}
-					if side == order.Sell {
-						baseAmount = orders[i].Size
-					}
-					orderType := typeDecoder(orders[i].OrderType)
-					if orderType == order.Limit {
-						baseAmount = orders[i].BaseVolume
-					}
-					resp[i] = order.Detail{
-						Exchange:             bi.Name,
-						AssetType:            asset.Futures,
-						Pair:                 pair,
-						Amount:               baseAmount,
-						QuoteAmount:          quoteAmount,
-						Type:                 orderType,
-						ImmediateOrCancel:    ioc,
-						FillOrKill:           fok,
-						PostOnly:             po,
-						Side:                 side,
-						ExecutedAmount:       orders[i].FilledQuantity,
-						Date:                 orders[i].CreationTime.Time(),
-						ClientOrderID:        orders[i].ClientOrderID,
-						Leverage:             orders[i].Leverage,
-						MarginType:           marginDecoder(orders[i].MarginMode),
-						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
-						Price:                orders[i].Price,
-						AverageExecutedPrice: orders[i].PriceAverage,
-						ReduceOnly:           bool(orders[i].ReduceOnly),
-						Status:               statusDecoder(orders[i].Status),
-						LimitPriceLower:      orders[i].PresetStopSurplusPrice,
-						LimitPriceUpper:      orders[i].PresetStopLossPrice,
-						LastUpdated:          orders[i].UpdateTime.Time(),
-					}
-					for x := range orders[i].FeeDetail {
-						resp[i].Fee += orders[i].FeeDetail[x].Fee
-						resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
-			}
+			err = bi.spotOrderDataHandler(&wsResponse, respRaw)
 		case bitgetOrdersAlgoChannel:
-			respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
-			switch respAsset {
-			case asset.Spot:
-				var orders []WsTriggerOrderSpotResponse
-				err := json.Unmarshal(wsResponse.Data, &orders)
-				if err != nil {
-					return err
-				}
-				resp := make([]order.Detail, len(orders))
-				for i := range orders {
-					pair, err := pairFromStringHelper(orders[i].InstrumentID)
-					if err != nil {
-						return err
-					}
-					resp[i] = order.Detail{
-						Exchange:      bi.Name,
-						AssetType:     asset.Spot,
-						Pair:          pair,
-						OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
-						ClientOrderID: orders[i].ClientOrderID,
-						TriggerPrice:  orders[i].TriggerPrice,
-						Price:         orders[i].Price,
-						Amount:        orders[i].Size,
-						Type:          typeDecoder(orders[i].OrderType),
-						Side:          sideDecoder(orders[i].Side),
-						Status:        statusDecoder(orders[i].Status),
-						Date:          orders[i].CreationTime.Time(),
-						LastUpdated:   orders[i].UpdateTime.Time(),
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			case asset.Futures:
-				var orders []WsTriggerOrderFuturesResponse
-				err := json.Unmarshal(wsResponse.Data, &orders)
-				if err != nil {
-					return err
-				}
-				resp := make([]order.Detail, len(orders))
-				for i := range orders {
-					pair, err := pairFromStringHelper(orders[i].InstrumentID)
-					if err != nil {
-						return err
-					}
-					resp[i] = order.Detail{
-						Exchange:             bi.Name,
-						AssetType:            asset.Futures,
-						Pair:                 pair,
-						OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
-						ClientOrderID:        orders[i].ClientOrderID,
-						TriggerPrice:         orders[i].TriggerPrice,
-						Price:                orders[i].Price,
-						AverageExecutedPrice: orders[i].ExecutePrice,
-						Amount:               orders[i].Size,
-						Type:                 typeDecoder(orders[i].OrderType),
-						Side:                 sideDecoder(orders[i].Side),
-						Status:               statusDecoder(orders[i].Status),
-						Date:                 orders[i].CreationTime.Time(),
-						LastUpdated:          orders[i].UpdateTime.Time(),
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
-			}
+			err = bi.triggerOrderDataHandler(&wsResponse, respRaw)
 		case bitgetPositionsChannel:
-			var positions []WsPositionResponse
-			err := json.Unmarshal(wsResponse.Data, &positions)
-			if err != nil {
-				return err
-			}
-			resp := make([]order.Detail, len(positions))
-			for i := range positions {
-				pair, err := pairFromStringHelper(positions[i].InstrumentID)
-				if err != nil {
-					return err
-				}
-				resp[i] = order.Detail{
-					Exchange:             bi.Name,
-					AssetType:            asset.Futures,
-					Pair:                 pair,
-					OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
-					MarginType:           marginDecoder(positions[i].MarginMode),
-					Side:                 sideDecoder(positions[i].HoldSide),
-					Amount:               positions[i].Total,
-					AverageExecutedPrice: positions[i].OpenPriceAverage,
-					Leverage:             positions[i].Leverage,
-					Date:                 positions[i].CreationTime.Time(),
-					Fee:                  positions[i].TotalFee,
-					LastUpdated:          positions[i].UpdateTime.Time(),
-				}
-			}
-			bi.Websocket.DataHandler <- resp
+			err = bi.positionsDataHandler(&wsResponse)
 		case bitgetPositionsHistoryChannel:
-			var positions []WsPositionHistoryResponse
-			err := json.Unmarshal(wsResponse.Data, &positions)
-			if err != nil {
-				return err
-			}
-			resp := make([]futures.PositionHistory, len(positions))
-			for i := range positions {
-				pair, err := pairFromStringHelper(positions[i].InstrumentID)
-				if err != nil {
-					return err
-				}
-				resp[i] = futures.PositionHistory{
-					Exchange:          bi.Name,
-					PositionID:        strconv.FormatInt(positions[i].PositionID, 10),
-					Pair:              pair,
-					MarginCoin:        positions[i].MarginCoin,
-					MarginType:        marginDecoder(positions[i].MarginMode),
-					Side:              sideDecoder(positions[i].HoldSide),
-					PositionMode:      positionModeDecoder(positions[i].PositionMode),
-					OpenAveragePrice:  positions[i].OpenPriceAverage,
-					CloseAveragePrice: positions[i].ClosePriceAverage,
-					OpenSize:          positions[i].OpenSize,
-					CloseSize:         positions[i].CloseSize,
-					RealisedPnl:       positions[i].AchievedProfits,
-					SettlementFee:     positions[i].SettleFee,
-					OpenFee:           positions[i].OpenFee,
-					CloseFee:          positions[i].CloseFee,
-					StartDate:         positions[i].CreationTime.Time(),
-					LastUpdated:       positions[i].UpdateTime.Time(),
-				}
-			}
-			// Implement a better handler for this once work on account.Holdings begins
-			bi.Websocket.DataHandler <- resp
+			err = bi.positionsHistoryDataHandler(&wsResponse)
 		case bitgetIndexPriceChannel:
-			var indexPrice []WsIndexPriceResponse
-			err := json.Unmarshal(wsResponse.Data, &indexPrice)
-			if err != nil {
-				return err
-			}
-			resp := make([]ticker.Price, len(indexPrice))
-			var cur int
-			for i := range indexPrice {
-				as := itemDecoder(wsResponse.Arg.InstrumentType)
-				pair, enabled, err := bi.MatchSymbolCheckEnabled(indexPrice[i].Symbol, as, false)
-				// The exchange sometimes returns unavailable pairs such as "USDT/USDT" which should be ignored
-				if !enabled || err != nil {
-					continue
-				}
-				resp[cur] = ticker.Price{
-					ExchangeName: bi.Name,
-					AssetType:    as,
-					Pair:         pair,
-					Last:         indexPrice[i].IndexPrice,
-					LastUpdated:  indexPrice[i].Timestamp.Time(),
-				}
-			}
-			resp = resp[:cur]
-			bi.Websocket.DataHandler <- resp
+			err = bi.indexPriceDataHandler(&wsResponse)
 		case bitgetAccountCrossedChannel:
-			var acc []WsAccountCrossMarginResponse
-			err := json.Unmarshal(wsResponse.Data, &acc)
-			if err != nil {
-				return err
-			}
-			var hold account.Holdings
-			hold.Exchange = bi.Name
-			var sub account.SubAccount
-			hold.Accounts = append(hold.Accounts, sub)
-			sub.AssetType = asset.CrossMargin
-			sub.Currencies = make([]account.Balance, len(acc))
-			for i := range acc {
-				sub.Currencies[i] = account.Balance{
-					Currency:               acc[i].Coin,
-					Hold:                   acc[i].Frozen,
-					Free:                   acc[i].Available,
-					Borrowed:               acc[i].Borrow,
-					AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
-					Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
-				}
-			}
-			bi.Websocket.DataHandler <- hold
+			err = bi.crossAccountDataHandler(&wsResponse)
 		case bitgetOrdersCrossedChannel, bitgetOrdersIsolatedChannel:
-			var orders []WsOrderMarginResponse
-			err := json.Unmarshal(wsResponse.Data, &orders)
-			if err != nil {
-				return err
-			}
-			resp := make([]order.Detail, len(orders))
-			pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
-			if err != nil {
-				return err
-			}
-			for i := range orders {
-				ioc, fok, po := strategyDecoder(orders[i].Force)
-				resp[i] = order.Detail{
-					Exchange:             bi.Name,
-					Pair:                 pair,
-					OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
-					ClientOrderID:        orders[i].ClientOrderID,
-					AverageExecutedPrice: orders[i].FillPrice,
-					Price:                orders[i].Price,
-					Amount:               orders[i].BaseSize,
-					QuoteAmount:          orders[i].QuoteSize,
-					Type:                 typeDecoder(orders[i].OrderType),
-					ImmediateOrCancel:    ioc,
-					FillOrKill:           fok,
-					PostOnly:             po,
-					Side:                 sideDecoder(orders[i].Side),
-					Status:               statusDecoder(orders[i].Status),
-					Date:                 orders[i].CreationTime.Time(),
-				}
-				for x := range orders[i].FeeDetail {
-					resp[i].Fee += orders[i].FeeDetail[x].TotalFee
-					resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
-				}
-				if wsResponse.Arg.Channel == bitgetOrdersIsolatedChannel {
-					resp[i].AssetType = asset.Margin
-				} else {
-					resp[i].AssetType = asset.CrossMargin
-				}
-			}
-			bi.Websocket.DataHandler <- resp
+			err = bi.marginOrderDataHandler(&wsResponse)
 		case bitgetAccountIsolatedChannel:
-			var acc []WsAccountIsolatedMarginResponse
-			err := json.Unmarshal(wsResponse.Data, &acc)
-			if err != nil {
-				return err
-			}
-			var hold account.Holdings
-			hold.Exchange = bi.Name
-			var sub account.SubAccount
-			hold.Accounts = append(hold.Accounts, sub)
-			sub.AssetType = asset.Margin
-			sub.Currencies = make([]account.Balance, len(acc))
-			for i := range acc {
-				sub.Currencies[i] = account.Balance{
-					Currency:               acc[i].Coin,
-					Hold:                   acc[i].Frozen,
-					Free:                   acc[i].Available,
-					Borrowed:               acc[i].Borrow,
-					AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
-					Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
-				}
-			}
-			bi.Websocket.DataHandler <- hold
+			err = bi.isolatedAccountDataHandler(&wsResponse)
 		default:
 			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 		}
 	case "update":
 		switch wsResponse.Arg.Channel {
 		case bitgetCandleDailyChannel:
-			resp, err := bi.candleDataHandler(&wsResponse)
-			if err != nil {
-				return err
-			}
-			bi.Websocket.DataHandler <- resp
+			err = bi.candleDataHandler(&wsResponse)
 		case bitgetTrade:
-			resp, err := bi.tradeDataHandler(&wsResponse)
-			if err != nil {
-				return err
-			}
-			bi.Websocket.DataHandler <- resp
+			err = bi.tradeDataHandler(&wsResponse)
 		case bitgetBookFullChannel:
-			err := bi.orderbookDataHandler(&wsResponse)
-			if err != nil {
-				return err
-			}
+			err = bi.orderbookDataHandler(&wsResponse)
 		case bitgetAccount:
-			switch itemDecoder(wsResponse.Arg.InstrumentType) {
-			case asset.Spot:
-				var acc []WsAccountSpotResponse
-				err := json.Unmarshal(wsResponse.Data, &acc)
-				if err != nil {
-					return err
-				}
-				resp := make([]account.Change, len(acc))
-				for i := range acc {
-					resp[i] = account.Change{
-						Exchange: bi.Name,
-						Currency: acc[i].Coin,
-						Asset:    asset.Spot,
-						Amount:   acc[i].Available,
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			case asset.Futures:
-				var acc []WsAccountFuturesResponse
-				err := json.Unmarshal(wsResponse.Data, &acc)
-				if err != nil {
-					return err
-				}
-				resp := make([]account.Change, len(acc))
-				for i := range acc {
-					resp[i] = account.Change{
-						Exchange: bi.Name,
-						Currency: acc[i].MarginCoin,
-						Asset:    asset.Futures,
-						Amount:   acc[i].Available,
-					}
-				}
-				bi.Websocket.DataHandler <- resp
-			default:
-				bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
-			}
+			err = bi.accountUpdateDataHandler(&wsResponse, respRaw)
 		default:
 			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		}
+	default:
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+	}
+	return err
+}
+
+// TickerDataHandler handles incoming ticker data for websockets
+func (bi *Bitget) tickerDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+	switch respAsset {
+	case asset.Spot:
+		var ticks []WsTickerSnapshotSpot
+		err := json.Unmarshal(wsResponse.Data, &ticks)
+		if err != nil {
+			return err
+		}
+		for i := range ticks {
+			pair, err := pairFromStringHelper(ticks[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			bi.Websocket.DataHandler <- &ticker.Price{
+				Last:         ticks[i].LastPrice,
+				High:         ticks[i].High24H,
+				Low:          ticks[i].Low24H,
+				Bid:          ticks[i].BidPrice,
+				Ask:          ticks[i].AskPrice,
+				Volume:       ticks[i].BaseVolume,
+				QuoteVolume:  ticks[i].QuoteVolume,
+				Open:         ticks[i].Open24H,
+				Pair:         pair,
+				ExchangeName: bi.Name,
+				AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+				LastUpdated:  ticks[i].Timestamp.Time(),
+			}
+		}
+	case asset.Futures:
+		var ticks []WsTickerSnapshotFutures
+		err := json.Unmarshal(wsResponse.Data, &ticks)
+		if err != nil {
+			return err
+		}
+		for i := range ticks {
+			pair, err := pairFromStringHelper(ticks[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			bi.Websocket.DataHandler <- &ticker.Price{
+				Last:         ticks[i].LastPrice,
+				High:         ticks[i].High24H,
+				Low:          ticks[i].Low24H,
+				Bid:          ticks[i].BidPrice,
+				Ask:          ticks[i].AskPrice,
+				Volume:       ticks[i].BaseVolume,
+				QuoteVolume:  ticks[i].QuoteVolume,
+				Open:         ticks[i].Open24H,
+				MarkPrice:    ticks[i].MarkPrice,
+				IndexPrice:   ticks[i].IndexPrice,
+				Pair:         pair,
+				ExchangeName: bi.Name,
+				AssetType:    itemDecoder(wsResponse.Arg.InstrumentType),
+				LastUpdated:  ticks[i].Timestamp.Time(),
+			}
 		}
 	default:
 		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
@@ -816,41 +337,41 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 }
 
 // CandleDataHandler handles candle data, as functionality is shared between updates and snapshots
-func (bi *Bitget) candleDataHandler(wsResponse *WsResponse) ([]stream.KlineData, error) {
+func (bi *Bitget) candleDataHandler(wsResponse *WsResponse) error {
 	var candles [][8]string
 	err := json.Unmarshal(wsResponse.Data, &candles)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	resp := make([]stream.KlineData, len(candles))
 	for i := range candles {
 		ts, err := strconv.ParseInt(candles[i][0], 10, 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		open, err := strconv.ParseFloat(candles[i][1], 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		closePrice, err := strconv.ParseFloat(candles[i][4], 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		high, err := strconv.ParseFloat(candles[i][2], 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		low, err := strconv.ParseFloat(candles[i][3], 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		volume, err := strconv.ParseFloat(candles[i][5], 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		resp[i] = stream.KlineData{
 			Timestamp:  wsResponse.Timestamp.Time(),
@@ -867,19 +388,20 @@ func (bi *Bitget) candleDataHandler(wsResponse *WsResponse) ([]stream.KlineData,
 			Volume:     volume,
 		}
 	}
-	return resp, nil
+	bi.Websocket.DataHandler <- resp
+	return nil
 }
 
 // TradeDataHandler handles trade data, as functionality is shared between updates and snapshots
-func (bi *Bitget) tradeDataHandler(wsResponse *WsResponse) ([]trade.Data, error) {
+func (bi *Bitget) tradeDataHandler(wsResponse *WsResponse) error {
 	var trades []WsTradeResponse
 	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = json.Unmarshal(wsResponse.Data, &trades)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	resp := make([]trade.Data, len(trades))
 	for i := range trades {
@@ -894,7 +416,8 @@ func (bi *Bitget) tradeDataHandler(wsResponse *WsResponse) ([]trade.Data, error)
 			TID:          strconv.FormatInt(trades[i].TradeID, 10),
 		}
 	}
-	return resp, nil
+	bi.Websocket.DataHandler <- resp
+	return nil
 }
 
 // OrderbookDataHandler handles orderbook data, as functionality is shared between updates and snapshots
@@ -950,6 +473,536 @@ func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// AccountSnapshotDataHandler handles account snapshot data
+func (bi *Bitget) accountSnapshotDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	var hold account.Holdings
+	hold.Exchange = bi.Name
+	var sub account.SubAccount
+	hold.Accounts = append(hold.Accounts, sub)
+	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+	sub.AssetType = respAsset
+	switch respAsset {
+	case asset.Spot:
+		var acc []WsAccountSpotResponse
+		err := json.Unmarshal(wsResponse.Data, &acc)
+		if err != nil {
+			return err
+		}
+		sub.Currencies = make([]account.Balance, len(acc))
+		for i := range acc {
+			sub.Currencies[i] = account.Balance{
+				Currency: acc[i].Coin,
+				Hold:     acc[i].Frozen + acc[i].Locked,
+				Free:     acc[i].Available,
+				Total:    sub.Currencies[i].Hold + sub.Currencies[i].Free,
+			}
+		}
+	case asset.Futures:
+		var acc []WsAccountFuturesResponse
+		err := json.Unmarshal(wsResponse.Data, &acc)
+		if err != nil {
+			return err
+		}
+		sub.Currencies = make([]account.Balance, len(acc))
+		for i := range acc {
+			sub.Currencies[i] = account.Balance{
+				Currency: acc[i].MarginCoin,
+				Hold:     acc[i].Frozen,
+				Free:     acc[i].Available,
+				Total:    acc[i].Available + acc[i].Frozen,
+			}
+		}
+	default:
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+	}
+	// Plan to add handling of account.Holdings on websocketDataHandler side in a later PR
+	bi.Websocket.DataHandler <- hold
+	return nil
+}
+
+func (bi *Bitget) fillDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+	switch respAsset {
+	case asset.Spot:
+		var fil []WsFillSpotResponse
+		err := json.Unmarshal(wsResponse.Data, &fil)
+		if err != nil {
+			return err
+		}
+		resp := make([]fill.Data, len(fil))
+		for i := range fil {
+			pair, err := pairFromStringHelper(fil[i].Symbol)
+			if err != nil {
+				return err
+			}
+			resp[i] = fill.Data{
+				ID:           strconv.FormatInt(fil[i].TradeID, 10),
+				Timestamp:    fil[i].CreationTime.Time(),
+				Exchange:     bi.Name,
+				AssetType:    asset.Spot,
+				CurrencyPair: pair,
+				Side:         sideDecoder(fil[i].Side),
+				OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
+				TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
+				Price:        fil[i].PriceAverage,
+				Amount:       fil[i].Size,
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	case asset.Futures:
+		var fil []WsFillFuturesResponse
+		err := json.Unmarshal(wsResponse.Data, &fil)
+		if err != nil {
+			return err
+		}
+		resp := make([]fill.Data, len(fil))
+		for i := range fil {
+			pair, err := pairFromStringHelper(fil[i].Symbol)
+			if err != nil {
+				return err
+			}
+			resp[i] = fill.Data{
+				Exchange:     bi.Name,
+				CurrencyPair: pair,
+				OrderID:      strconv.FormatInt(fil[i].OrderID, 10),
+				TradeID:      strconv.FormatInt(fil[i].TradeID, 10),
+				Side:         sideDecoder(fil[i].Side),
+				Price:        fil[i].Price,
+				Amount:       fil[i].BaseVolume,
+				Timestamp:    fil[i].CreationTime.Time(),
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	default:
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+	}
+	return nil
+}
+
+// SpotOrderDataHandler handles spot order data
+func (bi *Bitget) spotOrderDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+	switch respAsset {
+	case asset.Spot:
+		var orders []WsOrderSpotResponse
+		err := json.Unmarshal(wsResponse.Data, &orders)
+		if err != nil {
+			return err
+		}
+		resp := make([]order.Detail, len(orders))
+		for i := range orders {
+			pair, err := pairFromStringHelper(orders[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			ioc, fok, po := strategyDecoder(orders[i].Force)
+			var baseAmount, quoteAmount float64
+			side := sideDecoder(orders[i].Side)
+			if side == order.Buy {
+				quoteAmount = orders[i].Size
+			}
+			if side == order.Sell {
+				baseAmount = orders[i].Size
+			}
+			orderType := typeDecoder(orders[i].OrderType)
+			if orderType == order.Limit {
+				baseAmount = orders[i].NewSize
+			}
+			resp[i] = order.Detail{
+				Exchange:             bi.Name,
+				AssetType:            asset.Spot,
+				Pair:                 pair,
+				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+				ClientOrderID:        orders[i].ClientOrderID,
+				Price:                orders[i].PriceAverage,
+				Amount:               baseAmount,
+				QuoteAmount:          quoteAmount,
+				Type:                 orderType,
+				ImmediateOrCancel:    ioc,
+				FillOrKill:           fok,
+				PostOnly:             po,
+				Side:                 side,
+				AverageExecutedPrice: orders[i].PriceAverage,
+				Status:               statusDecoder(orders[i].Status),
+				Date:                 orders[i].CreationTime.Time(),
+				LastUpdated:          orders[i].UpdateTime.Time(),
+			}
+			for x := range orders[i].FeeDetail {
+				resp[i].Fee += orders[i].FeeDetail[x].TotalFee
+				resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	case asset.Futures:
+		var orders []WsOrderFuturesResponse
+		err := json.Unmarshal(wsResponse.Data, &orders)
+		if err != nil {
+			return err
+		}
+		resp := make([]order.Detail, len(orders))
+		for i := range orders {
+			pair, err := pairFromStringHelper(orders[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			ioc, fok, po := strategyDecoder(orders[i].Force)
+			var baseAmount, quoteAmount float64
+			side := sideDecoder(orders[i].Side)
+			if side == order.Buy {
+				quoteAmount = orders[i].Size
+			}
+			if side == order.Sell {
+				baseAmount = orders[i].Size
+			}
+			orderType := typeDecoder(orders[i].OrderType)
+			if orderType == order.Limit {
+				baseAmount = orders[i].BaseVolume
+			}
+			resp[i] = order.Detail{
+				Exchange:             bi.Name,
+				AssetType:            asset.Futures,
+				Pair:                 pair,
+				Amount:               baseAmount,
+				QuoteAmount:          quoteAmount,
+				Type:                 orderType,
+				ImmediateOrCancel:    ioc,
+				FillOrKill:           fok,
+				PostOnly:             po,
+				Side:                 side,
+				ExecutedAmount:       orders[i].FilledQuantity,
+				Date:                 orders[i].CreationTime.Time(),
+				ClientOrderID:        orders[i].ClientOrderID,
+				Leverage:             orders[i].Leverage,
+				MarginType:           marginDecoder(orders[i].MarginMode),
+				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+				Price:                orders[i].Price,
+				AverageExecutedPrice: orders[i].PriceAverage,
+				ReduceOnly:           bool(orders[i].ReduceOnly),
+				Status:               statusDecoder(orders[i].Status),
+				LimitPriceLower:      orders[i].PresetStopSurplusPrice,
+				LimitPriceUpper:      orders[i].PresetStopLossPrice,
+				LastUpdated:          orders[i].UpdateTime.Time(),
+			}
+			for x := range orders[i].FeeDetail {
+				resp[i].Fee += orders[i].FeeDetail[x].Fee
+				resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	default:
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+	}
+	return nil
+}
+
+// TriggerOrderDataHandler handles trigger order data
+func (bi *Bitget) triggerOrderDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
+	switch respAsset {
+	case asset.Spot:
+		var orders []WsTriggerOrderSpotResponse
+		err := json.Unmarshal(wsResponse.Data, &orders)
+		if err != nil {
+			return err
+		}
+		resp := make([]order.Detail, len(orders))
+		for i := range orders {
+			pair, err := pairFromStringHelper(orders[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			resp[i] = order.Detail{
+				Exchange:      bi.Name,
+				AssetType:     asset.Spot,
+				Pair:          pair,
+				OrderID:       strconv.FormatInt(orders[i].OrderID, 10),
+				ClientOrderID: orders[i].ClientOrderID,
+				TriggerPrice:  orders[i].TriggerPrice,
+				Price:         orders[i].Price,
+				Amount:        orders[i].Size,
+				Type:          typeDecoder(orders[i].OrderType),
+				Side:          sideDecoder(orders[i].Side),
+				Status:        statusDecoder(orders[i].Status),
+				Date:          orders[i].CreationTime.Time(),
+				LastUpdated:   orders[i].UpdateTime.Time(),
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	case asset.Futures:
+		var orders []WsTriggerOrderFuturesResponse
+		err := json.Unmarshal(wsResponse.Data, &orders)
+		if err != nil {
+			return err
+		}
+		resp := make([]order.Detail, len(orders))
+		for i := range orders {
+			pair, err := pairFromStringHelper(orders[i].InstrumentID)
+			if err != nil {
+				return err
+			}
+			resp[i] = order.Detail{
+				Exchange:             bi.Name,
+				AssetType:            asset.Futures,
+				Pair:                 pair,
+				OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+				ClientOrderID:        orders[i].ClientOrderID,
+				TriggerPrice:         orders[i].TriggerPrice,
+				Price:                orders[i].Price,
+				AverageExecutedPrice: orders[i].ExecutePrice,
+				Amount:               orders[i].Size,
+				Type:                 typeDecoder(orders[i].OrderType),
+				Side:                 sideDecoder(orders[i].Side),
+				Status:               statusDecoder(orders[i].Status),
+				Date:                 orders[i].CreationTime.Time(),
+				LastUpdated:          orders[i].UpdateTime.Time(),
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	default:
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+	}
+	return nil
+}
+
+// PositionsDataHandler handles data on futures positions
+func (bi *Bitget) positionsDataHandler(wsResponse *WsResponse) error {
+	var positions []WsPositionResponse
+	err := json.Unmarshal(wsResponse.Data, &positions)
+	if err != nil {
+		return err
+	}
+	resp := make([]order.Detail, len(positions))
+	for i := range positions {
+		pair, err := pairFromStringHelper(positions[i].InstrumentID)
+		if err != nil {
+			return err
+		}
+		resp[i] = order.Detail{
+			Exchange:             bi.Name,
+			AssetType:            asset.Futures,
+			Pair:                 pair,
+			OrderID:              strconv.FormatInt(positions[i].PositionID, 10),
+			MarginType:           marginDecoder(positions[i].MarginMode),
+			Side:                 sideDecoder(positions[i].HoldSide),
+			Amount:               positions[i].Total,
+			AverageExecutedPrice: positions[i].OpenPriceAverage,
+			Leverage:             positions[i].Leverage,
+			Date:                 positions[i].CreationTime.Time(),
+			Fee:                  positions[i].TotalFee,
+			LastUpdated:          positions[i].UpdateTime.Time(),
+		}
+	}
+	bi.Websocket.DataHandler <- resp
+	return nil
+}
+
+// PositionsHistoryDataHandler handles data on futures positions history
+func (bi *Bitget) positionsHistoryDataHandler(wsResponse *WsResponse) error {
+	var positions []WsPositionHistoryResponse
+	err := json.Unmarshal(wsResponse.Data, &positions)
+	if err != nil {
+		return err
+	}
+	resp := make([]futures.PositionHistory, len(positions))
+	for i := range positions {
+		pair, err := pairFromStringHelper(positions[i].InstrumentID)
+		if err != nil {
+			return err
+		}
+		resp[i] = futures.PositionHistory{
+			Exchange:          bi.Name,
+			PositionID:        strconv.FormatInt(positions[i].PositionID, 10),
+			Pair:              pair,
+			MarginCoin:        positions[i].MarginCoin,
+			MarginType:        marginDecoder(positions[i].MarginMode),
+			Side:              sideDecoder(positions[i].HoldSide),
+			PositionMode:      positionModeDecoder(positions[i].PositionMode),
+			OpenAveragePrice:  positions[i].OpenPriceAverage,
+			CloseAveragePrice: positions[i].ClosePriceAverage,
+			OpenSize:          positions[i].OpenSize,
+			CloseSize:         positions[i].CloseSize,
+			RealisedPnl:       positions[i].AchievedProfits,
+			SettlementFee:     positions[i].SettleFee,
+			OpenFee:           positions[i].OpenFee,
+			CloseFee:          positions[i].CloseFee,
+			StartDate:         positions[i].CreationTime.Time(),
+			LastUpdated:       positions[i].UpdateTime.Time(),
+		}
+	}
+	// Implement a better handler for this once work on account.Holdings begins
+	bi.Websocket.DataHandler <- resp
+	return nil
+}
+
+// IndexPriceDataHandler handles index price data
+func (bi *Bitget) indexPriceDataHandler(wsResponse *WsResponse) error {
+	var indexPrice []WsIndexPriceResponse
+	err := json.Unmarshal(wsResponse.Data, &indexPrice)
+	if err != nil {
+		return err
+	}
+	resp := make([]ticker.Price, len(indexPrice))
+	var cur int
+	for i := range indexPrice {
+		as := itemDecoder(wsResponse.Arg.InstrumentType)
+		pair, enabled, err := bi.MatchSymbolCheckEnabled(indexPrice[i].Symbol, as, false)
+		// The exchange sometimes returns unavailable pairs such as "USDT/USDT" which should be ignored
+		if !enabled || err != nil {
+			continue
+		}
+		resp[cur] = ticker.Price{
+			ExchangeName: bi.Name,
+			AssetType:    as,
+			Pair:         pair,
+			Last:         indexPrice[i].IndexPrice,
+			LastUpdated:  indexPrice[i].Timestamp.Time(),
+		}
+	}
+	resp = resp[:cur]
+	bi.Websocket.DataHandler <- resp
+	return nil
+}
+
+// CrossAccountDataHandler handles cross margin account data
+func (bi *Bitget) crossAccountDataHandler(wsResponse *WsResponse) error {
+	var acc []WsAccountCrossMarginResponse
+	err := json.Unmarshal(wsResponse.Data, &acc)
+	if err != nil {
+		return err
+	}
+	var hold account.Holdings
+	hold.Exchange = bi.Name
+	var sub account.SubAccount
+	hold.Accounts = append(hold.Accounts, sub)
+	sub.AssetType = asset.CrossMargin
+	sub.Currencies = make([]account.Balance, len(acc))
+	for i := range acc {
+		sub.Currencies[i] = account.Balance{
+			Currency:               acc[i].Coin,
+			Hold:                   acc[i].Frozen,
+			Free:                   acc[i].Available,
+			Borrowed:               acc[i].Borrow,
+			AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
+			Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
+		}
+	}
+	bi.Websocket.DataHandler <- hold
+	return nil
+}
+
+// MarginOrderDataHandler handles margin order data
+func (bi *Bitget) marginOrderDataHandler(wsResponse *WsResponse) error {
+	var orders []WsOrderMarginResponse
+	err := json.Unmarshal(wsResponse.Data, &orders)
+	if err != nil {
+		return err
+	}
+	resp := make([]order.Detail, len(orders))
+	pair, err := pairFromStringHelper(wsResponse.Arg.InstrumentID)
+	if err != nil {
+		return err
+	}
+	for i := range orders {
+		ioc, fok, po := strategyDecoder(orders[i].Force)
+		resp[i] = order.Detail{
+			Exchange:             bi.Name,
+			Pair:                 pair,
+			OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+			ClientOrderID:        orders[i].ClientOrderID,
+			AverageExecutedPrice: orders[i].FillPrice,
+			Price:                orders[i].Price,
+			Amount:               orders[i].BaseSize,
+			QuoteAmount:          orders[i].QuoteSize,
+			Type:                 typeDecoder(orders[i].OrderType),
+			ImmediateOrCancel:    ioc,
+			FillOrKill:           fok,
+			PostOnly:             po,
+			Side:                 sideDecoder(orders[i].Side),
+			Status:               statusDecoder(orders[i].Status),
+			Date:                 orders[i].CreationTime.Time(),
+		}
+		for x := range orders[i].FeeDetail {
+			resp[i].Fee += orders[i].FeeDetail[x].TotalFee
+			resp[i].FeeAsset = orders[i].FeeDetail[x].FeeCoin
+		}
+		if wsResponse.Arg.Channel == bitgetOrdersIsolatedChannel {
+			resp[i].AssetType = asset.Margin
+		} else {
+			resp[i].AssetType = asset.CrossMargin
+		}
+	}
+	bi.Websocket.DataHandler <- resp
+	return nil
+}
+
+// IsolatedAccountDataHandler handles isolated margin account data
+func (bi *Bitget) isolatedAccountDataHandler(wsResponse *WsResponse) error {
+	var acc []WsAccountIsolatedMarginResponse
+	err := json.Unmarshal(wsResponse.Data, &acc)
+	if err != nil {
+		return err
+	}
+	var hold account.Holdings
+	hold.Exchange = bi.Name
+	var sub account.SubAccount
+	hold.Accounts = append(hold.Accounts, sub)
+	sub.AssetType = asset.Margin
+	sub.Currencies = make([]account.Balance, len(acc))
+	for i := range acc {
+		sub.Currencies[i] = account.Balance{
+			Currency:               acc[i].Coin,
+			Hold:                   acc[i].Frozen,
+			Free:                   acc[i].Available,
+			Borrowed:               acc[i].Borrow,
+			AvailableWithoutBorrow: acc[i].Available,                                                                   // Need to check if Bitget actually calculates values this way
+			Total:                  acc[i].Available + acc[i].Frozen + acc[i].Borrow + acc[i].Interest + acc[i].Coupon, // Here too
+		}
+	}
+	bi.Websocket.DataHandler <- hold
+	return nil
+}
+
+// AccountUpdateDataHandler
+func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	switch itemDecoder(wsResponse.Arg.InstrumentType) {
+	case asset.Spot:
+		var acc []WsAccountSpotResponse
+		err := json.Unmarshal(wsResponse.Data, &acc)
+		if err != nil {
+			return err
+		}
+		resp := make([]account.Change, len(acc))
+		for i := range acc {
+			resp[i] = account.Change{
+				Exchange: bi.Name,
+				Currency: acc[i].Coin,
+				Asset:    asset.Spot,
+				Amount:   acc[i].Available,
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	case asset.Futures:
+		var acc []WsAccountFuturesResponse
+		err := json.Unmarshal(wsResponse.Data, &acc)
+		if err != nil {
+			return err
+		}
+		resp := make([]account.Change, len(acc))
+		for i := range acc {
+			resp[i] = account.Change{
+				Exchange: bi.Name,
+				Currency: acc[i].MarginCoin,
+				Asset:    asset.Futures,
+				Amount:   acc[i].Available,
+			}
+		}
+		bi.Websocket.DataHandler <- resp
+	default:
+		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }

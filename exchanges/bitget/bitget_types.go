@@ -1405,7 +1405,7 @@ type PlaceFuturesOrderStruct struct {
 	TradeSide       string    `json:"tradeSide"`
 	OrderType       string    `json:"orderType"`
 	Strategy        string    `json:"force"`
-	ClientOID       string    `json:"clientOId"`
+	ClientOID       string    `json:"clientOId,omitempty"`
 	ReduceOnly      YesNoBool `json:"reduceOnly"`
 	TakeProfitValue float64   `json:"presetStopSurplusPrice,string,omitempty"`
 	StopLossValue   float64   `json:"presetStopLossPrice,string,omitempty"`

@@ -314,6 +314,8 @@ var (
 	errAssetModeEmpty                 = errors.New("assetMode cannot be empty")
 	errTakeProfitTriggerPriceEmpty    = errors.New("takeProfitTriggerPrice cannot be empty")
 	errStopLossTriggerPriceEmpty      = errors.New("stopLossTriggerPrice cannot be empty")
+	errOrderIDMutex                   = errors.New("exactly one of orderID and clientOrderID must be set")
+	errProductTypeAndPairEmpty        = errors.New("productType and pair cannot both be empty")
 
 	prodTypes = []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
 	planTypes = []string{"normal_plan", "track_plan", "profit_loss"}
@@ -584,14 +586,16 @@ func (bi *Bitget) GetFuturesPositionRatios(ctx context.Context, pair currency.Pa
 }
 
 // GetMarginPositionRatios returns the ratio of long to short positions for a specified pair in margin accounts
-func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair currency.Pair, period, currency string) ([]PosRatMarginResp, error) {
+func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair currency.Pair, period string, currency currency.Code) ([]PosRatMarginResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	vals.Set("period", period)
-	vals.Set("coin", currency)
+	if period != "" {
+		vals.Set("period", period)
+	}
+	vals.Set("coin", currency.String())
 	path := bitgetMargin + bitgetMarket + bitgetLongShortRatio
 	var resp struct {
 		PosRatMarginResp []PosRatMarginResp `json:"data"`
@@ -600,14 +604,16 @@ func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair currency.Pai
 }
 
 // GetMarginLoanGrowth returns the growth rate of borrowed funds for a specified pair in margin accounts
-func (bi *Bitget) GetMarginLoanGrowth(ctx context.Context, pair currency.Pair, period, currency string) ([]LoanGrowthResp, error) {
+func (bi *Bitget) GetMarginLoanGrowth(ctx context.Context, pair currency.Pair, period string, currency currency.Code) ([]LoanGrowthResp, error) {
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	vals.Set("period", period)
-	vals.Set("coin", currency)
+	if period != "" {
+		vals.Set("period", period)
+	}
+	vals.Set("coin", currency.String())
 	path := bitgetMargin + bitgetMarket + bitgetLoanGrowth
 	var resp struct {
 		LoanGrowthResp []LoanGrowthResp `json:"data"`
@@ -622,7 +628,9 @@ func (bi *Bitget) GetIsolatedBorrowingRatio(ctx context.Context, pair currency.P
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	vals.Set("period", period)
+	if period != "" {
+		vals.Set("period", period)
+	}
 	path := bitgetMargin + bitgetMarket + bitgetIsolatedBorrowRate
 	var resp struct {
 		BorrowRatioResp []BorrowRatioResp `json:"data"`
@@ -1565,12 +1573,12 @@ func (bi *Bitget) GetCurrentSpotPlanOrders(ctx context.Context, pair currency.Pa
 }
 
 // GetSpotPlanSubOrder returns the sub-orders of a triggered plan order
-func (bi *Bitget) GetSpotPlanSubOrder(ctx context.Context, orderID string) (*SubOrderResp, error) {
-	if orderID == "" {
+func (bi *Bitget) GetSpotPlanSubOrder(ctx context.Context, orderID int64) (*SubOrderResp, error) {
+	if orderID == 0 {
 		return nil, errOrderIDEmpty
 	}
 	vals := url.Values{}
-	vals.Set("planOrderId", orderID)
+	vals.Set("planOrderId", strconv.FormatInt(orderID, 10))
 	path := bitgetSpot + bitgetTrade + bitgetPlanSubOrder
 	var resp struct {
 		SubOrderResp `json:"data"`
@@ -1834,7 +1842,9 @@ func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency curr
 		params.Values.Set("coin", currency.String())
 	}
 	params.Values.Set("subUid", subaccountID)
-	params.Values.Set("role", role)
+	if role != "" {
+		params.Values.Set("role", role)
+	}
 	if clientOrderID != "" {
 		params.Values.Set("clientOid", clientOrderID)
 	}
@@ -2675,6 +2685,9 @@ func (bi *Bitget) GetAllPositions(ctx context.Context, productType string, margi
 
 // GetHistoricalPositions returns historical position details, up to a maximum of three months ago
 func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair currency.Pair, productType string, pagination, limit int64, startTime, endTime time.Time) (*HistPositionResp, error) {
+	if pair.IsEmpty() && productType == "" {
+		return nil, errProductTypeAndPairEmpty
+	}
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true, true)
@@ -3789,8 +3802,8 @@ func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair currency.Pair, clie
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
-	if clientOrderID == "" && orderID == 0 {
-		return nil, errOrderClientEmpty
+	if (clientOrderID == "" && orderID == 0) || (clientOrderID != "" && orderID != 0) {
+		return nil, errOrderIDMutex
 	}
 	req := map[string]any{
 		"symbol": pair,
@@ -3799,7 +3812,7 @@ func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair currency.Pair, clie
 		req["clientOid"] = clientOrderID
 	}
 	if orderID != 0 {
-		req["orderId"] = orderID
+		req["orderId"] = strconv.FormatInt(orderID, 10)
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetCancelOrder
 	var resp struct {
@@ -3817,8 +3830,8 @@ func (bi *Bitget) BatchCancelCrossOrders(ctx context.Context, pair currency.Pair
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair,
-		"orderList": orders,
+		"symbol":      pair,
+		"orderIdList": orders,
 	}
 	path := bitgetMargin + bitgetCrossed + bitgetBatchCancelOrder
 	var resp *BatchOrderResp
@@ -3920,7 +3933,9 @@ func (bi *Bitget) GetCrossLiquidationOrders(ctx context.Context, orderType, from
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("type", orderType)
+	if orderType != "" {
+		params.Values.Set("type", orderType)
+	}
 	params.Values.Set("symbol", pair.String())
 	params.Values.Set("fromCoin", fromCoin)
 	params.Values.Set("toCoin", toCoin)
@@ -4301,8 +4316,8 @@ func (bi *Bitget) CancelIsolatedOrder(ctx context.Context, pair currency.Pair, c
 	if pair.IsEmpty() {
 		return nil, errPairEmpty
 	}
-	if clientOrderID == "" && orderID == 0 {
-		return nil, errOrderClientEmpty
+	if (clientOrderID == "" && orderID == 0) || (clientOrderID != "" && orderID != 0) {
+		return nil, errOrderIDMutex
 	}
 	req := map[string]any{
 		"symbol": pair,
@@ -4329,8 +4344,8 @@ func (bi *Bitget) BatchCancelIsolatedOrders(ctx context.Context, pair currency.P
 		return nil, errOrdersEmpty
 	}
 	req := map[string]any{
-		"symbol":    pair,
-		"orderList": orders,
+		"symbol":      pair,
+		"orderIdList": orders,
 	}
 	path := bitgetMargin + bitgetIsolated + bitgetBatchCancelOrder
 	var resp *BatchOrderResp
@@ -4432,7 +4447,9 @@ func (bi *Bitget) GetIsolatedLiquidationOrders(ctx context.Context, orderType, f
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("type", orderType)
+	if orderType != "" {
+		params.Values.Set("type", orderType)
+	}
 	params.Values.Set("symbol", pair.String())
 	params.Values.Set("fromCoin", fromCoin)
 	params.Values.Set("toCoin", toCoin)

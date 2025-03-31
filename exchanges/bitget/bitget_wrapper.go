@@ -1016,9 +1016,11 @@ func (bi *Bitget) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	case asset.Futures:
 		_, err = bi.CancelFuturesOrder(ctx, ord.Pair, getProductType(ord.Pair), ord.ClientOrderID, ord.Pair.Quote, originalID)
 	case asset.Margin:
-		_, err = bi.CancelIsolatedOrder(ctx, ord.Pair, ord.ClientOrderID, originalID)
+		// Consider warning the user if they're trying to input both the client order ID and the order ID
+		_, err = bi.CancelIsolatedOrder(ctx, ord.Pair, "", originalID)
 	case asset.CrossMargin:
-		_, err = bi.CancelCrossOrder(ctx, ord.Pair, ord.ClientOrderID, originalID)
+		// Consider warning the user if they're trying to input both the client order ID and the order ID
+		_, err = bi.CancelCrossOrder(ctx, ord.Pair, "", originalID)
 	default:
 		return asset.ErrNotSupported
 	}
@@ -1040,7 +1042,7 @@ func (bi *Bitget) CancelBatchOrders(ctx context.Context, orders []order.Cancel) 
 		var status *BatchOrderResp
 		batchByPair, err := pairBatcher(batch)
 		if err != nil {
-			return nil, err
+			return resp, err
 		}
 		for pair, batch := range batchByPair {
 			switch assetType {
@@ -1061,11 +1063,12 @@ func (bi *Bitget) CancelBatchOrders(ctx context.Context, orders []order.Cancel) 
 			case asset.CrossMargin:
 				status, err = bi.BatchCancelCrossOrders(ctx, pair, batch)
 			default:
-				return nil, asset.ErrNotSupported
+				return resp, asset.ErrNotSupported
 			}
 			if err != nil {
-				return nil, err
+				return resp, err
 			}
+			// The earlier error returns do so with resp, as earlier calls can leave valid status data in that
 			addStatuses(status, resp)
 		}
 	}
