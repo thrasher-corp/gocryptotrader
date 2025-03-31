@@ -770,7 +770,7 @@ func checkPairDelimiter(tb testing.TB, p *PairsManager, err error, d, msg string
 	}
 }
 
-// TestPairManagerUnmarshal tests behaviour expectations:
+// TestPairManagerSetDelimitersFromConfig tests behaviour expectations:
 // * Should error with no ConfigFormat ( `CheckPairConsistency` catches that )
 // * Asset pair config should take precedent
 // * Global store pair config should apply when no Asset pair config

@@ -1951,28 +1951,27 @@ type AccountConfigurationResponse struct {
 	UID                            string       `json:"uid"`
 	MainUID                        string       `json:"mainUid"`
 	AccountSelfTradePreventionMode string       `json:"acctStpMode"`
-	AccountLevel                   string       `json:"acctLv"`     // 1: Simple 2: Single-currency margin 3: Multi-currency margin 4：Portfolio margin
+	AccountLevel                   types.Number `json:"acctLv"`     // 1: Simple 2: Single-currency margin 3: Multi-currency margin 4：Portfolio margin
 	AutoLoan                       bool         `json:"autoLoan"`   // Whether to borrow coins automatically true: borrow coins automatically false: not borrow coins automatically
 	ContractIsolatedMode           string       `json:"ctIsoMode"`  // Contract isolated margin trading settings automatic：Auto transfers autonomy：Manual transfers
 	GreeksType                     string       `json:"greeksType"` // Current display type of Greeks PA: Greeks in coins BS: Black-Scholes Greeks in dollars
-	Level                          types.Number `json:"level"`      // The user level of the current real trading volume on the platform, e.g lv1
+	Level                          string       `json:"level"`      // The user level of the current real trading volume on the platform, e.g lv1
 	LevelTemporary                 string       `json:"levelTmp"`
 	MarginIsolatedMode             string       `json:"mgnIsoMode"` // Margin isolated margin trading settings automatic：Auto transfers autonomy：Manual transfers
 	PositionMode                   string       `json:"posMode"`
-	SpotOffsetType                 string       `json:"spotOffsetType"`
-	RoleType                       string       `json:"roleType"`
-	TraderInsts                    string       `json:"traderInsts"`
-	SpotRoleType                   string       `json:"spotRoleType"`
-	SpotTraderInsts                string       `json:"spotTraderInsts"`
-	OptionalTradingAuth            string       `json:"opAuth"` // Whether the optional trading was activated 0: not activate 1: activated
-	KYCLevel                       string       `json:"kycLv"`
+	RoleType                       types.Number `json:"roleType"` // 0: General user 1: Leading trader 2: Copy trader
+	TraderInsts                    []string     `json:"traderInsts"`
+	SpotRoleType                   types.Number `json:"spotRoleType"` // SPOT copy trading role type. 0: General user；1: Leading trader；2: Copy trader
+	SpotTraderInsts                []string     `json:"spotTraderInsts"`
+	OptionalTradingAuth            types.Number `json:"opAuth"` // Whether the optional trading was activated 0: not activated 1: activated
+	KYCLevel                       types.Number `json:"kycLv"`
 	Label                          string       `json:"label"`
 	IP                             string       `json:"ip"`
 	Permission                     string       `json:"perm"`
-	DiscountType                   string       `json:"discountType"`
-	LiquidationGear                string       `json:"liquidationGear"`
+	LiquidationGear                types.Number `json:"liquidationGear"`
 	EnableSpotBorrow               bool         `json:"enableSpotBorrow"`
 	SpotBorrowAutoRepay            bool         `json:"spotBorrowAutoRepay"`
+	Type                           types.Number `json:"type"` // 0: Main account 1: Standard sub-account 2: Managed trading sub-account 5: Custody trading sub-account - Copper 9: Managed trading sub-account - Copper 12: Custody trading sub-account - Komainu
 }
 
 // PositionMode represents position mode response

@@ -107,7 +107,7 @@ type Config struct {
 	Currency             currency.Config           `json:"currencyConfig"`
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
-	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
+	Portfolio            *portfolio.Base           `json:"portfolioAddresses"`
 	Exchanges            []Exchange                `json:"exchanges"`
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
