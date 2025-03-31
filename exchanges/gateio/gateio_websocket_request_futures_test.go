@@ -200,7 +200,7 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 
 	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	got, err := g.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.Empty, "513170215869")
+	got, err := g.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "513170215869")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
