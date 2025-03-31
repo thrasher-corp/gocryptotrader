@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -570,35 +571,22 @@ func deploySliceOrdered() Tranches {
 }
 
 func TestReverse(t *testing.T) {
-	var b Base
-	b.VerifyOrderbook = true
-
-	if b.Bids = deploySliceOrdered(); len(b.Bids) != 1000 {
-		t.Fatal("incorrect length")
+	b := Base{
+		VerifyOrderbook: true,
 	}
 
-	err := b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	b.Bids = deploySliceOrdered()
+	require.Len(t, b.Bids, 1000)
+	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
 
 	b.Bids.Reverse()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, b.Verify())
 
-	b.Asks = append(b.Bids[:0:0], b.Bids...) //nolint:gocritic //  Short hand
-	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	b.Asks = slices.Clone(b.Bids)
+	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
 
 	b.Asks.Reverse()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, b.Verify())
 }
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op

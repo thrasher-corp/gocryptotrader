@@ -327,7 +327,7 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 	}
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
-	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
+	err = e.RegisterWebsocketDataHandler(func(_ string, _ any) error { return nil }, false)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

@@ -2346,20 +2346,20 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	if err != nil {
 		return 0, err
 	}
-	switch cfg[0].AccountLevel {
-	case "1":
+	switch cfg.AccountLevel {
+	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 		}
 		fallthrough
-	case "2":
+	case 2:
 		return collateral.SpotFuturesMode, nil
-	case "3":
+	case 3:
 		return collateral.MultiMode, nil
-	case "4":
+	case 4:
 		return collateral.PortfolioMode, nil
 	default:
-		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
+		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg.AccountLevel)
 	}
 }
 
@@ -2573,6 +2573,10 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 	if err != nil {
 		return nil, err
 	}
+	contractsMap := make(map[currency.Pair]*futures.Contract)
+	for i := range contracts {
+		contractsMap[contracts[i].Name] = &contracts[i]
+	}
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
@@ -2580,18 +2584,12 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 		}
 		instrumentType := GetInstrumentTypeFromAssetItem(req.Asset)
 
-		multiplier := 1.0
-		var contractSettlementType futures.ContractSettlementType
-		if req.Asset.IsFutures() {
-			for j := range contracts {
-				if !contracts[j].Name.Equal(fPair) {
-					continue
-				}
-				multiplier = contracts[j].Multiplier
-				contractSettlementType = contracts[j].SettlementType
-				break
-			}
+		contract, exist := contractsMap[fPair]
+		if !exist {
+			return nil, fmt.Errorf("%w %v", futures.ErrContractNotSupported, fPair)
 		}
+		multiplier := contract.Multiplier
+		contractSettlementType := contract.SettlementType
 
 		resp[i] = futures.PositionResponse{
 			Pair:                   req.Pairs[i],
@@ -2617,7 +2615,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			return nil, err
 		}
 		for j := range positions {
-			if req.Pairs[i].String() != positions[j].InstrumentID {
+			if fPair.String() != positions[j].InstrumentID {
 				continue
 			}
 			var orderStatus order.Status

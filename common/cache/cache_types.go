@@ -15,11 +15,11 @@ type LRUCache struct {
 type LRU struct {
 	Cap   uint64
 	l     *list.List
-	items map[interface{}]*list.Element
+	items map[any]*list.Element
 }
 
 // item holds key/value for the cache
 type item struct {
-	key   interface{}
-	value interface{}
+	key   any
+	value any
 }

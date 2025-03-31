@@ -84,8 +84,8 @@ func SetupGlobalReporter(r Reporter) {
 // NewWebsocket initialises the websocket struct
 func NewWebsocket() *Websocket {
 	return &Websocket{
-		DataHandler:  make(chan interface{}, jobBuffer),
-		ToRoutine:    make(chan interface{}, jobBuffer),
+		DataHandler:  make(chan any, jobBuffer),
+		ToRoutine:    make(chan any, jobBuffer),
 		ShutdownC:    make(chan struct{}),
 		TrafficAlert: make(chan struct{}, 1),
 		// ReadMessageErrors is buffered for an edge case when `Connect` fails
