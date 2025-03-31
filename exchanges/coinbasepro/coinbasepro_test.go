@@ -241,8 +241,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	t.Parallel()
-	c.Verbose = true
-	ord := PlaceOrderInfo{}
+	ord := &PlaceOrderInfo{}
 	_, err := c.PlaceOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, errClientOrderIDEmpty)
 	ord.ClientOID = "meow"
@@ -254,7 +253,7 @@ func TestPlaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	id, err := uuid.NewV4()
 	assert.NoError(t, err)
-	ord = PlaceOrderInfo{
+	ord = &PlaceOrderInfo{
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
 		Side:       order.Buy.String(),

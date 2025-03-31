@@ -501,7 +501,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			stopDir = "STOP_DIRECTION_STOP_DOWN"
 		}
 	}
-	resp, err := c.PlaceOrder(ctx, PlaceOrderInfo{
+	resp, err := c.PlaceOrder(ctx, &PlaceOrderInfo{
 		ClientOID:             s.ClientOrderID,
 		ProductID:             fPair.String(),
 		Side:                  s.Side.String(),

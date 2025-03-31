@@ -306,7 +306,7 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 }
 
 // PlaceOrder places either a limit, market, or stop order
-func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord PlaceOrderInfo) (*PlaceOrderResp, error) {
+func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*PlaceOrderResp, error) {
 	if ord.ClientOID == "" {
 		return nil, errClientOrderIDEmpty
 	}
