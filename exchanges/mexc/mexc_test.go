@@ -1732,3 +1732,11 @@ func TestGenerateListenKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, listenKey)
 }
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	result, err := me.GetOrderInfo(context.Background(), "12342", currency.EMPTYPAIR, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

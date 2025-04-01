@@ -821,6 +821,26 @@ func (me *MEXC) OrderTypeString(oType order.Type) (string, error) {
 	}
 }
 
+// StringToOrderType returns an order type from string
+func (me *MEXC) StringToOrderType(oType string) (order.Type, error) {
+	switch oType {
+	case "LIMIT_ORDER":
+		return order.Limit, nil
+	case "POST_ONLY":
+		return order.PostOnly, nil
+	case "MARKET_ORDER":
+		return order.Market, nil
+	case "IMMEDIATE_OR_CANCEL":
+		return order.ImmediateOrCancel, nil
+	case "FILL_OR_KILL":
+		return order.FillOrKill, nil
+	case "STOP_LIMIT":
+		return order.StopLimit, nil
+	default:
+		return order.AnyType, order.ErrUnsupportedOrderType
+	}
+}
+
 // CreateBatchOrder creates utmost 30 orders with a same symbol in a batch,rate limit:2 times/s.
 func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]OrderDetail, error) {
 	if len(args) == 0 {

@@ -803,7 +803,54 @@ func (me *MEXC) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 
 // GetOrderInfo returns order information based on order ID
 func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
+	pairFormat, err := me.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	switch assetType {
+	case asset.Spot:
+		result, err := me.GetOrderByID(ctx, pairFormat.Format(pair), "", orderID)
+		if err != nil {
+			return nil, err
+		}
+		oType, err := me.StringToOrderType(result.Type)
+		if err != nil {
+			return nil, err
+		}
+		oSide, err := order.StringToOrderSide(result.Side)
+		if err != nil {
+			return nil, err
+		}
+		oStatus, err := order.StringToOrderStatus(result.Status)
+		if err != nil {
+			return nil, err
+		}
+		cp, err := currency.NewPairFromString(result.Symbol)
+		if err != nil {
+			return nil, err
+		}
+		return &order.Detail{
+			Price:                result.Price.Float64(),
+			Amount:               result.CummulativeQuoteQty.Float64(),
+			ContractAmount:       result.OrigQty.Float64(),
+			AverageExecutedPrice: result.Price.Float64(),
+			ExecutedAmount:       result.ExecutedQty.Float64(),
+			RemainingAmount:      result.OrigQty.Float64() - result.ExecutedQty.Float64(),
+			Exchange:             me.Name,
+			OrderID:              result.OrderID,
+			ClientOrderID:        result.ClientOrderID,
+			Type:                 oType,
+			Side:                 oSide,
+			Status:               oStatus,
+			AssetType:            asset.Spot,
+			LastUpdated:          result.TransactTime.Time(),
+			Pair:                 cp,
+		}, nil
+	case asset.Futures:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("%w: asset type: %v", order.ErrAssetNotSet, assetType)
+	}
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -825,27 +872,18 @@ func (me *MEXC) GetDepositAddress(ctx context.Context, c currency.Code, _ string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (me *MEXC) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (me *MEXC) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (me *MEXC) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -918,19 +956,38 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			}
 			for od := range result.Data {
 				var oType order.Type
-				// switch result.Data[od].OrderType {
-				// 	case
-				// TODO: update this to
-				// }
+				switch result.Data[od].OrderType {
+				case 1:
+					oType = order.Limit
+				case 2:
+					oType = order.PostOnly
+				case 3:
+					oType = order.ImmediateOrCancel
+				case 4:
+					oType = order.FillOrKill
+				case 5:
+					oType = order.Market
+				case 6:
+					oType = order.Chase
+				}
+				// order direction 1open long,2close short,3open short, 4 close long
 				var oSide order.Side
 				switch result.Data[od].Side {
-				// case
+				case 1, 4:
+					oSide = order.Long
+				case 2, 3:
+					oSide = order.Short
 				}
-				// TODO: ...
+				// TODO: fix again
 				var oStatus order.Status
-				// switch result.Data[od].State {
-				// // TODO: ...
-				// }
+				switch result.Data[od].State {
+				case 1:
+					oStatus = order.Active
+				case 2:
+					oStatus = order.AutoDeleverage
+				case 3:
+					oStatus = order.Closed
+				}
 				details = append(details, order.Detail{
 					Leverage:             result.Data[od].Leverage,
 					Price:                result.Data[od].Price,
@@ -950,7 +1007,6 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 					AssetType:            asset.Futures,
 					LastUpdated:          result.Data[od].UpdateTime.Time(),
 					Pair:                 getOrdersRequest.Pairs[p],
-					// Fee: result.Data[od].MakerFee,
 				})
 			}
 		}
@@ -973,7 +1029,10 @@ func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 func (me *MEXC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
-		// TODO: ...
+		if feeBuilder.IsMaker {
+			return 0., nil
+		}
+		return 0.0005, nil
 	case exchange.CryptocurrencyTradeFee:
 		result, err := me.GetSymbolTradingFee(ctx, feeBuilder.Pair.String())
 		if err != nil {
@@ -983,10 +1042,9 @@ func (me *MEXC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 			return result.Data.MakerCommission, nil
 		}
 		return result.Data.TakerCommission, nil
+	case exchange.CryptocurrencyWithdrawalFee:
 	case exchange.CryptocurrencyDepositFee:
-		// TODO: ...
 	case exchange.InternationalBankDepositFee:
-		// TODO: ...
 	}
 	return 0, nil
 }
