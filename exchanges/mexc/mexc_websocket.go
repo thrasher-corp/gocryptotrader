@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc/mexc_proto_types"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -44,6 +45,8 @@ const (
 	chnlIncreaseDepthBatchV3 = "public.increase.depth.batch.v3.api.pb"
 )
 
+var defacultChannels = []string{chnlBookTiker, chnlAggregateDepthV3, chnlDealsV3, chnlIncreaseDepthV3}
+
 // WsConnect initiates a websocket connection
 func (me *MEXC) WsConnect() error {
 	me.Websocket.Enable()
@@ -55,7 +58,13 @@ func (me *MEXC) WsConnect() error {
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}
-
+	if me.Websocket.CanUseAuthenticatedEndpoints() {
+		listenKey, err := me.GenerateListenKey(context.Background())
+		if err != nil {
+			return err
+		}
+		me.Websocket.Conn.SetURL(me.Websocket.Conn.GetURL() + "?listenKey=" + listenKey)
+	}
 	err := me.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -71,13 +80,6 @@ func (me *MEXC) WsConnect() error {
 		Message:     []byte(`{"method": "PING"}`),
 		Delay:       time.Second * 20,
 	})
-	if me.Websocket.CanUseAuthenticatedEndpoints() {
-		// err = me.WsAuth(context.TODO())
-		// if err != nil {
-		// 	log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-		// 	me.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		// }
-	}
 	return me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{Method: "SUBSCRIPTION", Params: []string{"spot@public.aggre.depth.v3.api.pb@100ms@BTCUSDT"}})
 }
 
@@ -90,7 +92,6 @@ func (me *MEXC) wsReadData(ws stream.Connection) {
 			return
 		}
 		if err := me.WsHandleData(resp.Raw); err != nil {
-			panic(err.Error())
 			me.Websocket.DataHandler <- err
 		}
 	}
@@ -98,8 +99,37 @@ func (me *MEXC) wsReadData(ws stream.Connection) {
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (me *MEXC) generateSubscriptions() (subscription.List, error) {
-	return subscription.List{}, nil
-	// return me.Features.Subscriptions.ExpandTemplates(me)
+	subscriptions := subscription.List{}
+	assets := []asset.Item{asset.Spot, asset.Futures}
+	for _, a := range assets {
+		enabledPair, err := me.GetEnabledPairs(a)
+		if err != nil {
+			return nil, err
+		}
+		for c := range defacultChannels {
+			item := &subscription.Subscription{
+				Channel: defacultChannels[c],
+				Pairs:   enabledPair,
+				Asset:   a,
+			}
+			switch defacultChannels[c] {
+			case chnlBookTiker,
+				chnlAggregateDepthV3,
+				chnlAggreDealsV3:
+				item.Interval = kline.HundredMilliseconds
+			case chnlKlineV3:
+				item.Interval = kline.FifteenMin
+			case chnlLimitDepthV3:
+				item.Levels = 5
+			case chnlAccountV3,
+				chnlPrivateDealsV3,
+				chnlPrivateOrdersAPI:
+				item.Pairs = []currency.Pair{}
+			}
+			subscriptions = append(subscriptions, item)
+		}
+	}
+	return subscriptions, nil
 }
 
 func (me *MEXC) Subscribe(channelsToSubscribe subscription.List) error {
@@ -207,7 +237,6 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (me *MEXC) WsHandleData(respRaw []byte) error {
-	print("respRaw[0]: ", respRaw[0])
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 			if !me.Websocket.Match.IncomingWithData(id, respRaw) {
@@ -215,14 +244,11 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 					Message: string(respRaw) + stream.UnhandledMessage,
 				}
 			}
-			return nil
 		}
 		// Ignore json messages which doesn't have an ID.
 		return nil
 	}
 	channelDetail := strings.Split(string(respRaw), "@")
-	println("channelDetail: ", channelDetail)
-	println(string(respRaw))
 	switch channelDetail[1] {
 	case chnlBookTiker:
 		var result mexc_proto_types.PublicAggreBookTickerV3Api
@@ -502,36 +528,105 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		}
 		return nil
 	case chnlPrivateDealsV3:
-		// var result mexc_proto_types.PushDataV3ApiWrapper
-		// err := proto.Unmarshal(respRaw, &result)
-		// if err != nil {
-		// 	return err
-		// }
-		// cp, err := currency.NewPairFromString(*result.Symbol)
-		// if err != nil {
-		// 	return err
-		// }
-		// orderFills := make([]fill.Data, len(result.))
-		// me.Websocket.DataHandler <- fill.Data{
-		// 	ID:           result.TradeId,
-		// 	Timestamp:    result.Time.Time(),
-		// 	Exchange:     me.Name,
-		// 	AssetType:    asset.Spot,
-		// 	CurrencyPair: cp,
-		// 	// Side
-		// 	// OrderID
-		// 	// ClientOrderID
-		// 	// TradeID
-		// 	// Price
-		// 	// Amount
-		// }
-		// return nil
+		body := &mexc_proto_types.PushDataV3ApiWrapper_PrivateDeals{}
+		result := mexc_proto_types.PushDataV3ApiWrapper{
+			Body: body,
+		}
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(*result.Symbol)
+		if err != nil {
+			return err
+		}
+		me.Websocket.DataHandler <- []trade.Data{
+			{
+				TID:          body.PrivateDeals.OrderId,
+				Exchange:     me.Name,
+				CurrencyPair: cp,
+				AssetType:    asset.Spot,
+				Price:        body.PrivateDeals.Price.Float64(),
+				Amount:       body.PrivateDeals.Amount.Float64(),
+				Timestamp:    body.PrivateDeals.Time.Time(),
+				Side: func() order.Side {
+					if body.PrivateDeals.TradeType == 1 {
+						return order.Buy
+					}
+					return order.Sell
+				}(),
+			},
+		}
+		return nil
 	case chnlPrivateOrdersAPI:
+		body := &mexc_proto_types.PushDataV3ApiWrapper_PrivateOrders{}
+		result := mexc_proto_types.PushDataV3ApiWrapper{
+			Body: body,
+		}
+		err := proto.Unmarshal(respRaw, &result)
+		if err != nil {
+			return err
+		}
+		var oType order.Type
+		switch body.PrivateOrders.OrderType {
+		case 1:
+			oType = order.Limit
+		case 2:
+			oType = order.PostOnly
+		case 3:
+			oType = order.ImmediateOrCancel
+		case 4:
+			oType = order.FillOrKill
+		case 5:
+			oType = order.Market
+		case 100:
+			oType = order.OCO
+		}
+		var oStatus order.Status
+		switch body.PrivateOrders.Status {
+		case 1:
+			oStatus = order.New
+		case 2:
+			oStatus = order.Filled
+		case 3:
+			oStatus = order.PartiallyFilled
+		case 4:
+			oStatus = order.Cancelled
+		case 5:
+			oStatus = order.PartiallyCancelled
+		}
+		cp, err := currency.NewPairFromString(*result.Symbol)
+		if err != nil {
+			return err
+		}
+		me.Websocket.DataHandler <- &order.Detail{
+			PostOnly:             body.PrivateOrders.OrderType == 2,
+			Price:                body.PrivateOrders.Price.Float64(),
+			Amount:               body.PrivateOrders.Amount.Float64(),
+			ContractAmount:       body.PrivateOrders.Quantity.Float64(),
+			AverageExecutedPrice: body.PrivateOrders.AvgPrice.Float64(),
+			QuoteAmount:          body.PrivateOrders.Amount.Float64(),
+			ExecutedAmount:       body.PrivateOrders.CumulativeAmount.Float64() - body.PrivateOrders.RemainAmount.Float64(),
+			RemainingAmount:      body.PrivateOrders.RemainAmount.Float64(),
+			Exchange:             me.Name,
+			OrderID:              body.PrivateOrders.Id,
+			ClientID:             body.PrivateOrders.ClientId,
+			Type:                 oType,
+			Side: func() order.Side {
+				if body.PrivateOrders.TradeType == 1 {
+					return order.Buy
+				}
+				return order.Sell
+			}(),
+			Status:      oStatus,
+			AssetType:   asset.Spot,
+			LastUpdated: body.PrivateOrders.CreateTime.Time(),
+			Pair:        cp,
+		}
 	default:
 		me.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: string(respRaw) + stream.UnhandledMessage,
 		}
-		return nil
 	}
 	return nil
 }

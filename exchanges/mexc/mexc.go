@@ -1216,6 +1216,14 @@ func (me *MEXC) GetSubAffiliateData(ctx context.Context, startTime, endTime time
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, subAffiliateDataEPL, http.MethodGet, "rebate/affiliate/subaffiliates", params, nil, &resp, true)
 }
 
+// GenerateListenKey starts a new data stream. The stream will close 60 minutes after creation unless a keepalive is sent.
+func (me *MEXC) GenerateListenKey(ctx context.Context) (string, error) {
+	resp := &struct {
+		ListenKey string `json:"listenKey"`
+	}{}
+	return resp.ListenKey, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "v3/userDataStream", nil, nil, &resp, true)
+}
+
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
 func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
 	ePoint, err := me.API.Endpoints.GetURL(ep)

@@ -1725,7 +1725,10 @@ func TestWsConnect(t *testing.T) {
 	time.Sleep(time.Second * 10)
 }
 
-func TestProtoUnmarshal(t *testing.T) {
+func TestGenerateListenKey(t *testing.T) {
 	t.Parallel()
-	// proto.Unmarshal()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	listenKey, err := me.GenerateListenKey(context.Background())
+	require.NoError(t, err)
+	assert.NotEmpty(t, listenKey)
 }

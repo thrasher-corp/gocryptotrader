@@ -9,11 +9,13 @@
 package mexc_proto_types
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -27,20 +29,20 @@ type PrivateOrdersV3Api struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ClientId           string                 `protobuf:"bytes,2,opt,name=clientId,proto3" json:"clientId,omitempty"`
-	Price              string                 `protobuf:"bytes,3,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity           string                 `protobuf:"bytes,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	Amount             string                 `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
-	AvgPrice           string                 `protobuf:"bytes,6,opt,name=avgPrice,proto3" json:"avgPrice,omitempty"`
+	Price              types.Number                 `protobuf:"bytes,3,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity           types.Number                 `protobuf:"bytes,4,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Amount             types.Number                 `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	AvgPrice           types.Number                 `protobuf:"bytes,6,opt,name=avgPrice,proto3" json:"avgPrice,omitempty"`
 	OrderType          int32                  `protobuf:"varint,7,opt,name=orderType,proto3" json:"orderType,omitempty"`
 	TradeType          int32                  `protobuf:"varint,8,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
 	IsMaker            bool                   `protobuf:"varint,9,opt,name=isMaker,proto3" json:"isMaker,omitempty"`
-	RemainAmount       string                 `protobuf:"bytes,10,opt,name=remainAmount,proto3" json:"remainAmount,omitempty"`
-	RemainQuantity     string                 `protobuf:"bytes,11,opt,name=remainQuantity,proto3" json:"remainQuantity,omitempty"`
+	RemainAmount       types.Number                 `protobuf:"bytes,10,opt,name=remainAmount,proto3" json:"remainAmount,omitempty"`
+	RemainQuantity     types.Number                 `protobuf:"bytes,11,opt,name=remainQuantity,proto3" json:"remainQuantity,omitempty"`
 	LastDealQuantity   *string                `protobuf:"bytes,12,opt,name=lastDealQuantity,proto3,oneof" json:"lastDealQuantity,omitempty"`
-	CumulativeQuantity string                 `protobuf:"bytes,13,opt,name=cumulativeQuantity,proto3" json:"cumulativeQuantity,omitempty"`
-	CumulativeAmount   string                 `protobuf:"bytes,14,opt,name=cumulativeAmount,proto3" json:"cumulativeAmount,omitempty"`
+	CumulativeQuantity types.Number                 `protobuf:"bytes,13,opt,name=cumulativeQuantity,proto3" json:"cumulativeQuantity,omitempty"`
+	CumulativeAmount   types.Number                 `protobuf:"bytes,14,opt,name=cumulativeAmount,proto3" json:"cumulativeAmount,omitempty"`
 	Status             int32                  `protobuf:"varint,15,opt,name=status,proto3" json:"status,omitempty"`
-	CreateTime         int64                  `protobuf:"varint,16,opt,name=createTime,proto3" json:"createTime,omitempty"`
+	CreateTime         types.Time                  `protobuf:"varint,16,opt,name=createTime,proto3" json:"createTime,omitempty"`
 	Market             *string                `protobuf:"bytes,17,opt,name=market,proto3,oneof" json:"market,omitempty"`
 	TriggerType        *int32                 `protobuf:"varint,18,opt,name=triggerType,proto3,oneof" json:"triggerType,omitempty"`
 	TriggerPrice       *string                `protobuf:"bytes,19,opt,name=triggerPrice,proto3,oneof" json:"triggerPrice,omitempty"`
