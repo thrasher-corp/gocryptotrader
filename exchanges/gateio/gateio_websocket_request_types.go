@@ -160,8 +160,8 @@ type WebsocketAmendOrder struct {
 // WebsocketFuturesAmendOrder defines a websocket amend order
 type WebsocketFuturesAmendOrder struct {
 	OrderID   string        `json:"order_id"`
-	Contract  currency.Pair `json:"-"` // Excluded from payload; used internally to determine routing
-	Asset     asset.Item    `json:"-"` // Excluded from payload; used internally to determine routing
+	Contract  currency.Pair `json:"-"` // Only used internally for routing
+	Asset     asset.Item    `json:"-"` // Only used internally for routing
 	AmendText string        `json:"amend_text,omitempty"`
 	Price     string        `json:"price,omitempty"`
 	Size      int64         `json:"size,omitempty"`
@@ -170,7 +170,7 @@ type WebsocketFuturesAmendOrder struct {
 // WebsocketFutureOrdersList defines a websocket future orders list
 type WebsocketFutureOrdersList struct {
 	Contract currency.Pair `json:"contract,omitempty"`
-	Asset    asset.Item    `json:"-"` // Excluded from payload; used internally to determine routing
+	Asset    asset.Item    `json:"-"` // Only used internally for routing
 	Status   string        `json:"status"`
 	Limit    int64         `json:"limit,omitempty"`
 	Offset   int64         `json:"offset,omitempty"`
