@@ -254,7 +254,6 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 		assets, exist := subAccounts[accAsset]
 		if !exist {
 			assets = make(map[*currency.Item]*ProtectedBalance)
-
 			accounts.subAccounts[*creds][accAsset] = assets
 		}
 
