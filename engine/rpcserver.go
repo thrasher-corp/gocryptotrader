@@ -1276,11 +1276,7 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 		return nil, err
 	}
 
-	buy := true
-	if !strings.EqualFold(r.Side, order.Buy.String()) &&
-		!strings.EqualFold(r.Side, order.Bid.String()) {
-		buy = false
-	}
+	buy := strings.EqualFold(r.Side, order.Buy.String()) || strings.EqualFold(r.Side, order.Bid.String())
 
 	result, err := o.SimulateOrder(r.Amount, buy)
 	if err != nil {
@@ -1332,11 +1328,7 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 		return nil, err
 	}
 
-	buy := true
-	if !strings.EqualFold(r.Side, order.Buy.String()) &&
-		!strings.EqualFold(r.Side, order.Bid.String()) {
-		buy = false
-	}
+	buy := strings.EqualFold(r.Side, order.Buy.String()) || strings.EqualFold(r.Side, order.Bid.String())
 
 	result, err := o.WhaleBomb(r.PriceTarget, buy)
 	if err != nil {
@@ -1822,24 +1814,23 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %s", err)
 	}
 
-	if v.RequestDetails.Type == withdraw.Crypto {
+	switch v.RequestDetails.Type {
+	case withdraw.Crypto:
 		resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 		resp.Event.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address:    v.RequestDetails.Crypto.Address,
 			AddressTag: v.RequestDetails.Crypto.AddressTag,
 			Fee:        v.RequestDetails.Crypto.FeeAmount,
 		}
-	} else if v.RequestDetails.Type == withdraw.Fiat {
-		if v.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
-			resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
-			resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
-				BankName:      v.RequestDetails.Fiat.Bank.BankName,
-				AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
-				AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
-				Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
-				Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
-				Iban:          v.RequestDetails.Fiat.Bank.IBAN,
-			}
+	case withdraw.Fiat:
+		resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+		resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+			BankName:      v.RequestDetails.Fiat.Bank.BankName,
+			AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
+			AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
+			Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
+			Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
+			Iban:          v.RequestDetails.Fiat.Bank.IBAN,
 		}
 	}
 
@@ -3657,26 +3648,26 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %s", err)
 		}
 
-		if ret[x].RequestDetails.Type == withdraw.Crypto {
+		switch ret[x].RequestDetails.Type {
+		case withdraw.Crypto:
 			tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 			tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 				Address:    ret[x].RequestDetails.Crypto.Address,
 				AddressTag: ret[x].RequestDetails.Crypto.AddressTag,
 				Fee:        ret[x].RequestDetails.Crypto.FeeAmount,
 			}
-		} else if ret[x].RequestDetails.Type == withdraw.Fiat {
-			if ret[x].RequestDetails.Fiat != (withdraw.FiatRequest{}) {
-				tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
-				tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
-					BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
-					AccountName:   ret[x].RequestDetails.Fiat.Bank.AccountName,
-					AccountNumber: ret[x].RequestDetails.Fiat.Bank.AccountNumber,
-					Bsb:           ret[x].RequestDetails.Fiat.Bank.BSBNumber,
-					Swift:         ret[x].RequestDetails.Fiat.Bank.SWIFTCode,
-					Iban:          ret[x].RequestDetails.Fiat.Bank.IBAN,
-				}
+		case withdraw.Fiat:
+			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+				BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
+				AccountName:   ret[x].RequestDetails.Fiat.Bank.AccountName,
+				AccountNumber: ret[x].RequestDetails.Fiat.Bank.AccountNumber,
+				Bsb:           ret[x].RequestDetails.Fiat.Bank.BSBNumber,
+				Swift:         ret[x].RequestDetails.Fiat.Bank.SWIFTCode,
+				Iban:          ret[x].RequestDetails.Fiat.Bank.IBAN,
 			}
 		}
+
 		v.Event = append(v.Event, tempEvent)
 	}
 	return v
@@ -3742,14 +3733,15 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %s", err)
 	}
 
-	if ret.RequestDetails.Type == withdraw.Crypto {
+	switch ret.RequestDetails.Type {
+	case withdraw.Crypto:
 		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address:    ret.RequestDetails.Crypto.Address,
 			AddressTag: ret.RequestDetails.Crypto.AddressTag,
 			Fee:        ret.RequestDetails.Crypto.FeeAmount,
 		}
-	} else if ret.RequestDetails.Type == withdraw.Fiat {
+	case withdraw.Fiat:
 		if ret.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
 			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{

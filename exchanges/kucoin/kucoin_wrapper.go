@@ -1004,9 +1004,10 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		if side == order.Sell {
+		switch side {
+		case order.Sell:
 			side = order.Short
-		} else if side == order.Buy {
+		case order.Buy:
 			side = order.Long
 		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
@@ -1202,7 +1203,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if err != nil {
 		return nil, err
 	}
-	if getOrdersRequest.Validate() != nil {
+	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
 	format, err := ku.GetPairFormat(getOrdersRequest.AssetType, true)
@@ -1242,15 +1243,19 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if !enabled {
 				continue
 			}
+
 			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
 			if err != nil {
 				return nil, err
 			}
-			if side == order.Sell {
+
+			switch side {
+			case order.Sell:
 				side = order.Short
-			} else if side == order.Buy {
+			case order.Buy:
 				side = order.Long
 			}
+
 			oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
 			if err != nil {
 				return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
@@ -1442,18 +1447,18 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 	if getOrdersRequest == nil {
 		return nil, common.ErrNilPointer
 	}
-	err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType)
+	if err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType); err != nil {
+		return nil, err
+	}
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	sideString, err := ku.OrderSideString(getOrdersRequest.Side)
 	if err != nil {
 		return nil, err
 	}
-	if getOrdersRequest.Validate() != nil {
-		return nil, err
-	}
-	var sideString string
-	sideString, err = ku.OrderSideString(getOrdersRequest.Side)
-	if err != nil {
-		return nil, err
-	}
+
 	var orders []order.Detail
 	var orderSide order.Side
 	var orderStatus order.Status

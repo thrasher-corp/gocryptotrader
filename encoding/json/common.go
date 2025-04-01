@@ -1,4 +1,4 @@
-// json is an abstraction middleware package to allow switching between json encoder/decoder implementations
+// Package json is an abstraction middleware package to allow switching between json encoder/decoder implementations
 // The default implementation is golang.org/encoding/json.
 // Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
 package json

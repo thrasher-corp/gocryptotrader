@@ -69,22 +69,20 @@ func (m *WithdrawManager) SubmitWithdrawal(ctx context.Context, req *withdraw.Re
 				return nil, withdraw.ErrStrExchangeNotSupportedByAddress
 			}
 		}
-		if req.Type == withdraw.Fiat {
+		switch req.Type {
+		case withdraw.Fiat:
 			ret, err = exch.WithdrawFiatFunds(ctx, req)
-			if err != nil {
-				resp.Exchange.Status = err.Error()
-			} else {
-				resp.Exchange.Status = ret.Status
-				resp.Exchange.ID = ret.ID
-			}
-		} else if req.Type == withdraw.Crypto {
+		case withdraw.Crypto:
 			ret, err = exch.WithdrawCryptocurrencyFunds(ctx, req)
-			if err != nil {
-				resp.Exchange.Status = err.Error()
-			} else {
-				resp.Exchange.Status = ret.Status
-				resp.Exchange.ID = ret.ID
-			}
+		default:
+			return nil, fmt.Errorf("unsupported withdrawal type: %v", req.Type)
+		}
+
+		if err != nil {
+			resp.Exchange.Status = err.Error()
+		} else {
+			resp.Exchange.Status = ret.Status
+			resp.Exchange.ID = ret.ID
 		}
 	}
 	dbwithdraw.Event(resp)

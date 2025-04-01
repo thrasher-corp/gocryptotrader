@@ -1301,9 +1301,10 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	}
 
 	var baseSize float64
-	if r.Asset == asset.Futures {
+	switch r.Asset {
+	case asset.Futures:
 		baseSize = pos[index].SizeCurrency
-	} else if r.Asset == asset.Options {
+	case asset.Options:
 		baseSize = pos[index].Size
 	}
 	contractSize = multiplier * baseSize
@@ -1507,10 +1508,7 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 
 	var fundingRates []fundingrate.Rate
 	mfr := make(map[int64]struct{})
-	for {
-		if ed.Equal(r.StartDate) || ed.Before(r.StartDate) {
-			break
-		}
+	for !ed.Equal(r.StartDate) && !ed.Before(r.StartDate) {
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
 			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)
