@@ -171,8 +171,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c cur
 
 	subAccounts, ok := accounts.subAccounts[*creds]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s %s",
-			errNoCredentialBalances, exch, creds)
+		return nil, fmt.Errorf("%w for %s %s", errNoCredentialBalances, exch, creds)
 	}
 
 	assets, ok := subAccounts[key.SubAccountAsset{
@@ -180,11 +179,11 @@ func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c cur
 		Asset:      a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount `%s` %s %s", errNoExchangeSubAccountBalances, exch, subAccount, a, c)
+		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, exch, subAccount, a, c)
 	}
 	bal, ok := assets[c.Item]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount `%s` %s %s", errNoExchangeSubAccountBalances, exch, subAccount, a, c)
+		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, exch, subAccount, a, c)
 	}
 	return bal, nil
 }

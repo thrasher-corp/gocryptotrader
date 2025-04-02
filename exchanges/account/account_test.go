@@ -318,7 +318,7 @@ func TestGetFree(t *testing.T) {
 	}
 }
 
-func TestLoad(t *testing.T) {
+func TestSave(t *testing.T) {
 	t.Parallel()
 	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
 	err := s.Save(nil, nil)
