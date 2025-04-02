@@ -922,7 +922,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		switch s.Type {
 		case order.Limit:
 			oType = cfuturesLimit
-			timeInForce = order.GoodTillTime.String()
+			timeInForce = order.GoodTillCancel.String()
 		case order.Market:
 			oType = cfuturesMarket
 		case order.Stop:
