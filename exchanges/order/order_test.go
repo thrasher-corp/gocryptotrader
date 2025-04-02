@@ -298,30 +298,31 @@ func TestTitle(t *testing.T) {
 	require.Equal(t, "Limit", orderType.Title())
 }
 
+var orderTypeToStringMap = map[Type]string{
+	AnyType:                          "ANY",
+	Limit:                            "LIMIT",
+	Market:                           "MARKET",
+	Stop:                             "STOP",
+	ConditionalStop:                  "CONDITIONAL",
+	MarketMakerProtection:            "MMP",
+	MarketMakerProtectionAndPostOnly: "MMP_AND_POST_ONLY",
+	TWAP:                             "TWAP",
+	Chase:                            "CHASE",
+	StopLimit:                        "STOP LIMIT",
+	StopMarket:                       "STOP MARKET",
+	TakeProfit:                       "TAKE PROFIT",
+	TakeProfitMarket:                 "TAKE PROFIT MARKET",
+	TrailingStop:                     "TRAILING_STOP",
+	IOS:                              "IOS",
+	Liquidation:                      "LIQUIDATION",
+	Trigger:                          "TRIGGER",
+	OptimalLimitIOC:                  "OPTIMAL_LIMIT_IOC",
+	OCO:                              "OCO",
+	Type(3):                          "UNKNOWN",
+}
+
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	var orderTypeToStringMap = map[Type]string{
-		AnyType:                          "ANY",
-		Limit:                            "LIMIT",
-		Market:                           "MARKET",
-		Stop:                             "STOP",
-		ConditionalStop:                  "CONDITIONAL",
-		MarketMakerProtection:            "MMP",
-		MarketMakerProtectionAndPostOnly: "MMP_AND_POST_ONLY",
-		TWAP:                             "TWAP",
-		Chase:                            "CHASE",
-		StopLimit:                        "STOP LIMIT",
-		StopMarket:                       "STOP MARKET",
-		TakeProfit:                       "TAKE PROFIT",
-		TakeProfitMarket:                 "TAKE PROFIT MARKET",
-		TrailingStop:                     "TRAILING_STOP",
-		IOS:                              "IOS",
-		Liquidation:                      "LIQUIDATION",
-		Trigger:                          "TRIGGER",
-		OptimalLimitIOC:                  "OPTIMAL_LIMIT_IOC",
-		OCO:                              "OCO",
-		Type(3):                          "UNKNOWN",
-	}
 	for k, v := range orderTypeToStringMap {
 		orderTypeString := k.String()
 		assert.Equal(t, v, orderTypeString)
@@ -330,7 +331,7 @@ func TestOrderTypeString(t *testing.T) {
 
 func TestOrderTypeIs(t *testing.T) {
 	t.Parallel()
-	var orderTypesMap = map[Type][]Type{
+	orderTypesMap := map[Type][]Type{
 		Limit:                            {Limit},
 		Market:                           {Market},
 		ConditionalStop:                  {ConditionalStop},
@@ -1005,7 +1006,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Equal(t, 1., od.Amount)
 	assert.Equal(t, 1., od.TriggerPrice)
 	assert.Equal(t, 1., od.RemainingAmount)
-	assert.Equal(t, "", od.Exchange, "Should not be able to update exchange via modify")
+	assert.Empty(t, od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, Type(1), od.Type)
 	assert.Equal(t, Side(1), od.Side)
@@ -1882,7 +1883,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	}{}
 	err := json.Unmarshal([]byte(data), &target)
 	require.NoError(t, err)
-	require.EqualValues(t, targets, target.TIFs)
+	require.Equal(t, targets, target.TIFs)
 }
 
 func TestSideMarshalJSON(t *testing.T) {
