@@ -32186,6 +32186,108 @@
     }
    ]
   },
+  "/margin/accountMargin": {
+   "GET": [
+    {
+     "data": {
+      "freeMargin": "0",
+      "maintenanceMargin": "0",
+      "marginRatio": "999",
+      "time": 1743582727041,
+      "totalAccountValue": "0",
+      "totalMargin": "0",
+      "usedMargin": "0"
+     },
+     "queryString": "accountType=SPOT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "AlodA3huncx2EKGKaFMYdvJjalFO3AGjIH+9r+zT3vg="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743582725984"
+      ]
+     }
+    }
+   ]
+  },
+  "/margin/borrowStatus": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "currency=USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "k/L1jfrYDNPi17PuNJpCX+JUiEkgzIs5UUsK7BM9TOs="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743582655735"
+      ]
+     }
+    }
+   ]
+  },
+  "/margin/maxSize": {
+   "GET": [
+    {
+     "data": {
+      "availableBuy": "0",
+      "availableSell": "0",
+      "maxAvailableBuy": "0",
+      "maxAvailableSell": "0",
+      "maxLeverage": 3,
+      "symbol": "BTC_USDT"
+     },
+     "queryString": "symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "r04c437l1k68mBNJwS4B5H5pJkWWNagwM0gehfL4wZ0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743582512480"
+      ]
+     }
+    }
+   ]
+  },
   "/markets": {
    "GET": [
     {
@@ -42064,6 +42166,221 @@
       ]
      ],
      "queryString": "endTime=1718550300000\u0026interval=MINUTE_5\u0026limit=500\u0026startTime=1718546400000",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      [
+       "84140.45",
+       "84264",
+       "84190.25",
+       "84166.85",
+       "117810.85",
+       "1.398574",
+       "73617.51",
+       "0.873654",
+       74,
+       1743580181248,
+       "84236.42",
+       "MINUTE_5",
+       1743579900000,
+       1743580199999
+      ],
+      [
+       "84186",
+       "84333.17",
+       "84244.81",
+       "84333.16",
+       "180194.3",
+       "2.138449",
+       "179980.53",
+       "2.135913",
+       121,
+       1743580463247,
+       "84264.01",
+       "MINUTE_5",
+       1743580200000,
+       1743580499999
+      ],
+      [
+       "84300.84",
+       "84364.62",
+       "84352.27",
+       "84364.62",
+       "13774.82",
+       "0.163279",
+       "13606.27",
+       "0.16128",
+       22,
+       1743580746248,
+       "84363.73",
+       "MINUTE_5",
+       1743580500000,
+       1743580799999
+      ],
+      [
+       "84296.61",
+       "84364.62",
+       "84364.6",
+       "84342.05",
+       "14128.62",
+       "0.167475",
+       "13602.3",
+       "0.161233",
+       26,
+       1743581088248,
+       "84362.61",
+       "MINUTE_5",
+       1743580800000,
+       1743581099999
+      ],
+      [
+       "84304.01",
+       "84310.63",
+       "84310.63",
+       "84304.01",
+       "26.13",
+       "0.00031",
+       "11.04",
+       "0.000131",
+       2,
+       1743581326247,
+       "84307.83",
+       "MINUTE_5",
+       1743581100000,
+       1743581399999
+      ],
+      [
+       "84281.76",
+       "84310.63",
+       "84307.54",
+       "84310.63",
+       "81.43",
+       "0.000966",
+       "66.68",
+       "0.000791",
+       7,
+       1743581540248,
+       "84304.05",
+       "MINUTE_5",
+       1743581400000,
+       1743581699999
+      ],
+      [
+       "84203.2",
+       "84296.61",
+       "84296.61",
+       "84254.73",
+       "174.74",
+       "0.002074",
+       "129.99",
+       "0.001543",
+       8,
+       1743581861248,
+       "84253.87",
+       "MINUTE_5",
+       1743581700000,
+       1743581999999
+      ],
+      [
+       "84286.27",
+       "84364.61",
+       "84320.32",
+       "84364.61",
+       "4425.16",
+       "0.052481",
+       "2.36",
+       "0.000028",
+       9,
+       1743582250248,
+       "84319.37",
+       "MINUTE_5",
+       1743582000000,
+       1743582299999
+      ],
+      [
+       "84355.71",
+       "84523",
+       "84355.71",
+       "84517.46",
+       "129436.66",
+       "1.534016",
+       "129436.66",
+       "1.534016",
+       79,
+       1743582577247,
+       "84377.67",
+       "MINUTE_5",
+       1743582300000,
+       1743582599999
+      ],
+      [
+       "84469.07",
+       "84591.33",
+       "84490.76",
+       "84591.33",
+       "118732.89",
+       "1.404308",
+       "118623.88",
+       "1.403018",
+       76,
+       1743582882248,
+       "84549.05",
+       "MINUTE_5",
+       1743582600000,
+       1743582899999
+      ],
+      [
+       "84542.6",
+       "84615.1",
+       "84590.69",
+       "84601.34",
+       "51410.75",
+       "0.607771",
+       "19564.88",
+       "0.231348",
+       36,
+       1743583195248,
+       "84589.03",
+       "MINUTE_5",
+       1743582900000,
+       1743583199999
+      ],
+      [
+       "84549.68",
+       "84585.71",
+       "84585.71",
+       "84580",
+       "36396.49",
+       "0.430391",
+       "36322.48",
+       "0.429516",
+       27,
+       1743583480248,
+       "84566.11",
+       "MINUTE_5",
+       1743583200000,
+       1743583499999
+      ],
+      [
+       "84617.49",
+       "84622.68",
+       "84617.49",
+       "84622.68",
+       "7309.87",
+       "0.086382",
+       "7309.87",
+       "0.086382",
+       2,
+       1743583508247,
+       "84622.66",
+       "MINUTE_5",
+       1743583500000,
+       1743583799999
+      ]
+     ],
+     "queryString": "endTime=1743583800000\u0026interval=MINUTE_5\u0026limit=500\u0026startTime=1743579900000",
      "bodyParams": "",
      "headers": {}
     }
@@ -102209,13 +102526,13 @@
        "1500"
       ],
       "Signature": [
-       "g0e27R/NXykcQb6M9Tjt345t0CYeN4PbJPo0/XhcYJ8="
+       "tepCtSYetCOsiW8dqjgbTIFD0duzMDGgZ5zBGtHyr54="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742737633291"
+       "1743582455963"
       ]
      }
     }
@@ -102273,13 +102590,13 @@
        "1500"
       ],
       "Signature": [
-       "gpqoIBMV96WceA79Xb8+LE27Twc5aGAodiCZiayRI2s="
+       "wK/Z6GwXmKYJFeNjHFnVp1/0RtNfLYhhlYydEi3B0Uo="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742835476665"
+       "1743583199424"
       ]
      }
     }
@@ -102302,13 +102619,45 @@
        "1500"
       ],
       "Signature": [
-       "pMXR/Zqcx5p/67hEir3nf91jMf5j+BTC8FxE3X3YwVE="
+       "+V7f5qJWFsCnD/hGpNSo6v/nLtjcLu4YaHsNtBg8Mdc="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742835476006"
+       "1743583198410"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/12345536545645": {
+   "GET": [
+    {
+     "data": {
+      "code": 21301,
+      "message": "Order not exists"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "NAqDZLMxPcSHJSR1y4MfjnPkgVx9pYRfTr3e/l4pYfs="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743582404245"
       ]
      }
     }
@@ -102393,6 +102742,92 @@
        "1742738478585"
       ]
      }
+    },
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "bLcGWrZz7d55I3Y2KmiItMlLGR23YXIHCN82eVM7s8g="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743580655950"
+      ]
+     }
+    }
+   ]
+  },
+  "/orders/killSwitchStatus": {
+   "GET": [
+    {
+     "data": {
+      "code": 25020,
+      "message": "No active kill switch"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "VznREj3r1cMx4v/Jj8iP+6PQAh1bTwGMfYo52GS3DVw="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743582255252"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "limit=10",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "myAnjmC+YpfaGjzLwsuzyhhSgEd/5wT0OOXZIjssT0g="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743582151201"
+      ]
+     }
     }
    ]
   },
@@ -102431,10 +102866,14 @@
     }
    ]
   },
-  "/smartorders/1234": {
+  "/smartorders/123313413": {
    "GET": [
     {
-     "data": null,
+     "data": {
+      "code": 607,
+      "data": [],
+      "message": "Data not found"
+     },
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -102448,13 +102887,75 @@
        "1500"
       ],
       "Signature": [
-       "l7wT3HrIXpsuAzuwaHDtigMtnV3+yvz94AhsC9IeLXk="
+       "PUEnGw/pjkq1Tm/VF+UHM3RHGi1RwDe8XWZjCwPQ8S8="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742835477119"
+       "1743580811918"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/1234": {
+   "GET": [
+    {
+     "data": {
+      "code": 607,
+      "data": [],
+      "message": "Data not found"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "yo7bqWJz9Z9Cr09MsaShnslGSS6mngMy4jTEff4XEbQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743583199898"
+      ]
+     }
+    }
+   ]
+  },
+  "/smartorders/history": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "F9AMFTFckduNoZcgBjzdaUpNuYGXd3SYW5SyKwDQ6m4="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743580587866"
       ]
      }
     }
@@ -137350,6 +137851,16 @@
      "queryString": "interval=MINUTE_5\u0026limit=100\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": 24105,
+      "data": "",
+      "msg": "Invalid start time!"
+     },
+     "queryString": "eTime=1743579900000\u0026interval=MINUTE_5\u0026limit=500\u0026sTime=1743579900000\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -143689,7 +144200,7 @@
       "deposits": [],
       "withdrawals": []
      },
-     "queryString": "end=1742832397\u0026start=1711296397",
+     "queryString": "end=1743582950\u0026start=1743575750",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -143702,13 +144213,13 @@
        "1500"
       ],
       "Signature": [
-       "1bDAkCHGlqIV1SXgylYTWtuq8p1ZuIJZZXZAUecUWGI="
+       "RetghI0vPdTu9VZsV5keSYxbMNRGBjwv0/ZqsGhacpo="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742832397593"
+       "1743582950138"
       ]
      }
     },
@@ -143716,7 +144227,7 @@
      "data": {
       "withdrawals": []
      },
-     "queryString": "activityType=withdrawals\u0026end=1742832430\u0026start=1711296430",
+     "queryString": "activityType=withdrawals\u0026end=1743583374\u0026start=1712047374",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -143729,13 +144240,40 @@
        "1500"
       ],
       "Signature": [
-       "7F+aXsznLdxpJ3hGuc7UBCijnxURmCFobmaJn0DuP8g="
+       "CtW9aJWMQgujt+GB/ALkiPD8v4reolJJwVV1Y/cu7Sg="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742832430430"
+       "1743583374230"
+      ]
+     }
+    },
+    {
+     "data": {
+      "withdrawals": []
+     },
+     "queryString": "activityType=withdrawals\u0026end=1743583403\u0026start=1712047403",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "1O0vbWWscAXvh7C7Q+3Shh+TPcQrebnNdXHp8ppMOSA="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743583403052"
       ]
      }
     }
@@ -143758,13 +144296,13 @@
        "1500"
       ],
       "Signature": [
-       "4E9n4yKURCf40w/IhVYb/MkU6rwXdX0BbOnQ/z4uNk8="
+       "moKR3+qVVlnfGE72CpIVVGuV8sLfeTUr7w1a1drSTXE="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742835548003"
+       "1743583231005"
       ]
      }
     }
