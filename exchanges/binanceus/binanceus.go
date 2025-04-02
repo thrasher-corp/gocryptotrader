@@ -807,13 +807,11 @@ func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, e
 	params := url.Values{}
 	params.Set("type", "SPOT")
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	if !(startTime.IsZero() && startTime.Unix() <= 0) && startTime.Before(time.Now()) {
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
-	if !(endTime.IsZero() && endTime.Unix() <= 0) && endTime.After(time.Now()) {
-		if (params.Get("startTime") != "" && endTime.After(startTime)) || params.Get("startTime") == "" {
-			params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-		}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -1728,7 +1726,7 @@ func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email stri
 func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
 	switch {
-	case !(userBusinessType == 0 || userBusinessType == 1):
+	case userBusinessType != 0 && userBusinessType != 1:
 		return nil, errInvalidUserBusinessType
 	case page == 0:
 		return nil, errMissingPageNumber

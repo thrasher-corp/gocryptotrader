@@ -63,7 +63,7 @@ func TestAdd(t *testing.T) {
 	require.NoError(t, s.Add(sub), "Should not error on a standard add")
 	assert.NotNil(t, s.get(sub), "Should have stored the sub")
 	assert.ErrorIs(t, s.Add(sub), ErrDuplicate, "Should error on duplicates")
-	assert.NotNil(t, sub.Key, sub, "Add should call EnsureKeyed")
+	assert.NotNil(t, sub.Key, "Add should call EnsureKeyed")
 }
 
 // TestGet exercises Get and get methods
