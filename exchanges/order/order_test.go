@@ -923,7 +923,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Equal(t, 1., od.Amount)
 	assert.Equal(t, 1., od.TriggerPrice)
 	assert.Equal(t, 1., od.RemainingAmount)
-	assert.Equal(t, "", od.Exchange, "Should not be able to update exchange via modify")
+	assert.Empty(t, od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, Type(1), od.Type)
 	assert.Equal(t, Side(1), od.Side)
@@ -1800,7 +1800,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	}{}
 	err := json.Unmarshal([]byte(data), &target)
 	require.NoError(t, err)
-	require.EqualValues(t, targets, target.TIFs)
+	require.Equal(t, targets, target.TIFs)
 }
 
 func TestSideMarshalJSON(t *testing.T) {
