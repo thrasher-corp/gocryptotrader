@@ -1508,7 +1508,7 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 
 	var fundingRates []fundingrate.Rate
 	mfr := make(map[int64]struct{})
-	for !ed.Equal(r.StartDate) && !ed.Before(r.StartDate) {
+	for ed.After(r.StartDate) {
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
 			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)

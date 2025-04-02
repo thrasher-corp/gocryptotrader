@@ -2941,7 +2941,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 		return nil, err
 	}
 
-	base := exch.GetBase() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	base := exch.GetBase()
 	if base == nil {
 		return nil, errExchangeBaseNotFound
 	}
@@ -5072,7 +5072,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		bollinger, err = klines.GetBollingerBands(r.Period,
 			r.StandardDeviationUp,
 			r.StandardDeviationDown,
-			indicators.MaType(r.MovingAverageType)) //nolint:gosec // TODO: Make var types consistent
+			indicators.MaType(r.MovingAverageType)) //nolint:gosec,nolintlint // TODO: Make var types consistent, however this doesn't get flagged on Windows
 		if err != nil {
 			return nil, err
 		}
