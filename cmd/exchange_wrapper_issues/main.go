@@ -275,8 +275,6 @@ func parseOrderType(orderType string) order.Type {
 		return order.Limit
 	case order.Market.String():
 		return order.Market
-	case order.ImmediateOrCancel.String():
-		return order.ImmediateOrCancel
 	case order.Stop.String():
 		return order.Stop
 	case order.TrailingStop.String():
