@@ -220,13 +220,13 @@ func TestCancelOrder(t *testing.T) {
 	err = bi.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.Futures,
 		OrderID:   "69",
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      pair,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	err = bi.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.Spot,
 		OrderID:   "",
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      pair,
 	})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -877,13 +877,13 @@ func TestCancelExistingOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errMissingCurrencySymbol)
 
 	_, err = bi.CancelExistingOrder(context.Background(), &CancelOrderRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Symbol: currency.NewBTCUSDT(),
 	})
 	assert.ErrorIs(t, err, errEitherOrderIDOrClientOrderIDIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	_, err = bi.CancelExistingOrder(context.Background(), &CancelOrderRequestParams{
-		Symbol:                currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:                currency.NewBTCUSDT(),
 		ClientSuppliedOrderID: "1234",
 	})
 	assert.ErrorContains(t, err, "Unknown order sent.")
