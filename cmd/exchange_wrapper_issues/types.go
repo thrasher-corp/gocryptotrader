@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -58,7 +57,7 @@ type ExchangeAssetPairResponses struct {
 type EndpointResponse struct {
 	Function   string          `json:"function"`
 	Error      string          `json:"error"`
-	Response   interface{}     `json:"response"`
+	Response   any             `json:"response"`
 	SentParams json.RawMessage `json:"sentParams"`
 }
 

@@ -31,50 +31,41 @@ func TestMain(m *testing.M) {
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings, nil)
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error from engine.NewFromSettings: %s", err)
 	}
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(exch.Value)
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error from NewExchangeByName: %s", err)
 	}
 	cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error during GetDefaultConfig: %s", err)
 	}
-	err = exch.Setup(cfg)
-	if err != nil {
-		log.Fatal(err)
+	if err = exch.Setup(cfg); err != nil {
+		log.Fatalf("Error during exch.Setup: %s", err)
 	}
-	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		log.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	if err = em.Add(exch); err != nil {
+		log.Fatalf("Error during ExchangeManager.Add: %s", err)
 	}
 	engine.Bot.ExchangeManager = em
 	engine.Bot.WithdrawManager, err = engine.SetupWithdrawManager(em, nil, true)
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error during engine.SetupWithdrawManage: %s", err)
 	}
 
 	engine.Bot.DepositAddressManager = engine.SetupDepositAddressManager()
 	err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetAllExchangeCryptocurrencyDepositAddresses())
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error syncing DepositAddressManager: %s", err)
 	}
 
 	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, &config.OrderManager{})
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error during SetupOrderManager: %s", err)
 	}
-	err = engine.Bot.OrderManager.Start()
-	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+	if err = engine.Bot.OrderManager.Start(); err != nil {
+		log.Fatalf("Error starting OrderManager: %s", err)
 	}
 	modules.SetModuleWrapper(Setup())
 	os.Exit(m.Run())

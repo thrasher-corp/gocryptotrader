@@ -2,7 +2,6 @@ package gateio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -294,8 +294,8 @@ func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn stream.Connection,
 
 // WsHandleOptionsData handles options websocket data
 func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
-	var push WsResponse
-	if err := json.Unmarshal(respRaw, &push); err != nil {
+	push, err := parseWSHeader(respRaw)
+	if err != nil {
 		return err
 	}
 
@@ -323,7 +323,7 @@ func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
 		optionsUnderlyingCandlesticksChannel:
 		return g.processOptionsCandlestickPushData(respRaw)
 	case optionsOrderbookChannel:
-		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time.Time())
+		return g.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
 		return g.processOrderbookTickerPushData(respRaw)
 	case optionsOrderbookUpdateChannel:
@@ -398,7 +398,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
 		trades[x] = trade.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     g.Name,
@@ -602,7 +602,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
-			Date:           resp.Result[x].CreationTimeMs.Time(),
+			Date:           resp.Result[x].CreationTime.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
 			AssetType:      asset.Options,
@@ -630,7 +630,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,

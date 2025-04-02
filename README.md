@@ -100,15 +100,11 @@ When submitting a PR, please abide by our coding guidelines:
 + Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
-## Compiling instructions
+## Compiling and Running instructions
 
-Download and install Go from [Go Downloads](https://golang.org/dl/) for your
-platform.
+Download and install Go from [Go Downloads](https://golang.org/dl/) for your platform.
 
-### Linux/OSX
-
-GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
-Using Go Modules you now clone this repository **outside** your GOPATH
+### Linux/macOS
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
@@ -124,11 +120,23 @@ cp config_example.json ~/.gocryptotrader/config.json
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader
 go build
+mkdir %AppData%\GoCryptoTrader
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
 + Make any necessary changes to the `config.json` file.
-+ Run the `gocryptotrader` binary file inside your GOPATH bin folder.
++ Run the `gocryptotrader` binary file.
+
+### Sonic JSON handling
+
+GoCryptoTrader can optionally use the [Sonic](https://github.com/bytedance/sonic) JSON library for improved performance, as a drop in replacement for golang.org/encoding/json.
+Please see sonic [Requirements](https://github.com/bytedance/sonic/#requirement) for supported platforms.
+
+To enable sonic, build with the sonic_on tag:
+
+```bash
+go build -tags=sonic_on
+```
 
 ## Donations
 
@@ -148,21 +156,21 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 700 |
-| [shazbert](https://github.com/shazbert) | 345 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 317 |
-| [gloriousCode](https://github.com/gloriousCode) | 234 |
-| [gbjk](https://github.com/gbjk) | 93 |
+| [thrasher-](https://github.com/thrasher-) | 708 |
+| [shazbert](https://github.com/shazbert) | 362 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 361 |
+| [gloriousCode](https://github.com/gloriousCode) | 237 |
+| [gbjk](https://github.com/gbjk) | 121 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [Beadko](https://github.com/Beadko) | 17 |
+| [Beadko](https://github.com/Beadko) | 22 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [samuael](https://github.com/samuael) | 10 |
+| [samuael](https://github.com/samuael) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
@@ -170,6 +178,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
+| [junnplus](https://github.com/junnplus) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
@@ -177,7 +186,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
-| [soxipy](https://github.com/soxipy) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [azhang](https://github.com/azhang) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
@@ -187,6 +195,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |

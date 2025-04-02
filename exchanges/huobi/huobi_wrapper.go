@@ -41,43 +41,27 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresKey = true
 	h.API.CredentialsValidator.RequiresSecret = true
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: false},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
+	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		switch a {
+		case asset.Spot:
+			ps.RequestFormat.Uppercase = false
+		case asset.CoinMarginedFutures:
+			ps.RequestFormat.Delimiter = currency.DashDelimiter
+		}
+		if err := h.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", h.Name, a, err)
+		}
 	}
-	coinFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	futuresFormatting := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = h.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = h.StoreAssetPairFormat(asset.Futures, futuresFormatting)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+
+	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
+		if err := h.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", h.Name, a, err)
+		}
 	}
 
 	h.Features = exchange.Features{
@@ -165,6 +149,7 @@ func (h *HUOBI) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -176,7 +161,7 @@ func (h *HUOBI) SetDefaults() {
 		exchange.RestSpot:         huobiAPIURL,
 		exchange.RestFutures:      huobiFuturesURL,
 		exchange.RestCoinMargined: huobiFuturesURL,
-		exchange.WebsocketSpot:    wsMarketURL,
+		exchange.WebsocketSpot:    wsSpotURL + wsPublicPath,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -220,7 +205,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            wsMarketURL,
+		DefaultURL:            wsSpotURL + wsPublicPath,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
@@ -245,7 +230,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsAccountsOrdersURL,
+		URL:                  wsSpotURL + wsPrivatePath,
 		Authenticated:        true,
 	})
 }
@@ -301,7 +286,8 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 		}
 		pairs = make([]currency.Pair, 0, len(symbols.Data))
 		expiryCodeDates := map[string]currency.Code{}
-		for _, c := range symbols.Data {
+		for i := range symbols.Data {
+			c := symbols.Data[i]
 			if c.ContractStatus != 1 {
 				continue
 			}
@@ -397,7 +383,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				}
 				continue
 			}
-			tt := time.UnixMilli(ticks[i].Timestamp)
+			tt := ticks[i].Timestamp.Time()
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
@@ -465,7 +451,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
-				LastUpdated:  time.UnixMilli(ticks[i].Timestamp),
+				LastUpdated:  ticks[i].Timestamp.Time(),
 			})
 			if err != nil {
 				errs = common.AppendError(errs, err)
@@ -558,24 +544,6 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		}
 	}
 	return ticker.GetTicker(h.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (h *HUOBI) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
-	if err != nil {
-		return h.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (h *HUOBI) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(h.Name, p, assetType)
-	if err != nil {
-		return h.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -694,72 +662,50 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	info.Exchange = h.Name
 	switch assetType {
 	case asset.Spot:
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetAccountsList(ctx)
+		accounts, err := h.GetAccountID(ctx)
+		if err != nil {
+			return info, err
+		}
+		for i := range accounts {
+			if accounts[i].Type != "spot" {
+				continue
+			}
+			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
+			balances, err := h.GetAccountBalance(ctx, acc.ID)
 			if err != nil {
 				return info, err
 			}
+
 			var currencyDetails []account.Balance
-			for i := range resp.Data {
-				if len(resp.Data[i].List) == 0 {
-					continue
+		balance:
+			for j := range balances {
+				frozen := balances[j].Type == "frozen"
+				for i := range currencyDetails {
+					if currencyDetails[i].Currency.String() == balances[j].Currency {
+						if frozen {
+							currencyDetails[i].Hold = balances[j].Balance
+						} else {
+							currencyDetails[i].Total = balances[j].Balance
+						}
+						continue balance
+					}
 				}
-				currData := account.Balance{
-					Currency: currency.NewCode(resp.Data[i].List[0].Currency),
-					Total:    resp.Data[i].List[0].Balance,
+
+				if frozen {
+					currencyDetails = append(currencyDetails,
+						account.Balance{
+							Currency: currency.NewCode(balances[j].Currency),
+							Hold:     balances[j].Balance,
+						})
+				} else {
+					currencyDetails = append(currencyDetails,
+						account.Balance{
+							Currency: currency.NewCode(balances[j].Currency),
+							Total:    balances[j].Balance,
+						})
 				}
-				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
-					currData.Hold = resp.Data[i].List[1].Balance
-				}
-				currencyDetails = append(currencyDetails, currData)
 			}
 			acc.Currencies = currencyDetails
-		} else {
-			accounts, err := h.GetAccountID(ctx)
-			if err != nil {
-				return info, err
-			}
-			for i := range accounts {
-				if accounts[i].Type != "spot" {
-					continue
-				}
-				acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-				balances, err := h.GetAccountBalance(ctx, acc.ID)
-				if err != nil {
-					return info, err
-				}
-
-				var currencyDetails []account.Balance
-			balance:
-				for j := range balances {
-					frozen := balances[j].Type == "frozen"
-					for i := range currencyDetails {
-						if currencyDetails[i].Currency.String() == balances[j].Currency {
-							if frozen {
-								currencyDetails[i].Hold = balances[j].Balance
-							} else {
-								currencyDetails[i].Total = balances[j].Balance
-							}
-							continue balance
-						}
-					}
-
-					if frozen {
-						currencyDetails = append(currencyDetails,
-							account.Balance{
-								Currency: currency.NewCode(balances[j].Currency),
-								Hold:     balances[j].Balance,
-							})
-					} else {
-						currencyDetails = append(currencyDetails,
-							account.Balance{
-								Currency: currency.NewCode(balances[j].Currency),
-								Total:    balances[j].Balance,
-							})
-					}
-				}
-				acc.Currencies = currencyDetails
-			}
 		}
 
 	case asset.CoinMarginedFutures:
@@ -865,19 +811,6 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	return info, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HUOBI) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(h.Name, creds, assetType)
-	if err != nil {
-		return h.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (h *HUOBI) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
@@ -898,7 +831,7 @@ func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Data[i].State,
 			TransferID:      withdrawals.Data[i].TransactionHash,
-			Timestamp:       time.UnixMilli(withdrawals.Data[i].CreatedAt),
+			Timestamp:       withdrawals.Data[i].CreatedAt.Time(),
 			Currency:        withdrawals.Data[i].Currency.String(),
 			Amount:          withdrawals.Data[i].Amount,
 			Fee:             withdrawals.Data[i].Fee,
@@ -942,7 +875,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Side:         side,
 					Price:        sTrades[i].Trades[j].Price,
 					Amount:       sTrades[i].Trades[j].Amount,
-					Timestamp:    time.UnixMilli(sTrades[i].Timestamp),
+					Timestamp:    sTrades[i].Timestamp.Time(),
 				})
 			}
 		}
@@ -969,7 +902,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Side:         side,
 					Price:        fTrades.Data[i].Data[j].Price,
 					Amount:       fTrades.Data[i].Data[j].Amount,
-					Timestamp:    time.UnixMilli(fTrades.Data[i].Data[j].Timestamp),
+					Timestamp:    fTrades.Data[i].Data[j].Timestamp.Time(),
 				})
 			}
 		}
@@ -995,7 +928,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 				Side:         side,
 				Price:        cTrades.Data[i].Price,
 				Amount:       cTrades.Data[i].Amount,
-				Timestamp:    time.UnixMilli(cTrades.Data[i].Timestamp),
+				Timestamp:    cTrades.Data[i].Timestamp.Time(),
 			})
 		}
 	}
@@ -1029,7 +962,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			return nil, err
 		}
 		var formattedType SpotNewOrderRequestParamsType
-		var params = SpotNewOrderRequestParams{
+		params := SpotNewOrderRequestParams{
 			Amount:    s.Amount,
 			Source:    "api",
 			Symbol:    s.Pair,
@@ -1316,28 +1249,19 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	var orderDetail order.Detail
 	switch assetType {
 	case asset.Spot:
-		var respData *OrderInfo
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := h.wsGetOrderDetails(ctx, orderID)
-			if err != nil {
-				return nil, err
-			}
-			respData = &resp.Data
-		} else {
-			oID, err := strconv.ParseInt(orderID, 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			resp, err := h.GetOrder(ctx, oID)
-			if err != nil {
-				return nil, err
-			}
-			respData = &resp
+		oID, err := strconv.ParseInt(orderID, 10, 64)
+		if err != nil {
+			return nil, err
 		}
+		resp, err := h.GetOrder(ctx, oID)
+		if err != nil {
+			return nil, err
+		}
+		respData := &resp
 		if respData.ID == 0 {
 			return nil, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
 		}
-		var responseID = strconv.FormatInt(respData.ID, 10)
+		responseID := strconv.FormatInt(respData.ID, 10)
 		if responseID != orderID {
 			return nil, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
 				orderID + " Received: " + responseID)
@@ -1543,87 +1467,34 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 		if req.Side == order.Sell {
 			side = req.Side.Lower()
 		}
-		if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			for i := range req.Pairs {
-				resp, err := h.wsGetOrdersList(ctx, -1, req.Pairs[i])
-				if err != nil {
-					return orders, err
-				}
-				for j := range resp.Data {
-					sideData := strings.Split(resp.Data[j].OrderState, "-")
-					side = sideData[0]
-					var orderID = strconv.FormatInt(resp.Data[j].OrderID, 10)
-					orderSide, err := order.StringToOrderSide(side)
-					if err != nil {
-						h.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: h.Name,
-							OrderID:  orderID,
-							Err:      err,
-						}
-					}
-					orderType, err := order.StringToOrderType(sideData[1])
-					if err != nil {
-						h.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: h.Name,
-							OrderID:  orderID,
-							Err:      err,
-						}
-					}
-					orderStatus, err := order.StringToOrderStatus(resp.Data[j].OrderState)
-					if err != nil {
-						h.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: h.Name,
-							OrderID:  orderID,
-							Err:      err,
-						}
-					}
-					orders = append(orders, order.Detail{
-						Exchange:        h.Name,
-						AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
-						OrderID:         orderID,
-						Pair:            req.Pairs[i],
-						Type:            orderType,
-						Side:            orderSide,
-						Date:            time.UnixMilli(resp.Data[j].CreatedAt),
-						Status:          orderStatus,
-						Price:           resp.Data[j].Price,
-						Amount:          resp.Data[j].OrderAmount,
-						ExecutedAmount:  resp.Data[j].FilledAmount,
-						RemainingAmount: resp.Data[j].UnfilledAmount,
-						Fee:             resp.Data[j].FilledFees,
-					})
-				}
-			}
-		} else {
-			creds, err := h.GetCredentials(ctx)
+		creds, err := h.GetCredentials(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range req.Pairs {
+			resp, err := h.GetOpenOrders(ctx,
+				req.Pairs[i],
+				creds.ClientID,
+				side,
+				500)
 			if err != nil {
 				return nil, err
 			}
-			for i := range req.Pairs {
-				resp, err := h.GetOpenOrders(ctx,
-					req.Pairs[i],
-					creds.ClientID,
-					side,
-					500)
-				if err != nil {
-					return nil, err
+			for x := range resp {
+				orderDetail := order.Detail{
+					OrderID:         strconv.FormatInt(resp[x].ID, 10),
+					Price:           resp[x].Price,
+					Amount:          resp[x].Amount,
+					ExecutedAmount:  resp[x].FilledAmount,
+					RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
+					Pair:            req.Pairs[i],
+					Exchange:        h.Name,
+					Date:            time.UnixMilli(resp[x].CreatedAt),
+					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
+					Fee:             resp[x].FilledFees,
 				}
-				for x := range resp {
-					orderDetail := order.Detail{
-						OrderID:         strconv.FormatInt(resp[x].ID, 10),
-						Price:           resp[x].Price,
-						Amount:          resp[x].Amount,
-						ExecutedAmount:  resp[x].FilledAmount,
-						RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
-						Pair:            req.Pairs[i],
-						Exchange:        h.Name,
-						Date:            time.UnixMilli(resp[x].CreatedAt),
-						AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
-						Fee:             resp[x].FilledFees,
-					}
-					setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
-					orders = append(orders, orderDetail)
-				}
+				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				orders = append(orders, orderDetail)
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -1943,14 +1814,14 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		candles, err := h.GetSpotKline(ctx, KlinesRequestParams{
 			Period: h.FormatExchangeKlineInterval(req.ExchangeInterval),
 			Symbol: req.Pair,
-			Size:   int(req.RequestLimit),
+			Size:   req.RequestLimit,
 		})
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range candles {
-			timestamp := time.Unix(candles[x].IDTimestamp, 0)
+			timestamp := candles[x].IDTimestamp.Time()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1971,7 +1842,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+			timestamp := candles.Data[x].IDTimestamp.Time()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1992,7 +1863,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+			timestamp := candles.Data[x].IDTimestamp.Time()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -2032,7 +1903,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			}
 			for x := range candles.Data {
 				// align response data
-				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0).UTC()
+				timestamp := candles.Data[x].IDTimestamp.Time()
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -2057,7 +1928,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			}
 			for x := range candles.Data {
 				// align response data
-				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+				timestamp := candles.Data[x].IDTimestamp.Time()
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -2212,10 +2083,10 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 			if err != nil {
 				return nil, err
 			}
-			if result.Data[x].DeliveryTime > 0 {
-				e = time.UnixMilli(result.Data[x].DeliveryTime)
+			if result.Data[x].DeliveryTime.Time().IsZero() {
+				e = result.Data[x].DeliveryTime.Time()
 			} else {
-				e = time.UnixMilli(result.Data[x].SettlementTime)
+				e = result.Data[x].SettlementTime.Time()
 			}
 			contractLength := e.Sub(s)
 			var ct futures.ContractType

@@ -246,7 +246,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 		if jobs[i].ReplaceOnIssue {
 			replaceOnIssue = 1
 		}
-		var tempEvent = sqlite3.Datahistoryjob{
+		tempEvent := sqlite3.Datahistoryjob{
 			ID:                       jobs[i].ID,
 			ExchangeNameID:           exch.ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
@@ -264,7 +264,7 @@ func upsertSqlite(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) erro
 			Created:                  time.Now().UTC().Format(time.RFC3339),
 			ConversionInterval:       null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: jobs[i].ConversionInterval > 0},
 			OverwriteData:            null.Int64{Int64: overwrite, Valid: overwrite == 1},
-			DecimalPlaceComparison:   null.Int64{Int64: jobs[i].DecimalPlaceComparison, Valid: jobs[i].DecimalPlaceComparison > 0},
+			DecimalPlaceComparison:   null.Int64{Int64: int64(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0}, //nolint:gosec // TODO: Make uint64
 			ReplaceOnIssue:           null.Int64{Int64: replaceOnIssue, Valid: replaceOnIssue == 1},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
 		}
@@ -297,7 +297,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			}
 		}
 
-		var tempEvent = postgres.Datahistoryjob{
+		tempEvent := postgres.Datahistoryjob{
 			ID:                       jobs[i].ID,
 			Nickname:                 strings.ToLower(jobs[i].Nickname),
 			ExchangeNameID:           exch.ID,
@@ -315,7 +315,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 			Created:                  time.Now().UTC(),
 			ConversionInterval:       null.Float64{Float64: float64(jobs[i].ConversionInterval), Valid: jobs[i].ConversionInterval > 0},
 			OverwriteData:            null.Bool{Bool: jobs[i].OverwriteData, Valid: jobs[i].OverwriteData},
-			DecimalPlaceComparison:   null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0},
+			DecimalPlaceComparison:   null.Int{Int: int(jobs[i].DecimalPlaceComparison), Valid: jobs[i].DecimalPlaceComparison > 0}, //nolint:gosec // TODO: Make uint64
 			ReplaceOnIssue:           null.Bool{Bool: jobs[i].ReplaceOnIssue, Valid: jobs[i].ReplaceOnIssue},
 			IssueTolerancePercentage: null.Float64{Float64: jobs[i].IssueTolerancePercentage, Valid: jobs[i].IssueTolerancePercentage > 0},
 		}
@@ -330,6 +330,7 @@ func upsertPostgres(ctx context.Context, tx *sql.Tx, jobs ...*DataHistoryJob) er
 
 	return nil
 }
+
 func (db *DBService) getByNicknameSQLite(nickname string) (*DataHistoryJob, error) {
 	result, err := sqlite3.Datahistoryjobs(qm.Where("nickname = ?", strings.ToLower(nickname))).One(context.TODO(), db.sql)
 	if err != nil {
@@ -711,17 +712,17 @@ func (db *DBService) createSQLiteDataHistoryJobResponse(result *sqlite3.Datahist
 		StartDate:                   ts,
 		EndDate:                     tEnd,
 		Interval:                    int64(result.Interval),
-		RequestSizeLimit:            int64(result.RequestSize),
+		RequestSizeLimit:            uint64(result.RequestSize),
 		DataType:                    int64(result.DataType),
-		MaxRetryAttempts:            int64(result.MaxRetries),
-		BatchSize:                   int64(result.BatchCount),
+		MaxRetryAttempts:            uint64(result.MaxRetries),
+		BatchSize:                   uint64(result.BatchCount),
 		Status:                      int64(result.Status),
 		CreatedDate:                 c,
 		PrerequisiteJobID:           prereqID,
 		PrerequisiteJobNickname:     prereqNickname,
 		ConversionInterval:          int64(result.ConversionInterval.Float64),
 		OverwriteData:               result.OverwriteData.Int64 == 1,
-		DecimalPlaceComparison:      result.DecimalPlaceComparison.Int64,
+		DecimalPlaceComparison:      uint64(result.DecimalPlaceComparison.Int64), //nolint:gosec // TODO: Make uint64
 		SecondarySourceExchangeName: secondaryExchangeName,
 		IssueTolerancePercentage:    result.IssueTolerancePercentage.Float64,
 		ReplaceOnIssue:              result.ReplaceOnIssue.Int64 == 1,
@@ -789,10 +790,10 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 		StartDate:                   result.StartTime,
 		EndDate:                     result.EndTime,
 		Interval:                    int64(result.Interval),
-		RequestSizeLimit:            int64(result.RequestSize),
+		RequestSizeLimit:            uint64(result.RequestSize),
 		DataType:                    int64(result.DataType),
-		MaxRetryAttempts:            int64(result.MaxRetries),
-		BatchSize:                   int64(result.BatchCount),
+		MaxRetryAttempts:            uint64(result.MaxRetries),
+		BatchSize:                   uint64(result.BatchCount),
 		Status:                      int64(result.Status),
 		CreatedDate:                 result.Created,
 		Results:                     jobResults,
@@ -800,7 +801,7 @@ func (db *DBService) createPostgresDataHistoryJobResponse(result *postgres.Datah
 		PrerequisiteJobNickname:     prereqNickname,
 		ConversionInterval:          int64(result.ConversionInterval.Float64),
 		OverwriteData:               result.OverwriteData.Bool,
-		DecimalPlaceComparison:      int64(result.DecimalPlaceComparison.Int),
+		DecimalPlaceComparison:      uint64(result.DecimalPlaceComparison.Int), //nolint:gosec // TODO: Make uint64
 		SecondarySourceExchangeName: secondaryExchangeName,
 		IssueTolerancePercentage:    result.IssueTolerancePercentage.Float64,
 		ReplaceOnIssue:              result.ReplaceOnIssue.Bool,

@@ -1,6 +1,6 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
-LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1
+LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.6
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
@@ -78,3 +78,7 @@ endef
 check-jq:
 	@printf "Checking if jq is installed... "
 	@command -v jq >/dev/null 2>&1 && { printf "OK\n"; } || { printf "FAILED. Please install jq to proceed.\n"; exit 1; }
+
+.PHONY: sonic
+sonic:
+	go build $(LDFLAGS) -tags "sonic_on" 

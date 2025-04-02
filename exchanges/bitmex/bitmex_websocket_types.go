@@ -14,7 +14,7 @@ type WebsocketRequest struct {
 type WebsocketErrorResponse struct {
 	Status  int64            `json:"status"`
 	Error   string           `json:"error"`
-	Meta    interface{}      `json:"meta"`
+	Meta    any              `json:"meta"`
 	Request WebsocketRequest `json:"request"`
 }
 
@@ -79,10 +79,10 @@ type AnnouncementData struct {
 // WsAffiliateResponse private api response
 type WsAffiliateResponse struct {
 	WsDataResponse
-	ForeignKeys interface{}                   `json:"foreignKeys"`
+	ForeignKeys any                           `json:"foreignKeys"`
 	Attributes  WsAffiliateResponseAttributes `json:"attributes"`
 	Filter      WsAffiliateResponseFilter     `json:"filter"`
-	Data        []interface{}                 `json:"data"`
+	Data        []any                         `json:"data"`
 }
 
 // WsAffiliateResponseAttributes private api data
@@ -179,10 +179,10 @@ type WsOrderResponseForeignKeys struct {
 // WsTransactResponse private api response
 type WsTransactResponse struct {
 	WsDataResponse
-	ForeignKeys interface{}                  `json:"foreignKeys"`
+	ForeignKeys any                          `json:"foreignKeys"`
 	Attributes  WsTransactResponseAttributes `json:"attributes"`
 	Filter      WsTransactResponseFilter     `json:"filter"`
-	Data        []interface{}                `json:"data"`
+	Data        []any                        `json:"data"`
 }
 
 // WsTransactResponseAttributes private api data
@@ -199,7 +199,7 @@ type WsTransactResponseFilter struct {
 // WsWalletResponse private api response
 type WsWalletResponse struct {
 	WsDataResponse
-	ForeignKeys interface{}                `json:"foreignKeys"`
+	ForeignKeys any                        `json:"foreignKeys"`
 	Attributes  WsWalletResponseAttributes `json:"attributes"`
 	Filter      WsWalletResponseFilter     `json:"filter"`
 	Data        []WsWalletResponseData     `json:"data"`
@@ -213,31 +213,31 @@ type WsWalletResponseAttributes struct {
 
 // WsWalletResponseData private api data
 type WsWalletResponseData struct {
-	Account          int64         `json:"account"`
-	Currency         string        `json:"currency"`
-	PrevDeposited    float64       `json:"prevDeposited"`
-	PrevWithdrawn    float64       `json:"prevWithdrawn"`
-	PrevTransferIn   float64       `json:"prevTransferIn"`
-	PrevTransferOut  float64       `json:"prevTransferOut"`
-	PrevAmount       float64       `json:"prevAmount"`
-	PrevTimestamp    string        `json:"prevTimestamp"`
-	DeltaDeposited   float64       `json:"deltaDeposited"`
-	DeltaWithdrawn   float64       `json:"deltaWithdrawn"`
-	DeltaTransferIn  float64       `json:"deltaTransferIn"`
-	DeltaTransferOut float64       `json:"deltaTransferOut"`
-	DeltaAmount      float64       `json:"deltaAmount"`
-	Deposited        float64       `json:"deposited"`
-	Withdrawn        float64       `json:"withdrawn"`
-	TransferIn       float64       `json:"transferIn"`
-	TransferOut      float64       `json:"transferOut"`
-	Amount           float64       `json:"amount"`
-	PendingCredit    float64       `json:"pendingCredit"`
-	PendingDebit     float64       `json:"pendingDebit"`
-	ConfirmedDebit   int64         `json:"confirmedDebit"`
-	Timestamp        string        `json:"timestamp"`
-	Addr             string        `json:"addr"`
-	Script           string        `json:"script"`
-	WithdrawalLock   []interface{} `json:"withdrawalLock"`
+	Account          int64   `json:"account"`
+	Currency         string  `json:"currency"`
+	PrevDeposited    float64 `json:"prevDeposited"`
+	PrevWithdrawn    float64 `json:"prevWithdrawn"`
+	PrevTransferIn   float64 `json:"prevTransferIn"`
+	PrevTransferOut  float64 `json:"prevTransferOut"`
+	PrevAmount       float64 `json:"prevAmount"`
+	PrevTimestamp    string  `json:"prevTimestamp"`
+	DeltaDeposited   float64 `json:"deltaDeposited"`
+	DeltaWithdrawn   float64 `json:"deltaWithdrawn"`
+	DeltaTransferIn  float64 `json:"deltaTransferIn"`
+	DeltaTransferOut float64 `json:"deltaTransferOut"`
+	DeltaAmount      float64 `json:"deltaAmount"`
+	Deposited        float64 `json:"deposited"`
+	Withdrawn        float64 `json:"withdrawn"`
+	TransferIn       float64 `json:"transferIn"`
+	TransferOut      float64 `json:"transferOut"`
+	Amount           float64 `json:"amount"`
+	PendingCredit    float64 `json:"pendingCredit"`
+	PendingDebit     float64 `json:"pendingDebit"`
+	ConfirmedDebit   int64   `json:"confirmedDebit"`
+	Timestamp        string  `json:"timestamp"`
+	Addr             string  `json:"addr"`
+	Script           string  `json:"script"`
+	WithdrawalLock   []any   `json:"withdrawalLock"`
 }
 
 // WsWalletResponseFilter private api data
@@ -336,7 +336,7 @@ type WsDataResponse struct {
 // WsMarginResponse private api response
 type WsMarginResponse struct {
 	WsDataResponse
-	ForeignKeys interface{}                `json:"foreignKeys"`
+	ForeignKeys any                        `json:"foreignKeys"`
 	Attributes  WsMarginResponseAttributes `json:"attributes"`
 	Filter      WsMarginResponseFilter     `json:"filter"`
 	Data        []WsMarginResponseData     `json:"data"`
@@ -350,47 +350,47 @@ type WsMarginResponseAttributes struct {
 
 // WsMarginResponseData private api data
 type WsMarginResponseData struct {
-	Account            int64       `json:"account"`
-	Currency           string      `json:"currency"`
-	RiskLimit          float64     `json:"riskLimit"`
-	PrevState          string      `json:"prevState"`
-	State              string      `json:"state"`
-	Action             string      `json:"action"`
-	Amount             float64     `json:"amount"`
-	PendingCredit      float64     `json:"pendingCredit"`
-	PendingDebit       float64     `json:"pendingDebit"`
-	ConfirmedDebit     float64     `json:"confirmedDebit"`
-	PrevRealisedPnl    float64     `json:"prevRealisedPnl"`
-	PrevUnrealisedPnl  float64     `json:"prevUnrealisedPnl"`
-	GrossComm          float64     `json:"grossComm"`
-	GrossOpenCost      float64     `json:"grossOpenCost"`
-	GrossOpenPremium   float64     `json:"grossOpenPremium"`
-	GrossExecCost      float64     `json:"grossExecCost"`
-	GrossMarkValue     float64     `json:"grossMarkValue"`
-	RiskValue          float64     `json:"riskValue"`
-	TaxableMargin      float64     `json:"taxableMargin"`
-	InitMargin         float64     `json:"initMargin"`
-	MaintMargin        float64     `json:"maintMargin"`
-	SessionMargin      float64     `json:"sessionMargin"`
-	TargetExcessMargin float64     `json:"targetExcessMargin"`
-	VarMargin          float64     `json:"varMargin"`
-	RealisedPnl        float64     `json:"realisedPnl"`
-	UnrealisedPnl      float64     `json:"unrealisedPnl"`
-	IndicativeTax      float64     `json:"indicativeTax"`
-	UnrealisedProfit   float64     `json:"unrealisedProfit"`
-	SyntheticMargin    interface{} `json:"syntheticMargin"`
-	WalletBalance      float64     `json:"walletBalance"`
-	MarginBalance      float64     `json:"marginBalance"`
-	MarginBalancePcnt  float64     `json:"marginBalancePcnt"`
-	MarginLeverage     float64     `json:"marginLeverage"`
-	MarginUsedPcnt     float64     `json:"marginUsedPcnt"`
-	ExcessMargin       float64     `json:"excessMargin"`
-	ExcessMarginPcnt   float64     `json:"excessMarginPcnt"`
-	AvailableMargin    float64     `json:"availableMargin"`
-	WithdrawableMargin float64     `json:"withdrawableMargin"`
-	Timestamp          time.Time   `json:"timestamp"`
-	GrossLastValue     float64     `json:"grossLastValue"`
-	Commission         interface{} `json:"commission"`
+	Account            int64     `json:"account"`
+	Currency           string    `json:"currency"`
+	RiskLimit          float64   `json:"riskLimit"`
+	PrevState          string    `json:"prevState"`
+	State              string    `json:"state"`
+	Action             string    `json:"action"`
+	Amount             float64   `json:"amount"`
+	PendingCredit      float64   `json:"pendingCredit"`
+	PendingDebit       float64   `json:"pendingDebit"`
+	ConfirmedDebit     float64   `json:"confirmedDebit"`
+	PrevRealisedPnl    float64   `json:"prevRealisedPnl"`
+	PrevUnrealisedPnl  float64   `json:"prevUnrealisedPnl"`
+	GrossComm          float64   `json:"grossComm"`
+	GrossOpenCost      float64   `json:"grossOpenCost"`
+	GrossOpenPremium   float64   `json:"grossOpenPremium"`
+	GrossExecCost      float64   `json:"grossExecCost"`
+	GrossMarkValue     float64   `json:"grossMarkValue"`
+	RiskValue          float64   `json:"riskValue"`
+	TaxableMargin      float64   `json:"taxableMargin"`
+	InitMargin         float64   `json:"initMargin"`
+	MaintMargin        float64   `json:"maintMargin"`
+	SessionMargin      float64   `json:"sessionMargin"`
+	TargetExcessMargin float64   `json:"targetExcessMargin"`
+	VarMargin          float64   `json:"varMargin"`
+	RealisedPnl        float64   `json:"realisedPnl"`
+	UnrealisedPnl      float64   `json:"unrealisedPnl"`
+	IndicativeTax      float64   `json:"indicativeTax"`
+	UnrealisedProfit   float64   `json:"unrealisedProfit"`
+	SyntheticMargin    any       `json:"syntheticMargin"`
+	WalletBalance      float64   `json:"walletBalance"`
+	MarginBalance      float64   `json:"marginBalance"`
+	MarginBalancePcnt  float64   `json:"marginBalancePcnt"`
+	MarginLeverage     float64   `json:"marginLeverage"`
+	MarginUsedPcnt     float64   `json:"marginUsedPcnt"`
+	ExcessMargin       float64   `json:"excessMargin"`
+	ExcessMarginPcnt   float64   `json:"excessMarginPcnt"`
+	AvailableMargin    float64   `json:"availableMargin"`
+	WithdrawableMargin float64   `json:"withdrawableMargin"`
+	Timestamp          time.Time `json:"timestamp"`
+	GrossLastValue     float64   `json:"grossLastValue"`
+	Commission         any       `json:"commission"`
 }
 
 // WsMarginResponseFilter private api data
@@ -480,7 +480,7 @@ type WsPositionResponseForeignKeys struct {
 
 // WsPrivateNotificationsResponse private api response
 type WsPrivateNotificationsResponse struct {
-	Table  string        `json:"table"`
-	Action string        `json:"action"`
-	Data   []interface{} `json:"data"`
+	Table  string `json:"table"`
+	Action string `json:"action"`
+	Data   []any  `json:"data"`
 }

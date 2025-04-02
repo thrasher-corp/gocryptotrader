@@ -1,9 +1,10 @@
 package collateral
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Valid returns whether the collateral mode is valid
@@ -34,6 +35,8 @@ func (t Mode) String() string {
 		return multiCollateralStr
 	case PortfolioMode:
 		return portfolioCollateralStr
+	case SpotFuturesMode:
+		return spotFuturesCollateralStr
 	case UnknownMode:
 		return unknownCollateralStr
 	}

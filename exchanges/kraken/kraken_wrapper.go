@@ -43,42 +43,22 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresSecret = true
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	pairStore := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Separator: ",",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-			Separator: ",",
-		},
+	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		}
+		if a == asset.Futures {
+			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
+		}
+		if err := k.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", k.Name, a, err)
+		}
 	}
 
-	futures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Delimiter: currency.UnderscoreDelimiter,
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-
-	err := k.StoreAssetPairFormat(asset.Spot, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = k.StoreAssetPairFormat(asset.Futures, futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = k.DisableAssetWebsocketSupport(asset.Futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := k.DisableAssetWebsocketSupport(asset.Futures); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", k.Name, asset.Futures, err)
 	}
 
 	k.Features = exchange.Features{
@@ -171,6 +151,7 @@ func (k *Kraken) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate, 1)))
@@ -474,24 +455,6 @@ func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	return ticker.GetTicker(k.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (k *Kraken) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(k.Name, p, assetType)
-	if err != nil {
-		return k.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (k *Kraken) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(k.Name, p, assetType)
-	if err != nil {
-		return k.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -621,19 +584,6 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return account.Holdings{}, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (k *Kraken) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := k.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(k.Name, creds, assetType)
-	if err != nil {
-		return k.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

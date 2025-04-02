@@ -2,12 +2,10 @@ package deribit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -28,12 +27,6 @@ type Deribit struct {
 	exchange.Base
 }
 
-var (
-	// optionRegex compiles optionDecimalRegex at startup and is used to help set
-	// option currency lower-case d eg MATIC-USDC-3JUN24-0d64-P
-	optionRegex *regexp.Regexp
-)
-
 const (
 	deribitAPIVersion = "/api/v2"
 	tradeBaseURL      = "https://www.deribit.com/"
@@ -43,8 +36,7 @@ const (
 	tradeFuturesCombo = "futures-spreads/"
 	tradeOptionsCombo = "combos/"
 
-	perpString         = "PERPETUAL"
-	optionDecimalRegex = `\d+(D)\d+`
+	perpString = "PERPETUAL"
 
 	// Public endpoints
 	// Market Data
@@ -299,7 +291,7 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var data [][2]interface{}
+	var data [][2]any
 	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getHistoricalVolatility, params), &data)
 	if err != nil {
@@ -727,15 +719,15 @@ func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*Tick
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
+func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 	data := &struct {
-		JSONRPC string      `json:"jsonrpc"`
-		ID      int64       `json:"id"`
-		Data    interface{} `json:"result"`
+		JSONRPC string `json:"jsonrpc"`
+		ID      int64  `json:"id"`
+		Data    any    `json:"result"`
 	}{
 		Data: result,
 	}
@@ -1336,7 +1328,7 @@ func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 	}
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	var resp interface{}
+	var resp any
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, removeAPIKey, params, &resp)
 	if err != nil {
 		return err
@@ -1404,7 +1396,7 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
 	params.Set("email", email)
-	var resp interface{}
+	var resp any
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		setEmailForSubAccount, params, &resp)
 	if err != nil {
@@ -2272,7 +2264,7 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy currenc
 }
 
 // SendHTTPAuthRequest sends an authenticated request to deribit api
-func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result interface{}) error {
+func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -2837,20 +2829,19 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 	return instrumentID
 }
 
-// optionPairToString to format and return an Options currency pairs with the following format: MATIC_USDC-6APR24-0d98-P
-// it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
+// optionPairToString formats an options pair as: SYMBOL-EXPIRE-STRIKE-TYPE
+// SYMBOL may be a currency (BTC) or a pair (XRP_USDC)
+// EXPIRE is DDMMMYY
+// STRIKE may include a d for decimal point in linear options
+// TYPE is Call or Put
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
-	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
 	initialDelimiter := currency.DashDelimiter
-	if subCodes[0] == "USDC" {
+	q := pair.Quote.String()
+	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
 		initialDelimiter = currency.UnderscoreDelimiter
+		// Replace a capital D with d for decimal place in Strike price
+		// Char 11 is either the hyphen before Strike price or first digit
+		q = q[:11] + strings.Replace(q[11:], "D", "d", -1)
 	}
-	for i := range subCodes {
-		if match := optionRegex.MatchString(subCodes[i]); match {
-			subCodes[i] = strings.ToLower(subCodes[i])
-			break
-		}
-	}
-
-	return pair.Base.String() + initialDelimiter + strings.Join(subCodes, currency.DashDelimiter)
+	return pair.Base.String() + initialDelimiter + q
 }

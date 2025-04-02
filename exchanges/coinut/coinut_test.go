@@ -25,8 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var c = &COINUT{}
-var wsSetupRan bool
+var (
+	c          = &COINUT{}
+	wsSetupRan bool
+)
 
 // Please supply your own keys here to do better tests
 const (
@@ -122,7 +124,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := c.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +142,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	if _, err := c.GetFee(feeBuilder); err != nil {
 		t.Error(err)
@@ -250,7 +252,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -264,7 +266,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistoryWrapper(t *testing.T) {
 	t.Parallel()
 	setupWSTestAuth(t)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
@@ -284,7 +286,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: c.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
@@ -310,7 +312,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.BTC, currency.USD)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -332,7 +334,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -405,7 +407,7 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{}
+	withdrawFiatRequest := withdraw.Request{}
 	_, err := c.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -416,7 +418,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{}
+	withdrawFiatRequest := withdraw.Request{}
 	_, err := c.WithdrawFiatFundsToInternationalBank(context.Background(),
 		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
@@ -606,34 +608,17 @@ func TestCurrencyMapInstrumentIDs(t *testing.T) {
 	t.Parallel()
 
 	var i instrumentMap
-	if r := i.GetInstrumentIDs(); len(r) > 0 {
-		t.Error("non initialised instrument map shouldn't return any ids")
-	}
+	assert.Empty(t, i.GetInstrumentIDs())
 
 	// Seed the instrument map
 	i.Seed("BTCUSD", 1234)
 	i.Seed("LTCUSD", 1337)
 
-	f := func(ids []int64, target int64) bool {
-		for x := range ids {
-			if ids[x] == target {
-				return true
-			}
-		}
-		return false
-	}
-
 	// Test 2 valid instruments and one invalid
 	ids := i.GetInstrumentIDs()
-	if r := f(ids, 1234); !r {
-		t.Error("unexpected result")
-	}
-	if r := f(ids, 1337); !r {
-		t.Error("unexpected result")
-	}
-	if r := f(ids, 4321); r {
-		t.Error("unexpected result")
-	}
+	assert.Contains(t, ids, int64(1234))
+	assert.Contains(t, ids, int64(1337))
+	assert.NotContains(t, ids, int64(4321))
 }
 
 func TestGetNonce(t *testing.T) {

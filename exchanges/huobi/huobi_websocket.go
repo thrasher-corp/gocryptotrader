@@ -2,7 +2,6 @@ package huobi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,10 +11,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -30,34 +31,26 @@ import (
 )
 
 const (
-	baseWSURL    = "wss://api.huobi.pro"
-	futuresWSURL = "wss://api.hbdm.com/"
+	wsSpotHost    = "api.huobi.pro"
+	wsSpotURL     = "wss://" + wsSpotHost
+	wsPublicPath  = "/ws"
+	wsPrivatePath = "/ws/v2"
 
-	wsMarketURL           = baseWSURL + "/ws"
 	wsCandlesChannel      = "market.%s.kline"
 	wsOrderbookChannel    = "market.%s.depth"
 	wsTradesChannel       = "market.%s.trade.detail"
 	wsMarketDetailChannel = "market.%s.detail"
-	wsMyOrdersChannel     = "orders.%s"
-	wsMyTradesChannel     = "orders.%s.update"
-
-	wsAccountsOrdersEndPoint = "/ws/v1"
-	wsAccountsList           = "accounts.list"
-	wsOrdersList             = "orders.list"
-	wsOrdersDetail           = "orders.detail"
-	wsAccountsOrdersURL      = baseWSURL + wsAccountsOrdersEndPoint
-	wsAccountListEndpoint    = wsAccountsOrdersEndPoint + "/" + wsAccountsList
-	wsOrdersListEndpoint     = wsAccountsOrdersEndPoint + "/" + wsOrdersList
-	wsOrdersDetailEndpoint   = wsAccountsOrdersEndPoint + "/" + wsOrdersDetail
+	wsMyOrdersChannel     = "orders#*"
+	wsMyTradesChannel     = "trade.clearing#*#1" // 0=Only trade events, 1=Trade and Cancellation events
+	wsMyAccountChannel    = "accounts.update#2"  // 0=Only balance, 1=Balance or Available, 2=Balance and Available when either change
+	wsAuthChannel         = "auth"
 
 	wsDateTimeFormatting = "2006-01-02T15:04:05"
-
-	signatureMethod  = "HmacSHA256"
-	signatureVersion = "2"
-	requestOp        = "req"
-	authOp           = "auth"
-
-	loginDelay = 50 * time.Millisecond
+	signatureMethod      = "HmacSHA256"
+	signatureVersion     = "2.1"
+	wsRequestOp          = "req"
+	wsSubOp              = "sub"
+	wsUnsubOp            = "unsub"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -75,427 +68,233 @@ var subscriptionNames = map[string]string{
 	subscription.CandlesChannel:   wsCandlesChannel,
 	subscription.OrderbookChannel: wsOrderbookChannel,
 	subscription.AllTradesChannel: wsTradesChannel,
-	/* 	TODO: Pending upcoming V2 support, these are dropped from the translation table so that the sub conf will be correct and not need upgrading, but will error on usage
-	subscription.MyTradesChannel:  wsMyOrdersChannel,
-	subscription.MyOrdersChannel:  wsMyTradesChannel,
+	subscription.MyTradesChannel:  wsMyTradesChannel,
+	subscription.MyOrdersChannel:  wsMyOrdersChannel,
 	subscription.MyAccountChannel: wsMyAccountChannel,
-	*/
 }
-
-// Instantiates a communications channel between websocket connections
-var comms = make(chan WsMessage)
 
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
-	err := h.wsDial(&dialer)
-	if err != nil {
+	if err := h.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 
-	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		err = h.wsAuthenticatedDial(&dialer)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authenticated dial failed: %v\n",
-				h.Name,
-				err)
-		}
-		err = h.wsLogin(context.TODO())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				h.Name,
-				err)
+	h.Websocket.Wg.Add(1)
+	go h.wsReadMsgs(h.Websocket.Conn)
+
+	if h.IsWebsocketAuthenticationSupported() {
+		ctx := context.Background()
+		if err := h.wsAuthConnect(ctx); err != nil {
 			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return fmt.Errorf("error authenticating websocket: %w", err)
 		}
+		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		h.Websocket.Wg.Add(1)
+		go h.wsReadMsgs(h.Websocket.AuthConn)
 	}
 
-	h.Websocket.Wg.Add(1)
-	go h.wsReadData()
 	return nil
 }
 
-func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
-	err := h.Websocket.Conn.Dial(dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	h.Websocket.Wg.Add(1)
-	go h.wsFunnelConnectionData(h.Websocket.Conn, wsMarketURL)
-	return nil
-}
-
-func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
-	if !h.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
-			h.Name)
-	}
-	err := h.Websocket.AuthConn.Dial(dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-
-	h.Websocket.Wg.Add(1)
-	go h.wsFunnelConnectionData(h.Websocket.AuthConn, wsAccountsOrdersURL)
-	return nil
-}
-
-// wsFunnelConnectionData manages data from multiple endpoints and passes it to
-// a channel
-func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
+// wsReadMsgs reads and processes messages from a websocket connection
+func (h *HUOBI) wsReadMsgs(s stream.Connection) {
 	defer h.Websocket.Wg.Done()
 	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
+		msg := s.ReadMessage()
+		if msg.Raw == nil {
 			return
 		}
-		comms <- WsMessage{Raw: resp.Raw, URL: url}
-	}
-}
 
-// wsReadData receives and passes on websocket messages for processing
-func (h *HUOBI) wsReadData() {
-	defer h.Websocket.Wg.Done()
-	for {
-		select {
-		case <-h.Websocket.ShutdownC:
-			select {
-			case resp := <-comms:
-				err := h.wsHandleData(resp.Raw)
-				if err != nil {
-					select {
-					case h.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							h.Name,
-							err)
-					}
-				}
-			default:
-			}
-			return
-		case resp := <-comms:
-			err := h.wsHandleData(resp.Raw)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
+		if err := h.wsHandleData(msg.Raw); err != nil {
+			h.Websocket.DataHandler <- err
 		}
 	}
-}
-
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "submitted":
-		return order.New, nil
-	case "canceled":
-		return order.Cancelled, nil
-	case "partial-filled":
-		return order.PartiallyFilled, nil
-	case "partial-canceled":
-		return order.PartiallyCancelled, nil
-	default:
-		return order.UnknownStatus,
-			errors.New(status + " not recognised as order status")
-	}
-}
-
-func stringToOrderSide(side string) (order.Side, error) {
-	switch {
-	case strings.Contains(side, "buy"):
-		return order.Buy, nil
-	case strings.Contains(side, "sell"):
-		return order.Sell, nil
-	}
-
-	return order.UnknownSide,
-		errors.New(side + " not recognised as order side")
-}
-
-func stringToOrderType(oType string) (order.Type, error) {
-	switch {
-	case strings.Contains(oType, "limit"):
-		return order.Limit, nil
-	case strings.Contains(oType, "market"):
-		return order.Market, nil
-	}
-
-	return order.UnknownType,
-		errors.New(oType + " not recognised as order type")
 }
 
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
-	var init WsResponse
-	err := json.Unmarshal(respRaw, &init)
-	if err != nil {
+	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
+		if h.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
+	}
+
+	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
+		return h.wsHandleV1ping(int(pingValue))
+	}
+
+	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
+		switch action {
+		case "ping":
+			return h.wsHandleV2ping(respRaw)
+		case wsSubOp, wsUnsubOp:
+			return h.wsHandleV2subResp(action, respRaw)
+		}
+	}
+
+	if err := getErrResp(respRaw); err != nil {
 		return err
 	}
-	if init.Subscribed != "" ||
-		init.UnSubscribed != "" ||
-		init.Op == "sub" ||
-		init.Op == "unsub" {
-		// TODO handle subs
-		return nil
-	}
-	if init.Ping != 0 {
-		h.sendPingResponse(init.Ping)
-		return nil
+
+	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
+		s := h.Websocket.GetSubscription(ch)
+		if s == nil {
+			return fmt.Errorf("%w: `%s`", subscription.ErrNotFound, ch)
+		}
+		return h.wsHandleChannelMsgs(s, respRaw)
 	}
 
-	if init.Op == "ping" {
-		authPing := authenticationPing{
-			OP: "pong",
-			TS: init.TS,
-		}
-		err := h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authPing)
-		if err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
-		return nil
+	h.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+		Message: h.Name + stream.UnhandledMessage + string(respRaw),
 	}
 
-	if init.ErrorMessage != "" {
-		if init.ErrorMessage == "api-signature-not-valid" {
-			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return errors.New(h.Name +
-				" - invalid credentials. Authenticated requests disabled")
-		}
+	return nil
+}
 
-		codes, _ := init.ErrorCode.(string)
-		return errors.New(h.Name + " Code:" + codes + " Message:" + init.ErrorMessage)
-	}
-
-	if init.ClientID > 0 {
-		if h.Websocket.Match.IncomingWithData(init.ClientID, respRaw) {
-			return nil
-		}
-	}
-
-	switch {
-	case strings.EqualFold(init.Op, authOp):
-		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		// Auth captured
-		return nil
-	case strings.EqualFold(init.Topic, "accounts"):
-		var response WsAuthenticatedAccountsResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- response
-
-	case strings.Contains(init.Topic, "orders") &&
-		strings.Contains(init.Topic, "update"):
-		var response WsAuthenticatedOrdersUpdateResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		data := strings.Split(response.Topic, ".")
-		if len(data) < 2 {
-			return errors.New(h.Name +
-				" - currency could not be extracted from response")
-		}
-		orderID := strconv.FormatInt(response.Data.OrderID, 10)
-		var oSide order.Side
-		oSide, err = stringToOrderSide(response.Data.OrderType)
-		if err != nil {
-			h.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: h.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		var oType order.Type
-		oType, err = stringToOrderType(response.Data.OrderType)
-		if err != nil {
-			h.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: h.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		var oStatus order.Status
-		oStatus, err = stringToOrderStatus(response.Data.OrderState)
-		if err != nil {
-			h.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: h.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- &order.Detail{
-			Price:           response.Data.Price,
-			Amount:          response.Data.UnfilledAmount + response.Data.FilledAmount,
-			ExecutedAmount:  response.Data.FilledAmount,
-			RemainingAmount: response.Data.UnfilledAmount,
-			Exchange:        h.Name,
-			OrderID:         orderID,
-			Type:            oType,
-			Side:            oSide,
-			Status:          oStatus,
-			AssetType:       a,
-			LastUpdated:     time.Unix(response.TS*1000, 0),
-			Pair:            p,
-		}
-
-	case strings.Contains(init.Topic, "orders"):
-		var response WsOldOrderUpdate
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- response
-	case strings.Contains(init.Channel, "depth"):
-		var depth WsDepth
-		err := json.Unmarshal(respRaw, &depth)
-		if err != nil {
-			return err
-		}
-
-		data := strings.Split(depth.Channel, ".")
-		err = h.WsProcessOrderbook(&depth, data[1])
-		if err != nil {
-			return err
-		}
-	case strings.Contains(init.Channel, "kline"):
-		var kline WsKline
-		err := json.Unmarshal(respRaw, &kline)
-		if err != nil {
-			return err
-		}
-		data := strings.Split(kline.Channel, ".")
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  time.UnixMilli(kline.Timestamp),
-			Exchange:   h.Name,
-			AssetType:  a,
-			Pair:       p,
-			OpenPrice:  kline.Tick.Open,
-			ClosePrice: kline.Tick.Close,
-			HighPrice:  kline.Tick.High,
-			LowPrice:   kline.Tick.Low,
-			Volume:     kline.Tick.Volume,
-			Interval:   data[3],
-		}
-	case strings.Contains(init.Channel, "trade.detail"):
-		if !h.IsSaveTradeDataEnabled() {
-			return nil
-		}
-		var t WsTrade
-		err := json.Unmarshal(respRaw, &t)
-		if err != nil {
-			return err
-		}
-		data := strings.Split(t.Channel, ".")
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-		var trades []trade.Data
-		for i := range t.Tick.Data {
-			side := order.Buy
-			if t.Tick.Data[i].Direction != "buy" {
-				side = order.Sell
-			}
-			trades = append(trades, trade.Data{
-				Exchange:     h.Name,
-				AssetType:    a,
-				CurrencyPair: p,
-				Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
-				Amount:       t.Tick.Data[i].Amount,
-				Price:        t.Tick.Data[i].Price,
-				Side:         side,
-				TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
-			})
-		}
-		return trade.AddTradesToBuffer(h.Name, trades...)
-	case strings.Contains(init.Channel, "detail"),
-		strings.Contains(init.Rep, "detail"):
-		var wsTicker WsTick
-		err := json.Unmarshal(respRaw, &wsTicker)
-		if err != nil {
-			return err
-		}
-		var data []string
-		if wsTicker.Channel != "" {
-			data = strings.Split(wsTicker.Channel, ".")
-		}
-		if wsTicker.Rep != "" {
-			data = strings.Split(wsTicker.Rep, ".")
-		}
-
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-
-		h.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: h.Name,
-			Open:         wsTicker.Tick.Open,
-			Close:        wsTicker.Tick.Close,
-			Volume:       wsTicker.Tick.Amount,
-			QuoteVolume:  wsTicker.Tick.Volume,
-			High:         wsTicker.Tick.High,
-			Low:          wsTicker.Tick.Low,
-			LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
-			AssetType:    a,
-			Pair:         p,
-		}
-	default:
-		h.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: h.Name + stream.UnhandledMessage + string(respRaw),
-		}
-		return nil
+// wsHandleV1ping handles v1 style pings, currently only used with public connections
+func (h *HUOBI) wsHandleV1ping(pingValue int) error {
+	if err := h.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
 }
 
-func (h *HUOBI) sendPingResponse(pong int64) {
-	err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsPong{Pong: pong})
+// wsHandleV2ping handles v2 style pings, currently only used with private connections
+func (h *HUOBI) wsHandleV2ping(respRaw []byte) error {
+	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
+	if err := h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
+		return fmt.Errorf("error sending auth pong response: %w", err)
+	}
+	return nil
 }
 
-// WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
-	pairs, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
+func (h *HUOBI) wsHandleV2subResp(action string, respRaw []byte) error {
+	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
+		return h.Websocket.Match.RequireMatchWithData(action+":"+ch, respRaw)
+	}
+	return nil
+}
+
+func (h *HUOBI) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
+	switch s.Channel {
+	case subscription.TickerChannel:
+		return h.wsHandleTickerMsg(s, respRaw)
+	case subscription.OrderbookChannel:
+		return h.wsHandleOrderbookMsg(s, respRaw)
+	case subscription.CandlesChannel:
+		return h.wsHandleCandleMsg(s, respRaw)
+	case subscription.AllTradesChannel:
+		return h.wsHandleAllTradesMsg(s, respRaw)
+	case subscription.MyAccountChannel:
+		return h.wsHandleMyAccountMsg(respRaw)
+	case subscription.MyOrdersChannel:
+		return h.wsHandleMyOrdersMsg(s, respRaw)
+	case subscription.MyTradesChannel:
+		return h.wsHandleMyTradesMsg(s, respRaw)
+	}
+	return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, s.Channel)
+}
+
+func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
+	if len(s.Pairs) != 1 {
+		return subscription.ErrNotSinglePair
+	}
+	var c WsKline
+	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
+	h.Websocket.DataHandler <- stream.KlineData{
+		Timestamp:  c.Timestamp.Time(),
+		Exchange:   h.Name,
+		AssetType:  s.Asset,
+		Pair:       s.Pairs[0],
+		OpenPrice:  c.Tick.Open,
+		ClosePrice: c.Tick.Close,
+		HighPrice:  c.Tick.High,
+		LowPrice:   c.Tick.Low,
+		Volume:     c.Tick.Volume,
+		Interval:   s.Interval.String(),
+	}
+	return nil
+}
 
-	format, err := h.GetPairFormat(asset.Spot, true)
-	if err != nil {
+func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+	saveTradeData := h.IsSaveTradeDataEnabled()
+	tradeFeed := h.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
+		return nil
+	}
+	if len(s.Pairs) != 1 {
+		return subscription.ErrNotSinglePair
+	}
+	var t WsTrade
+	if err := json.Unmarshal(respRaw, &t); err != nil {
 		return err
 	}
+	trades := make([]trade.Data, 0, len(t.Tick.Data))
+	for i := range t.Tick.Data {
+		side := order.Buy
+		if t.Tick.Data[i].Direction != "buy" {
+			side = order.Sell
+		}
+		trades = append(trades, trade.Data{
+			Exchange:     h.Name,
+			AssetType:    s.Asset,
+			CurrencyPair: s.Pairs[0],
+			Timestamp:    t.Tick.Data[i].Timestamp.Time().UTC(),
+			Amount:       t.Tick.Data[i].Amount,
+			Price:        t.Tick.Data[i].Price,
+			Side:         side,
+			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
+		})
+	}
+	if tradeFeed {
+		for i := range trades {
+			h.Websocket.DataHandler <- trades[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(trades...)
+	}
+	return nil
+}
 
-	p, err := currency.NewPairFromFormattedPairs(symbol,
-		pairs,
-		format)
-	if err != nil {
+func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
+	if len(s.Pairs) != 1 {
+		return subscription.ErrNotSinglePair
+	}
+	var wsTicker WsTick
+	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
+	h.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: h.Name,
+		Open:         wsTicker.Tick.Open,
+		Close:        wsTicker.Tick.Close,
+		Volume:       wsTicker.Tick.Amount,
+		QuoteVolume:  wsTicker.Tick.Volume,
+		High:         wsTicker.Tick.High,
+		Low:          wsTicker.Tick.Low,
+		LastUpdated:  wsTicker.Timestamp.Time(),
+		AssetType:    s.Asset,
+		Pair:         s.Pairs[0],
+	}
+	return nil
+}
 
+func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+	if len(s.Pairs) != 1 {
+		return subscription.ErrNotSinglePair
+	}
+	var update WsDepth
+	if err := json.Unmarshal(respRaw, &update); err != nil {
+		return err
+	}
 	bids := make(orderbook.Tranches, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
 		price, ok := update.Tick.Bids[i][0].(float64)
@@ -531,13 +330,154 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.Pair = p
+	newOrderBook.Pair = s.Pairs[0]
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = h.Name
 	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
-	newOrderBook.LastUpdated = time.UnixMilli(update.Timestamp)
+	newOrderBook.LastUpdated = update.Timestamp.Time()
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+}
+
+func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
+	var msg wsOrderUpdateMsg
+	if err := json.Unmarshal(respRaw, &msg); err != nil {
+		return err
+	}
+	o := msg.Data
+	p, err := h.CurrencyPairs.Match(o.Symbol, s.Asset)
+	if err != nil {
+		return err
+	}
+	d := &order.Detail{
+		ClientOrderID:   o.ClientOrderID,
+		Price:           o.Price,
+		Amount:          o.Size,
+		ExecutedAmount:  o.ExecutedAmount,
+		RemainingAmount: o.RemainingAmount,
+		Exchange:        h.Name,
+		Side:            o.Side,
+		AssetType:       s.Asset,
+		Pair:            p,
+	}
+	if o.OrderID != 0 {
+		d.OrderID = strconv.FormatInt(o.OrderID, 10)
+	}
+	switch o.EventType {
+	case "trigger", "deletion", "cancellation":
+		d.LastUpdated = o.LastActTime.Time()
+	case "creation":
+		d.LastUpdated = o.CreateTime.Time()
+	case "trade":
+		d.LastUpdated = o.TradeTime.Time()
+	}
+	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
+		return &order.ClassificationError{
+			Exchange: h.Name,
+			OrderID:  d.OrderID,
+			Err:      err,
+		}
+	}
+	if o.Side == order.UnknownSide {
+		d.Side, err = stringToOrderSide(o.OrderType)
+		if err != nil {
+			return &order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  d.OrderID,
+				Err:      err,
+			}
+		}
+	}
+	if o.OrderType != "" {
+		d.Type, err = stringToOrderType(o.OrderType)
+		if err != nil {
+			return &order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  d.OrderID,
+				Err:      err,
+			}
+		}
+	}
+	h.Websocket.DataHandler <- d
+	if o.ErrCode != 0 {
+		return fmt.Errorf("error with order `%s`: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
+	}
+	return nil
+}
+
+func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+	var msg wsTradeUpdateMsg
+	if err := json.Unmarshal(respRaw, &msg); err != nil {
+		return err
+	}
+	t := msg.Data
+	p, err := h.CurrencyPairs.Match(t.Symbol, s.Asset)
+	if err != nil {
+		return err
+	}
+	d := &order.Detail{
+		ClientOrderID: t.ClientOrderID,
+		Price:         t.OrderPrice,
+		Amount:        t.OrderSize,
+		Exchange:      h.Name,
+		Side:          t.Side,
+		AssetType:     s.Asset,
+		Pair:          p,
+		Date:          t.OrderCreateTime.Time(),
+		LastUpdated:   t.TradeTime.Time(),
+		OrderID:       strconv.FormatInt(t.OrderID, 10),
+	}
+	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
+		return &order.ClassificationError{
+			Exchange: h.Name,
+			OrderID:  d.OrderID,
+			Err:      err,
+		}
+	}
+	if t.Side == order.UnknownSide {
+		d.Side, err = stringToOrderSide(t.OrderType)
+		if err != nil {
+			return &order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  d.OrderID,
+				Err:      err,
+			}
+		}
+	}
+	if t.OrderType != "" {
+		d.Type, err = stringToOrderType(t.OrderType)
+		if err != nil {
+			return &order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  d.OrderID,
+				Err:      err,
+			}
+		}
+	}
+	d.Trades = []order.TradeHistory{
+		{
+			Price:     t.TradePrice,
+			Amount:    t.TradeVolume,
+			Fee:       t.TransactFee,
+			Exchange:  h.Name,
+			TID:       strconv.FormatInt(t.TradeID, 10),
+			Type:      d.Type,
+			Side:      d.Side,
+			IsMaker:   !t.IsTaker,
+			Timestamp: t.TradeTime.Time(),
+		},
+	}
+	h.Websocket.DataHandler <- d
+	return nil
+}
+
+func (h *HUOBI) wsHandleMyAccountMsg(respRaw []byte) error {
+	u := &wsAccountUpdateMsg{}
+	if err := json.Unmarshal(respRaw, u); err != nil {
+		return err
+	}
+	h.Websocket.DataHandler <- u.Data
+	return nil
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
@@ -548,284 +488,231 @@ func (h *HUOBI) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName": channelName,
-		"interval":    h.FormatExchangeKlineInterval,
+		"channelName":       channelName,
+		"isWildcardChannel": isWildcardChannel,
+		"interval":          h.FormatExchangeKlineInterval,
 	}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(subs subscription.List) error {
-	ctx := context.Background()
-	var errs error
-	var creds *account.Credentials
-	if len(subs.Private()) > 0 {
-		if creds, errs = h.GetCredentials(ctx); errs != nil {
-			return errs
-		}
-	}
-	for _, s := range subs {
-		var err error
-		if s.Authenticated {
-			if err = h.wsAuthenticatedSubscribe(creds, "sub", wsAccountsOrdersEndPoint+"/"+s.QualifiedChannel, s.QualifiedChannel); err == nil {
-				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.Conn, s)
-			}
-		} else {
-			if err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, WsRequest{Subscribe: s.QualifiedChannel}); err == nil {
-				err = h.Websocket.AddSuccessfulSubscriptions(h.Websocket.AuthConn, s)
-			}
-		}
-		errs = common.AppendError(errs, err)
-	}
-	return nil
+	subs, errs := subs.ExpandTemplates(h)
+	return common.AppendError(errs, h.ParallelChanOp(subs, func(l subscription.List) error { return h.manageSubs(wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(subs subscription.List) error {
-	ctx := context.Background()
-	var errs error
-	var creds *account.Credentials
-	if len(subs.Private()) > 0 {
-		if creds, errs = h.GetCredentials(ctx); errs != nil {
-			return errs
-		}
-	}
-	for _, s := range subs {
-		var err error
-		if s.Authenticated {
-			err = h.wsAuthenticatedSubscribe(creds, "unsub", wsAccountsOrdersEndPoint+"/"+s.QualifiedChannel, s.QualifiedChannel)
-		} else {
-			err = h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, WsRequest{Unsubscribe: s.QualifiedChannel})
-		}
-		if err == nil {
-			err = h.Websocket.RemoveSubscriptions(h.Websocket.Conn, s)
-		}
-		errs = common.AppendError(errs, err)
-	}
-	return errs
+	subs, errs := subs.ExpandTemplates(h)
+	return common.AppendError(errs, h.ParallelChanOp(subs, func(l subscription.List) error { return h.manageSubs(wsUnsubOp, l) }, 1))
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {
+func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
+	if len(subs) != 1 {
+		return subscription.ErrBatchingNotSupported
+	}
+	s := subs[0]
+	var c stream.Connection
+	var req any
+	if s.Authenticated {
+		c = h.Websocket.AuthConn
+		req = wsReq{Action: op, Channel: s.QualifiedChannel}
+	} else {
+		c = h.Websocket.Conn
+		if op == wsSubOp {
+			// Set the id to the channel so that V1 errors can make it back to us
+			req = wsSubReq{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
+		} else {
+			req = wsSubReq{Unsub: s.QualifiedChannel}
+		}
+	}
+	if op == wsSubOp {
+		s.SetKey(s.QualifiedChannel)
+		if err := h.Websocket.AddSubscriptions(c, s); err != nil {
+			return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
+		}
+	}
+	ctx := context.Background()
+	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
+	if err == nil {
+		err = getErrResp(respRaw)
+	}
+	if err != nil {
+		if op == wsSubOp {
+			_ = h.Websocket.RemoveSubscriptions(c, s)
+		}
+		return fmt.Errorf("%s: %w", s, err)
+	}
+	if op == wsSubOp {
+		err = s.SetState(subscription.SubscribedState)
+		if h.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", h.Name, s)
+		}
+	} else {
+		err = h.Websocket.RemoveSubscriptions(c, s)
+	}
+	return err
+}
+
+func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
-	values.Set("AccessKeyId", creds.Key)
-	values.Set("SignatureMethod", signatureMethod)
-	values.Set("SignatureVersion", signatureVersion)
-	values.Set("Timestamp", timestamp)
-	host := "api.huobi.pro"
-	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
-		http.MethodGet, host, endpoint, values.Encode())
+	values.Set("accessKey", creds.Key)
+	values.Set("signatureMethod", signatureMethod)
+	values.Set("signatureVersion", signatureVersion)
+	values.Set("timestamp", timestamp)
+	payload := http.MethodGet + "\n" + wsSpotHost + "\n" + wsPrivatePath + "\n" + values.Encode()
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (h *HUOBI) wsLogin(ctx context.Context) error {
-	if !h.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
+	if err := h.Websocket.AuthConn.Dial(&websocket.Dialer{}, http.Header{}); err != nil {
+		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return err
+	if err := h.wsLogin(ctx); err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
 	}
-
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticationRequest{
-		Op:               authOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsAccountsOrdersEndPoint)
-	if err != nil {
-		return err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	err = h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
-	if err != nil {
-		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return err
-	}
-
-	time.Sleep(loginDelay)
 	return nil
 }
 
-func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, endpoint, topic string) error {
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedSubscriptionRequest{
-		Op:               operation,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            topic,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, endpoint)
+func (h *HUOBI) wsLogin(ctx context.Context) error {
+	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	req.Signature = crypto.Base64Encode(hmac)
-	return h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+
+	c := h.Websocket.AuthConn
+	ts := time.Now().UTC().Format(wsDateTimeFormatting)
+	hmac, err := h.wsGenerateSignature(creds, ts)
+	if err != nil {
+		return err
+	}
+	req := wsReq{
+		Action:  wsRequestOp,
+		Channel: wsAuthChannel,
+		Params: wsAuthReq{
+			AuthType:         "api",
+			AccessKey:        creds.Key,
+			SignatureMethod:  signatureMethod,
+			SignatureVersion: signatureVersion,
+			Signature:        crypto.Base64Encode(hmac),
+			Timestamp:        ts,
+		},
+	}
+	err = c.SendJSONMessage(context.Background(), request.Unset, req)
+	if err != nil {
+		return err
+	}
+	resp := c.ReadMessage()
+	if resp.Raw == nil {
+		return &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
+	}
+
+	return getErrResp(resp.Raw)
 }
 
-func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
-	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
+	case "rejected":
+		return order.Rejected, nil
+	case "submitted":
+		return order.New, nil
+	case "partial-filled":
+		return order.PartiallyFilled, nil
+	case "filled":
+		return order.Filled, nil
+	case "partial-canceled":
+		return order.PartiallyCancelled, nil
+	case "canceled":
+		return order.Cancelled, nil
+	default:
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedAccountsListRequest{
-		Op:               requestOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            wsAccountsList,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsAccountListEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
-	if err != nil {
-		return nil, err
-	}
-	var response WsAuthenticatedAccountsListResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	code, _ := response.ErrorCode.(int)
-	if code != 0 {
-		return nil, errors.New(response.ErrorMessage)
-	}
-	return &response, nil
 }
 
-func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
-	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
+func stringToOrderSide(side string) (order.Side, error) {
+	switch {
+	case strings.Contains(side, "buy"):
+		return order.Buy, nil
+	case strings.Contains(side, "sell"):
+		return order.Sell, nil
 	}
 
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	fPair, err := h.FormatExchangeCurrency(pair, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedOrdersListRequest{
-		Op:               requestOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            wsOrdersList,
-		AccountID:        accountID,
-		Symbol:           fPair.String(),
-		States:           "submitted,partial-filled",
-	}
-
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsOrdersListEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
-	if err != nil {
-		return nil, err
-	}
-
-	var response WsAuthenticatedOrdersResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	code, _ := response.ErrorCode.(int)
-	if code != 0 {
-		return nil, errors.New(response.ErrorMessage)
-	}
-	return &response, nil
+	return order.UnknownSide, errors.New(side + " not recognised as order side")
 }
 
-func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthenticatedOrderDetailResponse, error) {
-	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated cannot get order details", h.Name)
-	}
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedOrderDetailsRequest{
-		Op:               requestOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            wsOrdersDetail,
-		OrderID:          orderID,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsOrdersDetailEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
-	if err != nil {
-		return nil, err
-	}
-	var response WsAuthenticatedOrderDetailResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return nil, err
+func stringToOrderType(oType string) (order.Type, error) {
+	switch {
+	case strings.Contains(oType, "limit"):
+		return order.Limit, nil
+	case strings.Contains(oType, "market"):
+		return order.Market, nil
 	}
 
-	code, _ := response.ErrorCode.(int)
-	if code != 0 {
-		return nil, errors.New(response.ErrorMessage)
+	return order.UnknownType,
+		errors.New(oType + " not recognised as order type")
+}
+
+/*
+getErrResp looks for any of the following to determine an error:
+- An err-code (V1)
+- A code field that isn't 200 (V2)
+Error message is retreieved from the field err-message or message.
+Errors are returned in the format of <message> (<code>)
+*/
+func getErrResp(msg []byte) error {
+	var errCode string
+	errMsg, _ := jsonparser.GetString(msg, "err-msg")
+	errCode, err := jsonparser.GetString(msg, "err-code")
+	switch err {
+	case nil: // Nothing to do
+	case jsonparser.KeyPathNotFoundError: // Look for a V2 error
+		errCodeInt, err := jsonparser.GetInt(msg, "code")
+		if errCodeInt == 200 || errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("%w 'code': %w from message: %s", common.ErrParsingWSField, err, msg)
+		}
+		errCode = strconv.Itoa(int(errCodeInt))
+		errMsg, _ = jsonparser.GetString(msg, "message")
 	}
-	return &response, nil
+	if errCode != "" {
+		return fmt.Errorf("%s (%v)", errMsg, errCode)
+	}
+	return nil
 }
 
 // channelName converts global channel Names used in config of channel input into exchange channel names
 // returns the name unchanged if no match is found
-func channelName(s *subscription.Subscription, p currency.Pair) string {
+func channelName(s *subscription.Subscription, p ...currency.Pair) string {
 	if n, ok := subscriptionNames[s.Channel]; ok {
-		return fmt.Sprintf(n, p)
-	}
-	if s.Authenticated {
-		panic(fmt.Errorf("%w: Private endpoints not currently supported", common.ErrNotYetImplemented))
+		if strings.Contains(n, "%s") {
+			return fmt.Sprintf(n, p[0])
+		}
+		return n
 	}
 	panic(subscription.ErrUseConstChannelName)
+}
+
+func isWildcardChannel(s *subscription.Subscription) bool {
+	return s.Channel == subscription.MyTradesChannel || s.Channel == subscription.MyOrdersChannel
 }
 
 const subTplText = `
 {{- if $.S.Asset }}
 	{{ range $asset, $pairs := $.AssetPairs }}
-		{{- range $p := $pairs }}
-			{{- channelName $.S $p -}}
-			{{- if eq $.S.Channel "candles" -}} . {{- interval $.S.Interval }}{{ end }}
-			{{- if eq $.S.Channel "orderbook" -}} .step {{- $.S.Levels }}{{ end }}
-			{{ $.PairSeparator }}
+		{{- if isWildcardChannel $.S }}
+			{{- channelName $.S -}}
+		{{- else }}
+			{{- range $p := $pairs }}
+				{{- channelName $.S $p -}}
+				{{- if eq $.S.Channel "candles" -}} . {{- interval $.S.Interval }}{{ end }}
+				{{- if eq $.S.Channel "orderbook" -}} .step {{- $.S.Levels }}{{ end }}
+				{{ $.PairSeparator }}
+			{{- end }}
 		{{- end }}
 		{{ $.AssetSeparator }}
 	{{- end }}
 {{- else -}}
-	{{ channelName $.S nil }}
+	{{ channelName $.S }}
 {{- end }}
 `

@@ -243,7 +243,8 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Pair:         pair,
 			LastUpdated:  tick[x].Timestamp,
 			ExchangeName: h.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -257,24 +258,6 @@ func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		return nil, err
 	}
 	return ticker.GetTicker(h.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (h *HitBTC) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
-	if err != nil {
-		return h.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (h *HitBTC) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(h.Name, p, assetType)
-	if err != nil {
-		return h.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -357,20 +340,6 @@ func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	}
 
 	return response, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (h *HitBTC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(h.Name, creds, assetType)
-	if err != nil {
-		return h.UpdateAccountInfo(ctx, assetType)
-	}
-
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -552,10 +521,9 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 	for i := range resp {
 		if resp[i].Status != "canceled" {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] =
-				fmt.Sprintf("Could not cancel order %v. Status: %v",
-					resp[i].ID,
-					resp[i].Status)
+			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v",
+				resp[i].ID,
+				resp[i].Status)
 		}
 	}
 
@@ -822,7 +790,7 @@ func (h *HitBTC) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 	data, err := h.GetCandles(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(req.RequestLimit, 10),
+		strconv.FormatUint(req.RequestLimit, 10),
 		formattedInterval,
 		req.Start,
 		req.End)
@@ -861,7 +829,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 		var data []ChartData
 		data, err = h.GetCandles(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(req.RequestLimit, 10),
+			strconv.FormatUint(req.RequestLimit, 10),
 			formattedInterval,
 			req.RangeHolder.Ranges[y].Start.Time,
 			req.RangeHolder.Ranges[y].End.Time)

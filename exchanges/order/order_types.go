@@ -31,6 +31,8 @@ var (
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
+
+	ErrUnknownTrackingMode = errors.New("unknown tracking mode")
 )
 
 // Submit contains all properties of an order that may be required
@@ -92,6 +94,11 @@ type Submit struct {
 
 	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
 	Iceberg bool
+
+	// TrackingMode specifies the way trailing stop and chase orders follow the market price or ask/bid prices.
+	// See: https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	TrackingMode  TrackingMode
+	TrackingValue float64
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -111,6 +118,7 @@ type SubmitResponse struct {
 	AverageExecutedPrice float64
 	Amount               float64
 	QuoteAmount          float64
+	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string
 	ClientOrderID        string
@@ -122,12 +130,24 @@ type SubmitResponse struct {
 	Trades      []TradeHistory
 	Fee         float64
 	FeeAsset    currency.Code
-	Cost        float64
+
+	Cost      float64
+	Purchased float64 // Buy in base currency, Sell in quote
 
 	BorrowSize  float64
 	LoanApplyID string
 	MarginType  margin.Type
 }
+
+// TrackingMode defines how the stop price follows the market price.
+type TrackingMode uint8
+
+// Defined package tracking modes
+const (
+	UnknownTrackingMode TrackingMode = iota
+	Distance                         // Distance fixed amount away from the market price
+	Percentage                       // Percentage fixed percentage away from the market price
+)
 
 // Modify contains all properties of an order
 // that may be updated after it has been created
@@ -184,8 +204,7 @@ type ModifyResponse struct {
 }
 
 // Detail contains all properties of an order
-// Each exchange has their own requirements, so not all fields
-// are required to be populated
+// Each exchange has their own requirements, so not all fields are required to be populated
 type Detail struct {
 	ImmediateOrCancel    bool
 	HiddenOrder          bool
@@ -359,8 +378,12 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
-	OCO             // One-cancels-the-other order
-	ConditionalStop // One-way stop order
+	OCO                              // One-cancels-the-other order
+	ConditionalStop                  // One-way stop order
+	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
+	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
+	TWAP                             // time-weighted average price.
+	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
 )
 
 // Side enforces a standard for order sides across the code base

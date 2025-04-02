@@ -2,10 +2,10 @@ package order
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -705,6 +706,14 @@ func (t Type) String() string {
 		return "STOP"
 	case ConditionalStop:
 		return "CONDITIONAL"
+	case MarketMakerProtection:
+		return "MMP"
+	case MarketMakerProtectionAndPostOnly:
+		return "MMP_AND_POST_ONLY"
+	case TWAP:
+		return "TWAP"
+	case Chase:
+		return "CHASE"
 	case StopLimit:
 		return "STOP LIMIT"
 	case StopMarket:
@@ -963,12 +972,11 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 			continue
 		}
 
-		for y := range pairs {
-			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
-				(*orders)[target] = (*orders)[x]
-				target++
-				break
-			}
+		if slices.ContainsFunc(pairs, func(p currency.Pair) bool {
+			return (*orders)[x].Pair.EqualIncludeReciprocal(p)
+		}) {
+			(*orders)[target] = (*orders)[x]
+			target++
 		}
 	}
 	*orders = (*orders)[:target]
@@ -1137,7 +1145,7 @@ func StringToOrderType(oType string) (Type, error) {
 		return StopLimit, nil
 	case StopMarket.String(), "STOP_MARKET":
 		return StopMarket, nil
-	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
+	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
 	case FillOrKill.String(), "EXCHANGE FOK":
 		return FillOrKill, nil
@@ -1155,6 +1163,20 @@ func StringToOrderType(oType string) (Type, error) {
 		return OCO, nil
 	case ConditionalStop.String():
 		return ConditionalStop, nil
+	case MarketMakerProtection.String():
+		return MarketMakerProtection, nil
+	case MarketMakerProtectionAndPostOnly.String():
+		return MarketMakerProtectionAndPostOnly, nil
+	case TWAP.String():
+		return TWAP, nil
+	case Chase.String():
+		return Chase, nil
+	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+		return TakeProfitMarket, nil
+	case TakeProfit.String(), "TAKE_PROFIT":
+		return TakeProfit, nil
+	case Liquidation.String():
+		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
@@ -1167,15 +1189,15 @@ func StringToOrderStatus(status string) (Status, error) {
 	switch status {
 	case AnyStatus.String():
 		return AnyStatus, nil
-	case New.String(), "PLACED", "ACCEPTED":
+	case New.String(), "PLACED", "ACCEPTED", "SUBMITTED":
 		return New, nil
 	case Active.String(), "STATUS_ACTIVE", "LIVE":
 		return Active, nil
-	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
+	case PartiallyFilled.String(), "PARTIAL-FILLED", "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
 	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil
@@ -1366,5 +1388,30 @@ func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
 		return MarkPrice, nil
 	default:
 		return UnknownPriceType, ErrUnknownPriceType
+	}
+}
+
+// String implements the stringer interface
+func (t TrackingMode) String() string {
+	switch t {
+	case Distance:
+		return "distance"
+	case Percentage:
+		return "percentage"
+	default:
+		return ""
+	}
+}
+
+// StringToTrackingMode converts TrackingMode instance from string
+func StringToTrackingMode(mode string) TrackingMode {
+	mode = strings.ToLower(mode)
+	switch mode {
+	case "distance":
+		return Distance
+	case "percentage":
+		return Percentage
+	default:
+		return UnknownTrackingMode
 	}
 }

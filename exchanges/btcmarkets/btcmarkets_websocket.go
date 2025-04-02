@@ -2,7 +2,6 @@ package btcmarkets
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -91,7 +91,7 @@ func (b *BTCMarkets) wsReadData() {
 
 // UnmarshalJSON implements the unmarshaler interface.
 func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
-	resp := make([][3]interface{}, len(data))
+	resp := make([][3]any, len(data))
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -185,9 +185,12 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	case tradeEndPoint:
-		if !b.IsSaveTradeDataEnabled() {
+		tradeFeed := b.IsTradeFeedEnabled()
+		saveTradeData := b.IsSaveTradeDataEnabled()
+		if !saveTradeData && !tradeFeed {
 			return nil
 		}
+
 		var t WsTrade
 		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -200,11 +203,16 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		side := order.Buy
-		if t.Side == "Ask" {
+		switch {
+		case t.Side.IsLong():
+			// Nothing to do
+		case t.Side.IsShort():
 			side = order.Sell
+		default:
+			return fmt.Errorf("%w: `%s`", order.ErrSideIsInvalid, t.Side)
 		}
 
-		return trade.AddTradesToBuffer(b.Name, trade.Data{
+		td := trade.Data{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -213,7 +221,14 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Amount:       t.Volume,
 			Side:         side,
 			TID:          strconv.FormatInt(t.TradeID, 10),
-		})
+		}
+
+		if tradeFeed {
+			b.Websocket.DataHandler <- td
+		}
+		if saveTradeData {
+			return trade.AddTradesToBuffer(td)
+		}
 	case tick:
 		var tick WsTick
 		err := json.Unmarshal(respRaw, &tick)
@@ -254,7 +269,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		originalAmount := orderData.OpenVolume
 		var price float64
 		var trades []order.TradeHistory
-		var orderID = strconv.FormatInt(orderData.OrderID, 10)
+		orderID := strconv.FormatInt(orderData.OrderID, 10)
 		for x := range orderData.Trades {
 			var isMaker bool
 			if orderData.Trades[x].LiquidityType == "Maker" {
@@ -452,7 +467,7 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 
 // checksum provides assurance on current in memory liquidity
 func checksum(ob *orderbook.Base, checksum uint32) error {
-	check := crc32.ChecksumIEEE([]byte(concat(ob.Bids) + concat(ob.Asks)))
+	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 	if check != checksum {
 		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
 			ob.Exchange,
@@ -466,14 +481,10 @@ func checksum(ob *orderbook.Base, checksum uint32) error {
 	return nil
 }
 
-// concat concatenates price and amounts together for checksum processing
-func concat(liquidity orderbook.Tranches) string {
-	length := 10
-	if len(liquidity) < 10 {
-		length = len(liquidity)
-	}
+// concatOrderbookLiquidity concatenates price and amounts together for checksum processing
+func concatOrderbookLiquidity(liquidity orderbook.Tranches) string {
 	var c string
-	for x := range length {
+	for x := range min(10, len(liquidity)) {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
 	return c

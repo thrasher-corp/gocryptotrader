@@ -6,9 +6,7 @@ import (
 	"syscall"
 )
 
-var (
-	s = make(chan os.Signal, 1)
-)
+var s = make(chan os.Signal, 1)
 
 func init() {
 	sigs := []os.Signal{

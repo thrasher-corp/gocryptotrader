@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,8 +12,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -243,7 +244,7 @@ func (b *Binance) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResp
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
-func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -253,10 +254,10 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		params.Set("symbol", symbolValue)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -267,7 +268,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
-	var data [][10]interface{}
+	var data [][10]any
 	rateBudget := getKlineRateBudget(limit)
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
@@ -364,7 +365,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 }
 
 // GetContinuousKlineData gets continuous kline data
-func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !slices.Contains(validContractType, contractType) {
@@ -372,10 +373,10 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 	}
 	params.Set("contractType", contractType)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -387,7 +388,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 	}
 
 	rateBudget := getKlineRateBudget(limit)
-	var data [][10]interface{}
+	var data [][10]any
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesContinuousKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return nil, err
@@ -483,14 +484,14 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 }
 
 // GetIndexPriceKlines gets continuous kline data
-func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	params.Set("pair", pair)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -502,7 +503,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 	}
 
 	rateBudget := getKlineRateBudget(limit)
-	var data [][10]interface{}
+	var data [][10]any
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesIndexKline+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return nil, err
@@ -598,7 +599,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 }
 
 // GetMarkPriceKline gets mark price kline data
-func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -606,10 +607,10 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
+		return nil, kline.ErrInvalidInterval
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -620,7 +621,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 
-	var data [][10]interface{}
+	var data [][10]any
 	rateBudget := getKlineRateBudget(limit)
 	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesMarkPriceKline+params.Encode(), rateBudget, &data)
 	if err != nil {
@@ -716,7 +717,7 @@ func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, i
 	return resp, nil
 }
 
-func getKlineRateBudget(limit int64) request.EndpointLimit {
+func getKlineRateBudget(limit uint64) request.EndpointLimit {
 	rateBudget := cFuturesDefaultRate
 	switch {
 	case limit > 0 && limit < 100:

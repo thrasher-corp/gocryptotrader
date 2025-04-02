@@ -141,7 +141,7 @@ func (c *CurrencyLayer) Convert(from, to, date string, amount float64) (float64,
 
 // QueryTimeFrame returns historical exchange rates for a time-period.
 // (maximum range: 365 days)
-func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, baseCurrency string, currencies []string) (map[string]interface{}, error) {
+func (c *CurrencyLayer) QueryTimeFrame(startDate, endDate, baseCurrency string, currencies []string) (map[string]any, error) {
 	if c.APIKeyLvl >= AccountPro {
 		return nil, errors.New("insufficient API privileges, upgrade to basic to use this function")
 	}
@@ -193,7 +193,7 @@ func (c *CurrencyLayer) QueryCurrencyChange(startDate, endDate, baseCurrency str
 
 // SendHTTPRequest sends a HTTP request, if account is not free it automatically
 // upgrades request to SSL.
-func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
+func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, result any) error {
 	var path string
 	values.Set("access_key", c.APIKey)
 
@@ -210,7 +210,8 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,
-		Verbose: c.Verbose}
+		Verbose: c.Verbose,
+	}
 	return c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, auth)

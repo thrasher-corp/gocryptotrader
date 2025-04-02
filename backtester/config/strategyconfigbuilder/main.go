@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -23,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -429,12 +429,12 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	input = quickParse(reader)
 	var port uint64
 	if input != "" {
-		port, err = strconv.ParseUint(input, 10, 16)
+		port, err = strconv.ParseUint(input, 10, 32)
 		if err != nil {
 			return err
 		}
 	}
-	cfg.DataSettings.DatabaseData.Config.Port = uint16(port)
+	cfg.DataSettings.DatabaseData.Config.Port = uint32(port) //nolint:gosec // No overflow risk
 	err = database.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 	if err != nil {
 		return fmt.Errorf("database failed to set config: %w", err)
@@ -554,8 +554,8 @@ func parseStratName(name string, strategiesToUse []string) (string, error) {
 	return "", errors.New("unrecognised strategy")
 }
 
-func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
-	resp := make(map[string]interface{})
+func customSettingsLoop(reader *bufio.Reader) map[string]any {
+	resp := make(map[string]any)
 	customSettingField := "loopTime!"
 	for customSettingField != "" {
 		fmt.Println("Enter a custom setting name. Enter nothing to stop")

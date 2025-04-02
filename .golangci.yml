@@ -25,7 +25,7 @@ linters:
     - copyloopvar
 #   - cyclop
     - decorder
-#   - depguard
+    - depguard
     - dogsled
 #   - dupl
     - dupword
@@ -36,7 +36,7 @@ linters:
 #   - errorlint
 #   - exhaustive
 #   - exhaustruct
-    - exportloopref
+#   - exptostd
     - fatcontext
 #   - forbidigo
     - forcetypeassert
@@ -54,7 +54,7 @@ linters:
 #   - godot
 #   - godox
     - gofmt
-#   - gofumpt
+    - gofumpt
 #   - goheader
     - goimports
     - gomoddirectives
@@ -100,7 +100,7 @@ linters:
     - stylecheck
     - tagalign
 #   - tagliatelle
-    - tenv
+#   - tenv # Duplicate feature of another linter. Replaced by usetesting.
     - testableexamples
     - testifylint
 #   - testpackage
@@ -109,6 +109,7 @@ linters:
     - unconvert
     - unparam
     - usestdlibvars
+#   - usetesting # Disabled temporarily due to the number of t.Context changes required
 #   - varnamelen
     - wastedassign
     - whitespace
@@ -117,6 +118,17 @@ linters:
 #   - zerologlint
 
 linters-settings:
+  depguard:
+    rules:
+      prevent_json_package_use:
+        list-mode: lax # allow unless explicitely denied
+        files:
+          - $all
+        allow:
+          - github.com/thrasher-corp/gocryptotrader/encoding/json
+        deny:
+          - pkg: encoding/json
+            desc: "Please use the custom JSON package github.com/thrasher-corp/gocryptotrader/encoding/json instead of encoding/json to allow sonic/json switching."
   govet:
     enable: 
       - shadow
@@ -141,7 +153,8 @@ linters-settings:
       - float-compare
       # We deliberately use Equal over Len to avoid spamming the contents of large Slices
       - len
-
+  gofumpt:
+    extra-rules: true
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
@@ -150,6 +163,8 @@ issues:
     - text: "Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec
+    - text: 'shadow: declaration of "err" shadows declaration at'
+      linters: [ govet ]
 
   exclude-dirs:
     - vendor
@@ -157,14 +172,6 @@ issues:
     - testdata
     - database/models/
 
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-  exclude:
-    # The following silences false positives in table tests
-    #   https://github.com/kyoh86/scopelint/issues/4
-     - Using the variable on range scope `ti` in function literal
   include: 
     - EXC0012 # revive: Comment exported (.+) should have comment( \(or a comment on this block\))? or be unexported
     - EXC0014 # revive: Comment on exported (.+) should be of the form "(.+)..."

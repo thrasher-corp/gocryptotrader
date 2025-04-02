@@ -58,7 +58,7 @@ func TestSetCustomSettings(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	float14 := float64(14)
-	mappalopalous := make(map[string]interface{})
+	mappalopalous := make(map[string]any)
 	mappalopalous[openShortDistancePercentageString] = float14
 	mappalopalous[closeShortDistancePercentageString] = float14
 
@@ -186,7 +186,7 @@ func TestSortSignals(t *testing.T) {
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	var expectedError = gctcommon.ErrNilPointer
+	expectedError := gctcommon.ErrNilPointer
 	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)

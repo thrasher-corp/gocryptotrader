@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,9 +14,11 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -130,7 +131,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 
 	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
 
-	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, req.Payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -140,15 +141,16 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 		return err
 	}
 
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	if inbound.Header.Status == http.StatusOK {
+		return nil
 	}
 
-	return nil
+	var wsErr WebsocketErrors
+	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
@@ -162,8 +164,8 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 
 // WsHandleSpotData handles spot data
 func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
-	var push WsResponse
-	if err := json.Unmarshal(respRaw, &push); err != nil {
+	push, err := parseWSHeader(respRaw)
+	if err != nil {
 		return err
 	}
 
@@ -177,17 +179,17 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return g.processTicker(push.Result, push.TimeMs.Time())
+		return g.processTicker(push.Result, push.Time)
 	case spotTradesChannel:
 		return g.processTrades(push.Result)
 	case spotCandlesticksChannel:
 		return g.processCandlestick(push.Result)
 	case spotOrderbookTickerChannel:
-		return g.processOrderbookTicker(push.Result, push.TimeMs.Time())
+		return g.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result, push.TimeMs.Time())
+		return g.processOrderbookUpdate(push.Result, push.Time)
 	case spotOrderbookChannel:
-		return g.processOrderbookSnapshot(push.Result, push.TimeMs.Time())
+		return g.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
 		return g.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -210,6 +212,45 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 		return errors.New(stream.UnhandledMessage)
 	}
 	return nil
+}
+
+func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
+	r = &WSResponse{}
+	paths := [][]string{{"time_ms"}, {"time"}, {"channel"}, {"event"}, {"request_id"}, {"id"}, {"result"}}
+	jsonparser.EachKey(msg, func(idx int, v []byte, _ jsonparser.ValueType, _ error) {
+		switch idx {
+		case 0: // time_ms
+			if ts, err := strconv.ParseInt(string(v), 10, 64); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w parsing `time_ms`", err))
+			} else {
+				r.Time = time.UnixMilli(ts)
+			}
+		case 1: // time
+			if r.Time.IsZero() {
+				if ts, err := strconv.ParseInt(string(v), 10, 64); err != nil {
+					errs = common.AppendError(errs, fmt.Errorf("%w parsing `time`", err))
+				} else {
+					r.Time = time.Unix(ts, 0)
+				}
+			}
+		case 2:
+			r.Channel = string(v)
+		case 3:
+			r.Event = string(v)
+		case 4:
+			r.RequestID = string(v)
+		case 5:
+			if id, err := strconv.ParseInt(string(v), 10, 64); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w parsing `id`", err))
+			} else {
+				r.ID = id
+			}
+		case 6:
+			r.Result = json.RawMessage(v)
+		}
+	}, paths...)
+
+	return r, errs
 }
 
 func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
@@ -258,7 +299,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := g.Websocket.Trade.Update(saveTradeData, trade.Data{
-				Timestamp:    data.CreateTimeMs.Time(),
+				Timestamp:    data.CreateTime.Time(),
 				CurrencyPair: data.CurrencyPair,
 				AssetType:    a,
 				Exchange:     g.Name,
@@ -319,7 +360,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 		Exchange:       g.Name,
 		Pair:           data.CurrencyPair,
 		Asset:          asset.Spot,
-		LastUpdated:    data.UpdateTimeMS.Time(),
+		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
 		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
 		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
@@ -345,7 +386,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 
 	sPair := data.CurrencyPair.String()
 	if !fetchedCurrencyPairSnapshotOrderbook[sPair] {
-		orderbooks, err := g.FetchOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
+		orderbooks, err := g.UpdateOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
 		if err != nil {
 			return err
 		}
@@ -374,7 +415,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 
 	for _, a := range enabledAssets {
 		if err := g.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateTime:     data.UpdateTimeMs.Time(),
+			UpdateTime:     data.UpdateTime.Time(),
 			UpdatePushedAt: updatePushedAt,
 			Pair:           data.CurrencyPair,
 			Asset:          a,
@@ -411,7 +452,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 				Exchange:       g.Name,
 				Pair:           data.CurrencyPair,
 				Asset:          a,
-				LastUpdated:    data.UpdateTimeMs.Time(),
+				LastUpdated:    data.UpdateTime.Time(),
 				UpdatePushedAt: updatePushedAt,
 				Bids:           bids,
 				Asks:           asks,
@@ -459,8 +500,8 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			AssetType:      a,
 			Price:          resp.Result[x].Price.Float64(),
 			ExecutedAmount: resp.Result[x].Amount.Float64() - resp.Result[x].Left.Float64(),
-			Date:           resp.Result[x].CreateTimeMs.Time(),
-			LastUpdated:    resp.Result[x].UpdateTimeMs.Time(),
+			Date:           resp.Result[x].CreateTime.Time(),
+			LastUpdated:    resp.Result[x].UpdateTime.Time(),
 		}
 	}
 	g.Websocket.DataHandler <- details
@@ -489,7 +530,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 			return err
 		}
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].CurrencyPair,
 			Side:         side,
@@ -773,8 +814,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	return errs
 }
 
-// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
-type funnelResult struct {
+type resultHolder struct {
 	Result any `json:"result"`
 }
 
@@ -796,8 +836,6 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
-			// This request ID associated with the payload is the match to the
-			// response.
 			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn, 10),
@@ -813,17 +851,15 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		return common.ErrNoResponse
 	}
 
-	var inbound WebsocketAPIResponse
-	// The last response is the one we want to unmarshal, the other is just
-	// an ack. If the request fails on the ACK then we can unmarshal the error
-	// from that as the next response won't come anyway.
+	// responses may include an ack resp, which we skip
 	endResponse := responses[len(responses)-1]
 
+	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(endResponse, &inbound); err != nil {
 		return err
 	}
 
-	if inbound.Header.Status != "200" {
+	if inbound.Header.Status != http.StatusOK {
 		var wsErr WebsocketErrors
 		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
 			return err
@@ -831,7 +867,7 @@ func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointL
 		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
-	return json.Unmarshal(inbound.Data, &funnelResult{Result: result})
+	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
 }
 
 type wsRespAckInspector struct{}

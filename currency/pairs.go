@@ -1,22 +1,24 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+)
+
+// Public Errors
+var (
+	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
 var (
 	errSymbolEmpty                = errors.New("symbol is empty")
 	errNoDelimiter                = errors.New("no delimiter was supplied")
 	errPairFormattingInconsistent = errors.New("pair formatting is inconsistent")
-
-	// ErrPairDuplication defines an error when there is multiple of the same
-	// currency pairs found.
-	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -384,7 +386,7 @@ func (p Pairs) GetStables() Currencies {
 // currencyConstructor takes in an item map and returns the currencies with
 // the same formatting.
 func currencyConstructor(m map[*Item]bool) Currencies {
-	var cryptos = make([]Code, len(m))
+	cryptos := make([]Code, len(m))
 	var target int
 	for code, upper := range m {
 		cryptos[target].Item = code

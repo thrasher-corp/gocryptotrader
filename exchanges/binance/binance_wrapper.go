@@ -36,6 +36,29 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var defaultAssetPairStores = map[asset.Item]currency.PairStore{
+	asset.Spot: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+	},
+	asset.Margin: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+	},
+	asset.CoinMarginedFutures: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+	asset.USDTMarginedFutures: {
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+	},
+}
+
 // SetDefaults sets the basic defaults for Binance
 func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
@@ -43,62 +66,19 @@ func (b *Binance) SetDefaults() {
 	b.Verbose = true
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
-	b.SetValues()
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
+	for a, ps := range defaultAssetPairStores {
+		if err := b.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+		}
 	}
-	coinFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
+
+	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		if err := b.DisableAssetWebsocketSupport(a); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, a, err)
+		}
 	}
-	usdtFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.Margin, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.Margin)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = b.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
@@ -196,6 +176,7 @@ func (b *Binance) SetDefaults() {
 		},
 	}
 
+	var err error
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()))
@@ -531,31 +512,6 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := b.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
-	if err != nil {
-		return b.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
-	if err != nil {
-		// TODO: Disconnect update orderbook functionality from fetch orderbook
-		// functionality across all wrappers as this mutes potential errors.
-		return b.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -578,7 +534,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		orderbookNew, err = b.GetOrderBook(ctx,
 			OrderBookDataRequestParams{
 				Symbol: p,
-				Limit:  1000})
+				Limit:  1000,
+			})
 	case asset.USDTMarginedFutures:
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
@@ -721,19 +678,6 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	return info, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Binance) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Binance) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
@@ -783,15 +727,21 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			td := trade.Data{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
 				AssetType:    a,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Quantity,
-				Timestamp:    tradeData[i].Time,
-			})
+				Timestamp:    tradeData[i].Time.Time(),
+			}
+			if tradeData[i].IsBuyerMaker { // Seller is Taker
+				td.Side = order.Sell
+			} else { // Buyer is Taker
+				td.Side = order.Buy
+			}
+			resp = append(resp, td)
 		}
 	case asset.USDTMarginedFutures:
 		tradeData, err := b.URecentTrades(ctx, pFmt, "", limit)
@@ -800,7 +750,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			td := trade.Data{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -808,7 +758,13 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Qty,
 				Timestamp:    tradeData[i].Time.Time(),
-			})
+			}
+			if tradeData[i].IsBuyerMaker { // Seller is Taker
+				td.Side = order.Sell
+			} else { // Buyer is Taker
+				td.Side = order.Buy
+			}
+			resp = append(resp, td)
 		}
 	case asset.CoinMarginedFutures:
 		tradeData, err := b.GetFuturesPublicTrades(ctx, pFmt, limit)
@@ -817,7 +773,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			td := trade.Data{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -825,12 +781,18 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Qty,
 				Timestamp:    tradeData[i].Time.Time(),
-			})
+			}
+			if tradeData[i].IsBuyerMaker { // Seller is Taker
+				td.Side = order.Sell
+			} else { // Buyer is Taker
+				td.Side = order.Buy
+			}
+			resp = append(resp, td)
 		}
 	}
 
 	if b.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(b.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -864,16 +826,21 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	}
 	result := make([]trade.Data, len(trades))
 	for i := range trades {
-		result[i] = trade.Data{
+		td := trade.Data{
 			CurrencyPair: p,
 			TID:          strconv.FormatInt(trades[i].ATradeID, 10),
 			Amount:       trades[i].Quantity,
 			Exchange:     b.Name,
 			Price:        trades[i].Price,
-			Timestamp:    trades[i].TimeStamp,
+			Timestamp:    trades[i].TimeStamp.Time(),
 			AssetType:    a,
-			Side:         order.AnySide,
 		}
+		if trades[i].IsBuyerMaker { // Seller is Taker
+			td.Side = order.Sell
+		} else { // Buyer is Taker
+			td.Side = order.Buy
+		}
+		result[i] = td
 	}
 	return result, nil
 }
@@ -912,7 +879,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 
-		var orderRequest = NewOrderRequest{
+		orderRequest := NewOrderRequest{
 			Symbol:           s.Pair,
 			Side:             sideType,
 			Price:            s.Price,
@@ -1205,8 +1172,8 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Status:         status,
 			Price:          resp.Price,
 			ExecutedAmount: resp.ExecutedQty,
-			Date:           resp.Time,
-			LastUpdated:    resp.UpdateTime,
+			Date:           resp.Time.Time(),
+			LastUpdated:    resp.UpdateTime.Time(),
 		}, nil
 	case asset.CoinMarginedFutures:
 		orderData, err := b.FuturesOpenOrderData(ctx, pair, orderID, "")
@@ -1235,8 +1202,8 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
-		respData.Date = orderData.Time
-		respData.LastUpdated = orderData.UpdateTime
+		respData.Date = orderData.Time.Time()
+		respData.LastUpdated = orderData.UpdateTime.Time()
 	case asset.USDTMarginedFutures:
 		orderData, err := b.UGetOrderData(ctx, pair, orderID, "")
 		if err != nil {
@@ -1264,8 +1231,8 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		respData.Side = orderVars.Side
 		respData.Status = orderVars.Status
 		respData.Type = orderVars.OrderType
-		respData.Date = orderData.Time
-		respData.LastUpdated = orderData.UpdateTime
+		respData.Date = orderData.Time.Time()
+		respData.LastUpdated = orderData.UpdateTime.Time()
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -1368,7 +1335,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 				}
 				orders = append(orders, order.Detail{
 					Amount:        resp[x].OrigQty,
-					Date:          resp[x].Time,
+					Date:          resp[x].Time.Time(),
 					Exchange:      b.Name,
 					OrderID:       strconv.FormatInt(resp[x].OrderID, 10),
 					ClientOrderID: resp[x].ClientOrderID,
@@ -1378,7 +1345,7 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Status:        orderStatus,
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
-					LastUpdated:   resp[x].UpdateTime,
+					LastUpdated:   resp[x].UpdateTime.Time(),
 				})
 			}
 		case asset.CoinMarginedFutures:
@@ -1410,8 +1377,8 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.CoinMarginedFutures,
-					Date:            openOrders[y].Time,
-					LastUpdated:     openOrders[y].UpdateTime,
+					Date:            openOrders[y].Time.Time(),
+					LastUpdated:     openOrders[y].UpdateTime.Time(),
 				})
 			}
 		case asset.USDTMarginedFutures:
@@ -1443,8 +1410,8 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
-					Date:            openOrders[y].Time,
-					LastUpdated:     openOrders[y].UpdateTime,
+					Date:            openOrders[y].Time.Time(),
+					LastUpdated:     openOrders[y].UpdateTime.Time(),
 				})
 			}
 		default:
@@ -1508,8 +1475,8 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					RemainingAmount: resp[i].OrigQty - resp[i].ExecutedQty,
 					Cost:            cost,
 					CostAsset:       req.Pairs[x].Quote,
-					Date:            resp[i].Time,
-					LastUpdated:     resp[i].UpdateTime,
+					Date:            resp[i].Time.Time(),
+					LastUpdated:     resp[i].UpdateTime.Time(),
 					Exchange:        b.Name,
 					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
 					Side:            side,
@@ -1576,7 +1543,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.CoinMarginedFutures,
-					Date:            orderHistory[y].Time,
+					Date:            orderHistory[y].Time.Time(),
 				})
 			}
 		}
@@ -1634,7 +1601,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					Status:          orderVars.Status,
 					Pair:            req.Pairs[i],
 					AssetType:       asset.USDTMarginedFutures,
-					Date:            orderHistory[y].Time,
+					Date:            orderHistory[y].Time.Time(),
 				})
 			}
 		}
@@ -1683,7 +1650,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Symbol:    req.Pair,
 			StartTime: req.Start,
 			EndTime:   req.End,
-			Limit:     int(req.RequestLimit),
+			Limit:     req.RequestLimit,
 		})
 		if err != nil {
 			return nil, err
@@ -1764,7 +1731,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				Symbol:    req.Pair,
 				StartTime: req.RangeHolder.Ranges[x].Start.Time,
 				EndTime:   req.RangeHolder.Ranges[x].End.Time,
-				Limit:     int(req.RequestLimit),
+				Limit:     req.RequestLimit,
 			})
 			if err != nil {
 				return nil, err
@@ -1784,7 +1751,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err = b.UKlineData(ctx,
 				req.RequestFormatted,
 				b.FormatExchangeKlineInterval(interval),
-				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -1805,7 +1772,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			candles, err = b.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
 				b.FormatExchangeKlineInterval(interval),
-				int64(req.RangeHolder.Limit),
+				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
@@ -1964,7 +1931,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		if err != nil {
 			return time.Time{}, err
 		}
-		return info.ServerTime, nil
+		return info.ServerTime.Time(), nil
 	case asset.CoinMarginedFutures:
 		info, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
@@ -2696,7 +2663,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
-		var orderLimit = 1000
+		orderLimit := 1000
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -2718,7 +2685,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 						return nil, err
 					}
 					for i := range orders {
-						if orders[i].Time.After(req.EndDate) {
+						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
 						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
@@ -2746,8 +2713,8 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 							Side:                 orderVars.Side,
 							Status:               orderVars.Status,
 							AssetType:            asset.USDTMarginedFutures,
-							Date:                 orders[i].Time,
-							LastUpdated:          orders[i].UpdateTime,
+							Date:                 orders[i].Time.Time(),
+							LastUpdated:          orders[i].UpdateTime.Time(),
 							Pair:                 req.Pairs[x],
 							MarginType:           mt,
 						})
@@ -2761,7 +2728,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 			}
 		}
 	case asset.CoinMarginedFutures:
-		var orderLimit = 100
+		orderLimit := 100
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -2788,7 +2755,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 						return nil, err
 					}
 					for i := range orders {
-						if orders[i].Time.After(req.EndDate) {
+						if orders[i].Time.Time().After(req.EndDate) {
 							continue
 						}
 						var orderPair currency.Pair
@@ -2821,8 +2788,8 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 							Side:                 orderVars.Side,
 							Status:               orderVars.Status,
 							AssetType:            asset.CoinMarginedFutures,
-							Date:                 orders[i].Time,
-							LastUpdated:          orders[i].UpdateTime,
+							Date:                 orders[i].Time.Time(),
+							LastUpdated:          orders[i].UpdateTime.Time(),
 							Pair:                 req.Pairs[x],
 							MarginType:           mt,
 						})

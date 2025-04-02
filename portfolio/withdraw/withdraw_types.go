@@ -11,7 +11,7 @@ import (
 )
 
 // RequestType used for easy matching of int type to Word
-type RequestType uint8
+type RequestType int64
 
 const (
 	// Crypto request type
@@ -101,8 +101,8 @@ type Request struct {
 	OneTimePassword int64
 	PIN             int64
 
-	Crypto CryptoRequest `json:",omitempty"`
-	Fiat   FiatRequest   `json:",omitempty"`
+	Crypto CryptoRequest `json:"crypto"`
+	Fiat   FiatRequest   `json:"fiat"`
 }
 
 // Response holds complete details for Response

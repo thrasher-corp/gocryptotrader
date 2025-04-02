@@ -3,7 +3,6 @@ package binance
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -1084,9 +1084,9 @@ func TestGetExchangeInfo(t *testing.T) {
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	if mockTests {
 		exp := time.Date(2024, 5, 10, 6, 8, 1, int(707*time.Millisecond), time.UTC)
-		assert.True(t, info.ServerTime.Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.UTC())
+		assert.True(t, info.ServerTime.Time().Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.Time().UTC())
 	} else {
-		assert.WithinRange(t, info.ServerTime, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
+		assert.WithinRange(t, info.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 	}
 }
 
@@ -1115,7 +1115,6 @@ func TestGetOrderBook(t *testing.T) {
 			Symbol: currency.NewPair(currency.BTC, currency.USDT),
 			Limit:  1000,
 		})
-
 	if err != nil {
 		t.Error("Binance GetOrderBook() error", err)
 	}
@@ -1128,7 +1127,6 @@ func TestGetMostRecentTrades(t *testing.T) {
 			Symbol: currency.NewPair(currency.BTC, currency.USDT),
 			Limit:  15,
 		})
-
 	if err != nil {
 		t.Error("Binance GetMostRecentTrades() error", err)
 	}
@@ -1267,7 +1265,7 @@ func TestAllOrders(t *testing.T) {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := b.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
@@ -1286,7 +1284,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 
 	if sharedtestvalues.AreAPICredentialsSet(b) && mockTests {
 		// CryptocurrencyTradeFee Basic
@@ -1364,7 +1362,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
@@ -1385,7 +1383,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1398,7 +1396,8 @@ func TestGetOrderHistory(t *testing.T) {
 
 	getOrdersRequest.Pairs = []currency.Pair{
 		currency.NewPair(currency.LTC,
-			currency.BTC)}
+			currency.BTC),
+	}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequest)
 	switch {
@@ -1560,8 +1559,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
 			}
 			lastTradeTime := result[len(result)-1].TimeStamp
-			if !lastTradeTime.Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.UTC())
+			if !lastTradeTime.Time().Equal(tt.lastExpected) {
+				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
 			}
 		})
 	}
@@ -1623,7 +1622,7 @@ func TestSubmitOrder(t *testing.T) {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
@@ -1655,7 +1654,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -1680,7 +1679,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -1970,8 +1969,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 			<-b.Websocket.DataHandler
 		}
 	}()
-	bb.ResetTimer()
-	for range bb.N {
+	for bb.Loop() {
 		for x := range lines {
 			assert.NoError(bb, b.wsHandleData(lines[x]))
 		}
@@ -1991,7 +1989,7 @@ func TestSubscribe(t *testing.T) {
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
-			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
+			return w.WriteMessage(websocket.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
 		}
 		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -2013,7 +2011,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal should not error")
-		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
+		return w.WriteMessage(websocket.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)
@@ -2205,8 +2203,7 @@ func TestWsBalanceUpdate(t *testing.T) {
   "E": 1573200697110,           
   "a": "BTC",                   
   "d": "100.00000000",          
-  "T": 1573200697068            
-}}`)
+  "T": 1573200697068}}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)

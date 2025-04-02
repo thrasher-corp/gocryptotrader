@@ -38,7 +38,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		t.Error(err)
 	}
 	cp, _ := currency.NewPairFromString("BTC-USD")
-	err = AddTradesToBuffer("test!", []Data{
+	err = AddTradesToBuffer([]Data{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
@@ -56,7 +56,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		t.Error("expected the processor to have started")
 	}
 
-	err = AddTradesToBuffer("test!", []Data{
+	err = AddTradesToBuffer([]Data{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
@@ -74,7 +74,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 	processor.buffer = nil
 	processor.mutex.Unlock()
 
-	err = AddTradesToBuffer("test!", []Data{
+	err = AddTradesToBuffer([]Data{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",

@@ -122,7 +122,7 @@ func (o *OXR) GetSupportedCurrencies() ([]string, error) {
 
 // GetTimeSeries returns historical exchange rates for a given time period,
 // where available.
-func (o *OXR) GetTimeSeries(baseCurrency, startDate, endDate string, symbols []string, prettyPrint, showAlternative bool) (map[string]interface{}, error) {
+func (o *OXR) GetTimeSeries(baseCurrency, startDate, endDate string, symbols []string, prettyPrint, showAlternative bool) (map[string]any, error) {
 	if o.APIKeyLvl < APIEnterpriseAccess {
 		return nil, errors.New("upgrade account, insufficient access")
 	}
@@ -170,7 +170,7 @@ func (o *OXR) ConvertCurrency(amount float64, from, to string) (float64, error) 
 // GetOHLC returns historical Open, High Low, Close (OHLC) and Average exchange
 // rates for a given time period, ranging from 1 month to 1 minute, where
 // available.
-func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, prettyPrint bool) (map[string]interface{}, error) {
+func (o *OXR) GetOHLC(startTime, period, baseCurrency string, symbols []string, prettyPrint bool) (map[string]any, error) {
 	if o.APIKeyLvl < APIUnlimitedAccess {
 		return nil, errors.New("upgrade account, insufficient access")
 	}
@@ -213,7 +213,7 @@ func (o *OXR) GetUsageStats(prettyPrint bool) (Usage, error) {
 }
 
 // SendHTTPRequest sends a HTTP request
-func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interface{}) error {
+func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result any) error {
 	headers := make(map[string]string)
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
@@ -222,7 +222,8 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
-		Verbose: o.Verbose}
+		Verbose: o.Verbose,
+	}
 	return o.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)

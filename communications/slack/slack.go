@@ -5,7 +5,6 @@ package slack
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -295,6 +295,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 	}
 	return nil
 }
+
 func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 	if data.Error.Msg == "Socket URL has expired" {
 		if s.Verbose {

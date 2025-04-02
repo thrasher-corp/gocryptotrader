@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -26,10 +26,6 @@ const (
 	wsEndpoint       = "wss://pubwss.bithumb.com/pub/ws"
 	tickerTimeLayout = "20060102150405"
 	tradeTimeLayout  = time.DateTime + ".000000"
-)
-
-var (
-	location *time.Location
 )
 
 var defaultSubscriptions = subscription.List{
@@ -107,9 +103,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		var lu time.Time
-		lu, err = time.ParseInLocation(tickerTimeLayout,
-			tick.Date+tick.Time,
-			location)
+		lu, err = time.ParseInLocation(tickerTimeLayout, tick.Date+tick.Time, b.location)
 		if err != nil {
 			return err
 		}
@@ -140,9 +134,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		toBuffer := make([]trade.Data, len(trades.List))
 		var lu time.Time
 		for x := range trades.List {
-			lu, err = time.ParseInLocation(tradeTimeLayout,
-				trades.List[x].ContractTime,
-				location)
+			lu, err = time.ParseInLocation(tradeTimeLayout, trades.List[x].ContractTime, b.location)
 			if err != nil {
 				return err
 			}

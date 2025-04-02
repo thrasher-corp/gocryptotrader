@@ -178,7 +178,8 @@ func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         tickerInfo[j].Symbol,
 				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
 				ExchangeName: l.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 			if err != nil {
 				return err
 			}
@@ -193,29 +194,6 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		return nil, err
 	}
 	return ticker.GetTicker(l.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (l *Lbank) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := l.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	tickerNew, err := ticker.GetTicker(l.Name, fPair, assetType)
-	if err != nil {
-		return l.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (l *Lbank) FetchOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(l.Name, c, assetType)
-	if err != nil {
-		return l.UpdateOrderbook(ctx, c, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -322,19 +300,6 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		return account.Holdings{}, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (l *Lbank) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := l.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(l.Name, creds, assetType)
-	if err != nil {
-		return l.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -512,7 +477,7 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 		if key != o.Pair.String() {
 			continue
 		}
-		var x, y = 0, 0
+		x, y := 0, 0
 		var input string
 		var tempSlice []string
 		for x <= len(orderIDs[key]) {
@@ -594,7 +559,8 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 			resp.Fee, err = l.GetFeeByType(ctx, &exchange.FeeBuilder{
 				FeeType:       exchange.CryptocurrencyTradeFee,
 				Amount:        tempResp.Orders[0].Amount,
-				PurchasePrice: tempResp.Orders[0].Price})
+				PurchasePrice: tempResp.Orders[0].Price,
+			})
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
@@ -682,7 +648,8 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 				&exchange.FeeBuilder{
 					FeeType:       exchange.CryptocurrencyTradeFee,
 					Amount:        tempResp.Orders[0].Amount,
-					PurchasePrice: tempResp.Orders[0].Price})
+					PurchasePrice: tempResp.Orders[0].Price,
+				})
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
@@ -765,7 +732,8 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 					&exchange.FeeBuilder{
 						FeeType:       exchange.CryptocurrencyTradeFee,
 						Amount:        tempResp.Orders[x].Amount,
-						PurchasePrice: tempResp.Orders[x].Price})
+						PurchasePrice: tempResp.Orders[x].Price,
+					})
 				if err != nil {
 					resp.Fee = lbankFeeNotFound
 				}
@@ -886,7 +854,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 
 	data, err := l.GetKlines(ctx,
 		req.RequestFormatted.String(),
-		strconv.FormatInt(req.RequestLimit, 10),
+		strconv.FormatUint(req.RequestLimit, 10),
 		l.FormatExchangeKlineInterval(req.ExchangeInterval),
 		strconv.FormatInt(req.Start.Unix(), 10))
 	if err != nil {
@@ -919,7 +887,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 		var data []KlineResponse
 		data, err = l.GetKlines(ctx,
 			req.RequestFormatted.String(),
-			strconv.FormatInt(req.RequestLimit, 10),
+			strconv.FormatUint(req.RequestLimit, 10),
 			l.FormatExchangeKlineInterval(req.ExchangeInterval),
 			strconv.FormatInt(req.RangeHolder.Ranges[x].Start.Ticks, 10))
 		if err != nil {

@@ -181,6 +181,7 @@ message AccountCurrencyInfo {
   double free = 4;
   double free_without_borrow = 5;
   double borrowed = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 message GetAccountInfoResponse {
@@ -571,7 +572,7 @@ message WithdrawalRequestEvent {
   string currency = 2;
   string description = 3;
   double amount = 4;
-  int32 type = 5;
+  int64 type = 5;
   FiatWithdrawalEvent fiat = 6;
   CryptoWithdrawalEvent crypto = 7;
 }
@@ -892,15 +893,15 @@ message UpsertDataHistoryJobRequest {
   string start_date = 5;
   string end_date = 6;
   int64 interval = 7;
-  int64 request_size_limit = 8;
+  uint64 request_size_limit = 8;
   int64 data_type = 9;
-  int64 max_retry_attempts = 10;
-  int64 batch_size = 11;
+  uint64 max_retry_attempts = 10;
+  uint64 batch_size = 11;
   bool insert_only = 12;
   int64 conversion_interval = 13;
   bool overwrite_existing_data = 14;
   string prerequisite_job_nickname = 15;
-  int64 decimal_place_comparison = 16;
+  uint64 decimal_place_comparison = 16;
   string secondary_exchange_name = 17;
   double issue_tolerance_percentage = 18;
   bool replace_on_issue = 19;
@@ -934,15 +935,15 @@ message DataHistoryJob {
   string start_date = 6;
   string end_date = 7;
   int64 interval = 8;
-  int64 request_size_limit = 9;
-  int64 max_retry_attempts = 10;
-  int64 batch_size = 11;
+  uint64 request_size_limit = 9;
+  uint64 max_retry_attempts = 10;
+  uint64 batch_size = 11;
   string status = 12;
   string data_type = 13;
   int64 conversion_interval = 14;
   bool overwrite_existing_data = 15;
   string prerequisite_job_nickname = 16;
-  int64 decimal_place_comparison = 17;
+  uint64 decimal_place_comparison = 17;
   string secondary_exchange_name = 18;
   double issue_tolerance_percentage = 19;
   bool replace_on_issue = 20;
