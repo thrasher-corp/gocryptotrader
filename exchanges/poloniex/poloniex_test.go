@@ -345,9 +345,7 @@ func TestGetOrderTrades(t *testing.T) {
 			case !sharedtestvalues.AreAPICredentialsSet(p) && err == nil && !mockTests:
 				t.Error("Expecting an error when no keys are set")
 			case mockTests && err != nil:
-				if !(tt.errExpected && strings.Contains(err.Error(), tt.errMsgExpected)) {
-					t.Errorf("Could not mock get order trades: %s", err)
-				}
+				assert.ErrorContains(t, err, tt.errMsgExpected)
 			}
 		})
 	}

@@ -10,11 +10,6 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-var (
-	errUpgradingAssetTypes    = errors.New("error upgrading assetTypes")
-	errUpgradingCurrencyPairs = errors.New("error upgrading currencyPairs.pairs")
-)
-
 // Version4 is an Exchange upgrade to move currencyPairs.assetTypes to currencyPairs.pairs.*.assetEnabled
 type Version4 struct{}
 
@@ -36,7 +31,7 @@ func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 	}
 	_, err := jsonparser.ArrayEach(e, assetTypesFn, "currencyPairs", "assetTypes")
 	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return e, fmt.Errorf("%w: %w", errUpgradingAssetTypes, err)
+		return e, fmt.Errorf("%w assetTypes: %w", errUpgrading, err)
 	}
 
 	assetEnabledFn := func(assetBytes, v []byte, _ jsonparser.ValueType, _ int) (err error) {
@@ -59,7 +54,7 @@ func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		return err
 	}
 	if err = jsonparser.ObjectEach(bytes.Clone(e), assetEnabledFn, "currencyPairs", "pairs"); err != nil {
-		return e, fmt.Errorf("%w: %w", errUpgradingCurrencyPairs, err)
+		return e, fmt.Errorf("%w currencyPairs.pairs: %w", errUpgrading, err)
 	}
 	e = jsonparser.Delete(e, "currencyPairs", "assetTypes")
 	return e, err
