@@ -205,11 +205,12 @@ func (d *Data) enhanceCandles() error {
 				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Order.Amount)
 				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Order.Price
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Order.Side
-				if enhancedCandle.OrderDirection == order.Buy {
+				switch enhancedCandle.OrderDirection {
+				case order.Buy:
 					enhancedCandle.Colour = "green"
 					enhancedCandle.Position = "aboveBar"
 					enhancedCandle.Shape = "arrowDown"
-				} else if enhancedCandle.OrderDirection == order.Sell {
+				case order.Sell:
 					enhancedCandle.Colour = "red"
 					enhancedCandle.Position = "belowBar"
 					enhancedCandle.Shape = "arrowUp"

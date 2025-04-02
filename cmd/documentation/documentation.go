@@ -507,7 +507,7 @@ func GetPackageName(name string, capital bool) string {
 		i = len(newStrings) - 1
 	}
 	if capital {
-		return strings.Replace(cases.Title(language.English).String(newStrings[i]), "_", " ", -1)
+		return cases.Title(language.English).String(strings.ReplaceAll(newStrings[i], "_", " "))
 	}
 	return newStrings[i]
 }
@@ -589,8 +589,8 @@ func UpdateDocumentation(details DocumentationDetails) {
 			continue
 		}
 		var mainPath string
-		switch {
-		case name == LicenseFile || name == ContributorFile:
+		switch name {
+		case LicenseFile, ContributorFile:
 			mainPath = details.Directories[i]
 		default:
 			mainPath = filepath.Join(details.Directories[i], "README.md")
@@ -605,8 +605,7 @@ func UpdateDocumentation(details DocumentationDetails) {
 
 func runTemplate(details DocumentationDetails, mainPath, name string) error {
 	err := os.Remove(mainPath)
-	if err != nil && !(strings.Contains(err.Error(), "no such file or directory") ||
-		strings.Contains(err.Error(), "The system cannot find the file specified.")) {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 

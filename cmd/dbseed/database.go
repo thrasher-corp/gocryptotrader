@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -45,18 +44,19 @@ func openDBConnection(c *cli.Context, cfg *database.Config) (err error) {
 	if c.IsSet("verbose") {
 		boil.DebugMode = true
 	}
-	if cfg.Driver == database.DBPostgreSQL {
+
+	switch cfg.Driver {
+	case database.DBPostgreSQL:
 		dbConn, err = dbPSQL.Connect(cfg)
-		if err != nil {
-			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
-		}
-		return nil
-	} else if cfg.Driver == database.DBSQLite || cfg.Driver == database.DBSQLite3 {
+	case database.DBSQLite, database.DBSQLite3:
 		dbConn, err = dbsqlite3.Connect(cfg.Database)
-		if err != nil {
-			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
-		}
-		return nil
+	default:
+		return fmt.Errorf("unsupported database driver: %q", cfg.Driver)
 	}
-	return errors.New("no connection established")
+
+	if err != nil {
+		return fmt.Errorf("database failed to connect: %w, some features that utilise a database will be unavailable", err)
+	}
+
+	return nil
 }

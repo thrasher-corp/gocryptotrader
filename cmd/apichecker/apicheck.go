@@ -1234,7 +1234,7 @@ func trelloGetLists() ([]TrelloData, error) {
 	return resp, sendGetReq(fmt.Sprintf(pathGetAllLists, trelloBoardID, apiKey, apiToken), &resp)
 }
 
-// trelloNewList creates a new list on a specified boards on trello
+// trelloCreateNewList creates a new list on a specified boards on trello
 func trelloCreateNewList() error {
 	if trelloBoardID == "" {
 		return errors.New("trelloBoardID not set, cannot create a new list")

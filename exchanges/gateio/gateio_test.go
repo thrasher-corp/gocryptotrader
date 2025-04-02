@@ -3386,7 +3386,7 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 
 func TestGetClientOrderIDFromText(t *testing.T) {
 	t.Parallel()
-	assert.Zero(t, getClientOrderIDFromText("api"), "should not return anything")
+	assert.Empty(t, getClientOrderIDFromText("api"), "should not return anything")
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
