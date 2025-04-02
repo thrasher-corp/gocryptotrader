@@ -1135,10 +1135,11 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	in = in.Lower()
 
 	var checkString [2]byte
-	if a == asset.Spot || a == asset.Margin {
+	switch a {
+	case asset.Spot, asset.Margin:
 		checkString[0] = 't'
 		checkString[1] = 'T'
-	} else if a == asset.MarginFunding {
+	case asset.MarginFunding:
 		checkString[0] = 'f'
 		checkString[1] = 'F'
 	}

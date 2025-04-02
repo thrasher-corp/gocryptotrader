@@ -1187,7 +1187,7 @@ func (by *Bybit) ConstructOrderDetails(tradeOrders []TradeOrder, assetType asset
 			return nil, err
 		}
 		if (pair.IsEmpty() && len(filterPairs) > 0 && !filterPairs.Contains(ePair, true)) ||
-			!(pair.IsEmpty() || pair.Equal(ePair)) {
+			(!pair.IsEmpty() && !pair.Equal(ePair)) {
 			continue
 		}
 		orderType, err := order.StringToOrderType(tradeOrders[x].OrderType)
