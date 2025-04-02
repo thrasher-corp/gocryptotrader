@@ -113,25 +113,6 @@ func TestGetHoldings(t *testing.T) {
 	}, happyCredentials)
 	assert.NoError(t, err)
 
-	// process again with no changes
-	err = Process(&Holdings{
-		Exchange: "Test",
-		Accounts: []SubAccount{
-			{
-				AssetType: asset.Spot,
-				ID:        "1337",
-				Currencies: []Balance{
-					{
-						Currency: currency.BTC,
-						Total:    100,
-						Hold:     20,
-					},
-				},
-			},
-		},
-	}, happyCredentials)
-	assert.NoError(t, err)
-
 	_, err = GetHoldings("", nil, asset.Spot)
 	assert.ErrorIs(t, err, errExchangeNameUnset)
 
@@ -337,20 +318,16 @@ func TestGetFree(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestSave(t *testing.T) {
 	t.Parallel()
 	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
-	err := s.Update(nil, nil)
-	if !errors.Is(err, errHoldingsIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errHoldingsIsNil)
-	}
+	err := s.Save(nil, nil)
+	assert.ErrorIs(t, err, errHoldingsIsNil)
 
-	err = s.Update(&Holdings{}, nil)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
-	}
+	err = s.Save(&Holdings{}, nil)
+	assert.ErrorIs(t, err, errExchangeNameUnset)
 
-	err = s.Update(&Holdings{
+	err = s.Save(&Holdings{
 		Exchange: "TeSt",
 		Accounts: []SubAccount{
 			{
@@ -365,24 +342,11 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			{AssetType: asset.UpsideProfitContract, ID: "1337"},
-			{
-				AssetType: asset.Spot,
-				ID:        "1337",
-				Currencies: []Balance{
-					{
-						Currency: currency.BTC,
-						Total:    100,
-						Hold:     20,
-					},
-				},
-			},
 		},
 	}, happyCredentials)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	err = s.Update(&Holdings{ // No change
+	err = s.Save(&Holdings{ // No change
 		Exchange: "tEsT",
 		Accounts: []SubAccount{
 			{
@@ -398,25 +362,51 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 	}, happyCredentials)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	acc, ok := s.exchangeAccounts["test"]
-	if !ok {
-		t.Fatal("account should be loaded")
-	}
+	require.True(t, ok)
 
-	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAsset{
+	assets, ok := acc.subAccounts[*happyCredentials][key.SubAccountAsset{
 		SubAccount: "1337",
-		Currency:   currency.BTC.Item,
 		Asset:      asset.Spot,
 	}]
-	if !ok {
-		t.Fatal("account should be loaded")
-	}
+	require.True(t, ok)
 
+	b, ok := assets[currency.BTC.Item]
+	require.True(t, ok)
+
+	assert.NotEmpty(t, b.updatedAt)
 	assert.Equal(t, 100.0, b.total)
 	assert.Equal(t, 20.0, b.hold)
+
+	err = s.Save(&Holdings{
+		Exchange: "tEsT",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						Currency: currency.ETH,
+						Total:    80,
+						Hold:     20,
+					},
+				},
+			},
+		},
+	}, happyCredentials)
+	require.NoError(t, err)
+
+	b, ok = assets[currency.BTC.Item]
+	require.True(t, ok)
 	assert.NotEmpty(t, b.updatedAt)
+	assert.Zero(t, b.total)
+	assert.Zero(t, b.hold)
+
+	e, ok := assets[currency.ETH.Item]
+	require.True(t, ok)
+	assert.NotEmpty(t, e.updatedAt)
+	assert.Equal(t, 80.0, e.total)
+	assert.Equal(t, 20.0, e.hold)
 }
