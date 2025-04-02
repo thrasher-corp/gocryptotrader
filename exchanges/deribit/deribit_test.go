@@ -712,6 +712,53 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 	}
 }
 
+func TestWSProcessTrades(t *testing.T) {
+	t.Parallel()
+
+	d := new(Deribit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(d), "Setup instance must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", d.wsHandleData)
+	close(d.Websocket.DataHandler)
+
+	p, a, err := d.getAssetPairByInstrument("BTC-PERPETUAL")
+	require.NoError(t, err, "getAssetPairByInstrument must not error")
+
+	exp := []trade.Data{
+		{
+			Exchange:     d.Name,
+			CurrencyPair: p,
+			Timestamp:    time.UnixMilli(1742627465811).UTC(),
+			Price:        84295.5,
+			Amount:       8430.0,
+			Side:         order.Buy,
+			TID:          "356130997",
+			AssetType:    a,
+		},
+		{
+			Exchange:     d.Name,
+			CurrencyPair: p,
+			Timestamp:    time.UnixMilli(1742627361899).UTC(),
+			Price:        84319.0,
+			Amount:       580.0,
+			Side:         order.Sell,
+			TID:          "356130979",
+			AssetType:    a,
+		},
+	}
+	require.Len(t, d.Websocket.DataHandler, len(exp), "Must see the correct number of trades")
+	for resp := range d.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case trade.Data:
+			i := 1 - len(d.Websocket.DataHandler)
+			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
+		}
+	}
+}
+
 func TestGetOrderbookData(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetOrderbook(context.Background(), "", 0)
