@@ -2013,9 +2013,7 @@ func TestMigrateConfig(t *testing.T) {
 
 func TestExchangeConfigValidate(t *testing.T) {
 	err := (*Exchange)(nil).Validate()
-	if !errors.Is(err, errExchangeConfigIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
-	}
+	require.ErrorIs(t, err, ErrExchangeConfigIsNil)
 
 	err = (&Exchange{}).Validate()
 	if !errors.Is(err, nil) {
