@@ -348,16 +348,11 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint64
+type Type uint32
 
 // Is checks to see if the enum contains the flag
 func (t Type) Is(in Type) bool {
 	return in != 0 && t&in == in
-}
-
-// TimeInForceIs checks to see if the enum contains the time-in-force flag
-func (t Type) TimeInForceIs(in TimeInForce) bool {
-	return in != 0 && TimeInForce(t)&in == in
 }
 
 // Defined package order types
@@ -376,14 +371,13 @@ const (
 	ConditionalStop // One-way stop order
 	TWAP            // time-weighted average price.
 	Chase           // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	OptimalLimit
+	MarketMakerProtection // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
 
 	// Hybrid order types
-	OptimalLimitIOC                  = 1<<iota | Type(ImmediateOrCancel)
-	MarketMakerProtection                                                     // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
-	MarketMakerProtectionAndPostOnly = MarketMakerProtection | Type(PostOnly) // market-maker-protection and post-only mode. Used in Okx exchange orders.
-	StopLimit                        = Stop | Limit
-	StopMarket                       = Stop | Market
-	TakeProfitMarket                 = TakeProfit | Market
+	StopLimit        = Stop | Limit
+	StopMarket       = Stop | Market
+	TakeProfitMarket = TakeProfit | Market
 )
 
 // Side enforces a standard for order sides across the code base
@@ -413,7 +407,7 @@ const (
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint64
+type TimeInForce uint32
 
 // Is checks to see if the enum contains the flag
 func (t TimeInForce) Is(in TimeInForce) bool {
@@ -423,7 +417,7 @@ func (t TimeInForce) Is(in TimeInForce) bool {
 // TimeInForce types
 const (
 	UnsetTIF       TimeInForce = 0
-	GoodTillCancel TimeInForce = 1 << (iota + 32)
+	GoodTillCancel TimeInForce = 1 << iota
 	GoodTillDay
 	GoodTillTime
 	GoodTillCrossing

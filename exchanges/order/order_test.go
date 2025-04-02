@@ -299,26 +299,24 @@ func TestTitle(t *testing.T) {
 }
 
 var orderTypeToStringMap = map[Type]string{
-	AnyType:                          "ANY",
-	Limit:                            "LIMIT",
-	Market:                           "MARKET",
-	Stop:                             "STOP",
-	ConditionalStop:                  "CONDITIONAL",
-	MarketMakerProtection:            "MMP",
-	MarketMakerProtectionAndPostOnly: "MMP_AND_POST_ONLY",
-	TWAP:                             "TWAP",
-	Chase:                            "CHASE",
-	StopLimit:                        "STOP LIMIT",
-	StopMarket:                       "STOP MARKET",
-	TakeProfit:                       "TAKE PROFIT",
-	TakeProfitMarket:                 "TAKE PROFIT MARKET",
-	TrailingStop:                     "TRAILING_STOP",
-	IOS:                              "IOS",
-	Liquidation:                      "LIQUIDATION",
-	Trigger:                          "TRIGGER",
-	OptimalLimitIOC:                  "OPTIMAL_LIMIT_IOC",
-	OCO:                              "OCO",
-	Type(3):                          "UNKNOWN",
+	AnyType:          "ANY",
+	Limit:            "LIMIT",
+	Market:           "MARKET",
+	Stop:             "STOP",
+	ConditionalStop:  "CONDITIONAL",
+	TWAP:             "TWAP",
+	Chase:            "CHASE",
+	StopLimit:        "STOP LIMIT",
+	StopMarket:       "STOP MARKET",
+	TakeProfit:       "TAKE PROFIT",
+	TakeProfitMarket: "TAKE PROFIT MARKET",
+	TrailingStop:     "TRAILING_STOP",
+	IOS:              "IOS",
+	Liquidation:      "LIQUIDATION",
+	Trigger:          "TRIGGER",
+	OptimalLimit:     "OPTIMAL_LIMIT",
+	OCO:              "OCO",
+	Type(3):          "UNKNOWN",
 }
 
 func TestOrderTypeString(t *testing.T) {
@@ -332,40 +330,26 @@ func TestOrderTypeString(t *testing.T) {
 func TestOrderTypeIs(t *testing.T) {
 	t.Parallel()
 	orderTypesMap := map[Type][]Type{
-		Limit:                            {Limit},
-		Market:                           {Market},
-		ConditionalStop:                  {ConditionalStop},
-		MarketMakerProtection:            {MarketMakerProtection},
-		MarketMakerProtectionAndPostOnly: {MarketMakerProtectionAndPostOnly},
-		TWAP:                             {TWAP},
-		Chase:                            {Chase},
-		StopLimit:                        {StopLimit, Stop, Limit},
-		StopMarket:                       {StopMarket, Stop, Market},
-		TakeProfit:                       {TakeProfit},
-		TakeProfitMarket:                 {TakeProfitMarket, TakeProfit, Market},
-		TrailingStop:                     {TrailingStop},
-		IOS:                              {IOS},
-		Liquidation:                      {Liquidation},
-		Trigger:                          {Trigger},
-		OptimalLimitIOC:                  {OptimalLimitIOC},
-		OCO:                              {OCO},
+		Limit:            {Limit},
+		Market:           {Market},
+		ConditionalStop:  {ConditionalStop},
+		TWAP:             {TWAP},
+		Chase:            {Chase},
+		StopLimit:        {StopLimit, Stop, Limit},
+		StopMarket:       {StopMarket, Stop, Market},
+		TakeProfit:       {TakeProfit},
+		TakeProfitMarket: {TakeProfitMarket, TakeProfit, Market},
+		TrailingStop:     {TrailingStop},
+		IOS:              {IOS},
+		Liquidation:      {Liquidation},
+		Trigger:          {Trigger},
+		OptimalLimit:     {OptimalLimit},
+		OCO:              {OCO},
 	}
 	for k, values := range orderTypesMap {
 		for _, v := range values {
 			require.True(t, k.Is(v))
 		}
-	}
-}
-
-func TestIsTimeInForce(t *testing.T) {
-	t.Parallel()
-	var orderToTimeInForce = map[Type]TimeInForce{
-		MarketMakerProtectionAndPostOnly: PostOnly,
-		Limit | Type(GoodTillCancel):     GoodTillCancel,
-		OptimalLimitIOC:                  ImmediateOrCancel,
-	}
-	for k, v := range orderToTimeInForce {
-		assert.True(t, k.TimeInForceIs(v))
 	}
 }
 
@@ -866,15 +850,13 @@ func TestStringToOrderType(t *testing.T) {
 		{"tRiGgEr", Trigger, nil},
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
-		{"mMp", MarketMakerProtection, nil},
-		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
-		{"optimal_limit_IoC", OptimalLimitIOC, nil},
+		{"optimal_limit", OptimalLimit, nil},
 		{"Stop_market", StopMarket, nil},
 		{"liquidation", Liquidation, nil},
 		{"LiQuidation", Liquidation, nil},

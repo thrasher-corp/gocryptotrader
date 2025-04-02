@@ -26,11 +26,11 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	case orderIOC:
 		return order.Limit, order.ImmediateOrCancel, nil
 	case orderOptimalLimitIOC:
-		return order.OptimalLimitIOC, order.ImmediateOrCancel, nil
+		return order.OptimalLimit, order.ImmediateOrCancel, nil
 	case "mmp":
 		return order.MarketMakerProtection, order.UnsetTIF, nil
 	case "mmp_and_post_only":
-		return order.MarketMakerProtectionAndPostOnly, order.PostOnly, nil
+		return order.MarketMakerProtection, order.PostOnly, nil
 	case "twap":
 		return order.TWAP, order.UnsetTIF, nil
 	case "move_order_stop":
@@ -44,20 +44,21 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 
 // orderTypeString returns a string representation of order.Type instance
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
-	switch tif {
-	case order.PostOnly:
-		return orderPostOnly, nil
-	case order.FillOrKill:
-		return orderFOK, nil
-	case order.ImmediateOrCancel:
-		return orderIOC, nil
-	}
 	switch orderType {
-	case order.Market, order.Limit,
+	case order.MarketMakerProtection:
+		if tif == order.PostOnly {
+			return "mmp_and_post_only", nil
+		}
+		return "mmp", nil
+	case order.OptimalLimit:
+		return "optimal_limit_ioc", nil
+	case order.Limit:
+		if tif == order.ImmediateOrCancel {
+			return orderIOC, nil
+		}
+		return orderType.Lower(), nil
+	case order.Market,
 		order.Trigger,
-		order.OptimalLimitIOC,
-		order.MarketMakerProtection,
-		order.MarketMakerProtectionAndPostOnly,
 		order.Chase,
 		order.TWAP,
 		order.OCO:
@@ -67,6 +68,14 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	case order.TrailingStop:
 		return "move_order_stop", nil
 	default:
+		switch tif {
+		case order.PostOnly:
+			return orderPostOnly, nil
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
 		return "", fmt.Errorf("%w: `%v`", order.ErrUnsupportedOrderType, orderType)
 	}
 }

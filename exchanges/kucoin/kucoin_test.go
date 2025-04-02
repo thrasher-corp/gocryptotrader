@@ -2189,7 +2189,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.Buy,
 	}
 
-	getOrdersRequest.Type = order.OptimalLimitIOC
+	getOrdersRequest.Type = order.OptimalLimit
 	_, err = ku.GetActiveOrders(context.Background(), &getOrdersRequest)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
