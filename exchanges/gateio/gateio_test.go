@@ -2844,9 +2844,6 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 
 	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	g.Features.Subscriptions = append(g.Features.Subscriptions, &subscription.Subscription{
-		Enabled: true, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.ThousandMilliseconds, Levels: 5,
-	})
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
@@ -3565,5 +3562,139 @@ func TestParseWSHeader(t *testing.T) {
 		case 3:
 			assert.Equal(t, int64(1726121321), h.Time.Unix())
 		}
+	}
+}
+
+func TestIsRestrictedOrderbookChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		channel  string
+		expected bool
+	}{
+		{channel: spotOrderbookUpdateChannel, expected: true},
+		{channel: spotOrderbookChannel, expected: true},
+		{channel: spotOrderbookTickerChannel, expected: true},
+		{channel: futuresOrderbookChannel, expected: true},
+		{channel: futuresOrderbookTickerChannel, expected: true},
+		{channel: futuresOrderbookUpdateChannel, expected: true},
+		{channel: optionsOrderbookChannel, expected: true},
+		{channel: optionsOrderbookTickerChannel, expected: true},
+		{channel: optionsOrderbookUpdateChannel, expected: true},
+		{channel: spotTickerChannel, expected: false},
+		{channel: "sad", expected: false},
+	} {
+		assert.Equal(t, tc.expected, isRestrictedOrderbookChannel(tc.channel))
+	}
+}
+
+func TestValidateSubscriptions(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, g.ValidateSubscriptions(nil))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSDT()}}}))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+	}))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD(), currency.NewBTCUSDT()}},
+	}))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSDT()}},
+	}))
+	require.ErrorIs(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+	}), subscription.ErrExclusiveSubscription)
+}
+
+func TestValidateSubscription(t *testing.T) {
+	t.Parallel()
+
+	for i, tc := range []struct {
+		channel  string
+		interval kline.Interval
+		asset    asset.Item
+		levels   int
+		expected error
+	}{
+		{channel: spotOrderbookTickerChannel, interval: 0, expected: asset.ErrNotSupported},
+		{channel: spotOrderbookTickerChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
+		{channel: spotOrderbookTickerChannel, interval: kline.TenMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
+		{channel: spotOrderbookTickerChannel, interval: kline.TenMilliseconds, asset: asset.Spot, levels: 1},
+
+		{channel: spotOrderbookUpdateChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
+		{channel: spotOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
+		{channel: spotOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 100},
+
+		{channel: spotOrderbookChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
+		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
+		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 5},
+		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 10},
+		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 20},
+		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 50},
+		{channel: spotOrderbookChannel, interval: kline.ThousandMilliseconds, asset: asset.Spot, levels: 100},
+
+		{channel: spotTickerChannel, asset: asset.Spot}, // no validation required
+
+		{channel: futuresOrderbookChannel, interval: 69, asset: asset.Futures, expected: subscription.ErrInvalidInterval},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, expected: subscription.ErrInvalidLevel},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 1},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 5},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 10},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 20},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 50},
+		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 100},
+
+		{channel: futuresOrderbookTickerChannel, interval: 69, asset: asset.Futures, expected: subscription.ErrInvalidInterval},
+		{channel: futuresOrderbookTickerChannel, interval: 0, asset: asset.Futures, expected: subscription.ErrInvalidLevel},
+		{channel: futuresOrderbookTickerChannel, interval: 0, asset: asset.Futures, levels: 1},
+
+		{channel: futuresOrderbookUpdateChannel, asset: asset.Futures, expected: subscription.ErrInvalidLevel},
+		{channel: futuresOrderbookUpdateChannel, asset: asset.Futures, levels: 20, expected: subscription.ErrInvalidInterval},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.TwentyMilliseconds, asset: asset.Futures, levels: 20},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Futures, levels: 20},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.TwentyMilliseconds, asset: asset.Futures, levels: 50, expected: subscription.ErrInvalidInterval},
+		{channel: futuresOrderbookUpdateChannel, interval: 0, asset: asset.Futures, levels: 50, expected: subscription.ErrInvalidInterval},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Futures, levels: 20},
+
+		{channel: futuresOrderbookUpdateChannel, asset: asset.DeliveryFutures, expected: subscription.ErrInvalidInterval},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, expected: subscription.ErrInvalidLevel},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 5},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 10},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 20},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 50},
+		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 100},
+
+		{channel: optionsOrderbookTickerChannel, interval: kline.HundredMilliseconds, asset: asset.Options, expected: subscription.ErrInvalidInterval},
+		{channel: optionsOrderbookTickerChannel, interval: 0, asset: asset.Options, expected: subscription.ErrInvalidLevel},
+		{channel: optionsOrderbookTickerChannel, interval: 0, asset: asset.Options, levels: 1},
+
+		{channel: optionsOrderbookUpdateChannel, interval: 0, asset: asset.Options, expected: subscription.ErrInvalidInterval},
+		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, expected: subscription.ErrInvalidLevel},
+		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 5},
+		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 10},
+		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 20},
+		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 50},
+
+		{channel: optionsOrderbookChannel, interval: 0, asset: asset.Options, expected: subscription.ErrInvalidInterval},
+		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, expected: subscription.ErrInvalidLevel},
+		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 5},
+		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 10},
+		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 20},
+		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 50},
+
+		{channel: spotTickerChannel, interval: 0, asset: asset.Margin}, // no validation required
+	} {
+		err := g.ValidateSubscription(&subscription.Subscription{
+			Channel:  tc.channel,
+			Interval: tc.interval,
+			Asset:    tc.asset,
+			Levels:   tc.levels,
+		})
+		require.ErrorIsf(t, err, tc.expected, "channel: `%s` case: `%d`", tc.channel, i+1)
 	}
 }
