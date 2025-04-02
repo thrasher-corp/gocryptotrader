@@ -2333,7 +2333,9 @@ func (ok *Okx) GetFixedLoanBorrowQuote(ctx context.Context, borrowingCurrency cu
 	if borrowType == "" {
 		return nil, errBorrowTypeRequired
 	}
-	if borrowType == "normal" {
+
+	switch borrowType {
+	case "normal":
 		if borrowingCurrency.IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
@@ -2346,11 +2348,12 @@ func (ok *Okx) GetFixedLoanBorrowQuote(ctx context.Context, borrowingCurrency cu
 		if term == "" {
 			return nil, errLendingTermIsRequired
 		}
-	} else if borrowType == "reborrow" {
+	case "reborrow":
 		if orderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
+
 	params := url.Values{}
 	params.Set("type", borrowType)
 	if !borrowingCurrency.IsEmpty() {

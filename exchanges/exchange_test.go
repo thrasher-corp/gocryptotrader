@@ -769,7 +769,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 	assert.Equal(t, "btc~usd^ltc~btc", got)
 
 	_, err = e.FormatExchangeCurrencies(nil, asset.Spot)
-	assert.ErrorContains(t, err, "returned empty string", err, "FormatExchangeCurrencies should error correctly")
+	assert.ErrorContains(t, err, "returned empty string", "FormatExchangeCurrencies should error correctly")
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {

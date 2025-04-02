@@ -54,23 +54,24 @@ var (
 
 // Public common Errors
 var (
-	ErrNotYetImplemented      = errors.New("not yet implemented")
-	ErrFunctionNotSupported   = errors.New("unsupported wrapper function")
-	errInvalidCryptoCurrency  = errors.New("invalid crypto currency")
-	ErrDateUnset              = errors.New("date unset")
-	ErrStartAfterEnd          = errors.New("start date after end date")
-	ErrStartEqualsEnd         = errors.New("start date equals end date")
-	ErrStartAfterTimeNow      = errors.New("start date is after current time")
-	ErrNilPointer             = errors.New("nil pointer")
-	ErrEmptyParams            = errors.New("empty parameters")
-	ErrCannotCalculateOffline = errors.New("cannot calculate offline, unsupported")
-	ErrNoResponse             = errors.New("no response")
-	ErrTypeAssertFailure      = errors.New("type assert failure")
-	ErrNoResults              = errors.New("no results found")
-	ErrUnknownError           = errors.New("unknown error")
-	ErrGettingField           = errors.New("error getting field")
-	ErrSettingField           = errors.New("error setting field")
-	ErrParsingWSField         = errors.New("error parsing websocket field")
+	ErrNotYetImplemented         = errors.New("not yet implemented")
+	ErrFunctionNotSupported      = errors.New("unsupported wrapper function")
+	ErrAddressIsEmptyOrInvalid   = errors.New("address is empty or invalid")
+	ErrUnsupportedCryptocurrency = errors.New("unsupported cryptocurrency") // TODO: Remove me, used because of an import cycle if we use the currency package
+	ErrDateUnset                 = errors.New("date unset")
+	ErrStartAfterEnd             = errors.New("start date after end date")
+	ErrStartEqualsEnd            = errors.New("start date equals end date")
+	ErrStartAfterTimeNow         = errors.New("start date is after current time")
+	ErrNilPointer                = errors.New("nil pointer")
+	ErrEmptyParams               = errors.New("empty parameters")
+	ErrCannotCalculateOffline    = errors.New("cannot calculate offline, unsupported")
+	ErrNoResponse                = errors.New("no response")
+	ErrTypeAssertFailure         = errors.New("type assert failure")
+	ErrNoResults                 = errors.New("no results found")
+	ErrUnknownError              = errors.New("unknown error")
+	ErrGettingField              = errors.New("error getting field")
+	ErrSettingField              = errors.New("error setting field")
+	ErrParsingWSField            = errors.New("error parsing websocket field")
 )
 
 var (
@@ -190,17 +191,30 @@ func IsEnabled(isEnabled bool) string {
 // IsValidCryptoAddress validates your cryptocurrency address string using the
 // regexp package // Validation issues occurring because "3" is contained in
 // litecoin and Bitcoin addresses - non-fatal
-func IsValidCryptoAddress(address, crypto string) (bool, error) {
+func IsValidCryptoAddress(address, crypto string) error {
+	var matched bool
+	var err error
+
 	switch strings.ToLower(crypto) {
 	case "btc":
-		return regexp.MatchString("^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,90}$", address)
+		matched, err = regexp.MatchString("^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,90}$", address)
 	case "ltc":
-		return regexp.MatchString("^[L3M][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
+		matched, err = regexp.MatchString("^[L3M][a-km-zA-HJ-NP-Z1-9]{25,34}$", address)
 	case "eth":
-		return regexp.MatchString("^0x[a-km-z0-9]{40}$", address)
+		matched, err = regexp.MatchString("^0x[a-km-z0-9]{40}$", address)
 	default:
-		return false, fmt.Errorf("%w %s", errInvalidCryptoCurrency, crypto)
+		return fmt.Errorf("%w: %q", ErrUnsupportedCryptocurrency, crypto)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	if !matched {
+		return fmt.Errorf("%w: %q", ErrAddressIsEmptyOrInvalid, address)
+	}
+
+	return nil
 }
 
 // YesOrNo returns a boolean variable to check if input is "y" or "yes"
@@ -574,7 +588,7 @@ func GenerateRandomString(length uint, characters ...string) (string, error) {
 		return "", errors.New("invalid length, length must be non-zero positive integer")
 	}
 	b := make([]byte, length)
-	chars := strings.Replace(strings.Join(characters, ""), " ", "", -1)
+	chars := strings.ReplaceAll(strings.Join(characters, ""), " ", "")
 	if chars == "" && len(characters) != 0 {
 		return "", errors.New("invalid characters, character must not be empty")
 	} else if chars == "" {
