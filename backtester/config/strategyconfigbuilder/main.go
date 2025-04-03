@@ -435,22 +435,24 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 		}
 	}
 	cfg.DataSettings.DatabaseData.Config.Port = uint32(port) //nolint:gosec // No overflow risk
-	err = database.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
-	if err != nil {
+
+	if err = database.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config); err != nil {
 		return fmt.Errorf("database failed to set config: %w", err)
 	}
-	if cfg.DataSettings.DatabaseData.Config.Driver == database.DBPostgreSQL {
+
+	switch cfg.DataSettings.DatabaseData.Config.Driver {
+	case database.DBPostgreSQL:
 		_, err = dbPSQL.Connect(&cfg.DataSettings.DatabaseData.Config)
-		if err != nil {
-			return fmt.Errorf("database failed to connect: %v", err)
-		}
-	} else if cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite ||
-		cfg.DataSettings.DatabaseData.Config.Driver == database.DBSQLite3 {
+	case database.DBSQLite, database.DBSQLite3:
 		_, err = dbsqlite3.Connect(cfg.DataSettings.DatabaseData.Config.Database)
-		if err != nil {
-			return fmt.Errorf("database failed to connect: %v", err)
-		}
+	default:
+		return fmt.Errorf("unsupported database driver: %q", cfg.DataSettings.DatabaseData.Config.Driver)
 	}
+
+	if err != nil {
+		return fmt.Errorf("database failed to connect: %w", err)
+	}
+
 	return nil
 }
 
@@ -747,6 +749,5 @@ func quickParse(reader *bufio.Reader) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	customSettingField = strings.Replace(customSettingField, "\r", "", -1)
-	return strings.Replace(customSettingField, "\n", "", -1)
+	return strings.TrimRight(customSettingField, "\r\n")
 }

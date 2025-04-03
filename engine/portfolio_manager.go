@@ -41,6 +41,7 @@ func setupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Durati
 	if portfolioManagerDelay <= 0 {
 		portfolioManagerDelay = PortfolioSleepDelay
 	}
+
 	if cfg == nil {
 		cfg = &portfolio.Base{Addresses: []portfolio.Address{}}
 	}
@@ -130,21 +131,14 @@ func (m *portfolioManager) processPortfolio() {
 	allExchangesHoldings := m.getExchangeAccountInfo(exchanges)
 	m.seedExchangeAccountInfo(allExchangesHoldings)
 
-	data := m.base.GetPortfolioGroupedCoin()
+	data := m.base.GetPortfolioAddressesGroupedByCoin()
 	for key, value := range data {
-		err := m.base.UpdatePortfolio(value, key)
-		if err != nil {
-			log.Errorf(log.PortfolioMgr,
-				"PortfolioWatcher error %s for currency %s\n",
-				err,
-				key)
+		if err := m.base.UpdatePortfolio(context.TODO(), value, key); err != nil {
+			log.Errorf(log.PortfolioMgr, "Portfolio manager: UpdatePortfolio error: %s for currency %s\n", err, key)
 			continue
 		}
 
-		log.Debugf(log.PortfolioMgr,
-			"Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
-			key,
-			value)
+		log.Debugf(log.PortfolioMgr, "Portfolio manager: Successfully updated address balance for %s address(es) %s\n", key, value)
 	}
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
@@ -182,7 +176,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 		}
 
 		for j := range currencies {
-			if !m.base.ExchangeAddressExists(accounts[x].Exchange, currencies[j].Currency) {
+			if !m.base.ExchangeAddressCoinExists(accounts[x].Exchange, currencies[j].Currency) {
 				if currencies[j].Total <= 0 {
 					continue
 				}

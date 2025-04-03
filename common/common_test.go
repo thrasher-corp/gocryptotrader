@@ -137,101 +137,30 @@ func TestIsEnabled(t *testing.T) {
 
 func TestIsValidCryptoAddress(t *testing.T) {
 	t.Parallel()
-	b, err := IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
+
+	tests := []struct {
+		name, addr, code string
+		err              error
+	}{
+		{"Valid BTC legacy", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC", nil},
+		{"Valid BTC bech32", "bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4", "bTC", nil},
+		{"Invalid BTC (too long)", "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", "bTC", ErrAddressIsEmptyOrInvalid},
+		{"Valid BTC bech32 (longer)", "bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9", "bTC", nil},
+		{"Invalid BTC (starts with 0)", "0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC", ErrAddressIsEmptyOrInvalid},
+		{"Invalid LTC (BTC address)", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc", ErrAddressIsEmptyOrInvalid},
+		{"Valid LTC", "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc", nil},
+		{"Invalid LTC (starts with N)", "NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc", ErrAddressIsEmptyOrInvalid},
+		{"Valid ETH", "0xb794f5ea0ba39494ce839613fffba74279579268", "eth", nil},
+		{"Invalid ETH (starts with xx)", "xxb794f5ea0ba39494ce839613fffba74279579268", "eth", ErrAddressIsEmptyOrInvalid},
+		{"Unsupported crypto", "xxb794f5ea0ba39494ce839613fffba74279579268", "wif", ErrUnsupportedCryptocurrency},
+		{"Empty address", "", "btc", ErrAddressIsEmptyOrInvalid},
 	}
 
-	b, err = IsValidCryptoAddress("bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4")
-	}
-
-	b, err = IsValidCryptoAddress("an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx")
-	}
-
-	b, err = IsValidCryptoAddress("bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9")
-	}
-
-	b, err = IsValidCryptoAddress("0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "btc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
-	}
-
-	b, err = IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
-	}
-
-	b, err = IsValidCryptoAddress("3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "ltc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj")
-	}
-
-	b, err = IsValidCryptoAddress("NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj")
-	}
-
-	b, err = IsValidCryptoAddress(
-		"0xb794f5ea0ba39494ce839613fffba74279579268",
-		"eth",
-	)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "0xb794f5ea0ba39494ce839613fffba74279579268")
-	}
-
-	b, err = IsValidCryptoAddress(
-		"xxb794f5ea0ba39494ce839613fffba74279579268",
-		"eTh",
-	)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "xxb794f5ea0ba39494ce839613fffba74279579268")
-	}
-
-	b, err = IsValidCryptoAddress(
-		"xxb794f5ea0ba39494ce839613fffba74279579268",
-		"ding",
-	)
-	if !errors.Is(err, errInvalidCryptoCurrency) {
-		t.Errorf("received '%v' expected '%v'", err, errInvalidCryptoCurrency)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "xxb794f5ea0ba39494ce839613fffba74279579268")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, IsValidCryptoAddress(tc.addr, tc.code), tc.err)
+		})
 	}
 }
 
