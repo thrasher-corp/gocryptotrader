@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"time"
 
 	"github.com/buger/jsonparser"
+	v5 "github.com/thrasher-corp/gocryptotrader/config/versions/v5"
 )
 
 // Version5 implements ConfigVersion
@@ -16,19 +16,6 @@ func init() {
 	Manager.registerVersion(5, &Version5{})
 }
 
-// defaultConfig contains the stateless V5 representation of orderbookManager
-// Note: Do not be tempted to use a constant for Duration. Whilst defaults are still written to config, we need to manage default upgrades discretely.
-var defaultFuturesTrackingSeekDuration = strconv.FormatInt(int64(time.Hour)*24*365, 10)
-
-var defaultConfig = []byte(`{
-  "enabled": true,
-  "verbose": false,
-  "activelyTrackFuturesPositions": true,
-  "futuresTrackingSeekDuration": ` + defaultFuturesTrackingSeekDuration + `,
-  "cancelOrdersOnShutdown": false,
-  "respectOrderHistoryLimits": true
- }`)
-
 // UpgradeConfig handles upgrading config for OrderManager:
 // * Sets OrderManager config to defaults if it doesn't exist or enabled is null
 // * Sets respectOrderHistoryLimits to true if it doesn't exist or is null
@@ -37,7 +24,7 @@ func (v *Version5) UpgradeConfig(_ context.Context, e []byte) ([]byte, error) {
 	_, valueType, _, err := jsonparser.Get(e, "orderManager", "enabled")
 	switch {
 	case errors.Is(err, jsonparser.KeyPathNotFoundError), valueType == jsonparser.Null:
-		return jsonparser.Set(e, defaultConfig, "orderManager")
+		return jsonparser.Set(e, v5.DefaultOrderbookConfig, "orderManager")
 	case err != nil:
 		return e, err
 	}
@@ -50,7 +37,7 @@ func (v *Version5) UpgradeConfig(_ context.Context, e []byte) ([]byte, error) {
 	}
 
 	if i, err := jsonparser.GetInt(e, "orderManager", "futuresTrackingSeekDuration"); err != nil {
-		if e, err = jsonparser.Set(e, []byte(defaultFuturesTrackingSeekDuration), "orderManager", "futuresTrackingSeekDuration"); err != nil {
+		if e, err = jsonparser.Set(e, []byte(v5.DefaultFuturesTrackingSeekDuration), "orderManager", "futuresTrackingSeekDuration"); err != nil {
 			return e, err
 		}
 	} else if i < 0 {

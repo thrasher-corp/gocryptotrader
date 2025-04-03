@@ -436,7 +436,7 @@ allTrades:
 				Timestamp:    tradeTS,
 			})
 			if i == len(tradeData)-1 {
-				if ts == tradeTS {
+				if ts.Equal(tradeTS) {
 					break allTrades
 				}
 				ts = tradeTS
@@ -548,12 +548,17 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 	if err != nil {
 		return nil, err
 	}
+
 	var orderType order.Type
-	if resp.Type == "exchange limit" {
+	switch resp.Type {
+	case "exchange limit":
 		orderType = order.Limit
-	} else if resp.Type == "market buy" || resp.Type == "market sell" {
+	case "market buy", "market sell":
 		orderType = order.Market
+	default:
+		return nil, fmt.Errorf("unknown order type: %q", resp.Type)
 	}
+
 	var side order.Side
 	side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
@@ -657,12 +662,17 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		if err != nil {
 			return nil, err
 		}
+
 		var orderType order.Type
-		if resp[i].Type == "exchange limit" {
+		switch resp[i].Type {
+		case "exchange limit":
 			orderType = order.Limit
-		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
+		case "market buy", "market sell":
 			orderType = order.Market
+		default:
+			return nil, fmt.Errorf("unknown order type: %q", resp[i].Type)
 		}
+
 		var side order.Side
 		side, err = order.StringToOrderSide(resp[i].Side)
 		if err != nil {

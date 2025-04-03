@@ -57,7 +57,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 				continue
 			}
 			for k, v := range result {
-				rates[strings.Replace(k, "_", "", -1)] = v
+				rates[strings.ReplaceAll(k, "_", "")] = v
 			}
 		}
 	}
@@ -75,7 +75,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 	}
 
 	for k, v := range result {
-		rates[strings.Replace(k, "_", "", -1)] = v
+		rates[strings.ReplaceAll(k, "_", "")] = v
 	}
 
 	return rates, nil

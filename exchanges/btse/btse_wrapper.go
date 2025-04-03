@@ -546,12 +546,14 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 }
 
 func orderIntToType(i int) order.Type {
-	if i == 77 {
+	switch i {
+	case 77:
 		return order.Market
-	} else if i == 76 {
+	case 76:
 		return order.Limit
+	default:
+		return order.UnknownType
 	}
-	return order.UnknownType
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -764,12 +766,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 				Side:            side,
 				Price:           resp[i].Price,
 				Status:          status,
-			}
-
-			if resp[i].OrderType == 77 {
-				openOrder.Type = order.Market
-			} else if resp[i].OrderType == 76 {
-				openOrder.Type = order.Limit
+				Type:            orderIntToType(resp[i].OrderType),
 			}
 
 			fills, err := b.TradeHistory(ctx,
