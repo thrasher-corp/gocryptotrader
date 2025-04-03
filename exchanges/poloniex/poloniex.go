@@ -264,8 +264,7 @@ func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType str
 
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
 // Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERRAL_REBATE: 204, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
-func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time,
-	activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
+func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)

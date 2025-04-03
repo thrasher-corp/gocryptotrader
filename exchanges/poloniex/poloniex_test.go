@@ -50,7 +50,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	result, err := p.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
 
@@ -301,10 +301,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
-	result, err := p.CancelAllOrders(context.Background(), nil)
+	_, err := p.CancelAllOrders(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	result, err = p.CancelAllOrders(context.Background(), &order.Cancel{
+	_, err = p.CancelAllOrders(context.Background(), &order.Cancel{
 		AssetType: asset.Options,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -320,7 +320,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Spot,
 	}
 	arg.Type = order.Stop
-	result, err = p.CancelAllOrders(context.Background(), arg)
+	result, err := p.CancelAllOrders(context.Background(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -494,12 +494,11 @@ func TestGetHistoricTrades(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 6, 1, 0, 0, 0, time.UTC)
-	// if !mockTests {
-	tmNow := time.Now()
-	tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
-	tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
-	// }
-	println("startTime: ", tStart.UnixMilli(), "tEnd: ", tEnd.UnixMilli())
+	if !mockTests {
+		tmNow := time.Now()
+		tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
+		tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
+	}
 	result, err := p.GetHistoricTrades(context.Background(),
 		spotTradablePair, asset.Spot, tStart, tEnd)
 	require.NoError(t, err)

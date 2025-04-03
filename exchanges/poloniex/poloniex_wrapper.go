@@ -137,7 +137,8 @@ func (p *Poloniex) SetDefaults() {
 	err = p.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      poloniexAPIURL,
 		exchange.WebsocketSpot: poloniexWebsocketAddress,
-		exchange.RestFutures:   poloniexFuturesAPIURL})
+		exchange.RestFutures:   poloniexFuturesAPIURL,
+	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -671,7 +672,8 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	tif, err := TimeInForceString(s.TimeInForce)
+	var tif string
+	tif, err = TimeInForceString(s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -704,7 +706,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			}
 			return s.DeriveSubmitResponse(sOrder.ID)
 		}
-		tif, err := TimeInForceString(s.TimeInForce)
+		tif, err = TimeInForceString(s.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
@@ -1008,7 +1010,6 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			if cancelOrd.Type != order.UnknownType {
 				orderTypes = append(orderTypes, oTypeString)
 			}
-			var resp []CancelOrderResponse
 			resp, err = p.CancelAllSmartOrders(ctx, pairsString, nil, orderTypes)
 			if err != nil {
 				return cancelAllOrdersResponse, err
@@ -2001,7 +2002,7 @@ func OrderTypeString(oType order.Type) (string, error) {
 	return "", fmt.Errorf("%w: order type %v", order.ErrUnsupportedOrderType, oType)
 }
 
-// TimeInforceString return a string representation of time-in-force value
+// TimeInForceString return a string representation of time-in-force value
 func TimeInForceString(tif order.TimeInForce) (string, error) {
 	if tif.Is(order.GoodTillCancel) {
 		return order.GoodTillCancel.String(), nil
@@ -2014,7 +2015,6 @@ func TimeInForceString(tif order.TimeInForce) (string, error) {
 	}
 	if tif == order.UnsetTIF {
 		return "", nil
-	} else {
-		return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)
 	}
+	return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)
 }

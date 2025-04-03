@@ -191,8 +191,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		return p.processTrades(&result)
 	case cnlTicker:
 		return p.processTicker(&result)
-	case cnlBooks,
-		cnlBookLevel2:
+	case cnlBooks, cnlBookLevel2:
 		return p.processBooks(&result)
 	case cnlOrders:
 		return p.processOrders(&result)
