@@ -26,10 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -176,7 +176,7 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	g.Websocket = stream.NewWebsocket()
+	g.Websocket = websocket.NewManager()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -197,7 +197,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
+	err = g.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    g.Features.Enabled.FillsFeed,
@@ -209,7 +209,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Spot connection
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      gateioWebsocketEndpoint,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
@@ -226,7 +226,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Futures connection - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  futuresWebsocketUsdtURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -245,7 +245,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - BTC margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -265,7 +265,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 
 	// TODO: Add BTC margined delivery futures.
 	// Futures connection - Delivery - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  deliveryRealUSDTTradingURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -284,7 +284,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - Options
-	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      optionsWebsocketURL,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,

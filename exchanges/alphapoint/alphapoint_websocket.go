@@ -3,7 +3,7 @@ package alphapoint
 import (
 	"net/http"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -16,7 +16,7 @@ const (
 // WebsocketClient starts a new webstocket connection
 func (a *Alphapoint) WebsocketClient() {
 	for a.Enabled {
-		var dialer websocket.Dialer
+		var dialer gws.Dialer
 		var err error
 		var httpResp *http.Response
 		endpoint, err := a.API.Endpoints.GetURL(exchange.WebsocketSpot)
@@ -35,7 +35,7 @@ func (a *Alphapoint) WebsocketClient() {
 			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", a.Name)
 		}
 
-		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
+		err = a.WebsocketConn.WriteMessage(gws.TextMessage, []byte(`{"messageType": "logon"}`))
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 			return
@@ -48,7 +48,7 @@ func (a *Alphapoint) WebsocketClient() {
 				break
 			}
 
-			if msgType == websocket.TextMessage {
+			if msgType == gws.TextMessage {
 				type MsgType struct {
 					MessageType string `json:"messageType"`
 				}

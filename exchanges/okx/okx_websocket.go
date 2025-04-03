@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -22,10 +22,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -251,9 +251,9 @@ var subscriptionNames = map[string]string{
 // WsConnect initiates a websocket connection
 func (ok *Okx) WsConnect() error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
@@ -267,8 +267,8 @@ func (ok *Okx) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	ok.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
@@ -291,15 +291,15 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err = ok.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
 	go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
@@ -368,7 +368,7 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (ok *Okx) wsReadData(ws stream.Connection) {
+func (ok *Okx) wsReadData(ws websocket.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -654,7 +654,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		var resp CopyTradingNotification
 		return ok.wsProcessPushData(respRaw, &resp)
 	default:
-		ok.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: ok.Name + stream.UnhandledMessage + string(respRaw)}
+		ok.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: ok.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 }
@@ -793,7 +793,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		candlesData := response.Data[i]
-		myCandle := stream.KlineData{
+		myCandle := websocket.KlineData{
 			Pair:       pair,
 			Exchange:   ok.Name,
 			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
@@ -1397,7 +1397,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		for j := range assets {
-			ok.Websocket.DataHandler <- stream.KlineData{
+			ok.Websocket.DataHandler <- websocket.KlineData{
 				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
 				Pair:       pair,
 				AssetType:  assets[j],
@@ -1585,7 +1585,7 @@ func (ok *Okx) WsPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 	}
 }
 
-// WsPlaceMultipleOrders creates an order through the websocket stream.
+// WsPlaceMultipleOrders creates an order through the websocket
 func (ok *Okx) WsPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
@@ -2051,7 +2051,7 @@ func (m *wsRequestDataChannelsMultiplexer) Shutdown() {
 	close(m.shutdown)
 }
 
-// wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket stream.
+// wsChannelSubscription sends a subscription or unsubscription request for different channels through the websocket
 func (ok *Okx) wsChannelSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair, tInstrumentType, tInstrumentID, tUnderlying bool) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
@@ -2107,7 +2107,7 @@ func (ok *Okx) wsChannelSubscription(ctx context.Context, operation, channel str
 
 // Private Channel Websocket methods
 
-// wsAuthChannelSubscription send a subscription or unsubscription request for different channels through the websocket stream.
+// wsAuthChannelSubscription send a subscription or unsubscription request for different channels through the websocket
 func (ok *Okx) wsAuthChannelSubscription(ctx context.Context, operation, channel string, assetType asset.Item, pair currency.Pair, uid, algoID string, params wsSubscriptionParameters) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
