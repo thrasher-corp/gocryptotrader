@@ -4436,6 +4436,38 @@
     }
    ]
   },
+  "/api/v1/stopOrders": {
+   "DELETE": [
+    {
+     "data": {
+      "code": 400,
+      "message": "Invalid Apikey or Signature"
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "VMqHm4xLQ3HeWGn++w0ce6RNTeqs2vA/IiZcr+tJe9Y="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743702508272"
+      ]
+     }
+    }
+   ]
+  },
   "/api/v1/ticker": {
    "GET": [
     {
@@ -137924,6 +137956,16 @@
      "queryString": "limit=100",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": 400,
+      "data": [],
+      "msg": "Param error symbol"
+     },
+     "queryString": "symbol=BTCUSDT_PERP",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -143567,6 +143609,37 @@
       ]
      }
     }
+   ],
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "data": null,
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "{\"posMode\":\"HEDGE\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "WjB1iR5oNn0I9pjaUceYQ1v4Y7wRn2QHLFNzRBehUvs="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743701700040"
+      ]
+     }
+    }
    ]
   },
   "/v3/trade/allOrders": {
@@ -143705,35 +143778,6 @@
       "data": [],
       "msg": ""
      },
-     "queryString": "direct=PREV\u0026limit=100\u0026state=PARTIALLY_CANCELED",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "/bCkyeQ0PdAUnjhtPKPmWqKJPddaVmvyl5Mtnn0lNgw="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1734072945304"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 200,
-      "data": [],
-      "msg": ""
-     },
      "queryString": "limit=100\u0026side=BUY",
      "bodyParams": "",
      "headers": {
@@ -143754,6 +143798,35 @@
       ],
       "Signtimestamp": [
        "1742738479200"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=PREV\u0026limit=100\u0026state=PARTIALLY_CANCELED",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Gy54S0cBLkIVvWHdX9SCm3vpuMNLaS3Dwo9RjiQRSMo="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743701890362"
       ]
      }
     }
@@ -143996,6 +144069,35 @@
        "1734073166289"
       ]
      }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "direct=NEXT\u0026eTime=1743702190295\u0026limit=100\u0026sTime=1743615790295",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "R1Ynxi91+dNRz8CCtPKFPx2Bi8rdIFOJ6bpfOCztxZg="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743702190296"
+      ]
+     }
     }
    ]
   },
@@ -144145,13 +144247,13 @@
        "1500"
       ],
       "Signature": [
-       "4hR542OTAJ9+5g2qOG3WyXg82Po02B8XNuqV98mY2Mg="
+       "e1o/9aG/JvGIN5sGHL77bVaEcBA6LbrHUTu6NicHk1k="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1734076413907"
+       "1743701744748"
       ]
      }
     }
@@ -144178,13 +144280,13 @@
        "1500"
       ],
       "Signature": [
-       "xEEhdaall5eyvPKLrPu+0QJlAEQ8kb0+ymB1cvONmqU="
+       "00//ytmPEfmTaKZ6UgQd6jfHsAIUuLlQCYgfp8N5D2A="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1734074797611"
+       "1743701838034"
       ]
      }
     }
@@ -144325,13 +144427,13 @@
        "1500"
       ],
       "Signature": [
-       "moKR3+qVVlnfGE72CpIVVGuV8sLfeTUr7w1a1drSTXE="
+       "PSWPdPX0maKV4D0UXfE/4e99hL9NResj3mQYJdS2g4o="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743583231005"
+       "1743705726197"
       ]
      }
     }

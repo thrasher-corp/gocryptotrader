@@ -344,6 +344,9 @@ func (p *Poloniex) GetAccountTransferRecords(ctx context.Context, startTime, end
 
 // GetAccountTransferRecord gets a transfer records of a user.
 func (p *Poloniex) GetAccountTransferRecord(ctx context.Context, accountID string) ([]AccountTransferRecord, error) {
+	if accountID == "" {
+		return nil, errAccountIDRequired
+	}
 	var resp AccountTransferRecords
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/transfer/"+accountID, nil, nil, &resp)
 }
@@ -395,9 +398,12 @@ func (p *Poloniex) GetSubAccountBalances(ctx context.Context) ([]SubAccountBalan
 }
 
 // GetSubAccountBalance get balances information by currency and account type (SPOT and FUTURES) for each account in the account group.
-func (p *Poloniex) GetSubAccountBalance(ctx context.Context, id string) ([]SubAccountBalance, error) {
+func (p *Poloniex) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]SubAccountBalance, error) {
+	if subAccountID == "" {
+		return nil, fmt.Errorf("%w: empty subAccountID", errAccountIDRequired)
+	}
 	var resp []SubAccountBalance
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+id+"/balances", nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts/"+subAccountID+"/balances", nil, nil, &resp)
 }
 
 // SubAccountTransfer transfer amount of currency from an account and account type to another account and account type among the accounts in the account group.
@@ -473,6 +479,9 @@ func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currenc
 
 // GetSubAccountTransferRecord retrieves a subaccount transfer record.
 func (p *Poloniex) GetSubAccountTransferRecord(ctx context.Context, id string) ([]SubAccountTransfer, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w: subAccountID is missing", errAccountIDRequired)
+	}
 	var resp []SubAccountTransfer
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
 }

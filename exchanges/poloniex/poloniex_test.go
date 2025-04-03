@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
-	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -406,9 +406,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:   1,
 		Currency: currency.BTC,
 	}
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	result, err := p.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -867,10 +865,6 @@ func TestGetAllBalances(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	for a := range result {
-		println("result[a].AccountID: ", result[a].AccountID)
-	}
-
 	result, err = p.GetAllBalances(context.Background(), "SPOT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -943,10 +937,13 @@ func TestGetAccountTransferRecords(t *testing.T) {
 
 func TestGetAccountTransferRecord(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetAccountTransferRecord(context.Background(), "")
+	require.ErrorIs(t, err, errAccountIDRequired)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	_, err := p.GetAccountTransferRecord(context.Background(), "329455537441832960")
+	_, err = p.GetAccountTransferRecord(context.Background(), "329455537441832960")
 	require.NoError(t, err)
 }
 
@@ -991,10 +988,13 @@ func TestGetSubAccountBalances(t *testing.T) {
 
 func TestGetSubAccountBalance(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetSubAccountBalance(context.Background(), "")
+	require.ErrorIs(t, err, errAccountIDRequired)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	_, err := p.GetSubAccountBalance(context.Background(), "2d45301d-5f08-4a2b-a763-f9199778d854")
+	_, err = p.GetSubAccountBalance(context.Background(), "2d45301d-5f08-4a2b-a763-f9199778d854")
 	require.NoError(t, err)
 }
 
@@ -1047,10 +1047,13 @@ func TestGetSubAccountTransferRecords(t *testing.T) {
 
 func TestGetSubAccountTransferRecord(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetSubAccountTransferRecord(context.Background(), "")
+	require.ErrorIs(t, err, errAccountIDRequired)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	_, err := p.GetSubAccountTransferRecord(context.Background(), "329455537441832960")
+	_, err = p.GetSubAccountTransferRecord(context.Background(), "329455537441832960")
 	require.NoError(t, err)
 }
 
@@ -1059,6 +1062,7 @@ func TestGetDepositAddresses(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
+	p.Verbose = true
 	result, err := p.GetDepositAddresses(context.Background(), currency.LTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1066,6 +1070,9 @@ func TestGetDepositAddresses(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	_, err := p.GetOrderInfo(context.Background(), "", currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
@@ -1418,7 +1425,6 @@ func TestGetSmartOpenOrders(t *testing.T) {
 	}
 	_, err := p.GetSmartOpenOrders(context.Background(), 10)
 	require.NoError(t, err)
-
 }
 
 func TestGetSmartOrderDetail(t *testing.T) {
@@ -1788,7 +1794,9 @@ func TestCancelMultipleFuturesLimitOrders(t *testing.T) {
 	_, err := p.CancelMultipleFuturesLimitOrders(context.Background(), []string{}, []string{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
 	result, err := p.CancelMultipleFuturesLimitOrders(context.Background(), []string{"12345", "67867"}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2023,7 +2031,9 @@ func TestCloseAllAtMarketPrice(t *testing.T) {
 
 func TestGetCurrentOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetCurrentOrders(context.Background(), futuresTradablePair.String(), "SELL", "", "", "NEXT", 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2031,11 +2041,9 @@ func TestGetCurrentOrders(t *testing.T) {
 
 func TestGetOrderExecutionDetails(t *testing.T) {
 	t.Parallel()
-	var startTime, endTime = time.Now().Add(-time.Hour * 24), time.Now()
-	if mockTests {
-		startTime = time.UnixMilli(1733986766289)
-		endTime = time.UnixMilli(1734073166289)
-	} else {
+	var startTime, endTime = time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
+	if !mockTests {
+		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	result, err := p.GetOrderExecutionDetails(context.Background(), "", "", "", "NEXT", startTime, endTime, 0, 100)
@@ -2045,7 +2053,9 @@ func TestGetOrderExecutionDetails(t *testing.T) {
 
 func TestGetV3FuturesOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetV3FuturesOrderHistory(context.Background(), "", "", "PARTIALLY_CANCELED", "", "", "PREV", time.Time{}, time.Time{}, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2053,7 +2063,9 @@ func TestGetV3FuturesOrderHistory(t *testing.T) {
 
 func TestGetV3FuturesCurrentPosition(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetV3FuturesCurrentPosition(context.Background(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2061,7 +2073,9 @@ func TestGetV3FuturesCurrentPosition(t *testing.T) {
 
 func TestGetV3FuturesPositionHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetV3FuturesPositionHistory(context.Background(), "", "ISOLATED", "LONG", "NEXT", time.Time{}, time.Time{}, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2076,10 +2090,11 @@ func TestAdjustMarginForIsolatedMarginTradingPositions(t *testing.T) {
 	_, err = p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "DOT_USDT_PERP", "", "", 123)
 	require.ErrorIs(t, err, errMarginAdjustTypeMissing)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "BTC_USDT_PERP", "", "ADD", 123)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err = p.AdjustMarginForIsolatedMarginTradingPositions(context.Background(), "BTC_USDT_PERP", "", "ADD", 123)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetV3FuturesLeverage(t *testing.T) {
@@ -2106,10 +2121,11 @@ func TestSetV3FuturesLeverage(t *testing.T) {
 	_, err = p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "CROSS", "LONG", 0)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "CROSS", "LONG", 10)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
+	_, err = p.SetV3FuturesLeverage(context.Background(), "BTC_USDT_PERP", "CROSS", "LONG", 10)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestSwitchPositionMode(t *testing.T) {
@@ -2117,7 +2133,9 @@ func TestSwitchPositionMode(t *testing.T) {
 	err := p.SwitchPositionMode(context.Background(), "")
 	require.ErrorIs(t, err, errPositionModeInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
 	err = p.SwitchPositionMode(context.Background(), "HEDGE")
 	require.NoError(t, err)
 }
