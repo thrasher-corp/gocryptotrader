@@ -1251,7 +1251,7 @@ func (o *ClassificationError) Error() string {
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
 		if c.OrderID == "" {
-			return errors.New("ID not set")
+			return ErrOrderIDNotSet
 		}
 		return nil
 	})

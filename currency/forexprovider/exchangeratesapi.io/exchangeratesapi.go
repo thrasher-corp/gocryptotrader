@@ -46,7 +46,7 @@ func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {
 		}
 	}
 
-	symbols = strings.Replace(symbols, "RUR", "RUB", -1)
+	symbols = strings.ReplaceAll(symbols, "RUR", "RUB")
 	s := strings.Split(symbols, ",")
 	cleanedCurrencies := make([]string, 0, len(s))
 	for _, x := range s {
