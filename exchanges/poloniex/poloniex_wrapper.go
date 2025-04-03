@@ -440,14 +440,10 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		if err != nil {
 			return response, err
 		}
-		err = account.Process(&response, creds)
-		if err != nil {
-			return response, err
-		}
+		return response, account.Process(&response, creds)
 	default:
 		return response, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	return response, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1497,7 +1493,7 @@ func stringToAccountType(assetType string) asset.Item {
 	switch assetType {
 	case "SPOT":
 		return asset.Spot
-	case "FUTURE":
+	case "FUTURES":
 		return asset.Futures
 	default:
 		return asset.Empty

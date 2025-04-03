@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
+	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
 	canManipulateRealOrders = false
 )
 
@@ -420,7 +420,7 @@ func TestGetAccountInfo(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	result, err := p.UpdateAccountInfo(context.Background(), asset.Spot)
 	require.NoError(t, err)
@@ -471,7 +471,6 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		start = time.Now().Add(-time.Hour)
 		end = time.Now()
 	}
-	p.Verbose = true
 	result, err := p.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FiveMin, start, end)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -497,11 +496,12 @@ func TestGetHistoricTrades(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 6, 1, 0, 0, 0, time.UTC)
-	if !mockTests {
-		tmNow := time.Now()
-		tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
-		tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
-	}
+	// if !mockTests {
+	tmNow := time.Now()
+	tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
+	tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
+	// }
+	println("startTime: ", tStart.UnixMilli(), "tEnd: ", tEnd.UnixMilli())
 	result, err := p.GetHistoricTrades(context.Background(),
 		spotTradablePair, asset.Spot, tStart, tEnd)
 	require.NoError(t, err)
@@ -588,7 +588,6 @@ func TestCancelBatchOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
-	p.Verbose = true
 	result, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",
@@ -681,7 +680,6 @@ func TestFetchTradablePairs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	p.Verbose = true
 	result, err = p.FetchTradablePairs(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1061,7 +1059,6 @@ func TestGetDepositAddresses(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	p.Verbose = true
 	result, err := p.GetDepositAddresses(context.Background(), currency.LTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1082,7 +1079,6 @@ func TestGetDepositAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	p.Verbose = true
 	result, err := p.GetDepositAddress(context.Background(), currency.LTC, "", "USDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)

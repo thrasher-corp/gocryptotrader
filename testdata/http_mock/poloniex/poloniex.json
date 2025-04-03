@@ -103070,13 +103070,13 @@
        "1500"
       ],
       "Signature": [
-       "sNz0A9GOR30xz8evaSXqy/Fat9MgnGM2xXlvL1Ai4qw="
+       "bH3J/37YElbKqycsxFdxMhdowQLkJyZm7E2OOoJ/k7k="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742834655912"
+       "1743672421116"
       ]
      }
     }
@@ -103235,6 +103235,35 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/trades": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "endTime=1736208000000\u0026startTime=1736121600000",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "yDc8qD2tIqHcT0v/f4tsfl7bpudBRw+ST1GFWDVWrAQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743672729803"
+      ]
+     }
     }
    ]
   },
