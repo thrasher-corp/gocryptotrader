@@ -13,7 +13,6 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	"github.com/thrasher-corp/gocryptotrader/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -27,18 +26,18 @@ const (
 
 type PrivateDealsV3Api struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Price         types.Number                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity      types.Number                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	Amount        types.Number                 `protobuf:"bytes,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Amount        string                 `protobuf:"bytes,3,opt,name=amount,proto3" json:"amount,omitempty"`
 	TradeType     int32                  `protobuf:"varint,4,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
 	IsMaker       bool                   `protobuf:"varint,5,opt,name=isMaker,proto3" json:"isMaker,omitempty"`
 	IsSelfTrade   bool                   `protobuf:"varint,6,opt,name=isSelfTrade,proto3" json:"isSelfTrade,omitempty"`
 	TradeId       string                 `protobuf:"bytes,7,opt,name=tradeId,proto3" json:"tradeId,omitempty"`
 	ClientOrderId string                 `protobuf:"bytes,8,opt,name=clientOrderId,proto3" json:"clientOrderId,omitempty"`
 	OrderId       string                 `protobuf:"bytes,9,opt,name=orderId,proto3" json:"orderId,omitempty"`
-	FeeAmount     types.Number                 `protobuf:"bytes,10,opt,name=feeAmount,proto3" json:"feeAmount,omitempty"`
+	FeeAmount     string                 `protobuf:"bytes,10,opt,name=feeAmount,proto3" json:"feeAmount,omitempty"`
 	FeeCurrency   string                 `protobuf:"bytes,11,opt,name=feeCurrency,proto3" json:"feeCurrency,omitempty"`
-	Time          types.Time                  `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
+	Time          string                  `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -150,11 +149,11 @@ func (x *PrivateDealsV3Api) GetFeeCurrency() string {
 	return ""
 }
 
-func (x *PrivateDealsV3Api) GetTime() types.Time {
+func (x *PrivateDealsV3Api) GetTime() string {
 	if x != nil {
 		return x.Time
 	}
-	return types.Time{}
+	return ""
 }
 
 var File_PrivateDealsV3Api_proto protoreflect.FileDescriptor

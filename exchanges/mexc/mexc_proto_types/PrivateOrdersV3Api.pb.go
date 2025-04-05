@@ -101,32 +101,32 @@ func (x *PrivateOrdersV3Api) GetClientId() string {
 	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetPrice() string {
+func (x *PrivateOrdersV3Api) GetPrice() types.Number {
 	if x != nil {
 		return x.Price
 	}
-	return ""
+	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetQuantity() string {
+func (x *PrivateOrdersV3Api) GetQuantity() types.Number {
 	if x != nil {
 		return x.Quantity
 	}
-	return ""
+	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetAmount() string {
+func (x *PrivateOrdersV3Api) GetAmount() types.Number {
 	if x != nil {
 		return x.Amount
 	}
-	return ""
+	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetAvgPrice() string {
+func (x *PrivateOrdersV3Api) GetAvgPrice() types.Number {
 	if x != nil {
 		return x.AvgPrice
 	}
-	return ""
+	return 0
 }
 
 func (x *PrivateOrdersV3Api) GetOrderType() int32 {
@@ -150,18 +150,18 @@ func (x *PrivateOrdersV3Api) GetIsMaker() bool {
 	return false
 }
 
-func (x *PrivateOrdersV3Api) GetRemainAmount() string {
+func (x *PrivateOrdersV3Api) GetRemainAmount() types.Number {
 	if x != nil {
 		return x.RemainAmount
 	}
-	return ""
+	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetRemainQuantity() string {
+func (x *PrivateOrdersV3Api) GetRemainQuantity() types.Number {
 	if x != nil {
 		return x.RemainQuantity
 	}
-	return ""
+	return 0
 }
 
 func (x *PrivateOrdersV3Api) GetLastDealQuantity() string {
@@ -171,18 +171,18 @@ func (x *PrivateOrdersV3Api) GetLastDealQuantity() string {
 	return ""
 }
 
-func (x *PrivateOrdersV3Api) GetCumulativeQuantity() string {
+func (x *PrivateOrdersV3Api) GetCumulativeQuantity() types.Number {
 	if x != nil {
 		return x.CumulativeQuantity
 	}
-	return ""
+	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetCumulativeAmount() string {
+func (x *PrivateOrdersV3Api) GetCumulativeAmount() types.Number {
 	if x != nil {
 		return x.CumulativeAmount
 	}
-	return ""
+	return 0
 }
 
 func (x *PrivateOrdersV3Api) GetStatus() int32 {
@@ -192,11 +192,11 @@ func (x *PrivateOrdersV3Api) GetStatus() int32 {
 	return 0
 }
 
-func (x *PrivateOrdersV3Api) GetCreateTime() int64 {
+func (x *PrivateOrdersV3Api) GetCreateTime() types.Time {
 	if x != nil {
 		return x.CreateTime
 	}
-	return 0
+	return types.Time{}
 }
 
 func (x *PrivateOrdersV3Api) GetMarket() string {

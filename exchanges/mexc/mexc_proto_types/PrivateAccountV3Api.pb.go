@@ -13,7 +13,6 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	"github.com/thrasher-corp/gocryptotrader/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -29,7 +28,7 @@ type PrivateAccountV3Api struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	VcoinName           string                 `protobuf:"bytes,1,opt,name=vcoinName,proto3" json:"vcoinName,omitempty"`
 	CoinId              string                 `protobuf:"bytes,2,opt,name=coinId,proto3" json:"coinId,omitempty"`
-	BalanceAmount       types.Number                 `protobuf:"bytes,3,opt,name=balanceAmount,proto3" json:"balanceAmount,omitempty"`
+	BalanceAmount       string                 `protobuf:"bytes,3,opt,name=balanceAmount,proto3" json:"balanceAmount,omitempty"`
 	BalanceAmountChange string                 `protobuf:"bytes,4,opt,name=balanceAmountChange,proto3" json:"balanceAmountChange,omitempty"`
 	FrozenAmount        string                 `protobuf:"bytes,5,opt,name=frozenAmount,proto3" json:"frozenAmount,omitempty"`
 	FrozenAmountChange  string                 `protobuf:"bytes,6,opt,name=frozenAmountChange,proto3" json:"frozenAmountChange,omitempty"`
@@ -83,11 +82,11 @@ func (x *PrivateAccountV3Api) GetCoinId() string {
 	return ""
 }
 
-func (x *PrivateAccountV3Api) GetBalanceAmount() types.Number {
+func (x *PrivateAccountV3Api) GetBalanceAmount() string {
 	if x != nil {
 		return x.BalanceAmount
 	}
-	return 0
+	return ""
 }
 
 func (x *PrivateAccountV3Api) GetBalanceAmountChange() string {

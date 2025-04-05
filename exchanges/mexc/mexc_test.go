@@ -1722,7 +1722,7 @@ func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := me.WsConnect()
 	require.NoError(t, err)
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 8)
 }
 
 func TestGenerateListenKey(t *testing.T) {

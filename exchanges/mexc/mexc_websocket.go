@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -237,6 +238,7 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (me *MEXC) WsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 			if !me.Websocket.Match.IncomingWithData(id, respRaw) {
@@ -248,62 +250,87 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		// Ignore json messages which doesn't have an ID.
 		return nil
 	}
-	channelDetail := strings.Split(string(respRaw), "@")
-	switch channelDetail[1] {
+	dataSplit := strings.Split(string(respRaw), "@")
+	println("dataSplit[1]: ", dataSplit[1])
+	switch dataSplit[1] {
 	case chnlBookTiker:
 		var result mexc_proto_types.PublicAggreBookTickerV3Api
 		err := proto.Unmarshal(respRaw, &result)
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
+		if err != nil {
+			return err
+		}
+		ask := orderbook.Tranche{}
+		ask.Price, err = strconv.ParseFloat(result.AskPrice, 64)
+		if err != nil {
+			return err
+		}
+		ask.Amount, err = strconv.ParseFloat(result.AskQuantity, 64)
+		if err != nil {
+			return err
+		}
+		bid := orderbook.Tranche{}
+		bid.Price, err = strconv.ParseFloat(result.BidPrice, 64)
+		if err != nil {
+			return err
+		}
+		bid.Amount, err = strconv.ParseFloat(result.BidQuantity, 64)
 		if err != nil {
 			return err
 		}
 		return me.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:  cp,
 			Asset: asset.Spot,
-			Asks: []orderbook.Tranche{
-				{
-					Price:  result.AskPrice.Float64(),
-					Amount: result.AskQuantity.Float64(),
-				},
-			},
-			Bids: []orderbook.Tranche{
-				{
-					Price:  result.BidPrice.Float64(),
-					Amount: result.BidQuantity.Float64(),
-				},
-			},
+			Asks:  []orderbook.Tranche{ask},
+			Bids:  []orderbook.Tranche{bid},
 		})
 	case chnlAggregateDepthV3:
+		println("Here: ...")
 		var result mexc_proto_types.PublicAggreDepthsV3Api
 		err := proto.Unmarshal(respRaw, &result)
 		if err != nil {
+			println(err.Error())
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[3])
+		// valu, err := json.Marshal(&result)
+		// if err != nil {
+		// 	return err
+		// }
+		// println("string(valu): ", string(valu))
+		os.Exit(0)
+		cp, err := currency.NewPairFromString(dataSplit[3])
 		if err != nil {
 			return err
 		}
 		asks := make(orderbook.Tranches, len(result.Asks))
 		for a := range result.Asks {
-			asks[a] = orderbook.Tranche{
-				Price:  result.Asks[a].Price.Float64(),
-				Amount: result.Asks[a].Quantity.Float64(),
+			asks[a].Price, err = strconv.ParseFloat(result.Asks[a].Price, 64)
+			if err != nil {
+				return err
+			}
+			asks[a].Amount, err = strconv.ParseFloat(result.Asks[a].Quantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		bids := make(orderbook.Tranches, len(result.Bids))
 		for b := range result.Bids {
-			asks[b] = orderbook.Tranche{
-				Price:  result.Asks[b].Price.Float64(),
-				Amount: result.Asks[b].Quantity.Float64(),
+			bids[b].Price, err = strconv.ParseFloat(result.Bids[b].Price, 64)
+			if err != nil {
+				return err
+			}
+			bids[b].Amount, err = strconv.ParseFloat(result.Bids[b].Quantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asset:       asset.Spot,
-			Bids:        bids,
 			Asks:        asks,
+			Bids:        bids,
 			Pair:        cp,
 			LastUpdated: time.Now(),
 		})
@@ -313,18 +340,26 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
 		tradesDetail := make([]trade.Data, len(result.Deals))
 		for t := range result.Deals {
+			price, err := strconv.ParseFloat(result.Deals[t].Price, 64)
+			if err != nil {
+				return err
+			}
+			quantity, err := strconv.ParseFloat(result.Deals[t].Quantity, 64)
+			if err != nil {
+				return err
+			}
 			tradesDetail[t] = trade.Data{
 				Exchange:     me.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,
-				Price:        result.Deals[t].Price.Float64(),
-				Amount:       result.Deals[t].Quantity.Float64(),
+				Price:        price,
+				Amount:       quantity,
 				Timestamp:    result.Deals[t].Time.Time(),
 				Side: func() order.Side {
 					if result.Deals[t].TradeType == 1 {
@@ -342,22 +377,30 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
 		asks := make(orderbook.Tranches, len(result.Asks))
 		for a := range result.Asks {
-			asks[a] = orderbook.Tranche{
-				Price:  result.Asks[a].Price.Float64(),
-				Amount: result.Asks[a].Quantity.Float64(),
+			asks[a].Price, err = strconv.ParseFloat(result.Asks[a].Price, 64)
+			if err != nil {
+				return err
+			}
+			asks[a].Amount, err = strconv.ParseFloat(result.Asks[a].Quantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		bids := make(orderbook.Tranches, len(result.Bids))
 		for b := range result.Bids {
-			asks[b] = orderbook.Tranche{
-				Price:  result.Asks[b].Price.Float64(),
-				Amount: result.Asks[b].Quantity.Float64(),
+			bids[b].Price, err = strconv.ParseFloat(result.Bids[b].Price, 64)
+			if err != nil {
+				return err
+			}
+			bids[b].Amount, err = strconv.ParseFloat(result.Bids[b].Quantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		return me.Websocket.Orderbook.Update(&orderbook.Update{
@@ -374,19 +417,31 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
 		tradesDetail := make([]trade.Data, len(result.Deals))
 		for t := range result.Deals {
+			price, err := strconv.ParseFloat(result.Deals[t].Price, 64)
+			if err != nil {
+				return err
+			}
+			amount, err := strconv.ParseFloat(result.Deals[t].Quantity, 64)
+			if err != nil {
+				return err
+			}
+			dealTime, err := strconv.ParseInt(result.Deals[t].Time, 10, 64)
+			if err != nil {
+				return err
+			}
 			tradesDetail[t] = trade.Data{
 				Exchange:     me.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,
-				Price:        result.Deals[t].Price.Float64(),
-				Amount:       result.Deals[t].Quantity.Float64(),
-				Timestamp:    result.Deals[t].Time.Time(),
+				Price:        price,
+				Amount:       amount,
+				Timestamp:    time.UnixMilli(dealTime),
 				Side: func() order.Side {
 					if result.Deals[t].TradeType == 1 {
 						return order.Buy
@@ -403,23 +458,50 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
-		me.Websocket.DataHandler <- []stream.KlineData{{
-			Pair:       cp,
-			Exchange:   me.Name,
-			AssetType:  asset.Spot,
-			Interval:   result.Interval,
-			CloseTime:  result.WindowEnd.Time(),
-			Volume:     result.Amount.Float64(),
-			StartTime:  result.WindowStart.Time(),
-			LowPrice:   result.LowestPrice.Float64(),
-			OpenPrice:  result.OpeningPrice.Float64(),
-			ClosePrice: result.ClosingPrice.Float64(),
-			HighPrice:  result.HighestPrice.Float64(),
-		}}
+		klineData := stream.KlineData{
+			Pair:      cp,
+			Exchange:  me.Name,
+			AssetType: asset.Spot,
+			Interval:  result.Interval,
+		}
+		windowEndUnixMilli, err := strconv.ParseInt(result.WindowEnd, 10, 64)
+		if err != nil {
+			return err
+		}
+		klineData.CloseTime = time.UnixMilli(windowEndUnixMilli)
+		if klineData.Volume, err = strconv.ParseFloat(result.Amount, 64); err != nil {
+			return err
+		}
+		klineStartTimeUnixMilli, err := strconv.ParseInt(result.WindowStart, 10, 64)
+		if err != nil {
+			return err
+		}
+		klineData.StartTime = time.UnixMilli(klineStartTimeUnixMilli)
+		klineData.LowPrice, err = strconv.ParseFloat(result.LowestPrice, 64)
+		if err != nil {
+			return err
+		}
+		klineData.HighPrice, err = strconv.ParseFloat(result.HighestPrice, 64)
+		if err != nil {
+			return err
+		}
+		klineData.LowPrice, err = strconv.ParseFloat(result.LowestPrice, 64)
+		if err != nil {
+			return err
+		}
+		klineData.OpenPrice, err = strconv.ParseFloat(result.OpeningPrice, 64)
+		if err != nil {
+			return err
+		}
+		klineData.ClosePrice, err = strconv.ParseFloat(result.ClosingPrice, 64)
+		if err != nil {
+			return err
+		}
+		me.Websocket.DataHandler <- []stream.KlineData{klineData}
 		return nil
 	case chnlIncreaseDepthBatchV3:
 		var result mexc_proto_types.PublicIncreaseDepthsBatchV3Api
@@ -427,23 +509,31 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
 		for ob := range result.Items {
 			asks := make(orderbook.Tranches, len(result.Items[ob].Asks))
 			for a := range result.Items[ob].Asks {
-				asks[a] = orderbook.Tranche{
-					Price:  result.Items[ob].Asks[a].Price.Float64(),
-					Amount: result.Items[ob].Asks[a].Quantity.Float64(),
+				asks[a].Price, err = strconv.ParseFloat(result.Items[ob].Asks[a].Price, 64)
+				if err != nil {
+					return err
+				}
+				asks[a].Amount, err = strconv.ParseFloat(result.Items[ob].Asks[a].Quantity, 64)
+				if err != nil {
+					return err
 				}
 			}
 			bids := make(orderbook.Tranches, len(result.Items[ob].Bids))
 			for b := range result.Items[ob].Bids {
-				bids[b] = orderbook.Tranche{
-					Price:  result.Items[ob].Bids[b].Price.Float64(),
-					Amount: result.Items[ob].Bids[b].Quantity.Float64(),
+				bids[b].Price, err = strconv.ParseFloat(result.Items[ob].Bids[b].Price, 64)
+				if err != nil {
+					return err
+				}
+				bids[b].Amount, err = strconv.ParseFloat(result.Items[ob].Bids[b].Quantity, 64)
+				if err != nil {
+					return err
 				}
 			}
 			err = me.Websocket.Orderbook.Update(&orderbook.Update{
@@ -463,23 +553,31 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
 
 		asks := make(orderbook.Tranches, len(result.Asks))
 		for a := range result.Asks {
-			asks[a] = orderbook.Tranche{
-				Price:  result.Asks[a].Price.Float64(),
-				Amount: result.Asks[a].Quantity.Float64(),
+			asks[a].Price, err = strconv.ParseFloat(result.Asks[a].Price, 64)
+			if err != nil {
+				return err
+			}
+			asks[a].Amount, err = strconv.ParseFloat(result.Asks[a].Quantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		bids := make(orderbook.Tranches, len(result.Bids))
 		for b := range result.Bids {
-			asks[b] = orderbook.Tranche{
-				Price:  result.Asks[b].Price.Float64(),
-				Amount: result.Asks[b].Quantity.Float64(),
+			bids[b].Price, err = strconv.ParseFloat(result.Bids[b].Price, 64)
+			if err != nil {
+				return err
+			}
+			bids[b].Amount, err = strconv.ParseFloat(result.Bids[b].Quantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
@@ -495,7 +593,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(channelDetail[2])
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
@@ -505,10 +603,22 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 				Pair:         cp,
 				ExchangeName: me.Name,
 				AssetType:    asset.Spot,
-				Bid:          result.Items[a].BidPrice.Float64(),
-				Ask:          result.Items[a].AskPrice.Float64(),
-				BidSize:      result.Items[a].BidQuantity.Float64(),
-				AskSize:      result.Items[a].AskQuantity.Float64(),
+			}
+			tickersDetail[a].Bid, err = strconv.ParseFloat(result.Items[a].BidPrice, 64)
+			if err != nil {
+				return err
+			}
+			tickersDetail[a].Ask, err = strconv.ParseFloat(result.Items[a].AskPrice, 64)
+			if err != nil {
+				return err
+			}
+			tickersDetail[a].BidSize, err = strconv.ParseFloat(result.Items[a].BidQuantity, 64)
+			if err != nil {
+				return err
+			}
+			tickersDetail[a].AskSize, err = strconv.ParseFloat(result.Items[a].AskQuantity, 64)
+			if err != nil {
+				return err
 			}
 		}
 		me.Websocket.DataHandler <- tickersDetail
@@ -519,11 +629,15 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		balanceAmount, err := strconv.ParseFloat(result.BalanceAmount, 64)
+		if err != nil {
+			return err
+		}
 		me.Websocket.DataHandler <- account.Change{
 			Exchange: me.Name,
 			Currency: currency.NewCode(result.VcoinName),
 			Asset:    asset.Spot,
-			Amount:   result.BalanceAmount.Float64(),
+			Amount:   balanceAmount,
 			Account:  result.Type,
 		}
 		return nil
@@ -540,15 +654,27 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		price, err := strconv.ParseFloat(body.PrivateDeals.Price, 64)
+		if err != nil {
+			return err
+		}
+		amount, err := strconv.ParseFloat(body.PrivateDeals.Amount, 64)
+		if err != nil {
+			return err
+		}
+		dealTimeMilli, err := strconv.ParseInt(body.PrivateDeals.Time, 10, 64)
+		if err != nil {
+			return err
+		}
 		me.Websocket.DataHandler <- []trade.Data{
 			{
 				TID:          body.PrivateDeals.OrderId,
 				Exchange:     me.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,
-				Price:        body.PrivateDeals.Price.Float64(),
-				Amount:       body.PrivateDeals.Amount.Float64(),
-				Timestamp:    body.PrivateDeals.Time.Time(),
+				Price:        price,
+				Amount:       amount,
+				Timestamp:    time.UnixMilli(dealTimeMilli),
 				Side: func() order.Side {
 					if body.PrivateDeals.TradeType == 1 {
 						return order.Buy

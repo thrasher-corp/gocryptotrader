@@ -13,7 +13,6 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	"github.com/thrasher-corp/gocryptotrader/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -30,21 +29,21 @@ type PublicSpotKlineV3Api struct {
 	// K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
 	Interval string `protobuf:"bytes,1,opt,name=interval,proto3" json:"interval,omitempty"`
 	// 窗口开始时间戳(秒时间戳)
-	WindowStart types.Time `protobuf:"varint,2,opt,name=windowStart,proto3" json:"windowStart,omitempty"`
+	WindowStart string `protobuf:"varint,2,opt,name=windowStart,proto3" json:"windowStart,omitempty"`
 	// 开盘价
-	OpeningPrice types.Number `protobuf:"bytes,3,opt,name=openingPrice,proto3" json:"openingPrice,omitempty"`
+	OpeningPrice string `protobuf:"bytes,3,opt,name=openingPrice,proto3" json:"openingPrice,omitempty"`
 	// 收盘价
-	ClosingPrice types.Number `protobuf:"bytes,4,opt,name=closingPrice,proto3" json:"closingPrice,omitempty"`
+	ClosingPrice string `protobuf:"bytes,4,opt,name=closingPrice,proto3" json:"closingPrice,omitempty"`
 	// 最高价
-	HighestPrice types.Number `protobuf:"bytes,5,opt,name=highestPrice,proto3" json:"highestPrice,omitempty"`
+	HighestPrice string `protobuf:"bytes,5,opt,name=highestPrice,proto3" json:"highestPrice,omitempty"`
 	// 最低价
-	LowestPrice types.Number `protobuf:"bytes,6,opt,name=lowestPrice,proto3" json:"lowestPrice,omitempty"`
+	LowestPrice string `protobuf:"bytes,6,opt,name=lowestPrice,proto3" json:"lowestPrice,omitempty"`
 	// 成交量
-	Volume types.Number `protobuf:"bytes,7,opt,name=volume,proto3" json:"volume,omitempty"`
+	Volume string `protobuf:"bytes,7,opt,name=volume,proto3" json:"volume,omitempty"`
 	// 成交额
-	Amount types.Number `protobuf:"bytes,8,opt,name=amount,proto3" json:"amount,omitempty"`
+	Amount string `protobuf:"bytes,8,opt,name=amount,proto3" json:"amount,omitempty"`
 	// 窗口结束时间戳(秒时间戳)
-	WindowEnd     types.Time `protobuf:"varint,9,opt,name=windowEnd,proto3" json:"windowEnd,omitempty"`
+	WindowEnd     string `protobuf:"varint,9,opt,name=windowEnd,proto3" json:"windowEnd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -86,60 +85,60 @@ func (x *PublicSpotKlineV3Api) GetInterval() string {
 	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetWindowStart() types.Time {
+func (x *PublicSpotKlineV3Api) GetWindowStart() string {
 	if x != nil {
 		return x.WindowStart
 	}
-	return types.Time{}
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetOpeningPrice() types.Number {
+func (x *PublicSpotKlineV3Api) GetOpeningPrice() string {
 	if x != nil {
 		return x.OpeningPrice
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetClosingPrice() types.Number {
+func (x *PublicSpotKlineV3Api) GetClosingPrice() string {
 	if x != nil {
 		return x.ClosingPrice
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetHighestPrice() types.Number {
+func (x *PublicSpotKlineV3Api) GetHighestPrice() string {
 	if x != nil {
 		return x.HighestPrice
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetLowestPrice() types.Number {
+func (x *PublicSpotKlineV3Api) GetLowestPrice() string {
 	if x != nil {
 		return x.LowestPrice
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetVolume() types.Number {
+func (x *PublicSpotKlineV3Api) GetVolume() string {
 	if x != nil {
 		return x.Volume
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetAmount() types.Number {
+func (x *PublicSpotKlineV3Api) GetAmount() string {
 	if x != nil {
 		return x.Amount
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetWindowEnd() types.Time {
+func (x *PublicSpotKlineV3Api) GetWindowEnd() string {
 	if x != nil {
 		return x.WindowEnd
 	}
-	return types.Time{}
+	return ""
 }
 
 var File_PublicSpotKlineV3Api_proto protoreflect.FileDescriptor

@@ -13,7 +13,6 @@ import (
 	sync "sync"
 	unsafe "unsafe"
 
-	"github.com/thrasher-corp/gocryptotrader/types"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
@@ -79,10 +78,10 @@ func (x *PublicAggreDealsV3Api) GetEventType() string {
 
 type PublicAggreDealsV3ApiItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Price         types.Number                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity      types.Number                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	TradeType     int32                  `protobuf:"varint,3,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
-	Time          types.Time                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	Time          string                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,18 +116,18 @@ func (*PublicAggreDealsV3ApiItem) Descriptor() ([]byte, []int) {
 	return file_PublicAggreDealsV3Api_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PublicAggreDealsV3ApiItem) GetPrice() types.Number {
+func (x *PublicAggreDealsV3ApiItem) GetPrice() string {
 	if x != nil {
 		return x.Price
 	}
-	return 0
+	return ""
 }
 
-func (x *PublicAggreDealsV3ApiItem) GetQuantity() types.Number {
+func (x *PublicAggreDealsV3ApiItem) GetQuantity() string {
 	if x != nil {
 		return x.Quantity
 	}
-	return 0
+	return ""
 }
 
 func (x *PublicAggreDealsV3ApiItem) GetTradeType() int32 {
@@ -138,11 +137,11 @@ func (x *PublicAggreDealsV3ApiItem) GetTradeType() int32 {
 	return 0
 }
 
-func (x *PublicAggreDealsV3ApiItem) GetTime() types.Time {
+func (x *PublicAggreDealsV3ApiItem) GetTime() string {
 	if x != nil {
 		return x.Time
 	}
-	return types.Time{}
+	return ""
 }
 
 var File_PublicAggreDealsV3Api_proto protoreflect.FileDescriptor
