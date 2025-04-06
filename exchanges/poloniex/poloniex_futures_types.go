@@ -57,8 +57,8 @@ type BillDetail struct {
 	Size         types.Number `json:"sz"`
 }
 
-// FuturesV2Params represents a futures order parameters
-type FuturesV2Params struct {
+// FuturesParams represents a futures order parameters
+type FuturesParams struct {
 	Symbol                  string  `json:"symbol"`
 	Side                    string  `json:"side"`
 	MarginMode              string  `json:"mgnMode"`

@@ -462,9 +462,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 	}
 	channels := defaultSubscriptions
 	if p.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels, []string{
-			cnlOrders,
-			cnlBalances}...)
+		channels = append(channels, []string{cnlOrders, cnlBalances}...)
 	}
 	subscriptions := make(subscription.List, 0, 6*len(enabledCurrencies))
 	for i := range channels {

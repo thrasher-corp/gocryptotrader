@@ -760,7 +760,7 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		default:
 			stpMode = ""
 		}
-		response, err := p.PlaceV3FuturesOrder(ctx, &FuturesV2Params{
+		response, err := p.PlaceV3FuturesOrder(ctx, &FuturesParams{
 			ClientOrderID:           s.ClientOrderID,
 			Side:                    side,
 			PositionSide:            positionSide,
@@ -1298,8 +1298,9 @@ func (p *Poloniex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	v, err := p.WithdrawCurrency(ctx, &WithdrawCurrencyParam{
 		Currency: withdrawRequest.Currency.String() + withdrawRequest.Crypto.Chain,
-		Address:  withdrawRequest.Crypto.Address, // Withdrawal address
-		Amount:   withdrawRequest.Amount})
+		Address:  withdrawRequest.Crypto.Address,
+		Amount:   withdrawRequest.Amount,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1794,23 +1795,12 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 }
 
 // GetServerTime returns the current exchange server time.
-func (p *Poloniex) GetServerTime(ctx context.Context, assetType asset.Item) (time.Time, error) {
-	switch assetType {
-	case asset.Spot:
-		sysServerTime, err := p.GetSystemTimestamp(ctx)
-		if err != nil {
-			return time.Time{}, err
-		}
-		return sysServerTime.ServerTime.Time(), nil
-	case asset.Futures:
-		sysServerTime, err := p.GetFuturesServerTime(ctx)
-		if err != nil {
-			return time.Time{}, err
-		}
-		return sysServerTime.Data.Time(), nil
-	default:
-		return time.Time{}, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+	sysServerTime, err := p.GetSystemTimestamp(ctx)
+	if err != nil {
+		return time.Time{}, err
 	}
+	return sysServerTime.ServerTime.Time(), nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
@@ -1821,7 +1811,6 @@ func (p *Poloniex) GetFuturesContractDetails(ctx context.Context, assetType asse
 	if assetType != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-
 	contracts, err := p.GetV3FuturesAllProductInfo(ctx, "")
 	if err != nil {
 		return nil, err
@@ -1993,7 +1982,7 @@ func TimeInForceString(tif order.TimeInForce) (string, error) {
 	if tif.Is(order.ImmediateOrCancel) {
 		return order.ImmediateOrCancel.String(), nil
 	}
-	if tif == order.UnsetTIF {
+	if tif.Is(order.UnsetTIF) {
 		return "", nil
 	}
 	return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)

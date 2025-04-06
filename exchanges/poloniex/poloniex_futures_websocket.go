@@ -136,7 +136,8 @@ func (p *Poloniex) AuthConnect() error {
 	data, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, "auth", &SubscriptionPayload{
 		Event:   "subscribe",
 		Channel: []string{"auth"},
-		Params: map[string]any{"key": creds.Key,
+		Params: map[string]any{
+			"key":           creds.Key,
 			"signTimestamp": timestamp,
 			"signature":     crypto.Base64Encode(hmac),
 		},

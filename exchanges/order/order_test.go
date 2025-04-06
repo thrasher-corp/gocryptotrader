@@ -928,7 +928,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Equal(t, 1., od.Amount)
 	assert.Equal(t, 1., od.TriggerPrice)
 	assert.Equal(t, 1., od.RemainingAmount)
-	assert.Equal(t, od.Exchange, "Should not be able to update exchange via modify")
+	assert.NotEmpty(t, od.Exchange)
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, Type(1), od.Type)
 	assert.Equal(t, Side(1), od.Side)
@@ -1714,8 +1714,7 @@ func TestSideUnmarshal(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	t.Parallel()
-	var timeInForceValidityMap = map[TimeInForce]bool{
-		TimeInForce(1):    false,
+	timeInForceValidityMap := map[TimeInForce]bool{
 		ImmediateOrCancel: true,
 		GoodTillTime:      true,
 		GoodTillCancel:    true,
@@ -1724,6 +1723,7 @@ func TestIsValid(t *testing.T) {
 		PostOnly:          true,
 		UnsetTIF:          true,
 		UnknownTIF:        false,
+		TimeInForce(1):    false,
 	}
 	var tif TimeInForce
 	for tif = range timeInForceValidityMap {
@@ -1733,7 +1733,7 @@ func TestIsValid(t *testing.T) {
 
 func TestStringToTimeInForce(t *testing.T) {
 	t.Parallel()
-	var timeInForceStringToValueMap = map[string]struct {
+	timeInForceStringToValueMap := map[string]struct {
 		TIF   TimeInForce
 		Error error
 	}{
@@ -1762,7 +1762,6 @@ func TestStringToTimeInForce(t *testing.T) {
 		"GOOD_TILL_CROSSING":           {TIF: GoodTillCrossing},
 		"Good Til crossing":            {TIF: GoodTillCrossing},
 	}
-
 	for tk := range timeInForceStringToValueMap {
 		result, err := StringToTimeInForce(tk)
 		assert.ErrorIsf(t, err, timeInForceStringToValueMap[tk].Error, "got %v, expected %v", err, timeInForceStringToValueMap[tk].Error)

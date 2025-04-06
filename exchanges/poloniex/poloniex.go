@@ -436,9 +436,7 @@ func (p *Poloniex) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 
 // GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months.
 // If no start/end time params are specified then records for last 7 days will be returned.
-func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime,
-	endTime time.Time, fromAccountID, toAccountID, fromAccountType,
-	toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
+func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, fromAccountID, toAccountID, fromAccountType, toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -881,9 +879,7 @@ func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTyp
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodDelete, "/smartorders", nil, args, &resp)
 }
 
-func orderFillParams(symbol currency.Pair,
-	accountType, orderType, side, direction, states string,
-	from, limit int64, startTime, endTime time.Time, hideCancel bool) (url.Values, error) {
+func orderFillParams(symbol currency.Pair, accountType, orderType, side, direction, states string, from, limit int64, startTime, endTime time.Time, hideCancel bool) (url.Values, error) {
 	params := url.Values{}
 	if accountType != "" {
 		params.Set("accountType", accountType)
@@ -929,9 +925,7 @@ func orderFillParams(symbol currency.Pair,
 // If only startTime is populated then endTime will be defaulted to 7 days after startTime.
 // Please note that canceled orders that are before 7 days from current time will be archived.
 // Rest of the orders will be archived before 90 days from current time.
-func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
-	accountType, orderType, side, direction, states string,
-	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
+func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair, accountType, orderType, side, direction, states string, from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]TradeOrder, error) {
 	params, err := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
 	if err != nil {
 		return nil, err
@@ -947,9 +941,7 @@ func (p *Poloniex) GetOrdersHistory(ctx context.Context, symbol currency.Pair,
 // Interval between startTime and endTime cannot exceed 30 days.
 // If only endTime is populated then startTime will default to 7 days before endTime.
 // If only startTime is populated then endTime will be defaulted to 7 days after startTime.
-func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pair,
-	accountType, orderType, side, direction, states string,
-	from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
+func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pair, accountType, orderType, side, direction, states string, from, limit int64, startTime, endTime time.Time, hideCancel bool) ([]SmartOrderItem, error) {
 	params, err := orderFillParams(symbol, accountType, orderType, side, direction, states, from, limit, startTime, endTime, hideCancel)
 	if err != nil {
 		return nil, err

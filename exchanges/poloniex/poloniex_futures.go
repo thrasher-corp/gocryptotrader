@@ -20,12 +20,6 @@ const (
 	poloniexFuturesAPIURL = "https://futures-api.poloniex.com"
 )
 
-// GetFuturesServerTime get the API server time. This is the Unix timestamp.
-func (p *Poloniex) GetFuturesServerTime(ctx context.Context) (*ServerTimeResponse, error) {
-	var resp *ServerTimeResponse
-	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/timestamp", &resp)
-}
-
 // GetFuturesUntriggeredStopOrderList retrieves list of untriggered futures orders.
 func (p *Poloniex) GetFuturesUntriggeredStopOrderList(ctx context.Context, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (*FuturesOrders, error) {
 	params := url.Values{}
@@ -90,8 +84,8 @@ func (p *Poloniex) GetAccountBills(ctx context.Context, startTime, endTime time.
 }
 
 // PlaceV3FuturesOrder place an order in futures trading.
-func (p *Poloniex) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesV2Params) (*FuturesV3OrderIDResponse, error) {
-	if arg == nil || *arg == (FuturesV2Params{}) {
+func (p *Poloniex) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesParams) (*FuturesV3OrderIDResponse, error) {
+	if arg == nil || *arg == (FuturesParams{}) {
 		return nil, common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {
@@ -114,7 +108,7 @@ func (p *Poloniex) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesV2Params
 }
 
 // PlaceV3FuturesMultipleOrders place orders in a batch. A maximum of 10 orders can be placed per request.
-func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesV2Params) ([]FuturesV3OrderIDResponse, error) {
+func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesParams) ([]FuturesV3OrderIDResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -128,8 +122,8 @@ func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []Futu
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/orders", nil, args, &resp, true)
 }
 
-func validationOrderCreationParam(arg *FuturesV2Params) error {
-	if *arg == (FuturesV2Params{}) {
+func validationOrderCreationParam(arg *FuturesParams) error {
+	if *arg == (FuturesParams{}) {
 		return common.ErrEmptyParams
 	}
 	if arg.Symbol == "" {

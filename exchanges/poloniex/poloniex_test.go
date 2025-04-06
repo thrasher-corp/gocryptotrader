@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
-	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -151,9 +151,7 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err := p.GetActiveOrders(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
-		Type: order.Liquidation, AssetType: asset.Futures,
-		Side: order.AnySide})
+	_, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{Type: order.Liquidation, AssetType: asset.Futures, Side: order.AnySide})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
@@ -227,9 +225,9 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = p.SubmitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	// if !mockTests {
-	// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	// }
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  p.Name,
 		Pair:      spotTradablePair,
@@ -625,9 +623,6 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetServerTime(context.Background(), asset.Binary)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
 	st, err := p.GetServerTime(context.Background(), asset.Spot)
 	require.NoError(t, err)
 	require.NotZero(t, st)
@@ -1147,10 +1142,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{
-		Currency: currency.BTC.String(),
-		Amount:   1,
-		Address:  "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"})
+	result, err := p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{Currency: currency.BTC.String(), Amount: 1, Address: "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1159,18 +1151,15 @@ func TestWithdrawCurrencyV2(t *testing.T) {
 	t.Parallel()
 	_, err := p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{})
 	require.ErrorIs(t, err, errNilArgument)
-	_, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{
-		Coin: currency.BTC})
+	_, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{Coin: currency.BTC})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{Coin: currency.BTC, Amount: 1})
 	require.ErrorIs(t, err, errInvalidWithdrawalChain)
-	_, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{
-		Coin: currency.BTC, Amount: 1, Network: "BTC"})
+	_, err = p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{Coin: currency.BTC, Amount: 1, Network: "BTC"})
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	result, err := p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{
-		Network: "BTC", Coin: currency.BTC, Amount: 1, Address: "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"})
+	result, err := p.WithdrawCurrencyV2(context.Background(), &WithdrawCurrencyV2Param{Network: "BTC", Coin: currency.BTC, Amount: 1, Address: "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1641,13 +1630,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 // ---- Futures endpoints ---
 
-func TestGetFuturesServerTime(t *testing.T) {
-	t.Parallel()
-	result, err := p.GetFuturesServerTime(context.Background())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, p)
@@ -1743,7 +1725,7 @@ func TestGetAccountBills(t *testing.T) {
 
 func TestPlaceV3FuturesOrder(t *testing.T) {
 	t.Parallel()
-	arg := &FuturesV2Params{}
+	arg := &FuturesParams{}
 	_, err := p.PlaceV3FuturesOrder(context.Background(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
@@ -1770,7 +1752,7 @@ func TestPlaceV3FuturesOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	}
-	_, err = p.PlaceV3FuturesOrder(context.Background(), &FuturesV2Params{
+	_, err = p.PlaceV3FuturesOrder(context.Background(), &FuturesParams{
 		ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
 		Symbol:                  "BTC_USDT_PERP",
 		Side:                    "buy",
@@ -1788,34 +1770,34 @@ func TestPlaceV3FuturesOrder(t *testing.T) {
 
 func TestPlaceMultipleOrders(t *testing.T) {
 	t.Parallel()
-	arg := FuturesV2Params{}
-	_, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	arg := FuturesParams{}
+	_, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg.ReduceOnly = true
-	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	arg.Symbol = "BTC_USDT_PERP"
-	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = "buy"
-	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.PositionSide = "LONG"
-	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	arg.OrderType = "limit_maker"
-	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{arg})
+	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
-	result, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesV2Params{
+	result, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{
 		{
 			ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
 			Symbol:                  "BTC_USDT_PERP",
@@ -2055,7 +2037,7 @@ func TestGetV3FuturesExecutionInfo(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetV3LiquidiationOrder(t *testing.T) {
+func TestGetV3LiquidationOrder(t *testing.T) {
 	t.Parallel()
 	result, err := p.GetV3LiquidiationOrder(context.Background(), "BTC_USDT_PERP", "NEXT", time.Time{}, time.Time{}, 0, 0)
 	require.NoError(t, err)

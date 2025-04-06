@@ -345,38 +345,6 @@
     }
    ]
   },
-  "/api/v1/orders": {
-   "POST": [
-    {
-     "data": {
-      "code": 400,
-      "message": "Invalid Apikey or Signature"
-     },
-     "queryString": "",
-     "bodyParams": "{\"clientOid\":\"\",\"side\":\"BUY\",\"symbol\":\"BTC_USDT\",\"type\":\"MARKET\",\"leverage\":0,\"stop\":\"\",\"stopPrice\":11,\"stopPriceType\":\"\",\"reduceOnly\":false,\"closeOrder\":false,\"forceHold\":false,\"price\":10,\"size\":10000000}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "h7ifE+EvFdEKgjg6S8NyTLMJQwbJCKduqirorWMNswc="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1743945452142"
-      ]
-     }
-    }
-   ]
-  },
   "/currencies": {
    "GET": [
     {
@@ -152861,13 +152829,13 @@
        "1500"
       ],
       "Signature": [
-       "OOtRKbzb3Oa3cgCwG+FA1meYqHO1ivX1L/2V7IQLmbY="
+       "7OBrBy0tBg7fqanczTlfR/4nAl47QSgqvz2UXVUbeOk="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1734093248799"
+       "1743949529724"
       ]
      }
     }
@@ -153613,13 +153581,13 @@
        "1500"
       ],
       "Signature": [
-       "e1o/9aG/JvGIN5sGHL77bVaEcBA6LbrHUTu6NicHk1k="
+       "0peAv1nbJ2B1m2b3HVz53saag3XbRyOGPaNwxHbXo6A="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743701744748"
+       "1743949699366"
       ]
      }
     }
