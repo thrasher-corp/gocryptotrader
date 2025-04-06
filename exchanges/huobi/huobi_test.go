@@ -1199,11 +1199,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          btcusdtPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      btcusdtPair,
+		AssetType: asset.Spot,
 	}
 
 	err := h.CancelOrder(context.Background(), orderCancellation)
@@ -1215,11 +1214,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h, canManipulateRealOrders)
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
 	}
 
 	_, err := h.CancelAllOrders(context.Background(), &orderCancellation)

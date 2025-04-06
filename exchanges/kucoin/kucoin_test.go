@@ -2658,11 +2658,10 @@ func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          futuresTradablePair,
-		AssetType:     asset.Options,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      futuresTradablePair,
+		AssetType: asset.Options,
 	}
 	err := ku.CancelOrder(context.Background(), orderCancellation)
 	require.ErrorIs(t, err, asset.ErrNotSupported)

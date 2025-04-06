@@ -1655,11 +1655,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currency.NewPair(currency.LTC, currency.BTC),
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currency.NewPair(currency.LTC, currency.BTC),
+		AssetType: asset.Spot,
 	}
 
 	err := b.CancelOrder(context.Background(), orderCancellation)
@@ -1680,11 +1679,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currency.NewPair(currency.LTC, currency.BTC),
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currency.NewPair(currency.LTC, currency.BTC),
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.CancelAllOrders(context.Background(), orderCancellation)
