@@ -974,45 +974,14 @@ type FuturesSubscriptionResp struct {
 	Action  string          `json:"action"`
 }
 
-// FuturesOrderParams represents a request parameter for futures order.
-type FuturesOrderParams struct {
-	ClientOrderID string  `json:"clientOid"`
-	Side          string  `json:"side"`
-	Symbol        string  `json:"symbol"`
-	OrderType     string  `json:"type,omitempty"`
-	Leverage      int64   `json:"leverage"`
-	Stop          string  `json:"stop"`
-	StopPrice     float64 `json:"stopPrice"`
-	StopPriceType string  `json:"stopPriceType"` // possible values are TP (Trade Price), IP (Index Price), and MP (Mark Price)
-	ReduceOnly    bool    `json:"reduceOnly"`
-	CloseOrder    bool    `json:"closeOrder"`
-	ForceHold     bool    `json:"forceHold"`
-
-	Hidden      bool    `json:"hidden,omitempty"`
-	Iceberg     bool    `json:"iceberg,omitempty"`
-	PostOnly    bool    `json:"postOnly,omitempty"`
-	Price       float64 `json:"price,omitempty"`
-	Remark      string  `json:"remark,omitempty"`
-	Size        float64 `json:"size"`               // Amount of contract to buy or sell
-	Quantity    float64 `json:"quantity,omitempty"` // [optional] Order quantity. Must be a positive number. Only takes effect when size is empty
-	TimeInForce string  `json:"timeInForce,omitempty"`
-	VisibleSize float64 `json:"visibleSize,omitempty"`
-}
-
 // OrderIDResponse represents an order ID instance.
 type OrderIDResponse struct {
 	OrderID string `json:"orderId,omitempty"`
 
 	// Added as in placing a batch orders response
-	ClientOid string `json:"clientOid"`
-	Code      string `json:"code"`
-	Msg       string `json:"msg,omitempty"`
-}
-
-// FuturesCancelOrderResponse represents an order cancellation response.
-type FuturesCancelOrderResponse struct {
-	CancelFailedOrderIDs []string `json:"cancelFailedOrderIds"`
-	CancelledOrderIDs    []string `json:"cancelledOrderIds"`
+	ClientOid string       `json:"clientOid"`
+	Code      types.Number `json:"code"`
+	Msg       string       `json:"msg,omitempty"`
 }
 
 // FuturesOrders represents a paginated list of Futures orders.

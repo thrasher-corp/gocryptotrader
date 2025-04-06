@@ -711,13 +711,14 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		arg := &PlaceOrderParams{
-			Symbol:      s.Pair,
-			Price:       s.Price,
-			Amount:      s.Amount,
-			AllowBorrow: false,
-			Type:        oTypeString,
-			Side:        s.Side.String(),
-			TimeInForce: tif,
+			Symbol:        s.Pair,
+			Price:         s.Price,
+			Amount:        s.Amount,
+			AllowBorrow:   false,
+			Type:          oTypeString,
+			Side:          s.Side.String(),
+			TimeInForce:   tif,
+			ClientOrderID: s.ClientOrderID,
 		}
 		if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			response, err = p.WsCreateOrder(arg)
@@ -729,54 +730,48 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		return s.DeriveSubmitResponse(response.ID)
 	case asset.Futures:
-		var stopOrderType, stopOrderBoundary string
-		switch s.Type {
-		case order.Stop, order.StopLimit, order.TrailingStop:
-			if s.TriggerPrice == 0 {
-				break
-			}
-			switch s.TriggerPriceType {
-			case order.IndexPrice:
-				stopOrderType = "IP"
-			case order.MarkPrice:
-				stopOrderType = "MP"
-			case order.LastPrice:
-				stopOrderType = "TP"
-			}
-			switch s.Type {
-			case order.StopLimit:
-				switch s.Side {
-				case order.Sell:
-					stopOrderBoundary = "up"
-				case order.Buy:
-					stopOrderBoundary = "down"
-				}
-			case order.TrailingStop, order.Stop:
-				switch s.Side {
-				case order.Sell:
-					// Stop-loss when order type is order.Stop
-					stopOrderBoundary = "down"
-				case order.Buy:
-					// Take Profit when order type is order.Stop
-					stopOrderBoundary = "up"
-				}
-			}
+		var side string
+		var positionSide string
+		switch s.Side {
+		case order.Sell:
+			side = "SELL"
+		case order.Buy:
+			side = "BUY"
+		case order.Long:
+			side = "BUY"
+			positionSide = "LONG"
+		case order.Short:
+			side = "SELL"
+			positionSide = "SHORT"
 		}
-		response, err := p.PlaceFuturesOrder(ctx, &FuturesOrderParams{
-			ClientOrderID: s.ClientOrderID,
-			Side:          s.Side.String(),
-			Symbol:        s.Pair.String(),
-			OrderType:     oTypeString,
-			Leverage:      int64(s.Leverage),
-			Stop:          stopOrderBoundary,
-			StopPrice:     s.TriggerPrice,
-			StopPriceType: stopOrderType,
-			ReduceOnly:    s.ReduceOnly,
-			Hidden:        s.Hidden,
-			PostOnly:      s.TimeInForce.Is(order.PostOnly),
-			TimeInForce:   tif,
-			Price:         s.Price,
-			Size:          s.Amount,
+		var marginMode string
+		switch s.MarginType {
+		case margin.Multi:
+			marginMode = "CROSS"
+		case margin.Isolated:
+			marginMode = "ISOLATED"
+		}
+		var stpMode string
+		switch s.TimeInForce {
+		case order.PostOnly:
+			stpMode = "EXPIRE_MAKER"
+		case order.GoodTillCancel:
+			stpMode = "EXPIRE_TAKER"
+		default:
+			stpMode = ""
+		}
+		response, err := p.PlaceV3FuturesOrder(ctx, &FuturesV2Params{
+			ClientOrderID:           s.ClientOrderID,
+			Side:                    side,
+			PositionSide:            positionSide,
+			Symbol:                  s.Pair.String(),
+			OrderType:               oTypeString,
+			ReduceOnly:              s.ReduceOnly,
+			TimeInForce:             tif,
+			Price:                   s.Price,
+			Size:                    s.Amount,
+			MarginMode:              marginMode,
+			SelfTradePreventionMode: stpMode,
 		})
 		if err != nil {
 			return nil, err
@@ -869,7 +864,7 @@ func (p *Poloniex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			_, err = p.CancelOrderByID(ctx, o.OrderID)
 		}
 	case asset.Futures:
-		_, err = p.CancelFuturesOrderByID(ctx, o.OrderID)
+		_, err = p.CancelV3FuturesOrder(ctx, &CancelOrderParams{OrderID: o.OrderID, ClientOrderID: o.ClientOrderID})
 	default:
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
@@ -960,21 +955,18 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
 		}
 	} else {
-		switch commonOrderType {
-		case order.Limit, order.Market, order.AnyType, order.UnknownType:
-			cancelledOrders, err := p.CancelMultipleFuturesLimitOrders(ctx, orderIDs, clientOrderIDs)
-			if err != nil {
-				return nil, err
+		cancelledOrders, err := p.CancelMultipleV3FuturesOrders(ctx, &CancelOrdersParams{
+			OrderIDs:       orderIDs,
+			ClientOrderIDs: clientOrderIDs,
+		})
+		if err != nil {
+			return nil, err
+		}
+		resp.Status = map[string]string{}
+		for x := range cancelledOrders {
+			if cancelledOrders[x].Code == 200 {
+				resp.Status[cancelledOrders[x].OrderID] = "Cancelled"
 			}
-			resp.Status = make(map[string]string, len(cancelledOrders.CancelFailedOrderIDs)+len(cancelledOrders.CancelledOrderIDs))
-			for x := range cancelledOrders.CancelledOrderIDs {
-				resp.Status[cancelledOrders.CancelledOrderIDs[x]] = "Cancelled"
-			}
-			for x := range cancelledOrders.CancelFailedOrderIDs {
-				resp.Status[cancelledOrders.CancelFailedOrderIDs[x]] = "Failed"
-			}
-		default:
-			return nil, fmt.Errorf("%w: order type: %s", order.ErrUnsupportedOrderType, commonOrderType.String())
 		}
 	}
 	return resp, nil
@@ -1038,24 +1030,15 @@ func (p *Poloniex) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			}
 		}
 	case asset.Futures:
-		var result *FuturesCancelOrderResponse
-		switch cancelOrd.Type {
-		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
-			result, err = p.CancelAllFuturesStopOrders(ctx, cancelOrd.Pair.String())
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-		default:
-			result, err = p.CancelAllFuturesLimitOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
+		var result []FuturesV3OrderIDResponse
+		result, err = p.CancelAllV3FuturesOrders(ctx, cancelOrd.Pair.String(), cancelOrd.Side.String())
+		if err != nil {
+			return cancelAllOrdersResponse, err
 		}
-		for x := range result.CancelledOrderIDs {
-			cancelAllOrdersResponse.Status[result.CancelledOrderIDs[x]] = "Cancelled"
-		}
-		for x := range result.CancelFailedOrderIDs {
-			cancelAllOrdersResponse.Status[result.CancelFailedOrderIDs[x]] = "Failed"
+		for x := range result {
+			if result[x].Code == 200 {
+				cancelAllOrdersResponse.Status[result[x].OrderID] = "cancelled"
+			}
 		}
 	default:
 		return cancelAllOrdersResponse, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, cancelOrd.AssetType)
@@ -1189,7 +1172,7 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			TimeInForce:          resp.TimeInForce,
 		}, nil
 	case asset.Futures:
-		fResults, err := p.GetV3FuturesOrderHistory(ctx, "", "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
+		fResults, err := p.GetV3FuturesOrderHistory(ctx, "", "", "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1405,13 +1388,13 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		fOrders, err := p.GetFuturesOrderList(context.Background(), "active", samplePair.String(), req.Side.String(), oTypeString, req.StartTime, req.EndTime, margin.Unset)
+		fOrders, err := p.GetV3FuturesOrderHistory(context.Background(), samplePair.String(), oTypeString, req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 0)
 		if err != nil {
 			return nil, err
 		}
-		for a := range fOrders.Items {
+		for a := range fOrders {
 			var symbol currency.Pair
-			symbol, err = currency.NewPairFromString(fOrders.Items[a].Symbol)
+			symbol, err = currency.NewPairFromString(fOrders[a].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -1419,58 +1402,51 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				continue
 			}
 			var orderSide order.Side
-			orderSide, err = order.StringToOrderSide(fOrders.Items[a].Side)
+			orderSide, err = order.StringToOrderSide(fOrders[a].Side)
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(fOrders.Items[a].OrderType)
+			oType, err := order.StringToOrderType(fOrders[a].OrderType)
 			if err != nil {
 				return nil, err
 			}
-			oStatus, err := order.StringToOrderStatus(fOrders.Items[a].Status)
-			if err != nil {
-				return nil, err
+			var oState order.Status
+			switch fOrders[a].State {
+			case "NEW":
+				oState = order.Active
+			case "PARTIALLY_FILLED":
+				oState = order.PartiallyFilled
+			default:
+				continue
 			}
 			var mType margin.Type
-			switch fOrders.Items[a].MarginType {
-			case 0:
+			switch fOrders[a].MarginMode {
+			case "ISOLATED":
 				mType = margin.Isolated
-			case 1:
+			case "CROSS":
 				mType = margin.Multi
 			}
-			trades := make([]order.TradeHistory, len(fOrders.Items[a].Trades))
-			for t := range fOrders.Items[a].Trades {
-				trades[t] = order.TradeHistory{
-					TID:      fOrders.Items[a].Trades[t].TradeID,
-					Fee:      fOrders.Items[a].Trades[t].FeePay,
-					Exchange: p.Name,
-				}
-			}
-			if fOrders.Items[a].PostOnly {
-				fOrders.Items[a].TimeInForce |= order.PostOnly
-			}
 			orders = append(orders, order.Detail{
-				Type:               oType,
-				OrderID:            fOrders.Items[a].OrderID,
-				Side:               orderSide,
-				Amount:             fOrders.Items[a].Size,
-				Date:               fOrders.Items[a].CreatedAt.Time(),
-				Price:              fOrders.Items[a].Price.Float64(),
-				Pair:               symbol,
-				Exchange:           p.Name,
-				HiddenOrder:        fOrders.Items[a].Hidden,
-				ReduceOnly:         fOrders.Items[a].ReduceOnly,
-				Leverage:           fOrders.Items[a].Leverage.Float64(),
-				ExecutedAmount:     fOrders.Items[a].FilledSize,
-				RemainingAmount:    fOrders.Items[a].Size - fOrders.Items[a].FilledSize,
-				ClientOrderID:      fOrders.Items[a].ClientOrderID,
-				Status:             oStatus,
-				AssetType:          req.AssetType,
-				LastUpdated:        fOrders.Items[a].UpdatedAt.Time(),
-				MarginType:         mType,
-				Trades:             trades,
-				SettlementCurrency: currency.NewCode(fOrders.Items[a].SettleCurrency),
-				TimeInForce:        fOrders.Items[a].TimeInForce,
+				Type:            oType,
+				OrderID:         fOrders[a].OrderID,
+				Side:            orderSide,
+				Amount:          fOrders[a].Size.Float64(),
+				Date:            fOrders[a].CreationTime.Time(),
+				Price:           fOrders[a].Price.Float64(),
+				Pair:            symbol,
+				Exchange:        p.Name,
+				ReduceOnly:      fOrders[a].ReduceOnly,
+				Leverage:        fOrders[a].Leverage.Float64(),
+				ExecutedAmount:  fOrders[a].ExecQuantity.Float64(),
+				RemainingAmount: fOrders[a].Size.Float64() - fOrders[a].ExecQuantity.Float64(),
+				ClientOrderID:   fOrders[a].ClientOrderID,
+				Status:          oState,
+				AssetType:       req.AssetType,
+				LastUpdated:     fOrders[a].UpdateTime.Time(),
+				MarginType:      mType,
+				FeeAsset:        currency.NewCode(fOrders[a].FeeCurrency),
+				Fee:             fOrders[a].FeeAmount.Float64(),
+				TimeInForce:     fOrders[a].TimeInForce,
 			})
 		}
 	default:
@@ -1632,7 +1608,11 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, req.Type)
 		}
 	case asset.Futures:
-		orderHistory, err := p.GetV3FuturesOrderHistory(ctx, "", req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
+		oTypeString, err := OrderTypeString(req.Type)
+		if err != nil {
+			return nil, err
+		}
+		orderHistory, err := p.GetV3FuturesOrderHistory(ctx, "", oTypeString, req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
 		if err != nil {
 			return nil, err
 		}

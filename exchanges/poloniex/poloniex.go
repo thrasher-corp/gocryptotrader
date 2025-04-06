@@ -263,7 +263,7 @@ func (p *Poloniex) GetAllBalance(ctx context.Context, accountID, accountType str
 }
 
 // GetAllAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERRAL_REBATE: 204, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
+// Type of activity: ALL: 200, AIRDROP: 201, COMMISSION_REBATE: 202, STAKING: 203, REFERRAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (p *Poloniex) GetAllAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from int64, direction string, ccy currency.Code) ([]AccountActivity, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -633,7 +633,14 @@ func (p *Poloniex) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*Plac
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp *PlaceOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp)
+	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodPost, "/orders", nil, arg, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 200 {
+		return nil, fmt.Errorf("code: %d msg: %s", resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // PlaceBatchOrders places a batch of order for an account.
@@ -732,7 +739,7 @@ func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, args *OrderCan
 // CancelAllTradeOrders batch cancel all orders in an account.
 func (p *Poloniex) CancelAllTradeOrders(ctx context.Context, symbols, accountTypes []string) ([]CancelOrderResponse, error) {
 	args := make(map[string][]string)
-	if len(symbols) > 0 {
+	if len(symbols) != 0 {
 		args["symbols"] = symbols
 	}
 	if len(accountTypes) > 0 {
@@ -774,7 +781,14 @@ func (p *Poloniex) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequestP
 		return nil, order.ErrSideIsInvalid
 	}
 	var resp *PlaceOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
+	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/smartorders", nil, arg, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 200 {
+		return nil, fmt.Errorf("code: %d msg: %s", resp.Code, resp.Message)
+	}
+	return resp, nil
 }
 
 // CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters.
@@ -854,7 +868,7 @@ func (p *Poloniex) CancelMultipleSmartOrders(ctx context.Context, args *OrderCan
 // CancelAllSmartOrders batch cancel all smart orders in an account.
 func (p *Poloniex) CancelAllSmartOrders(ctx context.Context, symbols, accountTypes, orderTypes []string) ([]CancelOrderResponse, error) {
 	args := make(map[string][]string)
-	if len(symbols) > 0 {
+	if len(symbols) != 0 {
 		args["symbols"] = symbols
 	}
 	if len(accountTypes) > 0 {
@@ -953,7 +967,7 @@ func (p *Poloniex) GetSmartOrderHistory(ctx context.Context, symbol currency.Pai
 // If only startTime is populated then endTime will be defaulted to 7 days after startTime.
 func (p *Poloniex) GetTradeHistory(ctx context.Context, symbols currency.Pairs, direction string, from, limit int64, startTime, endTime time.Time) ([]TradeHistoryItem, error) {
 	params := url.Values{}
-	if len(symbols) == 0 {
+	if len(symbols) != 0 {
 		params.Set("symbols", symbols.Join())
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {

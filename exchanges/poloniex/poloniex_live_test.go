@@ -33,18 +33,13 @@ func TestMain(m *testing.M) {
 
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	var err error
-	err = p.Websocket.Enable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	// err = populateTradablePairs()
+	// err := populateTradablePairs()
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDT", "_")
 	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDT_PERP", "")
-	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
+	err := p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
 	if err != nil {
 		log.Fatal(err)
 	}

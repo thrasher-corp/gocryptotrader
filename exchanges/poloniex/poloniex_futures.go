@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -25,150 +24,6 @@ const (
 func (p *Poloniex) GetFuturesServerTime(ctx context.Context) (*ServerTimeResponse, error) {
 	var resp *ServerTimeResponse
 	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/api/v1/timestamp", &resp)
-}
-
-func futuresOrderParamsFilter(arg *FuturesOrderParams) error {
-	if *arg == (FuturesOrderParams{}) {
-		return common.ErrNilPointer
-	}
-	if arg.Symbol == "" {
-		return currency.ErrSymbolStringEmpty
-	}
-	if arg.Side == "" {
-		return order.ErrSideIsInvalid
-	}
-	if arg.OrderType == "" {
-		return order.ErrTypeIsInvalid
-	}
-	if arg.OrderType == "limit" {
-		if arg.Price <= 0 {
-			return order.ErrPriceBelowMin
-		}
-		if arg.Size <= 0 {
-			return order.ErrAmountBelowMin
-		}
-	}
-	return nil
-}
-
-// PlaceFuturesOrder places a futures order.
-func (p *Poloniex) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderParams) (*OrderIDResponse, error) {
-	err := futuresOrderParamsFilter(arg)
-	if err != nil {
-		return nil, err
-	}
-	var resp *OrderIDResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fOrderEPL, http.MethodPost, "/api/v1/orders", nil, arg, &resp)
-}
-
-// PlaceMultipleFuturesOrder places a batch of orders.
-func (p *Poloniex) PlaceMultipleFuturesOrder(ctx context.Context, args []FuturesOrderParams) ([]OrderIDResponse, error) {
-	if len(args) == 0 {
-		return nil, common.ErrNilPointer
-	}
-	for i := range args {
-		err := futuresOrderParamsFilter(&(args[i]))
-		if err != nil {
-			return nil, err
-		}
-	}
-	input := &struct {
-		BatchOrders []FuturesOrderParams `json:"batchOrders"`
-	}{
-		BatchOrders: args,
-	}
-	var resp []OrderIDResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, authResourceIntensiveEPL, http.MethodPost, "/api/v1/batchOrders", nil, input, &resp)
-}
-
-// CancelFuturesOrderByID cancels a single futures order by ID.
-func (p *Poloniex) CancelFuturesOrderByID(ctx context.Context, orderID string) (*FuturesCancelOrderResponse, error) {
-	if orderID == "" {
-		return nil, order.ErrOrderIDNotSet
-	}
-	var resp *FuturesCancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelOrderEPL, http.MethodDelete, "/api/v1/orders/"+orderID, nil, nil, &resp)
-}
-
-// CancelAllFuturesLimitOrders cancels all open orders(excluding stop orders). The response is a list of orderIDs of the canceled orders.
-func (p *Poloniex) CancelAllFuturesLimitOrders(ctx context.Context, symbol, side string) (*FuturesCancelOrderResponse, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if side != "" {
-		params.Set("side", side)
-	}
-	var resp *FuturesCancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelAllLimitOrdersEPL, http.MethodDelete, "/api/v1/orders", params, nil, &resp)
-}
-
-// CancelMultipleFuturesLimitOrders cancel multiple open orders (excluding stop orders).
-// The response is a list of orderIDs (or clientOids) of the canceled orders.
-func (p *Poloniex) CancelMultipleFuturesLimitOrders(ctx context.Context, orderIDs, clientOrderIDs []string) (*FuturesCancelOrderResponse, error) {
-	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
-		return nil, order.ErrOrderIDNotSet
-	}
-	params := url.Values{}
-	if len(orderIDs) > 0 {
-		valString, err := json.Marshal(orderIDs)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("orderIds", string(valString))
-	}
-	if len(clientOrderIDs) > 0 {
-		valString, err := json.Marshal(clientOrderIDs)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("clientOids", string(valString))
-	}
-	var resp *FuturesCancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelMultipleLimitOrdersEPL, http.MethodDelete, "/api/v1/batchOrders", params, nil, &resp)
-}
-
-// CancelAllFuturesStopOrders cancel all untriggered stop orders. The response is a list of orderIDs of the canceled stop orders. To cancel triggered stop orders, please use 'Limit Order Mass Cancelation'.
-func (p *Poloniex) CancelAllFuturesStopOrders(ctx context.Context, symbol string) (*FuturesCancelOrderResponse, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	var resp *FuturesCancelOrderResponse
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fCancelAllStopOrdersEPL, http.MethodDelete, "/api/v1/stopOrders", params, nil, &resp)
-}
-
-// GetFuturesOrderList retrieves list of current orders.
-func (p *Poloniex) GetFuturesOrderList(ctx context.Context, status, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (*FuturesOrders, error) {
-	params := url.Values{}
-	if status != "" {
-		params.Set("status", status)
-	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if side != "" {
-		params.Set("side", side)
-	}
-	if orderType != "" {
-		params.Set("type", orderType)
-	}
-	if !startAt.IsZero() && !endAt.IsZero() {
-		err := common.StartEndTimeCheck(startAt, endAt)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
-		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
-	}
-	switch marginType {
-	case margin.Multi:
-		params.Set("marginType", "0")
-	case margin.Isolated:
-		params.Set("marginType", "1")
-	}
-	var resp *FuturesOrders
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetOrdersEPL, http.MethodGet, "/api/v1/orders", params, nil, &resp)
 }
 
 // GetFuturesUntriggeredStopOrderList retrieves list of untriggered futures orders.
@@ -429,7 +284,7 @@ func (p *Poloniex) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 }
 
 // GetV3FuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
-func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3Order, error) {
+func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3Order, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -438,6 +293,9 @@ func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, side, o
 		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
 	}
 	if side != "" {
 		params.Set("side", side)
