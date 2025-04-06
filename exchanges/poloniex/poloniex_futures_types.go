@@ -203,14 +203,13 @@ type V3FuturesLeverage struct {
 
 // FuturesV3Orderbook represents an orderbook data for v3 futures instruments
 type FuturesV3Orderbook struct {
-	Asks      [][]types.Number `json:"asks"`
-	Bids      [][]types.Number `json:"bids"`
-	Depth     types.Number     `json:"s"`
-	Timestamp types.Time       `json:"ts"`
-
-	ID           types.Number `json:"id"`
-	Symbol       string       `json:"symbol"`
-	CreationTime types.Time   `json:"cT"`
+	Asks          [][]types.Number `json:"asks"`
+	Bids          [][]types.Number `json:"bids"`
+	Timestamp     types.Time       `json:"ts"`
+	LastVersionID int64            `json:"lid"`
+	ID            types.Number     `json:"id"`
+	Symbol        string           `json:"s"`
+	CreationTime  types.Time       `json:"cT"`
 }
 
 // V3FuturesCandle represents a kline data for v3 futures instrument
@@ -439,4 +438,10 @@ type V3WsFuturesMarkAndIndexPriceCandle struct {
 func (v *V3WsFuturesMarkAndIndexPriceCandle) UnmarshalJSON(data []byte) error {
 	target := [8]any{&v.Symbol, &v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime, &v.PushTimestamp}
 	return json.Unmarshal(data, &target)
+}
+
+// MarginModeSwitchResponse represents a response detail after switching margin mode for a symbol
+type MarginModeSwitchResponse struct {
+	MarginMode string `json:"mgnMode"`
+	Symbol     string `json:"symbol"`
 }

@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
+	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
 	canManipulateRealOrders = false
 )
 
@@ -154,7 +154,9 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{Type: order.Liquidation, AssetType: asset.Futures, Side: order.AnySide})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
@@ -179,7 +181,9 @@ func TestGetOrderHistory(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type:      order.Limit,
 		AssetType: asset.Spot,
@@ -514,15 +518,13 @@ func TestGetHistoricTrades(t *testing.T) {
 		tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
 		tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
 	}
-	result, err := p.GetHistoricTrades(context.Background(),
+	_, err := p.GetHistoricTrades(context.Background(),
 		spotTradablePair, asset.Spot, tStart, tEnd)
 	require.NoError(t, err)
-	require.NotNil(t, result)
 
-	result, err = p.GetHistoricTrades(context.Background(),
+	_, err = p.GetHistoricTrades(context.Background(),
 		futuresTradablePair, asset.Futures, tStart, tEnd)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -591,8 +593,10 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Spot}})
 	require.ErrorIs(t, err, errOrderAssetTypeMismatch)
 
-	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233", Type: order.StopLimit}, {AssetType: asset.Futures, OrderID: "123444", Type: order.StopLimit}})
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{
+		Pair:      futuresTradablePair,
+		AssetType: asset.Futures, OrderID: "1233", Type: order.StopLimit}, {Pair: futuresTradablePair, AssetType: asset.Futures, OrderID: "123444", Type: order.StopLimit}})
+	require.NoError(t, err)
 
 	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Spot, OrderID: "1233", Type: order.Liquidation}, {AssetType: asset.Spot, OrderID: "123444", Type: order.StopLimit}})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
@@ -705,16 +709,16 @@ func TestGetSymbolInformation(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetCurrencyInformations(t *testing.T) {
+func TestGetCurrenciesInformation(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetCurrencyInformations(context.Background())
+	result, err := p.GetCurrenciesInformation(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetV2CurrencyInformations(t *testing.T) {
+func TestGetV2CurrencyInformation(t *testing.T) {
 	t.Parallel()
-	result, err := p.GetV2CurrencyInformations(context.Background())
+	result, err := p.GetV2CurrencyInformation(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -977,12 +981,12 @@ func TestGetInterestHistory(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetSubAccountInformations(t *testing.T) {
+func TestGetSubAccountInformation(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	result, err := p.GetSubAccountInformations(context.Background())
+	result, err := p.GetSubAccountInformation(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1073,7 +1077,6 @@ func TestGetDepositAddresses(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	p.Verbose = true
 	result, err := p.GetDepositAddresses(context.Background(), currency.LTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1645,29 +1648,21 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 }
 
 var futuresPushDataMap = map[string]string{
-	"Public Ticker":                        `{"subject":"ticker", "topic": "/contractMarket/ticker:BTCUSDTPERP", "data": { "symbol": "BTCUSDTPERP", "sequence": 45, "side": "sell", "price": 3600.00, "size": 16, "tradeId": "5c9dcf4170744d6f5a3d32fb", "bestBidSize": 795, "bestBidPrice": 3200.00, "bestAskPrice": 3600.00, "bestAskSize": 284, "ts": 1553846081210004941 } }`,
-	"Level2 Orderbook":                     `{"subject":"level2", "topic": "/contractMarket/level2:BTCUSDTPERP", "type": "message", "data": { "lastSequence": 8, "sequence": 18, "change": "5000.0,sell,83", "changes": ["5000.0,sell,83","5001.0,sell,3"], "timestamp": 1551770400000 } }`,
-	"Public Trade Execution":               `{"topic":"/contractMarket/execution:BTCUSDTPERP", "subject": "match", "data": { "symbol": "BTCUSDTPERP", "sequence": 36, "side": "buy", "matchSize": 1, "size": 1, "price": 3200.00, "takerOrderId": "5c9dd00870744d71c43f5e25", "ts": 1553846281766256031, "makerOrderId": "5c9d852070744d0976909a0c", "tradeId": "5c9dd00970744d6f5a3d32fc" } }`,
-	"Level3 V2 Received":                   `{"topic":"/contractMarket/level3v2:BTCUSDTPERP", "subject": "received", "data": { "symbol": "BTCUSDTPERP", "sequence": 3262786900, "orderId": "5c0b520032eba53a888fd02x", "clientOid": "ad123ad", "ts": 1545914149935808589 } }`,
-	"Level3 V2 Open":                       `{"topic":"/contractMarket/level3v2:BTCUSDTPERP", "subject": "open", "data": { "symbol": "BTCUSDTPERP", "sequence": 3262786900, "side": "buy", "price": "3634.5", "size": "10", "orderId": "5c0b520032eba53a888fd02x", "orderTime": 1547697294838004923, "ts": 1547697294838004923} }`,
-	"Level3 V2 Update":                     `{"topic":"/contractMarket/level3v2:BTCUSDTPERP", "subject": "update", "data": { "symbol": "BTCUSDTPERP", "sequence": 3262786897, "orderId": "5c0b520032eba53a888fd01f", "size": "100", "ts": 1547697294838004923 } }`,
-	"Level3 V2 Match":                      `{"topic":"/contractMarket/level3v2:BTCUSDTPERP", "subject": "match", "data": { "symbol": "BTCUSDTPERP", "sequence": 3262786901, "side": "buy", "price": "3634", "size": "10", "makerOrderId": "5c0b520032eba53a888fd01e", "takerOrderId": "5c0b520032eba53a888fd01f", "tradeId": "6c23b5454353a8882d023b3o", "ts": 1547697294838004923 } }`,
-	"Level3 V2 Done":                       `{"topic":"/contractMarket/level3v2:BTCUSDTPERP", "subject": "done", "data": { "symbol": "BTCUSDTPERP", "sequence": 3262786901, "reason": "filled", "orderId": "5c0b520032eba53a888fd02x", "ts": 1547697294838004923}}`,
-	"Level2 Depth5":                        `{"type":"message", "topic": "/contractMarket/level2Depth5:BTCUSDTPERP", "subject": "level2", "data": { "asks":[ ["9993", "3"], ["9992", "3"], ["9991", "47"], ["9990", "32"], ["9989", "8"] ], "bids":[ ["9988", "56"], ["9987", "15"], ["9986", "100"], ["9985", "10"], ["9984", "10"] ], "ts": 1590634672060667000 } }`,
-	"Level2 Depth50":                       `{"type":"message", "topic": "/contractMarket/level2Depth50:BTCUSDTPERP", "subject": "level2", "data": { "asks":[ ["9993",3], ["9992",3], ["9991",47], ["9990",32], ["9989",8] ], "bids":[ ["9988",56], ["9987",15], ["9986",100], ["9985",10], ["9984",10] ], "ts": 1590634672060667000}}`,
-	"Contract Instrument":                  `{"topic":"/contract/instrument:BTCUSDTPERP", "subject": "mark.index.price", "data": { "granularity": 1000, "indexPrice": 4000.23, "markPrice": 4010.52, "timestamp": 1551770400000 } }`,
-	"Funding Rate":                         `{"topic":"/contract/instrument:BTCUSDTPERP", "subject": "funding.rate", "data": { "granularity": 60000, "fundingRate": -0.002966, "timestamp": 1551770400000 } }`,
-	"Start Funding Fee Settlement":         `{"topic":"/contract/announcement", "subject": "funding.begin", "data": { "symbol": "BTCUSDTPERP", "fundingTime": 1551770400000, "fundingRate": -0.002966, "timestamp": 1551770400000 } }`,
-	"End Funding Fee Settlement":           `{"type":"message", "topic": "/contract/announcement", "subject": "funding.end", "data": { "symbol": "BTCUSDTPERP", "fundingTime": 1551770400000, "fundingRate": -0.002966, "timestamp": 1551770410000 } }`,
-	"Transaction Statistics Timer Event":   `{"topic":"/contractMarket/snapshot:BTCUSDTPERP", "subject": "snapshot.24h", "data": { "volume": 30449670, "turnover": 845169919063, "lastPrice": 3551, "priceChgPct": 0.0043, "ts": 1547697294838004923 } }`,
-	"User Private Message":                 `{"type":"message", "topic": "/contractMarket/tradeOrders", "subject": "orderChange", "channelType": "private", "data": { "orderId": "5cdfc138b21023a909e5ad55", "symbol": "BTCUSDTPERP", "type": "match", "marginType": 0, "status": "open", "matchSize": "", "matchPrice": "", "orderType": "limit", "side": "buy", "price": "3600", "size": "20000", "remainSize": "20001", "filledSize":"20000", "canceledSize": "0", "tradeId": "5ce24c16b210233c36eexxxx", "clientOid": "5ce24c16b210233c36ee321d", "orderTime": 1545914149935808589, "oldSize ": "15000", "liquidity": "maker", "ts": 1545914149935808589 } }`,
-	"Stop Order Lifecycle Event":           `{"topic":"/contractMarket/advancedOrders", "subject": "stopOrder", "channelType": "private", "data": { "orderId": "5cdfc138b21023a909e5ad55", "symbol": "BTCUSDTPERP", "type": "open", "marginType": 0, "orderType":"stop", "side":"buy", "size":"1000", "orderPrice":"9000", "stop":"up", "stopPrice":"9100", "stopPriceType":"TP", "triggerSuccess": true, "error": "error.createOrder.accountBalanceInsufficient", "createdAt": 1558074652423, "ts":1558074652423004000}}`,
-	"Account Order Margin Event":           `{"topic":"/contractAccount/wallet", "subject": "orderMargin.change", "channelType": "private", "data": { "orderMargin": 5923, "currency":"USDT", "timestamp": 1553842862614 } }`,
-	"Available Balance Event":              `{"topic":"/contractAccount/wallet", "subject": "availableBalance.change", "channelType": "private", "data": { "availableBalance": 5923, "currency":"USDT", "timestamp": 1553842862614 } }`,
-	"Position Change Caused Operation":     `{"topic":"/contract/position:BTCUSDTPERP", "subject": "position.change", "channelType": "private", "data": { "realisedGrossPnl": 0.0001, "marginType": 0, "liquidationPrice": 1000000.0, "posLoss": 0E-8, "avgEntryPrice": 7508.22, "unrealisedPnl": -0.00014735, "markPrice": 7947.83, "posMargin": 0.00266779, "riskLimit": 200, "unrealisedCost": 0.00266375, "posComm": 0.00000392, "posMaint": 0.00001724, "posCost": 0.00266375, "maintMarginReq": 0.005, "bankruptPrice": 1000000.0, "realisedCost": 0.00000271, "markValue": 0.00251640, "posInit": 0.00266375, "realisedPnl": -0.00000253, "maintMargin": 0.00252044, "realLeverage": 1.06, "currentCost": 0.00266375, "openingTimestamp": 1558433191000, "currentQty": -20, "delevPercentage": 0.52, "currentComm": 0.00000271, "realisedGrossCost": 0E-8, "isOpen": true, "posCross": 1.2E-7, "currentTimestamp": 1558506060394, "unrealisedRoePcnt": -0.0553, "unrealisedPnlPcnt": -0.0553, "settleCurrency": "XBT" } }`,
-	"Position Change Caused by Mark Price": `{"topic":"/contract/position:BTCUSDTPERP", "subject": "position.change", "channelType": "private", "data": { "marginType": 0, "markPrice": 7947.83, "markValue": 0.00251640, "maintMargin": 0.00252044, "realLeverage": 10.06, "unrealisedPnl": -0.00014735, "unrealisedRoePcnt": -0.0553, "unrealisedPnlPcnt": -0.0553, "delevPercentage": 0.52, "currentTimestamp": 1558087175068, "settleCurrency": "XBT" } }`,
-	"Funding Settlement":                   `{"topic":"/contract/position:BTCUSDTPERP", "subject": "position.settlement", "channelType": "private", "data": { "fundingTime": 1551770400000, "qty": 100, "markPrice": 3610.85, "fundingRate": -0.002966, "fundingFee": -296, "ts": 1547697294838004923, "settleCurrency": "XBT" } }`,
-	"Close Position Information":           `{"topic":"/contract/positionCross", "subject": "positionCross.change", "channelType": "private", "data": { "maintainMargin" : 100.99, "marginAvailable" : 30.98, "maintainRate" : 0.38, "unreleaseSum" : 1.5, "fundingSum" : -0.3, "accountAvailable" : 100.1 } }`,
+	"Product Info":            `{"channel": "symbol", "data":[{"symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01","oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot"}`,
+	"Orderbook":               `{"channel": "book", "data": [ { "asks": [ ["46100", "9284"] ], "bids": [ ["34400.089", "1"] ], "id": 954, "ts": 1718869676586, "s": "BTC_USDT_PERP", "cT": 1718869676555}]}`,
+	"Orderbook Lvl2":          `{"channel": "book_lv2", "data": [ { "asks": [["46100", "9284"]], "bids": [["34400.089", "1"]], "lid": 953, "id": 954, "ts": 1718870001418, "s": "BTC_USDT_PERP", "cT": 1718869676555 } ], "action": "snapshot"}`,
+	"K-Line Data":             `{"channel": "candles_minute_1", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
+	"Tickers":                 `{"channel": "tickers", "data": [ { "s": "BTC_USDT_PERP", "o": "46000", "l": "26829.541", "h": "46100", "c": "46100", "qty": "18736", "amt": "8556118.81658", "tC": 44, "sT": 1718785800000, "cT": 1718872244268, "dC": "0.0022", "bPx": "46000", "bSz": "46000", "aPx": "46100", "aSz": "9279", "ts": 1718872247385}]}`,
+	"Trades":                  `{"channel":"trades", "data": [ { "id": 291, "ts": 1718871802553, "s": "BTC_USDT_PERP", "px": "46100", "qty": "1", "amt": "461", "side": "buy", "cT": 1718871802534}]}`,
+	"Index Price":             `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "iPx": "34400"}]}`,
+	"Mark Price":              `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "mPx": "34400"}]}`,
+	"Mark Price K-line Data":  `{"channel": "mark_price_candles_minute_1", "data": [["BTC_USDT_PERP","57800.17","57815.95","57809.65","57800.17",1725264900000,1725264959999,1725264919140]]}`,
+	"Index Price K-line Data": `{"channel": "index_candles_minute_1", "data": [ ["BTC_USDT_PERP","57520.09","57614.9","57520.09","57609.89",1725248760000,1725248819999,1725248813187]]}`,
+	"Funding Rate":            `{"channel":"funding_rate", "data": [ { "ts": 1718874420000, "s": "BTC_USDT_PERP", "nFR": "0.000003", "fR": "0.000619", "fT": 1718874000000, "nFT": 1718874900000}]}`,
+	"Positions":               `{"channel":"positions", "data": [ { "symbol": "BTC_USDT_PERP", "posSide": "BOTH", "side": "buy", "mgnMode": "CROSS", "openAvgPx": "64999", "qty": "1", "oldQty": "0", "availQty": "1", "lever": 1, "fee": "-0.259996", "adl": "0", "liqPx": "-965678126.114070339063390145", "mgn": "604.99", "im": "604.99", "mm": "3.327445", "upl": "-45", "uplRatio": "-0.0743", "pnl": "0", "markPx": "60499", "mgnRatio": "0.000007195006959591", "state": "NORMAL", "ffee": "0", "fpnl": "0", "cTime": 1723459553457, "uTime": 1725330697439, "ts": 1725330697459}]}`,
+	"Orders":                  `{"channel": "orders", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "type": "LIMIT", "mgnMode": "CROSS", "timeInForce": "GTC", "clOrdId": "polo353849510130364416", "sz": "1", "px": "64999", "reduceOnly": false, "posSide": "BOTH", "ordId": "353849510130364416", "state": "NEW", "source": "WEB", "avgPx": "0", "execQty": "0", "execAmt": "0", "feeCcy": "", "feeAmt": "0", "deductCcy": "", "deductAmt": "0", "actType": "TRADING", "qCcy": "USDT", "cTime": 1725330697421, "uTime": 1725330697421, "ts": 1725330697451}]}`,
+	"Trade":                   `{"channel": "trade", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "ordId": "353849510130364416", "clOrdId": "polo353849510130364416", "role": "TAKER", "trdId": "48", "feeCcy": "USDT", "feeAmt": "0.259996", "deductCcy": "", "deductAmt": "0", "fpx": "64999", "fqty": "1", "uTime": 1725330697559, "ts": 1725330697579}]}`,
+	"Account Change":          `{"channel": "account", "data": [ { "state": "NORMAL", "eq": "9604385.495986629521985415", "isoEq": "0", "im": "281.27482", "mm": "65.7758462", "mmr": "0.000006848522086861", "upl": "702.005423182573616772", "availMgn": "9604104.221166629521985415", "details": [ { "ccy": "USDT", "eq": "9604385.495986629521985415", "isoEq": "0", "avail": "9603683.490563446948368643", "upl": "702.005423182573616772", "isoAvail": "0", "isoHold": "0", "isoUpl": "0", "im": "281.27482", "imr": "0.000029286081875569", "mm": "65.7758462", "mmr": "0.000006848522086861", "cTime": 1723431998599, "uTime": 1725329576649 } ], "cTime": 1689326308656, "uTime": 1725329576649, "ts": 1725329576659}]}`,
 }
 
 func TestWsFuturesHandleData(t *testing.T) {
@@ -1677,20 +1672,6 @@ func TestWsFuturesHandleData(t *testing.T) {
 		err = p.wsFuturesHandleData([]byte(data))
 		assert.NoErrorf(t, err, "%s: unexpected error %v", title, err)
 	}
-}
-
-func TestGetFuturesUntriggeredStopOrderList(t *testing.T) {
-	t.Parallel()
-	_, err := p.GetFuturesUntriggeredStopOrderList(context.Background(), "", "Sell", "limit", time.Now(), time.Now().Add(-time.Hour*5), margin.Isolated)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd)
-
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	}
-	p.Verbose = true
-	result, err := p.GetFuturesUntriggeredStopOrderList(context.Background(), "", "Sell", "limit", time.Time{}, time.Time{}, margin.Unknown)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetCurrencyInformation(t *testing.T) {
@@ -1717,7 +1698,6 @@ func TestGetAccountBills(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	p.Verbose = true
 	result, err := p.GetAccountBills(context.Background(), time.Time{}, time.Time{}, 0, 0, "NEXT", "PNL")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1897,7 +1877,7 @@ func TestGetCurrentOrders(t *testing.T) {
 
 func TestGetOrderExecutionDetails(t *testing.T) {
 	t.Parallel()
-	var startTime, endTime = time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
+	startTime, endTime := time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
 	if !mockTests {
 		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)

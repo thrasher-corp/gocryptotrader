@@ -58,8 +58,8 @@ func (p *Poloniex) GetSymbolInformation(ctx context.Context, symbol currency.Pai
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
 }
 
-// GetCurrencyInformations retrieves list of currencies and theiir detailed information.
-func (p *Poloniex) GetCurrencyInformations(ctx context.Context) ([]CurrencyDetail, error) {
+// GetCurrenciesInformation retrieves list of currencies and theiir detailed information.
+func (p *Poloniex) GetCurrenciesInformation(ctx context.Context) ([]CurrencyDetail, error) {
 	var resp []CurrencyDetail
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies", &resp)
 }
@@ -81,8 +81,8 @@ func (p *Poloniex) GetCurrencyInformation(ctx context.Context, ccy currency.Code
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies/"+ccy.String(), &resp)
 }
 
-// GetV2CurrencyInformations retrieves list of currency details for V2 API.
-func (p *Poloniex) GetV2CurrencyInformations(ctx context.Context) ([]CurrencyV2Information, error) {
+// GetV2CurrencyInformation retrieves list of currency details for V2 API.
+func (p *Poloniex) GetV2CurrencyInformation(ctx context.Context) ([]CurrencyV2Information, error) {
 	var resp []CurrencyV2Information
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies", &resp)
 }
@@ -382,8 +382,8 @@ func (p *Poloniex) GetInterestHistory(ctx context.Context, startTime, endTime ti
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
 }
 
-// GetSubAccountInformations get a list of all the accounts within an Account Group for a user.
-func (p *Poloniex) GetSubAccountInformations(ctx context.Context) ([]SubAccount, error) {
+// GetSubAccountInformation get a list of all the accounts within an Account Group for a user.
+func (p *Poloniex) GetSubAccountInformation(ctx context.Context) ([]SubAccount, error) {
 	var resp []SubAccount
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
@@ -998,7 +998,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err != nil {
 		return err
 	}
-	var resp = result
+	resp := result
 	if len(useAsItIs) > 0 && useAsItIs[0] {
 		resp = &struct {
 			Code int64       `json:"code"`

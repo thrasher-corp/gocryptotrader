@@ -213,7 +213,12 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		// Index Candlestick channels
 		indexCandles1Min, indexCandles5Min, indexCandles10Min, indexCandles15Min, indexCandles30Min,
 		indexCandles1Hr, indexCandles2Hr, indexCandles4Hr, indexCandles12Hr, indexCandles1Day, indexCandles3Day, indexCandles1Week:
-		interval, err := stringToInterval(strings.Join(strings.Split(result.Channel, "_")[1:], "_"))
+		var interval kline.Interval
+		if strings.HasPrefix(result.Channel, "mark_price") {
+			interval, err = stringToInterval(strings.Join(strings.Split(result.Channel, "_")[3:], "_"))
+		} else {
+			interval, err = stringToInterval(strings.Join(strings.Split(result.Channel, "_")[2:], "_"))
+		}
 		if err != nil {
 			return err
 		}

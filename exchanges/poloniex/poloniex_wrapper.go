@@ -50,7 +50,6 @@ var assetPairStores = map[asset.Item]currency.PairStore{
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"
 	p.Enabled = true
-	p.Verbose = true
 	p.API.CredentialsValidator.RequiresKey = true
 	p.API.CredentialsValidator.RequiresSecret = true
 
@@ -588,44 +587,30 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		ts := timestampStart
-	allTrades:
-		for {
-			var tradeData []TradeHistoryItem
-			tradeData, err = p.GetTradeHistory(ctx, currency.Pairs{pair}, "", 0, 0, ts, timestampEnd)
+		var tradeData []Trade
+		tradeData, err = p.GetTrades(ctx, pair, 1000)
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			if tradeData[i].CreateTime.Time().After(timestampEnd) ||
+				tradeData[i].CreateTime.Time().Before(timestampStart) {
+				continue
+			}
+			var side order.Side
+			side, err = order.StringToOrderSide(tradeData[i].TakerSide)
 			if err != nil {
 				return nil, err
 			}
-			for i := range tradeData {
-				var tt time.Time
-				if (tradeData[i].CreateTime.Time().Before(timestampStart) && !timestampStart.IsZero()) || (tradeData[i].CreateTime.Time().After(timestampEnd) && !timestampEnd.IsZero()) {
-					break allTrades
-				}
-				var side order.Side
-				side, err = order.StringToOrderSide(tradeData[i].Type)
-				if err != nil {
-					return nil, err
-				}
-				resp = append(resp, trade.Data{
-					Exchange:     p.Name,
-					CurrencyPair: pair,
-					AssetType:    assetType,
-					Side:         side,
-					Price:        tradeData[i].Price.Float64(),
-					Amount:       tradeData[i].Amount.Float64(),
-					Timestamp:    tt,
-				})
-				if i == len(tradeData)-1 {
-					if ts.Equal(tt) {
-						// reached end of trades to crawl
-						break allTrades
-					}
-					if timestampStart.IsZero() {
-						break allTrades
-					}
-					ts = tt
-				}
-			}
+			resp = append(resp, trade.Data{
+				Exchange:     p.Name,
+				CurrencyPair: pair,
+				AssetType:    assetType,
+				Side:         side,
+				Price:        tradeData[i].Price.Float64(),
+				Amount:       tradeData[i].Amount.Float64(),
+				Timestamp:    tradeData[i].CreateTime.Time(),
+			})
 		}
 	case asset.Futures:
 		var tradeData []V3FuturesExecutionInfo
@@ -956,6 +941,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		}
 	} else {
 		cancelledOrders, err := p.CancelMultipleV3FuturesOrders(ctx, &CancelOrdersParams{
+			Symbol:         o[0].Pair.String(),
 			OrderIDs:       orderIDs,
 			ClientOrderIDs: clientOrderIDs,
 		})

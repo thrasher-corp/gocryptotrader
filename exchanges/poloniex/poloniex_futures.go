@@ -20,36 +20,6 @@ const (
 	poloniexFuturesAPIURL = "https://futures-api.poloniex.com"
 )
 
-// GetFuturesUntriggeredStopOrderList retrieves list of untriggered futures orders.
-func (p *Poloniex) GetFuturesUntriggeredStopOrderList(ctx context.Context, symbol, side, orderType string, startAt, endAt time.Time, marginType margin.Type) (*FuturesOrders, error) {
-	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
-	}
-	if side != "" {
-		params.Set("side", side)
-	}
-	if orderType != "" {
-		params.Set("type", orderType)
-	}
-	if !startAt.IsZero() && !endAt.IsZero() {
-		err := common.StartEndTimeCheck(startAt, endAt)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
-		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
-	}
-	switch marginType {
-	case margin.Multi:
-		params.Set("marginType", "0")
-	case margin.Isolated:
-		params.Set("marginType", "1")
-	}
-	var resp *FuturesOrders
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, fGetUntriggeredStopOrderEPL, http.MethodGet, "/api/v1/stopOrders", params, nil, &resp)
-}
-
 // GetAccountBalance get information about your Futures account.
 func (p *Poloniex) GetAccountBalance(ctx context.Context) (*FuturesAccountBalance, error) {
 	var resp *FuturesAccountBalance
@@ -419,7 +389,7 @@ func (p *Poloniex) SetV3FuturesLeverage(ctx context.Context, symbol, marginMode,
 		return nil, order.ErrSubmitLeverageNotSupported
 	}
 	var resp *V3FuturesLeverage
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/position/leverage", nil, map[string]string{
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/position/leverage", nil, &map[string]string{
 		"symbol":  symbol,
 		"mgnMode": marginMode,
 		"posSide": positionSide,
