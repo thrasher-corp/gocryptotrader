@@ -26,6 +26,24 @@ type Service struct {
 	mu               sync.Mutex
 }
 
+// trackNewAccounts must be called with s.mu locked.
+func (s *Service) trackNewAccounts(exch string) (*Accounts, error) {
+	id, err := s.mux.GetID()
+	if err != nil {
+		return nil, err
+	}
+	_, ok := s.exchangeAccounts[exch]
+	if ok {
+		return nil, errExchangeAlreadyExists
+	}
+	accounts := &Accounts{
+		ID:          id,
+		subAccounts: make(map[Credentials]map[key.SubAccountAsset]currencyBalances),
+	}
+	s.exchangeAccounts[exch] = accounts
+	return accounts, nil
+}
+
 // Accounts holds a stream ID and a map to the exchange holdings
 type Accounts struct {
 	ID uuid.UUID
@@ -67,11 +85,9 @@ type Balance struct {
 
 // Change defines incoming balance change on currency holdings
 type Change struct {
-	Exchange string
-	Currency currency.Code
-	Asset    asset.Item
-	Amount   float64
-	Account  string
+	Account   string
+	AssetType asset.Item
+	Balance   *Balance
 }
 
 // ProtectedBalance stores the full balance information for that specific asset

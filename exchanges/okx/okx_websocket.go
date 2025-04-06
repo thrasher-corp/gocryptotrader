@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -543,8 +544,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		var response WsPositionResponse
 		return ok.wsProcessPushData(respRaw, &response)
 	case channelBalanceAndPosition:
-		var response WsBalanceAndPosition
-		return ok.wsProcessPushData(respRaw, &response)
+		return ok.wsProcessBalanceAndPosition(respRaw)
 	case channelOrders:
 		return ok.wsProcessOrders(respRaw)
 	case channelAlgoOrders:
@@ -1516,6 +1516,35 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 		}
 	}
 	return trade.AddTradesToBuffer(trades...)
+}
+
+func (ok *Okx) wsProcessBalanceAndPosition(data []byte) error {
+	var resp WsBalanceAndPosition
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	creds, err := ok.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
+	var changes []account.Change
+	for x := range resp.Data {
+		for y := range resp.Data[x].BalanceData {
+			changes = append(changes, account.Change{
+				AssetType: asset.Spot,
+				Account:   resp.Argument.UID,
+				Balance: &account.Balance{
+					Currency:  currency.NewCode(resp.Data[x].BalanceData[y].Currency),
+					Total:     resp.Data[x].BalanceData[y].CashBalance.Float64(),
+					Free:      resp.Data[x].BalanceData[y].CashBalance.Float64(),
+					UpdatedAt: resp.Data[x].BalanceData[y].UpdateTime.Time(),
+				},
+			})
+		}
+		// TODO: Handle position data
+	}
+	return account.ProcessChange(ok.Name, changes, creds)
 }
 
 // wsProcessPushData processes push data coming through the websocket channel
