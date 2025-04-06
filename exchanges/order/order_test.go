@@ -1187,7 +1187,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		AccountID:         "1",
 		ClientID:          "1",
 		ClientOrderID:     "DukeOfWombleton",
-		WalletAddress:     "1",
 		Type:              1,
 		Side:              1,
 		Status:            1,
@@ -1263,9 +1262,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		t.Error("Failed to update")
 	}
 	if od.ClientOrderID != "DukeOfWombleton" {
-		t.Error("Failed to update")
-	}
-	if od.WalletAddress != "1" {
 		t.Error("Failed to update")
 	}
 	if od.Type != 1 {
@@ -1507,7 +1503,6 @@ func TestMatchFilter(t *testing.T) {
 		3:  {OrderID: "2222"},
 		4:  {ClientOrderID: "3333"},
 		5:  {ClientID: "4444"},
-		6:  {WalletAddress: "5555"},
 		7:  {Type: AnyType},
 		8:  {Type: Limit},
 		9:  {Side: AnySide},
@@ -1528,7 +1523,6 @@ func TestMatchFilter(t *testing.T) {
 		3:  {OrderID: "2222"},
 		4:  {ClientOrderID: "3333"},
 		5:  {ClientID: "4444"},
-		6:  {WalletAddress: "5555"},
 		7:  {Type: AnyType},
 		8:  {Type: Limit},
 		9:  {Side: AnySide},
@@ -1958,7 +1952,6 @@ func TestDeriveCancel(t *testing.T) {
 		AccountID:     "wow2",
 		ClientID:      "wow3",
 		ClientOrderID: "wow4",
-		WalletAddress: "wow5",
 		Type:          Market,
 		Side:          Long,
 		Pair:          pair,
@@ -1973,7 +1966,6 @@ func TestDeriveCancel(t *testing.T) {
 		cancel.AccountID != "wow2" ||
 		cancel.ClientID != "wow3" ||
 		cancel.ClientOrderID != "wow4" ||
-		cancel.WalletAddress != "wow5" ||
 		cancel.Type != Market ||
 		cancel.Side != Long ||
 		!cancel.Pair.Equal(pair) ||

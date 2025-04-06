@@ -543,11 +543,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
-		OrderID:       "123456789012345678901234567890123456",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Futures,
+		OrderID:   "123456789012345678901234567890123456",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Futures,
 	}
 
 	err := b.CancelOrder(context.Background(), orderCancellation)
@@ -564,11 +563,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
-		OrderID:       "123456789012345678901234567890123456",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Futures,
+		OrderID:   "123456789012345678901234567890123456",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Futures,
 	}
 
 	resp, err := b.CancelAllOrders(context.Background(), orderCancellation)
