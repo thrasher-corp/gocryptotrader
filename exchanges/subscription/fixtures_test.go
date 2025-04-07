@@ -20,20 +20,12 @@ var (
 )
 
 type mockExWithSubValidator struct {
-	channelThatIsSilly string
-	screenCount        int
+	Fail bool
 	*mockEx
 }
 
-func (m *mockExWithSubValidator) ValidateSubscription(s *Subscription) error {
-	if s.Channel == m.channelThatIsSilly {
-		return errNaughtySub
-	}
-	return nil
-}
-
 func (m *mockExWithSubValidator) ValidateSubscriptions(l List) error {
-	if len(l) != m.screenCount {
+	if m.Fail {
 		return errNaughtySubs
 	}
 	return nil

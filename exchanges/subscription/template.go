@@ -71,13 +71,6 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 
 	subs := List{}
 	for _, s := range l {
-		// Validate the subscription before expansion to capture fields that may not be used in the template
-		if v, ok := e.(SubValidator); ok {
-			if err := v.ValidateSubscription(s); err != nil {
-				return nil, fmt.Errorf("validate subscription: %w", err)
-			}
-		}
-
 		expanded, err2 := expandTemplate(e, s, maps.Clone(ap), assets)
 		if err2 != nil {
 			err = common.AppendError(err, fmt.Errorf("%s: %w", s, err2))

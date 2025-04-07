@@ -19,11 +19,6 @@ func TestExpandTemplates(t *testing.T) {
 	e := newMockEx()
 	e.tpl = "subscriptions.tmpl"
 
-	validator := &mockExWithSubValidator{
-		channelThatIsSilly: "single-channel",
-		mockEx:             e,
-	}
-
 	// Functionality tests
 	l := List{
 		{Channel: "single-channel"},
@@ -37,14 +32,10 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "single-channel", Authenticated: true},
 	}
 
-	_, err := l.ExpandTemplates(validator)
-	require.ErrorIs(t, err, errNaughtySub)
-
-	validator.channelThatIsSilly = ""
-	validator.screenCount = 1
-
-	_, err = l.ExpandTemplates(validator)
+	_, err := l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, Fail: true})
 	require.ErrorIs(t, err, errNaughtySubs)
+	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e})
+	require.NoError(t, err)
 
 	got, err := l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")

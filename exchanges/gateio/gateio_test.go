@@ -3565,7 +3565,7 @@ func TestParseWSHeader(t *testing.T) {
 	}
 }
 
-func TestIsRestrictedOrderbookChannel(t *testing.T) {
+func TestIsSingleOrderbookChannel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		channel  string
@@ -3583,7 +3583,7 @@ func TestIsRestrictedOrderbookChannel(t *testing.T) {
 		{channel: spotTickerChannel, expected: false},
 		{channel: "sad", expected: false},
 	} {
-		assert.Equal(t, tc.expected, isRestrictedOrderbookChannel(tc.channel))
+		assert.Equal(t, tc.expected, isSingleOrderbookChannel(tc.channel))
 	}
 }
 
@@ -3611,7 +3611,7 @@ func TestValidateSubscriptions(t *testing.T) {
 	}), subscription.ErrExclusiveSubscription)
 }
 
-func TestValidateSubscription(t *testing.T) {
+func TestEnsureOrderbook(t *testing.T) {
 	t.Parallel()
 
 	for i, tc := range []struct {
@@ -3689,12 +3689,7 @@ func TestValidateSubscription(t *testing.T) {
 
 		{channel: spotTickerChannel, interval: 0, asset: asset.Margin}, // no validation required
 	} {
-		err := g.ValidateSubscription(&subscription.Subscription{
-			Channel:  tc.channel,
-			Interval: tc.interval,
-			Asset:    tc.asset,
-			Levels:   tc.levels,
-		})
+		err := ensureOrderbook(tc.channel, tc.asset, tc.interval.String(), tc.levels)
 		require.ErrorIsf(t, err, tc.expected, "channel: `%s` case: `%d`", tc.channel, i+1)
 	}
 }
