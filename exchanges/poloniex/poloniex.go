@@ -41,6 +41,7 @@ var (
 	errMarginAdjustTypeMissing = errors.New("margin adjust type invalid")
 	errPositionModeInvalid     = errors.New("invalid position mode")
 	errOrderAssetTypeMismatch  = errors.New("order asset type mismatch detected")
+	errPairStringMismatch      = errors.New("pair string mismatch")
 )
 
 // Poloniex is the overarching type across the poloniex package

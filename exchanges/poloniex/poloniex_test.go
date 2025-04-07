@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
-	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -229,9 +229,7 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = p.SubmitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	result, err := p.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  p.Name,
 		Pair:      spotTradablePair,
@@ -311,10 +309,15 @@ func TestCancelExchangeOrder(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = p.CancelOrder(context.Background(), &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		AssetType:     asset.Futures,
+		OrderID:   "1",
+		AssetType: asset.Futures,
+	})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	err = p.CancelOrder(context.Background(), &order.Cancel{
+		OrderID:   "1",
+		AssetType: asset.Futures,
+		Pair:      futuresTradablePair,
 	})
 	assert.NoError(t, err)
 }
@@ -389,9 +392,7 @@ func TestModifyOrder(t *testing.T) {
 	_, err = p.ModifyOrder(context.Background(), arg)
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	arg.TimeInForce = order.GoodTillCancel
 	result, err := p.ModifyOrder(context.Background(), arg)
 	require.NoError(t, err)
@@ -590,20 +591,32 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Spot}})
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233", Pair: futuresTradablePair}, {AssetType: asset.Spot, Pair: futuresTradablePair}})
 	require.ErrorIs(t, err, errOrderAssetTypeMismatch)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Futures}})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{Pair: futuresTradablePair, AssetType: asset.Futures, OrderID: "1233"}, {OrderID: "1233", AssetType: asset.Futures, Pair: spotTradablePair}})
+	require.ErrorIs(t, err, errPairStringMismatch)
 
 	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{
 		Pair:      futuresTradablePair,
-		AssetType: asset.Futures, OrderID: "1233", Type: order.StopLimit}, {Pair: futuresTradablePair, AssetType: asset.Futures, OrderID: "123444", Type: order.StopLimit}})
+		AssetType: asset.Futures,
+		OrderID:   "1233",
+		Type:      order.StopLimit,
+	}, {
+		Pair:      futuresTradablePair,
+		AssetType: asset.Futures,
+		OrderID:   "123444",
+		Type:      order.StopLimit,
+	}})
 	require.NoError(t, err)
 
 	_, err = p.CancelBatchOrders(context.Background(), []order.Cancel{{AssetType: asset.Spot, OrderID: "1233", Type: order.Liquidation}, {AssetType: asset.Spot, OrderID: "123444", Type: order.StopLimit}})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	result, err := p.CancelBatchOrders(context.Background(), []order.Cancel{
 		{
 			OrderID:   "1234",
@@ -1074,9 +1087,7 @@ func TestGetSubAccountTransferRecord(t *testing.T) {
 
 func TestGetDepositAddresses(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetDepositAddresses(context.Background(), currency.LTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1091,6 +1102,10 @@ func TestGetOrderInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	result, err := p.GetOrderInfo(context.Background(), "1234", spotTradablePair, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = p.GetOrderInfo(context.Background(), "1234", futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1440,9 +1455,7 @@ func TestGetSmartOrderDetail(t *testing.T) {
 	_, err := p.GetSmartOrderDetail(context.Background(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetSmartOrderDetail(context.Background(), "123313413", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2196,5 +2209,20 @@ func TestOrderTypeString(t *testing.T) {
 		result, err := OrderTypeString(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.String, result)
+	}
+}
+
+func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
+	orderTypeStringToTypeMap := map[string]order.Type{
+		"":                    order.Limit,
+		"STOP":                order.Stop,
+		"STOP_LIMIT":          order.StopLimit,
+		"TRAILING_STOP":       order.TrailingStop,
+		"TRAILING_STOP_LIMIT": order.TrailingStopLimit,
+	}
+	for k, v := range orderTypeStringToTypeMap {
+		result := StringToOrderType(k)
+		assert.Equal(t, result, v)
 	}
 }

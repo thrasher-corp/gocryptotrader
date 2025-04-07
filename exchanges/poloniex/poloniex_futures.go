@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -9,15 +10,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-)
-
-const (
-	poloniexFuturesAPIURL = "https://futures-api.poloniex.com"
 )
 
 // GetAccountBalance get information about your Futures account.
@@ -465,8 +463,33 @@ func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, int
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []V3FuturesCandle
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp, true)
+	resp := &struct {
+		Code    int64             `json:"code"`
+		Message string            `json:"msg"`
+		Data    TypeFuturesCandle `json:"data"`
+	}{}
+	err = p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code != 200 {
+		return nil, fmt.Errorf("code: %d, msg: %s", resp.Code, resp.Message)
+	}
+	return resp.Data, nil
+}
+
+// TypeFuturesCandle holds and handles futures candle data
+type TypeFuturesCandle []V3FuturesCandle
+
+// UnmarshalJSON deserializes byte data into list of V3FuturesCandle
+func (t *TypeFuturesCandle) UnmarshalJSON(data []byte) error {
+	var result []V3FuturesCandle
+	err := json.Unmarshal(data, &result)
+	if err != nil {
+		result = []V3FuturesCandle{}
+	}
+	*t = result
+	return nil
 }
 
 // GetV3FuturesExecutionInfo get the latest execution information. The default limit is 500, with a maximum of 1,000.
