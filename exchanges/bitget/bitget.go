@@ -5293,6 +5293,7 @@ func (s *SuccessBool) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(b, &success)
 	} else {
 		// Hack fix, replace if a better one is found
+		// Can't use reflect to grab the underlying json tag, as you need the struct this SuccessBool field is a part of for that
 		success, err = jsonparser.GetString(b, "data")
 		if err == jsonparser.KeyPathNotFoundError {
 			success, err = jsonparser.GetString(b, "result")
