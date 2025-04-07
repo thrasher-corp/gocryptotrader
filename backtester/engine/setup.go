@@ -116,7 +116,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	if cfg.FundingSettings.UseExchangeLevelFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+	if cfg.FundingSettings.UseExchangeLevelFunding && (cfg.DataSettings.LiveData == nil || !cfg.DataSettings.LiveData.RealOrders) {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
 			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
@@ -473,7 +473,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			break
 		}
 	}
-	if !hasFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+	if !hasFunding && (cfg.DataSettings.LiveData == nil || !cfg.DataSettings.LiveData.RealOrders) {
 		return holdings.ErrInitialFundsZero
 	}
 

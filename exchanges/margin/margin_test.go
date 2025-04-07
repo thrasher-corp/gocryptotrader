@@ -79,7 +79,7 @@ func TestString(t *testing.T) {
 	assert.Equal(t, spotIsolatedStr, SpotIsolated.String())
 	assert.Equal(t, cashStr, NoMargin.String())
 	assert.Equal(t, unknownStr, Type(30).String())
-	assert.Equal(t, "", Unset.String())
+	assert.Empty(t, Unset.String())
 }
 
 func TestUpper(t *testing.T) {

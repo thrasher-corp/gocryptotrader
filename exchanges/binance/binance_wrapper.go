@@ -2445,17 +2445,22 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		}
 
 		var c currency.Code
-		if collateralMode == collateral.SingleMode {
+
+		switch collateralMode {
+		case collateral.SingleMode:
 			var collateralAsset *UAsset
-			if strings.Contains(accountPosition.Symbol, usdtAsset.Asset) {
+			switch {
+			case strings.Contains(accountPosition.Symbol, usdtAsset.Asset):
 				collateralAsset = usdtAsset
-			} else if strings.Contains(accountPosition.Symbol, busdAsset.Asset) {
+			case strings.Contains(accountPosition.Symbol, busdAsset.Asset):
 				collateralAsset = busdAsset
 			}
+
 			collateralTotal = collateralAsset.WalletBalance
 			collateralAvailable = collateralAsset.AvailableBalance
 			unrealisedPNL = collateralAsset.UnrealizedProfit
 			c = currency.NewCode(collateralAsset.Asset)
+
 			if marginType == margin.Multi {
 				isolatedMargin = collateralAsset.CrossUnPnl
 				collateralUsed = collateralTotal + isolatedMargin
@@ -2463,7 +2468,8 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 				isolatedMargin = accountPosition.IsolatedWallet
 				collateralUsed = isolatedMargin
 			}
-		} else if collateralMode == collateral.MultiMode {
+
+		case collateral.MultiMode:
 			collateralTotal = ai.TotalWalletBalance
 			collateralUsed = ai.TotalWalletBalance - ai.AvailableBalance
 			collateralAvailable = ai.AvailableBalance

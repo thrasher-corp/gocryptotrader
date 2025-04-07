@@ -295,12 +295,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
-			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
+			p := strings.ReplaceAll(t.Data.SellQuote[i].Price, ",", "")
 			price, err = strconv.ParseFloat(p, 64)
 			if err != nil {
 				return err
 			}
-			a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
+			a := strings.ReplaceAll(t.Data.SellQuote[i].Size, ",", "")
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err
@@ -314,12 +314,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			})
 		}
 		for j := range t.Data.BuyQuote {
-			p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
+			p := strings.ReplaceAll(t.Data.BuyQuote[j].Price, ",", "")
 			price, err = strconv.ParseFloat(p, 64)
 			if err != nil {
 				return err
 			}
-			a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
+			a := strings.ReplaceAll(t.Data.BuyQuote[j].Size, ",", "")
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err

@@ -1153,7 +1153,7 @@ func TestGetForexProviders(t *testing.T) {
 
 func TestGetPrimaryForexProvider(t *testing.T) {
 	t.Parallel()
-	fxr := "Fixer" // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	fxr := "Fixer"
 	cfg := &Config{
 		Currency: currency.Config{
 			ForexProviders: []currency.FXSettings{
