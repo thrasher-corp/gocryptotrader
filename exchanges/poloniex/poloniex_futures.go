@@ -287,8 +287,6 @@ func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, orderTy
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/history", params, nil, &resp, true)
 }
 
-// ------------------------------------------------- Position Endpoints ----------------------------------------------------
-
 // GetV3FuturesCurrentPosition retrieves  information about your current position.
 func (p *Poloniex) GetV3FuturesCurrentPosition(ctx context.Context, symbol string) ([]V3FuturesPosition, error) {
 	params := url.Values{}
