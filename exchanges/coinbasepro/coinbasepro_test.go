@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1043,7 +1043,7 @@ func TestGetFee(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := c.FetchTradablePairs(t.Context(), asset.Options)
-	assert.EqualValues(t, errOptionInvalid, err.Error())
+	assert.Equal(t, errOptionInvalid, err.Error())
 	resp, err := c.FetchTradablePairs(t.Context(), asset.Spot)
 	if assert.NoError(t, err) {
 		assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1055,8 +1055,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := c.UpdateTradablePairs(t.Context(), false)
-	assert.NoError(t, err)
+	testexch.UpdatePairsOnce(t, c)
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
@@ -1078,13 +1077,15 @@ func TestUpdateTicker(t *testing.T) {
 
 // Not parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
+	testexch.UpdatePairsOnce(t, c)
 	_, err := c.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Empty)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = c.UpdateOrderbook(t.Context(), testPairFiat, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = c.UpdateOrderbook(t.Context(), currency.NewPairWithDelimiter("meow", "woof", "-"), asset.Spot)
-	assert.EqualValues(t, errInvalidProductID, err.Error())
-	resp, err := c.UpdateOrderbook(t.Context(), testPairFiat, asset.Futures)
+	assert.Equal(t, errInvalidProductID, err.Error())
+	// There are no perpetual futures contracts, so I can only deterministically test spot
+	resp, err := c.UpdateOrderbook(t.Context(), testPairFiat, asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1162,7 +1163,7 @@ func TestCancelOrder(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 	var can order.Cancel
 	err = c.CancelOrder(t.Context(), &can)
-	assert.ErrorIs(t, err, order.ErrIDNotSet)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	can.OrderID = "0"
 	err = c.CancelOrder(t.Context(), &can)
@@ -1178,7 +1179,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	can := make([]order.Cancel, 1)
 	_, err = c.CancelBatchOrders(t.Context(), can)
-	assert.ErrorIs(t, err, order.ErrIDNotSet)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	can[0].OrderID = "1"
 	resp2, err := c.CancelBatchOrders(t.Context(), can)
@@ -1358,7 +1359,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := c.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	assert.EqualValues(t, errOptionInvalid, err.Error())
+	assert.Equal(t, errOptionInvalid, err.Error())
 	err = c.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	assert.NoError(t, err)
 }
@@ -1381,29 +1382,29 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 	}
 	resp := c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x1, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
-	assert.EqualValues(t, expected, resp)
+	assert.Equal(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Side = 0x4
 	expected.Status = 0x80
-	assert.EqualValues(t, expected, resp)
+	assert.Equal(t, expected, resp)
 	mockData.Status = "CANCELLED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x100
-	assert.EqualValues(t, expected, resp)
+	assert.Equal(t, expected, resp)
 	mockData.Status = "EXPIRED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x2000
-	assert.EqualValues(t, expected, resp)
+	assert.Equal(t, expected, resp)
 	mockData.Status = "FAILED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x1000
-	assert.EqualValues(t, expected, resp)
+	assert.Equal(t, expected, resp)
 	mockData.Status = "UNKNOWN_ORDER_STATUS"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
 	expected.Status = 0x0
-	assert.EqualValues(t, expected, resp)
+	assert.Equal(t, expected, resp)
 }
 
 func TestFiatTransferTypeString(t *testing.T) {
@@ -1539,60 +1540,40 @@ func TestWsHandleData(t *testing.T) {
 			}
 		}
 	}()
+	_, err := c.wsHandleData(nil)
+	var syntaxErr *json.SyntaxError
+	assert.ErrorAs(t, err, &syntaxErr)
 	mockJSON := []byte(`{"type": "error"}`)
-	_, err := c.wsHandleData(mockJSON)
+	_, err = c.wsHandleData(mockJSON)
 	assert.Error(t, err)
-	_, err = c.wsHandleData(nil)
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJSON = []byte(`{"sequence_num": "l"}`)
-	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, strconv.ErrSyntax)
-	mockJSON = []byte(`{"sequence_num": 1, /\\/"""}`)
-	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "", "events":}`)
+	var unmarshalTypeErr *json.UnmarshalTypeError
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, jsonparser.UnknownValueTypeError)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": ["type": 1234]}`)
-	_, err = c.wsHandleData(mockJSON)
-	targetStr := "invalid char"
-	assert.ErrorContains(t, err, targetStr)
+	assert.ErrorAs(t, err, &unmarshalTypeErr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorContains(t, err, targetStr)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
+	assert.ErrorAs(t, err, &unmarshalTypeErr)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJSON)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorContains(t, err, targetStr)
+	assert.ErrorAs(t, err, &unmarshalTypeErr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": ["type": ""}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorContains(t, err, targetStr)
+	assert.ErrorAs(t, err, &unmarshalTypeErr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": ["type": ""}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorContains(t, err, targetStr)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
+	assert.ErrorAs(t, err, &unmarshalTypeErr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
@@ -1602,15 +1583,23 @@ func TestWsHandleData(t *testing.T) {
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": ["type": ""}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	assert.ErrorContains(t, err, targetStr)
+	assert.ErrorAs(t, err, &unmarshalTypeErr)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1"}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": ["type": ""}]}`)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.ErrorIs(t, err, errChannelNameUnknown)
+	p, err := c.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
+	require.NoError(t, err)
+	c.pairAliases.Load(map[currency.Pair]currency.Pairs{
+		p: {p},
+	})
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON)
+	assert.NoError(t, err)
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {
@@ -1758,7 +1747,7 @@ func TestFormatMarginType(t *testing.T) {
 	resp = FormatMarginType("MULTI")
 	assert.Equal(t, "CROSS", resp)
 	resp = FormatMarginType("fake")
-	assert.Equal(t, "", resp)
+	assert.Empty(t, resp)
 }
 
 func TestStatusToStandardStatus(t *testing.T) {

@@ -464,7 +464,7 @@ ranges:
 		lookup = append(lookup, *result)
 		job.Results[result.IntervalStartDate.Unix()] = lookup
 	}
-	completed := true // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	completed := true
 	allResultsSuccessful := true
 	allResultsFailed := true
 completionCheck:
@@ -563,7 +563,7 @@ timesToFetch:
 		job.Results[result.IntervalStartDate.Unix()] = lookup
 	}
 
-	completed := true // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	completed := true
 	allResultsSuccessful := true
 	allResultsFailed := true
 completionCheck:

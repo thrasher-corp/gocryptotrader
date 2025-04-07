@@ -1,4 +1,4 @@
-// json is an abstraction middleware package to allow switching between json encoder/decoder implementations
+// Package json is an abstraction middleware package to allow switching between json encoder/decoder implementations
 // The default implementation is golang.org/encoding/json.
 // Build with `sonic_on` tag to switch to using github.com/bytedance/sonic
 package json
@@ -13,4 +13,6 @@ type (
 	// An UnmarshalTypeError describes a JSON value that was
 	// not appropriate for a value of a specific Go type.
 	UnmarshalTypeError = json.UnmarshalTypeError
+	// A SyntaxError describes improper JSON
+	SyntaxError = json.SyntaxError
 )
