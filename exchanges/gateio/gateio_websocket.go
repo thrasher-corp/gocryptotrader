@@ -54,15 +54,14 @@ const (
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
 
-	spotOrderbookUpdateLimit = 100
+	spotOrderbookDepthLimit = 100
 )
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	// spot.order_book_update is locked to 100ms updates and 100 book size
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: spotOrderbookUpdateLimit},
-	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.Interval(10 * time.Millisecond), Levels: 1},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: spotOrderbookDepthLimit},
+	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
@@ -389,7 +388,7 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-	return wsOBUpdateMgr.applyUpdate(ctx, g, spotOrderbookUpdateLimit, data.FirstUpdateID, &orderbook.Update{
+	return wsOBUpdateMgr.applyUpdate(ctx, g, spotOrderbookDepthLimit, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:       data.LastUpdateID,
 		UpdateTime:     data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
@@ -733,32 +732,31 @@ func singleSymbolChannel(name string) bool {
 	return false
 }
 
-// ValidateSubscriptions implements subscription.SubscriptionsValidator interface
+// ValidateSubscriptions ValidateSubscriptions implements subscription.SubscriptionsValidator interface to ensure that conflicting orderbooks aren't subscribed to
 func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {
 		n := channelName(s)
-		if !isRestrictedOrderbookChannel(n) {
+		if !isSingleOrderbookChannel(n) {
 			continue
 		}
 		for _, p := range s.Pairs {
 			k := key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: s.Asset}
-			loadedChanName, ok := orderbookGuard[k]
+			existingChanName, ok := orderbookGuard[k]
 			if !ok {
 				orderbookGuard[k] = n
 				continue
 			}
-			if loadedChanName != n {
-				return fmt.Errorf("%w for `%s %s` between `%s` and `%s`, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, loadedChanName, n)
+			if existingChanName != n {
+				return fmt.Errorf("%w for `%s %s` between `%s` and `%s`, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, existingChanName, n)
 			}
 		}
 	}
 	return nil
 }
 
-// isRestrictedOrderbookChannel returns if the channel is restricted to a single orderbook channel, as multiple orderbook
-// subscriptions enabled will ruin the stored orderbook.
-func isRestrictedOrderbookChannel(name string) bool {
+// isSingleOrderbookChannel returns if the channel is a single orderbook channel, as multiple orderbook subscriptions enabled will ruin the stored orderbook.
+func isSingleOrderbookChannel(name string) bool {
 	switch name {
 	case spotOrderbookUpdateChannel,
 		spotOrderbookChannel,
