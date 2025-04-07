@@ -121,7 +121,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				params["interval"] = kline.FiveMin
 			case futuresOrderbookUpdateChannel:
 				// This is the fastest frequency available for futures orderbook updates 20 levels every 20ms
-				params["frequency"] = kline.Interval(time.Millisecond * 20)
+				params["frequency"] = kline.TwentyMilliseconds
 				params["level"] = strconv.FormatUint(futuresOrderbookUpdateLimit, 10)
 			}
 			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
