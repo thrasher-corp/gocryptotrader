@@ -494,15 +494,15 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	if len(tradeList) == 0 {
 		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
 	}
-	tradeDatas := make([]trade.Data, len(tradeList))
-	for x := range tradeDatas {
+	tradesData := make([]trade.Data, len(tradeList))
+	for x := range tradesData {
 		var cp currency.Pair
 		var a asset.Item
 		cp, a, err = d.getAssetPairByInstrument(tradeList[x].InstrumentName)
 		if err != nil {
 			return err
 		}
-		tradeDatas[x] = trade.Data{
+		tradesData[x] = trade.Data{
 			CurrencyPair: cp,
 			Exchange:     d.Name,
 			Timestamp:    tradeList[x].Timestamp.Time().UTC(),
@@ -514,12 +514,12 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		}
 	}
 	if tradeFeed {
-		for i := range tradeDatas {
-			d.Websocket.DataHandler <- tradeDatas[i]
+		for i := range tradesData {
+			d.Websocket.DataHandler <- tradesData[i]
 		}
 	}
 	if saveTradeData {
-		return trade.AddTradesToBuffer(tradeDatas...)
+		return trade.AddTradesToBuffer(tradesData...)
 	}
 	return nil
 }
