@@ -14,10 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var (
-	errNaughtySub  = errors.New("naughty subscription")
-	errNaughtySubs = errors.New("naughty subscriptions")
-)
+var errNaughtySubs = errors.New("naughty subscriptions")
 
 type mockExWithSubValidator struct {
 	Fail bool
