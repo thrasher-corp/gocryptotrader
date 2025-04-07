@@ -244,15 +244,15 @@ func TestMergeErrors(t *testing.T) {
 	require.ErrorIs(t, mergeErrors(sillyErr, []*SillyElement{{}}), sillyErr)
 }
 
-func TestExtractSingleItem(t *testing.T) {
+func TestSingleItem(t *testing.T) {
 	t.Parallel()
 
-	_, err := extractSingleItem([]*any(nil))
+	_, err := singleItem([]*any(nil))
 	require.ErrorIs(t, err, common.ErrNoResponse)
-	_, err = extractSingleItem([]*SillyElement{{}, {}})
+	_, err = singleItem([]*SillyElement{{}, {}})
 	require.ErrorIs(t, err, errMultipleItemsReturned)
 
-	got, err := extractSingleItem([]*SillyElement{{}})
+	got, err := singleItem([]*SillyElement{{}})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 }
