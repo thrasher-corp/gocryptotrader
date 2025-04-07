@@ -233,15 +233,15 @@ func (s *SillyElement) Error() error {
 	return errElement
 }
 
-func TestMergeErrorDetails(t *testing.T) {
+func TestMergeErrors(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, mergeErrorDetails(nil, []interface{ Error() error }(nil)))
+	require.NoError(t, mergeErrors(nil, []interface{ Error() error }(nil)))
 	sillyErr := errors.New("silly error")
-	require.ErrorIs(t, mergeErrorDetails(sillyErr, []interface{ Error() error }(nil)), sillyErr)
-	require.ErrorIs(t, mergeErrorDetails(nil, []*SillyElement{{}}), errElement)
-	require.ErrorIs(t, mergeErrorDetails(sillyErr, []*SillyElement{{}}), errElement)
-	require.ErrorIs(t, mergeErrorDetails(sillyErr, []*SillyElement{{}}), sillyErr)
+	require.ErrorIs(t, mergeErrors(sillyErr, []interface{ Error() error }(nil)), sillyErr)
+	require.ErrorIs(t, mergeErrors(nil, []*SillyElement{{}}), errElement)
+	require.ErrorIs(t, mergeErrors(sillyErr, []*SillyElement{{}}), errElement)
+	require.ErrorIs(t, mergeErrors(sillyErr, []*SillyElement{{}}), sillyErr)
 }
 
 func TestExtractSingleItem(t *testing.T) {

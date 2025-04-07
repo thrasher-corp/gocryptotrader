@@ -5896,17 +5896,16 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		return err
 	}
 	if err == nil && resp.Code.Int64() != 0 {
-		var authError error
 		if authenticated == request.AuthenticatedRequest {
-			authError = request.ErrAuthRequestFailed
+			err = request.ErrAuthRequestFailed
 		}
 		if resp.Msg != "" {
-			return common.AppendError(authError, getStatusError(resp.Code.Int64(), resp.Msg))
+			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: `%s`", resp.Code.Int64(), resp.Msg))
 		}
-		if err, ok := ErrorCodes[resp.Code.String()]; ok {
-			return common.AppendError(authError, err)
+		if mErr, ok := ErrorCodes[resp.Code.String()]; ok {
+			return common.AppendError(err, mErr)
 		}
-		return common.AppendError(authError, fmt.Errorf("status code: `%d`", resp.Code.Int64()))
+		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
 
 	// First see if resp.Data can unmarshal into a slice of result, which is true for most APIs
