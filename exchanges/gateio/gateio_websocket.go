@@ -739,7 +739,7 @@ func singleSymbolChannel(name string) bool {
 	return false
 }
 
-// ValidateSubscriptions ValidateSubscriptions implements subscription.SubscriptionsValidator interface to ensure that conflicting orderbooks aren't subscribed to
+// ValidateSubscriptions implements subscription.SubscriptionsValidator interface to ensure that conflicting orderbooks aren't subscribed to
 func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {

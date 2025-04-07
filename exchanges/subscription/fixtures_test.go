@@ -21,7 +21,7 @@ type mockExWithSubValidator struct {
 	*mockEx
 }
 
-func (m *mockExWithSubValidator) ValidateSubscriptions(l List) error {
+func (m *mockExWithSubValidator) ValidateSubscriptions(List) error {
 	if m.Fail {
 		return errNaughtySubs
 	}
