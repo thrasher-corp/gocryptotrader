@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -178,8 +179,8 @@ type AllProducts struct {
 	NumProducts int32     `json:"num_products"`
 }
 
-// CandleStruct holds historic trade information, returned by GetHistoricRates
-type CandleStruct struct {
+// Klines holds historic trade information, returned by GetHistoricKlines
+type Klines struct {
 	Start  types.Time `json:"start"`
 	Low    float64    `json:"low,string"`
 	High   float64    `json:"high,string"`
@@ -215,14 +216,16 @@ type MarketMarketIOC struct {
 
 // LimitLimitGTC is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTC struct {
-	BaseSize   types.Number `json:"base_size"`
+	BaseSize   types.Number `json:"base_size,omitempty"`
+	QuoteSize  types.Number `json:"quote_size,omitempty"`
 	LimitPrice types.Number `json:"limit_price"`
 	PostOnly   bool         `json:"post_only"`
 }
 
 // LimitLimitGTD is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTD struct {
-	BaseSize   types.Number `json:"base_size"`
+	BaseSize   types.Number `json:"base_size,omitempty"`
+	QuoteSize  types.Number `json:"quote_size,omitempty"`
 	LimitPrice types.Number `json:"limit_price"`
 	EndTime    time.Time    `json:"end_time"`
 	PostOnly   bool         `json:"post_only"`
@@ -230,7 +233,8 @@ type LimitLimitGTD struct {
 
 // StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
 type StopLimitStopLimitGTC struct {
-	BaseSize      types.Number `json:"base_size"`
+	BaseSize      types.Number `json:"base_size,omitempty"`
+	QuoteSize     types.Number `json:"quote_size,omitempty"`
 	LimitPrice    types.Number `json:"limit_price"`
 	StopPrice     types.Number `json:"stop_price"`
 	StopDirection string       `json:"stop_direction"`
@@ -238,7 +242,8 @@ type StopLimitStopLimitGTC struct {
 
 // StopLimitStopLimitGTD is a sub-struct used in the type OrderConfiguration
 type StopLimitStopLimitGTD struct {
-	BaseSize      types.Number `json:"base_size"`
+	BaseSize      types.Number `json:"base_size,omitempty"`
+	QuoteSize     types.Number `json:"quote_size,omitempty"`
 	LimitPrice    types.Number `json:"limit_price"`
 	StopPrice     types.Number `json:"stop_price"`
 	EndTime       time.Time    `json:"end_time"`
@@ -273,6 +278,7 @@ type PlaceOrderInfo struct {
 	MarginType            string
 	RetailPortfolioID     string
 	BaseAmount            float64
+	QuoteAmount           float64
 	LimitPrice            float64
 	StopPrice             float64
 	Leverage              float64
@@ -375,6 +381,26 @@ type Fills struct {
 type FillResponse struct {
 	Fills  []Fills `json:"fills"`
 	Cursor string  `json:"cursor"`
+}
+
+// PreviewOrderInfo is a struct used in the formation of requests in PreviewOrder
+type PreviewOrderInfo struct {
+	ProductID        string
+	Side             string
+	OrderType        string
+	StopDirection    string
+	MarginType       string
+	CommissionValue  float64
+	BaseAmount       float64
+	QuoteAmount      float64
+	LimitPrice       float64
+	StopPrice        float64
+	TradableBalance  float64
+	Leverage         float64
+	PostOnly         bool
+	IsMax            bool
+	SkipFCMRiskCheck bool
+	EndTime          time.Time
 }
 
 // PreviewOrderResp contains information on the effects of placing an order, returned by PreviewOrder
@@ -1159,6 +1185,16 @@ type WebsocketRequest struct {
 	JWT        string          `json:"jwt,omitempty"`
 }
 
+// StandardWebsocketResponse is a standard response from the websocket connection
+type StandardWebsocketResponse struct {
+	Channel   string          `json:"channel"`
+	ClientID  string          `json:"client_id"`
+	Timestamp time.Time       `json:"timestamp"`
+	Sequence  uint64          `json:"sequence_num"`
+	Events    json.RawMessage `json:"events"`
+	Error     string          `json:"type"`
+}
+
 // WebsocketTicker defines a ticker websocket response, used in WebsocketTickerHolder
 type WebsocketTicker struct {
 	Type                     string        `json:"type"`
@@ -1170,6 +1206,10 @@ type WebsocketTicker struct {
 	Low52W                   float64       `json:"low_52_w,string"`
 	High52W                  float64       `json:"high_52_w,string"`
 	PricePercentageChange24H float64       `json:"price_percent_chg_24_h,string"`
+	BestBid                  float64       `json:"best_bid,string"`
+	BestBidQuantity          float64       `json:"best_bid_size,string"`
+	BestAsk                  float64       `json:"best_ask,string"`
+	BestAskQuantity          float64       `json:"best_ask_size,string"`
 }
 
 // WebsocketTickerHolder holds a variety of ticker responses, used when wsHandleData processes tickers

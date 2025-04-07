@@ -104,6 +104,8 @@ type Request struct {
 
 	Crypto CryptoRequest `json:"crypto"`
 	Fiat   FiatRequest   `json:"fiat"`
+
+	IdempotencyToken string
 }
 
 // Response holds complete details for Response

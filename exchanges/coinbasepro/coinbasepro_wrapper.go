@@ -5,8 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"math"
-	"strconv"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -107,9 +106,7 @@ func (c *CoinbasePro) SetDefaults() {
 			},
 		},
 		Subscriptions:       defaultSubscriptions.Clone(),
-		TradingRequirements: protocol.TradingRequirements{
-			// SpotMarketOrderAmountPurchaseQuotationOnly: true,
-		},
+		TradingRequirements: protocol.TradingRequirements{},
 	}
 	c.Requester, err = request.New(c.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimit()))
 	if err != nil {
@@ -210,6 +207,8 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 		if len(products.Products[x].AliasTo) > 0 {
 			aliases[products.Products[x].ID] = aliases[products.Products[x].ID].Add(products.Products[x].AliasTo...)
 		}
+		// Products need to be considered aliases of themselves for some code in websocket, and it seems better to add that here
+		aliases[products.Products[x].ID] = aliases[products.Products[x].ID].Add(products.Products[x].ID)
 	}
 	c.pairAliases.Load(aliases)
 	return pairs, nil
@@ -511,6 +510,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		MarginType:            s.MarginType.Upper(),
 		RetailPortfolioID:     "",
 		BaseAmount:            s.Amount,
+		QuoteAmount:           s.QuoteAmount,
 		LimitPrice:            s.Price,
 		StopPrice:             s.TriggerPrice,
 		Leverage:              s.Leverage,
@@ -706,8 +706,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	if withdrawRequest.WalletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	message := generateIdempotency(withdrawRequest.Amount)
-	resp, err := c.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, message, "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Amount, false, false)
+	resp, err := c.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Description, withdrawRequest.IdempotencyToken, "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Amount, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1283,14 +1282,6 @@ func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity
 	return timeSeries, nil
 }
 
-// XOR's the current time with the amount to cheaply generate an idempotency token where unwanted collisions should be rare
-func generateIdempotency(am float64) string {
-	t := time.Now().UnixNano()
-	u := math.Float64bits(am)
-	t ^= int64(u) //nolint:gosec // Precise number doesn't matter, it's just being used for entropy, so overflows are fine
-	return strconv.FormatInt(t, 10)
-}
-
 // FormatAssetOutbound formats asset items for outbound requests
 func FormatAssetOutbound(a asset.Item) string {
 	if a == asset.Futures {
@@ -1299,11 +1290,11 @@ func FormatAssetOutbound(a asset.Item) string {
 	return a.Upper()
 }
 
-// GetAlias returns the aliases for a currency pair, with the original pair included
+// GetAlias returns the aliases for a currency pair
 func (a *pairAliases) GetAlias(p currency.Pair) currency.Pairs {
 	a.m.RLock()
 	defer a.m.RUnlock()
-	return a.associatedAliases[p].Add(p)
+	return slices.Clone(a.associatedAliases[p])
 }
 
 // GetAliases returns a map of all aliases associated with all pairs

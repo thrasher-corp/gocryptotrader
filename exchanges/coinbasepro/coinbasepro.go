@@ -260,7 +260,7 @@ func (c *CoinbasePro) GetProductByID(ctx context.Context, productID string, auth
 }
 
 // GetHistoricKlines returns historic candles for a product. Candles are returned in grouped buckets based on requested granularity. Requests that return more than 300 data points are rejected
-func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]CandleStruct, error) {
+func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]Klines, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
@@ -273,7 +273,7 @@ func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granular
 	vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 	vals.Set("granularity", granularity)
 	resp := struct {
-		Candles []CandleStruct `json:"candles"`
+		Candles []Klines `json:"candles"`
 	}{}
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
@@ -316,7 +316,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Pla
 	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.StopDirection, ord.BaseAmount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
+	orderConfig, err := createOrderConfig(ord.OrderType, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -489,25 +489,25 @@ func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID, user
 }
 
 // PreviewOrder simulates the results of an order request
-func (c *CoinbasePro) PreviewOrder(ctx context.Context, productID, side, orderType, stopDirection, marginType string, commissionValue, amount, limitPrice, stopPrice, tradableBalance, leverage float64, postOnly, isMax, skipFCMRiskCheck bool, endTime time.Time) (*PreviewOrderResp, error) {
-	if amount == 0 {
+func (c *CoinbasePro) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*PreviewOrderResp, error) {
+	if inf.BaseAmount == 0 && inf.QuoteAmount == 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(orderType, stopDirection, amount, limitPrice, stopPrice, endTime, postOnly)
+	orderConfig, err := createOrderConfig(inf.OrderType, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, inf.EndTime, inf.PostOnly)
 	if err != nil {
 		return nil, err
 	}
 	req := map[string]any{
-		"product_id":          productID,
-		"side":                side,
-		"commission_rate":     map[string]string{"value": strconv.FormatFloat(commissionValue, 'f', -1, 64)},
+		"product_id":          inf.ProductID,
+		"side":                inf.Side,
+		"commission_rate":     map[string]string{"value": strconv.FormatFloat(inf.CommissionValue, 'f', -1, 64)},
 		"order_configuration": orderConfig,
-		"is_max":              isMax,
-		"tradable_balance":    strconv.FormatFloat(tradableBalance, 'f', -1, 64),
-		"skip_fcm_risk_check": skipFCMRiskCheck,
-		"leverage":            strconv.FormatFloat(leverage, 'f', -1, 64),
+		"is_max":              inf.IsMax,
+		"tradable_balance":    strconv.FormatFloat(inf.TradableBalance, 'f', -1, 64),
+		"skip_fcm_risk_check": inf.SkipFCMRiskCheck,
+		"leverage":            strconv.FormatFloat(inf.Leverage, 'f', -1, 64),
 	}
-	if mt := FormatMarginType(marginType); mt != "" {
+	if mt := FormatMarginType(inf.MarginType); mt != "" {
 		req["margin_type"] = mt
 	}
 	var resp *PreviewOrderResp
@@ -1548,15 +1548,25 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 }
 
 // createOrderConfig populates the OrderConfiguration struct
-func createOrderConfig(orderType, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
+func createOrderConfig(orderType, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
 	case order.Market.String(), order.ImmediateOrCancel.String():
-		orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(amount)}
+		if baseAmount != 0 {
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(baseAmount)}
+		}
+		if quoteAmount != 0 {
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(quoteAmount)}
+		}
 	case order.Limit.String():
 		if endTime.IsZero() {
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
-			orderConfig.LimitLimitGTC.BaseSize = types.Number(amount)
+			if baseAmount != 0 {
+				orderConfig.LimitLimitGTC.BaseSize = types.Number(baseAmount)
+			}
+			if quoteAmount != 0 {
+				orderConfig.LimitLimitGTC.QuoteSize = types.Number(quoteAmount)
+			}
 			orderConfig.LimitLimitGTC.LimitPrice = types.Number(limitPrice)
 			orderConfig.LimitLimitGTC.PostOnly = postOnly
 		} else {
@@ -1564,7 +1574,12 @@ func createOrderConfig(orderType, stopDirection string, amount, limitPrice, stop
 				return orderConfig, errEndTimeInPast
 			}
 			orderConfig.LimitLimitGTD = &LimitLimitGTD{}
-			orderConfig.LimitLimitGTD.BaseSize = types.Number(amount)
+			if baseAmount != 0 {
+				orderConfig.LimitLimitGTD.BaseSize = types.Number(baseAmount)
+			}
+			if quoteAmount != 0 {
+				orderConfig.LimitLimitGTD.QuoteSize = types.Number(quoteAmount)
+			}
 			orderConfig.LimitLimitGTD.LimitPrice = types.Number(limitPrice)
 			orderConfig.LimitLimitGTD.PostOnly = postOnly
 			orderConfig.LimitLimitGTD.EndTime = endTime
@@ -1572,7 +1587,12 @@ func createOrderConfig(orderType, stopDirection string, amount, limitPrice, stop
 	case order.StopLimit.String():
 		if endTime.IsZero() {
 			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
-			orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(amount)
+			if baseAmount != 0 {
+				orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(baseAmount)
+			}
+			if quoteAmount != 0 {
+				orderConfig.StopLimitStopLimitGTC.QuoteSize = types.Number(quoteAmount)
+			}
 			orderConfig.StopLimitStopLimitGTC.LimitPrice = types.Number(limitPrice)
 			orderConfig.StopLimitStopLimitGTC.StopPrice = types.Number(stopPrice)
 			orderConfig.StopLimitStopLimitGTC.StopDirection = stopDirection
@@ -1581,7 +1601,12 @@ func createOrderConfig(orderType, stopDirection string, amount, limitPrice, stop
 				return orderConfig, errEndTimeInPast
 			}
 			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{}
-			orderConfig.StopLimitStopLimitGTD.BaseSize = types.Number(amount)
+			if baseAmount != 0 {
+				orderConfig.StopLimitStopLimitGTD.BaseSize = types.Number(baseAmount)
+			}
+			if quoteAmount != 0 {
+				orderConfig.StopLimitStopLimitGTD.QuoteSize = types.Number(quoteAmount)
+			}
 			orderConfig.StopLimitStopLimitGTD.LimitPrice = types.Number(limitPrice)
 			orderConfig.StopLimitStopLimitGTD.StopPrice = types.Number(stopPrice)
 			orderConfig.StopLimitStopLimitGTD.StopDirection = stopDirection

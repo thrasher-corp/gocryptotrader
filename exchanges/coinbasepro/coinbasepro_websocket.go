@@ -9,7 +9,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -45,13 +44,12 @@ var subscriptionNames = map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.HeartbeatChannel},
-	// Subscriptions to status return an "authentication failure" error, despite the endpoint not being authenticated and other authenticated channels working fine.
-	{Enabled: false, Asset: asset.All, Channel: "status", Authenticated: true},
+	{Enabled: false, Asset: asset.All, Channel: "status"},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
-	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.CandlesChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: false, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
 	{Enabled: false, Asset: asset.Spot, Channel: "ticker_batch"},
 	/* Not Implemented:
 	{Enabled: false, Asset: asset.Spot, Channel: "futures_balance_summary", Authenticated: true},
@@ -82,94 +80,66 @@ func (c *CoinbasePro) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		warn, err := c.wsHandleData(resp.Raw, seqCount)
+		sequence, err := c.wsHandleData(resp.Raw)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 		}
-		if warn != "" {
-			c.Websocket.DataHandler <- warn
-			tempStr := strings.SplitN(warn, "Out of order sequence number. Received ", 2)[1]
-			tempStr = strings.SplitN(tempStr, ", expected ", 2)[0]
-			tempNum, err := strconv.ParseUint(tempStr, 10, 64)
-			if err != nil {
-				c.Websocket.DataHandler <- err
-			} else {
-				seqCount = tempNum
+		if sequence != nil {
+			if *sequence != seqCount {
+				c.Websocket.DataHandler <- fmt.Sprintf(warnSequenceIssue, sequence, seqCount)
+				seqCount = *sequence
 			}
+			seqCount++
 		}
-		seqCount++
 	}
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, error) {
-	var warnString string
-	ertype, _, _, err := jsonparser.Get(respRaw, "type")
-	if err == nil && string(ertype) == "error" {
-		return warnString, errors.New(string(respRaw))
+func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
+	var inc StandardWebsocketResponse
+	if err := json.Unmarshal(respRaw, &inc); err != nil {
+		return nil, err
 	}
-	seqData, _, _, err := jsonparser.Get(respRaw, "sequence_num")
-	if err != nil {
-		return warnString, err
+	if inc.Error != "" {
+		return &inc.Sequence, errors.New(inc.Error)
 	}
-	seqNum, err := strconv.ParseUint(string(seqData), 10, 64)
-	if err != nil {
-		return warnString, err
-	}
-	if seqNum != seqCount {
-		warnString = fmt.Sprintf(warnSequenceIssue, seqNum, seqCount)
-	}
-	channelRaw, _, _, err := jsonparser.Get(respRaw, "channel")
-	if err != nil {
-		return warnString, err
-	}
-	channel := string(channelRaw)
-	if channel == "subscriptions" || channel == "heartbeats" {
-		return warnString, nil
-	}
-	data, _, _, err := jsonparser.Get(respRaw, "events")
-	if err != nil {
-		return warnString, err
-	}
-	switch channel {
+	switch inc.Channel {
+	case "subscriptions", "heartbeats":
+		return &inc.Sequence, nil
 	case "status":
-		wsStatus := []WebsocketProductHolder{}
-		err = json.Unmarshal(data, &wsStatus)
-		if err != nil {
-			return warnString, err
+		var wsStatus []WebsocketProductHolder
+		if err := json.Unmarshal(inc.Events, &wsStatus); err != nil {
+			return &inc.Sequence, err
 		}
 		c.Websocket.DataHandler <- wsStatus
 	case "ticker", "ticker_batch":
-		wsTicker := []WebsocketTickerHolder{}
-		err = json.Unmarshal(data, &wsTicker)
-		if err != nil {
-			return warnString, err
+		var wsTicker []WebsocketTickerHolder
+		if err := json.Unmarshal(inc.Events, &wsTicker); err != nil {
+			return &inc.Sequence, err
 		}
-		sliToSend := []ticker.Price{}
-		var timestamp time.Time
-		timestamp, err = getTimestamp(respRaw)
-		if err != nil {
-			return warnString, err
-		}
+		var sliToSend []ticker.Price
 		aliases := c.pairAliases.GetAliases()
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
 				tickAlias := aliases[wsTicker[i].Tickers[j].ProductID]
-				tickAlias = tickAlias.Add(wsTicker[i].Tickers[j].ProductID)
 				newTick := ticker.Price{
-					LastUpdated:  timestamp,
+					LastUpdated:  inc.Timestamp,
 					AssetType:    asset.Spot,
 					ExchangeName: c.Name,
 					High:         wsTicker[i].Tickers[j].High24H,
 					Low:          wsTicker[i].Tickers[j].Low24H,
 					Last:         wsTicker[i].Tickers[j].Price,
 					Volume:       wsTicker[i].Tickers[j].Volume24H,
+					Bid:          wsTicker[i].Tickers[j].BestBid,
+					BidSize:      wsTicker[i].Tickers[j].BestBidQuantity,
+					Ask:          wsTicker[i].Tickers[j].BestAsk,
+					AskSize:      wsTicker[i].Tickers[j].BestAskQuantity,
 				}
 				var errs error
 				for k := range tickAlias {
 					isEnabled, err := c.CurrencyPairs.IsPairEnabled(tickAlias[k], asset.Spot)
 					if err != nil {
-						errs = fmt.Errorf("%v %v", errs, err)
+						errs = common.AppendError(errs, err)
 						continue
 					}
 					if isEnabled {
@@ -181,21 +151,15 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		}
 		c.Websocket.DataHandler <- sliToSend
 	case "candles":
-		wsCandles := []WebsocketCandleHolder{}
-		err = json.Unmarshal(data, &wsCandles)
-		if err != nil {
-			return warnString, err
+		var wsCandles []WebsocketCandleHolder
+		if err := json.Unmarshal(inc.Events, &wsCandles); err != nil {
+			return &inc.Sequence, err
 		}
-		sliToSend := []stream.KlineData{}
-		var timestamp time.Time
-		timestamp, err = getTimestamp(respRaw)
-		if err != nil {
-			return warnString, err
-		}
+		var sliToSend []stream.KlineData
 		for i := range wsCandles {
 			for j := range wsCandles[i].Candles {
 				sliToSend = append(sliToSend, stream.KlineData{
-					Timestamp:  timestamp,
+					Timestamp:  inc.Timestamp,
 					Pair:       wsCandles[i].Candles[j].ProductID,
 					AssetType:  asset.Spot,
 					Exchange:   c.Name,
@@ -210,12 +174,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		}
 		c.Websocket.DataHandler <- sliToSend
 	case "market_trades":
-		wsTrades := []WebsocketMarketTradeHolder{}
-		err = json.Unmarshal(data, &wsTrades)
-		if err != nil {
-			return warnString, err
+		var wsTrades []WebsocketMarketTradeHolder
+		if err := json.Unmarshal(inc.Events, &wsTrades); err != nil {
+			return &inc.Sequence, err
 		}
-		sliToSend := []trade.Data{}
+		var sliToSend []trade.Data
 		for i := range wsTrades {
 			for j := range wsTrades[i].Trades {
 				sliToSend = append(sliToSend, trade.Data{
@@ -233,32 +196,28 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		c.Websocket.DataHandler <- sliToSend
 	case "l2_data":
 		var wsL2 []WebsocketOrderbookDataHolder
-		err := json.Unmarshal(data, &wsL2)
+		err := json.Unmarshal(inc.Events, &wsL2)
 		if err != nil {
-			return warnString, err
-		}
-		timestamp, err := getTimestamp(respRaw)
-		if err != nil {
-			return warnString, err
+			return &inc.Sequence, err
 		}
 		for i := range wsL2 {
 			switch wsL2[i].Type {
 			case "snapshot":
-				err = c.ProcessSnapshot(&wsL2[i], timestamp)
+				err = c.ProcessSnapshot(&wsL2[i], inc.Timestamp)
 			case "update":
-				err = c.ProcessUpdate(&wsL2[i], timestamp)
+				err = c.ProcessUpdate(&wsL2[i], inc.Timestamp)
 			default:
 				err = fmt.Errorf("%w %v", errUnknownL2DataType, wsL2[i].Type)
 			}
 			if err != nil {
-				return warnString, err
+				return &inc.Sequence, err
 			}
 		}
 	case "user":
 		var wsUser []WebsocketOrderDataHolder
-		err := json.Unmarshal(data, &wsUser)
+		err := json.Unmarshal(inc.Events, &wsUser)
 		if err != nil {
-			return warnString, err
+			return &inc.Sequence, err
 		}
 		var sliToSend []order.Detail
 		for i := range wsUser {
@@ -375,9 +334,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		}
 		c.Websocket.DataHandler <- sliToSend
 	default:
-		return warnString, errChannelNameUnknown
+		return &inc.Sequence, errChannelNameUnknown
 	}
-	return warnString, nil
+	return &inc.Sequence, nil
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
@@ -400,14 +359,14 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 	for i := range aliases {
 		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
 		if err != nil {
-			errs = fmt.Errorf("%v %v", errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		if isEnabled {
 			book.Pair = aliases[i]
 			err = c.Websocket.Orderbook.LoadSnapshot(book)
 			if err != nil {
-				errs = fmt.Errorf("%v %v", errs, err)
+				errs = common.AppendError(errs, err)
 			}
 		}
 	}
@@ -432,14 +391,14 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 	for i := range aliases {
 		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
 		if err != nil {
-			errs = fmt.Errorf("%v %v", errs, err)
+			errs = common.AppendError(errs, err)
 			continue
 		}
 		if isEnabled {
 			obU.Pair = aliases[i]
 			err = c.Websocket.Orderbook.Update(obU)
 			if err != nil {
-				errs = fmt.Errorf("%v %v", errs, err)
+				errs = common.AppendError(errs, err)
 			}
 		}
 	}
@@ -523,15 +482,6 @@ func (c *CoinbasePro) GetWSJWT() (string, error) {
 	var err error
 	c.jwtStruct.jwt, c.jwtStruct.jwtExpire, err = c.GetJWT(context.Background(), "")
 	return c.jwtStruct.jwt, err
-}
-
-// getTimestamp is a helper function which pulls a RFC3339-formatted timestamp from a byte slice of JSON data
-func getTimestamp(rawData []byte) (time.Time, error) {
-	data, _, _, err := jsonparser.Get(rawData, "timestamp")
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Parse(time.RFC3339, string(data))
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
