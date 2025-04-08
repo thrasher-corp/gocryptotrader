@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -352,6 +353,10 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case []fill.Data:
 		if m.verbose {
 			log.Infof(log.Fill, "%+v", d)
+		}
+	case []futures.PositionHistory:
+		if m.verbose {
+			log.Infof(log.Trade, "%+v", d)
 		}
 	default:
 		if m.verbose {
