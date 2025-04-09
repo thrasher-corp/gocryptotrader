@@ -76,7 +76,7 @@ func (p *Poloniex) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesParams) 
 }
 
 // PlaceV3FuturesMultipleOrders place orders in a batch. A maximum of 10 orders can be placed per request.
-func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesParams) ([]FuturesV3OrderIDResponse, error) {
+func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesParams) (interface{}, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -86,7 +86,7 @@ func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []Futu
 			return nil, err
 		}
 	}
-	var resp []FuturesV3OrderIDResponse
+	var resp interface{}
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/orders", nil, args, &resp, true)
 }
 
@@ -119,6 +119,9 @@ func (p *Poloniex) CancelV3FuturesOrder(ctx context.Context, arg *CancelOrderPar
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *FuturesV3OrderIDResponse
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodDelete, "/v3/trade/order", nil, arg, &resp, true)
@@ -185,7 +188,7 @@ func (p *Poloniex) CloseAllAtMarketPrice(ctx context.Context) ([]FuturesV3OrderI
 }
 
 // GetCurrentOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
-func (p *Poloniex) GetCurrentOrders(ctx context.Context, symbol, side, orderID, clientOrderID, direction string, offset, limit int64) ([]FuturesV3Order, error) {
+func (p *Poloniex) GetCurrentOrders(ctx context.Context, symbol, side, orderID, clientOrderID, direction string, offset, limit int64) ([]FuturesV3OrderDetail, error) {
 	params := url.Values{}
 	if side != "" {
 		params.Set("side", side)
@@ -208,7 +211,7 @@ func (p *Poloniex) GetCurrentOrders(ctx context.Context, symbol, side, orderID, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []FuturesV3Order
+	var resp []FuturesV3OrderDetail
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/opens", params, nil, &resp, true)
 }
 
@@ -246,7 +249,7 @@ func (p *Poloniex) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 }
 
 // GetV3FuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
-func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3Order, error) {
+func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit int64) ([]FuturesV3OrderDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -283,7 +286,7 @@ func (p *Poloniex) GetV3FuturesOrderHistory(ctx context.Context, symbol, orderTy
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []FuturesV3Order
+	var resp []FuturesV3OrderDetail
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "/v3/trade/order/history", params, nil, &resp, true)
 }
 
@@ -456,7 +459,7 @@ func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, int
 			return nil, err
 		}
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("eTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -466,7 +469,7 @@ func (p *Poloniex) GetV3FuturesKlineData(ctx context.Context, symbol string, int
 		Message string            `json:"msg"`
 		Data    TypeFuturesCandle `json:"data"`
 	}{}
-	err = p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp, true)
+	err = p.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("/v3/market/candles", params), &resp)
 	if err != nil {
 		return nil, err
 	}

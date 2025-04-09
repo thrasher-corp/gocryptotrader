@@ -296,14 +296,14 @@ func (p *Poloniex) processFuturesTradeFills(data []byte) error {
 }
 
 func (p *Poloniex) processFuturesOrders(data []byte) error {
-	var resp []FuturesV3Order
+	var resp []FuturesV3OrderDetail
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
 	orders := make([]order.Detail, len(resp))
 	for o := range resp {
-		oType, err := order.StringToOrderType(resp[o].Type)
+		oType, err := order.StringToOrderType(resp[o].OrderType)
 		if err != nil {
 			return err
 		}

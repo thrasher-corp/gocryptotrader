@@ -64,7 +64,7 @@ type FuturesParams struct {
 	MarginMode              string  `json:"mgnMode"`
 	PositionSide            string  `json:"posSide"`
 	OrderType               string  `json:"type,omitempty"`
-	ClientOrderID           string  `json:"clOrdId,omitempty,string"`
+	ClientOrderID           string  `json:"clOrdId,omitempty"`
 	Price                   float64 `json:"px,omitempty,string"`
 	Size                    float64 `json:"sz,omitempty"`
 	ReduceOnly              bool    `json:"reduceOnly,omitempty"`
@@ -112,8 +112,31 @@ type FuturesTradeFill struct {
 	UpdateTime     types.Time   `json:"uTime"`
 }
 
-// FuturesV3Order represents a futures v3 order detail
-type FuturesV3Order struct {
+// FuturesV3OrderItem represents a sample futures order item info
+type FuturesV3OrderItem struct {
+	Symbol              string            `json:"symbol"`
+	Side                string            `json:"side"`
+	MarginMode          string            `json:"mgnMode"`
+	PositionSide        string            `json:"posSide"`
+	OrderType           string            `json:"type"`
+	Price               types.Number      `json:"px"`
+	Size                types.Number      `json:"sz"`
+	TimeInForce         order.TimeInForce `json:"timeInForce"`
+	SelfTradePrevention string            `json:"stpMode"`
+	ReduceOnly          bool              `json:"reduceOnly"`
+	ClientOrderID       string            `json:"clOrdId"`
+}
+
+// FuturesV3OrderDetail represents a futures v3 order detail
+type FuturesV3OrderDetail struct {
+	Symbol                     string            `json:"symbol"`
+	Side                       string            `json:"side"`
+	MarginMode                 string            `json:"mgnMode"`
+	PositionSide               string            `json:"posSide"`
+	OrderType                  string            `json:"type"`
+	Price                      types.Number      `json:"px"`
+	Size                       types.Number      `json:"sz"`
+	TimeInForce                order.TimeInForce `json:"timeInForce"`
 	OrderID                    string            `json:"ordId"`
 	AveragePrice               types.Number      `json:"avgPx"`
 	CreationTime               types.Time        `json:"cTime"`
@@ -124,33 +147,25 @@ type FuturesV3Order struct {
 	ExecQuantity               types.Number      `json:"execQty"`
 	FeeAmount                  types.Number      `json:"feeAmt"`
 	FeeCurrency                string            `json:"feeCcy"`
-	PositionSide               string            `json:"posSide"`
 	Leverage                   types.Number      `json:"lever"`
-	MarginMode                 string            `json:"mgnMode"`
-	Price                      types.Number      `json:"px"`
 	ReduceOnly                 bool              `json:"reduceOnly"`
 	StopLossPrice              types.Number      `json:"slPx"`
-	Side                       string            `json:"side"`
 	StopLossTriggerPrice       string            `json:"slTrgPx"`
 	StopLossTriggerPriceType   string            `json:"slTrgPxType"`
 	Source                     string            `json:"source"`
 	State                      string            `json:"state"`
 	SelfTradePreventionMode    string            `json:"stpMode"`
-	Symbol                     string            `json:"symbol"`
-	Size                       types.Number      `json:"sz"`
-	TimeInForce                order.TimeInForce `json:"timeInForce"`
 	TakeProfitPrice            types.Number      `json:"tpPx"`
 	TakeProfitTriggerPrice     types.Number      `json:"tpTrgPx"`
 	TakeProfitTriggerPriceType string            `json:"tpTrgPxType"`
-	Type                       string            `json:"type"`
 	UpdateTime                 types.Time        `json:"uTime"`
 	FeeRate                    types.Number      `json:"feeRate"`
 	ID                         string            `json:"id"`
-	OrderType                  string            `json:"ordType"`
 	Quantity                   types.Number      `json:"qty"`
 	Role                       string            `json:"role"`
 	TradeID                    string            `json:"trdId"`
 	CancelReason               string            `json:"cancelReason"`
+	OrdType                    string            `json:"ordType"`
 }
 
 // V3FuturesPosition represents a v3 futures position detail

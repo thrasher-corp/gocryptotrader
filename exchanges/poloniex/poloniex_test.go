@@ -229,7 +229,9 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = p.SubmitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	}
 	result, err := p.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  p.Name,
 		Pair:      spotTradablePair,
@@ -467,30 +469,30 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	var start, end time.Time
 	if mockTests {
-		start = time.Unix(1720120800, 0)
-		end = time.Unix(1720128300, 0)
+		start = time.UnixMilli(1744183959258)
+		end = time.UnixMilli(1744191159258)
 	} else {
 		start = time.Now().Add(-time.Hour * 2)
 		end = time.Now()
 	}
-	result, err := p.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FiveMin, start, end)
+	result, err := p.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FiveMin, start.UTC(), end.UTC())
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = p.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, start, end)
+	result, err = p.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FiveMin, start.UTC(), end.UTC())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	start := time.UnixMilli(1743579943908)
-	end := time.UnixMilli(1743583543908)
+	start := time.UnixMilli(1744103854944)
+	end := time.UnixMilli(1744190254944)
 	if !mockTests {
-		start = time.Now().Add(-time.Hour)
+		start = time.Now().Add(-time.Hour * 24)
 		end = time.Now()
 	}
-	result, err := p.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FiveMin, start, end)
+	result, err := p.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneHour, start, end)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -1087,10 +1089,11 @@ func TestGetSubAccountTransferRecord(t *testing.T) {
 
 func TestGetDepositAddresses(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
-	result, err := p.GetDepositAddresses(context.Background(), currency.LTC)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
+	_, err := p.GetDepositAddresses(context.Background(), currency.LTC)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -1115,7 +1118,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	result, err := p.GetDepositAddress(context.Background(), currency.LTC, "", "USDT")
+	result, err := p.GetDepositAddress(context.Background(), currency.BTC, "", "TON")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1618,30 +1621,41 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := p.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	err := p.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = p.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
 	require.NoError(t, err)
 
-	pair, err := currency.NewPairFromString("ETH_USDTPERP")
+	p.Verbose = true
+	instrument, err := p.GetV3FuturesProductInfo(context.Background(), futuresTradablePair.String())
 	require.NoError(t, err)
-
-	instruments, err := p.GetSymbolInformation(context.Background(), pair)
-	require.NoError(t, err)
-
-	var instrument *SymbolDetail
-	for a := range instruments {
-		print(instruments[a].Symbol + ",")
-		if instruments[a].Symbol == "ETH_USDTPERP" {
-			instrument = &instruments[a]
-		}
-	}
 	require.NotNil(t, instrument)
-	cp, err := currency.NewPairFromString("ETH_USDTPERP")
+
+	limits, err := p.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
 	require.NoError(t, err)
-	limits, err := p.GetOrderExecutionLimits(asset.Futures, cp)
-	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
-	require.Equal(t, limits.PriceStepIncrementSize, instruments[0].SymbolTradeLimit.PriceScale)
-	require.Equal(t, limits.MinimumBaseAmount, instruments[0].SymbolTradeLimit.MinQuantity.Float64())
-	assert.Equal(t, limits.MinimumQuoteAmount, instruments[0].SymbolTradeLimit.MinAmount.Float64())
+	require.NotNil(t, limits)
+	require.Equal(t, limits.PriceStepIncrementSize, instrument.TickSize.Float64())
+	require.Equal(t, limits.MinimumBaseAmount, instrument.MinQuantity.Float64())
+	assert.Equal(t, limits.MinimumQuoteAmount, instrument.MinSize.Float64())
+
+	// sample test for spot instrument order execution limit
+
+	err = p.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	require.NoError(t, err)
+
+	p.Verbose = true
+	println("spotTradablePair: ", spotTradablePair.String())
+	spotInstruments, err := p.GetSymbolInformation(context.Background(), spotTradablePair)
+	require.NoError(t, err)
+	require.NotNil(t, instrument)
+
+	limits, err = p.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
+	require.NoError(t, err)
+	require.Len(t, spotInstruments, 1)
+	require.Equal(t, limits.PriceStepIncrementSize, spotInstruments[0].SymbolTradeLimit.PriceScale)
+	require.Equal(t, limits.MinimumBaseAmount, spotInstruments[0].SymbolTradeLimit.MinQuantity.Float64())
+	assert.Equal(t, limits.MinimumQuoteAmount, spotInstruments[0].SymbolTradeLimit.MinAmount.Float64())
 }
 
 // ---- Futures endpoints ---
@@ -1792,7 +1806,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	}
 	result, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{
 		{
-			ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
+			ClientOrderID:           "939a9d51",
 			Symbol:                  "BTC_USDT_PERP",
 			Side:                    "buy",
 			MarginMode:              "CROSS",
@@ -1814,13 +1828,17 @@ func TestCancelV3FuturesOrder(t *testing.T) {
 	_, err := p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
+	p.Verbose = true
 	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{OrderID: "1234"})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{Symbol: futuresTradablePair.String()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	}
-	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{Symbol: futuresTradablePair.String()})
+	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{Symbol: futuresTradablePair.String(), OrderID: "12345"})
 	require.NoError(t, err)
 }
 

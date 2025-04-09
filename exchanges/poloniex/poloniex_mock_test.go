@@ -48,8 +48,14 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDT", "_")
-	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDT_PERP", "")
+	spotTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	futuresTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_PERP", ""), asset.Futures)
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
 	if err != nil {
 		log.Fatal(err)

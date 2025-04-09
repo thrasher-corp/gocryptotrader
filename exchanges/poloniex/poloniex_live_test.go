@@ -33,10 +33,36 @@ func TestMain(m *testing.M) {
 
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	err := populateTradablePairs()
+	// err := populateTradablePairs()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	var err error
+	spotTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
 		log.Fatal(err)
 	}
+	futuresTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_PERP", ""), asset.Futures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	p.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

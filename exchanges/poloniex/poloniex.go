@@ -491,7 +491,7 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 		params.Set("currency", ccy.String())
 	}
 	var addresses *DepositAddressesResponse
-	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, addresses)
+	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, &addresses)
 }
 
 // WalletActivity returns the wallet activity between set start and end time

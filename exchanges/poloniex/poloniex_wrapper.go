@@ -716,17 +716,13 @@ func (p *Poloniex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case asset.Futures:
 		var side string
 		var positionSide string
-		switch s.Side {
-		case order.Sell:
-			side = "SELL"
-		case order.Buy:
-			side = "BUY"
-		case order.Long:
-			side = "BUY"
-			positionSide = "LONG"
-		case order.Short:
+		switch {
+		case s.Side.IsShort():
 			side = "SELL"
 			positionSide = "SHORT"
+		case s.Side.IsLong():
+			side = "BUY"
+			positionSide = "LONG"
 		}
 		var marginMode string
 		switch s.MarginType {
@@ -1367,11 +1363,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			})
 		}
 	case asset.Futures:
-		oTypeString, err := OrderTypeString(req.Type)
-		if err != nil {
-			return nil, err
-		}
-		fOrders, err := p.GetV3FuturesOrderHistory(context.Background(), samplePair.String(), oTypeString, req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 0)
+		fOrders, err := p.GetCurrentOrders(context.Background(), samplePair.String(), req.Side.String(), "", "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1684,7 +1676,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		timeSeries := make([]kline.Candle, len(resp))
 		for x := range resp {
 			timeSeries[x] = kline.Candle{
-				Time:   resp[x].EndTime.Time(),
+				Time:   resp[x].StartTime.Time(),
 				Open:   resp[x].OpeningPrice.Float64(),
 				High:   resp[x].HighestPrice.Float64(),
 				Low:    resp[x].LowestPrice.Float64(),
@@ -1699,7 +1691,7 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := p.GetKlineExtendedRequest(pair, a, interval, start, end)
+	req, err := p.GetKlineExtendedRequest(pair, a, interval, start.UTC(), end.UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -1742,7 +1734,7 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			for x := range resp {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   resp[x].EndTime.Time(),
+					Time:   resp[x].StartTime.Time().UTC(),
 					Open:   resp[x].OpeningPrice.Float64(),
 					High:   resp[x].HighestPrice.Float64(),
 					Low:    resp[x].LowestPrice.Float64(),
@@ -1899,7 +1891,31 @@ func (p *Poloniex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if !p.SupportsAsset(a) {
 		return fmt.Errorf("%w asset: %v", asset.ErrNotSupported, a)
 	}
-	instruments, err := p.GetSymbolInformation(ctx, currency.EMPTYPAIR)
+	if a == asset.Spot {
+		instruments, err := p.GetSymbolInformation(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		limits := make([]order.MinMaxLevel, len(instruments))
+		for x := range instruments {
+			pair, err := currency.NewPairFromString(instruments[x].Symbol)
+			if err != nil {
+				return err
+			}
+			limits[x] = order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				PriceStepIncrementSize:  instruments[x].SymbolTradeLimit.PriceScale,
+				MinimumBaseAmount:       instruments[x].SymbolTradeLimit.MinQuantity.Float64(),
+				MinimumQuoteAmount:      instruments[x].SymbolTradeLimit.MinAmount.Float64(),
+				AmountStepIncrementSize: instruments[x].SymbolTradeLimit.AmountScale,
+				QuoteStepIncrementSize:  instruments[x].SymbolTradeLimit.QuantityScale,
+			}
+		}
+		return p.LoadLimits(limits)
+	}
+
+	instruments, err := p.GetV3FuturesAllProductInfo(ctx, "")
 	if err != nil {
 		return err
 	}
@@ -1910,13 +1926,16 @@ func (p *Poloniex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   a,
-			PriceStepIncrementSize:  instruments[x].SymbolTradeLimit.PriceScale,
-			MinimumBaseAmount:       instruments[x].SymbolTradeLimit.MinQuantity.Float64(),
-			MinimumQuoteAmount:      instruments[x].SymbolTradeLimit.MinAmount.Float64(),
-			AmountStepIncrementSize: instruments[x].SymbolTradeLimit.AmountScale,
-			QuoteStepIncrementSize:  instruments[x].SymbolTradeLimit.QuantityScale,
+			Pair:                   pair,
+			Asset:                  a,
+			MinPrice:               instruments[x].MinPrice.Float64(),
+			MaxPrice:               instruments[x].MaxPrice.Float64(),
+			PriceStepIncrementSize: instruments[x].TickSize.Float64(),
+			MinimumBaseAmount:      instruments[x].MinQuantity.Float64(),
+			MaximumBaseAmount:      instruments[x].MaxQuantity.Float64(),
+			MinimumQuoteAmount:     instruments[x].MinSize.Float64(),
+			MarketMinQty:           instruments[x].MinQuantity.Float64(),
+			MarketMaxQty:           instruments[x].MaxQuantity.Float64(),
 		}
 	}
 	return p.LoadLimits(limits)
