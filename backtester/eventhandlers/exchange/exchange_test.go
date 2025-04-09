@@ -22,15 +22,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "binance"
+const testExchange = "okx"
 
 type fakeFund struct{}
 
@@ -130,7 +129,7 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &binance.Binance{}
+	f := &okx.Okx{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
@@ -266,7 +265,7 @@ func TestExecuteOrder(t *testing.T) {
 	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(context.Background(), p, a)
 	require.NoError(t, err, "UpdateOrderbook must not error")
-	f := &binanceus.Binanceus{}
+	f := &okx.Okx{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
