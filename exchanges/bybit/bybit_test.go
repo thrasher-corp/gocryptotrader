@@ -779,16 +779,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	assert.NoError(t, err)
 	availablePairs, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal("Bybit GetAvailablePairs() error", err)
-	}
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	for x := range availablePairs {
 		var l limits.MinMaxLevel
 		l, err = b.GetOrderExecutionLimits(asset.Spot, availablePairs[x])
 		require.NoError(t, err)
-		if l == (limits.MinMaxLevel{}) {
-			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
-		}
+		require.NotEmpty(t, l, "response must not be empty")
 	}
 }
 

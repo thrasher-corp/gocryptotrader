@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
@@ -1068,23 +1067,14 @@ func TestWrapperModifyOrder(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 
 	lim, err := b.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if lim == (limits.MinMaxLevel{}) {
-		t.Fatal("expected value return")
-	}
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	require.NotEmpty(t, lim, "limit must be populated")
 }
 
 func TestConvertToKlineCandle(t *testing.T) {

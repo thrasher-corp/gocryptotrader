@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -3155,45 +3154,21 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		{assetType: asset.Margin, expectedError: asset.ErrNotSupported},
 	}
 
-	for _, scen := range scenarios {
-		err := g.UpdateOrderExecutionLimits(context.Background(), scen.assetType)
-		assert.ErrorIs(t, err, scen.expectedError)
-	}
-
-	// test its loaded
-	err := g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
+	for _, s := range scenarios {
+		err := g.UpdateOrderExecutionLimits(context.Background(), s.assetType)
+		assert.ErrorIs(t, err, s.expectedError)
 	}
 
 	avail, err := g.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "GetAvailablePairs must not error")
 
 	for i := range avail {
 		mm, err := g.GetOrderExecutionLimits(asset.Spot, avail[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if mm == (limits.MinMaxLevel{}) {
-			t.Fatal("expected a value")
-		}
-
-		if mm.MinimumBaseAmount <= 0 {
-			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
-		}
-
-		// 1INCH_TRY no minimum quote or base values are returned.
-
-		if mm.QuoteStepIncrementSize <= 0 {
-			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
-		}
-
-		if mm.AmountStepIncrementSize <= 0 {
-			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
-		}
+		require.NoError(t, err, "GetOrderExecutionLimits must not error")
+		require.NotEmpty(t, mm, "GetOrderExecutionLimits must not return empty value")
+		assert.Positive(t, mm.MinimumBaseAmount)
+		assert.Positive(t, mm.QuoteStepIncrementSize)
+		assert.Positive(t, mm.AmountStepIncrementSize)
 	}
 }
 

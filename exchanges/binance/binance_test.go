@@ -2521,42 +2521,24 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.CoinMarginedFutures)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	require.NoError(t, err)
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.USDTMarginedFutures)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Binary)
-	if err == nil {
-		t.Fatal("expected unhandled case")
-	}
+	require.Error(t, err, "UpdateOrderExecutionLimits must error for unsupported asset type")
 
 	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if limit == (limits.MinMaxLevel{}) {
-		t.Fatal("exchange limit should be loaded")
-	}
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	require.NotEmpty(t, limit, "exchange limit must exist")
 
 	err = limit.Conforms(0.000001, 0.1, order.Limit)
-	if !errors.Is(err, limits.ErrAmountBelowMin) {
-		t.Fatalf("expected %v, but received %v", limits.ErrAmountBelowMin, err)
-	}
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "expected amount to be below min")
 
 	err = limit.Conforms(0.01, 1, order.Limit)
 	if !errors.Is(err, limits.ErrPriceBelowMin) {

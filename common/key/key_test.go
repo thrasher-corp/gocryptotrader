@@ -85,10 +85,6 @@ func TestExchangePairAsset_Pair(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.EMPTYCODE)
 	k.Quote = currency.EMPTYCODE.Item
 	assert.Equal(t, cp, k.Pair())
-
-	cp = currency.EMPTYPAIR
-	var epa *ExchangePairAsset
-	assert.Equal(t, cp, epa.Pair())
 }
 
 func TestPairAsset_Pair(t *testing.T) {
@@ -104,10 +100,6 @@ func TestPairAsset_Pair(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.EMPTYCODE)
 	k.Quote = currency.EMPTYCODE.Item
 	assert.Equal(t, cp, k.Pair())
-
-	cp = currency.EMPTYPAIR
-	var pa *PairAsset
-	assert.Equal(t, cp, pa.Pair())
 }
 
 func TestNewExchangePairAssetKey(t *testing.T) {

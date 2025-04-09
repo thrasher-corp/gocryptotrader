@@ -2,7 +2,6 @@ package limits
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -45,7 +44,6 @@ func (e *executionLimits) loadLimits(levels []MinMaxLevel) error {
 		if levels[x].Key.Pair().IsEmpty() {
 			return fmt.Errorf("cannot load levels for '%s' '%s': %w", levels[x].Key.Exchange, levels[x].Key.Asset, errPairNotSet)
 		}
-		levels[x].Key.Exchange = strings.ToLower(levels[x].Key.Exchange)
 		if levels[x].MinPrice > 0 &&
 			levels[x].MaxPrice > 0 &&
 			levels[x].MinPrice > levels[x].MaxPrice {
@@ -93,7 +91,6 @@ func (e *executionLimits) getOrderExecutionLimits(k key.ExchangePairAsset) (MinM
 	if e.epaLimits == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
-	k.Exchange = strings.ToLower(k.Exchange)
 	el, ok := e.epaLimits[k]
 	if !ok {
 		return MinMaxLevel{}, fmt.Errorf("%w for %s %s %s", ErrOrderLimitNotFound, k.Exchange, k.Asset, k.Pair())
@@ -104,12 +101,9 @@ func (e *executionLimits) getOrderExecutionLimits(k key.ExchangePairAsset) (MinM
 func (e *executionLimits) checkOrderExecutionLimits(k key.ExchangePairAsset, price, amount float64, orderType order.Type) error {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
-
 	if e.epaLimits == nil {
 		return ErrExchangeLimitNotLoaded
 	}
-
-	k.Exchange = strings.ToLower(k.Exchange)
 	m1, ok := e.epaLimits[k]
 	if !ok {
 		return fmt.Errorf("%w for %s %s %s", ErrOrderLimitNotFound, k.Exchange, k.Asset, k.Pair())

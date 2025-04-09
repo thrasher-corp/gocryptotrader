@@ -456,9 +456,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				continue
 			}
 			p := strings.ToUpper(tradables[x].ID)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -477,9 +474,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				continue
 			}
 			p := strings.ToUpper(tradables[x].Base + currency.UnderscoreDelimiter + tradables[x].Quote)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -503,9 +497,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				continue
 			}
 			p := strings.ToUpper(btcContracts[x].Name)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -524,9 +515,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				continue
 			}
 			p := strings.ToUpper(usdtContracts[x].Name)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -546,9 +534,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				return nil, err
 			}
 			for c := range contracts {
-				if !g.IsValidPairString(contracts[c].Name) {
-					continue
-				}
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
 					return nil, err
@@ -2193,13 +2178,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		btcContracts = append(btcContracts, usdtContracts...)
 		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
 		for x := range btcContracts {
-			if btcContracts[x].InDelisting {
-				continue
-			}
 			p := strings.ToUpper(btcContracts[x].Name)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return err
@@ -2208,8 +2187,8 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
-				MarketStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
-				AmountStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
+				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
 			})
 		}
 	case asset.DeliveryFutures:
@@ -2224,13 +2203,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		btcContracts = append(btcContracts, usdtContracts...)
 		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
 		for x := range btcContracts {
-			if btcContracts[x].InDelisting {
-				continue
-			}
 			p := strings.ToUpper(btcContracts[x].Name)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return err
@@ -2239,8 +2212,8 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
-				MarketStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
-				AmountStepIncrementSize: btcContracts[x].OrderPriceRound.Float64(),
+				PriceStepIncrementSize:  btcContracts[x].OrderPriceRound.Float64(),
+				AmountStepIncrementSize: 1,
 			})
 		}
 	case asset.Options:
@@ -2255,9 +2228,6 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			}
 			l = make([]limits.MinMaxLevel, 0, len(contracts))
 			for c := range contracts {
-				if !g.IsValidPairString(contracts[c].Name) {
-					continue
-				}
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
 					return err
@@ -2267,8 +2237,8 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 					Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
-					MarketStepIncrementSize: contracts[c].OrderPriceRound.Float64(),
-					AmountStepIncrementSize: contracts[c].OrderPriceRound.Float64(),
+					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
+					AmountStepIncrementSize: 1,
 				})
 			}
 		}
@@ -2402,9 +2372,6 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		}
 		for j := range contracts {
 			p := strings.ToUpper(contracts[j].Name)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err

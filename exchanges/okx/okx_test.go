@@ -3350,10 +3350,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 
 		for _, p := range tests[a] {
-			limits, err := ok.GetOrderExecutionLimits(a, p)
+			l, err := ok.GetOrderExecutionLimits(a, p)
 			if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
-				require.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
-				require.Positivef(t, limits.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
+				require.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+				require.Positivef(t, l.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
 			}
 		}
 	}
