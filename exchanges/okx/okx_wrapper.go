@@ -1750,7 +1750,7 @@ allOrders:
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
 				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime.Time() {
+				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1898,7 +1898,7 @@ allOrders:
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
 				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime.Time() {
+				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -2223,10 +2223,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 	}
 	// map of time indexes, allowing for easy lookup of slice index from unix time data
 	mti := make(map[int64]int)
-	for {
-		if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
-			break
-		}
+	for sd.Before(r.EndDate) {
 		var frh []FundingRateResponse
 		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
 		if err != nil {
@@ -2278,10 +2275,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
 			billDetailsFunc = ok.GetBillsDetailLast7Days
 		}
-		for {
-			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
-				break
-			}
+		for sd.Before(r.EndDate) {
 			var fri time.Duration
 			if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
 				// can infer funding rate interval from the only funding rate frequency defined
@@ -2346,16 +2340,16 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 		return 0, err
 	}
 	switch cfg.AccountLevel {
-	case "1":
+	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 		}
 		fallthrough
-	case "2":
+	case 2:
 		return collateral.SpotFuturesMode, nil
-	case "3":
+	case 3:
 		return collateral.MultiMode, nil
-	case "4":
+	case 4:
 		return collateral.PortfolioMode, nil
 	default:
 		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg.AccountLevel)
@@ -2572,6 +2566,10 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 	if err != nil {
 		return nil, err
 	}
+	contractsMap := make(map[currency.Pair]*futures.Contract)
+	for i := range contracts {
+		contractsMap[contracts[i].Name] = &contracts[i]
+	}
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
@@ -2579,18 +2577,12 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 		}
 		instrumentType := GetInstrumentTypeFromAssetItem(req.Asset)
 
-		multiplier := 1.0
-		var contractSettlementType futures.ContractSettlementType
-		if req.Asset.IsFutures() {
-			for j := range contracts {
-				if !contracts[j].Name.Equal(fPair) {
-					continue
-				}
-				multiplier = contracts[j].Multiplier
-				contractSettlementType = contracts[j].SettlementType
-				break
-			}
+		contract, exist := contractsMap[fPair]
+		if !exist {
+			return nil, fmt.Errorf("%w %v", futures.ErrContractNotSupported, fPair)
 		}
+		multiplier := contract.Multiplier
+		contractSettlementType := contract.SettlementType
 
 		resp[i] = futures.PositionResponse{
 			Pair:                   req.Pairs[i],
@@ -2616,7 +2608,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			return nil, err
 		}
 		for j := range positions {
-			if req.Pairs[i].String() != positions[j].InstrumentID {
+			if fPair.String() != positions[j].InstrumentID {
 				continue
 			}
 			var orderStatus order.Status

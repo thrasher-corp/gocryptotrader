@@ -409,7 +409,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio); err != nil {
+			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, bot.Config.Portfolio); err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
 				bot.portfolioManager = p
@@ -586,7 +586,7 @@ func (bot *Engine) Stop() {
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(bot.portfolioManager.GetAddresses()) != 0 {
-		bot.Config.Portfolio = *bot.portfolioManager.GetPortfolio()
+		bot.Config.Portfolio = bot.portfolioManager.GetPortfolio()
 	}
 
 	if bot.gctScriptManager.IsRunning() {

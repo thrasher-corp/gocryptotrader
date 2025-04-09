@@ -1,15 +1,22 @@
 package portfolio
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"golang.org/x/time/rate"
 )
 
 // Base holds the portfolio base addresses
 type Base struct {
 	Addresses []Address `json:"addresses"`
-	Verbose   bool
+	Providers providers `json:"providers,omitzero"`
+	Verbose   bool      `json:"verbose"`
+
+	mtx                 sync.RWMutex
+	cryptoIDLimiter     *rate.Limiter
+	cryptoIDLimiterOnce sync.Once
 }
 
 // Address sub type holding address information for portfolio
@@ -159,3 +166,11 @@ type AccountInfo struct {
 	Twitter     string `json:"twitter"`
 	Verified    bool   `json:"verified"`
 }
+
+type provider struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+	APIKey  string `json:"apiKey,omitempty"`
+}
+
+type providers []provider

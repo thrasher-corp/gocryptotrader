@@ -72,17 +72,19 @@ type PairAsset struct {
 	Asset asset.Item
 }
 
-// SubAccountCurrencyAsset is a unique map key signature for subaccount, currency code and asset
-type SubAccountCurrencyAsset struct {
-	SubAccount string
-	Currency   *currency.Item
-	Asset      asset.Item
-}
 
 // Pair combines the base and quote into a pair
 func (k *PairAsset) Pair() currency.Pair {
 	if k == nil || (k.Base == nil && k.Quote == nil) {
 		return currency.EMPTYPAIR
 	}
-	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
+
+
+// SubAccountAsset is a unique map key signature for subaccount and asset
+type SubAccountAsset struct {
+	SubAccount string
+	Asset      asset.Item
+}
+
+

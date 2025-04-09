@@ -475,6 +475,12 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
+	tradeFeed := d.IsTradeFeedEnabled()
+	saveTradeData := d.IsSaveTradeDataEnabled()
+	if !tradeFeed && !saveTradeData {
+		return nil
+	}
+
 	if len(channels) < 3 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -488,30 +494,34 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	if len(tradeList) == 0 {
 		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
 	}
-	tradeDatas := make([]trade.Data, len(tradeList))
-	for x := range tradeDatas {
+	tradesData := make([]trade.Data, len(tradeList))
+	for x := range tradesData {
 		var cp currency.Pair
 		var a asset.Item
 		cp, a, err = d.getAssetPairByInstrument(tradeList[x].InstrumentName)
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(tradeList[x].Direction)
-		if err != nil {
-			return err
-		}
-		tradeDatas[x] = trade.Data{
+		tradesData[x] = trade.Data{
 			CurrencyPair: cp,
 			Exchange:     d.Name,
-			Timestamp:    tradeList[x].Timestamp.Time(),
+			Timestamp:    tradeList[x].Timestamp.Time().UTC(),
 			Price:        tradeList[x].Price,
 			Amount:       tradeList[x].Amount,
-			Side:         side,
+			Side:         tradeList[x].Direction,
 			TID:          tradeList[x].TradeID,
 			AssetType:    a,
 		}
 	}
-	return trade.AddTradesToBuffer(tradeDatas...)
+	if tradeFeed {
+		for i := range tradesData {
+			d.Websocket.DataHandler <- tradesData[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(tradesData...)
+	}
+	return nil
 }
 
 func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) error {
@@ -684,7 +694,9 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		if orderbookData.Type == "snapshot" {
+
+		switch orderbookData.Type {
+		case "snapshot":
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
@@ -695,7 +707,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Asset:           a,
 				LastUpdateID:    orderbookData.ChangeID,
 			})
-		} else if orderbookData.Type == "change" {
+		case "change":
 			return d.Websocket.Orderbook.Update(&orderbook.Update{
 				Asks:       asks,
 				Bids:       bids,
