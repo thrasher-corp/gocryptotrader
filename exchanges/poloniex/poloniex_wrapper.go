@@ -234,7 +234,6 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 			if !strings.EqualFold(instruments[i].Status, "Open") {
 				continue
 			}
-			println("instruments[i].Symbol: ", instruments[i].Symbol)
 			cp, err = currency.NewPairFromString(instruments[i].Symbol)
 			if err != nil {
 				return nil, err
@@ -1047,28 +1046,18 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, err
 		}
 		orderTrades := make([]order.TradeHistory, len(trades))
-		var oType order.Type
-		var oSide order.Side
 		for i := range trades {
-			oType, err = order.StringToOrderType(trades[i].Type)
-			if err != nil {
-				return nil, err
-			}
-			oSide, err = order.StringToOrderSide(trades[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			orderTrades[i] = order.TradeHistory{
-				Price:     trades[i].Price.Float64(),
-				Amount:    trades[i].Quantity.Float64(),
-				Fee:       trades[i].FeeAmount.Float64(),
 				Exchange:  p.Name,
 				TID:       trades[i].ID,
-				Type:      oType,
-				Side:      oSide,
-				Timestamp: trades[i].CreateTime.Time(),
 				FeeAsset:  trades[i].FeeCurrency,
+				Price:     trades[i].Price.Float64(),
 				Total:     trades[i].Amount.Float64(),
+				Timestamp: trades[i].CreateTime.Time(),
+				Amount:    trades[i].Quantity.Float64(),
+				Fee:       trades[i].FeeAmount.Float64(),
+				Side:      stringToOrderSide(trades[i].Side),
+				Type:      StringToOrderType(trades[i].Type),
 			}
 		}
 		var smartOrders []SmartOrderDetail
@@ -1081,7 +1070,6 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				return nil, order.ErrOrderNotFound
 			}
 			var dPair currency.Pair
-			var oStatus order.Status
 			if len(smartOrders) > 0 {
 				dPair, err = currency.NewPairFromString(smartOrders[0].Symbol)
 				if err != nil {
@@ -1089,44 +1077,24 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				} else if !pair.IsEmpty() && !dPair.Equal(pair) {
 					return nil, fmt.Errorf("order with ID %s expected a symbol %v, but got %v", orderID, pair, dPair)
 				}
-				oStatus, err = order.StringToOrderStatus(smartOrders[0].State)
-				if err != nil {
-					return nil, err
-				}
-				oSide, err = order.StringToOrderSide(smartOrders[0].Side)
-				if err != nil {
-					return nil, err
-				}
 				return &order.Detail{
-					Price:         smartOrders[0].Price.Float64(),
-					Amount:        smartOrders[0].Quantity.Float64(),
-					QuoteAmount:   smartOrders[0].Amount.Float64(),
+					Side:          stringToOrderSide(smartOrders[0].Side),
+					Pair:          dPair,
 					Exchange:      p.Name,
+					Trades:        orderTrades,
 					OrderID:       smartOrders[0].ID,
+					TimeInForce:   smartOrders[0].TimeInForce,
 					ClientOrderID: smartOrders[0].ClientOrderID,
-					Type:          StringToOrderType(smartOrders[0].Type),
-					Side:          oSide,
-					Status:        oStatus,
-					AssetType:     stringToAccountType(smartOrders[0].AccountType),
+					Price:         smartOrders[0].Price.Float64(),
+					QuoteAmount:   smartOrders[0].Amount.Float64(),
 					Date:          smartOrders[0].CreateTime.Time(),
 					LastUpdated:   smartOrders[0].UpdateTime.Time(),
-					Pair:          dPair,
-					Trades:        orderTrades,
-					TimeInForce:   smartOrders[0].TimeInForce,
+					Amount:        smartOrders[0].Quantity.Float64(),
+					Type:          StringToOrderType(smartOrders[0].Type),
+					Status:        orderStateFromString(smartOrders[0].State),
+					AssetType:     stringToAccountType(smartOrders[0].AccountType),
 				}, nil
 			}
-		}
-		oType, err = order.StringToOrderType(resp.Type)
-		if err != nil {
-			return nil, err
-		}
-		oStatus, err := order.StringToOrderStatus(resp.State)
-		if err != nil {
-			return nil, err
-		}
-		oSide, err = order.StringToOrderSide(resp.Side)
-		if err != nil {
-			return nil, err
 		}
 		return &order.Detail{
 			Price:                resp.Price.Float64(),
@@ -1136,12 +1104,12 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			ExecutedAmount:       resp.FilledQuantity.Float64(),
 			RemainingAmount:      resp.Quantity.Float64() - resp.FilledAmount.Float64(),
 			Cost:                 resp.FilledQuantity.Float64() * resp.AvgPrice.Float64(),
+			Side:                 stringToOrderSide(resp.Side),
 			Exchange:             p.Name,
 			OrderID:              resp.ID,
 			ClientOrderID:        resp.ClientOrderID,
-			Type:                 oType,
-			Side:                 oSide,
-			Status:               oStatus,
+			Type:                 StringToOrderType(resp.Type),
+			Status:               orderStateFromString(resp.State),
 			AssetType:            stringToAccountType(resp.AccountType),
 			Date:                 resp.CreateTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
@@ -1168,14 +1136,6 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		oStatus, err := order.StringToOrderStatus(orderDetail.State)
-		if err != nil {
-			return nil, err
-		}
-		oSide, err := order.StringToOrderSide(orderDetail.Side)
-		if err != nil {
-			return nil, err
-		}
 		return &order.Detail{
 			Price:                orderDetail.Price.Float64(),
 			Amount:               orderDetail.Quantity.Float64(),
@@ -1187,8 +1147,8 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Exchange:             p.Name,
 			ClientOrderID:        orderDetail.ClientOrderID,
 			Type:                 oType,
-			Side:                 oSide,
-			Status:               oStatus,
+			Side:                 stringToOrderSide(orderDetail.Side),
+			Status:               orderStateFromString(orderDetail.State),
 			AssetType:            asset.Futures,
 			Date:                 orderDetail.CreationTime.Time(),
 			LastUpdated:          orderDetail.UpdateTime.Time(),
@@ -1197,6 +1157,42 @@ func (p *Poloniex) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}, nil
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
+	}
+}
+
+// stringToOrderSide converts order side string representation to order.Side instance
+func stringToOrderSide(orderSide string) order.Side {
+	switch strings.ToUpper(orderSide) {
+	case order.Sell.String():
+		return order.Sell
+	case order.Buy.String():
+		return order.Buy
+	case order.Short.String():
+		return order.Short
+	case order.Long.String():
+		return order.Long
+	default:
+		return order.UnknownSide
+	}
+}
+
+// orderStateFromString returns an order.Status instance from a string representation
+func orderStateFromString(orderState string) order.Status {
+	switch orderState {
+	case "NEW":
+		return order.New
+	case "FAILED":
+		return order.Closed
+	case "FILLED":
+		return order.Filled
+	case "CANCELED":
+		return order.Cancelled
+	case "PARTIALLY_CANCELED":
+		return order.PartiallyCancelled
+	case "PARTIALLY_FILLED":
+		return order.PartiallyFilled
+	default:
+		return order.UnknownStatus
 	}
 }
 
@@ -1317,18 +1313,21 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
-	err := req.Validate()
-	if err != nil {
-		return nil, err
-	}
 	var samplePair currency.Pair
 	if len(req.Pairs) == 1 {
 		samplePair = req.Pairs[0]
 	}
+	var sideString string
+	switch {
+	case req.Side.IsLong():
+		sideString = order.Buy.String()
+	case req.Side.IsShort():
+		sideString = order.Sell.String()
+	}
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.Spot:
-		resp, err := p.GetOpenOrders(ctx, samplePair, req.Side.String(), "", req.FromOrderID, 0)
+		resp, err := p.GetOpenOrders(ctx, samplePair, sideString, "", req.FromOrderID, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1363,7 +1362,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			})
 		}
 	case asset.Futures:
-		fOrders, err := p.GetCurrentOrders(context.Background(), samplePair.String(), req.Side.String(), "", "", "", 0, 0)
+		fOrders, err := p.GetCurrentFuturesOrders(context.Background(), samplePair.String(), sideString, "", "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1974,7 +1973,7 @@ func OrderTypeString(oType order.Type) (string, error) {
 
 // StringToOrderType returns an order.Type instance from string
 func StringToOrderType(oTypeString string) order.Type {
-	switch oTypeString {
+	switch strings.ToUpper(oTypeString) {
 	case "STOP":
 		return order.Stop
 	case "STOP_LIMIT":
@@ -1983,6 +1982,10 @@ func StringToOrderType(oTypeString string) order.Type {
 		return order.TrailingStop
 	case "TRAILING_STOP_LIMIT":
 		return order.TrailingStopLimit
+	case "MARKET":
+		return order.Market
+	case "LIMIT_MAKER":
+		return order.LimitMaker
 	default:
 		return order.Limit
 	}

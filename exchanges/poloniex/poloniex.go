@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1102,6 +1103,8 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	err = p.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest)
 	if err != nil {
 		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+	} else if reflect.ValueOf(result).IsNil() {
+		return common.ErrNoResponse
 	}
 	return nil
 }

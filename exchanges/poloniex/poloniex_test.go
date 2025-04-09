@@ -151,16 +151,21 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err := p.GetActiveOrders(context.Background(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{Type: order.Liquidation, AssetType: asset.Futures, Side: order.AnySide})
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+	_, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	result, err := p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
-		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Side:      order.AnySide,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = p.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
+		AssetType: asset.Futures,
+		Side:      order.Buy,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -229,9 +234,7 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = p.SubmitOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	result, err := p.SubmitOrder(context.Background(), &order.Submit{
 		Exchange:  p.Name,
 		Pair:      spotTradablePair,
@@ -1108,7 +1111,7 @@ func TestGetOrderInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = p.GetOrderInfo(context.Background(), "1234", futuresTradablePair, asset.Futures)
+	result, err = p.GetOrderInfo(context.Background(), "12345", futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1144,7 +1147,9 @@ func TestNewCurrencyDepoditAddress(t *testing.T) {
 	_, err := p.NewCurrencyDepositAddress(context.Background(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
 	result, err := p.NewCurrencyDepositAddress(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1162,7 +1167,9 @@ func TestWithdrawCurrency(t *testing.T) {
 	_, err = p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{Currency: currency.BTC.String(), Amount: 1})
 	require.ErrorIs(t, err, errAddressRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
+	}
 	result, err := p.WithdrawCurrency(context.Background(), &WithdrawCurrencyParam{Currency: currency.BTC.String(), Amount: 1, Address: "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1458,7 +1465,9 @@ func TestGetSmartOrderDetail(t *testing.T) {
 	_, err := p.GetSmartOrderDetail(context.Background(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	}
 	result, err := p.GetSmartOrderDetail(context.Background(), "123313413", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1644,8 +1653,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = p.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
 	require.NoError(t, err)
 
-	p.Verbose = true
-	println("spotTradablePair: ", spotTradablePair.String())
 	spotInstruments, err := p.GetSymbolInformation(context.Background(), spotTradablePair)
 	require.NoError(t, err)
 	require.NotNil(t, instrument)
@@ -1756,9 +1763,7 @@ func TestPlaceV3FuturesOrder(t *testing.T) {
 	_, err = p.PlaceV3FuturesOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	_, err = p.PlaceV3FuturesOrder(context.Background(), &FuturesParams{
 		ClientOrderID:           "939a9d51-8f32-443a-9fb8-ff0852010487",
 		Symbol:                  "BTC_USDT_PERP",
@@ -1801,9 +1806,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{arg})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	result, err := p.PlaceV3FuturesMultipleOrders(context.Background(), []FuturesParams{
 		{
 			ClientOrderID:           "939a9d51",
@@ -1835,9 +1838,7 @@ func TestCancelV3FuturesOrder(t *testing.T) {
 	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{Symbol: futuresTradablePair.String()})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
 	_, err = p.CancelV3FuturesOrder(context.Background(), &CancelOrderParams{Symbol: futuresTradablePair.String(), OrderID: "12345"})
 	require.NoError(t, err)
 }
@@ -1901,7 +1902,7 @@ func TestGetCurrentOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	result, err := p.GetCurrentOrders(context.Background(), futuresTradablePair.String(), "SELL", "", "", "NEXT", 0, 100)
+	result, err := p.GetCurrentFuturesOrders(context.Background(), futuresTradablePair.String(), "SELL", "", "", "NEXT", 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2242,5 +2243,37 @@ func TestStringToOrderType(t *testing.T) {
 	for k, v := range orderTypeStringToTypeMap {
 		result := StringToOrderType(k)
 		assert.Equal(t, result, v)
+	}
+}
+
+func TestOrderStateString(t *testing.T) {
+	t.Parallel()
+	orderStatusToStringMap := map[string]order.Status{
+		"NEW":                order.New,
+		"FAILED":             order.Closed,
+		"FILLED":             order.Filled,
+		"CANCELED":           order.Cancelled,
+		"abcd":               order.UnknownStatus,
+		"PARTIALLY_FILLED":   order.PartiallyFilled,
+		"PARTIALLY_CANCELED": order.PartiallyCancelled,
+	}
+	for k, v := range orderStatusToStringMap {
+		result := orderStateFromString(k)
+		assert.Equal(t, v, result)
+	}
+}
+
+func TestStringToOrderSide(t *testing.T) {
+	t.Parallel()
+	stringToOrderSideMap := map[string]order.Side{
+		order.Sell.String():  order.Sell,
+		order.Buy.String():   order.Buy,
+		order.Short.String(): order.Short,
+		order.Long.String():  order.Long,
+		"":                   order.UnknownSide,
+	}
+	for k, v := range stringToOrderSideMap {
+		result := stringToOrderSide(k)
+		assert.Equal(t, v, result)
 	}
 }

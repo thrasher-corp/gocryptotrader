@@ -76,7 +76,7 @@ func (p *Poloniex) PlaceV3FuturesOrder(ctx context.Context, arg *FuturesParams) 
 }
 
 // PlaceV3FuturesMultipleOrders place orders in a batch. A maximum of 10 orders can be placed per request.
-func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesParams) (interface{}, error) {
+func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []FuturesParams) ([]FuturesV3OrderItem, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -86,7 +86,7 @@ func (p *Poloniex) PlaceV3FuturesMultipleOrders(ctx context.Context, args []Futu
 			return nil, err
 		}
 	}
-	var resp interface{}
+	var resp []FuturesV3OrderItem
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/orders", nil, args, &resp, true)
 }
 
@@ -187,8 +187,8 @@ func (p *Poloniex) CloseAllAtMarketPrice(ctx context.Context) ([]FuturesV3OrderI
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "/v3/trade/positionAll", nil, nil, &resp, true)
 }
 
-// GetCurrentOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
-func (p *Poloniex) GetCurrentOrders(ctx context.Context, symbol, side, orderID, clientOrderID, direction string, offset, limit int64) ([]FuturesV3OrderDetail, error) {
+// GetCurrentFuturesOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
+func (p *Poloniex) GetCurrentFuturesOrders(ctx context.Context, symbol, side, orderID, clientOrderID, direction string, offset, limit int64) ([]FuturesV3OrderDetail, error) {
 	params := url.Values{}
 	if side != "" {
 		params.Set("side", side)

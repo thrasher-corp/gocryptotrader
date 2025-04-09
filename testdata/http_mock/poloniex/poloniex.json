@@ -121826,13 +121826,13 @@
        "1500"
       ],
       "Signature": [
-       "6A6NwH8MwannmZy+VbQsRRNqjkr/SfVnCxJMju7qswI="
+       "vAiV7hMWD8X7YZjLP2cNoaQzFvPAVjJrHhPfpT+cacc="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743973366204"
+       "1744210685256"
       ]
      }
     }
@@ -121884,13 +121884,13 @@
        "1500"
       ],
       "Signature": [
-       "VCeJo73ighDeEVDkPgsRNmQY+qoKTuR9WUmm2DnAF1c="
+       "LubYbOB6TnNieWcFgKX7BPAjKWIAyY9szG0iiX4mcDA="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744206459304"
+       "1744210774948"
       ]
      }
     }
@@ -121948,13 +121948,13 @@
        "1500"
       ],
       "Signature": [
-       "wK/Z6GwXmKYJFeNjHFnVp1/0RtNfLYhhlYydEi3B0Uo="
+       "x2ye2eKfZxi6W8DiGPypKURqp8/7B+uItIWWS9C/ew4="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743583199424"
+       "1744226197772"
       ]
      }
     }
@@ -121977,13 +121977,13 @@
        "1500"
       ],
       "Signature": [
-       "+V7f5qJWFsCnD/hGpNSo6v/nLtjcLu4YaHsNtBg8Mdc="
+       "iv3BVbsBgMFErbEHAGvrRnjjCnthHPvssQ46WD3Kq04="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743583198410"
+       "1744226196753"
       ]
      }
     }
@@ -122296,13 +122296,13 @@
        "1500"
       ],
       "Signature": [
-       "DCXl2R/oflDokAeCHiY8FWGMhpXbAkgFjNRdPErp+ag="
+       "FhcEbSpdL9YGR+lHC06CMUJrYQ3ivJmCllj7gp0IqVU="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744206460049"
+       "1744210775811"
       ]
      }
     }
@@ -122397,13 +122397,13 @@
        "1500"
       ],
       "Signature": [
-       "yo7bqWJz9Z9Cr09MsaShnslGSS6mngMy4jTEff4XEbQ="
+       "vpovqhJFWs9V3H5EB26xnX6A9oFYRHXpOLMqOCFieyU="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1743583199898"
+       "1744226198368"
       ]
      }
     }
@@ -166839,6 +166839,34 @@
        "1742836395699"
       ]
      }
+    },
+    {
+     "data": {
+      "code": 10042,
+      "msg": "Trading operation is not allowed."
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"mgnMode\":\"\",\"posSide\":\"LONG\",\"type\":\"MARKET\",\"px\":\"10\",\"sz\":10000000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "IbPQWLXxz8YKHgrUPB6OND/wX/YjIPg4TmXEgPMTFss="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1744210776381"
+      ]
+     }
     }
    ]
   },
@@ -167106,6 +167134,64 @@
       ],
       "Signtimestamp": [
        "1744198143418"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "qcHHb2Oy3I2fSF5UYx3zSLcfP90Is9PnK5WUYaabuT0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1744210640941"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [],
+      "msg": ""
+     },
+     "queryString": "side=BUY",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Wv3cL+Qy7x2A/XGrVGSMN0TKiNs0Ho+7yQzMLm4kpNQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1744210686215"
       ]
      }
     }
@@ -167597,6 +167683,37 @@
     }
    ]
   },
+  "/wallets/address": {
+   "POST": [
+    {
+     "data": {
+      "address": "14Lu2iKmxENf9w8busaaU9GHPZhDSeZ9y6"
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "CzztpxlAJv9MdgA6NmDbYtrRurCE9wyEJtoLUizjHjc="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1744227236306"
+      ]
+     }
+    }
+   ]
+  },
   "/wallets/addresses": {
    "GET": [
     {
@@ -167648,6 +167765,38 @@
       ],
       "Signtimestamp": [
        "1744186266583"
+      ]
+     }
+    }
+   ]
+  },
+  "/wallets/withdraw": {
+   "POST": [
+    {
+     "data": {
+      "code": 403,
+      "message": "Permission to withdraw denied."
+     },
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\",\"amount\":\"1\",\"address\":\"0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "7K/fZY8/Nem7gcxsaeYXOgLsSbbbQu4KkuQoUcGBQLg="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1744227282662"
       ]
      }
     }
