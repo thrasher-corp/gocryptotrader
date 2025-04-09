@@ -64,9 +64,8 @@ var (
 
 // Websocket functionality list and state consts
 const (
-	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
-	UnhandledMessage                   = " - Unhandled websocket message: "
-	jobBuffer                          = 5000
+	UnhandledMessage = " - Unhandled websocket message: "
+	jobBuffer        = 5000
 )
 
 const (
@@ -733,7 +732,7 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 		if m.CanUseAuthenticatedEndpoints() {
 			return true
 		}
-		log.Infof(log.WebsocketMgr, WebsocketNotAuthenticatedUsingRest, m.exchangeName)
+		log.Infof(log.WebsocketMgr, "%v - Websocket not authenticated, using REST\n", m.exchangeName)
 	}
 	return false
 }
