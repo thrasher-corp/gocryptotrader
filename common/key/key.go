@@ -27,9 +27,6 @@ func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) Exchan
 
 // Pair combines the base and quote into a pair
 func (k ExchangePairAsset) Pair() currency.Pair {
-	if k.Base == nil && k.Quote == nil {
-		return currency.EMPTYPAIR
-	}
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
@@ -65,9 +62,6 @@ type PairAsset struct {
 
 // Pair combines the base and quote into a pair
 func (k PairAsset) Pair() currency.Pair {
-	if k.Base == nil && k.Quote == nil {
-		return currency.EMPTYPAIR
-	}
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
