@@ -2,6 +2,7 @@ package testhelpers
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"reflect"
 
@@ -41,27 +42,28 @@ func GetConnectionDetails() *database.Config {
 
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
 func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
-	err = database.DB.SetConfig(conn)
-	if err != nil {
+	if err := database.DB.SetConfig(conn); err != nil {
 		return nil, err
-	}
-	if conn.Driver == database.DBPostgreSQL {
-		dbConn, err = psqlConn.Connect(conn)
-		if err != nil {
-			return nil, err
-		}
-	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
-		database.DB.DataPath = TempDir
-		dbConn, err = sqliteConn.Connect(conn.Database)
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	err = migrateDB(database.DB.SQL)
+	switch conn.Driver {
+	case database.DBPostgreSQL:
+		dbConn, err = psqlConn.Connect(conn)
+	case database.DBSQLite3, database.DBSQLite:
+		database.DB.DataPath = TempDir
+		dbConn, err = sqliteConn.Connect(conn.Database)
+	default:
+		return nil, fmt.Errorf("unsupported database driver: %q", conn.Driver)
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
+	if err := migrateDB(database.DB.SQL); err != nil {
+		return nil, err
+	}
+
 	database.DB.SetConnected(true)
 	return
 }

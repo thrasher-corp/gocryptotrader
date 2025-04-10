@@ -3667,7 +3667,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 
 // GetUnderlyingFromCurrencyPair returns an underlying string from a currency pair
 func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, error) {
-	pairString := strings.Replace(p.Upper().String(), currency.DashDelimiter, currency.UnderscoreDelimiter, -1)
+	pairString := strings.ReplaceAll(p.Upper().String(), currency.DashDelimiter, currency.UnderscoreDelimiter)
 	ccies := strings.Split(pairString, currency.UnderscoreDelimiter)
 	if len(ccies) < 2 {
 		return currency.EMPTYPAIR, fmt.Errorf("invalid currency pair %v", p)

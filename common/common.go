@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
+	"unsafe"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -79,6 +80,22 @@ var (
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 )
+
+// NilGuard returns an ErrNilPointer with the type of the first nil argument
+func NilGuard(ptrs ...any) (errs error) {
+	for _, p := range ptrs {
+		/* 	Internally interfaces contain a type and a value address
+		Obviously can't compare to nil, since the types won't match, so we look into the interface
+		eface is the internal representation of any; e(mpty-inter)face
+		See: https://cs.opensource.google/go/go/+/refs/tags/go1.24.1:src/runtime/runtime2.go;l=184-187
+		We optimize here by converting to [2]uintptr and just checking the address, instead of casting to a local eface type
+		*/
+		if (*[2]uintptr)(unsafe.Pointer(&p))[1] == 0 {
+			errs = AppendError(errs, fmt.Errorf("%w: %T", ErrNilPointer, p))
+		}
+	}
+	return errs
+}
 
 // MatchesEmailPattern ensures that the string is an email address by regexp check
 func MatchesEmailPattern(value string) bool {
@@ -588,7 +605,7 @@ func GenerateRandomString(length uint, characters ...string) (string, error) {
 		return "", errors.New("invalid length, length must be non-zero positive integer")
 	}
 	b := make([]byte, length)
-	chars := strings.Replace(strings.Join(characters, ""), " ", "", -1)
+	chars := strings.ReplaceAll(strings.Join(characters, ""), " ", "")
 	if chars == "" && len(characters) != 0 {
 		return "", errors.New("invalid characters, character must not be empty")
 	} else if chars == "" {

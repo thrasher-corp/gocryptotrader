@@ -9,17 +9,17 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 const (
@@ -37,10 +37,10 @@ var defaultSubscriptions = subscription.List{
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
@@ -92,7 +92,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%s: %w",
 			resp.ResponseMessage,
-			stream.ErrSubscriptionFailure)
+			websocket.ErrSubscriptionFailure)
 	}
 
 	switch resp.Type {

@@ -23,10 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -284,7 +284,7 @@ func TestTickerFromFundingResp(t *testing.T) {
 	assert.Equal(t, 11.11, tick.Volume, "Tick Volume should be correct")
 	assert.Equal(t, 12.12, tick.High, "Tick High should be correct")
 	assert.Equal(t, 13.13, tick.Low, "Tick Low should be correct")
-	assert.Equal(t, 15.15, tick.FFRAmountAvailable, "Tick FFRAmountAvailable should be correct")
+	assert.Equal(t, 15.15, tick.FRRAmountAvailable, "Tick FRRAmountAvailable should be correct")
 }
 
 func TestGetTickerFunding(t *testing.T) {
@@ -314,7 +314,7 @@ func checkFundingTick(tb testing.TB, tick *Ticker) {
 	assert.Positive(tb, tick.AskPeriod, "Tick AskPeriod should be positive")
 	assert.Positive(tb, tick.AskSize, "Tick AskSize should be positive")
 	assert.Positive(tb, tick.Last, "Tick Last should be positive")
-	assert.Positive(tb, tick.FFRAmountAvailable, "Tick FFRAmountavailable should be positive")
+	// Can't test FRRAmountAvailable as it's occasionally 0
 }
 
 func TestGetTrades(t *testing.T) {
@@ -1105,7 +1105,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWSAuth dials websocket, sends login request.
 func TestWSAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.API.AuthenticatedWebsocketSupport {
@@ -1134,6 +1134,8 @@ func TestWSAuth(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	b := new(Bitfinex) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Setup must not error")
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := b.generateSubscriptions()
@@ -1331,8 +1333,8 @@ func TestWSSubscribedResponse(t *testing.T) {
 	assert.NoError(t, err, "Setting a matcher should not error")
 	err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	if assert.Error(t, err, "Should error if sub is not registered yet") {
-		assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Should error SubFailure if sub isn't registered yet")
-		assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Should error SubNotFound if sub isn't registered yet")
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Should error SubFailure if sub isn't registered yet")
+		assert.ErrorIs(t, err, subscription.ErrNotFound, "Should error SubNotFound if sub isn't registered yet")
 		assert.ErrorContains(t, err, "waiter1", "Should error containing subID if")
 	}
 

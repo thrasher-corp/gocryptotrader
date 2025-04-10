@@ -216,7 +216,7 @@ func TestRemove(t *testing.T) {
 	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
 
 	newPairs = newPairs.Remove(oldPairs[0])
-	assert.Len(t, newPairs, 1, newPairs, "Remove have no effect on non-included pairs")
+	assert.Len(t, newPairs, 1, "Remove should have no effect on non-included pairs")
 }
 
 func TestAdd(t *testing.T) {

@@ -83,7 +83,7 @@ func TestUpdate(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	t1 := h.Timestamp // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	t1 := h.Timestamp
 	err = h.Update(&fill.Fill{
 		Base: &event.Base{
 			Time: time.Now(),
