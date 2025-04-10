@@ -25,10 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -207,7 +207,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.NewWebsocket()
+	by.Websocket = websocket.NewManager()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -235,7 +235,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	err = by.Websocket.Setup(
-		&stream.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            spotPublic,
 			RunningURL:            wsRunningEndpoint,
@@ -254,7 +254,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  by.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     bybitWebsocketTimer,
@@ -263,7 +263,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  websocketPrivate,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

@@ -27,11 +27,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -197,7 +197,7 @@ func (b *Binance) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -218,7 +218,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            binanceDefaultWebsocketURL,
 		RunningURL:            ePoint,
@@ -237,7 +237,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),

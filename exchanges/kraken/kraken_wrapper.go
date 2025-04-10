@@ -26,10 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -170,7 +170,7 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = stream.NewWebsocket()
+	k.Websocket = websocket.NewManager()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -195,7 +195,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = k.Websocket.Setup(&stream.WebsocketSetup{
+	err = k.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
@@ -210,7 +210,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -223,7 +223,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return k.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

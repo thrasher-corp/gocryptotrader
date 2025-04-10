@@ -28,10 +28,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -178,7 +178,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.NewWebsocket()
+	ok.Websocket = websocket.NewManager()
 	ok.WebsocketResponseMaxLimit = websocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = websocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -209,7 +209,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
+	if err := ok.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             apiWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
@@ -229,7 +229,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apiWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
@@ -238,7 +238,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apiWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,

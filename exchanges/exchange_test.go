@@ -25,10 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -207,7 +207,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		Requester: requester,
 	}
 
-	newBase.Websocket = stream.NewWebsocket()
+	newBase.Websocket = websocket.NewManager()
 	err = newBase.SetClientProxyAddress("")
 	if err != nil {
 		t.Error(err)
@@ -867,9 +867,9 @@ func TestSetupDefaults(t *testing.T) {
 	}
 
 	// Test websocket support
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.Features.Supports.Websocket = true
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: &config.Exchange{
 			WebsocketTrafficTimeout: time.Second * 30,
 			Name:                    "test",
@@ -1194,8 +1194,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		t.Error("exchange doesn't support websocket")
 	}
 
-	b.Websocket = stream.NewWebsocket()
-	err := b.Websocket.Setup(&stream.WebsocketSetup{
+	b.Websocket = websocket.NewManager()
+	err := b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: &config.Exchange{
 			Enabled:                 true,
 			WebsocketTrafficTimeout: time.Second * 30,
@@ -1604,7 +1604,7 @@ func TestGetWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	_, err = b.GetWebsocket()
 	if err != nil {
 		t.Fatal(err)
@@ -1618,7 +1618,7 @@ func TestFlushWebsocketChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	err = b.FlushWebsocketChannels()
 	if err == nil {
 		t.Fatal(err)
@@ -1632,7 +1632,7 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	err = b.SubscribeToWebsocketChannels(nil)
 	if err == nil {
 		t.Fatal(err)
@@ -1644,7 +1644,7 @@ func TestUnsubscribeToWebsocketChannels(t *testing.T) {
 	err := b.UnsubscribeToWebsocketChannels(nil)
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	err = b.UnsubscribeToWebsocketChannels(nil)
 	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
@@ -1656,7 +1656,7 @@ func TestGetSubscriptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	_, err = b.GetSubscriptions()
 	if err != nil {
 		t.Fatal(err)
@@ -2898,7 +2898,7 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	t.Parallel()
 	e := &FakeBase{}
 	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints(), "CanUseAuthenticatedWebsocketEndpoints should return false with nil websocket")
-	e.Websocket = stream.NewWebsocket()
+	e.Websocket = websocket.NewManager()
 	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints())
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
