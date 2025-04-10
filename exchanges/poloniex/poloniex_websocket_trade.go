@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 // WsCreateOrder create an order for an account.
@@ -64,7 +64,7 @@ func (p *Poloniex) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsC
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
 func (p *Poloniex) SendWebsocketRequest(event string, arg, response interface{}) error {
 	if !p.Websocket.IsConnected() || !p.Websocket.CanUseAuthenticatedEndpoints() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 	input := &struct {
 		ID     string      `json:"id"`

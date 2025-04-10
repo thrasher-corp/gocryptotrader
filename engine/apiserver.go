@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -489,13 +489,13 @@ func (c *websocketClient) read() {
 	for {
 		msgType, message, err := c.Conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if gws.IsUnexpectedCloseError(err, gws.CloseGoingAway, gws.CloseAbnormalClosure) {
 				log.Errorf(log.APIServerMgr, "websocket: client disconnected, err: %s\n", err)
 			}
 			break
 		}
 
-		if msgType == websocket.TextMessage {
+		if msgType == gws.TextMessage {
 			var evt WebsocketEvent
 			err := json.Unmarshal(message, &evt)
 			if err != nil {
@@ -551,7 +551,7 @@ func (c *websocketClient) write() {
 	for {
 		message, ok := <-c.Send
 		if !ok {
-			err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+			err := c.Conn.WriteMessage(gws.CloseMessage, []byte{})
 			if err != nil {
 				log.Errorln(log.APIServerMgr, err)
 			}
@@ -559,7 +559,7 @@ func (c *websocketClient) write() {
 			return
 		}
 
-		w, err := c.Conn.NextWriter(websocket.TextMessage)
+		w, err := c.Conn.NextWriter(gws.TextMessage)
 		if err != nil {
 			log.Errorf(log.APIServerMgr, "websocket: failed to create new io.writeCloser: %s\n", err)
 			return
@@ -628,7 +628,7 @@ func (m *apiServerManager) WebsocketClientHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	upgrader := websocket.Upgrader{
+	upgrader := gws.Upgrader{
 		WriteBufferSize: 1024,
 		ReadBufferSize:  1024,
 	}

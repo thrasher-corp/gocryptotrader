@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -19,10 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -74,9 +74,9 @@ var onceFuturesOrderbook map[string]bool
 // WsFuturesConnect establishes a websocket connection to the futures websocket server.
 func (p *Poloniex) WsFuturesConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	onceFuturesOrderbook = make(map[string]bool)
 	err := p.Websocket.SetWebsocketURL(futuresWebsocketPublicURL, false, false)
 	if err != nil {
@@ -86,10 +86,10 @@ func (p *Poloniex) WsFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	p.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Second * 15,
 		Message:     []byte(`{"type":"ping"}`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		err = p.AuthConnect()
@@ -109,7 +109,7 @@ func (p *Poloniex) AuthConnect() error {
 	if err != nil {
 		return err
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err = p.Websocket.SetWebsocketURL(futuresWebsocketPrivateURL, false, false)
 	if err != nil {
 		return err
@@ -118,10 +118,10 @@ func (p *Poloniex) AuthConnect() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
+	p.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Second * 15,
 		Message:     []byte(`{"type":"ping"}`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 	timestamp := time.Now().UnixMilli()
 	signatureStrings := "GET\n/ws\nsignTimestamp=" + strconv.FormatInt(timestamp, 10)
@@ -159,7 +159,7 @@ func (p *Poloniex) AuthConnect() error {
 }
 
 // wsFuturesReadData handles data from the websocket connection for futures instruments subscriptions.
-func (p *Poloniex) wsFuturesReadData(conn stream.Connection) {
+func (p *Poloniex) wsFuturesReadData(conn websocket.Connection) {
 	defer p.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
@@ -235,7 +235,7 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 	case cnlFuturesAccount:
 		return p.processFuturesAccountData(result.Data)
 	default:
-		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
+		p.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: p.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
 }
@@ -357,7 +357,7 @@ func (p *Poloniex) processFuturesFundingRate(data []byte) error {
 		if err != nil {
 			return err
 		}
-		p.Websocket.DataHandler <- stream.FundingData{
+		p.Websocket.DataHandler <- websocket.FundingData{
 			Timestamp:    resp[a].Timestamp.Time(),
 			CurrencyPair: pair,
 			AssetType:    asset.Futures,
@@ -375,13 +375,13 @@ func (p *Poloniex) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 		return err
 	}
 
-	candles := make([]stream.KlineData, len(resp))
+	candles := make([]websocket.KlineData, len(resp))
 	for a := range resp {
 		pair, err := currency.NewPairFromString(resp[a].Symbol)
 		if err != nil {
 			return err
 		}
-		candles[a] = stream.KlineData{
+		candles[a] = websocket.KlineData{
 			Timestamp:  resp[a].PushTimestamp.Time(),
 			Pair:       pair,
 			AssetType:  asset.Futures,
@@ -540,13 +540,13 @@ func (p *Poloniex) processFuturesCandlesticks(data []byte, interval kline.Interv
 		return err
 	}
 
-	candles := make([]stream.KlineData, len(resp))
+	candles := make([]websocket.KlineData, len(resp))
 	for a := range resp {
 		pair, err := currency.NewPairFromString(resp[a].Symbol)
 		if err != nil {
 			return err
 		}
-		candles[a] = stream.KlineData{
+		candles[a] = websocket.KlineData{
 			Timestamp:  resp[a].PushTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Futures,

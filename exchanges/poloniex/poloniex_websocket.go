@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -18,10 +18,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -58,9 +58,9 @@ var onceOrderbook map[string]struct{}
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -75,9 +75,9 @@ func (p *Poloniex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
+	p.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.TextMessage,
+		MessageType:       gws.TextMessage,
 		Message:           pingPayload,
 		Delay:             30,
 	})
@@ -99,7 +99,7 @@ func (p *Poloniex) wsAuthConn() error {
 		return err
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err = p.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -114,9 +114,9 @@ func (p *Poloniex) wsAuthConn() error {
 	if err != nil {
 		return err
 	}
-	p.Websocket.AuthConn.SetupPingHandler(request.UnAuth, stream.PingHandler{
+	p.Websocket.AuthConn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.TextMessage,
+		MessageType:       gws.TextMessage,
 		Message:           pingPayload,
 		Delay:             30,
 	})
@@ -147,7 +147,7 @@ func (p *Poloniex) wsAuthConn() error {
 }
 
 // wsReadData handles data from the websocket connection
-func (p *Poloniex) wsReadData(conn stream.Connection) {
+func (p *Poloniex) wsReadData(conn websocket.Connection) {
 	defer p.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
@@ -214,7 +214,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		if strings.HasPrefix(result.Channel, cnlCandles) {
 			return p.processCandlestickData(&result)
 		}
-		p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
+		p.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: p.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
 	return nil
@@ -420,13 +420,13 @@ func (p *Poloniex) processCandlestickData(result *SubscriptionResponse) error {
 		return err
 	}
 	var pair currency.Pair
-	candles := make([]stream.KlineData, len(resp))
+	candles := make([]websocket.KlineData, len(resp))
 	for x := range resp {
 		pair, err = currency.NewPairFromString(resp[x].Symbol)
 		if err != nil {
 			return err
 		}
-		candles[x] = stream.KlineData{
+		candles[x] = websocket.KlineData{
 			Pair:       pair,
 			Exchange:   p.Name,
 			Timestamp:  resp[x].Timestamp.Time(),
