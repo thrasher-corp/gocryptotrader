@@ -166,7 +166,7 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID       int64 // Used when no time is provided
+	UpdateID       int64
 	UpdateTime     time.Time
 	UpdatePushedAt time.Time
 	Asset          asset.Item
@@ -176,6 +176,9 @@ type Update struct {
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
+	// AllowEmpty when set to true allows for an empty orderbook update to be loaded for when an UpdateID is needs to be
+	// set but no actual data is present
+	AllowEmpty bool
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or

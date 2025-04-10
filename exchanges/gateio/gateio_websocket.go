@@ -17,6 +17,7 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -52,19 +53,21 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
+
+	spotOrderbookDepthLimit = 100
 )
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: spotOrderbookDepthLimit},
+	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
+	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
 	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 }
-
-var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
 	subscription.TickerChannel:    spotTickerChannel,
@@ -166,7 +169,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -190,7 +193,7 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	case spotOrderbookTickerChannel:
 		return g.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result, push.Time)
+		return g.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return g.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
@@ -361,7 +364,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	}
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Exchange:       g.Name,
-		Pair:           data.CurrencyPair,
+		Pair:           data.Pair,
 		Asset:          asset.Spot,
 		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
@@ -370,41 +373,11 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-
-	if len(data.Asks) == 0 && len(data.Bids) == 0 {
-		return nil
-	}
-
-	enabledAssets := make([]asset.Item, 0, len(standardMarginAssetTypes))
-	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			enabledAssets = append(enabledAssets, a)
-		}
-	}
-
-	sPair := data.CurrencyPair.String()
-	if !fetchedCurrencyPairSnapshotOrderbook[sPair] {
-		orderbooks, err := g.UpdateOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
-		if err != nil {
-			return err
-		}
-		// TODO: handle orderbook update synchronisation
-		for _, a := range enabledAssets {
-			assetOrderbook := *orderbooks
-			assetOrderbook.Asset = a
-			err = g.Websocket.Orderbook.LoadSnapshot(&assetOrderbook)
-			if err != nil {
-				return err
-			}
-		}
-		fetchedCurrencyPairSnapshotOrderbook[sPair] = true
-	}
-
 	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
@@ -415,21 +388,16 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-
-	for _, a := range enabledAssets {
-		if err := g.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateTime:     data.UpdateTime.Time(),
-			UpdatePushedAt: updatePushedAt,
-			Pair:           data.CurrencyPair,
-			Asset:          a,
-			Asks:           asks,
-			Bids:           bids,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return wsOBUpdateMgr.applyUpdate(ctx, g, spotOrderbookDepthLimit, data.FirstUpdateID, &orderbook.Update{
+		UpdateID:       data.LastUpdateID,
+		UpdateTime:     data.UpdateTime.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Pair:           data.Pair,
+		Asset:          asset.Spot,
+		Asks:           asks,
+		Bids:           bids,
+		AllowEmpty:     true,
+	})
 }
 
 func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
@@ -665,6 +633,7 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 			"channelName":         channelName,
 			"singleSymbolChannel": singleSymbolChannel,
 			"interval":            g.GetIntervalString,
+			"validateOrderbook":   validateOrderbookWrapper,
 		}).
 		Parse(subTplText)
 }
@@ -764,11 +733,144 @@ func singleSymbolChannel(name string) bool {
 	return false
 }
 
+// ValidateSubscriptions implements subscription.SubscriptionsValidator interface to ensure that conflicting orderbooks aren't subscribed to
+func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
+	orderbookGuard := map[key.PairAsset]string{}
+	for _, s := range l {
+		n := channelName(s)
+		if !isSingleOrderbookChannel(n) {
+			continue
+		}
+		for _, p := range s.Pairs {
+			k := key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: s.Asset}
+			existingChanName, ok := orderbookGuard[k]
+			if !ok {
+				orderbookGuard[k] = n
+				continue
+			}
+			if existingChanName != n {
+				return fmt.Errorf("%w for `%s %s` between `%s` and `%s`, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, existingChanName, n)
+			}
+		}
+	}
+	return nil
+}
+
+// isSingleOrderbookChannel returns if the channel is a single orderbook channel, as multiple orderbook subscriptions enabled will ruin the stored orderbook.
+func isSingleOrderbookChannel(name string) bool {
+	switch name {
+	case spotOrderbookUpdateChannel,
+		spotOrderbookChannel,
+		spotOrderbookTickerChannel,
+		futuresOrderbookChannel,
+		futuresOrderbookTickerChannel,
+		futuresOrderbookUpdateChannel,
+		optionsOrderbookChannel,
+		optionsOrderbookTickerChannel,
+		optionsOrderbookUpdateChannel:
+		return true
+	}
+	return false
+}
+
+func validateOrderbookWrapper(channel string, a asset.Item, interval kline.Interval, level int) string {
+	if err := validateOrderbook(channel, a, interval, level); err != nil {
+		panic(err)
+	}
+	return "" // return empty string to satisfy the function signature
+}
+
+func validateOrderbook(channel string, a asset.Item, interval kline.Interval, levels int) error {
+	switch channelName(&subscription.Subscription{Channel: channel}) {
+	case spotOrderbookTickerChannel:
+		if interval != kline.TenMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TenMilliseconds)
+		}
+		if levels != 1 {
+			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case spotOrderbookUpdateChannel:
+		if interval != kline.HundredMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
+		}
+		if levels != 100 {
+			return fmt.Errorf("%w for `%s` only `%d` is supported", subscription.ErrInvalidLevel, channel, 100)
+		}
+	case spotOrderbookChannel:
+		if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+		}
+		if levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
+			return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case futuresOrderbookChannel:
+		if interval != 0 {
+			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
+		}
+		if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
+			return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case futuresOrderbookTickerChannel:
+		if interval != 0 {
+			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
+		}
+		if levels != 1 {
+			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case futuresOrderbookUpdateChannel:
+		if a == asset.Futures {
+			if levels != 20 && levels != 50 && levels != 100 {
+				return fmt.Errorf("%w for `%s` only `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
+			}
+			if levels != 20 {
+				if interval == kline.TwentyMilliseconds {
+					return fmt.Errorf("%w for `%s` only `20` levels supports `%s`", subscription.ErrInvalidInterval, channel, kline.TwentyMilliseconds)
+				}
+				if interval != kline.HundredMilliseconds {
+					return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
+				}
+			} else if interval != kline.HundredMilliseconds && interval != kline.TwentyMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
+			}
+		} else {
+			if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+			}
+			if levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
+				return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
+			}
+		}
+	case optionsOrderbookTickerChannel:
+		if interval != 0 {
+			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
+		}
+		if levels != 1 {
+			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case optionsOrderbookUpdateChannel:
+		if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+		}
+		if levels != 5 && levels != 10 && levels != 20 && levels != 50 {
+			return fmt.Errorf("%w for `%s` only `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case optionsOrderbookChannel:
+		if interval != kline.TwoHundredAndFiftyMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TwoHundredAndFiftyMilliseconds)
+		}
+		if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 {
+			return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	}
+	return nil
+}
+
 const subTplText = `
 {{- with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
+				{{- validateOrderbook $name $asset $.S.Interval $.S.Levels }}
 				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
 				{{- $p }}
 				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}

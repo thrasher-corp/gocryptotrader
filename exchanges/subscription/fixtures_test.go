@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"errors"
 	"maps"
 	"strings"
 	"testing"
@@ -12,6 +13,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+var errNaughtySubs = errors.New("naughty subscriptions")
+
+type mockExWithSubValidator struct {
+	Fail bool
+	*mockEx
+}
+
+func (m *mockExWithSubValidator) ValidateSubscriptions(List) error {
+	if m.Fail {
+		return errNaughtySubs
+	}
+	return nil
+}
 
 type mockEx struct {
 	pairs     assetPairs
