@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func mockWsServer(tb testing.TB, msg []byte, w *websocket.Conn) error {
+func mockWsServer(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
 	event, err := jsonparser.GetUnsafeString(msg, "event")
 	if err != nil {
@@ -26,7 +26,7 @@ func mockWsServer(tb testing.TB, msg []byte, w *websocket.Conn) error {
 	return nil
 }
 
-func mockWsCancelOrders(tb testing.TB, msg []byte, w *websocket.Conn) error {
+func mockWsCancelOrders(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
 	var req WsCancelOrderRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
@@ -46,10 +46,10 @@ func mockWsCancelOrders(tb testing.TB, msg []byte, w *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
-	return w.WriteMessage(websocket.TextMessage, msg)
+	return w.WriteMessage(gws.TextMessage, msg)
 }
 
-func mockWsAddOrder(tb testing.TB, msg []byte, w *websocket.Conn) error {
+func mockWsAddOrder(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
 	var req WsAddOrderRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
@@ -72,5 +72,5 @@ func mockWsAddOrder(tb testing.TB, msg []byte, w *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
-	return w.WriteMessage(websocket.TextMessage, msg)
+	return w.WriteMessage(gws.TextMessage, msg)
 }
