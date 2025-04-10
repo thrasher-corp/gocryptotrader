@@ -156,29 +156,29 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 708 |
+| [thrasher-](https://github.com/thrasher-) | 711 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 369 |
 | [shazbert](https://github.com/shazbert) | 362 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 361 |
 | [gloriousCode](https://github.com/gloriousCode) | 237 |
-| [gbjk](https://github.com/gbjk) | 121 |
+| [gbjk](https://github.com/gbjk) | 123 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [Beadko](https://github.com/Beadko) | 22 |
-| [Rots](https://github.com/Rots) | 15 |
-| [vazha](https://github.com/vazha) | 15 |
+| [Beadko](https://github.com/Beadko) | 24 |
 | [ydm](https://github.com/ydm) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
+| [Rots](https://github.com/Rots) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [samuael](https://github.com/samuael) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [140am](https://github.com/140am) | 8 |
-| [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [geseq](https://github.com/geseq) | 8 |
+| [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [140am](https://github.com/140am) | 8 |
+| [junnplus](https://github.com/junnplus) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
-| [junnplus](https://github.com/junnplus) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |

@@ -724,6 +724,29 @@ func BenchmarkCounter(b *testing.B) {
 	}
 }
 
+func TestNilGuard(t *testing.T) {
+	t.Parallel()
+	err := NilGuard((*int)(nil))
+	assert.ErrorIs(t, err, ErrNilPointer)
+	assert.ErrorContains(t, err, "*int")
+
+	s := "normal input"
+	err = NilGuard(&s, 2, &[]int{4, 5, 6}, []int{1, 2, 3}, new(A))
+	assert.NoError(t, err)
+
+	err = NilGuard(&s, nil, (*int)(nil))
+	assert.ErrorIs(t, err, ErrNilPointer)
+	assert.ErrorContains(t, err, "*int")
+	var mErr *multiError
+	require.ErrorAs(t, err, &mErr, "err must be a multiError")
+	assert.Len(t, mErr.Unwrap(), 2, "Should get 2 errors back")
+
+	assert.ErrorIs(t, NilGuard(nil), ErrNilPointer, "Unusual input of an untyped nil should still error correctly")
+
+	err = NilGuard()
+	require.NoError(t, err, "NilGuard with no arguments should not panic")
+}
+
 func TestThrottledBatch(t *testing.T) {
 	t.Parallel()
 	testSlice := make([]int, 0, 100)
