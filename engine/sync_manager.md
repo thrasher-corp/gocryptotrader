@@ -1,4 +1,4 @@
-# GoCryptoTrader package Sync manager
+# GoCryptoTrader package Sync Manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Sync manager
+## Current Features for Sync Manager
 + The currency pair syncer subsystem is used to keep all trades, tickers and orderbooks up to date for all enabled exchange asset currency pairs
 + It can sync data via a websocket connection or REST and will switch between them if there has been no updates
 + In order to modify the behaviour of the currency pair syncer subsystem, you can change runtime parameters as detailed below:

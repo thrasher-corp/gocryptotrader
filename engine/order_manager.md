@@ -1,4 +1,4 @@
-# GoCryptoTrader package Order manager
+# GoCryptoTrader package Order Manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Order manager
+## Current Features for Order Manager
 + The order manager subsystem stores and monitors all orders from enabled exchanges with API keys and `authenticatedSupport` enabled
 + It can be enabled or disabled via runtime command `-ordermanager=false` and defaults to true
 + All orders placed via GoCryptoTrader will be added to the order manager store

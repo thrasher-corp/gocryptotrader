@@ -1,4 +1,4 @@
-# GoCryptoTrader package Subsystem types
+# GoCryptoTrader package Subsystem Types
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Subsystem types
+## Current Features for Subsystem Types
 + Subsystem contains subsystems that are used at run time by an `engine.Engine`, however they can be setup and run individually.
 + Subsystems are designed to be self contained
 + All subsystems have a public `Setup(...) (..., error)` function to return a valid subsystem ready for use
