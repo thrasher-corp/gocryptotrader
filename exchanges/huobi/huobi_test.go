@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,10 +28,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -1312,9 +1312,9 @@ func TestWSCandles(t *testing.T) {
 	close(h.Websocket.DataHandler)
 	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
 	cAny := <-h.Websocket.DataHandler
-	c, ok := cAny.(stream.KlineData)
+	c, ok := cAny.(websocket.KlineData)
 	require.True(t, ok, "Must get the correct type from DataHandler")
-	exp := stream.KlineData{
+	exp := websocket.KlineData{
 		Timestamp:  time.UnixMilli(1489474082831),
 		Pair:       btcusdtPair,
 		AssetType:  asset.Spot,
@@ -1983,20 +1983,20 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
-func wsFixture(tb testing.TB, msg []byte, w *websocket.Conn) error {
+func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
 	action, _ := jsonparser.GetString(msg, "action")
 	ch, _ := jsonparser.GetString(msg, "ch")
 	if action == "req" && ch == "auth" {
-		return w.WriteMessage(websocket.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
 	}
 	if action == "sub" {
-		return w.WriteMessage(websocket.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
 	}
 	id, _ := jsonparser.GetString(msg, "id")
 	sub, _ := jsonparser.GetString(msg, "sub")
 	if id != "" && sub != "" {
-		return w.WriteMessage(websocket.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
 	}
 	return fmt.Errorf("%w: %s", errors.New("Unhandled mock websocket message"), msg)
 }
