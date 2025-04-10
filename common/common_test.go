@@ -736,7 +736,7 @@ func TestThrottledBatch(t *testing.T) {
 
 	ch := make(chan int, len(testSlice))
 
-	err := ThrottledBatch(10, testSlice, func(_ int, v int) error {
+	throttleProcess := func(_ int, v int) error {
 		m.Lock()
 		defer m.Unlock()
 		if trackIndex[v] {
@@ -745,8 +745,8 @@ func TestThrottledBatch(t *testing.T) {
 		trackIndex[v] = true
 		ch <- v
 		return nil
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, ThrottledBatch(10, testSlice, throttleProcess))
 
 	require.Len(t, trackIndex, len(testSlice))
 
