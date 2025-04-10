@@ -28,8 +28,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -650,7 +650,7 @@ var acceptableErrors = []error{
 	account.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
-	stream.ErrNotConnected,
+	websocket.ErrNotConnected,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
