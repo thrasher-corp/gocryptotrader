@@ -735,7 +735,8 @@ func TestThrottledBatch(t *testing.T) {
 	m := sync.Mutex{}
 
 	ch := make(chan int, len(testSlice))
-	require.NoError(t, ThrottledBatch(10, testSlice, func(_ int, v int) error {
+
+	err := ThrottledBatch(10, testSlice, func(_ int, v int) error {
 		m.Lock()
 		defer m.Unlock()
 		if trackIndex[v] {
@@ -744,7 +745,8 @@ func TestThrottledBatch(t *testing.T) {
 		trackIndex[v] = true
 		ch <- v
 		return nil
-	}))
+	})
+	require.NoError(t, err)
 
 	require.Len(t, trackIndex, len(testSlice))
 

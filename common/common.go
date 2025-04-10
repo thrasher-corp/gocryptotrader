@@ -664,6 +664,7 @@ func (c *Counter) IncrementAndGet() int64 {
 }
 
 // ElementProcessor defines the function signature for processing an individual element with its index.
+// Index required in old subscription matching // TODO: Remove this when gateio templates are updateded to all assets.
 type ElementProcessor[E any] func(index int, element E) error
 
 // ThrottledBatch takes a slice of elements and processes them in batches of `batchSize` concurrently.
