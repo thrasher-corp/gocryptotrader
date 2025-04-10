@@ -27,11 +27,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -196,7 +196,7 @@ func (b *Binance) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -217,7 +217,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            binanceDefaultWebsocketURL,
 		RunningURL:            ePoint,
@@ -236,7 +236,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
@@ -2445,17 +2445,22 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		}
 
 		var c currency.Code
-		if collateralMode == collateral.SingleMode {
+
+		switch collateralMode {
+		case collateral.SingleMode:
 			var collateralAsset *UAsset
-			if strings.Contains(accountPosition.Symbol, usdtAsset.Asset) {
+			switch {
+			case strings.Contains(accountPosition.Symbol, usdtAsset.Asset):
 				collateralAsset = usdtAsset
-			} else if strings.Contains(accountPosition.Symbol, busdAsset.Asset) {
+			case strings.Contains(accountPosition.Symbol, busdAsset.Asset):
 				collateralAsset = busdAsset
 			}
+
 			collateralTotal = collateralAsset.WalletBalance
 			collateralAvailable = collateralAsset.AvailableBalance
 			unrealisedPNL = collateralAsset.UnrealizedProfit
 			c = currency.NewCode(collateralAsset.Asset)
+
 			if marginType == margin.Multi {
 				isolatedMargin = collateralAsset.CrossUnPnl
 				collateralUsed = collateralTotal + isolatedMargin
@@ -2463,7 +2468,8 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 				isolatedMargin = accountPosition.IsolatedWallet
 				collateralUsed = isolatedMargin
 			}
-		} else if collateralMode == collateral.MultiMode {
+
+		case collateral.MultiMode:
 			collateralTotal = ai.TotalWalletBalance
 			collateralUsed = ai.TotalWalletBalance - ai.AvailableBalance
 			collateralAvailable = ai.AvailableBalance

@@ -9,7 +9,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -17,9 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -41,15 +41,15 @@ var defaultSubscriptions = subscription.List{
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.PingMessage,
+	b.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
 
@@ -146,7 +146,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	if result["event"] != nil {
 		event, ok := result["event"].(string)
 		if !ok {
-			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+			return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
 		}
 		switch event {
 		case "subscribe":
@@ -169,14 +169,14 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
 			}
 		default:
-			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+			return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
 		}
 		return nil
 	}
 
 	topic, ok := result["topic"].(string)
 	if !ok {
-		return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+		return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
 	}
 	switch {
 	case topic == "notificationApi":
@@ -295,12 +295,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
-			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
+			p := strings.ReplaceAll(t.Data.SellQuote[i].Price, ",", "")
 			price, err = strconv.ParseFloat(p, 64)
 			if err != nil {
 				return err
 			}
-			a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
+			a := strings.ReplaceAll(t.Data.SellQuote[i].Size, ",", "")
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err
@@ -314,12 +314,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			})
 		}
 		for j := range t.Data.BuyQuote {
-			p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
+			p := strings.ReplaceAll(t.Data.BuyQuote[j].Price, ",", "")
 			price, err = strconv.ParseFloat(p, 64)
 			if err != nil {
 				return err
 			}
-			a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
+			a := strings.ReplaceAll(t.Data.BuyQuote[j].Size, ",", "")
 			amount, err = strconv.ParseFloat(a, 64)
 			if err != nil {
 				return err
@@ -352,7 +352,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	default:
-		return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+		return errors.New(b.Name + websocket.UnhandledMessage + string(respRaw))
 	}
 
 	return nil

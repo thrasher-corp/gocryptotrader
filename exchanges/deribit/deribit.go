@@ -2841,7 +2841,7 @@ func (d *Deribit) optionPairToString(pair currency.Pair) string {
 		initialDelimiter = currency.UnderscoreDelimiter
 		// Replace a capital D with d for decimal place in Strike price
 		// Char 11 is either the hyphen before Strike price or first digit
-		q = q[:11] + strings.Replace(q[11:], "D", "d", -1)
+		q = q[:11] + strings.Replace(q[11:], "D", "d", 1)
 	}
 	return pair.Base.String() + initialDelimiter + q
 }

@@ -28,10 +28,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -177,7 +177,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.NewWebsocket()
+	ok.Websocket = websocket.NewManager()
 	ok.WebsocketResponseMaxLimit = websocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = websocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -208,7 +208,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
+	if err := ok.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             apiWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
@@ -228,7 +228,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apiWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
@@ -237,7 +237,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apiWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
@@ -1751,7 +1751,7 @@ allOrders:
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
 				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime.Time() {
+				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1899,7 +1899,7 @@ allOrders:
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
 				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime.Time() {
+				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -2224,10 +2224,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 	}
 	// map of time indexes, allowing for easy lookup of slice index from unix time data
 	mti := make(map[int64]int)
-	for {
-		if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
-			break
-		}
+	for sd.Before(r.EndDate) {
 		var frh []FundingRateResponse
 		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
 		if err != nil {
@@ -2279,10 +2276,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
 			billDetailsFunc = ok.GetBillsDetailLast7Days
 		}
-		for {
-			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
-				break
-			}
+		for sd.Before(r.EndDate) {
 			var fri time.Duration
 			if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
 				// can infer funding rate interval from the only funding rate frequency defined

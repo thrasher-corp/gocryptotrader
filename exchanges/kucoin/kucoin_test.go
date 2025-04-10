@@ -3020,10 +3020,12 @@ func TestSubscribeBatches(t *testing.T) {
 
 // TestSubscribeTickerAll ensures that ticker subscriptions switch to using all and it works
 
-// TestSubscribeBatchLimit exercises the kucoin batch limits of 300 per connection
-// Ensures batching of 100 pairs and the connection symbol limit is still 300 at Kucoin's end
+// TestSubscribeBatchLimit exercises the kucoin batch limits of 400 per connection
+// Ensures batching of 100 pairs and the connection symbol limit is still 400 at Kucoin's end
 func TestSubscribeBatchLimit(t *testing.T) {
 	t.Parallel()
+
+	const expectedLimit = 400
 
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	ku.Features.Subscriptions = subscription.List{}
@@ -3032,13 +3034,13 @@ func TestSubscribeBatchLimit(t *testing.T) {
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:299], true)
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit], true)
 	require.NoError(t, err, "StorePairs must not error")
 
 	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 3, "Must get 3 subs")
+	require.Len(t, subs, 4, "Must get 4 subs")
 
 	err = ku.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
@@ -3046,16 +3048,17 @@ func TestSubscribeBatchLimit(t *testing.T) {
 	err = ku.Unsubscribe(subs)
 	require.NoError(t, err, "Unsubscribe must not error")
 
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:320], true)
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit+20], true)
 	require.NoError(t, err, "StorePairs must not error")
 
 	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
 	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 4, "Must get 4 subs")
+	require.Len(t, subs, 5, "Must get 5 subs")
 
 	err = ku.Subscribe(subs)
-	assert.ErrorContains(t, err, "exceed max subscription count limitation of 300 per session", "Subscribe to MarketSnapshot should error above connection symbol limit")
+	require.Error(t, err, "Subscribe must error")
+	assert.ErrorContains(t, err, "exceed max subscription count limitation of 400 per session", "Subscribe to MarketSnapshot should error above connection symbol limit")
 }
 
 func TestSubscribeTickerAll(t *testing.T) {

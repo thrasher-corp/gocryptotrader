@@ -25,9 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -131,7 +131,7 @@ func (b *Bithumb) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -155,7 +155,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            wsEndpoint,
 		RunningURL:            ePoint,
@@ -168,7 +168,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(time.Second),
@@ -528,11 +528,13 @@ func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Pair:            pair,
 		}
 
-		if orders.Data[i].Type == "bid" {
+		switch orders.Data[i].Type {
+		case "bid":
 			orderDetail.Side = order.Buy
-		} else if orders.Data[i].Type == "ask" {
+		case "ask":
 			orderDetail.Side = order.Sell
 		}
+
 		return &orderDetail, nil
 	}
 	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
@@ -661,9 +663,10 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					format.Delimiter),
 			}
 
-			if resp.Data[i].Type == "bid" {
+			switch resp.Data[i].Type {
+			case "bid":
 				orderDetail.Side = order.Buy
-			} else if resp.Data[i].Type == "ask" {
+			case "ask":
 				orderDetail.Side = order.Sell
 			}
 
@@ -716,9 +719,10 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					format.Delimiter),
 			}
 
-			if resp.Data[i].Type == "bid" {
+			switch resp.Data[i].Type {
+			case "bid":
 				orderDetail.Side = order.Buy
-			} else if resp.Data[i].Type == "ask" {
+			case "ask":
 				orderDetail.Side = order.Sell
 			}
 

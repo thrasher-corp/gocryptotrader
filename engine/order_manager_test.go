@@ -1707,12 +1707,12 @@ func TestGetByDetail(t *testing.T) {
 	byOrig := m.orderStore.getByDetail(od)
 	byID := m.orderStore.getByDetail(id)
 
-	if assert.NotNil(t, byOrig, od, "Retrieve by orig pointer should find a record") {
+	if assert.NotNil(t, byOrig, "Retrieve by orig pointer should find a record") {
 		assert.NotSame(t, byOrig, od, "Retrieve by orig pointer should return a new pointer")
 		assert.Equal(t, od.ClientOrderID, byOrig.ClientOrderID, "Retrieve by orig pointer should contain the correct ClientOrderID")
 	}
 
-	if assert.NotNil(t, byID, od, "Retrieve by new pointer should find a record") {
+	if assert.NotNil(t, byID, "Retrieve by new pointer should find a record") {
 		assert.NotSame(t, byID, id, "Retrieve by new pointer should return a different new pointer than we passed in")
 		assert.NotSame(t, byID, od, "Retrieve by new pointer should return a different new pointer than the original object")
 		assert.Equal(t, od.ClientOrderID, byID.ClientOrderID, "Retrieve by id pointer should contain the correct ClientOrderID")

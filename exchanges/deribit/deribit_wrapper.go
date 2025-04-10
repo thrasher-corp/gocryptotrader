@@ -25,10 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -150,7 +150,7 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	d.Websocket = stream.NewWebsocket()
+	d.Websocket = websocket.NewManager()
 	d.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	d.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	d.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -170,7 +170,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = d.Websocket.Setup(&stream.WebsocketSetup{
+	err = d.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            deribitWebsocketAddress,
 		RunningURL:            deribitWebsocketAddress,
@@ -188,7 +188,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return d.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return d.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -1301,9 +1301,10 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	}
 
 	var baseSize float64
-	if r.Asset == asset.Futures {
+	switch r.Asset {
+	case asset.Futures:
 		baseSize = pos[index].SizeCurrency
-	} else if r.Asset == asset.Options {
+	case asset.Options:
 		baseSize = pos[index].Size
 	}
 	contractSize = multiplier * baseSize
@@ -1507,10 +1508,7 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 
 	var fundingRates []fundingrate.Rate
 	mfr := make(map[int64]struct{})
-	for {
-		if ed.Equal(r.StartDate) || ed.Before(r.StartDate) {
-			break
-		}
+	for ed.After(r.StartDate) {
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
 			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)

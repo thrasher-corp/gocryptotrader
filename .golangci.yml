@@ -1,14 +1,13 @@
+version: "2"
 run:
-  timeout: 10m
   issues-exit-code: 1
   tests: true
 
 linters:
-  disable-all: true
+  default: none
   enable:
 # defaults
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
@@ -41,7 +40,6 @@ linters:
 #   - forbidigo
     - forcetypeassert
 #   - funlen
-    - gci
 #   - ginkgolinter
     - gocheckcompilerdirectives
 #   - gochecknoglobals
@@ -53,22 +51,20 @@ linters:
 #   - gocyclo
 #   - godot
 #   - godox
-    - gofmt
-    - gofumpt
 #   - goheader
-    - goimports
     - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
 #   - gosmopolitan
     - grouper
+    - iface
 #   - importas
 #   - inamedparam
 #   - interfacebloat
     - intrange
 #   - ireturn
-#   - lll 
+#   - lll
 #   - loggercheck
 #   - maintidx
     - makezero
@@ -79,6 +75,7 @@ linters:
 #   - nakedret
 #   - nestif
     - nilerr
+    - nilnesserr
 #   - nilnil
 #   - nlreturn
     - noctx
@@ -92,15 +89,14 @@ linters:
 #   - promlinter
 #   - protogetter
     - reassign
+#   - recvcheck
     - revive
     - rowserrcheck
 #   - sloglint
 #   - spancheck
     - sqlclosecheck
-    - stylecheck
     - tagalign
 #   - tagliatelle
-#   - tenv # Duplicate feature of another linter. Replaced by usetesting.
     - testableexamples
     - testifylint
 #   - testpackage
@@ -117,61 +113,91 @@ linters:
 #   - wsl
 #   - zerologlint
 
-linters-settings:
-  depguard:
+  settings:
+    depguard:
+      rules:
+        prevent_json_package_use:
+          list-mode: lax
+          files:
+            - $all
+          allow:
+            - github.com/thrasher-corp/gocryptotrader/encoding/json
+          deny:
+            - pkg: encoding/json
+              desc: Please use the custom JSON package github.com/thrasher-corp/gocryptotrader/encoding/json instead of encoding/json to allow sonic/json switching.
+    goconst:
+      min-occurrences: 6
+    gocritic:
+      disabled-checks:
+        - wrapperFunc
+        - importShadow
+        - methodExprCall
+        - evalOrder
+      enabled-tags:
+        - performance
+        - style
+        - experimental
+    govet:
+      enable:
+        - shadow
+        - nilness
+        - unusedwrite
+    staticcheck:
+      checks:
+        - all
+        - '-ST1000' # Disable at least one file in a package should have a package comment check
+        - '-QF1005' # Disable expand call to math.Pow check
+        - '-QF1008' # Disable embedded field from selector check
+    testifylint:
+      enable-all: true
+      disable:
+        - require-error
+        - float-compare
+         # We deliberately use Equal over Len to avoid spamming the contents of large Slices
+        - len
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      prevent_json_package_use:
-        list-mode: lax # allow unless explicitely denied
-        files:
-          - $all
-        allow:
-          - github.com/thrasher-corp/gocryptotrader/encoding/json
-        deny:
-          - pkg: encoding/json
-            desc: "Please use the custom JSON package github.com/thrasher-corp/gocryptotrader/encoding/json instead of encoding/json to allow sonic/json switching."
-  govet:
-    enable: 
-      - shadow
-      - nilness
-      - unusedwrite
-  goconst:
-    min-occurrences: 6
-  gocritic:
-    enabled-tags:
-      - performance
-      - style
-      - experimental
-    disabled-checks:
-      - wrapperFunc
-      - importShadow
-      - methodExprCall
-      - evalOrder
-  testifylint:
-    enable-all: true
-    disable:
-      - require-error
-      - float-compare
-      # We deliberately use Equal over Len to avoid spamming the contents of large Slices
-      - len
-  gofumpt:
-    extra-rules: true
+      - linters:
+          - gosec
+        text: Expect WriteFile permissions to be 0600 or less
+      - linters:
+          - govet
+        text: 'shadow: declaration of "err" shadows declaration at'
+      - linters:
+          - revive
+        text: 'should have a package comment'
+    paths:
+      - vendor
+      - web/
+      - testdata
+      - database/models/
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-
-  exclude-rules:
-    - text: "Expect WriteFile permissions to be 0600 or less"
-      linters:
-        - gosec
-    - text: 'shadow: declaration of "err" shadows declaration at'
-      linters: [ govet ]
-
-  exclude-dirs:
-    - vendor
-    - web/
-    - testdata
-    - database/models/
-
-  include: 
-    - EXC0012 # revive: Comment exported (.+) should have comment( \(or a comment on this block\))? or be unexported
-    - EXC0014 # revive: Comment on exported (.+) should be of the form "(.+)..."
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - vendor
+      - web/
+      - testdata
+      - database/models/
+      - third_party$
+      - builtin$
+      - examples$

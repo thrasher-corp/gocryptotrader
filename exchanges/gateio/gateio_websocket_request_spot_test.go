@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -19,17 +18,17 @@ func TestWebsocketLogin(t *testing.T) {
 	err := g.websocketLogin(t.Context(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	err = g.websocketLogin(t.Context(), &stream.WebsocketConnection{}, "")
-	require.ErrorIs(t, err, errChannelEmpty)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	demonstrationConn, err := g.Websocket.GetConnection(asset.Spot)
+	c, err := g.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 
-	err = g.websocketLogin(t.Context(), demonstrationConn, "spot.login")
+	err = g.websocketLogin(t.Context(), c, "")
+	require.ErrorIs(t, err, errChannelEmpty)
+
+	err = g.websocketLogin(t.Context(), c, "spot.login")
 	require.NoError(t, err)
 }
 
