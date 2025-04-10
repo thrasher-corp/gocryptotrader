@@ -121948,13 +121948,13 @@
        "1500"
       ],
       "Signature": [
-       "x2ye2eKfZxi6W8DiGPypKURqp8/7B+uItIWWS9C/ew4="
+       "JYIypcXzUev+KTR2qu+mLh0WHw44Cn16DxeFsfgjj+o="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744226197772"
+       "1744289810723"
       ]
      }
     }
@@ -121977,13 +121977,13 @@
        "1500"
       ],
       "Signature": [
-       "iv3BVbsBgMFErbEHAGvrRnjjCnthHPvssQ46WD3Kq04="
+       "ESun1tNIQqN2gocoLzxPGTs7vNGePnVfKxtHHtGk6ds="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744226196753"
+       "1744289810111"
       ]
      }
     }
@@ -122222,6 +122222,48 @@
    ]
   },
   "/smartorders": {
+   "DELETE": [
+    {
+        "data": [
+            {
+              "orderId": "1111111111", 
+              "clientOrderId": "aaaaa", 
+              "state": "CANCELED",
+              "code": 200,
+              "message": "SUCCESS"
+            },
+            {
+              "orderId": "222222222", 
+              "clientOrderId": "", 
+              "state": "CANCELED",
+              "code": 200,
+              "message": "SUCCESS"
+            }
+        ],
+        "queryString": "",
+        "bodyParams": "{\"orderTypes\":[\"STOP_LIMIT\"],\"symbols\":[\"BTC_USDT\"]}",
+        "headers": {
+         "Content-Type": [
+          "application/json"
+         ],
+         "Key": [
+          ""
+         ],
+         "Recvwindow": [
+          "1500"
+         ],
+         "Signature": [
+          "dV4tXkbzo4ZvFnpDkMca2Z8patXhvwUEcmn/YEsqqjs="
+         ],
+         "Signaturemethod": [
+          "hmacSHA256"
+         ],
+         "Signtimestamp": [
+          "1743968911176"
+         ]
+        }
+     }
+   ],
    "GET": [
     {
      "data": null,
@@ -122397,13 +122439,13 @@
        "1500"
       ],
       "Signature": [
-       "vpovqhJFWs9V3H5EB26xnX6A9oFYRHXpOLMqOCFieyU="
+       "rMJkZ0hxb6IWN6vsLgS7S0GcrJoDG46VRSXR0/ruSz8="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1744226198368"
+       "1744289811376"
       ]
      }
     }
@@ -166900,6 +166942,71 @@
        "1742738479200"
       ]
      }
+    },
+    {
+    "data": {
+        "code": 200,
+        "data": [
+              {
+                "avgPx": "0",
+                "cTime": "1719973298689",
+                "cancelReason": "ORDER_SOURCE_API",
+                "clOrdId": "9e36e89c-6cab-45c6-9c8a-245b7547601a",
+                "deductAmt": "0",
+                "deductCcy": "0",
+                "execAmt": "0",
+                "execQty": "0",
+                "feeAmt": "0",
+                "feeCcy": "",
+                "lever": "20",
+                "mgnMode": "CROSS",
+                "posSide": "BOTH",
+                "ordId": "331378951199129601",
+                "px": "60000",
+                "reduceOnly": false,
+                "side": "SELL",
+                "slPx": "",
+                "slTrgPx": "",
+                "slTrgPxType": "",
+                "source": "API",
+                "state": "CANCELED",
+                "stpMode": "EXPIRE_TAKER",
+                "symbol": "BTC_USDT_PERP",
+                "sz": "2",
+                "timeInForce": "GTC",
+                "tpPx": "",
+                "tpTrgPx": "",
+                "tpTrgPxType": "",
+                "actType": "TRADING",
+                "qCcy": "USDT",  
+                "type": "LIMIT",
+                "uTime": "1719973454788"
+              }
+        ],
+        "msg": ""
+    },
+    "queryString": "ordId=12345",
+    "bodyParams": "",
+    "headers": {
+        "Content-Type": [
+        "application/json"
+        ],
+        "Key": [
+        ""
+        ],
+        "Recvwindow": [
+        "1500"
+        ],
+        "Signature": [
+        "0PTi5rDNckq3rQFKkj5aWIeGrKa2cycguQ265zhwG+0="
+        ],
+        "Signaturemethod": [
+        "hmacSHA256"
+        ],
+        "Signtimestamp": [
+        "1742738479200"
+        ]
+    }
     },
     {
      "data": {

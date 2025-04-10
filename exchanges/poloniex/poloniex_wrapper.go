@@ -1362,7 +1362,7 @@ func (p *Poloniex) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			})
 		}
 	case asset.Futures:
-		fOrders, err := p.GetCurrentFuturesOrders(context.Background(), samplePair.String(), sideString, "", "", "", 0, 0)
+		fOrders, err := p.GetCurrentFuturesOrders(ctx, samplePair.String(), sideString, "", "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}
