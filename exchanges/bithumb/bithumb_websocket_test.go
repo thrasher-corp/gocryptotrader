@@ -1,7 +1,6 @@
 package bithumb
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -27,12 +26,7 @@ var (
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 
-	pairs := currency.Pairs{
-		currency.Pair{
-			Base:  currency.BTC,
-			Quote: currency.USDT,
-		},
-	}
+	pairs := currency.Pairs{currency.NewBTCUSDT()}
 
 	dummy := Bithumb{
 		location: time.Local,
@@ -62,34 +56,20 @@ func TestWsHandleData(t *testing.T) {
 
 	welcomeMsg := []byte(`{"status":"0000","resmsg":"Connected Successfully"}`)
 	err := dummy.wsHandleData(welcomeMsg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = dummy.wsHandleData([]byte(`{"status":"1336","resmsg":"Failed"}`))
-	if !errors.Is(err, websocket.ErrSubscriptionFailure) {
-		t.Fatalf("received: %v but expected: %v", err, websocket.ErrSubscriptionFailure)
-	}
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure)
+
+	err = dummy.wsHandleData(wsTransResp)
+	require.NoError(t, err)
+
+	err = dummy.wsHandleData(wsOrderbookResp)
+	require.NoError(t, err)
 
 	err = dummy.wsHandleData(wsTickerResp)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	handled := <-dummy.Websocket.DataHandler
-	if _, ok := handled.(*ticker.Price); !ok {
-		t.Fatal("unexpected value")
-	}
-
-	err = dummy.wsHandleData(wsTransResp) // This doesn't pipe to datahandler
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	err = dummy.wsHandleData(wsOrderbookResp) // This doesn't pipe to datahandler
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+	assert.IsType(t, new(ticker.Price), <-dummy.Websocket.DataHandler, "ticker should send a price to the DataHandler")
 }
 
 func TestSubToReq(t *testing.T) {
