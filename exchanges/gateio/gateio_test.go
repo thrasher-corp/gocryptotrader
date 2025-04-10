@@ -3611,7 +3611,7 @@ func TestValidateSubscriptions(t *testing.T) {
 	}), subscription.ErrExclusiveSubscription)
 }
 
-func TestEnsureOrderbook(t *testing.T) {
+func TestValidateOrderbook(t *testing.T) {
 	t.Parallel()
 
 	for i, tc := range []struct {
@@ -3621,7 +3621,6 @@ func TestEnsureOrderbook(t *testing.T) {
 		levels   int
 		expected error
 	}{
-		{channel: spotOrderbookTickerChannel, interval: 0, expected: asset.ErrNotSupported},
 		{channel: spotOrderbookTickerChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
 		{channel: spotOrderbookTickerChannel, interval: kline.TenMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
 		{channel: spotOrderbookTickerChannel, interval: kline.TenMilliseconds, asset: asset.Spot, levels: 1},
@@ -3689,7 +3688,13 @@ func TestEnsureOrderbook(t *testing.T) {
 
 		{channel: spotTickerChannel, interval: 0, asset: asset.Margin}, // no validation required
 	} {
-		err := ensureOrderbook(tc.channel, tc.asset, tc.interval.String(), tc.levels)
+		err := validateOrderbook(tc.channel, tc.asset, tc.interval, tc.levels)
 		require.ErrorIsf(t, err, tc.expected, "channel: `%s` case: `%d`", tc.channel, i+1)
 	}
+}
+
+func TestValidateOrderbookWrapper(t *testing.T) {
+	t.Parallel()
+	require.Panics(t, func() { validateOrderbookWrapper(optionsOrderbookChannel, 0, 0, 0) })
+	require.Empty(t, validateOrderbookWrapper(spotOrderbookTickerChannel, asset.Spot, kline.TenMilliseconds, 1))
 }

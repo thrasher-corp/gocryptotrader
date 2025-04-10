@@ -358,7 +358,7 @@ func (g *Gateio) GetIntervalString(interval kline.Interval) (string, error) {
 	case kline.OneMonth:
 		return "30d", nil
 	default:
-		return "", fmt.Errorf("%s: %w", interval.String(), kline.ErrUnsupportedInterval)
+		return "", fmt.Errorf("'%s': %w", interval.String(), kline.ErrUnsupportedInterval)
 	}
 }
 

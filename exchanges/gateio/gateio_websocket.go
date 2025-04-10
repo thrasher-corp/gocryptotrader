@@ -633,13 +633,7 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 			"channelName":         channelName,
 			"singleSymbolChannel": singleSymbolChannel,
 			"interval":            g.GetIntervalString,
-			"ensureOrderbook":     ensureOrderbook,
-			"panic": func(e error) bool {
-				if e != nil {
-					panic(e.Error())
-				}
-				return false
-			},
+			"validateOrderbook":   validateOrderbookWrapper,
 		}).
 		Parse(subTplText)
 }
@@ -779,32 +773,66 @@ func isSingleOrderbookChannel(name string) bool {
 	return false
 }
 
-func ensureOrderbook(channel string, a asset.Item, inString string, levels int) error {
-	inDura, err := time.ParseDuration(inString)
-	if err != nil {
-		return fmt.Errorf("%w for `%s`", subscription.ErrInvalidInterval, channel)
+func validateOrderbookWrapper(channel string, a asset.Item, interval kline.Interval, level int) string {
+	if err := validateOrderbook(channel, a, interval, level); err != nil {
+		panic(err)
 	}
-	interval := kline.Interval(inDura)
+	return "" // return empty string to satisfy the function signature
+}
 
-	channelName := channelName(&subscription.Subscription{Channel: channel})
-	switch a {
-	case asset.Spot:
-		switch channelName {
-		case spotOrderbookTickerChannel:
-			if interval != kline.TenMilliseconds {
-				return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TenMilliseconds)
+func validateOrderbook(channel string, a asset.Item, interval kline.Interval, levels int) error {
+	switch channelName(&subscription.Subscription{Channel: channel}) {
+	case spotOrderbookTickerChannel:
+		if interval != kline.TenMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TenMilliseconds)
+		}
+		if levels != 1 {
+			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case spotOrderbookUpdateChannel:
+		if interval != kline.HundredMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
+		}
+		if levels != 100 {
+			return fmt.Errorf("%w for `%s` only `%d` is supported", subscription.ErrInvalidLevel, channel, 100)
+		}
+	case spotOrderbookChannel:
+		if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+		}
+		if levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
+			return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case futuresOrderbookChannel:
+		if interval != 0 {
+			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
+		}
+		if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
+			return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case futuresOrderbookTickerChannel:
+		if interval != 0 {
+			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
+		}
+		if levels != 1 {
+			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case futuresOrderbookUpdateChannel:
+		if a == asset.Futures {
+			if levels != 20 && levels != 50 && levels != 100 {
+				return fmt.Errorf("%w for `%s` only `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
 			}
-			if levels != 1 {
-				return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
+			if levels != 20 {
+				if interval == kline.TwentyMilliseconds {
+					return fmt.Errorf("%w for `%s` only `20` levels supports `%s`", subscription.ErrInvalidInterval, channel, kline.TwentyMilliseconds)
+				}
+				if interval != kline.HundredMilliseconds {
+					return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
+				}
+			} else if interval != kline.HundredMilliseconds && interval != kline.TwentyMilliseconds {
+				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
 			}
-		case spotOrderbookUpdateChannel:
-			if interval != kline.HundredMilliseconds {
-				return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
-			}
-			if levels != 100 {
-				return fmt.Errorf("%w for `%s` only `%d` is supported", subscription.ErrInvalidLevel, channel, 100)
-			}
-		case spotOrderbookChannel:
+		} else {
 			if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
 				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
 			}
@@ -812,73 +840,27 @@ func ensureOrderbook(channel string, a asset.Item, inString string, levels int) 
 				return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
 			}
 		}
-	case asset.Futures, asset.DeliveryFutures:
-		switch channelName {
-		case futuresOrderbookChannel:
-			if interval != 0 {
-				return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
-			}
-			if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
-				return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-			}
-		case futuresOrderbookTickerChannel:
-			if interval != 0 {
-				return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
-			}
-			if levels != 1 {
-				return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
-			}
-		case futuresOrderbookUpdateChannel:
-			if a == asset.Futures {
-				if levels != 20 && levels != 50 && levels != 100 {
-					return fmt.Errorf("%w for `%s` only `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-				}
-				if levels != 20 {
-					if interval == kline.TwentyMilliseconds {
-						return fmt.Errorf("%w for `%s` only `20` levels supports `%s`", subscription.ErrInvalidInterval, channel, kline.TwentyMilliseconds)
-					}
-					if interval != kline.HundredMilliseconds {
-						return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
-					}
-				} else if interval != kline.HundredMilliseconds && interval != kline.TwentyMilliseconds {
-					return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
-				}
-			} else {
-				if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
-					return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
-				}
-				if levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
-					return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-				}
-			}
+	case optionsOrderbookTickerChannel:
+		if interval != 0 {
+			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
 		}
-	case asset.Options:
-		switch channelName {
-		case optionsOrderbookTickerChannel:
-			if interval != 0 {
-				return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
-			}
-			if levels != 1 {
-				return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
-			}
-		case optionsOrderbookUpdateChannel:
-			if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
-				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
-			}
-			if levels != 5 && levels != 10 && levels != 20 && levels != 50 {
-				return fmt.Errorf("%w for `%s` only `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
-			}
-		case optionsOrderbookChannel:
-			if interval != kline.TwoHundredAndFiftyMilliseconds {
-				return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TwoHundredAndFiftyMilliseconds)
-			}
-			if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 {
-				return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
-			}
+		if levels != 1 {
+			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
 		}
-	case asset.CrossMargin, asset.Margin:
-	default:
-		return fmt.Errorf("%s: %w", a, asset.ErrNotSupported)
+	case optionsOrderbookUpdateChannel:
+		if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
+		}
+		if levels != 5 && levels != 10 && levels != 20 && levels != 50 {
+			return fmt.Errorf("%w for `%s` only `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
+		}
+	case optionsOrderbookChannel:
+		if interval != kline.TwoHundredAndFiftyMilliseconds {
+			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TwoHundredAndFiftyMilliseconds)
+		}
+		if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 {
+			return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
+		}
 	}
 	return nil
 }
@@ -888,8 +870,7 @@ const subTplText = `
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
-				{{- $err := ensureOrderbook $name $asset (interval $.S.Interval) $.S.Levels }}
-                {{- if $err }}{{ panic $err }}{{ end }}
+				{{- validateOrderbook $name $asset $.S.Interval $.S.Levels }}
 				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
 				{{- $p }}
 				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}
