@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -18,7 +18,7 @@ import (
 
 // Vars for the websocket client
 var (
-	WSConn *websocket.Conn
+	WSConn *gws.Conn
 )
 
 // WebsocketEvent is the struct used for websocket events
@@ -89,7 +89,7 @@ func main() {
 		strconv.Itoa(common.ExtractPort(listenAddr))))
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	var resp *http.Response
 	WSConn, resp, err = dialer.Dial(wsHost, http.Header{})
 	if err != nil {

@@ -1,4 +1,4 @@
-# GoCryptoTrader package Event manager
+# GoCryptoTrader package Event Manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Event manager
+## Current Features for Event Manager
 + The event manager subsystem is used to push events to communication systems such as Slack
 + The only configurable aspects of the event manager are the delays between receiving an event and pushing it and enabling verbose:
 
