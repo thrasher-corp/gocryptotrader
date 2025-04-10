@@ -133,6 +133,8 @@ func (p *Poloniex) AuthConnect() error {
 	if err != nil {
 		return err
 	}
+	p.Websocket.Wg.Add(1)
+	go p.wsFuturesReadData(p.Websocket.AuthConn)
 	data, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, "auth", &SubscriptionPayload{
 		Event:   "subscribe",
 		Channel: []string{"auth"},
@@ -153,8 +155,6 @@ func (p *Poloniex) AuthConnect() error {
 	if !resp.Data.Success {
 		return fmt.Errorf("authentication failed with status code: %s", resp.Data.Message)
 	}
-	p.Websocket.Wg.Add(1)
-	go p.wsFuturesReadData(p.Websocket.AuthConn)
 	return nil
 }
 
@@ -180,7 +180,7 @@ func (p *Poloniex) wsFuturesHandleData(respRaw []byte) error {
 		return err
 	}
 	switch result.Channel {
-	case "auth":
+	case cnlAuth:
 		if !p.Websocket.Match.IncomingWithData("auth", respRaw) {
 			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
 		}

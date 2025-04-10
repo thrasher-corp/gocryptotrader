@@ -24,8 +24,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "2XMBU2GA-GRV5KXOS-HSC4LZ88-CMG0OZ72"
-	apiSecret               = "ad55874c6ff9abc406feac82b6421774182fd08d412bdbf9924a38f37404e2bdd7b5a35fc483a79f8cf01214b2bb227076883fd46082636ae36870986880d0be"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -571,6 +571,9 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetAccountFundingHistory(context.Background())
 	require.NoError(t, err)
@@ -579,6 +582,9 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	result, err := p.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	require.NoError(t, err)
@@ -1610,9 +1616,11 @@ func TestWsCreateOrder(t *testing.T) {
 
 func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	if mockTests {
+		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	testexch.SetupWs(t, p)
 	result, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1620,9 +1628,11 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 
 func TestWsCancelAllTradeOrders(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	if mockTests {
+		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, p, canManipulateRealOrders)
+	testexch.SetupWs(t, p)
 	result, err := p.WsCancelAllTradeOrders([]string{"BTC_USDT", "ETH_USDT"}, []string{"SPOT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)

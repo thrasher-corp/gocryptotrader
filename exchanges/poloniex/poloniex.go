@@ -835,7 +835,7 @@ func (p *Poloniex) GetSmartOrderDetail(ctx context.Context, orderID, clientSuppl
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []SmartOrderDetail
-	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp)
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // CancelSmartOrderByID cancel a smart order by its id.

@@ -143,7 +143,19 @@ func (p *Poloniex) wsAuthConn() error {
 			Signature:       crypto.Base64Encode(hmac),
 		},
 	}
-	return p.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, auth)
+	data, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, cnlAuth, auth)
+	if err != nil {
+		return err
+	}
+	var resp *AuthenticationResponse
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	if !resp.Data.Success {
+		return fmt.Errorf("authentication failed with status code: %s", resp.Data.Message)
+	}
+	return nil
 }
 
 // wsReadData handles data from the websocket connection
@@ -174,10 +186,15 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 	if result.Event != "" {
-		log.Debugf(log.ExchangeSys, "Unexpected event type %s", string(respRaw))
+		log.Debugf(log.ExchangeSys, "Unexpected event message %s", string(respRaw))
 		return nil
 	}
 	switch result.Channel {
+	case cnlAuth:
+		if !p.Websocket.Match.IncomingWithData("auth", respRaw) {
+			return fmt.Errorf("could not match data with %s %s", "auth", respRaw)
+		}
+		return nil
 	case cnlSymbols:
 		var response [][]WsSymbol
 		return p.processResponse(&result, &response)
@@ -197,19 +214,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		return p.processOrders(&result)
 	case cnlBalances:
 		return p.processBalance(&result)
-	case cnlAuth:
-		resp := &WebsocketAuthenticationResponse{}
-		err = json.Unmarshal(result.Data, &resp)
-		if err != nil {
-			return err
-		}
-		if !resp.Success {
-			log.Errorf(log.ExchangeSys, "%s Websocket: %s", p.Name, resp.Message)
-			return nil
-		}
-		if p.Verbose {
-			log.Debugf(log.ExchangeSys, "%s Websocket: connection authenticated\n", p.Name)
-		}
 	default:
 		if strings.HasPrefix(result.Channel, cnlCandles) {
 			return p.processCandlestickData(&result)
@@ -217,7 +221,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		p.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: p.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", p.Name, string(respRaw))
 	}
-	return nil
 }
 
 func (p *Poloniex) processBalance(result *SubscriptionResponse) error {
