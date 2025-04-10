@@ -1,10 +1,11 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"unicode"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -193,7 +194,7 @@ func (p Pair) LimitBuyOrderParameters(wantingToBuy Code) (*OrderParameters, erro
 	return p.getOrderParameters(wantingToBuy, false, false)
 }
 
-// getOrderDecisionDetails returns order parameters for the currency pair using
+// getOrderParameters returns order parameters for the currency pair using
 // the provided currency code, whether or not you are selling and whether or not
 // you are placing a market order.
 func (p Pair) getOrderParameters(c Code, selling, market bool) (*OrderParameters, error) {

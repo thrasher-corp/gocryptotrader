@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -31,8 +31,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedFuturesOrderbookMutex sync.Mutex
-var fetchedFuturesOrderbook map[string]bool
+var (
+	fetchedFuturesOrderbookMutex sync.Mutex
+	fetchedFuturesOrderbook      map[string]bool
+)
 
 const (
 	publicBullets  = "/v1/bullet-public"
@@ -180,7 +182,8 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 			Result:        &response,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
-			HTTPRecording: ku.HTTPRecording}, nil
+			HTTPRecording: ku.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 }
 
@@ -266,9 +269,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		if resp.Subject == "order.done" {
 			var response WsMarginTradeOrderDoneEvent
 			return ku.processData(resp.Data, &response)
-		} else {
-			return ku.processMarginLendingTradeOrderEvent(resp.Data)
 		}
+		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case spotMarketAdvancedChannel:
 		return ku.processStopOrderEvent(resp.Data)
 	case futuresTickerChannel:
@@ -342,7 +344,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 }
 
 // processData used to deserialize and forward the data to DataHandler.
-func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
+func (ku *Kucoin) processData(respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -509,7 +511,7 @@ func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 	if err != nil {
 		return err
 	}
-	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	orderbooks, err := ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
 	if err != nil {
 		return err
 	}
@@ -950,7 +952,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	var lastUpdatedTime = response.Timestamp.Time()
+	lastUpdatedTime := response.Timestamp.Time()
 	if response.Timestamp.Time().IsZero() {
 		lastUpdatedTime = time.Now()
 	}

@@ -251,19 +251,6 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	return response, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (g *Gemini) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := g.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(g.Name, creds, assetType)
-	if err != nil {
-		return g.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (g *Gemini) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
@@ -290,40 +277,13 @@ func (g *Gemini) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Close:        tick.Close,
 		Pair:         fPair,
 		ExchangeName: g.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return ticker.GetTicker(g.Name, fPair, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (g *Gemini) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := g.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	tickerNew, err := ticker.GetTicker(g.Name, fPair, assetType)
-	if err != nil {
-		return g.UpdateTicker(ctx, fPair, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (g *Gemini) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := g.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	ob, err := orderbook.Get(g.Name, fPair, assetType)
-	if err != nil {
-		return g.UpdateOrderbook(ctx, fPair, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -476,7 +436,7 @@ allTrades:
 				Timestamp:    tradeTS,
 			})
 			if i == len(tradeData)-1 {
-				if ts == tradeTS {
+				if ts.Equal(tradeTS) {
 					break allTrades
 				}
 				ts = tradeTS
@@ -588,12 +548,17 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 	if err != nil {
 		return nil, err
 	}
+
 	var orderType order.Type
-	if resp.Type == "exchange limit" {
+	switch resp.Type {
+	case "exchange limit":
 		orderType = order.Limit
-	} else if resp.Type == "market buy" || resp.Type == "market sell" {
+	case "market buy", "market sell":
 		orderType = order.Market
+	default:
+		return nil, fmt.Errorf("unknown order type: %q", resp.Type)
 	}
+
 	var side order.Side
 	side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
@@ -697,12 +662,17 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		if err != nil {
 			return nil, err
 		}
+
 		var orderType order.Type
-		if resp[i].Type == "exchange limit" {
+		switch resp[i].Type {
+		case "exchange limit":
 			orderType = order.Limit
-		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
+		case "market buy", "market sell":
 			orderType = order.Market
+		default:
+			return nil, fmt.Errorf("unknown order type: %q", resp[i].Type)
 		}
+
 		var side order.Side
 		side, err = order.StringToOrderSide(resp[i].Side)
 		if err != nil {

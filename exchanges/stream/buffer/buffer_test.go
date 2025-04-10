@@ -54,8 +54,8 @@ func createSnapshot(pair currency.Pair, bookVerifiy ...bool) (holder *Orderbook,
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
 
-	ch := make(chan interface{})
-	go func(<-chan interface{}) { // reader
+	ch := make(chan any)
+	go func(<-chan any) { // reader
 		for range ch {
 			continue
 		}
@@ -92,8 +92,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 	ob, _, _, err := createSnapshot(cp)
 	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		bidAsks := bidAskGenerator()
 		update := &orderbook.Update{
 			Bids:       bidAsks,
@@ -114,8 +113,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 	ob, _, _, err := createSnapshot(cp)
 	require.NoError(b, err)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		bidAsks := bidAskGenerator()
 		update := &orderbook.Update{
 			Bids:       bidAsks,
@@ -147,8 +145,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -175,8 +172,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -203,8 +199,8 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -231,9 +227,8 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
 	}
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
@@ -534,7 +529,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 
 	var obl Orderbook
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
-	obl.dataHandler = make(chan interface{}, 1)
+	obl.dataHandler = make(chan any, 1)
 	var snapShot1 orderbook.Base
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
@@ -551,7 +546,7 @@ func TestLoadSnapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	var obl Orderbook
-	obl.dataHandler = make(chan interface{}, 100)
+	obl.dataHandler = make(chan any, 100)
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "SnapshotWithOverride"
@@ -586,7 +581,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	require.NoError(t, err)
 
 	var holder Orderbook
-	holder.dataHandler = make(chan interface{}, 100)
+	holder.dataHandler = make(chan any, 100)
 	holder.ob = make(map[key.PairAsset]*orderbookHolder)
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
@@ -767,7 +762,7 @@ func TestSetup(t *testing.T) {
 	require.ErrorIs(t, err, errUnsetDataHandler)
 
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	err = w.Setup(exchangeConfig, bufferConf, make(chan interface{}))
+	err = w.Setup(exchangeConfig, bufferConf, make(chan any))
 	require.ErrorIs(t, err, errIssueBufferEnabledButNoLimit)
 
 	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
@@ -776,7 +771,7 @@ func TestSetup(t *testing.T) {
 	bufferConf.SortBuffer = true
 	bufferConf.SortBufferByUpdateIDs = true
 	bufferConf.UpdateEntriesByID = true
-	err = w.Setup(exchangeConfig, bufferConf, make(chan interface{}))
+	err = w.Setup(exchangeConfig, bufferConf, make(chan any))
 	require.NoError(t, err)
 
 	if w.obBufferLimit != 1337 ||
@@ -968,7 +963,7 @@ func TestFlushOrderbook(t *testing.T) {
 	require.NoError(t, err)
 
 	w := &Orderbook{}
-	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, make(chan interface{}, 2))
+	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, make(chan any, 2))
 	require.NoError(t, err)
 
 	var snapShot1 orderbook.Base

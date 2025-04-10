@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -116,15 +116,15 @@ func (p *Poloniex) wsReadData() {
 }
 
 func (p *Poloniex) wsHandleData(respRaw []byte) error {
-	var result interface{}
+	var result any
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
 	}
 
-	data, ok := result.([]interface{})
+	data, ok := result.([]any)
 	if !ok {
-		return fmt.Errorf("%w data is not []interface{}",
+		return fmt.Errorf("%w data is not []any",
 			errTypeAssertionFailure)
 	}
 
@@ -146,17 +146,17 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	case ws24HourExchangeVolumeID, wsHeartbeat:
 		return nil
 	case wsAccountNotificationID:
-		var notificationsArray []interface{}
-		notificationsArray, ok = data[2].([]interface{})
+		var notificationsArray []any
+		notificationsArray, ok = data[2].([]any)
 		if !ok {
-			return fmt.Errorf("%w account notification is not a []interface{}",
+			return fmt.Errorf("%w account notification is not a []any",
 				errTypeAssertionFailure)
 		}
 		for i := range notificationsArray {
-			var notification []interface{}
-			notification, ok = (notificationsArray[i]).([]interface{})
+			var notification []any
+			notification, ok = (notificationsArray[i]).([]any)
 			if !ok {
-				return fmt.Errorf("%w notification array element is not a []interface{}",
+				return fmt.Errorf("%w notification array element is not a []any",
 					errTypeAssertionFailure)
 			}
 			var updateType string
@@ -215,16 +215,16 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 
-	priceAggBook, ok := data[2].([]interface{})
+	priceAggBook, ok := data[2].([]any)
 	if !ok {
-		return fmt.Errorf("%w price aggregated book not []interface{}",
+		return fmt.Errorf("%w price aggregated book not []any",
 			errTypeAssertionFailure)
 	}
 
 	for x := range priceAggBook {
-		subData, ok := priceAggBook[x].([]interface{})
+		subData, ok := priceAggBook[x].([]any)
 		if !ok {
-			return fmt.Errorf("%w price aggregated book element not []interface{}",
+			return fmt.Errorf("%w price aggregated book element not []any",
 				errTypeAssertionFailure)
 		}
 
@@ -270,10 +270,10 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
-	tickerData, ok := data[2].([]interface{})
+func (p *Poloniex) wsHandleTickerData(data []any) error {
+	tickerData, ok := data[2].([]any)
 	if !ok {
-		return fmt.Errorf("%w ticker data is not []interface{}",
+		return fmt.Errorf("%w ticker data is not []any",
 			errTypeAssertionFailure)
 	}
 
@@ -375,10 +375,10 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local
 // of orderbooks
-func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
-	subDataMap, ok := data[1].(map[string]interface{})
+func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
+	subDataMap, ok := data[1].(map[string]any)
 	if !ok {
-		return fmt.Errorf("%w subData element is not map[string]interface{}",
+		return fmt.Errorf("%w subData element is not map[string]any",
 			errTypeAssertionFailure)
 	}
 
@@ -389,7 +389,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 
 	pair, ok := pMap.(string)
 	if !ok {
-		return fmt.Errorf("%w subData element is not map[string]interface{}",
+		return fmt.Errorf("%w subData element is not map[string]any",
 			errTypeAssertionFailure)
 	}
 
@@ -412,9 +412,9 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 		return errors.New("could not find orderbook data in map")
 	}
 
-	ob, ok := oMap.([]interface{})
+	ob, ok := oMap.([]any)
 	if !ok {
-		return fmt.Errorf("%w orderbook data is not []interface{}",
+		return fmt.Errorf("%w orderbook data is not []any",
 			errTypeAssertionFailure)
 	}
 
@@ -422,15 +422,15 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 		return errNotEnoughData
 	}
 
-	askData, ok := ob[0].(map[string]interface{})
+	askData, ok := ob[0].(map[string]any)
 	if !ok {
-		return fmt.Errorf("%w ask data is not map[string]interface{}",
+		return fmt.Errorf("%w ask data is not map[string]any",
 			errTypeAssertionFailure)
 	}
 
-	bidData, ok := ob[1].(map[string]interface{})
+	bidData, ok := ob[1].(map[string]any)
 	if !ok {
-		return fmt.Errorf("%w bid data is not map[string]interface{}",
+		return fmt.Errorf("%w bid data is not map[string]any",
 			errTypeAssertionFailure)
 	}
 
@@ -491,7 +491,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []interface{}) error {
 }
 
 // WsProcessOrderbookUpdate processes new orderbook updates
-func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []interface{}, pair currency.Pair) error {
+func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []any, pair currency.Pair) error {
 	if len(data) < 5 {
 		return errNotEnoughData
 	}
@@ -639,7 +639,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
-func (p *Poloniex) processAccountMarginPosition(notification []interface{}) error {
+func (p *Poloniex) processAccountMarginPosition(notification []any) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
@@ -687,7 +687,7 @@ func (p *Poloniex) processAccountMarginPosition(notification []interface{}) erro
 	return nil
 }
 
-func (p *Poloniex) processAccountPendingOrder(notification []interface{}) error {
+func (p *Poloniex) processAccountPendingOrder(notification []any) error {
 	if len(notification) < 7 {
 		return errNotEnoughData
 	}
@@ -755,7 +755,7 @@ func (p *Poloniex) processAccountPendingOrder(notification []interface{}) error 
 	return nil
 }
 
-func (p *Poloniex) processAccountOrderUpdate(notification []interface{}) error {
+func (p *Poloniex) processAccountOrderUpdate(notification []any) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
@@ -825,7 +825,7 @@ func (p *Poloniex) processAccountOrderUpdate(notification []interface{}) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
+func (p *Poloniex) processAccountOrderLimit(notification []any) error {
 	if len(notification) != 9 {
 		return errNotEnoughData
 	}
@@ -916,7 +916,7 @@ func (p *Poloniex) processAccountOrderLimit(notification []interface{}) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountBalanceUpdate(notification []interface{}) error {
+func (p *Poloniex) processAccountBalanceUpdate(notification []any) error {
 	if len(notification) < 4 {
 		return errNotEnoughData
 	}
@@ -970,7 +970,7 @@ func deriveWalletType(s string) string {
 	}
 }
 
-func (p *Poloniex) processAccountTrades(notification []interface{}) error {
+func (p *Poloniex) processAccountTrades(notification []any) error {
 	if len(notification) < 11 {
 		return errNotEnoughData
 	}
@@ -1056,7 +1056,7 @@ func (p *Poloniex) processAccountTrades(notification []interface{}) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountKilledOrder(notification []interface{}) error {
+func (p *Poloniex) processAccountKilledOrder(notification []any) error {
 	if len(notification) < 3 {
 		return errNotEnoughData
 	}
@@ -1079,7 +1079,7 @@ func (p *Poloniex) processAccountKilledOrder(notification []interface{}) error {
 	return nil
 }
 
-func (p *Poloniex) processTrades(currencyID float64, subData []interface{}) error {
+func (p *Poloniex) processTrades(currencyID float64, subData []any) error {
 	if !p.IsSaveTradeDataEnabled() {
 		return nil
 	}

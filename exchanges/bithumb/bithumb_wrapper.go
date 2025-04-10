@@ -49,6 +49,11 @@ func (b *Bithumb) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	b.location, err = time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "Bithumb unable to load time location: %s", err)
+	}
+
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST: true,
@@ -142,11 +147,6 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	err = b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	location, err = time.LoadLocation("Asia/Seoul")
 	if err != nil {
 		return err
 	}
@@ -251,24 +251,6 @@ func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	return ticker.GetTicker(b.Name, p, a)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (b *Bithumb) FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, a)
-	if err != nil {
-		return b.UpdateTicker(ctx, p, a)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (b *Bithumb) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
-	if err != nil {
-		return b.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -359,19 +341,6 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *Bithumb) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -559,11 +528,13 @@ func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Pair:            pair,
 		}
 
-		if orders.Data[i].Type == "bid" {
+		switch orders.Data[i].Type {
+		case "bid":
 			orderDetail.Side = order.Buy
-		} else if orders.Data[i].Type == "ask" {
+		case "ask":
 			orderDetail.Side = order.Sell
 		}
+
 		return &orderDetail, nil
 	}
 	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
@@ -692,9 +663,10 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					format.Delimiter),
 			}
 
-			if resp.Data[i].Type == "bid" {
+			switch resp.Data[i].Type {
+			case "bid":
 				orderDetail.Side = order.Buy
-			} else if resp.Data[i].Type == "ask" {
+			case "ask":
 				orderDetail.Side = order.Sell
 			}
 
@@ -747,9 +719,10 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					format.Delimiter),
 			}
 
-			if resp.Data[i].Type == "bid" {
+			switch resp.Data[i].Type {
+			case "bid":
 				orderDetail.Side = order.Buy
-			} else if resp.Data[i].Type == "ask" {
+			case "ask":
 				orderDetail.Side = order.Sell
 			}
 

@@ -1,0 +1,2 @@
+{"ch":"market.btcusdt.trade.detail","ts":1630994963175,"tick":{"id":137005445109,"ts":1630994963173,"data":[{"id":137005445109359290000000000,"ts":1630994963173,"tradeId":102523573486,"amount":0.006754,"price":52648.62,"direction":"buy"}]}}
+{"ch":"market.btcusdt.trade.detail","ts":1630994963174,"tick":{"id":137005445110,"ts":1630994963184,"data":[{"id":137005445109359300000000000,"ts":1630994963184,"tradeId":102523573487,"amount":0.006755,"price":52648.73,"direction":"sell"}]}}

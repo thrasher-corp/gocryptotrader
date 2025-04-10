@@ -2,7 +2,6 @@ package sharedtestvalues
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -40,8 +40,8 @@ const (
 
 // GetWebsocketInterfaceChannelOverride returns a new interface based channel
 // with the capacity set to WebsocketChannelOverrideCapacity
-func GetWebsocketInterfaceChannelOverride() chan interface{} {
-	return make(chan interface{}, WebsocketChannelOverrideCapacity)
+func GetWebsocketInterfaceChannelOverride() chan any {
+	return make(chan any, WebsocketChannelOverrideCapacity)
 }
 
 // GetWebsocketStructChannelOverride returns a new struct based channel
@@ -53,8 +53,8 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
 	w := stream.NewWebsocket()
-	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
-	w.ToRoutine = make(chan interface{}, 1000)
+	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan any, 1000)
 	return w
 }
 
@@ -138,7 +138,6 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to walk directory: %w", err)
 	}
@@ -154,32 +153,26 @@ func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange
 		return
 	}
 	b := exch.GetBase()
+
 	err := b.CurrencyPairs.SetAssetEnabled(a, true)
-	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "SetAssetEnabled must not error")
+
 	availPairs, err := b.CurrencyPairs.GetPairs(a, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "GetPairs must not error")
+
 	apLen := len(availPairs)
 	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "GetPairs must not error")
+
 	epLen := len(enabledPairs)
 	availPairs = availPairs.Add(cp...)
 	enabledPairs = enabledPairs.Add(cp...)
 	if len(availPairs) != apLen {
 		err = b.CurrencyPairs.StorePairs(a, availPairs, false)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err, "StorePairs must not error")
 	}
 	if len(enabledPairs) != epLen {
 		err = b.CurrencyPairs.StorePairs(a, enabledPairs, true)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err, "StorePairs must not error")
 	}
 }

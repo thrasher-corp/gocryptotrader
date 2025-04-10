@@ -63,7 +63,7 @@ func TestAdd(t *testing.T) {
 	require.NoError(t, s.Add(sub), "Should not error on a standard add")
 	assert.NotNil(t, s.get(sub), "Should have stored the sub")
 	assert.ErrorIs(t, s.Add(sub), ErrDuplicate, "Should error on duplicates")
-	assert.NotNil(t, sub.Key, sub, "Add should call EnsureKeyed")
+	assert.NotNil(t, sub.Key, "Add should call EnsureKeyed")
 }
 
 // TestGet exercises Get and get methods
@@ -203,4 +203,57 @@ func EqualLists(tb testing.TB, a, b List) {
 		}
 		assert.Fail(tb, fail, "Subscriptions should be equal")
 	}
+}
+
+func TestContained(t *testing.T) {
+	t.Parallel()
+
+	var s *Store
+	matched := s.Contained(nil)
+	assert.Nil(t, matched)
+
+	matched = s.Contained(List{{Channel: TickerChannel}})
+	assert.Nil(t, matched)
+
+	s = NewStore()
+	matched = s.Contained(nil)
+	assert.Nil(t, matched)
+
+	matched = s.Contained(List{})
+	assert.Nil(t, matched)
+
+	matched = s.Contained(List{{Channel: TickerChannel}})
+	assert.Nil(t, matched)
+
+	require.NoError(t, s.add(&Subscription{Channel: TickerChannel}))
+
+	matched = s.Contained(List{{Channel: TickerChannel}})
+	assert.Len(t, matched, 1)
+}
+
+func TestMissing(t *testing.T) {
+	t.Parallel()
+
+	var s *Store
+
+	unmatched := s.Missing(nil)
+	assert.Nil(t, unmatched)
+
+	unmatched = s.Missing(List{{Channel: TickerChannel}})
+	assert.Len(t, unmatched, 1)
+
+	s = NewStore()
+	unmatched = s.Missing(nil)
+	assert.Nil(t, unmatched)
+
+	unmatched = s.Missing(List{})
+	assert.Nil(t, unmatched)
+
+	unmatched = s.Missing(List{{Channel: TickerChannel}})
+	assert.Len(t, unmatched, 1)
+
+	require.NoError(t, s.add(&Subscription{Channel: TickerChannel}))
+
+	unmatched = s.Missing(List{{Channel: TickerChannel}})
+	assert.Nil(t, unmatched)
 }

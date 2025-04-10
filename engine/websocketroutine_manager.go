@@ -194,7 +194,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 // websocketDataHandler is the default central point for exchange websocket
 // implementations to send processed data which will then pass that to an
 // appropriate handler.
-func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
+func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any) error {
 	switch d := data.(type) {
 	case string:
 		log.Infoln(log.WebsocketMgr, d)
@@ -242,9 +242,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 		}
-	case order.Detail,
-		ticker.Price,
-		orderbook.Depth:
+	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
 	case stream.KlineData:
 		if m.verbose {
@@ -347,7 +345,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				m.printAccountHoldingsChangeSummary(d[x])
 			}
 		}
-	case []trade.Data:
+	case []trade.Data, trade.Data:
 		if m.verbose {
 			log.Infof(log.Trade, "%+v", d)
 		}

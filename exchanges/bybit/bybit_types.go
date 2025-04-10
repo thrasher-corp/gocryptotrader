@@ -1,13 +1,14 @@
 package bybit
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -26,17 +27,18 @@ type orderbookResponse struct {
 
 // Authenticate stores authentication variables required
 type Authenticate struct {
-	RequestID string        `json:"req_id"`
-	Args      []interface{} `json:"args"`
-	Operation string        `json:"op"`
+	RequestID string `json:"req_id"`
+	Args      []any  `json:"args"`
+	Operation string `json:"op"`
 }
 
 // SubscriptionArgument represents a subscription arguments.
 type SubscriptionArgument struct {
-	auth      bool     `json:"-"`
-	RequestID string   `json:"req_id"`
-	Operation string   `json:"op"`
-	Arguments []string `json:"args"`
+	auth           bool              `json:"-"`
+	RequestID      string            `json:"req_id"`
+	Operation      string            `json:"op"`
+	Arguments      []string          `json:"args"`
+	associatedSubs subscription.List `json:"-"`
 }
 
 // Fee holds fee information
@@ -103,9 +105,9 @@ type InstrumentInfo struct {
 
 // RestResponse represents a REST response instance.
 type RestResponse struct {
-	RetCode    int64       `json:"retCode"`
-	RetMsg     string      `json:"retMsg"`
-	Result     interface{} `json:"result"`
+	RetCode    int64  `json:"retCode"`
+	RetMsg     string `json:"retMsg"`
+	Result     any    `json:"result"`
 	RetExtInfo struct {
 		List []ErrorMessage `json:"list"`
 	} `json:"retExtInfo"`
@@ -342,7 +344,7 @@ type OrderResponse struct {
 // AmendOrderParams represents a parameter for amending order.
 type AmendOrderParams struct {
 	Category               string        `json:"category,omitempty"`
-	Symbol                 currency.Pair `json:"symbol,omitempty"`
+	Symbol                 currency.Pair `json:"symbol,omitzero"`
 	OrderID                string        `json:"orderId,omitempty"`
 	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
@@ -371,7 +373,7 @@ type AmendOrderParams struct {
 // CancelOrderParams represents a cancel order parameters.
 type CancelOrderParams struct {
 	Category    string        `json:"category,omitempty"`
-	Symbol      currency.Pair `json:"symbol,omitempty"`
+	Symbol      currency.Pair `json:"symbol,omitzero"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 
@@ -462,7 +464,7 @@ type PlaceBatchOrderParam struct {
 // BatchOrderItemParam represents a batch order place parameter.
 type BatchOrderItemParam struct {
 	Category         string        `json:"category,omitempty"`
-	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Symbol           currency.Pair `json:"symbol,omitzero"`
 	OrderType        string        `json:"orderType,omitempty"`
 	Side             string        `json:"side,omitempty"`
 	OrderQuantity    float64       `json:"qty,string,omitempty"`
@@ -1240,7 +1242,7 @@ type WithdrawableAmount struct {
 
 // WithdrawalParam represents asset withdrawal request parameter.
 type WithdrawalParam struct {
-	Coin        currency.Code `json:"coin,omitempty"`
+	Coin        currency.Code `json:"coin,omitzero"`
 	Chain       string        `json:"chain,omitempty"`
 	Address     string        `json:"address,omitempty"`
 	Tag         string        `json:"tag,omitempty"`
@@ -1301,7 +1303,7 @@ type SubUIDAPIResponse struct {
 	ExpiredAt             time.Time `json:"expiredAt"`
 	CreatedAt             time.Time `json:"createdAt"`
 	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
-	IsUnifiedTradeAccount int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
+	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
 	UserID                int64     `json:"userID"`
 	InviterID             int64     `json:"inviterID"`
 	VipLevel              string    `json:"vipLevel"`

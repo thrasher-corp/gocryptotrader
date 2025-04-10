@@ -3,9 +3,13 @@ package config
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/binary"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,18 +61,18 @@ func TestPromptForConfigKey(t *testing.T) {
 	})
 }
 
-func TestEncryptConfigFile(t *testing.T) {
+func TestEncryptConfigData(t *testing.T) {
 	t.Parallel()
-	_, err := EncryptConfigFile([]byte("test"), nil)
+	_, err := EncryptConfigData([]byte("test"), nil)
 	require.ErrorIs(t, err, errKeyIsEmpty)
 
 	c := &Config{
 		sessionDK: []byte("a"),
 	}
-	_, err = c.encryptConfigFile([]byte(`test`))
+	_, err = c.encryptConfigData([]byte(`test`))
 	require.ErrorIs(t, err, ErrSettingEncryptConfig)
 
-	_, err = c.encryptConfigFile([]byte(`{"test":1}`))
+	_, err = c.encryptConfigData([]byte(`{"test":1}`))
 	require.Error(t, err)
 	require.IsType(t, aes.KeySizeError(1), err)
 
@@ -79,27 +83,114 @@ func TestEncryptConfigFile(t *testing.T) {
 		sessionDK:  sessDk,
 		storedSalt: salt,
 	}
-	_, err = c.encryptConfigFile([]byte(`{"test":1}`))
+	_, err = c.encryptConfigData([]byte(`{"test":1}`))
 	require.NoError(t, err)
 }
 
-func TestDecryptConfigFile(t *testing.T) {
+func TestDecryptConfigData(t *testing.T) {
 	t.Parallel()
-	e, err := EncryptConfigFile([]byte(`{"test":1}`), []byte("key"))
+	e, err := EncryptConfigData([]byte(`{"test":1}`), []byte("key"))
 	require.NoError(t, err)
 
-	d, err := DecryptConfigFile(e, []byte("key"))
+	d, err := DecryptConfigData(e, []byte("key"))
 	require.NoError(t, err)
 	assert.Equal(t, `{"test":1,"encryptConfig":1}`, string(d), "encryptConfig should be set to 1 after first encryption")
 
-	_, err = DecryptConfigFile(e, nil)
+	_, err = DecryptConfigData(e, nil)
 	require.ErrorIs(t, err, errKeyIsEmpty)
 
-	_, err = DecryptConfigFile([]byte("test"), nil)
+	_, err = DecryptConfigData([]byte("test"), nil)
 	require.ErrorIs(t, err, errNoPrefix)
 
-	_, err = DecryptConfigFile(encryptionPrefix, []byte("AAAAAAAAAAAAAAAA"))
+	_, err = DecryptConfigData(encryptionPrefix, []byte("AAAAAAAAAAAAAAAA"))
 	require.ErrorIs(t, err, errAESBlockSize)
+
+	sessionDK, salt, err := makeNewSessionDK([]byte("key"))
+	require.NoError(t, err, "makeNewSessionDK must not error")
+
+	encData, err := legacyEncrypt(t, salt, []byte(`{"test":123}`), sessionDK)
+	require.NoError(t, err)
+
+	data, err := DecryptConfigData(encData, []byte("key"))
+	require.NoError(t, err)
+	assert.Equal(t, `{"test":123}`, string(data))
+
+	badVersion := make([]byte, len(encryptionPrefix)+len(encryptionVersionPrefix)+versionSize)
+	copy(badVersion, encryptionPrefix)
+	copy(badVersion[len(encryptionPrefix):], encryptionVersionPrefix)
+	binary.BigEndian.PutUint16(badVersion[len(encryptionPrefix)+len(encryptionVersionPrefix):], 69)
+	_, err = DecryptConfigData(badVersion, []byte("key"))
+	require.ErrorIs(t, err, errUnsupportedEncryptionVersion)
+}
+
+func legacyEncrypt(t *testing.T, salt, data, key []byte) ([]byte, error) {
+	t.Helper()
+
+	ciphertext, err := aesCFBEncrypt(t, data, key)
+	if err != nil {
+		return nil, err
+	}
+
+	encData := append(bytes.Clone(encryptionPrefix), salt...)
+	encData = append(encData, ciphertext...)
+	return encData, nil
+}
+
+func aesCFBEncrypt(t *testing.T, data, key []byte) ([]byte, error) {
+	t.Helper()
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	ciphertext := make([]byte, aes.BlockSize+len(data))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv) //nolint:staticcheck // For testing purposes only
+	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
+	return ciphertext, nil
+}
+
+func TestEncryptAESGCMCiphertext(t *testing.T) {
+	t.Parallel()
+
+	_, err := decryptAESGCMCiphertext(nil, nil)
+	require.ErrorIs(t, err, aes.KeySizeError(0))
+
+	validKey := []byte(strings.Repeat("A", 16))
+	block, err := aes.NewCipher(validKey)
+	require.NoError(t, err)
+
+	aead, err := cipher.NewGCMWithRandomNonce(block)
+	require.NoError(t, err)
+
+	ciphertext := aead.Seal(nil, nil, []byte("MEOWMEOWMEOWMEOWMEOW"), nil)
+
+	data, err := decryptAESGCMCiphertext(ciphertext, validKey)
+	require.NoError(t, err)
+	assert.Equal(t, "MEOWMEOWMEOWMEOWMEOW", string(data))
+}
+
+func TestDecryptAESCFBCiphertext(t *testing.T) {
+	t.Parallel()
+
+	_, err := decryptAESCFBCiphertext(nil, nil)
+	require.ErrorIs(t, err, errAESBlockSize)
+
+	_, err = decryptAESCFBCiphertext([]byte("WOOFWOOFWOOFWOOFWOOF"), []byte("A"))
+	require.ErrorIs(t, err, aes.KeySizeError(1))
+
+	validKey := []byte(strings.Repeat("A", 16))
+	data, err := aesCFBEncrypt(t, []byte("WOOFWOOFWOOFWOOFWOOF"), validKey)
+	require.NoError(t, err)
+
+	data, err = decryptAESCFBCiphertext(data, validKey)
+	require.NoError(t, err)
+	assert.Equal(t, "WOOFWOOFWOOFWOOFWOOF", string(data))
 }
 
 func TestIsEncrypted(t *testing.T) {

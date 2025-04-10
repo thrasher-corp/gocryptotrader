@@ -2,7 +2,6 @@ package deribit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -105,8 +105,6 @@ var defaultSubscriptions = subscription.List{
 }
 
 var (
-	indexENUMS = []string{"ada_usd", "algo_usd", "avax_usd", "bch_usd", "bnb_usd", "btc_usd", "doge_usd", "dot_usd", "eth_usd", "link_usd", "ltc_usd", "luna_usd", "matic_usd", "near_usd", "shib_usd", "sol_usd", "trx_usd", "uni_usd", "usdc_usd", "xrp_usd", "ada_usdc", "bch_usdc", "algo_usdc", "avax_usdc", "btc_usdc", "doge_usdc", "dot_usdc", "bch_usdc", "bnb_usdc", "eth_usdc", "link_usdc", "ltc_usdc", "luna_usdc", "matic_usdc", "near_usdc", "shib_usdc", "sol_usdc", "trx_usdc", "uni_usdc", "xrp_usdc", "btcdvol_usdc", "ethdvol_usdc"}
-
 	pingMessage = WsSubscriptionInput{
 		ID:             2,
 		JSONRPCVersion: rpcVersion,
@@ -117,7 +115,7 @@ var (
 		ID:             1,
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/set_heartbeat",
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"interval": 15,
 		},
 	}
@@ -168,7 +166,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/auth",
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
-		Params: map[string]interface{}{
+		Params: map[string]any{
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
@@ -408,7 +406,7 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 			AssetType:    a,
 		}
 	}
-	err = trade.AddTradesToBuffer(d.Name, td...)
+	err = trade.AddTradesToBuffer(td...)
 	if err != nil {
 		return err
 	}
@@ -477,6 +475,12 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
+	tradeFeed := d.IsTradeFeedEnabled()
+	saveTradeData := d.IsSaveTradeDataEnabled()
+	if !tradeFeed && !saveTradeData {
+		return nil
+	}
+
 	if len(channels) < 3 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -490,30 +494,34 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	if len(tradeList) == 0 {
 		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
 	}
-	tradeDatas := make([]trade.Data, len(tradeList))
-	for x := range tradeDatas {
+	tradesData := make([]trade.Data, len(tradeList))
+	for x := range tradesData {
 		var cp currency.Pair
 		var a asset.Item
 		cp, a, err = d.getAssetPairByInstrument(tradeList[x].InstrumentName)
 		if err != nil {
 			return err
 		}
-		side, err := order.StringToOrderSide(tradeList[x].Direction)
-		if err != nil {
-			return err
-		}
-		tradeDatas[x] = trade.Data{
+		tradesData[x] = trade.Data{
 			CurrencyPair: cp,
 			Exchange:     d.Name,
-			Timestamp:    tradeList[x].Timestamp.Time(),
+			Timestamp:    tradeList[x].Timestamp.Time().UTC(),
 			Price:        tradeList[x].Price,
 			Amount:       tradeList[x].Amount,
-			Side:         side,
+			Side:         tradeList[x].Direction,
 			TID:          tradeList[x].TradeID,
 			AssetType:    a,
 		}
 	}
-	return trade.AddTradesToBuffer(d.Name, tradeDatas...)
+	if tradeFeed {
+		for i := range tradesData {
+			d.Websocket.DataHandler <- tradesData[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(tradesData...)
+	}
+	return nil
 }
 
 func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) error {
@@ -592,7 +600,7 @@ func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processData(respRaw []byte, result interface{}) error {
+func (d *Deribit) processData(respRaw []byte, result any) error {
 	var response WsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)
@@ -686,7 +694,9 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		if orderbookData.Type == "snapshot" {
+
+		switch orderbookData.Type {
+		case "snapshot":
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
@@ -697,7 +707,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Asset:           a,
 				LastUpdateID:    orderbookData.ChangeID,
 			})
-		} else if orderbookData.Type == "change" {
+		case "change":
 			return d.Websocket.Orderbook.Update(&orderbook.Update{
 				Asks:       asks,
 				Bids:       bids,
@@ -779,6 +789,7 @@ func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
+		"fmt":             formatChannelPair,
 	}).
 		Parse(subTplText)
 }
@@ -805,18 +816,19 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 	if err != nil || len(subs) == 0 {
 		return err
 	}
+
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
 		ID:             d.Websocket.Conn.GenerateMessageID(false),
 		Method:         method,
-		Params: map[string][]string{
-			"channels": subs.QualifiedChannels(),
-		},
+		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
+
 	data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}
+
 	var response wsSubscriptionResponse
 	err = json.Unmarshal(data, &response)
 	if err != nil {
@@ -827,15 +839,25 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		subAck[c] = true
 	}
 	if len(subAck) != len(subs) {
-		err = common.ErrUnknownError
+		err = stream.ErrSubscriptionFailure
 	}
 	for _, s := range subs {
 		if _, ok := subAck[s.QualifiedChannel]; ok {
-			err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
+			delete(subAck, s.QualifiedChannel)
+			if !strings.Contains(method, "unsubscribe") {
+				err = common.AppendError(err, d.Websocket.AddSuccessfulSubscriptions(d.Websocket.Conn, s))
+			} else {
+				err = common.AppendError(err, d.Websocket.RemoveSubscriptions(d.Websocket.Conn, s))
+			}
 		} else {
-			err = common.AppendError(err, errors.New(s.String()))
+			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))
 		}
 	}
+
+	for key := range subAck {
+		err = common.AppendError(err, fmt.Errorf("unexpected channel `%s` in result", key))
+	}
+
 	return err
 }
 
@@ -899,11 +921,18 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
+func formatChannelPair(pair currency.Pair) string {
+	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
+		pair.Delimiter = "_"
+	}
+	return pair.String()
+}
+
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- $p }}
+			{{- channelName $.S -}} . {{- fmt $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

@@ -78,19 +78,25 @@ const (
 	// Multi means a margin trade is not isolated from other margin trades
 	// it can sometimes be referred to as "cross"
 	Multi
-	// Unknown is an unknown margin type but is not unset
+	// NoMargin indicates a trade that is conducted in non-margin mode, i.e., no borrowing of funds is involved.
+	NoMargin
+	// SpotIsolated indicates a margin shared amongst all spot trades but isolated from other assets
+	SpotIsolated
+	// Unknown indicates the margin type is set, but unknown
 	Unknown
 )
 
-var supported = Isolated | Multi
+var supported = Isolated | Multi | NoMargin | SpotIsolated
 
 const (
-	unsetStr    = "unset"
-	isolatedStr = "isolated"
-	multiStr    = "multi"
-	crossedStr  = "crossed"
-	crossStr    = "cross"
-	unknownStr  = "unknown"
+	unsetStr        = ""
+	isolatedStr     = "isolated"
+	multiStr        = "multi"
+	cashStr         = "cash"
+	spotIsolatedStr = "spot_isolated"
+	crossedStr      = "crossed"
+	crossStr        = "cross"
+	unknownStr      = "unknown"
 )
 
 // RateHistoryResponse has the funding rate details

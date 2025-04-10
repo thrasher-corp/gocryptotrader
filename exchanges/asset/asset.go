@@ -1,10 +1,12 @@
 package asset
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Public errors related to assets
@@ -41,6 +43,7 @@ const (
 	USDCMarginedFutures
 	FutureCombo
 	LinearContract
+	Spread
 	// Options asset consts must come below this comment for method `IsOptions`
 	Options
 	OptionCombo
@@ -58,6 +61,7 @@ const (
 	perpetualContract      = "perpetualcontract"
 	perpetualSwap          = "perpetualswap"
 	swap                   = "swap"
+	spread                 = "spread"
 	futures                = "futures"
 	deliveryFutures        = "delivery"
 	upsideProfitContract   = "upsideprofitcontract"
@@ -72,9 +76,7 @@ const (
 	all                    = "all"
 )
 
-var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo}
-)
+var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
 
 // Supported returns a list of supported asset types
 func Supported() Items {
@@ -100,6 +102,8 @@ func (a Item) String() string {
 		return perpetualContract
 	case PerpetualSwap:
 		return perpetualSwap
+	case Spread:
+		return spread
 	case Futures:
 		return futures
 	case DeliveryFutures:
@@ -141,14 +145,7 @@ func (a Items) Strings() []string {
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
 func (a Items) Contains(i Item) bool {
-	if i.IsValid() {
-		for x := range a {
-			if a[x] == i {
-				return true
-			}
-		}
-	}
-	return false
+	return slices.Contains(a, i)
 }
 
 // JoinToString joins an asset type array and converts it to a string
@@ -220,6 +217,8 @@ func New(input string) (Item, error) {
 		return PerpetualContract, nil
 	case perpetualSwap, swap:
 		return PerpetualSwap, nil
+	case spread:
+		return Spread, nil
 	case futures:
 		return Futures, nil
 	case upsideProfitContract:

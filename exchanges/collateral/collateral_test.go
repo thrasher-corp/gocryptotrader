@@ -1,10 +1,11 @@
 package collateral
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestValidCollateralType(t *testing.T) {
@@ -16,6 +17,9 @@ func TestValidCollateralType(t *testing.T) {
 		t.Fatal("expected 'true', received 'false'")
 	}
 	if !PortfolioMode.Valid() {
+		t.Fatal("expected 'true', received 'false'")
+	}
+	if !SpotFuturesMode.Valid() {
 		t.Fatal("expected 'true', received 'false'")
 	}
 	if UnsetMode.Valid() {

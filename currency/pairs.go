@@ -1,12 +1,13 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Public Errors
@@ -385,7 +386,7 @@ func (p Pairs) GetStables() Currencies {
 // currencyConstructor takes in an item map and returns the currencies with
 // the same formatting.
 func currencyConstructor(m map[*Item]bool) Currencies {
-	var cryptos = make([]Code, len(m))
+	cryptos := make([]Code, len(m))
 	var target int
 	for code, upper := range m {
 		cryptos[target].Item = code

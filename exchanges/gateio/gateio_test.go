@@ -2,8 +2,8 @@ package gateio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"slices"
@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -70,7 +71,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !errors.Is(err, order.ErrCancelOrderIsNil) {
 		t.Error(err)
 	}
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -132,6 +133,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -289,6 +291,7 @@ func TestGetCandlesticks(t *testing.T) {
 		t.Errorf("%s GetCandlesticks() error %v", g.Name, err)
 	}
 }
+
 func TestGetTradingFeeRatio(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -404,10 +407,12 @@ func TestGetSpotOrder(t *testing.T) {
 	if _, err := g.GetSpotOrder(context.Background(), "1234", currency.Pair{
 		Base:      currency.BTC,
 		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT}, asset.Spot); err != nil {
+		Quote:     currency.USDT,
+	}, asset.Spot); err != nil {
 		t.Errorf("%s GetSpotOrder() error %v", g.Name, err)
 	}
 }
+
 func TestAmendSpotOrder(t *testing.T) {
 	t.Parallel()
 	_, err := g.AmendSpotOrder(context.Background(), "", getPair(t, asset.Spot), false, &PriceAndAmount{
@@ -430,6 +435,7 @@ func TestAmendSpotOrder(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestCancelSingleSpotOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -532,7 +538,8 @@ func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
 	if _, err := g.ListMarginAccountBalanceChangeHistory(context.Background(), currency.BTC, currency.Pair{
 		Base:      currency.BTC,
 		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT}, time.Time{}, time.Time{}, 0, 0); err != nil {
+		Quote:     currency.USDT,
+	}, time.Time{}, time.Time{}, 0, 0); err != nil {
 		t.Errorf("%s ListMarginAccountBalanceChangeHistory() error %v", g.Name, err)
 	}
 }
@@ -982,6 +989,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 	_, err = g.GetFuturesOrderbook(context.Background(), settle, getPair(t, asset.Futures).String(), "", 0, false)
 	assert.NoError(t, err, "GetFuturesOrderbook should not error")
 }
+
 func TestGetFuturesTradingHistory(t *testing.T) {
 	t.Parallel()
 	settle, err := getSettlementFromCurrency(getPair(t, asset.Futures))
@@ -1049,6 +1057,7 @@ func TestGetLiquidationHistory(t *testing.T) {
 	_, err = g.GetLiquidationHistory(context.Background(), settle, getPair(t, asset.Futures), time.Time{}, time.Time{}, 0)
 	assert.NoError(t, err, "GetLiquidationHistory should not error")
 }
+
 func TestQueryFuturesAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -1255,6 +1264,7 @@ func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	_, err = g.UpdatePositionMarginInDualMode(context.Background(), settle, getPair(t, asset.Futures), 0.001, "dual_long")
 	assert.NoError(t, err, "UpdatePositionMarginInDualMode should not error")
 }
+
 func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -1352,12 +1362,14 @@ func TestGetSingleFuturesOrder(t *testing.T) {
 	_, err := g.GetSingleFuturesOrder(context.Background(), currency.BTC, "12345")
 	assert.NoError(t, err, "GetSingleFuturesOrder should not error")
 }
+
 func TestCancelSingleFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err := g.CancelSingleFuturesOrder(context.Background(), currency.BTC, "12345")
 	assert.NoError(t, err, "CancelSingleFuturesOrder should not error")
 }
+
 func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -1506,6 +1518,7 @@ func TestQueryDeliveryFuturesAccounts(t *testing.T) {
 	_, err := g.GetDeliveryFuturesAccounts(context.Background(), currency.USDT)
 	assert.NoError(t, err, "GetDeliveryFuturesAccounts should not error")
 }
+
 func TestGetDeliveryAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -1747,6 +1760,7 @@ func TestCancelOptionOpenOrders(t *testing.T) {
 		t.Errorf("%s CancelOptionOpenOrders() error %v", g.Name, err)
 	}
 }
+
 func TestGetSingleOptionOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
@@ -1953,6 +1967,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 		t.Errorf("%s GetWithdrawalsHistory() error %v", g.Name, err)
 	}
 }
+
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetRecentTrades(context.Background(), getPair(t, asset.Spot), asset.Spot)
@@ -2059,7 +2074,7 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -2112,7 +2127,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Spot),
 			AssetType:     asset.Spot,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2129,7 +2145,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Futures),
 			AssetType:     asset.Futures,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2146,7 +2163,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.DeliveryFutures),
 			AssetType:     asset.DeliveryFutures,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2163,7 +2181,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Options),
 			AssetType:     asset.Options,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2180,7 +2199,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			AccountID:     "1",
 			Pair:          getPair(t, asset.Margin),
 			AssetType:     asset.Margin,
-		}})
+		},
+	})
 	if err != nil {
 		t.Errorf("%s CancelOrder error: %v", g.Name, err)
 	}
@@ -2285,7 +2305,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	var multiOrderRequest = order.MultiOrderRequest{
+	multiOrderRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -2386,6 +2406,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Errorf("%s GetHistoricCandlesExtended() expecting: %v, but found %v", g.Name, asset.ErrNotSupported, err)
 	}
 }
+
 func TestGetAvailableTransferTrains(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetAvailableTransferChains(context.Background(), currency.USDT)
@@ -2657,7 +2678,7 @@ func TestOptionsUnderlyingTradesPushData(t *testing.T) {
 	}
 }
 
-const optionsUnderlyingPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.ul_price",	"event": "update",	"result": {	   "underlying": "BTC_USDT",	   "price": 49653.24,"time": 1639143988,"time_ms": 1639143988931	}}`
+const optionsUnderlyingPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.ul_price",	"event": "update",	"result": {	   "underlying": "BTC_USDT",	   "price": 49653.24,"time": 1639143988,"time_ms": 1639143988931}}`
 
 func TestOptionsUnderlyingPricePushData(t *testing.T) {
 	t.Parallel()
@@ -2666,7 +2687,7 @@ func TestOptionsUnderlyingPricePushData(t *testing.T) {
 	}
 }
 
-const optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.mark_price",	"event": "update",	"result": {    "contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676	}}`
+const optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.mark_price",	"event": "update",	"result": {    "contract": "BTC_USDT-20211231-59800-P",    "price": 11021.27,    "time": 1639143401,    "time_ms": 1639143401676}}`
 
 func TestOptionsMarkPricePushData(t *testing.T) {
 	t.Parallel()
@@ -2675,7 +2696,7 @@ func TestOptionsMarkPricePushData(t *testing.T) {
 	}
 }
 
-const optionsSettlementsPushDataJSON = `{	"time": 1630576356,	"channel": "options.settlements",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-55000-P",	   "orderbook_id": 2,	   "position_size": 1,	   "profit": 0.5,	   "settle_price": 70000,	   "strike_price": 65000,	   "tag": "WEEK",	   "trade_id": 1,	   "trade_size": 1,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000	}}`
+const optionsSettlementsPushDataJSON = `{	"time": 1630576356,	"channel": "options.settlements",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-55000-P",	   "orderbook_id": 2,	   "position_size": 1,	   "profit": 0.5,	   "settle_price": 70000,	   "strike_price": 65000,	   "tag": "WEEK",	   "trade_id": 1,	   "trade_size": 1,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000}}`
 
 func TestSettlementsPushData(t *testing.T) {
 	t.Parallel()
@@ -2684,7 +2705,7 @@ func TestSettlementsPushData(t *testing.T) {
 	}
 }
 
-const optionsContractPushDataJSON = `{"time": 1630576356,	"channel": "options.contracts",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-50000-P",	   "create_time": 1637917026,	   "expiration_time": 1638230400,	   "init_margin_high": 0.15,	   "init_margin_low": 0.1,	   "is_call": false,	   "maint_margin_base": 0.075,	   "maker_fee_rate": 0.0004,	   "mark_price_round": 0.1,	   "min_balance_short": 0.5,	   "min_order_margin": 0.1,	   "multiplier": 0.0001,	   "order_price_deviate": 0,	   "order_price_round": 0.1,	   "order_size_max": 1,	   "order_size_min": 10,	   "orders_limit": 100000,	   "ref_discount_rate": 0.1,	   "ref_rebate_rate": 0,	   "strike_price": 50000,	   "tag": "WEEK",	   "taker_fee_rate": 0.0004,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000	}}`
+const optionsContractPushDataJSON = `{"time": 1630576356,	"channel": "options.contracts",	"event": "update",	"result": {	   "contract": "BTC_USDT-20211130-50000-P",	   "create_time": 1637917026,	   "expiration_time": 1638230400,	   "init_margin_high": 0.15,	   "init_margin_low": 0.1,	   "is_call": false,	   "maint_margin_base": 0.075,	   "maker_fee_rate": 0.0004,	   "mark_price_round": 0.1,	   "min_balance_short": 0.5,	   "min_order_margin": 0.1,	   "multiplier": 0.0001,	   "order_price_deviate": 0,	   "order_price_round": 0.1,	   "order_size_max": 1,	   "order_size_min": 10,	   "orders_limit": 100000,	   "ref_discount_rate": 0.1,	   "ref_rebate_rate": 0,	   "strike_price": 50000,	   "tag": "WEEK",	   "taker_fee_rate": 0.0004,	   "underlying": "BTC_USDT",	   "time": 1639051907,	   "time_ms": 1639051907000}}`
 
 func TestOptionsContractPushData(t *testing.T) {
 	t.Parallel()
@@ -2710,26 +2731,20 @@ func TestOptionsCandlesticksPushData(t *testing.T) {
 
 const (
 	optionsOrderbookTickerPushDataJSON              = `{	"time": 1630650452,	"channel": "options.book_ticker",	"event": "update",	"result": {    "t": 1615366379123,    "u": 2517661076,    "s": "BTC_USDT-20211130-50000-C",    "b": "54696.6",    "B": 37000,    "a": "54696.7",    "A": 47061	}}`
-	optionsOrderbookUpdatePushDataJSON              = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "BTC_USDT-20211130-50000-C",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
+	optionsOrderbookUpdatePushDataJSON              = `{	"time": 1630650445,	"channel": "options.order_book_update",	"event": "update",	"result": {    "t": 1615366381417,    "s": "%s",    "U": 2517661101,    "u": 2517661113,    "b": [        {            "p": "54672.1",            "s": 95        },        {            "p": "54664.5",            "s": 58794        }    ],    "a": [        {            "p": "54743.6",            "s": 95        },        {            "p": "54742",            "s": 95        }    ]	}}`
 	optionsOrderbookSnapshotPushDataJSON            = `{	"time": 1630650445,	"channel": "options.order_book",	"event": "all",	"result": {    "t": 1541500161123,    "contract": "BTC_USDT-20211130-50000-C",    "id": 93973511,    "asks": [        {            "p": "97.1",            "s": 2245        },		{            "p": "97.2",            "s": 2245        }    ],    "bids": [		{            "p": "97.2",            "s": 2245        },        {            "p": "97.1",            "s": 2245        }    ]	}}`
 	optionsOrderbookSnapshotUpdateEventPushDataJSON = `{"channel": "options.order_book",	"event": "update",	"time": 1630650445,	"result": [	  {		"p": "49525.6",		"s": 7726,		"c": "BTC_USDT-20211130-50000-C",		"id": 93973511	  }	]}`
 )
 
 func TestOptionsOrderbookPushData(t *testing.T) {
 	t.Parallel()
-	err := g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookTickerPushDataJSON))
-	if err != nil {
-		t.Errorf("%s websocket options orderbook ticker push data error: %v", g.Name, err)
-	}
-	if err = g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options orderbook snapshot push data error: %v", g.Name, err)
-	}
-	if err = g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookUpdatePushDataJSON)); err != nil {
-		t.Errorf("%s websocket options orderbook update push data error: %v", g.Name, err)
-	}
-	if err = g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options orderbook snapshot update event push data error: %v", g.Name, err)
-	}
+	testexch.UpdatePairsOnce(t, g)
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookTickerPushDataJSON)))
+	avail, err := g.GetAvailablePairs(asset.Options)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String())))
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotPushDataJSON)))
+	assert.NoError(t, g.WsHandleOptionsData(context.Background(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
 }
 
 const optionsOrderPushDataJSON = `{"time": 1630654851,"channel": "options.orders",	"event": "update",	"result": [	   {		  "contract": "BTC_USDT-20211130-65000-C",		  "create_time": 1637897000,		  "fill_price": 0,		  "finish_as": "cancelled",		  "iceberg": 0,		  "id": 106,		  "is_close": false,		  "is_liq": false,		  "is_reduce_only": false,		  "left": -10,		  "mkfr": 0.0004,		  "price": 15000,		  "refr": 0,		  "refu": 0,		  "size": -10,		  "status": "finished",		  "text": "web",		  "tif": "gtc",		  "tkfr": 0.0004,		  "underlying": "BTC_USDT",		  "user": "9xxx",		  "time": 1639051907,"time_ms": 1639051907000}]}`
@@ -2750,7 +2765,7 @@ func TestOptionUserTradesPushData(t *testing.T) {
 	}
 }
 
-const optionsLiquidatesPushDataJSON = `{	"channel": "options.liquidates",	"event": "update",	"time": 1630654851,	"result": [	   {		  "user": "1xxxx",		  "init_margin": 1190,		  "maint_margin": 1042.5,		  "order_margin": 0,		  "time": 1639051907,		  "time_ms": 1639051907000	   }	]}`
+const optionsLiquidatesPushDataJSON = `{	"channel": "options.liquidates",	"event": "update",	"time": 1630654851,	"result": [	   {		  "user": "1xxxx",		  "init_margin": 1190,		  "maint_margin": 1042.5,		  "order_margin": 0,		  "time": 1639051907,		  "time_ms": 1639051907000}	]}`
 
 func TestOptionsLiquidatesPushData(t *testing.T) {
 	t.Parallel()
@@ -2786,7 +2801,7 @@ func TestOptionsBalancePushData(t *testing.T) {
 	}
 }
 
-const optionsPositionPushDataJSON = `{"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000	   }	]}`
+const optionsPositionPushDataJSON = `{"time": 1630654851,	"channel": "options.positions",	"event": "update",	"error": null,	"result": [	   {		  "entry_price": 0,		  "realised_pnl": -13.028,		  "size": 0,		  "contract": "BTC_USDT-20211130-65000-C",		  "user": "9010",		  "time": 1639051907,		  "time_ms": 1639051907000}	]}`
 
 func TestOptionsPositionPushData(t *testing.T) {
 	t.Parallel()
@@ -2885,6 +2900,7 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs, err := g.GenerateFuturesDefaultSubscriptions(currency.USDT)
@@ -2896,6 +2912,7 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	_, err = g.GenerateFuturesDefaultSubscriptions(currency.TABOO)
 	require.Error(t, err)
 }
+
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateOptionsDefaultSubscriptions(); err != nil {
@@ -3369,7 +3386,7 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 
 func TestGetClientOrderIDFromText(t *testing.T) {
 	t.Parallel()
-	assert.Zero(t, getClientOrderIDFromText("api"), "should not return anything")
+	assert.Empty(t, getClientOrderIDFromText("api"), "should not return anything")
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 

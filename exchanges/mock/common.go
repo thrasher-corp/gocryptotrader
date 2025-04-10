@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +8,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // MatchURLVals matches url.Value query strings
@@ -41,11 +42,11 @@ func MatchURLVals(v1, v2 url.Values) bool {
 
 // DeriveURLValsFromJSONMap gets url vals from a map[string]string encoded JSON body
 func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
-	var vals = url.Values{}
+	vals := url.Values{}
 	if len(payload) == 0 {
 		return vals, nil
 	}
-	intermediary := make(map[string]interface{})
+	intermediary := make(map[string]any)
 	err := json.Unmarshal(payload, &intermediary)
 	if err != nil {
 		return vals, err
@@ -59,7 +60,7 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 			vals.Add(k, strconv.FormatBool(val))
 		case float64:
 			vals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
-		case map[string]interface{}, []interface{}, nil:
+		case map[string]any, []any, nil:
 			vals.Add(k, fmt.Sprintf("%v", val))
 		default:
 			log.Println(reflect.TypeOf(val))

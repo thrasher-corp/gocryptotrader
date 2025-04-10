@@ -1,11 +1,11 @@
 package gateio
 
 import (
-	"encoding/json"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1240,7 +1240,7 @@ type MarginLoanRequestParam struct {
 	Amount       types.Number  `json:"amount,omitempty"`
 	Days         int64         `json:"days,omitempty"`
 	AutoRenew    bool          `json:"auto_renew,omitempty"`
-	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
+	CurrencyPair currency.Pair `json:"currency_pair,omitzero"`
 	FeeRate      types.Number  `json:"fee_rate,omitempty"`
 	OrigID       string        `json:"orig_id,omitempty"`
 	Text         string        `json:"text,omitempty"`
@@ -1301,7 +1301,7 @@ type CrossMarginBalance struct {
 	BorrowedNet         string       `json:"borrowed_net"`
 	TotalNetAssetInUSDT string       `json:"net"`
 	PositionLeverage    string       `json:"leverage"`
-	Risk                string       `json:"risk"` // Risk rate. When it belows 110%, liquidation will be triggered. Calculation formula: total / (borrowed+interest)
+	Risk                string       `json:"risk"` // Risk percentage; Liquidation is triggered when this falls below required margin. Calculation: total / (borrowed+interest)
 }
 
 // WalletSavedAddress represents currency saved address
@@ -1367,7 +1367,7 @@ type SpotAccount struct {
 // CreateOrderRequestData represents a single order creation param.
 type CreateOrderRequestData struct {
 	Text         string        `json:"text,omitempty"`
-	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
+	CurrencyPair currency.Pair `json:"currency_pair,omitzero"`
 	Type         string        `json:"type,omitempty"`
 	Account      string        `json:"account,omitempty"`
 	Side         string        `json:"side,omitempty"`
@@ -1385,8 +1385,8 @@ type SpotOrder struct {
 	Succeeded          bool         `json:"succeeded"`
 	ErrorLabel         string       `json:"label,omitempty"`
 	Message            string       `json:"message,omitempty"`
-	CreateTime         types.Time   `json:"create_time_ms,omitempty"`
-	UpdateTime         types.Time   `json:"update_time_ms,omitempty"`
+	CreateTime         types.Time   `json:"create_time_ms,omitzero"`
+	UpdateTime         types.Time   `json:"update_time_ms,omitzero"`
 	CurrencyPair       string       `json:"currency_pair,omitempty"`
 	Status             string       `json:"status,omitempty"`
 	Type               string       `json:"type,omitempty"`
@@ -2077,7 +2077,7 @@ type WsSpotOrder struct {
 	Succeeded          bool          `json:"succeeded,omitempty"`
 	Label              string        `json:"label,omitempty"`
 	Message            string        `json:"message,omitempty"`
-	CurrencyPair       currency.Pair `json:"currency_pair,omitempty"`
+	CurrencyPair       currency.Pair `json:"currency_pair,omitzero"`
 	Type               string        `json:"type,omitempty"`
 	Account            string        `json:"account,omitempty"`
 	Side               string        `json:"side,omitempty"`
@@ -2095,8 +2095,8 @@ type WsSpotOrder struct {
 	RebatedFee         string        `json:"rebated_fee,omitempty"`
 	RebatedFeeCurrency string        `json:"rebated_fee_currency,omitempty"`
 	Event              string        `json:"event"`
-	CreateTime         types.Time    `json:"create_time_ms,omitempty"`
-	UpdateTime         types.Time    `json:"update_time_ms,omitempty"`
+	CreateTime         types.Time    `json:"create_time_ms,omitzero"`
+	UpdateTime         types.Time    `json:"update_time_ms,omitzero"`
 }
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.

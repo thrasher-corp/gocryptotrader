@@ -135,7 +135,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 }
 
 // SetCustomSettings allows a user to modify the RSI limits in their config
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
+func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 	for k, v := range customSettings {
 		switch k {
 		case rsiHighKey:

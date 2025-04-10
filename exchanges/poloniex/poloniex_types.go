@@ -1,10 +1,11 @@
 package poloniex
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Ticker holds ticker data
@@ -32,11 +33,11 @@ type CompleteBalances map[string]CompleteBalance
 
 // OrderbookResponse is a sub-type for orderbooks
 type OrderbookResponse struct {
-	Asks     [][]interface{} `json:"asks"`
-	Bids     [][]interface{} `json:"bids"`
-	IsFrozen string          `json:"isFrozen"`
-	Error    string          `json:"error"`
-	Seq      int64           `json:"seq"`
+	Asks     [][2]types.Number `json:"asks"`
+	Bids     [][2]types.Number `json:"bids"`
+	IsFrozen string            `json:"isFrozen"`
+	Error    string            `json:"error"`
+	Seq      int64             `json:"seq"`
 }
 
 // OrderbookItem holds data on an individual item
@@ -102,15 +103,15 @@ type OrderTrade struct {
 
 // ChartData holds kline data
 type ChartData struct {
-	Date            int64   `json:"date,string"`
-	High            float64 `json:"high,string"`
-	Low             float64 `json:"low,string"`
-	Open            float64 `json:"open,string"`
-	Close           float64 `json:"close,string"`
-	Volume          float64 `json:"volume,string"`
-	QuoteVolume     float64 `json:"quoteVolume,string"`
-	WeightedAverage float64 `json:"weightedAverage,string"`
-	Error           string  `json:"error"`
+	Date            types.Time   `json:"date"`
+	High            types.Number `json:"high"`
+	Low             types.Number `json:"low"`
+	Open            types.Number `json:"open"`
+	Close           types.Number `json:"close"`
+	Volume          types.Number `json:"volume"`
+	QuoteVolume     types.Number `json:"quoteVolume"`
+	WeightedAverage types.Number `json:"weightedAverage"`
+	Error           string       `json:"error"`
 }
 
 // Currencies contains currency information
@@ -360,11 +361,11 @@ const (
 
 // wsCommand defines the request params after a websocket connection has been established
 type wsCommand struct {
-	Command wsOp        `json:"command"`
-	Channel interface{} `json:"channel"`
-	APIKey  string      `json:"key,omitempty"`
-	Payload string      `json:"payload,omitempty"`
-	Sign    string      `json:"sign,omitempty"`
+	Command wsOp   `json:"command"`
+	Channel any    `json:"channel"`
+	APIKey  string `json:"key,omitempty"`
+	Payload string `json:"payload,omitempty"`
+	Sign    string `json:"sign,omitempty"`
 }
 
 // WsTicker defines the websocket ticker response

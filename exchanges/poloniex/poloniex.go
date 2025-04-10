@@ -3,7 +3,6 @@ package poloniex
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -80,8 +80,8 @@ func (p *Poloniex) GetTicker(ctx context.Context) (map[string]Ticker, error) {
 }
 
 // GetVolume returns a list of currencies with associated volume
-func (p *Poloniex) GetVolume(ctx context.Context) (interface{}, error) {
-	var resp interface{}
+func (p *Poloniex) GetVolume(ctx context.Context) (any, error) {
+	var resp any
 	path := "/public?command=return24hVolume"
 
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
@@ -112,32 +112,15 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 			Asks: make([]OrderbookItem, len(resp.Asks)),
 		}
 		for x := range resp.Asks {
-			price, err := strconv.ParseFloat(resp.Asks[x][0].(string), 64)
-			if err != nil {
-				return oba, err
-			}
-			amt, ok := resp.Asks[x][1].(float64)
-			if !ok {
-				return oba, common.GetTypeAssertError("float64", resp.Asks[x][1], "amount")
-			}
 			ob.Asks[x] = OrderbookItem{
-				Price:  price,
-				Amount: amt,
+				Price:  resp.Asks[x][0].Float64(),
+				Amount: resp.Asks[x][1].Float64(),
 			}
 		}
-
 		for x := range resp.Bids {
-			price, err := strconv.ParseFloat(resp.Bids[x][0].(string), 64)
-			if err != nil {
-				return oba, err
-			}
-			amt, ok := resp.Bids[x][1].(float64)
-			if !ok {
-				return oba, common.GetTypeAssertError("float64", resp.Bids[x][1], "amount")
-			}
 			ob.Bids[x] = OrderbookItem{
-				Price:  price,
-				Amount: amt,
+				Price:  resp.Bids[x][0].Float64(),
+				Amount: resp.Bids[x][1].Float64(),
 			}
 		}
 		oba.Data[currencyPair] = ob
@@ -155,31 +138,15 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 				Asks: make([]OrderbookItem, len(orderbook.Asks)),
 			}
 			for x := range orderbook.Asks {
-				price, err := strconv.ParseFloat(orderbook.Asks[x][0].(string), 64)
-				if err != nil {
-					return oba, err
-				}
-				amt, ok := orderbook.Asks[x][1].(float64)
-				if !ok {
-					return oba, common.GetTypeAssertError("float64", orderbook.Asks[x][1], "amount")
-				}
 				ob.Asks[x] = OrderbookItem{
-					Price:  price,
-					Amount: amt,
+					Price:  orderbook.Asks[x][0].Float64(),
+					Amount: orderbook.Asks[x][1].Float64(),
 				}
 			}
 			for x := range orderbook.Bids {
-				price, err := strconv.ParseFloat(orderbook.Bids[x][0].(string), 64)
-				if err != nil {
-					return oba, err
-				}
-				amt, ok := orderbook.Bids[x][1].(float64)
-				if !ok {
-					return oba, common.GetTypeAssertError("float64", orderbook.Bids[x][1], "amount")
-				}
 				ob.Bids[x] = OrderbookItem{
-					Price:  price,
-					Amount: amt,
+					Price:  orderbook.Bids[x][0].Float64(),
+					Amount: orderbook.Bids[x][1].Float64(),
 				}
 			}
 			oba.Data[currency] = ob
@@ -224,28 +191,27 @@ func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start,
 	}
 
 	var temp json.RawMessage
-	var resp []ChartData
 	path := "/public?command=returnChartData&" + vals.Encode()
 	err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &temp)
 	if err != nil {
 		return nil, err
 	}
 
-	tempUnmarshal := json.Unmarshal(temp, &resp)
-	if tempUnmarshal != nil {
+	var resp []ChartData
+	err = json.Unmarshal(temp, &resp)
+	if err != nil {
 		var errResp struct {
 			Error string `json:"error"`
 		}
-		errRet := json.Unmarshal(temp, &errResp)
-		if errRet != nil {
-			return nil, err
+		if errRet := json.Unmarshal(temp, &errResp); errRet != nil {
+			return nil, errRet
 		}
 		if errResp.Error != "" {
 			return nil, errors.New(errResp.Error)
 		}
 	}
 
-	return resp, nil
+	return resp, err
 }
 
 // GetCurrencies returns information about currencies
@@ -285,22 +251,31 @@ func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrde
 
 // GetBalances returns balances for your account.
 func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
-	var result interface{}
-
-	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result)
-	if err != nil {
+	var result any
+	if err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
 		return Balance{}, err
 	}
 
-	data, ok := result.(map[string]interface{})
+	data, ok := result.(map[string]any)
 	if !ok {
-		return Balance{}, common.GetTypeAssertError("map[string]interface{}", result, "balance result")
+		return Balance{}, common.GetTypeAssertError("map[string]any", result, "balance result")
 	}
-	balance := Balance{}
-	balance.Currency = make(map[string]float64)
+
+	balance := Balance{
+		Currency: make(map[string]float64),
+	}
 
 	for x, y := range data {
-		balance.Currency[x], _ = strconv.ParseFloat(y.(string), 64)
+		bal, ok := y.(string)
+		if !ok {
+			return Balance{}, common.GetTypeAssertError("string", y, "balance amount")
+		}
+
+		var err error
+		balance.Currency[x], err = strconv.ParseFloat(bal, 64)
+		if err != nil {
+			return Balance{}, err
+		}
 	}
 
 	return balance, nil
@@ -321,7 +296,7 @@ func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, e
 
 // GetDepositAddresses returns deposit addresses for all enabled cryptos.
 func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, error) {
-	var result interface{}
+	var result any
 	addresses := DepositAddresses{}
 
 	err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexDepositAddresses, url.Values{}, &result)
@@ -330,9 +305,9 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, e
 	}
 
 	addresses.Addresses = make(map[string]string)
-	data, ok := result.(map[string]interface{})
+	data, ok := result.(map[string]any)
 	if !ok {
-		return addresses, errors.New("return val not map[string]interface{}")
+		return addresses, errors.New("return val not map[string]any")
 	}
 
 	for x, y := range data {
@@ -449,7 +424,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(ctx context.Context, start, end,
 		return AuthenticatedTradeHistoryAll{}, err
 	}
 
-	var nodata []interface{}
+	var nodata []any
 	err = json.Unmarshal(result, &nodata)
 	if err == nil {
 		return AuthenticatedTradeHistoryAll{}, nil
@@ -657,7 +632,7 @@ func (p *Poloniex) GetFeeInfo(ctx context.Context) (Fee, error) {
 // GetTradableBalances returns tradable balances
 func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[string]float64, error) {
 	type Response struct {
-		Data map[string]map[string]interface{}
+		Data map[string]map[string]any
 	}
 	result := Response{}
 
@@ -671,7 +646,14 @@ func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[stri
 	for x, y := range result.Data {
 		balances[x] = make(map[string]float64)
 		for z, w := range y {
-			balances[x][z], _ = strconv.ParseFloat(w.(string), 64)
+			bal, ok := w.(string)
+			if !ok {
+				return nil, common.GetTypeAssertError("string", w, "balance")
+			}
+			balances[x][z], err = strconv.ParseFloat(bal, 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -730,7 +712,7 @@ func (p *Poloniex) PlaceMarginOrder(ctx context.Context, currency string, rate, 
 }
 
 // GetMarginPosition returns a position on a margin order
-func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (interface{}, error) {
+func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (any, error) {
 	values := url.Values{}
 
 	if currency != "" && currency != "all" {
@@ -919,7 +901,7 @@ func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clie
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -940,7 +922,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result interface{}) error {
+func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result any) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err

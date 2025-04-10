@@ -1,13 +1,13 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestPairsUpper(t *testing.T) {
@@ -65,10 +65,12 @@ func TestPairsFromString(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	expected := []string{"ALGO-AUD", "BAT-AUD", "BCH-AUD", "BSV-AUD", "BTC-AUD",
+	expected := []string{
+		"ALGO-AUD", "BAT-AUD", "BCH-AUD", "BSV-AUD", "BTC-AUD",
 		"COMP-AUD", "ENJ-AUD", "ETC-AUD", "ETH-AUD", "ETH-BTC", "GNT-AUD",
 		"LINK-AUD", "LTC-AUD", "LTC-BTC", "MCAU-AUD", "OMG-AUD", "POWR-AUD",
-		"UNI-AUD", "USDT-AUD", "XLM-AUD", "XRP-AUD", "XRP-BTC"}
+		"UNI-AUD", "USDT-AUD", "XLM-AUD", "XRP-AUD", "XRP-BTC",
+	}
 
 	returned := pairs.Strings()
 	for x := range returned {
@@ -168,7 +170,7 @@ func TestPairsMarshalJSON(t *testing.T) {
 
 func TestRemovePairsByFilter(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
@@ -182,7 +184,7 @@ func TestRemovePairsByFilter(t *testing.T) {
 
 func TestGetPairsByFilter(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
@@ -197,7 +199,7 @@ func TestGetPairsByFilter(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	t.Parallel()
-	var oldPairs = Pairs{
+	oldPairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
@@ -214,7 +216,7 @@ func TestRemove(t *testing.T) {
 	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
 
 	newPairs = newPairs.Remove(oldPairs[0])
-	assert.Len(t, newPairs, 1, newPairs, "Remove have no effect on non-included pairs")
+	assert.Len(t, newPairs, 1, "Remove should have no effect on non-included pairs")
 }
 
 func TestAdd(t *testing.T) {
@@ -241,7 +243,7 @@ func TestAdd(t *testing.T) {
 
 func TestContains(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
@@ -266,7 +268,7 @@ func TestContains(t *testing.T) {
 
 func TestContainsAll(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	pairs := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
@@ -307,7 +309,7 @@ func TestContainsAll(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	var duplication = Pairs{
+	duplication := Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
@@ -326,7 +328,7 @@ func TestDeriveFrom(t *testing.T) {
 	if !errors.Is(err, ErrCurrencyPairsEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
 	}
-	var testCases = Pairs{
+	testCases := Pairs{
 		NewPair(BTC, USDT),
 		NewPair(USDC, USDT),
 		NewPair(USDC, USD),
@@ -424,7 +426,7 @@ func BenchmarkGetCrypto(b *testing.B) {
 		NewPair(LTC, USDT),
 	}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.GetCrypto()
 	}
 }
@@ -524,7 +526,7 @@ func BenchmarkPairsString(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.Strings()
 	}
 }
@@ -544,7 +546,7 @@ func BenchmarkPairsFormat(b *testing.B) {
 
 	formatting := PairFormat{Delimiter: "/", Uppercase: false}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.Format(formatting)
 	}
 }
@@ -562,7 +564,7 @@ func BenchmarkRemovePairsByFilter(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = pairs.RemovePairsByFilter(USD)
 	}
 }
@@ -700,7 +702,8 @@ func TestValidateAndConform(t *testing.T) {
 
 	formatted, err = formatted.ValidateAndConform(PairFormat{
 		Delimiter: UnderscoreDelimiter,
-		Uppercase: false},
+		Uppercase: false,
+	},
 		true)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected '%v'", err, nil)
@@ -916,7 +919,7 @@ func BenchmarkFindDifferences(b *testing.B) {
 	compare, err := NewPairsFromStrings([]string{"ETH-123", "LTC-123", "MEOW-123"})
 	require.NoError(b, err)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err = original.FindDifferences(compare, EMPTYFORMAT)
 		require.NoError(b, err)
 	}

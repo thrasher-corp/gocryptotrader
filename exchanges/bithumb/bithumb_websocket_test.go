@@ -3,6 +3,7 @@ package bithumb
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,7 @@ var (
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
+
 	pairs := currency.Pairs{
 		currency.Pair{
 			Base:  currency.BTC,
@@ -33,6 +35,7 @@ func TestWsHandleData(t *testing.T) {
 	}
 
 	dummy := Bithumb{
+		location: time.Local,
 		Base: exchange.Base{
 			Name: "dummy",
 			Features: exchange.Features{
@@ -51,7 +54,7 @@ func TestWsHandleData(t *testing.T) {
 				},
 			},
 			Websocket: &stream.Websocket{
-				DataHandler: make(chan interface{}, 1),
+				DataHandler: make(chan any, 1),
 			},
 		},
 	}
@@ -125,8 +128,10 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: p, QualifiedChannel: `{"type":"transaction","symbols":["BTC_KRW","ETH_KRW"]}`},
 		{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: p, QualifiedChannel: `{"type":"orderbookdepth","symbols":["BTC_KRW","ETH_KRW"]}`},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
-			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`},
+		{
+			Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
+			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`,
+		},
 	}
 	testsubs.EqualLists(t, exp, subs)
 }

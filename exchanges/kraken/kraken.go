@@ -2,7 +2,6 @@ package kraken
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -196,14 +196,14 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		return nil, err
 	}
 
-	ohlcData, ok := result[translatedAsset].([]interface{})
+	ohlcData, ok := result[translatedAsset].([]any)
 	if !ok {
 		return nil, errors.New("invalid data returned")
 	}
 
 	OHLC := make([]OpenHighLowClose, len(ohlcData))
 	for x := range ohlcData {
-		subData, ok := ohlcData[x].([]interface{})
+		subData, ok := ohlcData[x].([]any)
 		if !ok {
 			return nil, errors.New("unable to type assert subData")
 		}
@@ -304,15 +304,15 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 		return nil, err
 	}
 
-	trades, ok := data[translatedAsset].([]interface{})
+	trades, ok := data[translatedAsset].([]any)
 	if !ok {
 		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
 	}
 
-	var individualTrade []interface{}
+	var individualTrade []any
 	recentTrades := make([]RecentTrades, len(trades))
 	for x := range trades {
-		individualTrade, ok = trades[x].([]interface{})
+		individualTrade, ok = trades[x].([]any)
 		if !ok {
 			return nil, errors.New("unable to parse individual trade data")
 		}
@@ -320,33 +320,43 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 			return nil, errors.New("unrecognised trade data received")
 		}
 		var r RecentTrades
-		r.Price, err = strconv.ParseFloat(individualTrade[0].(string), 64)
+
+		price, ok := individualTrade[0].(string)
+		if !ok {
+			return nil, common.GetTypeAssertError("string", individualTrade[0], "price")
+		}
+		r.Price, err = strconv.ParseFloat(price, 64)
 		if err != nil {
 			return nil, err
 		}
-		r.Volume, err = strconv.ParseFloat(individualTrade[1].(string), 64)
+
+		volume, ok := individualTrade[1].(string)
+		if !ok {
+			return nil, common.GetTypeAssertError("string", individualTrade[1], "volume")
+		}
+		r.Volume, err = strconv.ParseFloat(volume, 64)
 		if err != nil {
 			return nil, err
 		}
 		r.Time, ok = individualTrade[2].(float64)
 		if !ok {
-			return nil, errors.New("unable to parse time for individual trade data")
+			return nil, common.GetTypeAssertError("float64", individualTrade[2], "time")
 		}
 		r.BuyOrSell, ok = individualTrade[3].(string)
 		if !ok {
-			return nil, errors.New("unable to parse order side for individual trade data")
+			return nil, common.GetTypeAssertError("string", individualTrade[3], "buyOrSell")
 		}
 		r.MarketOrLimit, ok = individualTrade[4].(string)
 		if !ok {
-			return nil, errors.New("unable to parse order type for individual trade data")
+			return nil, common.GetTypeAssertError("string", individualTrade[4], "marketOrLimit")
 		}
 		r.Miscellaneous, ok = individualTrade[5].(string)
 		if !ok {
-			return nil, errors.New("unable to parse misc field for individual trade data")
+			return nil, common.GetTypeAssertError("string", individualTrade[5], "miscellaneous")
 		}
 		tradeID, ok := individualTrade[6].(float64)
 		if !ok {
-			return nil, errors.New("unable to parse TradeID field for individual trade data")
+			return nil, common.GetTypeAssertError("float64", individualTrade[6], "tradeID")
 		}
 		r.TradeID = int64(tradeID)
 		recentTrades[x] = r
@@ -375,14 +385,14 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		return nil, fmt.Errorf("unable to find %s in spread data", symbolValue)
 	}
 
-	spreadData, ok := data.([]interface{})
+	spreadData, ok := data.([]any)
 	if !ok {
 		return nil, errors.New("unable to type assert spreadData")
 	}
 
 	peanutButter := make([]Spread, len(spreadData))
 	for x := range spreadData {
-		subData, ok := spreadData[x].([]interface{})
+		subData, ok := spreadData[x].([]any)
 		if !ok {
 			return nil, errors.New("unable to type assert subData")
 		}
@@ -806,7 +816,7 @@ func (k *Kraken) CancelExistingOrder(ctx context.Context, txid string) (*CancelO
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
-func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := k.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -854,7 +864,7 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result interface{}) error {
+func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result any) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
 		return err

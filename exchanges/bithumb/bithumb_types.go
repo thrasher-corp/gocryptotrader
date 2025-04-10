@@ -1,9 +1,8 @@
 package bithumb
 
 import (
-	"encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -84,9 +83,9 @@ type Account struct {
 
 // Balance holds balance details
 type Balance struct {
-	Status  string                 `json:"status"`
-	Data    map[string]interface{} `json:"data"`
-	Message string                 `json:"message"`
+	Status  string         `json:"status"`
+	Data    map[string]any `json:"data"`
+	Message string         `json:"message"`
 }
 
 // WalletAddressRes contains wallet address information
@@ -291,8 +290,8 @@ type FullBalance struct {
 
 // OHLCVResponse holds returned kline data
 type OHLCVResponse struct {
-	Status string           `json:"status"`
-	Data   [][6]interface{} `json:"data"`
+	Status string   `json:"status"`
+	Data   [][6]any `json:"data"`
 }
 
 // Status defines the current exchange allowance to deposit or withdraw a

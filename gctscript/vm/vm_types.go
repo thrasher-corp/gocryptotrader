@@ -12,7 +12,7 @@ const (
 	// DefaultTimeoutValue default timeout value for virtual machines
 	DefaultTimeoutValue = 30 * time.Second
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
-	DefaultMaxVirtualMachines uint8 = 10
+	DefaultMaxVirtualMachines uint64 = 10
 
 	// TypeLoad text to display in script_event table when a VM is loaded
 	TypeLoad = "load"
@@ -31,10 +31,10 @@ const (
 	StatusFailure = "failure"
 )
 
-type vmscount int32
+type vmscount uint64
 
 var (
-	pool = &sync.Pool{New: func() interface{} { return new(tengo.Script) }}
+	pool = &sync.Pool{New: func() any { return new(tengo.Script) }}
 	// AllVMSync stores all current Virtual Machine instances
 	AllVMSync = &sync.Map{}
 	// VMSCount running total count of Virtual Machines

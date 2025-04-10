@@ -6,7 +6,6 @@ package telegram
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -274,7 +274,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 }
 
 // SendHTTPRequest sends an authenticated HTTP request
-func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{}) error {
+func (t *Telegram) SendHTTPRequest(path string, data []byte, result any) error {
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 

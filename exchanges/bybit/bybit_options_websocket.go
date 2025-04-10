@@ -2,12 +2,12 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -44,7 +44,7 @@ func (by *Bybit) WsOptionsConnect() error {
 // GenerateOptionsDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
-	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
+	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return nil, err

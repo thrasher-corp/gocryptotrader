@@ -37,18 +37,17 @@ func (bi *Binanceus) SetDefaults() {
 	bi.Verbose = true
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
-	bi.SetValues()
 
 	fmt1 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
 		},
 	}
-	err := bi.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := bi.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
 	bi.Features = exchange.Features{
@@ -122,6 +121,8 @@ func (bi *Binanceus) SetDefaults() {
 			},
 		},
 	}
+
+	var err error
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -309,33 +310,6 @@ func (bi *Binanceus) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (bi *Binanceus) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPairs, er := bi.FormatExchangeCurrency(p, assetType)
-	if er != nil {
-		return nil, er
-	}
-
-	tickerNew, er := ticker.GetTicker(bi.Name, fPairs, assetType)
-	if er != nil {
-		return bi.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (bi *Binanceus) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := bi.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-	ob, err := orderbook.Get(bi.Name, fPair, assetType)
-	if err != nil {
-		return bi.UpdateOrderbook(ctx, pair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if pair.IsEmpty() {
@@ -353,7 +327,8 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 
 	orderbookNew, err := bi.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
 		Symbol: pair,
-		Limit:  1000})
+		Limit:  1000,
+	})
 	if err != nil {
 		return book, err
 	}
@@ -413,19 +388,6 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return account.Holdings{}, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (bi *Binanceus) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := bi.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(bi.Name, creds, assetType)
-	if err != nil {
-		return bi.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -490,7 +452,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	}
 
 	if bi.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(bi.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -657,7 +619,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		return nil, err
 	}
 
-	orderIDInt, err := strconv.ParseInt(orderID, 10, 64)
+	orderIDInt, err := strconv.ParseUint(orderID, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid orderID %w", err)
 	}
@@ -671,7 +633,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	var orderType order.Type
 	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
 		Symbol:  symbolValue,
-		OrderID: uint64(orderIDInt),
+		OrderID: orderIDInt,
 	})
 	if err != nil {
 		return nil, err
@@ -692,7 +654,7 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	return &order.Detail{
 		Amount:         resp.OrigQty,
 		Exchange:       bi.Name,
-		OrderID:        strconv.FormatInt(int64(resp.OrderID), 10),
+		OrderID:        strconv.FormatUint(resp.OrderID, 10),
 		ClientOrderID:  resp.ClientOrderID,
 		Side:           orderSide,
 		Type:           orderType,
@@ -803,7 +765,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time,
 			Exchange:      bi.Name,
-			OrderID:       strconv.FormatInt(int64(resp[x].OrderID), 10),
+			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
 			Side:          orderSide,
 			Type:          orderType,
