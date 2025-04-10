@@ -724,7 +724,7 @@ func BenchmarkCounter(b *testing.B) {
 	}
 }
 
-func TestProcessElementsByBatch(t *testing.T) {
+func TestThrottledBatch(t *testing.T) {
 	t.Parallel()
 	testSlice := make([]int, 0, 100)
 	for i := range 100 {
@@ -735,7 +735,7 @@ func TestProcessElementsByBatch(t *testing.T) {
 	m := sync.Mutex{}
 
 	ch := make(chan int, len(testSlice))
-	require.NoError(t, ProcessElementsByBatch(10, testSlice, func(_ int, v int) error {
+	require.NoError(t, ThrottledBatch(10, testSlice, func(_ int, v int) error {
 		m.Lock()
 		defer m.Unlock()
 		if trackIndex[v] {
@@ -754,7 +754,7 @@ func TestProcessElementsByBatch(t *testing.T) {
 	}
 
 	expected := errors.New("test error")
-	require.ErrorIs(t, ProcessElementsByBatch(10, testSlice, func(int, int) error { return expected }), expected)
+	require.ErrorIs(t, ThrottledBatch(10, testSlice, func(int, int) error { return expected }), expected)
 }
 
 func TestProcessBatches(t *testing.T) {

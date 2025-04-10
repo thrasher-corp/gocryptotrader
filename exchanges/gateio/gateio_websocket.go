@@ -676,15 +676,14 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Connection, subs subscription.List) error {
-	var errs error
-	subs, errs = subs.ExpandTemplates(g)
-	if errs != nil {
-		return errs
+	exp, err := subs.ExpandTemplates(g)
+	if err != nil {
+		return err
 	}
-
-	// This will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
-	// This will decrease the amount of time it takes to subscribe to a large number of subscriptions.
-	return common.ProcessElementsByBatch(subscriptionBatchCount, subs, func(_ int, s *subscription.Subscription) error {
+	// ThrottledBatch will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
+	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
+	// clipped.
+	return common.ThrottledBatch(subscriptionBatchCount, exp, func(_ int, s *subscription.Subscription) error {
 		if err := g.manageSubPayload(ctx, conn, event, s); err != nil {
 			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 		}
@@ -801,10 +800,10 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	if err != nil {
 		return err
 	}
-
-	// This will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
-	// This will decrease the amount of time it takes to subscribe to a large number of subscriptions.
-	return common.ProcessElementsByBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
+	// ThrottledBatch will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
+	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
+	// clipped.
+	return common.ThrottledBatch(subscriptionBatchCount, payloads, func(index int, payload WsInput) error {
 		if err := g.sendSubPayload(ctx, conn, event, channelsToSubscribe[index], &payload); err != nil {
 			return fmt.Errorf("%s %s %s: %w", channelsToSubscribe[index].Channel, channelsToSubscribe[index].Asset, channelsToSubscribe[index].Pairs, err)
 		}

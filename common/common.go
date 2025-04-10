@@ -666,11 +666,11 @@ func (c *Counter) IncrementAndGet() int64 {
 // ElementProcessor defines the function signature for processing an individual element with its index.
 type ElementProcessor[E any] func(index int, element E) error
 
-// ProcessElementsByBatch takes a slice of elements and processes them in batches of `batchSize` concurrently.
+// ThrottledBatch takes a slice of elements and processes them in batches of `batchSize` concurrently.
 // For example, if batchSize = 10 and list has 100 elements, 10 goroutines will process 10 elements concurrently
 // in each batch. Each batch completes before the next batch begins.
 // `process` is a function called for each individual element with its index and value.
-func ProcessElementsByBatch[S ~[]E, E any](batchSize int, list S, process ElementProcessor[E]) error {
+func ThrottledBatch[S ~[]E, E any](batchSize int, list S, process ElementProcessor[E]) error {
 	var errs error
 	for i, s := range Batch(list, batchSize) {
 		err := CollectErrors(len(s))
