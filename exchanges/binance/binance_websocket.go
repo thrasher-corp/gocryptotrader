@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -19,10 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -52,10 +52,10 @@ var (
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
@@ -89,9 +89,9 @@ func (b *Binance) WsConnect() error {
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
@@ -186,7 +186,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	}
 	jsonData, _, _, err := jsonparser.Get(respRaw, "data")
 	if err != nil {
-		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 	var event string
 	event, err = jsonparser.GetUnsafeString(jsonData, "e")
@@ -320,13 +320,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	streamStr, err := jsonparser.GetUnsafeString(respRaw, "stream")
 	if err != nil {
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+			return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 		}
 		return err
 	}
 	streamType := strings.Split(streamStr, "@")
 	if len(streamType) <= 1 {
-		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 	var (
 		pair      currency.Pair
@@ -409,7 +409,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				b.Name,
 				err)
 		}
-		b.Websocket.DataHandler <- stream.KlineData{
+		b.Websocket.DataHandler <- websocket.KlineData{
 			Timestamp:  kline.EventTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Spot,
@@ -444,7 +444,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 }
 

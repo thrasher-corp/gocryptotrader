@@ -31,10 +31,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1056,7 +1056,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Base) GetWebsocket() (*stream.Websocket, error) {
+func (b *Base) GetWebsocket() (*websocket.Manager, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1124,7 +1124,7 @@ func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 }
 
 // CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
-// Used to avoid import cycles on stream.websocket
+// Used to avoid import cycles on websocket.Manager
 func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
 	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
@@ -1605,7 +1605,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 func (b *Base) Shutdown() error {
 	if b.Websocket != nil {
 		err := b.Websocket.Shutdown()
-		if err != nil && !errors.Is(err, stream.ErrNotConnected) {
+		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 			return err
 		}
 	}
