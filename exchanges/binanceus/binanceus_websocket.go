@@ -9,17 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -46,9 +46,9 @@ var (
 // WsConnect initiates a websocket connection
 func (bi *Binanceus) WsConnect() error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = bi.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
@@ -82,9 +82,9 @@ func (bi *Binanceus) WsConnect() error {
 		go bi.KeepAuthKeyAlive()
 	}
 
-	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
@@ -400,7 +400,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					bi.Websocket.DataHandler <- stream.KlineData{
+					bi.Websocket.DataHandler <- websocket.KlineData{
 						Timestamp:  kline.EventTime,
 						Pair:       pair,
 						AssetType:  asset.Spot,
@@ -465,8 +465,8 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					bi.Websocket.DataHandler <- agg
 					return nil
 				default:
-					bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-						Message: bi.Name + stream.UnhandledMessage + string(respRaw),
+					bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+						Message: bi.Name + websocket.UnhandledMessage + string(respRaw),
 					}
 				}
 			}

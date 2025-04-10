@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -23,10 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -76,9 +76,9 @@ var subscriptionNames = map[string]string{
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := h.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{}); err != nil {
+	if err := h.Websocket.Conn.Dial(&gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 
@@ -100,7 +100,7 @@ func (h *HUOBI) WsConnect() error {
 }
 
 // wsReadMsgs reads and processes messages from a websocket connection
-func (h *HUOBI) wsReadMsgs(s stream.Connection) {
+func (h *HUOBI) wsReadMsgs(s websocket.Connection) {
 	defer h.Websocket.Wg.Done()
 	for {
 		msg := s.ReadMessage()
@@ -146,8 +146,8 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		return h.wsHandleChannelMsgs(s, respRaw)
 	}
 
-	h.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-		Message: h.Name + stream.UnhandledMessage + string(respRaw),
+	h.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		Message: h.Name + websocket.UnhandledMessage + string(respRaw),
 	}
 
 	return nil
@@ -208,7 +208,7 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
-	h.Websocket.DataHandler <- stream.KlineData{
+	h.Websocket.DataHandler <- websocket.KlineData{
 		Timestamp:  c.Timestamp.Time(),
 		Exchange:   h.Name,
 		AssetType:  s.Asset,
@@ -511,7 +511,7 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
-	var c stream.Connection
+	var c websocket.Connection
 	var req any
 	if s.Authenticated {
 		c = h.Websocket.AuthConn
@@ -528,7 +528,7 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
 		if err := h.Websocket.AddSubscriptions(c, s); err != nil {
-			return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
+			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
 	ctx := context.Background()
@@ -564,7 +564,7 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string
 }
 
 func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
-	if err := h.Websocket.AuthConn.Dial(&websocket.Dialer{}, http.Header{}); err != nil {
+	if err := h.Websocket.AuthConn.Dial(&gws.Dialer{}, http.Header{}); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
 	if err := h.wsLogin(ctx); err != nil {
@@ -603,7 +603,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 	}
 	resp := c.ReadMessage()
 	if resp.Raw == nil {
-		return &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
+		return &gws.CloseError{Code: gws.CloseAbnormalClosure}
 	}
 
 	return getErrResp(resp.Raw)
