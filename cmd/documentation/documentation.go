@@ -369,13 +369,11 @@ func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contr
 
 		contributors = append(contributors, resp...)
 		if len(resp) < 100 {
-			break
+			return contributors, nil
 		}
 
 		page++
 	}
-
-	return contributors, nil
 }
 
 // GetDocumentationAttributes returns specific attributes for a file template
