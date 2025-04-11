@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/internal/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order/limits"
 )
 
 // orderTypeFromString returns order.Type instance from string
