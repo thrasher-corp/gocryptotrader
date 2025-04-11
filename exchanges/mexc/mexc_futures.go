@@ -658,9 +658,6 @@ func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 
 // PostFuturesBatchOrders
 func (me *MEXC) PostFuturesBatchOrders(ctx context.Context, args []PlaceFuturesOrderParams) ([]FuturesOrderInfo, error) {
-	// for a := range args {
-	// 	params, err :=
-	// }
 	return nil, nil
 }
 
@@ -705,7 +702,7 @@ func (me *MEXC) PlaceFuturesTriggerOrder(ctx context.Context, arg *PlaceFuturesT
 	switch arg.Side {
 	case order.Sell, order.Short:
 	case order.Buy, order.Long:
-		// params.Set("side", "1")
+		params.Set("side", "1")
 	default:
 		return nil, fmt.Errorf("%w: orderSide is required", order.ErrSideIsInvalid)
 	}

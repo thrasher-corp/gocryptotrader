@@ -2,7 +2,6 @@ package mexc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -884,7 +884,7 @@ func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationP
 }
 
 // CancelTradeOrder cancels an order
-func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol string, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
+func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}

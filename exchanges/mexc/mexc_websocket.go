@@ -2,7 +2,6 @@ package mexc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -50,7 +50,6 @@ var defacultChannels = []string{chnlBookTiker, chnlAggregateDepthV3, chnlDealsV3
 
 // WsConnect initiates a websocket connection
 func (me *MEXC) WsConnect() error {
-	me.Websocket.Enable()
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}

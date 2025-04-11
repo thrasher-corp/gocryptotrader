@@ -1,7 +1,7 @@
 package mexc
 
 import (
-	"encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -284,8 +284,8 @@ type OrderDetail struct {
 	OrigClientOrderID   string       `json:"origClientOrderId"`
 	StopPrice           string       `json:"stopPrice"`
 	IcebergQty          string       `json:"icebergQty"`
-	Time                int64        `json:"time"`
-	UpdateTime          int64        `json:"updateTime"`
+	Time                types.Time   `json:"time"`
+	UpdateTime          types.Time   `json:"updateTime"`
 	IsWorking           bool         `json:"isWorking"`
 	OrigQuoteOrderQty   string       `json:"origQuoteOrderQty"`
 }

@@ -2,7 +2,6 @@ package mexc
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"os"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -1389,7 +1389,7 @@ func TestMarshalStringList(t *testing.T) {
 	result, err := json.Marshal(data)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, []byte(`{"data":"SPOT_ACCOUNT_READ,SPOT_ACCOUNT_WRITE"}`), result)
+	assert.JSONEq(t, `{"data":"SPOT_ACCOUNT_READ,SPOT_ACCOUNT_WRITE"}`, string(result))
 }
 
 func TestDeleteBrokerAPIKeySubAccount(t *testing.T) {

@@ -94,11 +94,14 @@ func (me *MEXC) SetDefaults() {
 	}
 
 	me.API.Endpoints = me.NewEndpoints()
-	me.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = me.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      spotAPIURL,
 		exchange.RestFutures:   contractAPIURL,
 		exchange.WebsocketSpot: wsURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	me.Websocket = websocket.NewManager()
 	me.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	me.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -741,26 +744,73 @@ func (me *MEXC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // GetServerTime returns the current exchange server time.
-func (me *MEXC) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+func (me *MEXC) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	serverTime, err := me.GetSystemTime(ctx)
 	return serverTime.Time(), err
 }
 
 // SubmitOrder submits a new order
 func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(me.GetTradingRequirements()); err != nil {
+	err := s.Validate(me.GetTradingRequirements())
+	if err != nil {
 		return nil, err
 	}
-	// When an order has been submitted you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.SubmitResponse if you think they are applicable.
-	// resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
-	// if err != nil {
-	// 	return nil, nil
-	// }
-	// resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
-	// return resp, nil
-	return nil, common.ErrNotYetImplemented
+	s.Pair, err = me.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	orderTypeString, err := me.OrderTypeString(s.Type)
+	if err != nil {
+		return nil, err
+	}
+	switch s.AssetType {
+	case asset.Spot:
+		result, err := me.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.Lower(), orderTypeString, s.Amount, 0, s.Price)
+		if err != nil {
+			return nil, err
+		}
+		orderType, err := me.StringToOrderType(result.Type)
+		if err != nil {
+			return nil, err
+		}
+		orderSide, err := order.StringToOrderSide(result.Side)
+		if err != nil {
+			return nil, err
+		}
+		cp, err := currency.NewPairFromString(result.Symbol)
+		if err != nil {
+			return nil, err
+		}
+		ordStatus, err := order.StringToOrderStatus(result.Status)
+		if err != nil {
+			return nil, err
+		}
+		return &order.SubmitResponse{
+			Exchange:  me.Name,
+			Type:      orderType,
+			Side:      orderSide,
+			Pair:      cp,
+			AssetType: asset.Spot,
+			// ReduceOnly
+			// Leverage:
+			Price: result.Price.Float64(),
+			// AverageExecutedPrice:
+			Amount: result.OrigQty.Float64(),
+			// QuoteAmount
+			RemainingAmount: result.OrigQty.Float64() - result.ExecutedQty.Float64(),
+			ClientOrderID:   result.ClientOrderID,
+			LastUpdated:     result.TransactTime.Time(),
+			Status:          ordStatus,
+			OrderID:         result.OrderID,
+			// Trades
+			// Fee: result
+			// FeeAsset
+		}, nil
+	case asset.Futures:
+		return nil, err
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
+	}
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -769,9 +819,6 @@ func (me *MEXC) ModifyOrder(ctx context.Context, action *order.Modify) (*order.M
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	// When an order has been modified you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.ModifyResponse if you think they are applicable.
 	// resp, err := action.DeriveModifyResponse()
 	// if err != nil {
 	// 	return nil, nil
@@ -782,19 +829,27 @@ func (me *MEXC) ModifyOrder(ctx context.Context, action *order.Modify) (*order.M
 
 // CancelOrder cancels an order by its corresponding ID number
 func (me *MEXC) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	// if err := ord.Validate(ord.StandardCancel()); err != nil {
-	//	 return err
-	// }
-	return common.ErrNotYetImplemented
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
+		return err
+	}
+	switch ord.AssetType {
+	case asset.Spot:
+		_, err := me.CancelTradeOrder(ctx, ord.Pair.String(), ord.OrderID, ord.ClientOrderID, "")
+		return err
+	case asset.Futures:
+		_, err := me.CancelOrderByClientOrderID(ctx, ord.Pair.String(), ord.ClientOrderID)
+		return err
+	}
+	return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, ord.AssetType)
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (me *MEXC) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+func (me *MEXC) CancelBatchOrders(ctx context.Context, ords []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (me *MEXC) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (me *MEXC) CancelAllOrders(_ context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// if err := orderCancellation.Validate(); err != nil {
 	//	 return err
 	// }
@@ -871,19 +926,19 @@ func (me *MEXC) GetDepositAddress(ctx context.Context, c currency.Code, _ string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (me *MEXC) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (me *MEXC) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (me *MEXC) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (me *MEXC) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (me *MEXC) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (me *MEXC) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -970,7 +1025,7 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 				case 6:
 					oType = order.Chase
 				}
-				// order direction 1open long,2close short,3open short, 4 close long
+				// order direction 1 open long,2 close short,3 open short, 4 close long
 				var oSide order.Side
 				switch result.Data[od].Side {
 				case 1, 4:
@@ -1018,7 +1073,7 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (me *MEXC) GetOrderHistory(_ context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
