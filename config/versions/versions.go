@@ -40,7 +40,6 @@ var (
 	errConfigVersionUnavail  = errors.New("version is higher than the latest available version")
 	errConfigVersionNegative = errors.New("version is negative")
 	errConfigVersionMax      = errors.New("version is above max versions")
-	errUpgrading             = errors.New("error upgrading")
 )
 
 // ConfigVersion is a version that affects the general configuration
@@ -218,6 +217,14 @@ func (m *manager) registerVersion(ver int, v any) {
 		m.versions = slices.Grow(m.versions, ver+1)[:ver+1]
 	}
 	m.versions[ver] = v
+}
+
+// Version returns a version registered by init or nil if nothing has been registered with that version number
+func (m *manager) Version(version int) any {
+	if version < len(m.versions) {
+		return m.versions[version]
+	}
+	return nil
 }
 
 // latest returns the highest version number
