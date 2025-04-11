@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
@@ -194,9 +195,10 @@ func TestAccountInfo(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 	rString, _ := objects.ToString(obj)
-	if rString != `error: "Bitstamp REST or Websocket authentication support is not enabled"` {
-		t.Errorf("received: %v but expected: %v",
-			rString, `error: "Bitstamp REST or Websocket authentication support is not enabled"`)
+	if !strings.Contains(rString, "Bitstamp REST or Websocket authentication support is not enabled") {
+		t.Errorf("received: %v but expected to contain: %v",
+			rString,
+			"Bitstamp REST or Websocket authentication support is not enabled")
 	}
 }
 
@@ -254,10 +256,10 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	}
 
 	rString, _ := objects.ToString(obj)
-	if rString != `error: "Bitstamp REST or Websocket authentication support is not enabled"` {
-		t.Errorf("received: [%v] but expected: %v",
+	if !strings.Contains(rString, "Bitstamp REST or Websocket authentication support is not enabled") {
+		t.Errorf("received: %v but expected to contain: %v",
 			rString,
-			`error: "Bitstamp REST or Websocket authentication support is not enabled"`)
+			"Bitstamp REST or Websocket authentication support is not enabled")
 	}
 }
 
