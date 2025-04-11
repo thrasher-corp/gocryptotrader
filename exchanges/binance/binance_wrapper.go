@@ -14,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -30,8 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -864,15 +864,15 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		} else {
 			sideType = order.Sell.String()
 		}
-		timeInForce := BinanceRequestParamsTimeGTC
+		timeInForce := order.GoodTillCancel.String()
 		var requestParamsOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
-			if s.ImmediateOrCancel {
-				timeInForce = BinanceRequestParamsTimeIOC
+			if s.TimeInForce.Is(order.ImmediateOrCancel) {
+				timeInForce = order.ImmediateOrCancel.String()
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
@@ -918,15 +918,11 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid side")
 		}
 
-		var (
-			oType       string
-			timeInForce RequestParamsTimeForceType
-		)
-
+		var oType, timeInForce string
 		switch s.Type {
 		case order.Limit:
 			oType = cfuturesLimit
-			timeInForce = BinanceRequestParamsTimeGTC
+			timeInForce = order.GoodTillCancel.String()
 		case order.Market:
 			oType = cfuturesMarket
 		case order.Stop:

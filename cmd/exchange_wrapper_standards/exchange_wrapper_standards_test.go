@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -447,30 +448,30 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		input = reflect.ValueOf(req)
 	case argGenerator.MethodInputType.AssignableTo(orderSubmitParam):
 		input = reflect.ValueOf(&order.Submit{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientID:          "1337",
-			ClientOrderID:     "13371337",
-			ImmediateOrCancel: true,
-			Leverage:          1,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientID:      "1337",
+			ClientOrderID: "13371337",
+			TimeInForce:   order.ImmediateOrCancel,
+			Leverage:      1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientOrderID:     "13371337",
-			OrderID:           "1337",
-			ImmediateOrCancel: true,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientOrderID: "13371337",
+			OrderID:       "1337",
+			TimeInForce:   order.ImmediateOrCancel,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{
@@ -649,6 +650,7 @@ var acceptableErrors = []error{
 	account.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
+	websocket.ErrNotConnected,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -999,10 +999,10 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			oDirection = "SELL"
 		}
 		var oType string
-		switch s.Type {
-		case order.Limit:
+		switch {
+		case s.Type == order.Limit:
 			oType = "limit"
-		case order.PostOnly:
+		case s.TimeInForce.Is(order.PostOnly):
 			oType = "post_only"
 		}
 		offset := "open"
@@ -1042,13 +1042,14 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			// It is important to note that the above methods will not guarantee the order to be filled in 100%.
 			// The system will obtain the optimal N price at that moment and place the order.
 			oType = "optimal_20"
-			if s.ImmediateOrCancel {
+			if s.TimeInForce.Is(order.ImmediateOrCancel) {
 				oType = "optimal_20_ioc"
 			}
 		case order.Limit:
 			oType = "limit"
-		case order.PostOnly:
-			oType = "post_only"
+			if s.TimeInForce.Is(order.PostOnly) {
+				oType = "post_only"
+			}
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1336,7 +1337,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 				return nil, err
 			}
 			maker := true
-			if orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly {
+			if orderVars.OrderType == order.Limit || orderVars.TimeInForce.Is(order.PostOnly) {
 				maker = false
 			}
 			orderDetail.Trades = append(orderDetail.Trades, order.TradeHistory{
@@ -1374,7 +1375,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 				TID:      orderInfo.Data[x].OrderIDString,
 				Type:     orderVars.OrderType,
 				Side:     orderVars.Side,
-				IsMaker:  orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly,
+				IsMaker:  orderVars.OrderType == order.Limit || orderVars.TimeInForce.Is(order.PostOnly),
 			})
 		}
 	default:
@@ -1507,9 +1508,8 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 					return orders, err
 				}
 
-				var orderVars OrderVars
 				for x := range openOrders.Data.Orders {
-					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
+					orderVars, err := compatibleVars(openOrders.Data.Orders[x].Direction,
 						openOrders.Data.Orders[x].OrderPriceType,
 						openOrders.Data.Orders[x].Status)
 					if err != nil {
@@ -1520,7 +1520,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1562,7 +1562,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1663,7 +1663,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        orderHistory.Data.Orders[x].LeverageRate,
 						Price:           orderHistory.Data.Orders[x].Price,
 						Amount:          orderHistory.Data.Orders[x].Volume,
@@ -1721,7 +1721,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1964,7 +1964,8 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case "opponent":
 		resp.OrderType = order.Market
 	case "post_only":
-		resp.OrderType = order.PostOnly
+		resp.OrderType = order.Limit
+		resp.TimeInForce = order.PostOnly
 	default:
 		return resp, errors.New("invalid orderPriceType")
 	}

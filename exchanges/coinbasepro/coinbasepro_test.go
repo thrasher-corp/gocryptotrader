@@ -15,13 +15,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -163,8 +163,8 @@ func TestAuthRequests(t *testing.T) {
 		t.Error("Expecting error")
 	}
 	orderResponse, err := c.PlaceLimitOrder(context.Background(),
-		"", 0.001, 0.001,
-		order.Buy.Lower(), "", "", testPair.String(), "", false)
+		"",
+		order.Buy.Lower(), "", "", testPair.String(), "", 0.001, 0.001, false)
 	if orderResponse != "" {
 		t.Error("Expecting no data returned")
 	}

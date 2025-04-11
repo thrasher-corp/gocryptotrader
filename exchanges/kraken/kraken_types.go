@@ -426,7 +426,7 @@ type AddOrderOptions struct {
 	ClosePrice     float64
 	ClosePrice2    float64
 	Validate       bool
-	TimeInForce    RequestParamsTimeForceType
+	TimeInForce    string
 }
 
 // CancelOrderResponse type
@@ -629,25 +629,25 @@ type WsOpenOrderDescription struct {
 
 // WsAddOrderRequest request type for ws adding order
 type WsAddOrderRequest struct {
-	Event           string                     `json:"event"`
-	Token           string                     `json:"token"`
-	RequestID       int64                      `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	OrderType       string                     `json:"ordertype"`
-	OrderSide       string                     `json:"type"`
-	Pair            string                     `json:"pair"`
-	Price           float64                    `json:"price,string,omitempty"`  // optional
-	Price2          float64                    `json:"price2,string,omitempty"` // optional
-	Volume          float64                    `json:"volume,string,omitempty"`
-	Leverage        float64                    `json:"leverage,omitempty"`         // optional
-	OFlags          string                     `json:"oflags,omitempty"`           // optional
-	StartTime       string                     `json:"starttm,omitempty"`          // optional
-	ExpireTime      string                     `json:"expiretm,omitempty"`         // optional
-	UserReferenceID string                     `json:"userref,omitempty"`          // optional
-	Validate        string                     `json:"validate,omitempty"`         // optional
-	CloseOrderType  string                     `json:"close[ordertype],omitempty"` // optional
-	ClosePrice      float64                    `json:"close[price],omitempty"`     // optional
-	ClosePrice2     float64                    `json:"close[price2],omitempty"`    // optional
-	TimeInForce     RequestParamsTimeForceType `json:"timeinforce,omitempty"`      // optional
+	Event           string  `json:"event"`
+	Token           string  `json:"token"`
+	RequestID       int64   `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	OrderType       string  `json:"ordertype"`
+	OrderSide       string  `json:"type"`
+	Pair            string  `json:"pair"`
+	Price           float64 `json:"price,string,omitempty"`  // optional
+	Price2          float64 `json:"price2,string,omitempty"` // optional
+	Volume          float64 `json:"volume,string,omitempty"`
+	Leverage        float64 `json:"leverage,omitempty"`         // optional
+	OFlags          string  `json:"oflags,omitempty"`           // optional
+	StartTime       string  `json:"starttm,omitempty"`          // optional
+	ExpireTime      string  `json:"expiretm,omitempty"`         // optional
+	UserReferenceID string  `json:"userref,omitempty"`          // optional
+	Validate        string  `json:"validate,omitempty"`         // optional
+	CloseOrderType  string  `json:"close[ordertype],omitempty"` // optional
+	ClosePrice      float64 `json:"close[price],omitempty"`     // optional
+	ClosePrice2     float64 `json:"close[price2],omitempty"`    // optional
+	TimeInForce     string  `json:"timeinforce,omitempty"`      // optional
 }
 
 // WsAddOrderResponse response data for ws order

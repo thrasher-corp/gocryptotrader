@@ -11,6 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -24,8 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -490,7 +490,7 @@ func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair, ass
 // SubmitOrder submits a new order
 func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	var timeInForce RequestParamsTimeForceType
+	var timeInForce string
 	var sideType string
 	err := s.Validate(bi.GetTradingRequirements())
 	if err != nil {
@@ -509,7 +509,7 @@ func (bi *Binanceus) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 	case order.Market:
 		requestParamOrderType = BinanceRequestParamsOrderMarket
 	case order.Limit:
-		timeInForce = BinanceRequestParamsTimeGTC
+		timeInForce = order.GoodTillCancel.String()
 		requestParamOrderType = BinanceRequestParamsOrderLimit
 	default:
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)

@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,8 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -697,9 +697,9 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := RequestParamsTimeGTC
-		if s.ImmediateOrCancel {
-			timeInForce = RequestParamsTimeIOC
+		timeInForce := order.GoodTillCancel.String()
+		if s.TimeInForce.Is(order.ImmediateOrCancel) {
+			timeInForce = s.TimeInForce.String()
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
@@ -745,7 +745,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			"",
 			s.ClientOrderID,
 			"",
-			s.ImmediateOrCancel,
+			s.TimeInForce,
 			s.Amount,
 			s.Price,
 			0,

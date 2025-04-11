@@ -10,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -24,8 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -430,19 +430,19 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fPair.String(),
 			"")
 	case order.Limit:
-		timeInForce := CoinbaseRequestParamsTimeGTC
-		if s.ImmediateOrCancel {
-			timeInForce = CoinbaseRequestParamsTimeIOC
+		timeInForce := order.GoodTillCancel.String()
+		if s.TimeInForce.Is(order.ImmediateOrCancel) {
+			timeInForce = order.ImmediateOrCancel.String()
 		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
-			s.Price,
-			s.Amount,
 			s.Side.Lower(),
 			timeInForce,
 			"",
 			fPair.String(),
 			"",
+			s.Price,
+			s.Amount,
 			false)
 	default:
 		err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
