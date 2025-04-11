@@ -613,7 +613,7 @@ func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, 
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
 	if o.TimeInForce != "" {
-		params.Set("timeInForce", string(o.TimeInForce))
+		params.Set("timeInForce", o.TimeInForce)
 	}
 
 	if o.NewClientOrderID != "" {
