@@ -219,6 +219,16 @@ func (m *manager) registerVersion(ver int, v any) {
 	m.versions[ver] = v
 }
 
+// Version returns a version registered by init or nil if nothing has been registered with that version number
+func (m *manager) Version(version uint16) any {
+	m.m.RLock()
+	defer m.m.RUnlock()
+	if int(version) < len(m.versions) {
+		return m.versions[version]
+	}
+	return nil
+}
+
 // latest returns the highest version number
 func (m *manager) latest() (uint16, error) {
 	m.m.RLock()
