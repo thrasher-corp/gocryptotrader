@@ -112,12 +112,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	// Spot connection
-	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      connectionURLStringForSpot,
 		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
@@ -129,12 +128,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:    e.GenerateDefaultSubscriptionsSpot,
 		Connector:                e.WsConnectSpot,
 		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	// Futures connection - USDT margined
-	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  connectionURLStringForSpotForFutures,
 		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -146,8 +144,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateFuturesDefaultSubscriptions(currency.USDT) },
 		Connector:                e.WsFuturesConnect,
 		BespokeGenerateMessageID: e.GenerateWebsocketMessageID,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 }
