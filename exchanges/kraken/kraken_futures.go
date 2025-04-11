@@ -158,7 +158,6 @@ func (k *Kraken) FuturesEditOrder(ctx context.Context, orderID, clientOrderID st
 // FuturesSendOrder sends a futures order
 func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string, tif order.TimeInForce, size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
-
 	oType, ok := validOrderTypes[orderType]
 	if !ok {
 		return resp, errors.New("invalid orderType")
