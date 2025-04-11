@@ -393,8 +393,8 @@ func (c *connection) GetURL() string {
 }
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error) {
-	resps, err := c.SendMessageReturnResponses(ctx, epl, signature, request, 1)
+func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
+	resps, err := c.SendMessageReturnResponses(ctx, epl, signature, payload, 1)
 	if err != nil {
 		return nil, err
 	}
