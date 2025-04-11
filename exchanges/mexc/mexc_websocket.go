@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -52,9 +52,9 @@ var defacultChannels = []string{chnlBookTiker, chnlAggregateDepthV3, chnlDealsV3
 func (me *MEXC) WsConnect() error {
 	me.Websocket.Enable()
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer = websocket.Dialer{
+	var dialer = gws.Dialer{
 		EnableCompression: true,
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
@@ -76,8 +76,8 @@ func (me *MEXC) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			me.Websocket.GetWebsocketURL())
 	}
-	me.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	me.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     []byte(`{"method": "PING"}`),
 		Delay:       time.Second * 20,
 	})
@@ -85,7 +85,7 @@ func (me *MEXC) WsConnect() error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (me *MEXC) wsReadData(ws stream.Connection) {
+func (me *MEXC) wsReadData(ws websocket.Connection) {
 	defer me.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -242,8 +242,8 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 			if !me.Websocket.Match.IncomingWithData(id, respRaw) {
-				me.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-					Message: string(respRaw) + stream.UnhandledMessage,
+				me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+					Message: string(respRaw) + websocket.UnhandledMessage,
 				}
 			}
 		}
@@ -462,7 +462,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		klineData := stream.KlineData{
+		klineData := websocket.KlineData{
 			Pair:      cp,
 			Exchange:  me.Name,
 			AssetType: asset.Spot,
@@ -501,7 +501,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		me.Websocket.DataHandler <- []stream.KlineData{klineData}
+		me.Websocket.DataHandler <- []websocket.KlineData{klineData}
 		return nil
 	case chnlIncreaseDepthBatchV3:
 		var result mexc_proto_types.PublicIncreaseDepthsBatchV3Api
@@ -750,8 +750,8 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			Pair:        cp,
 		}
 	default:
-		me.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: string(respRaw) + stream.UnhandledMessage,
+		me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: string(respRaw) + websocket.UnhandledMessage,
 		}
 	}
 	return nil

@@ -12,17 +12,17 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -53,15 +53,15 @@ var subscriptionNames = map[string]string{
 }
 
 // Instantiates a communications channel between websocket connections
-var comms = make(chan stream.Response)
+var comms = make(chan websocket.Response)
 
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -128,7 +128,7 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 }
 
 // WsAuth will connect to Gemini's secure endpoint
-func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
+func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	if !g.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
@@ -175,14 +175,14 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 }
 
 // wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
-func (g *Gemini) wsFunnelConnectionData(ws stream.Connection) {
+func (g *Gemini) wsFunnelConnectionData(ws websocket.Connection) {
 	defer g.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		comms <- stream.Response{Raw: resp.Raw}
+		comms <- websocket.Response{Raw: resp.Raw}
 	}
 }
 
@@ -398,7 +398,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				if !ok {
 					return errors.New("unable to type assert interval")
 				}
-				g.Websocket.DataHandler <- stream.KlineData{
+				g.Websocket.DataHandler <- websocket.KlineData{
 					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])),
 					Pair:       pair,
 					AssetType:  asset.Spot,
@@ -412,7 +412,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				}
 			}
 		default:
-			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
+			g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: g.Name + websocket.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	} else if r, ok := result["result"].(string); ok {
@@ -426,7 +426,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 			return fmt.Errorf("%v Unhandled websocket error %s", g.Name, respRaw)
 		default:
-			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
+			g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: g.Name + websocket.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	}

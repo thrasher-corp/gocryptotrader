@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -25,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -3177,7 +3177,7 @@ func TestWsLinearConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsLinearConnect()
-	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, websocket.ErrWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3188,7 +3188,7 @@ func TestWsInverseConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsInverseConnect()
-	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, websocket.ErrWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3199,7 +3199,7 @@ func TestWsOptionsConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsOptionsConnect()
-	if err != nil && !errors.Is(err, stream.ErrWebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, websocket.ErrWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3813,7 +3813,7 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	b.Features.Subscriptions = subscription.List{}
 	success := true
-	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
 		var req SubscriptionArgument
 		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
@@ -3825,7 +3825,7 @@ func TestAuthSubscribe(t *testing.T) {
 			Operation: req.Operation,
 		})
 		require.NoError(tb, err, "Marshal must not error")
-		return w.WriteMessage(websocket.TextMessage, msg)
+		return w.WriteMessage(gws.TextMessage, msg)
 	}
 	b = testexch.MockWsInstance[Bybit](t, testws.CurryWsMockUpgrader(t, mock))
 	b.Websocket.AuthConn = b.Websocket.Conn
