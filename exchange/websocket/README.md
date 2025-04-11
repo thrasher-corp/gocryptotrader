@@ -45,17 +45,17 @@ package main
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-    exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-    "github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 type Exchange struct {
-    exchange.Base
+	exchange.Base
 }
 
 // In the exchange wrapper this will set up the initial pointer field provided by exchange.Base
 func (e *Exchange) SetDefault() {
-    e.Websocket = websocket.NewManager()
+	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -63,8 +63,8 @@ func (e *Exchange) SetDefault() {
 
 // In the exchange wrapper this is the original setup pattern for the websocket services
 func (e *Exchange) Setup(exch *config.Exchange) error {
-    // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-    if err := e.Websocket.Setup(&websocket.ManagerSetup{
+	// This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             connectionURLString,
 		RunningURL:                             connectionURLString,
@@ -79,7 +79,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-    // This is a public websocket connection
+	// This is a public websocket connection
 	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  connectionURLString,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -89,7 +89,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-    // This is a private websocket connection
+	// This is a private websocket connection
 	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  privateConnectionURLString,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
@@ -105,8 +105,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
  to be maintained and established based off URL, connections types, asset types etc.
 ```go
 func (e *Exchange) Setup(exch *config.Exchange) error {
-    // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-    if err := e.Websocket.Setup(&websocket.ManagerSetup{
+	// This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
@@ -122,7 +122,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:                request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-        // Custom handlers for the specific connection:
+		// Custom handlers for the specific connection:
 		Handler:                  e.WsHandleSpotData,
 		Subscriber:               e.SpotSubscribe,
 		Unsubscriber:             e.SpotUnsubscribe,
@@ -139,7 +139,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewWeightedRateLimitByDuration(gateioWebsocketRateLimit),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-        // Custom handlers for the specific connection:
+		// Custom handlers for the specific connection:
 		Handler: func(ctx context.Context, incoming []byte) error {	return e.WsHandleFuturesData(ctx, incoming, asset.Futures)	},
 		Subscriber:               e.FuturesSubscribe,
 		Unsubscriber:             e.FuturesUnsubscribe,
