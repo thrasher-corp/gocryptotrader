@@ -2,12 +2,16 @@ package versions
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	v0 "github.com/thrasher-corp/gocryptotrader/config/versions/v0"
+	v1 "github.com/thrasher-corp/gocryptotrader/config/versions/v1"
+	v2 "github.com/thrasher-corp/gocryptotrader/config/versions/v2"
 )
 
 func TestDeploy(t *testing.T) {
@@ -22,8 +26,8 @@ func TestDeploy(t *testing.T) {
 
 	m = manager{}
 
-	m.registerVersion(0, &Version0{})
-	m.registerVersion(1, &Version1{})
+	m.registerVersion(0, &v0.Version{})
+	m.registerVersion(1, &v1.Version{})
 	_, err = m.Deploy(context.Background(), []byte(`not an object`), UseLatestVersion)
 	require.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "Must throw the correct error trying to add version to bad json")
 	require.ErrorIs(t, err, common.ErrSettingField, "Must throw the correct error trying to add version to bad json")
@@ -95,7 +99,7 @@ func TestRegisterVersion(t *testing.T) {
 	t.Parallel()
 	m := manager{}
 
-	m.registerVersion(0, &Version0{})
+	m.registerVersion(0, &v0.Version{})
 	assert.NotEmpty(t, m.versions)
 
 	m.registerVersion(2, &TestVersion2{})
@@ -114,14 +118,25 @@ func TestLatest(t *testing.T) {
 	_, err := m.latest()
 	require.ErrorIs(t, err, errNoVersions)
 
-	m.registerVersion(0, &Version0{})
-	m.registerVersion(1, &Version1{})
+	m.registerVersion(0, &v0.Version{})
+	m.registerVersion(1, &v1.Version{})
 	v, err := m.latest()
 	require.NoError(t, err)
 	assert.Equal(t, uint16(1), v)
 
-	m.registerVersion(2, &Version2{})
+	m.registerVersion(2, &v2.Version{})
 	v, err = m.latest()
 	require.NoError(t, err)
 	assert.Equal(t, uint16(2), v)
+}
+
+func TestVersion(t *testing.T) {
+	t.Parallel()
+	m := manager{}
+	m.registerVersion(0, &v0.Version{})
+	l, err := m.latest()
+	require.NoError(t, err, "latest must not error")
+	assert.Nil(t, m.Version(l-1))
+	assert.NotNil(t, m.Version(l))
+	assert.Nil(t, m.Version(math.MaxUint16))
 }
