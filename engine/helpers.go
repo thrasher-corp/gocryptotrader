@@ -166,7 +166,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case PortfolioManagerName:
 		if enable {
 			if bot.portfolioManager == nil {
-				bot.portfolioManager, err = setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio)
+				bot.portfolioManager, err = setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, bot.Config.Portfolio)
 				if err != nil {
 					return err
 				}
@@ -430,7 +430,7 @@ func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 		return true
 	}
 
-	var relatablePairs = GetRelatableCurrencies(p1, true, includeUSDT)
+	relatablePairs := GetRelatableCurrencies(p1, true, includeUSDT)
 	if p1.IsCryptoFiatPair() {
 		for x := range relatablePairs {
 			relatablePairs = append(relatablePairs,

@@ -116,22 +116,28 @@ type customStrategy struct {
 func (s *customStrategy) Name() string {
 	return "custom-strategy"
 }
+
 func (s *customStrategy) Description() string {
 	return "this is a demonstration of loading strategies via custom plugins"
 }
+
 func (s *customStrategy) SupportsSimultaneousProcessing() bool {
 	return s.allowSimultaneousProcessing
 }
+
 func (s *customStrategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
 	return s.createSignal(d)
 }
+
 func (s *customStrategy) OnSimultaneousSignals(_ []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	return nil, nil
 }
+
 func (s *customStrategy) createSignal(_ data.Handler) (*signal.Signal, error) {
 	return nil, nil
 }
-func (s *customStrategy) SetCustomSettings(map[string]interface{}) error {
+
+func (s *customStrategy) SetCustomSettings(map[string]any) error {
 	return nil
 }
 

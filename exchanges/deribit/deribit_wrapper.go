@@ -25,10 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -43,13 +43,12 @@ func (d *Deribit) SetDefaults() {
 
 	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := d.SetAssetPairStore(asset.Spot, currency.PairStore{AssetEnabled: true, RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat}); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, asset.Spot, err)
 	}
-	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
-			log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err := d.SetAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, a, err)
 		}
 	}
 
@@ -128,6 +127,8 @@ func (d *Deribit) SetDefaults() {
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
+
+	var err error
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()),
@@ -149,7 +150,7 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	d.Websocket = stream.NewWebsocket()
+	d.Websocket = websocket.NewManager()
 	d.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	d.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	d.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -169,7 +170,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = d.Websocket.Setup(&stream.WebsocketSetup{
+	err = d.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            deribitWebsocketAddress,
 		RunningURL:            deribitWebsocketAddress,
@@ -187,7 +188,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return d.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return d.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -536,7 +537,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
-	var hasMore = true
+	hasMore := true
 	for hasMore {
 		if d.Websocket.IsConnected() {
 			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(instrumentID, "asc", 100, true, timestampStart, timestampEnd)
@@ -859,7 +860,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if len(getOrdersRequest.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	var resp = []order.Detail{}
+	resp := []order.Detail{}
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
@@ -1300,9 +1301,10 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	}
 
 	var baseSize float64
-	if r.Asset == asset.Futures {
+	switch r.Asset {
+	case asset.Futures:
 		baseSize = pos[index].SizeCurrency
-	} else if r.Asset == asset.Options {
+	case asset.Options:
 		baseSize = pos[index].Size
 	}
 	contractSize = multiplier * baseSize
@@ -1506,10 +1508,7 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 
 	var fundingRates []fundingrate.Rate
 	mfr := make(map[int64]struct{})
-	for {
-		if ed.Equal(r.StartDate) || ed.Before(r.StartDate) {
-			break
-		}
+	for ed.After(r.StartDate) {
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
 			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)

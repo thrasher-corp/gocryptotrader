@@ -11,7 +11,7 @@ import (
 )
 
 // FloatFromString format
-func FloatFromString(raw interface{}) (float64, error) {
+func FloatFromString(raw any) (float64, error) {
 	str, ok := raw.(string)
 	if !ok {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
@@ -24,7 +24,7 @@ func FloatFromString(raw interface{}) (float64, error) {
 }
 
 // IntFromString format
-func IntFromString(raw interface{}) (int, error) {
+func IntFromString(raw any) (int, error) {
 	str, ok := raw.(string)
 	if !ok {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
@@ -37,7 +37,7 @@ func IntFromString(raw interface{}) (int, error) {
 }
 
 // Int64FromString format
-func Int64FromString(raw interface{}) (int64, error) {
+func Int64FromString(raw any) (int64, error) {
 	str, ok := raw.(string)
 	if !ok {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
@@ -50,7 +50,7 @@ func Int64FromString(raw interface{}) (int64, error) {
 }
 
 // TimeFromUnixTimestampFloat format
-func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
+func TimeFromUnixTimestampFloat(raw any) (time.Time, error) {
 	ts, ok := raw.(float64)
 	if !ok {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
@@ -167,7 +167,7 @@ func numberToHumanFriendlyString(str string, dec uint, decPoint, thousandsSep st
 }
 
 // InterfaceToFloat64OrZeroValue returns the type assertion value or variable zero value
-func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
+func InterfaceToFloat64OrZeroValue(r any) float64 {
 	if v, ok := r.(float64); ok {
 		return v
 	}
@@ -175,7 +175,7 @@ func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
 }
 
 // InterfaceToIntOrZeroValue returns the type assertion value or variable zero value
-func InterfaceToIntOrZeroValue(r interface{}) int {
+func InterfaceToIntOrZeroValue(r any) int {
 	if v, ok := r.(int); ok {
 		return v
 	}
@@ -183,7 +183,7 @@ func InterfaceToIntOrZeroValue(r interface{}) int {
 }
 
 // InterfaceToStringOrZeroValue returns the type assertion value or variable zero value
-func InterfaceToStringOrZeroValue(r interface{}) string {
+func InterfaceToStringOrZeroValue(r any) string {
 	if v, ok := r.(string); ok {
 		return v
 	}

@@ -904,16 +904,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			continue
 		}
 
-		for _, a := range assets {
-			if err := e.CurrencyPairs.IsAssetEnabled(a); errors.Is(err, currency.ErrAssetIsNil) {
-				// Checks if we have an old config without the ability to enable disable the entire asset
-				log.Warnf(log.ConfigMgr, "Exchange %s: upgrading config for asset type %s and setting enabled.\n", e.Name, a)
-				if err := e.CurrencyPairs.SetAssetEnabled(a, true); err != nil {
-					return err
-				}
-			}
-		}
-
 		if enabled := e.CurrencyPairs.GetAssetTypes(true); len(enabled) == 0 {
 			// turn on an asset if all disabled
 			log.Warnf(log.ConfigMgr, "%s assets disabled, turning on asset %s", e.Name, assets[0])
@@ -1340,24 +1330,6 @@ func (c *Config) CheckCurrencyStateManager() {
 	}
 }
 
-// CheckOrderManagerConfig ensures the order manager is setup correctly
-func (c *Config) CheckOrderManagerConfig() {
-	m.Lock()
-	defer m.Unlock()
-	if c.OrderManager.Enabled == nil {
-		c.OrderManager.Enabled = convert.BoolPtr(true)
-		c.OrderManager.ActivelyTrackFuturesPositions = true
-	}
-	if c.OrderManager.RespectOrderHistoryLimits == nil {
-		c.OrderManager.RespectOrderHistoryLimits = convert.BoolPtr(true)
-	}
-	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
-		// one isn't likely to have a perpetual futures order open
-		// for longer than a year
-		c.OrderManager.FuturesTrackingSeekDuration = -time.Hour * 24 * 365
-	}
-}
-
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1672,7 +1644,6 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckDataHistoryMonitorConfig()
 	c.CheckCurrencyStateManager()
-	c.CheckOrderManagerConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()
@@ -1748,9 +1719,10 @@ func SetConfig(c *Config) {
 func (c *Config) RemoveExchange(exchName string) bool {
 	m.Lock()
 	defer m.Unlock()
+
 	for x := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[x].Name, exchName) {
-			c.Exchanges = append(c.Exchanges[:x], c.Exchanges[x+1:]...)
+			c.Exchanges = slices.Delete(c.Exchanges, x, x+1)
 			return true
 		}
 	}

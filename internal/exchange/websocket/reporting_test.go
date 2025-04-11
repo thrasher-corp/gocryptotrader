@@ -1,4 +1,4 @@
-package stream
+package websocket
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func ProcessWithSomeSweetLag(context.Context, []byte) error {
 
 func TestDefaultProcessReporter(t *testing.T) {
 	t.Parallel()
-	w := &Websocket{}
+	w := &Manager{}
 	reporterManager := defaultProcessReporterManager{period: time.Millisecond * 10}
 	w.SetProcessReportManager(&reporterManager)
 	conn := &DummyConnection{ch: make(chan []byte)}

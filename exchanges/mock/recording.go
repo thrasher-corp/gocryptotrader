@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 
@@ -153,7 +154,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 					}
 
 					if MatchURLVals(mockQuery, res.Request.URL.Query()) {
-						mockResponses = append(mockResponses[:i], mockResponses[i+1:]...) // Delete Old
+						mockResponses = slices.Delete(mockResponses, i, i+1)
 						break
 					}
 				}
@@ -179,7 +180,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 						if MatchURLVals(respQueryVals, mockRespVals) {
 							// if found will delete instance and overwrite with new
 							// data
-							mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
+							mockResponses = slices.Delete(mockResponses, i, i+1)
 							found = true
 						}
 
@@ -197,7 +198,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 						if MatchURLVals(reqVals, mockVals) {
 							// if found will delete instance and overwrite with new
 							// data
-							mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
+							mockResponses = slices.Delete(mockResponses, i, i+1)
 							found = true
 						}
 					case "":
@@ -210,7 +211,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 							if MatchURLVals(mockQuery, res.Request.URL.Query()) {
 								// if found will delete instance and overwrite with new data
-								mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
+								mockResponses = slices.Delete(mockResponses, i, i+1)
 								found = true
 							}
 
@@ -285,7 +286,7 @@ func CheckResponsePayload(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	var intermediary interface{}
+	var intermediary any
 	err = json.Unmarshal(data, &intermediary)
 	if err != nil {
 		return nil, err
@@ -310,13 +311,13 @@ const (
 )
 
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
-func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
-	if d, ok := data.([]interface{}); ok {
-		var sData []interface{}
+func CheckJSON(data any, excluded *Exclusion) (any, error) {
+	if d, ok := data.([]any); ok {
+		var sData []any
 		for i := range d {
 			v := d[i]
 			switch v.(type) {
-			case map[string]interface{}, []interface{}:
+			case map[string]any, []any:
 				checkedData, err := CheckJSON(v, excluded)
 				if err != nil {
 					return nil, err
@@ -336,7 +337,7 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 		return nil, err
 	}
 
-	var context map[string]interface{}
+	var context map[string]any
 	err = json.Unmarshal(conv, &context)
 	if err != nil {
 		return nil, err
@@ -362,16 +363,16 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 				context[key] = 0.0 // Zero val float
 			}
 		case Slice:
-			slice, ok := val.([]interface{})
+			slice, ok := val.([]any)
 			if !ok {
-				return nil, common.GetTypeAssertError("[]interface{}", val)
+				return nil, common.GetTypeAssertError("[]any", val)
 			}
 			if len(slice) < 1 {
 				// Empty slice found
 				context[key] = slice
 			} else {
-				if _, ok := slice[0].(map[string]interface{}); ok {
-					var cleanSlice []interface{}
+				if _, ok := slice[0].(map[string]any); ok {
+					var cleanSlice []any
 					for i := range slice {
 						cleanMap, sErr := CheckJSON(slice[i], excluded)
 						if sErr != nil {
@@ -409,10 +410,12 @@ func IsExcluded(key string, excludedVars []string) bool {
 	return false
 }
 
-var excludedList Exclusion
-var m sync.Mutex
-var set bool
-var exclusionFile = DefaultDirectory + "exclusion.json"
+var (
+	excludedList  Exclusion
+	m             sync.Mutex
+	set           bool
+	exclusionFile = DefaultDirectory + "exclusion.json"
+)
 
 var defaultExcludedHeaders = []string{
 	"Key",
@@ -421,6 +424,7 @@ var defaultExcludedHeaders = []string{
 	"Apiauth-Key",
 	"X-Bapi-Api-Key",
 }
+
 var defaultExcludedVariables = []string{
 	"bsb",
 	"user",

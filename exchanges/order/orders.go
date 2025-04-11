@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -971,12 +972,11 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 			continue
 		}
 
-		for y := range pairs {
-			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
-				(*orders)[target] = (*orders)[x]
-				target++
-				break
-			}
+		if slices.ContainsFunc(pairs, func(p currency.Pair) bool {
+			return (*orders)[x].Pair.EqualIncludeReciprocal(p)
+		}) {
+			(*orders)[target] = (*orders)[x]
+			target++
 		}
 	}
 	*orders = (*orders)[:target]
@@ -1251,7 +1251,7 @@ func (o *ClassificationError) Error() string {
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
 		if c.OrderID == "" {
-			return errors.New("ID not set")
+			return ErrOrderIDNotSet
 		}
 		return nil
 	})

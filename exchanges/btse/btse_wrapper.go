@@ -25,9 +25,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -45,33 +45,18 @@ func (b *BTSE) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		if a == asset.Spot {
+			ps.RequestFormat.Delimiter = currency.DashDelimiter
+		}
+		if err := b.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+		}
 	}
 
 	b.Features = exchange.Features{
@@ -143,6 +128,7 @@ func (b *BTSE) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -158,7 +144,7 @@ func (b *BTSE) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -184,7 +170,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            btseWebsocket,
 		RunningURL:            wsRunningURL,
@@ -198,7 +184,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -262,7 +248,8 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 				High:         tickers[x].High24Hr,
 				OpenInterest: tickers[x].OpenInterest,
 				ExchangeName: b.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -300,7 +287,8 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 		Volume:       ticks[0].Volume,
 		High:         ticks[0].High24Hr,
 		ExchangeName: b.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -558,12 +546,14 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 }
 
 func orderIntToType(i int) order.Type {
-	if i == 77 {
+	switch i {
+	case 77:
 		return order.Market
-	} else if i == 76 {
+	case 76:
 		return order.Limit
+	default:
+		return order.UnknownType
 	}
-	return order.UnknownType
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -588,7 +578,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 			continue
 		}
 
-		var side = order.Buy
+		side := order.Buy
 		if strings.EqualFold(o[i].Side, order.Ask.String()) {
 			side = order.Sell
 		}
@@ -746,7 +736,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 		}
 
 		for i := range resp {
-			var side = order.Buy
+			side := order.Buy
 			if strings.EqualFold(resp[i].Side, order.Ask.String()) {
 				side = order.Sell
 			}
@@ -776,12 +766,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 				Side:            side,
 				Price:           resp[i].Price,
 				Status:          status,
-			}
-
-			if resp[i].OrderType == 77 {
-				openOrder.Type = order.Market
-			} else if resp[i].OrderType == 76 {
-				openOrder.Type = order.Limit
+				Type:            orderIntToType(resp[i].OrderType),
 			}
 
 			fills, err := b.TradeHistory(ctx,

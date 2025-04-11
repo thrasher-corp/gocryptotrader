@@ -22,10 +22,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -37,18 +37,17 @@ func (bi *Binanceus) SetDefaults() {
 	bi.Verbose = true
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
-	bi.SetValues()
 
 	fmt1 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
 		},
 	}
-	err := bi.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := bi.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
 	bi.Features = exchange.Features{
@@ -122,6 +121,8 @@ func (bi *Binanceus) SetDefaults() {
 			},
 		},
 	}
+
+	var err error
 	bi.Requester, err = request.New(bi.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -140,7 +141,7 @@ func (bi *Binanceus) SetDefaults() {
 			"%s setting default endpoints error %v",
 			bi.Name, err)
 	}
-	bi.Websocket = stream.NewWebsocket()
+	bi.Websocket = websocket.NewManager()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -166,7 +167,7 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = bi.Websocket.Setup(&stream.WebsocketSetup{
+	err = bi.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            binanceusDefaultWebsocketURL,
 		RunningURL:            ePoint,
@@ -185,7 +186,7 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return bi.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(300 * time.Millisecond),

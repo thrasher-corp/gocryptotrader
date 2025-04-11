@@ -35,7 +35,7 @@ var (
 
 const defaultTimeout = time.Second * 30
 
-func jsonOutput(in interface{}) {
+func jsonOutput(in any) {
 	j, err := json.MarshalIndent(in, "", " ")
 	if err != nil {
 		return
@@ -49,7 +49,8 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 		return nil, nil, err
 	}
 
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
 			Username: username,
 			Password: password,

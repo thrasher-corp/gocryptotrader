@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -85,7 +86,8 @@ func TestGetHoldings(t *testing.T) {
 		Accounts: []SubAccount{
 			{
 				ID: "1337",
-			}},
+			},
+		},
 	}, happyCredentials)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -106,25 +108,8 @@ func TestGetHoldings(t *testing.T) {
 						Hold:     20,
 					},
 				},
-			}},
-	}, happyCredentials)
-	assert.NoError(t, err)
-
-	// process again with no changes
-	err = Process(&Holdings{
-		Exchange: "Test",
-		Accounts: []SubAccount{
-			{
-				AssetType: asset.Spot,
-				ID:        "1337",
-				Currencies: []Balance{
-					{
-						Currency: currency.BTC,
-						Total:    100,
-						Hold:     20,
-					},
-				},
-			}},
+			},
+		},
 	}, happyCredentials)
 	assert.NoError(t, err)
 
@@ -292,28 +277,32 @@ func TestBalanceInternalWait(t *testing.T) {
 func TestBalanceInternalLoad(t *testing.T) {
 	t.Parallel()
 	bi := &ProtectedBalance{}
-	bi.load(Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	err := bi.load(nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "should error nil pointer correctly")
+
+	err = bi.load(&Balance{Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	assert.ErrorIs(t, err, errUpdatedAtIsZero, "should error correctly when updatedAt is not set")
+
+	now := time.Now()
+	err = bi.load(&Balance{UpdatedAt: now, Total: 1, Hold: 2, Free: 3, AvailableWithoutBorrow: 4, Borrowed: 5})
+	require.NoError(t, err)
+
 	bi.m.Lock()
-	if bi.total != 1 {
-		t.Fatal("unexpected value")
-	}
-	if bi.hold != 2 {
-		t.Fatal("unexpected value")
-	}
-	if bi.free != 3 {
-		t.Fatal("unexpected value")
-	}
-	if bi.availableWithoutBorrow != 4 {
-		t.Fatal("unexpected value")
-	}
-	if bi.borrowed != 5 {
-		t.Fatal("unexpected value")
-	}
+	assert.Equal(t, now, bi.updatedAt)
+	assert.Equal(t, 1.0, bi.total)
+	assert.Equal(t, 2.0, bi.hold)
+	assert.Equal(t, 3.0, bi.free)
+	assert.Equal(t, 4.0, bi.availableWithoutBorrow)
+	assert.Equal(t, 5.0, bi.borrowed)
 	bi.m.Unlock()
 
-	if bi.GetFree() != 3 {
-		t.Fatal("unexpected value")
-	}
+	assert.Equal(t, 3.0, bi.GetFree())
+
+	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with same UpdatedAt")
+
+	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.NoError(t, err)
 }
 
 func TestGetFree(t *testing.T) {
@@ -329,20 +318,16 @@ func TestGetFree(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestSave(t *testing.T) {
 	t.Parallel()
 	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
-	err := s.Update(nil, nil)
-	if !errors.Is(err, errHoldingsIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errHoldingsIsNil)
-	}
+	err := s.Save(nil, nil)
+	assert.ErrorIs(t, err, errHoldingsIsNil)
 
-	err = s.Update(&Holdings{}, nil)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
-	}
+	err = s.Save(&Holdings{}, nil)
+	assert.ErrorIs(t, err, errExchangeNameUnset)
 
-	err = s.Update(&Holdings{
+	err = s.Save(&Holdings{
 		Exchange: "TeSt",
 		Accounts: []SubAccount{
 			{
@@ -357,24 +342,11 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			{AssetType: asset.UpsideProfitContract, ID: "1337"},
-			{
-				AssetType: asset.Spot,
-				ID:        "1337",
-				Currencies: []Balance{
-					{
-						Currency: currency.BTC,
-						Total:    100,
-						Hold:     20,
-					},
-				},
-			},
 		},
 	}, happyCredentials)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	err = s.Update(&Holdings{ // No change
+	err = s.Save(&Holdings{ // No change
 		Exchange: "tEsT",
 		Accounts: []SubAccount{
 			{
@@ -390,29 +362,51 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 	}, happyCredentials)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	acc, ok := s.exchangeAccounts["test"]
-	if !ok {
-		t.Fatal("account should be loaded")
-	}
+	require.True(t, ok)
 
-	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAsset{
+	assets, ok := acc.subAccounts[*happyCredentials][key.SubAccountAsset{
 		SubAccount: "1337",
-		Currency:   currency.BTC.Item,
 		Asset:      asset.Spot,
 	}]
-	if !ok {
-		t.Fatal("account should be loaded")
-	}
+	require.True(t, ok)
 
-	if b.total != 100 {
-		t.Errorf("expecting 100 but received %f", b.total)
-	}
+	b, ok := assets[currency.BTC.Item]
+	require.True(t, ok)
 
-	if b.hold != 20 {
-		t.Errorf("expecting 20 but received %f", b.hold)
-	}
+	assert.NotEmpty(t, b.updatedAt)
+	assert.Equal(t, 100.0, b.total)
+	assert.Equal(t, 20.0, b.hold)
+
+	err = s.Save(&Holdings{
+		Exchange: "tEsT",
+		Accounts: []SubAccount{
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						Currency: currency.ETH,
+						Total:    80,
+						Hold:     20,
+					},
+				},
+			},
+		},
+	}, happyCredentials)
+	require.NoError(t, err)
+
+	b, ok = assets[currency.BTC.Item]
+	require.True(t, ok)
+	assert.NotEmpty(t, b.updatedAt)
+	assert.Zero(t, b.total)
+	assert.Zero(t, b.hold)
+
+	e, ok := assets[currency.ETH.Item]
+	require.True(t, ok)
+	assert.NotEmpty(t, e.updatedAt)
+	assert.Equal(t, 80.0, e.total)
+	assert.Equal(t, 20.0, e.hold)
 }

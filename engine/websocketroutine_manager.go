@@ -11,9 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -153,7 +153,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func (m *WebsocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) error {
+func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -194,13 +194,13 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *stream.Websocket) er
 // websocketDataHandler is the default central point for exchange websocket
 // implementations to send processed data which will then pass that to an
 // appropriate handler.
-func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data interface{}) error {
+func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any) error {
 	switch d := data.(type) {
 	case string:
 		log.Infoln(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
-	case stream.FundingData:
+	case websocket.FundingData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
@@ -244,7 +244,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
-	case stream.KlineData:
+	case websocket.KlineData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
@@ -252,7 +252,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				d.AssetType,
 				d)
 		}
-	case []stream.KlineData:
+	case []websocket.KlineData:
 		for x := range d {
 			if m.verbose {
 				log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -333,7 +333,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
-	case stream.UnhandledMessageWarning:
+	case websocket.UnhandledMessageWarning:
 		log.Warnln(log.WebsocketMgr, d.Message)
 	case account.Change:
 		if m.verbose {

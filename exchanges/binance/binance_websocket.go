@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -19,10 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -52,10 +52,10 @@ var (
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
@@ -89,9 +89,9 @@ func (b *Binance) WsConnect() error {
 		go b.KeepAuthKeyAlive()
 	}
 
-	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
@@ -178,15 +178,15 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	}
 	jsonData, _, _, err := jsonparser.Get(respRaw, "data")
 	if err != nil {
-		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 	var event string
 	event, err = jsonparser.GetUnsafeString(jsonData, "e")
 	if err == nil {
 		switch event {
 		case "outboundAccountPosition":
-			var data wsAccountPosition
-			err = json.Unmarshal(respRaw, &data)
+			var data WsAccountPositionData
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
 					b.Name,
@@ -195,8 +195,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			b.Websocket.DataHandler <- data
 			return nil
 		case "balanceUpdate":
-			var data wsBalanceUpdate
-			err = json.Unmarshal(respRaw, &data)
+			var data WsBalanceUpdateData
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
 					b.Name,
@@ -205,31 +205,31 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			b.Websocket.DataHandler <- data
 			return nil
 		case "executionReport":
-			var data wsOrderUpdate
-			err = json.Unmarshal(respRaw, &data)
+			var data WsOrderUpdateData
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to executionReport structure %s",
 					b.Name,
 					err)
 			}
 			avgPrice := 0.0
-			if data.Data.CumulativeFilledQuantity != 0 {
-				avgPrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+			if data.CumulativeFilledQuantity != 0 {
+				avgPrice = data.CumulativeQuoteTransactedQuantity / data.CumulativeFilledQuantity
 			}
-			remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+			remainingAmount := data.Quantity - data.CumulativeFilledQuantity
 			var pair currency.Pair
 			var assetType asset.Item
-			pair, assetType, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+			pair, assetType, err = b.GetRequestFormattedPairAndAssetType(data.Symbol)
 			if err != nil {
 				return err
 			}
 			var feeAsset currency.Code
-			if data.Data.CommissionAsset != "" {
-				feeAsset = currency.NewCode(data.Data.CommissionAsset)
+			if data.CommissionAsset != "" {
+				feeAsset = currency.NewCode(data.CommissionAsset)
 			}
-			orderID := strconv.FormatInt(data.Data.OrderID, 10)
+			orderID := strconv.FormatInt(data.OrderID, 10)
 			var orderStatus order.Status
-			orderStatus, err = stringToOrderStatus(data.Data.OrderStatus)
+			orderStatus, err = stringToOrderStatus(data.OrderStatus)
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
@@ -237,12 +237,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			clientOrderID := data.Data.ClientOrderID
+			clientOrderID := data.ClientOrderID
 			if orderStatus == order.Cancelled {
-				clientOrderID = data.Data.CancelledClientOrderID
+				clientOrderID = data.CancelledClientOrderID
 			}
 			var orderType order.Type
-			orderType, err = order.StringToOrderType(data.Data.OrderType)
+			orderType, err = order.StringToOrderType(data.OrderType)
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
@@ -251,7 +251,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				}
 			}
 			var orderSide order.Side
-			orderSide, err = order.StringToOrderSide(data.Data.Side)
+			orderSide, err = order.StringToOrderSide(data.Side)
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
@@ -260,14 +260,14 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				}
 			}
 			b.Websocket.DataHandler <- &order.Detail{
-				Price:                data.Data.Price,
-				Amount:               data.Data.Quantity,
+				Price:                data.Price,
+				Amount:               data.Quantity,
 				AverageExecutedPrice: avgPrice,
-				ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+				ExecutedAmount:       data.CumulativeFilledQuantity,
 				RemainingAmount:      remainingAmount,
-				Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
+				Cost:                 data.CumulativeQuoteTransactedQuantity,
 				CostAsset:            pair.Quote,
-				Fee:                  data.Data.Commission,
+				Fee:                  data.Commission,
 				FeeAsset:             feeAsset,
 				Exchange:             b.Name,
 				OrderID:              orderID,
@@ -276,14 +276,14 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Side:                 orderSide,
 				Status:               orderStatus,
 				AssetType:            assetType,
-				Date:                 data.Data.OrderCreationTime,
-				LastUpdated:          data.Data.TransactionTime,
+				Date:                 data.OrderCreationTime.Time(),
+				LastUpdated:          data.TransactionTime.Time(),
 				Pair:                 pair,
 			}
 			return nil
 		case "listStatus":
-			var data wsListStatus
-			err = json.Unmarshal(respRaw, &data)
+			var data WsListStatusData
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
 					b.Name,
@@ -297,13 +297,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	streamStr, err := jsonparser.GetUnsafeString(respRaw, "stream")
 	if err != nil {
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+			return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 		}
 		return err
 	}
 	streamType := strings.Split(streamStr, "@")
 	if len(streamType) <= 1 {
-		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 	var (
 		pair      currency.Pair
@@ -331,7 +331,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		}
 
 		var t TradeStream
-		err = json.Unmarshal(jsonData, &t)
+		err := json.Unmarshal(jsonData, &t)
 		if err != nil {
 			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 				b.Name,
@@ -339,12 +339,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		}
 		td := trade.Data{
 			CurrencyPair: pair,
-			Timestamp:    t.TimeStamp,
+			Timestamp:    t.TimeStamp.Time(),
 			Price:        t.Price.Float64(),
 			Amount:       t.Quantity.Float64(),
 			Exchange:     b.Name,
 			AssetType:    asset.Spot,
-			TID:          strconv.FormatInt(t.TradeID, 10)}
+			TID:          strconv.FormatInt(t.TradeID, 10),
+		}
 
 		if t.IsBuyerMaker { // Seller is Taker
 			td.Side = order.Sell
@@ -371,7 +372,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			Bid:          t.BestBidPrice.Float64(),
 			Ask:          t.BestAskPrice.Float64(),
 			Last:         t.LastPrice.Float64(),
-			LastUpdated:  t.EventTime,
+			LastUpdated:  t.EventTime.Time(),
 			AssetType:    asset.Spot,
 			Pair:         pair,
 		}
@@ -385,13 +386,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				b.Name,
 				err)
 		}
-		b.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  kline.EventTime,
+		b.Websocket.DataHandler <- websocket.KlineData{
+			Timestamp:  kline.EventTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Spot,
 			Exchange:   b.Name,
-			StartTime:  kline.Kline.StartTime,
-			CloseTime:  kline.Kline.CloseTime,
+			StartTime:  kline.Kline.StartTime.Time(),
+			CloseTime:  kline.Kline.CloseTime.Time(),
 			Interval:   kline.Kline.Interval,
 			OpenPrice:  kline.Kline.OpenPrice.Float64(),
 			ClosePrice: kline.Kline.ClosePrice.Float64(),
@@ -420,7 +421,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		return fmt.Errorf("%s %s %s", b.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 }
 
@@ -633,7 +634,7 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		Asks:       updateAsk,
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
+		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
 }

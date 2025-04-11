@@ -23,10 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -39,8 +39,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b *Bitfinex
-var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+var (
+	b          *Bitfinex
+	btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+)
 
 func TestMain(m *testing.M) {
 	b = new(Bitfinex)
@@ -282,7 +284,7 @@ func TestTickerFromFundingResp(t *testing.T) {
 	assert.Equal(t, 11.11, tick.Volume, "Tick Volume should be correct")
 	assert.Equal(t, 12.12, tick.High, "Tick High should be correct")
 	assert.Equal(t, 13.13, tick.Low, "Tick Low should be correct")
-	assert.Equal(t, 15.15, tick.FFRAmountAvailable, "Tick FFRAmountAvailable should be correct")
+	assert.Equal(t, 15.15, tick.FRRAmountAvailable, "Tick FRRAmountAvailable should be correct")
 }
 
 func TestGetTickerFunding(t *testing.T) {
@@ -312,7 +314,7 @@ func checkFundingTick(tb testing.TB, tick *Ticker) {
 	assert.Positive(tb, tick.AskPeriod, "Tick AskPeriod should be positive")
 	assert.Positive(tb, tick.AskSize, "Tick AskSize should be positive")
 	assert.Positive(tb, tick.Last, "Tick Last should be positive")
-	assert.Positive(tb, tick.FFRAmountAvailable, "Tick FFRAmountavailable should be positive")
+	// Can't test FRRAmountAvailable as it's occasionally 0
 }
 
 func TestGetTrades(t *testing.T) {
@@ -791,7 +793,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	_, err := b.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
@@ -808,7 +810,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	t.Parallel()
 
 	if sharedtestvalues.AreAPICredentialsSet(b) {
@@ -883,7 +885,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -900,7 +902,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -916,7 +918,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Delimiter: "_",
@@ -948,7 +950,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -970,7 +972,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -1036,7 +1038,7 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
@@ -1058,7 +1060,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
@@ -1103,7 +1105,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWSAuth dials websocket, sends login request.
 func TestWSAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.API.AuthenticatedWebsocketSupport {
@@ -1112,11 +1114,11 @@ func TestWSAuth(t *testing.T) {
 	testexch.SetupWs(t, b)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be turned on")
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	catcher := func() (ok bool) {
 		select {
 		case v := <-b.Websocket.ToRoutine:
-			resp, ok = v.(map[string]interface{})
+			resp, ok = v.(map[string]any)
 		default:
 		}
 		return
@@ -1132,6 +1134,8 @@ func TestWSAuth(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	b := new(Bitfinex) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Setup must not error")
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := b.generateSubscriptions()
@@ -1148,15 +1152,23 @@ func TestGenerateSubscriptions(t *testing.T) {
 				s := baseSub.Clone()
 				s.Asset = a
 				s.Pairs = currency.Pairs{p}
+				prefix := "t"
+				if a == asset.MarginFunding {
+					prefix = "f"
+				}
 				switch s.Channel {
 				case subscription.TickerChannel:
-					s.QualifiedChannel = `{"channel":"ticker","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"ticker","symbol":"` + prefix + p.String() + `"}`
 				case subscription.CandlesChannel:
-					s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:t` + p.String() + `"}`
+					if a == asset.MarginFunding {
+						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `:p30"}`
+					} else {
+						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `"}`
+					}
 				case subscription.OrderbookChannel:
-					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"` + prefix + p.String() + `"}`
 				case subscription.AllTradesChannel:
-					s.QualifiedChannel = `{"channel":"trades","symbol":"t` + p.String() + `"}`
+					s.QualifiedChannel = `{"channel":"trades","symbol":"` + prefix + p.String() + `"}`
 				}
 				exp = append(exp, s)
 			}
@@ -1321,8 +1333,8 @@ func TestWSSubscribedResponse(t *testing.T) {
 	assert.NoError(t, err, "Setting a matcher should not error")
 	err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	if assert.Error(t, err, "Should error if sub is not registered yet") {
-		assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Should error SubFailure if sub isn't registered yet")
-		assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Should error SubNotFound if sub isn't registered yet")
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Should error SubFailure if sub isn't registered yet")
+		assert.ErrorIs(t, err, subscription.ErrNotFound, "Should error SubNotFound if sub isn't registered yet")
 		assert.ErrorContains(t, err, "waiter1", "Should error containing subID if")
 	}
 

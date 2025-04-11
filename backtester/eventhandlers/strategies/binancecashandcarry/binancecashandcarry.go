@@ -227,7 +227,7 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 	if len(d) == 0 {
 		return nil, base.ErrNoDataToProcess
 	}
-	var carryMap = make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
+	carryMap := make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
 	for i := range d {
 		l, err := d[i].Latest()
 		if err != nil {
@@ -278,7 +278,7 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 }
 
 // SetCustomSettings can override default settings
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
+func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 	for k, v := range customSettings {
 		switch k {
 		case openShortDistancePercentageString:

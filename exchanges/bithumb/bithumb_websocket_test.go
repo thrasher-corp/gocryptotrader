@@ -1,8 +1,8 @@
 package bithumb
 
 import (
-	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -10,9 +10,9 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
@@ -25,14 +25,11 @@ var (
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	pairs := currency.Pairs{
-		currency.Pair{
-			Base:  currency.BTC,
-			Quote: currency.USDT,
-		},
-	}
+
+	pairs := currency.Pairs{currency.NewBTCUSDT()}
 
 	dummy := Bithumb{
+		location: time.Local,
 		Base: exchange.Base{
 			Name: "dummy",
 			Features: exchange.Features{
@@ -50,9 +47,7 @@ func TestWsHandleData(t *testing.T) {
 					},
 				},
 			},
-			Websocket: &stream.Websocket{
-				DataHandler: make(chan interface{}, 1),
-			},
+			Websocket: websocket.NewManager(),
 		},
 	}
 
@@ -61,36 +56,20 @@ func TestWsHandleData(t *testing.T) {
 
 	welcomeMsg := []byte(`{"status":"0000","resmsg":"Connected Successfully"}`)
 	err := dummy.wsHandleData(welcomeMsg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = dummy.wsHandleData([]byte(`{"status":"1336","resmsg":"Failed"}`))
-	if !errors.Is(err, stream.ErrSubscriptionFailure) {
-		t.Fatalf("received: %v but expected: %v",
-			err,
-			stream.ErrSubscriptionFailure)
-	}
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure)
+
+	err = dummy.wsHandleData(wsTransResp)
+	require.NoError(t, err)
+
+	err = dummy.wsHandleData(wsOrderbookResp)
+	require.NoError(t, err)
 
 	err = dummy.wsHandleData(wsTickerResp)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	handled := <-dummy.Websocket.DataHandler
-	if _, ok := handled.(*ticker.Price); !ok {
-		t.Fatal("unexpected value")
-	}
-
-	err = dummy.wsHandleData(wsTransResp) // This doesn't pipe to datahandler
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	err = dummy.wsHandleData(wsOrderbookResp) // This doesn't pipe to datahandler
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+	assert.IsType(t, new(ticker.Price), <-dummy.Websocket.DataHandler, "ticker should send a price to the DataHandler")
 }
 
 func TestSubToReq(t *testing.T) {
@@ -125,8 +104,10 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp := subscription.List{
 		{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: p, QualifiedChannel: `{"type":"transaction","symbols":["BTC_KRW","ETH_KRW"]}`},
 		{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: p, QualifiedChannel: `{"type":"orderbookdepth","symbols":["BTC_KRW","ETH_KRW"]}`},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
-			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`},
+		{
+			Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: p, Interval: kline.ThirtyMin,
+			QualifiedChannel: `{"type":"ticker","symbols":["BTC_KRW","ETH_KRW"],"tickTypes":["30M"]}`,
+		},
 	}
 	testsubs.EqualLists(t, exp, subs)
 }

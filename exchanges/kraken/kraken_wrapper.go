@@ -26,10 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -43,42 +43,22 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresSecret = true
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	pairStore := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Separator: ",",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-			Separator: ",",
-		},
+	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		}
+		if a == asset.Futures {
+			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
+		}
+		if err := k.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", k.Name, a, err)
+		}
 	}
 
-	futures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Delimiter: currency.UnderscoreDelimiter,
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-
-	err := k.StoreAssetPairFormat(asset.Spot, pairStore)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = k.StoreAssetPairFormat(asset.Futures, futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = k.DisableAssetWebsocketSupport(asset.Futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := k.DisableAssetWebsocketSupport(asset.Futures); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", k.Name, asset.Futures, err)
 	}
 
 	k.Features = exchange.Features{
@@ -171,6 +151,7 @@ func (k *Kraken) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate, 1)))
@@ -188,7 +169,7 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = stream.NewWebsocket()
+	k.Websocket = websocket.NewManager()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -213,7 +194,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = k.Websocket.Setup(&stream.WebsocketSetup{
+	err = k.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
@@ -228,7 +209,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -241,7 +222,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return k.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

@@ -361,11 +361,11 @@ const (
 
 // wsCommand defines the request params after a websocket connection has been established
 type wsCommand struct {
-	Command wsOp        `json:"command"`
-	Channel interface{} `json:"channel"`
-	APIKey  string      `json:"key,omitempty"`
-	Payload string      `json:"payload,omitempty"`
-	Sign    string      `json:"sign,omitempty"`
+	Command wsOp   `json:"command"`
+	Channel any    `json:"channel"`
+	APIKey  string `json:"key,omitempty"`
+	Payload string `json:"payload,omitempty"`
+	Sign    string `json:"sign,omitempty"`
 }
 
 // WsTicker defines the websocket ticker response

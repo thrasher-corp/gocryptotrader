@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
@@ -122,7 +122,7 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 }
 
 func TestWebsocketRoutineManagerHandleData(t *testing.T) {
-	var exchName = "Bitstamp"
+	exchName := "Bitstamp"
 	var wg sync.WaitGroup
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
@@ -154,12 +154,12 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	var orderID = "1337"
+	orderID := "1337"
 	err = m.websocketDataHandler(exchName, errors.New("error"))
 	if err == nil {
 		t.Error("Error not handled correctly")
 	}
-	err = m.websocketDataHandler(exchName, stream.FundingData{})
+	err = m.websocketDataHandler(exchName, websocket.FundingData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,7 +171,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.websocketDataHandler(exchName, stream.KlineData{})
+	err = m.websocketDataHandler(exchName, websocket.KlineData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -224,9 +224,9 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.websocketDataHandler(exchName, stream.UnhandledMessageWarning{
-		Message: "there's an issue here's a tissue"},
-	)
+	err = m.websocketDataHandler(exchName, websocket.UnhandledMessageWarning{
+		Message: "there's an issue here's a tissue",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -274,8 +274,8 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	// externally defined capture device
-	dataChan := make(chan interface{})
-	fn := func(_ string, data interface{}) error {
+	dataChan := make(chan any)
+	fn := func(_ string, data any) error {
 		switch data.(type) {
 		case string:
 			dataChan <- data
@@ -293,8 +293,8 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 		t.Fatal("unexpected data handlers registered")
 	}
 
-	mock := stream.NewWebsocket()
-	mock.ToRoutine = make(chan interface{})
+	mock := websocket.NewManager()
+	mock.ToRoutine = make(chan any)
 	m.state = readyState
 	err = m.websocketDataReceiver(mock)
 	if err != nil {

@@ -1,4 +1,4 @@
-package stream
+package websocket
 
 import (
 	"sync"
@@ -26,10 +26,10 @@ type ProcessReporter interface {
 
 // SetProcessReportManager sets the ProcessReporterManager for the Websocket instance which will be used to create new ProcessReporter instances.
 // This will track metrics for processing websocket data.
-func (w *Websocket) SetProcessReportManager(m ProcessReporterManager) {
-	w.m.Lock()
-	defer w.m.Unlock()
-	w.processReporter = m
+func (m *Manager) SetProcessReportManager(rm ProcessReporterManager) {
+	m.m.Lock()
+	defer m.m.Unlock()
+	m.processReporter = rm
 }
 
 // NewDefaultProcessReporterManager returns a new defaultProcessReporterManager instance

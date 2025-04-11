@@ -84,18 +84,13 @@ updates:
 				continue
 			}
 
-			if y < len(*ts) {
-				copy((*ts)[y:], (*ts)[y+1:])
-				*ts = (*ts)[:len(*ts)-1]
-			} else {
-				*ts = append((*ts)[:y], (*ts)[y+1:]...)
-			}
+			copy((*ts)[y:], (*ts)[y+1:])
+			*ts = (*ts)[:len(*ts)-1]
+
 			continue updates
 		}
 		if !bypassErr {
-			return fmt.Errorf("delete error: %w %d not found",
-				errIDCannotBeMatched,
-				updts[x].ID)
+			return fmt.Errorf("delete error: %w %d not found", errIDCannotBeMatched, updts[x].ID)
 		}
 	}
 	return nil
@@ -117,7 +112,9 @@ func (ts Tranches) retrieve(count int) Tranches {
 	if count == 0 || count >= len(ts) {
 		count = len(ts)
 	}
-	return append(Tranches{}, ts[:count]...)
+	result := make(Tranches, count)
+	copy(result, ts)
+	return result
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by

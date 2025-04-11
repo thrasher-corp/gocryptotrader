@@ -165,7 +165,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	b.Settings = *s
 
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
-	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled != nil && *b.Config.OrderManager.Enabled)
+	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled)
 
 	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
@@ -409,7 +409,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio); err != nil {
+			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, bot.Config.Portfolio); err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
 				bot.portfolioManager = p
@@ -586,7 +586,7 @@ func (bot *Engine) Stop() {
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(bot.portfolioManager.GetAddresses()) != 0 {
-		bot.Config.Portfolio = *bot.portfolioManager.GetPortfolio()
+		bot.Config.Portfolio = bot.portfolioManager.GetPortfolio()
 	}
 
 	if bot.gctScriptManager.IsRunning() {

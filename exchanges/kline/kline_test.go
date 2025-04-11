@@ -457,7 +457,7 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 
 func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	t.Parallel()
-	var tempKline = Item{
+	tempKline := Item{
 		Exchange: "testExchange",
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -498,13 +498,9 @@ func setupTest(t *testing.T) {
 		}
 	}
 
-	var err error
 	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
-	testhelpers.TempDir, err = os.MkdirTemp("", "gct-temp")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
+	testhelpers.TempDir = t.TempDir()
 }
 
 func TestStoreInDatabase(t *testing.T) {
@@ -1147,7 +1143,8 @@ func TestAddPadding(t *testing.T) {
 			Low:    1337,
 			Close:  6969,
 			Volume: 2520,
-		}}
+		},
+	}
 
 	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
 	if !errors.Is(err, errCandleOpenTimeIsNotUTCAligned) {
@@ -1178,7 +1175,8 @@ func TestAddPadding(t *testing.T) {
 			Low:    1337,
 			Close:  6969,
 			Volume: 2520,
-		}}
+		},
+	}
 
 	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
 	if !errors.Is(err, nil) {

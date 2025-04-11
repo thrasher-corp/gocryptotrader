@@ -26,10 +26,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -42,37 +42,22 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	standardRequestFmt := &currency.PairFormat{Uppercase: true}
-	spotRequestFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-
-	spot := currency.PairStore{RequestFormat: spotRequestFormat, ConfigFormat: configFmt}
-	err := b.StoreAssetPairFormat(asset.Spot, spot)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Spot, asset.PerpetualContract, asset.Futures, asset.Index} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		if a == asset.Spot {
+			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
+		}
+		if err := b.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+		}
 	}
 
-	perp := currency.PairStore{RequestFormat: standardRequestFmt, ConfigFormat: configFmt}
-	err = b.StoreAssetPairFormat(asset.PerpetualContract, perp)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	futures := currency.PairStore{RequestFormat: standardRequestFmt, ConfigFormat: configFmt}
-	err = b.StoreAssetPairFormat(asset.Futures, futures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	index := currency.PairStore{RequestFormat: standardRequestFmt, ConfigFormat: configFmt}
-	err = b.StoreAssetPairFormat(asset.Index, index)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	err = b.DisableAssetWebsocketSupport(asset.Index)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := b.DisableAssetWebsocketSupport(asset.Index); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, asset.Index, err)
 	}
 
 	b.Features = exchange.Features{
@@ -139,6 +124,7 @@ func (b *Bitmex) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -153,7 +139,7 @@ func (b *Bitmex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -179,7 +165,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            bitmexWSURL,
 		RunningURL:            wsEndpoint,
@@ -195,7 +181,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  bitmexWSURL,
@@ -377,7 +363,8 @@ instruments:
 			LastUpdated:  tick[j].Timestamp,
 			ExchangeName: b.Name,
 			OpenInterest: tick[j].OpenInterest,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -426,7 +413,8 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	orderbookNew, err := b.GetOrderbook(ctx,
 		OrderBookGetL2Params{
 			Symbol: fPair.String(),
-			Depth:  500})
+			Depth:  500,
+		})
 	if err != nil {
 		return book, err
 	}
@@ -653,7 +641,7 @@ func (b *Bitmex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		return nil, err
 	}
 
-	var orderNewParams = OrderNewParams{
+	orderNewParams := OrderNewParams{
 		OrderType:     s.Type.Title(),
 		Symbol:        fPair.String(),
 		OrderQuantity: s.Amount,
@@ -685,7 +673,8 @@ func (b *Bitmex) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	o, err := b.AmendOrder(ctx, &OrderAmendParams{
 		OrderID:  action.OrderID,
 		OrderQty: int32(action.Amount),
-		Price:    action.Price})
+		Price:    action.Price,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -831,7 +820,7 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var r = UserRequestWithdrawalParams{
+	r := UserRequestWithdrawalParams{
 		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,
 		Currency: withdrawRequest.Currency.String(),

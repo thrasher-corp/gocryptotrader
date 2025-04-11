@@ -124,14 +124,19 @@ mkdir %AppData%\GoCryptoTrader
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
-By default, GoCryptoTrader uses the [Sonic JSON](https://github.com/bytedance/sonic) library for improved performance unless compiling for 32-bit or arm64 architectures. To disable Sonic and revert to Go's encoding/json, build with the sonic_off tag:
-
-```bash
-go build -tags=sonic_off
-```
-
 + Make any necessary changes to the `config.json` file.
 + Run the `gocryptotrader` binary file.
+
+### Sonic JSON handling
+
+GoCryptoTrader can optionally use the [Sonic](https://github.com/bytedance/sonic) JSON library for improved performance, as a drop in replacement for golang.org/encoding/json.
+Please see sonic [Requirements](https://github.com/bytedance/sonic/#requirement) for supported platforms.
+
+To enable sonic, build with the sonic_on tag:
+
+```bash
+go build -tags=sonic_on
+```
 
 ## Donations
 
@@ -151,25 +156,26 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 704 |
-| [shazbert](https://github.com/shazbert) | 361 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 351 |
-| [gloriousCode](https://github.com/gloriousCode) | 236 |
-| [gbjk](https://github.com/gbjk) | 115 |
+| [thrasher-](https://github.com/thrasher-) | 711 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 369 |
+| [shazbert](https://github.com/shazbert) | 362 |
+| [gloriousCode](https://github.com/gloriousCode) | 237 |
+| [gbjk](https://github.com/gbjk) | 123 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [Beadko](https://github.com/Beadko) | 18 |
-| [Rots](https://github.com/Rots) | 15 |
-| [vazha](https://github.com/vazha) | 15 |
+| [Beadko](https://github.com/Beadko) | 24 |
 | [ydm](https://github.com/ydm) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
+| [Rots](https://github.com/Rots) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [samuael](https://github.com/samuael) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [140am](https://github.com/140am) | 8 |
-| [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [geseq](https://github.com/geseq) | 8 |
+| [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [140am](https://github.com/140am) | 8 |
+| [junnplus](https://github.com/junnplus) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
@@ -180,7 +186,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
-| [soxipy](https://github.com/soxipy) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [azhang](https://github.com/azhang) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
@@ -190,6 +195,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |

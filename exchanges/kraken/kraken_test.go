@@ -549,7 +549,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 	f, err := k.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
 	assert.Positive(t, f, "GetFeeByType should return a positive value")
@@ -563,7 +563,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 // TestGetFee exercises GetFee
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 
 	if sharedtestvalues.AreAPICredentialsSet(k) {
 		_, err := k.GetFee(context.Background(), feeBuilder)
@@ -628,7 +628,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     currency.Pairs{spotTestPair},
@@ -644,7 +644,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -670,7 +670,7 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Exchange:  k.Name,
 		Pair:      spotTestPair,
 		Side:      order.Buy,
@@ -701,7 +701,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
-	var orderCancellation = &order.Cancel{
+	orderCancellation := &order.Cancel{
 		OrderID:   "OGEX6P-B5Q74-IGZ72R",
 		AssetType: asset.Spot,
 	}
@@ -804,7 +804,7 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Amount:        -1,
 		Currency:      currency.EUR,
 		Description:   "WITHDRAW IT ALL",
@@ -825,7 +825,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Amount:        -1,
 		Currency:      currency.EUR,
 		Description:   "WITHDRAW IT ALL",
@@ -1232,7 +1232,7 @@ func TestWSProcessTrades(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", k.wsHandleData)
 	close(k.Websocket.DataHandler)
 
-	invalid := []any{"trades", []any{[]interface{}{"95873.80000", "0.00051182", "1708731380.3791859"}}}
+	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
 	pair := currency.NewPair(currency.XBT, currency.USD)
 	err = k.wsProcessTrades(invalid, pair)
 	require.ErrorContains(t, err, "unexpected trade data length")

@@ -181,6 +181,7 @@ message AccountCurrencyInfo {
   double free = 4;
   double free_without_borrow = 5;
   double borrowed = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 message GetAccountInfoResponse {

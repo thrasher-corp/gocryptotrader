@@ -19,9 +19,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -55,22 +55,24 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	// can use this example below:
 
 	fmt1 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	}
 
 	fmt2 := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	err = {{.Variable}}.StoreAssetPairFormat(asset.Spot, fmt1)
+	err = {{.Variable}}.SetAssetPairStore(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", {{.Variable}}.Name, asset.Spot, err)
 	}
-	err = {{.Variable}}.StoreAssetPairFormat(asset.Margin, fmt2)
+	err = {{.Variable}}.SetAssetPairStore(asset.Margin, fmt2)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", {{.Variable}}.Name, asset.Margin, err)
 	}
 
 	// Fill out the capabilities/features that the exchange supports
@@ -106,7 +108,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
-	{{.Variable}}.Websocket = stream.NewWebsocket()
+	{{.Variable}}.Websocket = websocket.NewManager()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -136,7 +138,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	// If websocket is supported, please fill out the following
 
 	err = {{.Variable}}.Websocket.Setup(
-		&stream.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:  exch,
 			DefaultURL:      {{.Name}}WSAPIURL,
 			RunningURL:      wsRunningEndpoint,
@@ -149,7 +151,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	{{.Variable}}.WebsocketConn = &stream.WebsocketConnection{
+	{{.Variable}}.WebsocketConn = &websocket.WebsocketConnection{
 		ExchangeName:         {{.Variable}}.Name,
 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),

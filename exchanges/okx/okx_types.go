@@ -496,11 +496,6 @@ type DiscountRateInfoItem struct {
 	DiscountCurrencyEquity types.Number `json:"disCcyEq"`
 }
 
-// ServerTime returning  the server time instance
-type ServerTime struct {
-	Timestamp types.Time `json:"ts"`
-}
-
 // LiquidationOrderRequestParams holds information to request liquidation orders
 type LiquidationOrderRequestParams struct {
 	InstrumentType string
@@ -794,7 +789,7 @@ type PlaceOrderRequestParam struct {
 	QuantityType  string     `json:"tgtCcy,omitempty"` // values base_ccy and quote_ccy
 	// Added in the websocket requests
 	BanAmend   bool       `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
-	ExpiryTime types.Time `json:"expTime,omitempty"`
+	ExpiryTime types.Time `json:"expTime,omitzero"`
 }
 
 // OrderData response message for place, cancel, and amend an order requests.
@@ -1575,8 +1570,8 @@ type ConvertCurrencyPair struct {
 
 // EstimateQuoteRequestInput represents estimate quote request parameters
 type EstimateQuoteRequestInput struct {
-	BaseCurrency         currency.Code `json:"baseCcy,omitempty"`
-	QuoteCurrency        currency.Code `json:"quoteCcy,omitempty"`
+	BaseCurrency         currency.Code `json:"baseCcy,omitzero"`
+	QuoteCurrency        currency.Code `json:"quoteCcy,omitzero"`
 	Side                 string        `json:"side,omitempty"`
 	RFQAmount            float64       `json:"rfqSz,omitempty"`
 	RFQSzCurrency        string        `json:"rfqSzCcy,omitempty"`
@@ -1925,28 +1920,27 @@ type AccountConfigurationResponse struct {
 	UID                            string       `json:"uid"`
 	MainUID                        string       `json:"mainUid"`
 	AccountSelfTradePreventionMode string       `json:"acctStpMode"`
-	AccountLevel                   string       `json:"acctLv"`     // 1: Simple 2: Single-currency margin 3: Multi-currency margin 4：Portfolio margin
+	AccountLevel                   types.Number `json:"acctLv"`     // 1: Simple 2: Single-currency margin 3: Multi-currency margin 4：Portfolio margin
 	AutoLoan                       bool         `json:"autoLoan"`   // Whether to borrow coins automatically true: borrow coins automatically false: not borrow coins automatically
 	ContractIsolatedMode           string       `json:"ctIsoMode"`  // Contract isolated margin trading settings automatic：Auto transfers autonomy：Manual transfers
 	GreeksType                     string       `json:"greeksType"` // Current display type of Greeks PA: Greeks in coins BS: Black-Scholes Greeks in dollars
-	Level                          types.Number `json:"level"`      // The user level of the current real trading volume on the platform, e.g lv1
+	Level                          string       `json:"level"`      // The user level of the current real trading volume on the platform, e.g lv1
 	LevelTemporary                 string       `json:"levelTmp"`
 	MarginIsolatedMode             string       `json:"mgnIsoMode"` // Margin isolated margin trading settings automatic：Auto transfers autonomy：Manual transfers
 	PositionMode                   string       `json:"posMode"`
-	SpotOffsetType                 string       `json:"spotOffsetType"`
-	RoleType                       string       `json:"roleType"`
-	TraderInsts                    string       `json:"traderInsts"`
-	SpotRoleType                   string       `json:"spotRoleType"`
-	SpotTraderInsts                string       `json:"spotTraderInsts"`
-	OptionalTradingAuth            string       `json:"opAuth"` // Whether the optional trading was activated 0: not activate 1: activated
-	KYCLevel                       string       `json:"kycLv"`
+	RoleType                       types.Number `json:"roleType"` // 0: General user 1: Leading trader 2: Copy trader
+	TraderInsts                    []string     `json:"traderInsts"`
+	SpotRoleType                   types.Number `json:"spotRoleType"` // SPOT copy trading role type. 0: General user；1: Leading trader；2: Copy trader
+	SpotTraderInsts                []string     `json:"spotTraderInsts"`
+	OptionalTradingAuth            types.Number `json:"opAuth"` // Whether the optional trading was activated 0: not activated 1: activated
+	KYCLevel                       types.Number `json:"kycLv"`
 	Label                          string       `json:"label"`
 	IP                             string       `json:"ip"`
 	Permission                     string       `json:"perm"`
-	DiscountType                   string       `json:"discountType"`
-	LiquidationGear                string       `json:"liquidationGear"`
+	LiquidationGear                types.Number `json:"liquidationGear"`
 	EnableSpotBorrow               bool         `json:"enableSpotBorrow"`
 	SpotBorrowAutoRepay            bool         `json:"spotBorrowAutoRepay"`
+	Type                           types.Number `json:"type"` // 0: Main account 1: Standard sub-account 2: Managed trading sub-account 5: Custody trading sub-account - Copper 9: Managed trading sub-account - Copper 12: Custody trading sub-account - Komainu
 }
 
 // PositionMode represents position mode response
@@ -1959,7 +1953,7 @@ type SetLeverageInput struct {
 	Leverage     float64       `json:"lever,string"`     // set leverage for isolated
 	MarginMode   string        `json:"mgnMode"`          // Margin Mode "cross" and "isolated"
 	InstrumentID string        `json:"instId,omitempty"` // Optional:
-	Currency     currency.Code `json:"ccy,omitempty"`    // Optional:
+	Currency     currency.Code `json:"ccy,omitzero"`     // Optional:
 	PositionSide string        `json:"posSide,omitempty"`
 
 	AssetType asset.Item `json:"-"`
@@ -2158,10 +2152,10 @@ type MaximumWithdrawal struct {
 
 // AccountRiskState represents account risk state
 type AccountRiskState struct {
-	IsTheAccountAtRisk string        `json:"atRisk"`
-	AtRiskIdx          []interface{} `json:"atRiskIdx"` // derivatives risk unit list
-	AtRiskMgn          []interface{} `json:"atRiskMgn"` // margin risk unit list
-	Timestamp          types.Time    `json:"ts"`
+	IsTheAccountAtRisk string     `json:"atRisk"`
+	AtRiskIdx          []any      `json:"atRiskIdx"` // derivatives risk unit list
+	AtRiskMgn          []any      `json:"atRiskMgn"` // margin risk unit list
+	Timestamp          types.Time `json:"ts"`
 }
 
 // LoanBorrowAndReplayInput represents currency VIP borrow or repay request params
@@ -3143,15 +3137,15 @@ type wsRequestInfo struct {
 }
 
 type wsIncomingData struct {
-	Event      string           `json:"event,omitempty"`
-	Argument   SubscriptionInfo `json:"arg,omitempty"`
-	StatusCode string           `json:"code,omitempty"`
-	Message    string           `json:"msg,omitempty"`
+	Event      string           `json:"event"`
+	Argument   SubscriptionInfo `json:"arg"`
+	StatusCode string           `json:"code"`
+	Message    string           `json:"msg"`
 
 	// For Websocket Trading Endpoints websocket responses
-	ID        string          `json:"id,omitempty"`
-	Operation string          `json:"op,omitempty"`
-	Data      json.RawMessage `json:"data,omitempty"`
+	ID        string          `json:"id"`
+	Operation string          `json:"op"`
+	Data      json.RawMessage `json:"data"`
 }
 
 // copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
@@ -3174,7 +3168,7 @@ func (w *wsIncomingData) copyToPlaceOrderResponse() (*WsPlaceOrderResponse, erro
 }
 
 // copyResponseToInterface unmarshals the response data into the dataHolder interface.
-func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
+func (w *wsIncomingData) copyResponseToInterface(dataHolder any) error {
 	rv := reflect.ValueOf(dataHolder)
 	if rv.Kind() != reflect.Pointer {
 		return errInvalidResponseParam
@@ -5294,4 +5288,12 @@ type MonthlyStatement struct {
 	FileHref  string     `json:"fileHref"`
 	State     string     `json:"state"`
 	Timestamp types.Time `json:"ts"`
+}
+
+type tsResp struct {
+	Timestamp types.Time `json:"ts"`
+}
+
+type withdrawData struct {
+	WithdrawalID string `json:"wdId"`
 }

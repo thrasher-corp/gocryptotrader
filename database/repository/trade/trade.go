@@ -154,7 +154,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = sqlite3.Trade{
+		tempEvent := sqlite3.Trade{
 			ID:             trades[i].ID,
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
@@ -190,7 +190,7 @@ func insertPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 			}
 			trades[i].ID = freshUUID.String()
 		}
-		var tempEvent = postgres.Trade{
+		tempEvent := postgres.Trade{
 			ExchangeNameID: trades[i].ExchangeNameID,
 			Base:           strings.ToUpper(trades[i].Base),
 			Quote:          strings.ToUpper(trades[i].Quote),
@@ -309,7 +309,7 @@ func getInRangeSQLite(exchangeName, assetType, base, quote string, startDate, en
 	if err != nil {
 		return nil, err
 	}
-	wheres := map[string]interface{}{
+	wheres := map[string]any{
 		"exchange_name_id": exchangeUUID,
 		"asset":            strings.ToLower(assetType),
 		"base":             strings.ToUpper(base),
@@ -351,7 +351,7 @@ func getInRangePostgres(exchangeName, assetType, base, quote string, startDate, 
 	if err != nil {
 		return nil, err
 	}
-	wheres := map[string]interface{}{
+	wheres := map[string]any{
 		"exchange_name_id": exchangeUUID,
 		"asset":            strings.ToLower(assetType),
 		"base":             strings.ToUpper(base),
@@ -414,7 +414,7 @@ func DeleteTrades(trades ...Data) error {
 }
 
 func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	tradeIDs := make([]interface{}, len(trades))
+	tradeIDs := make([]any, len(trades))
 	for i := range trades {
 		tradeIDs[i] = trades[i].ID
 	}
@@ -424,7 +424,7 @@ func deleteTradesSQLite(ctx context.Context, tx *sql.Tx, trades ...Data) error {
 }
 
 func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error {
-	tradeIDs := make([]interface{}, len(trades))
+	tradeIDs := make([]any, len(trades))
 	for i := range trades {
 		tradeIDs[i] = trades[i].ID
 	}
@@ -433,7 +433,7 @@ func deleteTradesPostgres(ctx context.Context, tx *sql.Tx, trades ...Data) error
 	return err
 }
 
-func generateQuery(clauses map[string]interface{}, start, end time.Time, isSQLite bool) []qm.QueryMod {
+func generateQuery(clauses map[string]any, start, end time.Time, isSQLite bool) []qm.QueryMod {
 	query := []qm.QueryMod{
 		qm.OrderBy("timestamp"),
 	}

@@ -26,9 +26,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -41,47 +41,25 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresKey = true
 	h.API.CredentialsValidator.RequiresSecret = true
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: false},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
-	}
-	coinFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	futuresFormatting := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err := h.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = h.StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = h.StoreAssetPairFormat(asset.Futures, futuresFormatting)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		switch a {
+		case asset.Spot:
+			ps.RequestFormat.Uppercase = false
+		case asset.CoinMarginedFutures:
+			ps.RequestFormat.Delimiter = currency.DashDelimiter
+		}
+		if err := h.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", h.Name, a, err)
+		}
 	}
 
 	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
-		if err = h.DisableAssetWebsocketSupport(a); err != nil {
+		if err := h.DisableAssetWebsocketSupport(a); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", h.Name, a, err)
 		}
 	}
@@ -171,6 +149,7 @@ func (h *HUOBI) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -187,7 +166,7 @@ func (h *HUOBI) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.NewWebsocket()
+	h.Websocket = websocket.NewManager()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -224,7 +203,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
+	err = h.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            wsSpotURL + wsPublicPath,
 		RunningURL:            wsRunningURL,
@@ -238,7 +217,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -247,7 +226,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -983,7 +962,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			return nil, err
 		}
 		var formattedType SpotNewOrderRequestParamsType
-		var params = SpotNewOrderRequestParams{
+		params := SpotNewOrderRequestParams{
 			Amount:    s.Amount,
 			Source:    "api",
 			Symbol:    s.Pair,
@@ -1282,7 +1261,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		if respData.ID == 0 {
 			return nil, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
 		}
-		var responseID = strconv.FormatInt(respData.ID, 10)
+		responseID := strconv.FormatInt(respData.ID, 10)
 		if responseID != orderID {
 			return nil, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " +
 				orderID + " Received: " + responseID)

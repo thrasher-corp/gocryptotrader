@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -19,7 +20,7 @@ func (g *GctScriptManager) Autoload(name string, remove bool) error {
 			if g.config.AutoLoad[x] != name {
 				continue
 			}
-			g.config.AutoLoad = append(g.config.AutoLoad[:x], g.config.AutoLoad[x+1:]...)
+			g.config.AutoLoad = slices.Delete(g.config.AutoLoad, x, x+1)
 			if g.config.Verbose {
 				log.Debugf(log.GCTScriptMgr, "Removing script: %s from autoload", name)
 			}
@@ -51,7 +52,7 @@ func (g *GctScriptManager) autoLoad() {
 				g.config.AutoLoad[x])
 			continue
 		}
-		var name = g.config.AutoLoad[x]
+		name := g.config.AutoLoad[x]
 		if filepath.Ext(name) != common.GctExt {
 			name += common.GctExt
 		}

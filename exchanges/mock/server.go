@@ -222,7 +222,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 }
 
 // MessageWriteJSON writes JSON to a connection
-func MessageWriteJSON(w http.ResponseWriter, status int, data interface{}) {
+func MessageWriteJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set(contentType, applicationJSON)
 	w.WriteHeader(status)
 	if data != nil {
@@ -249,10 +249,10 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		var mockVals = url.Values{}
+		mockVals := url.Values{}
 		var err error
 		if json.Valid([]byte(data)) {
-			something := make(map[string]interface{})
+			something := make(map[string]any)
 			err = json.Unmarshal([]byte(data), &something)
 			if err != nil {
 				return nil, err
@@ -266,7 +266,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 					mockVals.Add(k, strconv.FormatBool(val))
 				case float64:
 					mockVals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
-				case map[string]interface{}, []interface{}, nil:
+				case map[string]any, []any, nil:
 					mockVals.Add(k, fmt.Sprintf("%v", val))
 				default:
 					log.Println(reflect.TypeOf(val))

@@ -268,7 +268,7 @@ func TestVMWithRunnerOnce(t *testing.T) {
 		config:  configHelper(true, true, maxTestVirtualMachines),
 		started: 1,
 	}
-	vmCount := VMSCount.Len() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	vmCount := VMSCount.Len()
 	VM := manager.New()
 	if VM == nil {
 		t.Fatal("Failed to allocate new VM exiting")
@@ -398,7 +398,6 @@ func TestRemoveVM(t *testing.T) {
 	}
 	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := manager.RemoveVM(id)
-
 	if err != nil {
 		if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
 			t.Fatal(err)

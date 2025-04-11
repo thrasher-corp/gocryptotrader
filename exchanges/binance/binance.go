@@ -26,9 +26,7 @@ import (
 // Binance is the overarching type across the Binance package
 type Binance struct {
 	exchange.Base
-	// Valid string list that is required by the exchange
-	validLimits []int
-	obm         *orderbookManager
+	obm *orderbookManager
 }
 
 const (
@@ -124,10 +122,6 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // symbol: string of currency pair
 // limit: returned limit amount
 func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
-	if err := b.CheckLimit(obd.Limit); err != nil {
-		return nil, err
-	}
-
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
@@ -277,10 +271,10 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", timeString(arg.StartTime))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", timeString(arg.EndTime))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 
 	// startTime and endTime are set and time between startTime and endTime is more than 1 hour
@@ -327,8 +321,8 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 				// All requests returned empty
 				return nil, nil
 			}
-			params.Set("startTime", timeString(start))
-			params.Set("endTime", timeString(start.Add(increment)))
+			params.Set("startTime", strconv.FormatInt(start.UnixMilli(), 10))
+			params.Set("endTime", strconv.FormatInt(start.Add(increment).UnixMilli(), 10))
 			path := aggregatedTrades + "?" + params.Encode()
 			err := b.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
@@ -360,7 +354,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 		if !arg.EndTime.IsZero() {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return arg.EndTime.Before(additionalTrades[i].TimeStamp)
+				return arg.EndTime.Before(additionalTrades[i].TimeStamp.Time())
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID
@@ -399,14 +393,14 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() {
-		params.Set("startTime", timeString(arg.StartTime))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("endTime", timeString(arg.EndTime))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 
 	path := candleStick + "?" + params.Encode()
-	var resp interface{}
+	var resp any
 
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -416,16 +410,16 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	if err != nil {
 		return nil, err
 	}
-	responseData, ok := resp.([]interface{})
+	responseData, ok := resp.([]any)
 	if !ok {
-		return nil, common.GetTypeAssertError("[]interface{}", resp)
+		return nil, common.GetTypeAssertError("[]any", resp)
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
-		individualData, ok := responseData[x].([]interface{})
+		individualData, ok := responseData[x].([]any)
 		if !ok {
-			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
+			return nil, common.GetTypeAssertError("[]any", responseData[x])
 		}
 		if len(individualData) != 12 {
 			return nil, errors.New("unexpected kline data length")
@@ -796,7 +790,7 @@ func (b *Binance) GetMarginAccount(ctx context.Context) (*MarginAccount, error) 
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -807,7 +801,8 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
+		HTTPRecording: b.HTTPRecording,
+	}
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -816,7 +811,7 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
 // appended to the headers without a secret
-func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -836,7 +831,8 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
+		HTTPRecording: b.HTTPRecording,
+	}
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
@@ -844,7 +840,7 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
+func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -887,7 +883,8 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Result:        &interim,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
@@ -907,21 +904,6 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 		return nil
 	}
 	return json.Unmarshal(interim, result)
-}
-
-// CheckLimit checks value against a variable list
-func (b *Binance) CheckLimit(limit int) error {
-	for x := range b.validLimits {
-		if b.validLimits[x] == limit {
-			return nil
-		}
-	}
-	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-}
-
-// SetValues sets the default valid values
-func (b *Binance) SetValues() {
-	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // GetFee returns an estimate of fee based on type of transaction

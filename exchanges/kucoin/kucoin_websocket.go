@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -24,15 +24,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedFuturesOrderbookMutex sync.Mutex
-var fetchedFuturesOrderbook map[string]bool
+var (
+	fetchedFuturesOrderbookMutex sync.Mutex
+	fetchedFuturesOrderbook      map[string]bool
+)
 
 const (
 	publicBullets  = "/v1/bullet-public"
@@ -117,12 +119,12 @@ var defaultSubscriptions = subscription.List{
 // WsConnect creates a new websocket connection.
 func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 	fetchedFuturesOrderbookMutex.Lock()
 	fetchedFuturesOrderbook = map[string]bool{}
 	fetchedFuturesOrderbookMutex.Unlock()
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var instances *WSInstanceServers
@@ -153,10 +155,10 @@ func (ku *Kucoin) WsConnect() error {
 	}
 	ku.Websocket.Wg.Add(1)
 	go ku.wsReadData()
-	ku.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	ku.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 		Message:     []byte(`{"type":"ping"}`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 
 	ku.setupOrderbookManager()
@@ -180,7 +182,8 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 			Result:        &response,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
-			HTTPRecording: ku.HTTPRecording}, nil
+			HTTPRecording: ku.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 }
 
@@ -332,8 +335,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		}
 		return ku.processFuturesKline(resp.Data, instrumentInfos[1])
 	default:
-		ku.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: ku.Name + stream.UnhandledMessage + string(respData),
+		ku.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: ku.Name + websocket.UnhandledMessage + string(respData),
 		}
 		return errors.New("push data not handled")
 	}
@@ -341,7 +344,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 }
 
 // processData used to deserialize and forward the data to DataHandler.
-func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
+func (ku *Kucoin) processData(respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -609,7 +612,7 @@ func (ku *Kucoin) processFuturesKline(respData []byte, intervalStr string) error
 	if err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- &stream.KlineData{
+	ku.Websocket.DataHandler <- &websocket.KlineData{
 		Timestamp:  resp.Time.Time(),
 		AssetType:  asset.Futures,
 		Exchange:   ku.Name,
@@ -836,7 +839,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 		if !ku.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		ku.Websocket.DataHandler <- &stream.KlineData{
+		ku.Websocket.DataHandler <- &websocket.KlineData{
 			Timestamp:  response.Time.Time(),
 			Pair:       pair,
 			AssetType:  assets[x],
@@ -949,7 +952,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	var lastUpdatedTime = response.Timestamp.Time()
+	lastUpdatedTime := response.Timestamp.Time()
 	if response.Timestamp.Time().IsZero() {
 		lastUpdatedTime = time.Now()
 	}

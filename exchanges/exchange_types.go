@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 // Endpoint authentication types
@@ -246,7 +246,7 @@ type Base struct {
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
-	Websocket                     *stream.Websocket
+	Websocket                     *websocket.Manager
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
@@ -311,7 +311,8 @@ var keyURLs = []URL{
 	ChainAnalysis,
 	EdgeCase1,
 	EdgeCase2,
-	EdgeCase3}
+	EdgeCase3,
+}
 
 // URL stores uint conversions
 type URL uint16

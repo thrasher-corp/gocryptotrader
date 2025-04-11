@@ -4,27 +4,27 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 // WsInverseConnect connects to inverse websocket feed
 func (by *Bybit) WsInverseConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(inversePublic)
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	by.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
@@ -37,7 +37,7 @@ func (by *Bybit) WsInverseConnect() error {
 // GenerateInverseDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
-	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
+	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err

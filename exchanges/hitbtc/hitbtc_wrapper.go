@@ -23,10 +23,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -125,7 +125,7 @@ func (h *HitBTC) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	h.Websocket = stream.NewWebsocket()
+	h.Websocket = websocket.NewManager()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -151,7 +151,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
+	err = h.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            hitbtcWebsocketAddress,
 		RunningURL:            wsRunningURL,
@@ -169,7 +169,7 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return h.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -243,7 +243,8 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Pair:         pair,
 			LastUpdated:  tick[x].Timestamp,
 			ExchangeName: h.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -520,10 +521,9 @@ func (h *HitBTC) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.Ca
 
 	for i := range resp {
 		if resp[i].Status != "canceled" {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] =
-				fmt.Sprintf("Could not cancel order %v. Status: %v",
-					resp[i].ID,
-					resp[i].Status)
+			cancelAllOrdersResponse.Status[strconv.FormatInt(resp[i].ID, 10)] = fmt.Sprintf("Could not cancel order %v. Status: %v",
+				resp[i].ID,
+				resp[i].Status)
 		}
 	}
 

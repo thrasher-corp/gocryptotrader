@@ -63,7 +63,7 @@ func Event(res *withdraw.Response) {
 }
 
 func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
-	var tempEvent = modelPSQL.WithdrawalHistory{
+	tempEvent := modelPSQL.WithdrawalHistory{
 		ExchangeNameID: res.Exchange.Name,
 		ExchangeID:     res.Exchange.ID,
 		Status:         res.Exchange.Status,
@@ -143,7 +143,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		return
 	}
 
-	var tempEvent = modelSQLite.WithdrawalHistory{
+	tempEvent := modelSQLite.WithdrawalHistory{
 		ID:             newUUID.String(),
 		ExchangeNameID: res.Exchange.Name,
 		ExchangeID:     res.Exchange.ID,
@@ -276,7 +276,7 @@ func generateWhereQuery(columns, id []string, limit int) []qm.QueryMod {
 	return queries
 }
 
-func generateWhereBetweenQuery(column string, start, end interface{}, limit int) []qm.QueryMod {
+func generateWhereBetweenQuery(column string, start, end any, limit int) []qm.QueryMod {
 	return []qm.QueryMod{
 		qm.Limit(limit),
 		qm.Where(column+" BETWEEN ? AND ?", start, end),
@@ -289,14 +289,14 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 	}
 
 	var resp []*withdraw.Response
-	var ctx = context.Background()
+	ctx := context.Background()
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		v, err := modelSQLite.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
 		if err != nil {
 			return nil, err
 		}
 		for x := range v {
-			var tempResp = &withdraw.Response{}
+			tempResp := &withdraw.Response{}
 			var newUUID uuid.UUID
 			newUUID, err = uuid.FromString(v[x].ID)
 			if err != nil {
@@ -369,7 +369,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		}
 
 		for x := range v {
-			var tempResp = &withdraw.Response{}
+			tempResp := &withdraw.Response{}
 			newUUID, _ := uuid.FromString(v[x].ID)
 			tempResp.ID = newUUID
 			tempResp.Exchange.ID = v[x].ExchangeID

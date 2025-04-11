@@ -183,7 +183,8 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	}
 
 	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(creds),
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(auth.BasicAuth{
 			Username: s.Config.RemoteControl.Username,
 			Password: s.Config.RemoteControl.Password,
@@ -270,8 +271,10 @@ func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsyste
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
-		Data: fmt.Sprintf("subsystem %s enabled", r.Subsystem)}, nil
+	return &gctrpc.GenericResponse{
+		Status: MsgStatusSuccess,
+		Data:   fmt.Sprintf("subsystem %s enabled", r.Subsystem),
+	}, nil
 }
 
 // DisableSubsystem disables a engine subsystem
@@ -280,8 +283,10 @@ func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsyst
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
-		Data: fmt.Sprintf("subsystem %s disabled", r.Subsystem)}, nil
+	return &gctrpc.GenericResponse{
+		Status: MsgStatusSuccess,
+		Data:   fmt.Sprintf("subsystem %s disabled", r.Subsystem),
+	}, nil
 }
 
 // GetRPCEndpoints returns a list of API endpoints
@@ -622,6 +627,7 @@ func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoRespons
 				Free:              y.Free,
 				FreeWithoutBorrow: y.AvailableWithoutBorrow,
 				Borrowed:          y.Borrowed,
+				UpdatedAt:         timestamppb.New(y.UpdatedAt),
 			})
 		}
 		accounts[x] = &a
@@ -647,35 +653,6 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	initAcc, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
-	if err != nil {
-		return err
-	}
-
-	accounts := make([]*gctrpc.Account, len(initAcc.Accounts))
-	for x := range initAcc.Accounts {
-		subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(initAcc.Accounts[x].Currencies))
-		for y := range initAcc.Accounts[x].Currencies {
-			subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-				Currency:   initAcc.Accounts[x].Currencies[y].Currency.String(),
-				TotalValue: initAcc.Accounts[x].Currencies[y].Total,
-				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
-			}
-		}
-		accounts[x] = &gctrpc.Account{
-			Id:         initAcc.Accounts[x].ID,
-			Currencies: subAccounts,
-		}
-	}
-
-	err = stream.Send(&gctrpc.GetAccountInfoResponse{
-		Exchange: initAcc.Exchange,
-		Accounts: accounts,
-	})
-	if err != nil {
-		return err
-	}
-
 	pipe, err := account.SubscribeToExchangeAccount(r.Exchange)
 	if err != nil {
 		return err
@@ -687,16 +664,23 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			log.Errorln(log.DispatchMgr, pipeErr)
 		}
 	}()
+	init := make(chan struct{}, 1)
+	init <- struct{}{}
 
 	for {
-		data, ok := <-pipe.Channel()
-		if !ok {
-			return errDispatchSystem
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case _, ok := <-pipe.Channel():
+			if !ok {
+				return errDispatchSystem
+			}
+		case <-init:
 		}
 
-		holdings, ok := data.(*account.Holdings)
-		if !ok {
-			return common.GetTypeAssertError("*account.Holdings", data)
+		holdings, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
+		if err != nil {
+			return err
 		}
 
 		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
@@ -707,6 +691,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 					Currency:   holdings.Accounts[x].Currencies[y].Currency.String(),
 					TotalValue: holdings.Accounts[x].Currencies[y].Total,
 					Hold:       holdings.Accounts[x].Currencies[y].Hold,
+					UpdatedAt:  timestamppb.New(holdings.Accounts[x].Currencies[y].UpdatedAt),
 				}
 			}
 			accounts[x] = &gctrpc.Account{
@@ -1268,11 +1253,7 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 		return nil, err
 	}
 
-	var buy = true
-	if !strings.EqualFold(r.Side, order.Buy.String()) &&
-		!strings.EqualFold(r.Side, order.Bid.String()) {
-		buy = false
-	}
+	buy := strings.EqualFold(r.Side, order.Buy.String()) || strings.EqualFold(r.Side, order.Bid.String())
 
 	result, err := o.SimulateOrder(r.Amount, buy)
 	if err != nil {
@@ -1324,11 +1305,7 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 		return nil, err
 	}
 
-	var buy = true
-	if !strings.EqualFold(r.Side, order.Buy.String()) &&
-		!strings.EqualFold(r.Side, order.Bid.String()) {
-		buy = false
-	}
+	buy := strings.EqualFold(r.Side, order.Buy.String()) || strings.EqualFold(r.Side, order.Bid.String())
 
 	result, err := o.WhaleBomb(r.PriceTarget, buy)
 	if err != nil {
@@ -1393,8 +1370,10 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
-		Data: fmt.Sprintf("order %s cancelled", r.OrderId)}, nil
+	return &gctrpc.GenericResponse{
+		Status: MsgStatusSuccess,
+		Data:   fmt.Sprintf("order %s cancelled", r.OrderId),
+	}, nil
 }
 
 // CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
@@ -1550,8 +1529,10 @@ func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest)
 	if !s.eventManager.Remove(r.Id) {
 		return nil, fmt.Errorf("event %d not removed", r.Id)
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
-		Data: fmt.Sprintf("event %d removed", r.Id)}, nil
+	return &gctrpc.GenericResponse{
+		Status: MsgStatusSuccess,
+		Data:   fmt.Sprintf("event %d removed", r.Id),
+	}, nil
 }
 
 // GetCryptocurrencyDepositAddresses returns a list of cryptocurrency deposit
@@ -1810,24 +1791,23 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 		log.Errorf(log.GRPCSys, "withdrawal event by id UpdatedAt: %s", err)
 	}
 
-	if v.RequestDetails.Type == withdraw.Crypto {
+	switch v.RequestDetails.Type {
+	case withdraw.Crypto:
 		resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 		resp.Event.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address:    v.RequestDetails.Crypto.Address,
 			AddressTag: v.RequestDetails.Crypto.AddressTag,
 			Fee:        v.RequestDetails.Crypto.FeeAmount,
 		}
-	} else if v.RequestDetails.Type == withdraw.Fiat {
-		if v.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
-			resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
-			resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
-				BankName:      v.RequestDetails.Fiat.Bank.BankName,
-				AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
-				AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
-				Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
-				Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
-				Iban:          v.RequestDetails.Fiat.Bank.IBAN,
-			}
+	case withdraw.Fiat:
+		resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+		resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+			BankName:      v.RequestDetails.Fiat.Bank.BankName,
+			AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
+			AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
+			Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
+			Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
+			Iban:          v.RequestDetails.Fiat.Bank.IBAN,
 		}
 	}
 
@@ -2100,14 +2080,16 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 				resp.Bids[i] = &gctrpc.OrderbookItem{
 					Amount: base.Bids[i].Amount,
 					Price:  base.Bids[i].Price,
-					Id:     base.Bids[i].ID}
+					Id:     base.Bids[i].ID,
+				}
 			}
 			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
 			for i := range base.Asks {
 				resp.Asks[i] = &gctrpc.OrderbookItem{
 					Amount: base.Asks[i].Amount,
 					Price:  base.Asks[i].Price,
-					Id:     base.Asks[i].ID}
+					Id:     base.Asks[i].ID,
+				}
 			}
 		}
 
@@ -2169,14 +2151,16 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 				resp.Bids[i] = &gctrpc.OrderbookItem{
 					Amount: ob.Bids[i].Amount,
 					Price:  ob.Bids[i].Price,
-					Id:     ob.Bids[i].ID}
+					Id:     ob.Bids[i].ID,
+				}
 			}
 			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
 			for i := range ob.Asks {
 				resp.Asks[i] = &gctrpc.OrderbookItem{
 					Amount: ob.Asks[i].Amount,
 					Price:  ob.Asks[i].Price,
-					Id:     ob.Asks[i].ID}
+					Id:     ob.Asks[i].ID,
+				}
 			}
 		}
 
@@ -2242,7 +2226,8 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 			Pair: &gctrpc.CurrencyPair{
 				Base:      t.Pair.Base.String(),
 				Quote:     t.Pair.Quote.String(),
-				Delimiter: t.Pair.Delimiter},
+				Delimiter: t.Pair.Delimiter,
+			},
 			LastUpdated: s.unixTimestamp(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
@@ -2295,7 +2280,8 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 			Pair: &gctrpc.CurrencyPair{
 				Base:      t.Pair.Base.String(),
 				Quote:     t.Pair.Quote.String(),
-				Delimiter: t.Pair.Delimiter},
+				Delimiter: t.Pair.Delimiter,
+			},
 			LastUpdated: s.unixTimestamp(t.LastUpdated),
 			Last:        t.Last,
 			High:        t.High,
@@ -2524,7 +2510,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.gctScriptManager.GetMaxVirtualMachines()),
 	}
 
-	gctscript.AllVMSync.Range(func(_, v interface{}) bool {
+	gctscript.AllVMSync.Range(func(_, v any) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
 			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
@@ -2646,7 +2632,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 	}
 
 	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-	var fPathExits = fPath
+	fPathExits := fPath
 	if filepath.Ext(fPath) == ".zip" {
 		fPathExits = fPathExits[0 : len(fPathExits)-4]
 	}
@@ -2932,7 +2918,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 		return nil, err
 	}
 
-	base := exch.GetBase() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	base := exch.GetBase()
 	if base == nil {
 		return nil, errExchangeBaseNotFound
 	}
@@ -3072,10 +3058,12 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+	return &gctrpc.GenericResponse{
+		Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("new proxy has been set [%s] for %s websocket connection",
 			r.Exchange,
-			r.Proxy)}, nil
+			r.Proxy),
+	}, nil
 }
 
 // WebsocketSetURL sets exchange websocket client connection URL
@@ -3094,10 +3082,12 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+	return &gctrpc.GenericResponse{
+		Status: MsgStatusSuccess,
 		Data: fmt.Sprintf("new URL has been set [%s] for %s websocket connection",
 			r.Exchange,
-			r.Url)}, nil
+			r.Url),
+	}, nil
 }
 
 // GetSavedTrades returns trades from the database
@@ -3635,26 +3625,26 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 			log.Errorf(log.Global, "withdrawal parseMultipleEvents UpdatedAt: %s", err)
 		}
 
-		if ret[x].RequestDetails.Type == withdraw.Crypto {
+		switch ret[x].RequestDetails.Type {
+		case withdraw.Crypto:
 			tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 			tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 				Address:    ret[x].RequestDetails.Crypto.Address,
 				AddressTag: ret[x].RequestDetails.Crypto.AddressTag,
 				Fee:        ret[x].RequestDetails.Crypto.FeeAmount,
 			}
-		} else if ret[x].RequestDetails.Type == withdraw.Fiat {
-			if ret[x].RequestDetails.Fiat != (withdraw.FiatRequest{}) {
-				tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
-				tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
-					BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
-					AccountName:   ret[x].RequestDetails.Fiat.Bank.AccountName,
-					AccountNumber: ret[x].RequestDetails.Fiat.Bank.AccountNumber,
-					Bsb:           ret[x].RequestDetails.Fiat.Bank.BSBNumber,
-					Swift:         ret[x].RequestDetails.Fiat.Bank.SWIFTCode,
-					Iban:          ret[x].RequestDetails.Fiat.Bank.IBAN,
-				}
+		case withdraw.Fiat:
+			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+				BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
+				AccountName:   ret[x].RequestDetails.Fiat.Bank.AccountName,
+				AccountNumber: ret[x].RequestDetails.Fiat.Bank.AccountNumber,
+				Bsb:           ret[x].RequestDetails.Fiat.Bank.BSBNumber,
+				Swift:         ret[x].RequestDetails.Fiat.Bank.SWIFTCode,
+				Iban:          ret[x].RequestDetails.Fiat.Bank.IBAN,
 			}
 		}
+
 		v.Event = append(v.Event, tempEvent)
 	}
 	return v
@@ -3720,14 +3710,15 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 		log.Errorf(log.Global, "withdrawal parseSingleEvents UpdatedAt: %s", err)
 	}
 
-	if ret.RequestDetails.Type == withdraw.Crypto {
+	switch ret.RequestDetails.Type {
+	case withdraw.Crypto:
 		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
 			Address:    ret.RequestDetails.Crypto.Address,
 			AddressTag: ret.RequestDetails.Crypto.AddressTag,
 			Fee:        ret.RequestDetails.Crypto.FeeAmount,
 		}
-	} else if ret.RequestDetails.Type == withdraw.Fiat {
+	case withdraw.Fiat:
 		if ret.RequestDetails.Fiat != (withdraw.FiatRequest{}) {
 			tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
 			tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
@@ -4864,7 +4855,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
-	var collateralDisplayCurrency = " " + c.CollateralCurrency.String()
+	collateralDisplayCurrency := " " + c.CollateralCurrency.String()
 	result := &gctrpc.GetCollateralResponse{
 		SubAccount:          creds.SubAccount,
 		CollateralCurrency:  c.CollateralCurrency.String(),
@@ -4926,7 +4917,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if c.BreakdownByCurrency[i].TotalFunds.IsZero() && !r.IncludeZeroValues {
 				continue
 			}
-			var originalDisplayCurrency = " " + c.BreakdownByCurrency[i].Currency.String()
+			originalDisplayCurrency := " " + c.BreakdownByCurrency[i].Currency.String()
 			cb := &gctrpc.CollateralForCurrency{
 				Currency:                    c.BreakdownByCurrency[i].Currency.String(),
 				ExcludedFromCollateral:      c.BreakdownByCurrency[i].SkipContribution,
@@ -5058,7 +5049,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		bollinger, err = klines.GetBollingerBands(r.Period,
 			r.StandardDeviationUp,
 			r.StandardDeviationDown,
-			indicators.MaType(r.MovingAverageType)) //nolint:gosec // TODO: Make var types consistent
+			indicators.MaType(r.MovingAverageType)) //nolint:gosec,nolintlint // TODO: Make var types consistent, however this doesn't get flagged on Windows
 		if err != nil {
 			return nil, err
 		}
