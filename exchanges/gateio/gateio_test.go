@@ -73,11 +73,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Error(err)
 	}
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          getPair(t, asset.Options),
-		AssetType:     asset.Options,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      getPair(t, asset.Options),
+		AssetType: asset.Options,
 	}
 	_, err = g.CancelAllOrders(t.Context(), orderCancellation)
 	if err != nil {
@@ -2071,11 +2070,10 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currency.NewPair(currency.LTC, currency.BTC),
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currency.NewPair(currency.LTC, currency.BTC),
+		AssetType: asset.Spot,
 	}
 	err := g.CancelOrder(t.Context(), orderCancellation)
 	if err != nil {
@@ -2112,17 +2110,15 @@ func TestCancelBatchOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err := g.CancelBatchOrders(t.Context(), []order.Cancel{
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Spot),
-			AssetType:     asset.Spot,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Spot),
+			AssetType: asset.Spot,
 		}, {
-			OrderID:       "2",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Spot),
-			AssetType:     asset.Spot,
+			OrderID:   "2",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Spot),
+			AssetType: asset.Spot,
 		},
 	})
 	if err != nil {
@@ -2130,17 +2126,15 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 	_, err = g.CancelBatchOrders(t.Context(), []order.Cancel{
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Futures),
-			AssetType:     asset.Futures,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Futures),
+			AssetType: asset.Futures,
 		}, {
-			OrderID:       "2",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Futures),
-			AssetType:     asset.Futures,
+			OrderID:   "2",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Futures),
+			AssetType: asset.Futures,
 		},
 	})
 	if err != nil {
@@ -2148,17 +2142,15 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 	_, err = g.CancelBatchOrders(t.Context(), []order.Cancel{
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.DeliveryFutures),
-			AssetType:     asset.DeliveryFutures,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      getPair(t, asset.DeliveryFutures),
+			AssetType: asset.DeliveryFutures,
 		}, {
-			OrderID:       "2",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.DeliveryFutures),
-			AssetType:     asset.DeliveryFutures,
+			OrderID:   "2",
+			AccountID: "1",
+			Pair:      getPair(t, asset.DeliveryFutures),
+			AssetType: asset.DeliveryFutures,
 		},
 	})
 	if err != nil {
@@ -2166,17 +2158,15 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 	_, err = g.CancelBatchOrders(t.Context(), []order.Cancel{
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Options),
-			AssetType:     asset.Options,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Options),
+			AssetType: asset.Options,
 		}, {
-			OrderID:       "2",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Options),
-			AssetType:     asset.Options,
+			OrderID:   "2",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Options),
+			AssetType: asset.Options,
 		},
 	})
 	if err != nil {
@@ -2184,17 +2174,15 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 	_, err = g.CancelBatchOrders(t.Context(), []order.Cancel{
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Margin),
-			AssetType:     asset.Margin,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Margin),
+			AssetType: asset.Margin,
 		}, {
-			OrderID:       "2",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          getPair(t, asset.Margin),
-			AssetType:     asset.Margin,
+			OrderID:   "2",
+			AccountID: "1",
+			Pair:      getPair(t, asset.Margin),
+			AssetType: asset.Margin,
 		},
 	})
 	if err != nil {

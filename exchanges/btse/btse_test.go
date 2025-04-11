@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -440,11 +439,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	// TODO: Place an order to make sure we can cancel it
 	orderCancellation := &order.Cancel{
-		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          spotPair,
-		AssetType:     asset.Spot,
+		OrderID:   "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
+		AccountID: "1",
+		Pair:      spotPair,
+		AssetType: asset.Spot,
 	}
 	err := b.CancelOrder(context.Background(), orderCancellation)
 	assert.NoError(t, err, "CancelOrder should not error")
@@ -464,11 +462,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          spotPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      spotPair,
+		AssetType: asset.Spot,
 	}
 	resp, err := b.CancelAllOrders(context.Background(), orderCancellation)
 

@@ -29,7 +29,6 @@ var (
 // Config the data structure for wrapperconfig.json to store all customisation
 type Config struct {
 	OrderSubmission OrderSubmission                         `json:"orderSubmission"`
-	WalletAddress   string                                  `json:"withdrawWalletAddress"`
 	BankDetails     Bank                                    `json:"bankAccount"`
 	Exchanges       map[string]*config.APICredentialsConfig `json:"exchanges"`
 }
