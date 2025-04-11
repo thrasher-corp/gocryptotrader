@@ -117,29 +117,30 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 		if !ok {
 			// NOTE: Return empty credentials on error to limit panic on
 			// websocket handling.
-			return &account.Credentials{}, errContextCredentialsFailure
+			return nil, fmt.Errorf("context credentials store type assertion failed for %T: %w", value, errContextCredentialsFailure)
 		}
 
 		creds := ctxCredStore.Get()
 		if err := b.CheckCredentials(creds, true); err != nil {
-			return creds, fmt.Errorf("context credentials issue: %w", err)
+			return nil, fmt.Errorf("context credentials issue: %w", err)
 		}
 		return creds, nil
 	}
 
+	// Fallback to default credentials
 	creds := b.API.credentials
-	err := b.CheckCredentials(&creds, false)
-	if err != nil {
-		// NOTE: Return empty credentials on error to limit panic on websocket
-		// handling.
-		return &account.Credentials{}, err
+	if err := b.CheckCredentials(&creds, false); err != nil {
+		// Instead of returning empty credentials, return a specific error
+		return nil, fmt.Errorf("invalid default credentials: %w", err)
 	}
-	subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string)
-	b.API.credMu.RLock()
-	defer b.API.credMu.RUnlock()
-	if ok {
+
+	// Sub account override if set
+	if subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string); ok {
+		b.API.credMu.RLock()
+		defer b.API.credMu.RUnlock()
 		creds.SubAccount = subAccountOverride
 	}
+
 	return &creds, nil
 }
 
