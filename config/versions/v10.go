@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-// Version4 is an ExchangeVersion to add the websocketMetricsLogging field
+// Version10 is an ExchangeVersion to add the websocketMetricsLogging field
 type Version10 struct{}
 
 func init() {
