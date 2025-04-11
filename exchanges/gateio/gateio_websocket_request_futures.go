@@ -101,7 +101,7 @@ func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context,
 		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
 
-	params := struct {
+	params := &struct {
 		Contract currency.Pair `json:"contract"`
 		Side     string        `json:"side,omitempty"`
 	}{Contract: contract, Side: side}
