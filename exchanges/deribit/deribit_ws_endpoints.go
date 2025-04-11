@@ -232,7 +232,7 @@ func (d *Deribit) WSRetrieveInstrumentData(instrument string) (*InstrumentData, 
 }
 
 // WSRetrieveInstrumentsData gets data for all available instruments
-func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
+func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -245,7 +245,7 @@ func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expi
 		Expired:  expired,
 		Kind:     kind,
 	}
-	var resp []InstrumentData
+	var resp []*InstrumentData
 	return resp, d.SendWSRequest(nonMatchingEPL, getInstruments, input, &resp, false)
 }
 
