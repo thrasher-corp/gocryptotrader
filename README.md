@@ -160,7 +160,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [dependabot[bot]](https://github.com/apps/dependabot) | 369 |
 | [shazbert](https://github.com/shazbert) | 362 |
 | [gloriousCode](https://github.com/gloriousCode) | 237 |
-| [gbjk](https://github.com/gbjk) | 123 |
+| [gbjk](https://github.com/gbjk) | 125 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
@@ -183,9 +183,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
-| [mshogin](https://github.com/mshogin) | 2 |
-| [herenow](https://github.com/herenow) | 2 |
-| [tk42](https://github.com/tk42) | 2 |
+| [azhang](https://github.com/azhang) | 2 |
+| [if1live](https://github.com/if1live) | 2 |
+| [lozdog245](https://github.com/lozdog245) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [azhang](https://github.com/azhang) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
