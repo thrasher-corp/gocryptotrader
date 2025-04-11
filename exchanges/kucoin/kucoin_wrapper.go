@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,8 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -690,8 +690,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var timeInForce string
 			if oType == order.Limit {
 				switch {
-				case s.TimeInForce.Is(order.FillOrKill) ||
-					s.TimeInForce.Is(order.ImmediateOrCancel):
+				case s.TimeInForce.Is(order.FillOrKill) || s.TimeInForce.Is(order.ImmediateOrCancel):
 					timeInForce = s.TimeInForce.String()
 				default:
 					timeInForce = order.GoodTillCancel.String()
@@ -2459,6 +2458,7 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 
 // StringToTimeInForce returns an order.TimeInForder instance from string
 func StringToTimeInForce(tif string, postOnly bool) order.TimeInForce {
+	tif = strings.ToUpper(tif)
 	var out order.TimeInForce
 	switch tif {
 	case "GTT":

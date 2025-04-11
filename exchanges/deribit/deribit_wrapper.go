@@ -14,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -27,8 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -791,7 +791,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 	var tif order.TimeInForce
 	tif, err = order.StringToTimeInForce(orderInfo.TimeInForce)
 	if err != nil {
-		tif = order.UnsetTIF
+		return nil, err
 	}
 	if orderInfo.PostOnly {
 		tif |= order.PostOnly
@@ -921,9 +921,9 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			var tif order.TimeInForce
 			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
 			if err != nil {
-				tif = order.UnsetTIF
+				return nil, err
 			}
-			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
+			if ordersData[y].PostOnly {
 				tif = order.PostOnly
 			}
 
@@ -1000,9 +1000,9 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			var tif order.TimeInForce
 			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
 			if err != nil {
-				tif = order.UnsetTIF
+				return nil, err
 			}
-			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
+			if ordersData[y].PostOnly {
 				tif |= order.PostOnly
 			}
 			resp = append(resp, order.Detail{
