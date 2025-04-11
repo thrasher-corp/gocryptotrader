@@ -46,9 +46,8 @@ type Submit struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	// Time in force values ------ TODO: Time In Force uint8
-	ImmediateOrCancel bool
-	FillOrKill        bool
+	// TimeInForce holds time in force values
+	TimeInForce TimeInForce
 
 	PostOnly bool
 	// ReduceOnly reduces a position instead of opening an opposing
@@ -109,19 +108,18 @@ type SubmitResponse struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	ImmediateOrCancel    bool
-	FillOrKill           bool
+	TimeInForce          TimeInForce
 	PostOnly             bool
 	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
-	AverageExecutedPrice float64
 	Amount               float64
 	QuoteAmount          float64
 	RemainingAmount      float64
 	TriggerPrice         float64
 	ClientID             string
 	ClientOrderID        string
+	AverageExecutedPrice float64
 
 	LastUpdated time.Time
 	Date        time.Time
@@ -164,11 +162,10 @@ type Modify struct {
 	Pair          currency.Pair
 
 	// Change fields
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
 	// https://bybit-exchange.github.io/docs/v5/order/create-order
@@ -190,11 +187,10 @@ type ModifyResponse struct {
 	AssetType     asset.Item
 
 	// Fields that will be copied over from Modify
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
@@ -206,10 +202,8 @@ type ModifyResponse struct {
 // Detail contains all properties of an order
 // Each exchange has their own requirements, so not all fields are required to be populated
 type Detail struct {
-	ImmediateOrCancel    bool
 	HiddenOrder          bool
-	FillOrKill           bool
-	PostOnly             bool
+	TimeInForce          TimeInForce
 	ReduceOnly           bool
 	Leverage             float64
 	Price                float64
@@ -279,6 +273,7 @@ type Cancel struct {
 	AssetType     asset.Item
 	Pair          currency.Pair
 	MarginType    margin.Type
+	TimeInForce   TimeInForce
 }
 
 // CancelAllResponse returns the status from attempting to
@@ -314,12 +309,13 @@ type TradeHistory struct {
 type MultiOrderRequest struct {
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs     currency.Pairs
-	AssetType asset.Item
-	Type      Type
-	Side      Side
-	StartTime time.Time
-	EndTime   time.Time
+	Pairs       currency.Pairs
+	AssetType   asset.Item
+	Type        Type
+	Side        Side
+	TimeInForce TimeInForce
+	StartTime   time.Time
+	EndTime     time.Time
 	// FromOrderID for some APIs require order history searching
 	// from a specific orderID rather than via timestamps
 	FromOrderID string
@@ -364,20 +360,21 @@ const (
 	UnknownType Type = 0
 	Limit       Type = 1 << iota
 	Market
-	PostOnly
-	ImmediateOrCancel
+	LimitMaker
 	Stop
 	StopLimit
 	StopMarket
 	TakeProfit
 	TakeProfitMarket
+	TakeProfitLimit
 	TrailingStop
-	FillOrKill
 	IOS
 	AnyType
 	Liquidation
 	Trigger
 	OptimalLimitIOC
+	SOR                              // smart-order-routine(SOR) used in Binance
+	OTO                              // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
 	OCO                              // One-cancels-the-other order
 	ConditionalStop                  // One-way stop order
 	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
@@ -410,6 +407,29 @@ const (
 	CouldNotCloseShort
 	CouldNotCloseLong
 	MissingData
+)
+
+// TimeInForce enforces a standard for time-in-force values across the code base.
+type TimeInForce uint16
+
+// Is checks to see if the enum contains the flag
+func (t TimeInForce) Is(in TimeInForce) bool {
+	return in != 0 && t&in == in
+}
+
+// TimeInForce types
+const (
+	UnsetTIF       TimeInForce = 0
+	GoodTillCancel TimeInForce = 1 << iota
+	GoodTillDay
+	GoodTillTime
+	GoodTillCrossing
+	FillOrKill
+	ImmediateOrCancel
+	PostOnly
+	UnknownTIF
+
+	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly
 )
 
 // ByPrice used for sorting orders by price
