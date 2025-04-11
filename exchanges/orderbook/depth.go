@@ -812,5 +812,5 @@ func (d *Depth) Exchange() string {
 func (d *Depth) Key() key.ExchangePairAsset {
 	d.m.RLock()
 	defer d.m.RUnlock()
-	return key.ExchangePairAsset{Exchange: d.exchange, Base: d.pair.Base.Item, Quote: d.pair.Quote.Item, Asset: d.asset}
+	return key.NewExchangePairAssetKey(d.exchange, d.asset, d.pair)
 }

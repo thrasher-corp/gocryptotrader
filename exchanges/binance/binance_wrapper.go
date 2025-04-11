@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1840,24 +1841,24 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var limits []order.MinMaxLevel
+	var l []limits.MinMaxLevel
 	var err error
 	switch a {
 	case asset.Spot:
-		limits, err = b.FetchExchangeLimits(ctx, asset.Spot)
+		l, err = b.FetchExchangeLimits(ctx, asset.Spot)
 	case asset.USDTMarginedFutures:
-		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
+		l, err = b.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
-		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
+		l, err = b.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
-		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
+		l, err = b.FetchExchangeLimits(ctx, asset.Margin)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return b.LoadLimits(limits)
+	return limits.LoadLimits(l)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
@@ -2990,12 +2991,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
+				Key:          key.NewExchangePairAssetKey(b.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		case asset.CoinMarginedFutures:
@@ -3004,12 +3000,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
+				Key:          key.NewExchangePairAssetKey(b.Name, k[i].Asset, k[i].Pair()),
 				OpenInterest: oi.OpenInterest,
 			}
 		}

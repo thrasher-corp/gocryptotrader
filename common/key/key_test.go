@@ -85,10 +85,6 @@ func TestExchangePairAsset_Pair(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.EMPTYCODE)
 	k.Quote = currency.EMPTYCODE.Item
 	assert.Equal(t, cp, k.Pair())
-
-	cp = currency.EMPTYPAIR
-	var epa *ExchangePairAsset
-	assert.Equal(t, cp, epa.Pair())
 }
 
 func TestPairAsset_Pair(t *testing.T) {
@@ -104,8 +100,26 @@ func TestPairAsset_Pair(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.EMPTYCODE)
 	k.Quote = currency.EMPTYCODE.Item
 	assert.Equal(t, cp, k.Pair())
+}
 
-	cp = currency.EMPTYPAIR
-	var pa *PairAsset
-	assert.Equal(t, cp, pa.Pair())
+func TestNewExchangePairAssetKey(t *testing.T) {
+	t.Parallel()
+	e := "test"
+	a := asset.Spot
+	p := currency.NewBTCUSDT()
+	k := NewExchangePairAssetKey(e, a, p)
+	assert.Equal(t, e, k.Exchange)
+	assert.Equal(t, p.Base.Item, k.Base)
+	assert.Equal(t, p.Quote.Item, k.Quote)
+	assert.Equal(t, a, k.Asset)
+
+	// demonstration of rules that it is simply a helper and not a validator
+	e = ""
+	a = 0
+	p = currency.EMPTYPAIR
+	k = NewExchangePairAssetKey(e, a, p)
+	assert.Equal(t, e, k.Exchange)
+	assert.Equal(t, p.Base.Item, k.Base)
+	assert.Equal(t, p.Quote.Item, k.Quote)
+	assert.Equal(t, a, k.Asset)
 }

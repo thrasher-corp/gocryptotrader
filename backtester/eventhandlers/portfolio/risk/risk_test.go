@@ -75,12 +75,7 @@ func TestEvaluateOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}] = &CurrencySettings{
+	r.CurrencySettings[key.NewExchangePairAssetKey(e, a, p)] = &CurrencySettings{
 		MaximumOrdersWithLeverageRatio: decimal.NewFromFloat(0.3),
 		MaxLeverageRate:                decimal.NewFromFloat(0.3),
 		MaximumHoldingRatio:            decimal.NewFromFloat(0.3),
@@ -99,12 +94,7 @@ func TestEvaluateOrder(t *testing.T) {
 		Pair: currency.NewPair(currency.DOGE, currency.USDT),
 	})
 	o.Leverage = decimal.NewFromFloat(1.1)
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaximumHoldingRatio = decimal.Zero
+	r.CurrencySettings[key.NewExchangePairAssetKey(e, a, p)].MaximumHoldingRatio = decimal.Zero
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errLeverageNotAllowed) {
 		t.Error(err)
@@ -116,24 +106,14 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaxLeverageRate = decimal.NewFromInt(33)
+	r.CurrencySettings[key.NewExchangePairAssetKey(e, a, p)].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaxLeverageRate = decimal.NewFromInt(33)
+	r.CurrencySettings[key.NewExchangePairAssetKey(e, a, p)].MaxLeverageRate = decimal.NewFromInt(33)
 
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
@@ -149,12 +129,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
-	r.CurrencySettings[key.ExchangePairAsset{
-		Exchange: e,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
+	r.CurrencySettings[key.NewExchangePairAssetKey(e, a, p)].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
