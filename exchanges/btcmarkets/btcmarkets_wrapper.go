@@ -465,7 +465,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		b.getTimeInForce(s),
 		"",
 		s.ClientID,
-		s.PostOnly)
+		s.TimeInForce.Is(order.PostOnly))
 	if err != nil {
 		return nil, err
 	}

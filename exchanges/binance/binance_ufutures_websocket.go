@@ -9,15 +9,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -52,10 +52,10 @@ func getKlineIntervalString(interval kline.Interval) string {
 // WsUFuturesConnect initiates a websocket connection
 func (b *Binance) WsUFuturesConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 	var err error
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	wsURL := binanceUFuturesWebsocketURL + "/stream"
@@ -84,9 +84,9 @@ func (b *Binance) WsUFuturesConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-	b.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 	b.Websocket.Wg.Add(1)
@@ -177,7 +177,7 @@ func (b *Binance) processContinuousKlineUpdate(respRaw []byte, assetType asset.I
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- stream.KlineData{
+	b.Websocket.DataHandler <- websocket.KlineData{
 		Timestamp:  resp.EventTime.Time(),
 		Pair:       cp,
 		AssetType:  assetType,

@@ -1252,9 +1252,24 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 
 		var oType, timeInForce string
-		oType, err = OrderTypeString(s.Type)
-		if err != nil {
-			return nil, err
+		switch s.Type {
+		case order.Limit:
+			oType = cfuturesLimit
+			timeInForce = order.GoodTillCancel.String()
+		case order.Market:
+			oType = cfuturesMarket
+		case order.Stop:
+			oType = cfuturesStop
+		case order.TakeProfit:
+			oType = cfuturesTakeProfit
+		case order.StopMarket:
+			oType = cfuturesStopMarket
+		case order.TakeProfitMarket:
+			oType = cfuturesTakeProfitMarket
+		case order.TrailingStop:
+			oType = cfuturesTrailingStopMarket
+		default:
+			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		if s.AssetType == asset.CoinMarginedFutures {
 			var o *FuturesOrderPlaceData
@@ -1302,7 +1317,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			Amount:               s.Amount,
 			Price:                s.Price,
 			ReduceOnly:           s.ReduceOnly,
-			PostOnly:             s.PostOnly,
+			PostOnly:             s.TimeInForce.Is(order.PostOnly),
 			NewOrderResponseType: "RESULT",
 			ClientOrderID:        s.ClientOrderID,
 		})

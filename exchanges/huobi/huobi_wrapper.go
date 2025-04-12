@@ -1031,8 +1031,8 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			oDirection = "SELL"
 		}
 		var oType string
-		switch {
-		case s.Type == order.Market:
+		switch s.Type {
+		case order.Market:
 			// https://huobiapi.github.io/docs/dm/v1/en/#order-and-trade
 			// At present, Huobi Futures does not support market price when placing an order.
 			// To increase the probability of a transaction, users can choose to place an order based on BBO price (opponent),
@@ -1045,7 +1045,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			if s.TimeInForce.Is(order.ImmediateOrCancel) {
 				oType = "optimal_20_ioc"
 			}
-		case s.Type == order.Limit:
+		case order.Limit:
 			oType = "limit"
 			if s.TimeInForce.Is(order.PostOnly) {
 				oType = "post_only"

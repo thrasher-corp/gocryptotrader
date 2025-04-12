@@ -491,7 +491,6 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		AssetType: s.AssetType,
 
 		TimeInForce:   s.TimeInForce,
-		PostOnly:      s.PostOnly,
 		ReduceOnly:    s.ReduceOnly,
 		Leverage:      s.Leverage,
 		Price:         s.Price,
@@ -730,7 +729,6 @@ func (t Type) String() string {
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
 	var tifStrings []string
-
 	if t.Is(ImmediateOrCancel) {
 		tifStrings = append(tifStrings, "IOC")
 	}
@@ -772,6 +770,11 @@ func (t *TimeInForce) UnmarshalJSON(data []byte) error {
 		*t |= tif
 	}
 	return nil
+}
+
+// MarshalJSON returns the JSON-encoded order time-in-force value
+func (t TimeInForce) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + t.String() + `"`), nil
 }
 
 // Lower returns the type lower case string
@@ -1271,27 +1274,40 @@ func StringToOrderStatus(status string) (Status, error) {
 
 // StringToTimeInForce converts time in force string value to TimeInForce instance.
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
+	var result TimeInForce
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
 	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
-		return ImmediateOrCancel, nil
+		result |= ImmediateOrCancel
+	}
+	switch timeInForce {
 	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
-		return GoodTillCancel, nil
+		result |= GoodTillCancel
+	}
+	switch timeInForce {
 	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
-		return GoodTillDay, nil
+		result |= GoodTillDay
+	}
+	switch timeInForce {
 	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
-		return GoodTillTime, nil
+		result |= GoodTillTime
+	}
+	switch timeInForce {
 	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
-		return GoodTillCrossing, nil
+		result |= GoodTillCrossing
+	}
+	switch timeInForce {
 	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
-		return FillOrKill, nil
-	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
-		return PostOnly, nil
-	case "":
-		return UnsetTIF, nil
-	default:
+		result |= FillOrKill
+	}
+	switch timeInForce {
+	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL", "POST_ONLY_GOOD_TIL_CANCELLED":
+		result |= PostOnly
+	}
+	if result == UnsetTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
+	return result, nil
 }
 
 // IsValid returns whether or not the supplied time in force value is valid or

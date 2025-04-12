@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -33,10 +33,10 @@ var defaultCFuturesSubscriptions = []string{
 // WsCFutureConnect initiates a websocket connection to coin margined futures websocket
 func (b *Binance) WsCFutureConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 	var err error
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
@@ -52,9 +52,9 @@ func (b *Binance) WsCFutureConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-	b.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 	b.Websocket.Wg.Add(1)
@@ -260,7 +260,7 @@ func (b *Binance) processKlineData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- &stream.KlineData{
+	b.Websocket.DataHandler <- &websocket.KlineData{
 		Pair:       cp,
 		Exchange:   b.Name,
 		Interval:   resp.KlineData.Interval,
@@ -344,7 +344,7 @@ func (b *Binance) processMarkPriceKline(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.DataHandler <- &stream.KlineData{
+	b.Websocket.DataHandler <- &websocket.KlineData{
 		Pair:       cp,
 		AssetType:  asset.CoinMarginedFutures,
 		Interval:   resp.Kline.Interval,

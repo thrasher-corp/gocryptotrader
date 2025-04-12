@@ -8,15 +8,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 const (
@@ -35,11 +35,11 @@ var websocketStatusCodes = map[int64]string{
 // WsConnectAPI creates a new websocket connection to API server
 func (b *Binance) WsConnectAPI() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
 	var err error
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
@@ -49,9 +49,9 @@ func (b *Binance) WsConnectAPI() error {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
 
-	b.Websocket.AuthConn.SetupPingHandler(request.UnAuth, stream.PingHandler{
+	b.Websocket.AuthConn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
