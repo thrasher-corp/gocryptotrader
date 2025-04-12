@@ -603,7 +603,6 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels sub
 
 // GenerateUFuturesDefaultSubscriptions generates the default subscription set
 func (b *Binance) GenerateUFuturesDefaultSubscriptions() (subscription.List, error) {
-	var channels = defaultSubscriptions
 	var subscriptions subscription.List
 	pairs, err := b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
 	if err != nil {
@@ -612,6 +611,7 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() (subscription.List, err
 	if len(pairs) > 4 {
 		pairs = pairs[:3]
 	}
+	channels := defaultSubscriptions
 	for z := range channels {
 		var chSubscription *subscription.Subscription
 		switch channels[z] {

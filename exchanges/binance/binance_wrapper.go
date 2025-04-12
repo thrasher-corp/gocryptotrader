@@ -682,15 +682,9 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	switch assetType {
 	case asset.Spot, asset.Margin:
 		if b.IsAPIStreamConnected() {
-			orderbookNew, err = b.GetWsOrderbook(
-				&OrderBookDataRequestParams{
-					Symbol: p,
-					Limit:  1000})
+			orderbookNew, err = b.GetWsOrderbook(&OrderBookDataRequestParams{Symbol: p, Limit: 1000})
 		} else {
-			orderbookNew, err = b.GetOrderBook(ctx,
-				OrderBookDataRequestParams{
-					Symbol: p,
-					Limit:  1000})
+			orderbookNew, err = b.GetOrderBook(ctx, OrderBookDataRequestParams{Symbol: p, Limit: 1000})
 		}
 	case asset.USDTMarginedFutures:
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p.String(), 1000)
@@ -2091,7 +2085,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			case req.FromOrderID != "" && req.StartTime.IsZero() && req.EndTime.IsZero():
-				fromID, err := strconv.ParseInt(req.FromOrderID, 10, 64)
+				fromID, err := strconv.ParseUint(req.FromOrderID, 10, 64)
 				if err != nil {
 					return nil, err
 				}
@@ -2516,8 +2510,7 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	var limits []order.MinMaxLevel
 	var err error
 	switch a {
-	case asset.Spot,
-		asset.Margin:
+	case asset.Spot, asset.Margin:
 		limits, err = b.FetchExchangeLimits(ctx, a)
 	case asset.USDTMarginedFutures:
 		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
@@ -2874,15 +2867,12 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		}
 		for {
 			var frh []FundingRateHistory
-			frh, err = b.FuturesGetFundingHistory(ctx, fPair, uint64(requestLimit), sd, r.EndDate)
+			frh, err = b.FuturesGetFundingHistory(ctx, fPair, requestLimit, sd, r.EndDate)
 			if err != nil {
 				return nil, err
 			}
 			for j := range frh {
-				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-					Time: frh[j].FundingTime.Time(),
-					Rate: decimal.NewFromFloat(frh[j].FundingRate),
-				})
+				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{Time: frh[j].FundingTime.Time(), Rate: decimal.NewFromFloat(frh[j].FundingRate)})
 			}
 			if len(frh) < requestLimit {
 				break
@@ -3349,7 +3339,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
-		orderLimit := 1000
+		orderLimit := uint64(1000)
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -3409,7 +3399,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 							TimeInForce:          orders[i].TimeInForce,
 						})
 					}
-					if len(orders) < orderLimit {
+					if len(orders) < int(orderLimit) {
 						break
 					}
 					sd = currencyPosition.Orders[len(currencyPosition.Orders)-1].Date
@@ -3418,7 +3408,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 			}
 		}
 	case asset.CoinMarginedFutures:
-		orderLimit := 100
+		orderLimit := uint64(100)
 		for x := range req.Pairs {
 			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
 			if err != nil {
@@ -3440,7 +3430,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 				}
 				for {
 					var orders []FuturesOrderData
-					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, uint64(orderLimit))
+					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, orderLimit)
 					if err != nil {
 						return nil, err
 					}
@@ -3488,7 +3478,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 							TimeInForce:          orders[i].TimeInForce,
 						})
 					}
-					if len(orders) < orderLimit {
+					if len(orders) < int(orderLimit) {
 						break
 					}
 					sd = currencyPosition.Orders[len(currencyPosition.Orders)-1].Date

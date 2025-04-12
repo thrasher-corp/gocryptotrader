@@ -312,7 +312,7 @@ func (b *Binance) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol cu
 }
 
 // FuturesGetFundingHistory gets funding history for CoinMarginedFutures,
-func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.Pair, limit uint64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.Pair, limit int, startTime, endTime time.Time) ([]FundingRateHistory, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -322,7 +322,7 @@ func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.
 		params.Set("symbol", symbolValue)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set("limit", strconv.Itoa(limit))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -746,7 +746,7 @@ func (b *Binance) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.P
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
-func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID int64, limit uint64) ([]FuturesOrderData, error) {
+func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit uint64) ([]FuturesOrderData, error) {
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
 	if !symbol.IsEmpty() {
@@ -761,7 +761,7 @@ func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency
 		params.Set("pair", pair.String())
 	}
 	if orderID != 0 {
-		params.Set("orderID", strconv.FormatInt(orderID, 10))
+		params.Set("orderID", strconv.FormatUint(orderID, 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))

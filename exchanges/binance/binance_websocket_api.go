@@ -347,8 +347,7 @@ func (b *Binance) SignRequest(params map[string]interface{}) (apiKey, signature 
 	}
 	timestampType := fmt.Sprintf("%T", timestampInfo)
 	switch timestampType {
-	case "float64", "int64",
-		"float32", "int":
+	case "float64", "int64", "float32", "int":
 	default:
 		return "", "", fmt.Errorf("invalid timestamp: %s %w", timestampType, errTimestampInfoRequired)
 	}
@@ -635,9 +634,7 @@ func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID, recvWin
 }
 
 // WsCancelOCOOrder cancel an active OCO order.
-func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
-	listClientOrderID,
-	newClientOrderID string) (*OCOOrder, error) {
+func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID, listClientOrderID, newClientOrderID string) (*OCOOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

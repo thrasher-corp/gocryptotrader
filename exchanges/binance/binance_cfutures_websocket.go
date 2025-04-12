@@ -64,7 +64,6 @@ func (b *Binance) WsCFutureConnect() error {
 
 // GenerateDefaultCFuturesSubscriptions generates a list of subscription instances.
 func (b *Binance) GenerateDefaultCFuturesSubscriptions() (subscription.List, error) {
-	var channels = defaultCFuturesSubscriptions
 	var subscriptions subscription.List
 	pairs, err := b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
 	if err != nil {
@@ -73,6 +72,7 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() (subscription.List, err
 	if len(pairs) > 4 {
 		pairs = pairs[:3]
 	}
+	channels := defaultCFuturesSubscriptions
 	for z := range channels {
 		var chSubscription *subscription.Subscription
 		switch channels[z] {

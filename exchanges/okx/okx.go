@@ -5842,7 +5842,7 @@ func (ok *Okx) GetFiatDepositPaymentMethods(ctx context.Context, ccy currency.Co
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType, useAsItIs ...bool) (err error) {
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType) (err error) {
 	rv := reflect.ValueOf(result)
 	if rv.Kind() != reflect.Pointer {
 		return common.ErrNilPointer

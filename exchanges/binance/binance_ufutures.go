@@ -355,6 +355,7 @@ func (b *Binance) USymbolPriceTickerV1(ctx context.Context, symbol currency.Pair
 func (b *Binance) USymbolPriceTickerV2(ctx context.Context, symbol currency.Pair) ([]USymbolPriceTicker, error) {
 	return b.uSymbolPriceTicker(ctx, symbol, "/fapi/v2/ticker/price")
 }
+
 func (b *Binance) uSymbolPriceTicker(ctx context.Context, symbol currency.Pair, path string) ([]USymbolPriceTicker, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {

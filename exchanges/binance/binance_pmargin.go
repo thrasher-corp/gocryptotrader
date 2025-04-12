@@ -149,6 +149,7 @@ func (b *Binance) NewUMConditionalOrder(ctx context.Context, arg *ConditionalOrd
 func (b *Binance) NewCMConditionalOrder(ctx context.Context, arg *ConditionalOrderParam) (*ConditionalOrder, error) {
 	return b.placeConditionalOrder(ctx, arg, "/papi/v1/cm/conditional/order")
 }
+
 func (b *Binance) placeConditionalOrder(ctx context.Context, arg *ConditionalOrderParam, path string) (*ConditionalOrder, error) {
 	if arg == nil || *arg == (ConditionalOrderParam{}) {
 		return nil, common.ErrEmptyParams
@@ -770,6 +771,7 @@ func (b *Binance) ChangeUMPositionMode(ctx context.Context, dualSidePosition boo
 func (b *Binance) ChangeCMPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
 	return b.changeUMCMPositionMode(ctx, dualSidePosition, "/papi/v1/cm/positionSide/dual")
 }
+
 func (b *Binance) changeUMCMPositionMode(ctx context.Context, dualSidePosition bool, path string) (*SuccessResponse, error) {
 	params := url.Values{}
 	if dualSidePosition {

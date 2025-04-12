@@ -20,9 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var (
-	errUnderlyingIsRequired = errors.New("underlying is required")
-)
+var errUnderlyingIsRequired = errors.New("underlying is required")
 
 // CheckEOptionsServerTime retrieves the server time.
 func (b *Binance) CheckEOptionsServerTime(ctx context.Context) (types.Time, error) {

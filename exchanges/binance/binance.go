@@ -1740,7 +1740,8 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 			Result:        &responseJSON,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}, nil
+			HTTPRecording: b.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
 		var errorResponse *ErrResponse
@@ -2518,8 +2519,7 @@ func (b *Binance) GetSubAccountList(ctx context.Context, email string, isFreeze 
 }
 
 // GetSubAccountSpotAssetTransferHistory represents sub-account spot asset transfer history for master account
-func (b *Binance) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fromEmail, toEmail string,
-	startTime, endTime time.Time, page, limit int64) ([]SubAccountSpotAsset, error) {
+func (b *Binance) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fromEmail, toEmail string, startTime, endTime time.Time, page, limit int64) ([]SubAccountSpotAsset, error) {
 	params := url.Values{}
 	if common.MatchesEmailPattern(fromEmail) {
 		params.Set("fromEmail", fromEmail)
@@ -2576,8 +2576,7 @@ func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, 
 
 // SubAccountFuturesAssetTransfer sub-account futures asset transfer for master account
 // futuresType: 1:USDT-margined Futures，2: Coin-margined Futures
-func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail, toEmail string, futuresType int64,
-	asset currency.Code, amount float64) (*FuturesAssetTransfer, error) {
+func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail, toEmail string, futuresType int64, asset currency.Code, amount float64) (*FuturesAssetTransfer, error) {
 	if !common.MatchesEmailPattern(fromEmail) {
 		return nil, fmt.Errorf("%w: fromEmail=%s", errValidEmailRequired, fromEmail)
 	}
@@ -2675,8 +2674,7 @@ func (b *Binance) EnableOptionsForSubAccount(ctx context.Context, email string) 
 // GetManagedSubAccountTransferLog retrieves managed sub account transfer Log (For Trading Team Sub Account)
 // transfers: Transfer Direction (FROM/TO)
 // transferFunctionAccountType: Transfer function account type (SPOT/MARGIN/ISOLATED_MARGIN/USDT_FUTURE/COIN_FUTURE)
-func (b *Binance) GetManagedSubAccountTransferLog(ctx context.Context, startTime, endTime time.Time,
-	page, limit int64, transfers, transferFunctionAccountType string) (*ManagedSubAccountTransferLog, error) {
+func (b *Binance) GetManagedSubAccountTransferLog(ctx context.Context, startTime, endTime time.Time, page, limit int64, transfers, transferFunctionAccountType string) (*ManagedSubAccountTransferLog, error) {
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return nil, err
@@ -2740,8 +2738,7 @@ func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, 
 }
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history
-func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin string,
-	startTime, endTime time.Time, status, offset, limit int64) (*SubAccountDepositHistory, error) {
+func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin string, startTime, endTime time.Time, status, offset, limit int64) (*SubAccountDepositHistory, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
@@ -2846,6 +2843,7 @@ func (b *Binance) GetV1FuturesPositionRiskSubAccount(ctx context.Context, email 
 func (b *Binance) GetV2FuturesPositionRiskSubAccount(ctx context.Context, email string, futuresType int64) (*SubAccountFuturesPositionRisk, error) {
 	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v2/sub-account/futures/positionRisk", futuresType, sapiDefaultRate)
 }
+
 func (b *Binance) getFuturesPositionRiskSubAccount(ctx context.Context, email, path string, futuresType int64, endpointLimit request.EndpointLimit) (*SubAccountFuturesPositionRisk, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
@@ -3259,8 +3257,7 @@ func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *Un
 }
 
 // GetUniversalTransferHistoryForMasterAccount retrieves universal transfer history for master account.
-func (b *Binance) GetUniversalTransferHistoryForMasterAccount(ctx context.Context, fromEmail, toEmail, clientTransactionID string,
-	startTime, endTime time.Time, page, limit int64) (*UniversalTransfersDetail, error) {
+func (b *Binance) GetUniversalTransferHistoryForMasterAccount(ctx context.Context, fromEmail, toEmail, clientTransactionID string, startTime, endTime time.Time, page, limit int64) (*UniversalTransfersDetail, error) {
 	params := url.Values{}
 	if fromEmail != "" {
 		params.Set("fromEmail", fromEmail)
@@ -6490,43 +6487,6 @@ func (b *Binance) CloseCrossMarginListenKey(ctx context.Context, symbol, listenK
 	params.Set("listenKey", listenKey)
 	params.Set("symbol", symbol)
 	return b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues("/sapi/v1/userDataStream/isolated", params), sapiDefaultRate, &struct{}{})
-}
-
-// LocalEntitiesWithdraw submits a withdrawal request for local
-func (b *Binance) LocalEntitiesWithdraw(ctx context.Context, coin currency.Code, withdrawalOrderID, network, address, addressTag, name, walletType, questionnaire string, amount float64, transactionFeeFlag bool) (interface{}, error) {
-	if coin.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if address == "" {
-		return nil, errAddressRequired
-	}
-	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
-	}
-	params := url.Values{}
-	params.Set("coin", coin.String())
-	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("address", address)
-	if withdrawalOrderID != "" {
-		params.Set("withdrawOrderId", withdrawalOrderID)
-	}
-	if network != "" {
-		params.Set("network", network)
-	}
-	if addressTag != "" {
-		params.Set("addressTag", addressTag)
-	}
-	if transactionFeeFlag {
-		params.Set("transactionFeeFlag", "true")
-	}
-	if name != "" {
-		params.Set("name", name)
-	}
-	if walletType != "" {
-		params.Set("walletType", walletType)
-	}
-	var resp *LocalWithdrawalResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/localentity/withdraw/apply", params, request.UnAuth, nil, &resp)
 }
 
 // WithdrawalHistoryV1 fetch withdraw history for local entities that required travel rule through the V1 API.

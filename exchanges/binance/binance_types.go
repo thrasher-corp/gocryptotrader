@@ -1370,11 +1370,6 @@ type WsAccountPositionData struct {
 	EventType   string     `json:"e"`
 }
 
-type wsBalanceUpdate struct {
-	Stream string              `json:"stream"`
-	Data   WsBalanceUpdateData `json:"data"`
-}
-
 // WsBalanceUpdateData defines websocket account balance data
 type WsBalanceUpdateData struct {
 	EventTime    types.Time `json:"E"`
@@ -1382,11 +1377,6 @@ type WsBalanceUpdateData struct {
 	BalanceDelta float64    `json:"d,string"`
 	Asset        string     `json:"a"`
 	EventType    string     `json:"e"`
-}
-
-type wsOrderUpdate struct {
-	Stream string            `json:"stream"`
-	Data   WsOrderUpdateData `json:"data"`
 }
 
 // WsOrderUpdateData defines websocket account order update data
@@ -1424,11 +1414,6 @@ type WsOrderUpdateData struct {
 	CumulativeQuoteTransactedQuantity float64    `json:"Z,string"`
 	LastQuoteAssetTransactedQuantity  float64    `json:"Y,string"`
 	QuoteOrderQuantity                float64    `json:"Q,string"`
-}
-
-type wsListStatus struct {
-	Stream string           `json:"stream"`
-	Data   WsListStatusData `json:"data"`
 }
 
 // WsListStatusData defines websocket account listing status data
@@ -3401,6 +3386,7 @@ type MarginAccountOrderDetail struct {
 	OrderReports []MarginOrderResponse `json:"orderReports,omitempty"`
 }
 
+// MarginOrderResponse represents a margin order detail
 type MarginOrderResponse struct {
 	OrderResponse
 	OrderType  string `json:"type"`
@@ -5467,13 +5453,6 @@ type UserNegativeBalanceRecord struct {
 	} `json:"rows"`
 }
 
-// LocalWithdrawalResponse holds local withdrawal response
-type LocalWithdrawalResponse struct {
-	TransferID int    `json:"trId"`
-	Accpted    bool   `json:"accpted"`
-	Info       string `json:"info"`
-}
-
 // LocalEntityWithdrawalDetail represents a local entity withdrawal detail
 type LocalEntityWithdrawalDetail struct {
 	ID                 string       `json:"id"`
@@ -5881,7 +5860,7 @@ type CommissionRebateRecord struct {
 	Status       int64      `json:"status"`
 }
 
-// UserTradeVolume holds trade volume infomration of a broker user at different timestamps
+// UserTradeVolume holds trade volume information of a broker user at different timestamps
 type UserTradeVolume struct {
 	Unit     types.Number `json:"unit"`
 	TradeVol types.Number `json:"tradeVol"`
