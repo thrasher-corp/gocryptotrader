@@ -173,6 +173,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			}
 		}
 
+		clientID := ""
+		if creds != nil {
+			clientID = creds.ClientID
+		}
+
 		if wsOrder.UserID != "" {
 			var p currency.Pair
 			var a asset.Item
@@ -191,7 +196,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Exchange:        c.Name,
 				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
-				ClientID:        creds.ClientID,
+				ClientID:        clientID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,

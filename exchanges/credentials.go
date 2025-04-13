@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -115,9 +116,7 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	if value != nil {
 		ctxCredStore, ok := value.(*account.ContextCredentialsStore)
 		if !ok {
-			// NOTE: Return empty credentials on error to limit panic on
-			// websocket handling.
-			return nil, fmt.Errorf("context credentials store type assertion failed for %T: %w", value, errContextCredentialsFailure)
+			return nil, common.GetTypeAssertError("*account.ContextCredentialsStore", value)
 		}
 
 		creds := ctxCredStore.Get()
@@ -127,10 +126,11 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 		return creds, nil
 	}
 
-	// Fallback to default credentials
+	// Fallback to exchange loaded credentials
+	b.API.credMu.RLock()
 	creds := b.API.credentials
+	b.API.credMu.RUnlock()
 	if err := b.CheckCredentials(&creds, false); err != nil {
-		// Instead of returning empty credentials, return a specific error
 		return nil, fmt.Errorf("invalid default credentials: %w", err)
 	}
 
