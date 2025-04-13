@@ -7,10 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -187,19 +187,12 @@ func TestExchangePairs(t *testing.T) {
 func TestAccountInfo(t *testing.T) {
 	t.Parallel()
 	_, err := gct.ExchangeAccountInfo()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatal(err)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	obj, err := gct.ExchangeAccountInfo(ctx, exch, assetType)
-	if err != nil {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-	rString, _ := objects.ToString(obj)
-	if !strings.Contains(rString, "Bitstamp REST or Websocket authentication support is not enabled") {
-		t.Errorf("received: %v but expected to contain: %v",
-			rString,
-			"Bitstamp REST or Websocket authentication support is not enabled")
-	}
+	require.NoError(t, err)
+	rString, ok := objects.ToString(obj)
+	require.True(t, ok)
+	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 
 func TestExchangeOrderQuery(t *testing.T) {
@@ -231,9 +224,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 func TestExchangeOrderSubmit(t *testing.T) {
 	t.Parallel()
 	_, err := gct.ExchangeOrderSubmit()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatal(err)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	orderSide := &objects.String{Value: "ASK"}
 	orderType := &objects.String{Value: "LIMIT"}
@@ -251,16 +242,11 @@ func TestExchangeOrderSubmit(t *testing.T) {
 		orderAmount,
 		orderID,
 		orderAsset)
-	if err != nil {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
-	rString, _ := objects.ToString(obj)
-	if !strings.Contains(rString, "Bitstamp REST or Websocket authentication support is not enabled") {
-		t.Errorf("received: %v but expected to contain: %v",
-			rString,
-			"Bitstamp REST or Websocket authentication support is not enabled")
-	}
+	rString, ok := objects.ToString(obj)
+	require.True(t, ok)
+	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 
 func TestAllModuleNames(t *testing.T) {
