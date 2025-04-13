@@ -953,13 +953,12 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.ErrorIs(t, err, errMissingPortfolioID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
-	result, err := co.CancelAllOrders(context.Background(),
-		&order.Cancel{
-			Exchange:  "CoinbaseInternational",
-			AssetType: asset.Spot,
-			AccountID: "Sub-account Samuael",
-			Pair:      btcPerp,
-		})
+	result, err := co.CancelAllOrders(context.Background(), &order.Cancel{
+		Exchange:  "CoinbaseInternational",
+		AssetType: asset.Spot,
+		AccountID: "Sub-account Samuael",
+		Pair:      btcPerp,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -971,6 +970,7 @@ func TestGetOrderInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
@@ -980,10 +980,11 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		Currency:    currency.LTC,
 		PortfolioID: "1234564",
 		Crypto: withdraw.CryptoRequest{
-			Chain:      currency.LTC.String(),
+			Chain:      "TON",
 			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",
 			AddressTag: "",
-		}})
+		},
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

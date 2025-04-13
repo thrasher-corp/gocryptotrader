@@ -68,7 +68,7 @@ type InstrumentInfo struct {
 	InitialMarginAdv          float64             `json:"initial_margin_adv"`
 	Mode                      string              `json:"mode"`
 	Avg30DayNotional          string              `json:"avg_30day_notional"`
-	Avg30DayQty               string              `json:"avg_30day_qty"`
+	Avg30DayQty               types.Number        `json:"avg_30day_qty"`
 	Quote                     ContractQuoteDetail `json:"quote,omitempty"`
 	DefaultImf                float64             `json:"default_imf,omitempty"`
 	BaseAssetMultiplier       string              `json:"base_asset_multiplier"`
@@ -416,7 +416,7 @@ type MaxLoanAvailability struct {
 // PortfolioSummary represents a portfolio summary detailed instance.
 type PortfolioSummary struct {
 	Collateral             float64 `json:"collateral"`
-	UnrealizedPnl          float64 `json:"unrealized_pnl"`
+	UnrealizedPNL          float64 `json:"unrealized_pnl"`
 	PositionNotional       float64 `json:"position_notional"`
 	OpenPositionNotional   float64 `json:"open_position_notional"`
 	PendingFees            float64 `json:"pending_fees"`
