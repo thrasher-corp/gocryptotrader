@@ -2424,7 +2424,7 @@ const wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"e
 
 func TestWsTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsTickerPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsTickerPushDataJSON)); err != nil {
 		t.Errorf("%s websocket ticker push data error: %v", g.Name, err)
 	}
 }
@@ -2433,7 +2433,7 @@ const wsTradePushDataJSON = `{	"time": 1606292218,	"channel": "spot.trades",	"ev
 
 func TestWsTradePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsTradePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket trade push data error: %v", g.Name, err)
 	}
 }
@@ -2442,7 +2442,7 @@ const wsCandlestickPushDataJSON = `{"time": 1606292600,	"channel": "spot.candles
 
 func TestWsCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsCandlestickPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsCandlestickPushDataJSON)); err != nil {
 		t.Errorf("%s websocket candlestick push data error: %v", g.Name, err)
 	}
 }
@@ -2451,7 +2451,7 @@ const wsOrderbookTickerJSON = `{"time": 1606293275,	"channel": "spot.book_ticker
 
 func TestWsOrderbookTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsOrderbookTickerJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsOrderbookTickerJSON)); err != nil {
 		t.Errorf("%s websocket orderbook push data error: %v", g.Name, err)
 	}
 }
@@ -2463,11 +2463,11 @@ const (
 
 func TestWsOrderbookSnapshotPushData(t *testing.T) {
 	t.Parallel()
-	err := g.WsHandleSpotData(t.Context(), []byte(wsOrderbookSnapshotPushDataJSON))
+	err := g.WsHandleSpotData(t.Context(), nil, []byte(wsOrderbookSnapshotPushDataJSON))
 	if err != nil {
 		t.Errorf("%s websocket orderbook snapshot push data error: %v", g.Name, err)
 	}
-	if err = g.WsHandleSpotData(t.Context(), []byte(wsOrderbookUpdatePushDataJSON)); err != nil {
+	if err = g.WsHandleSpotData(t.Context(), nil, []byte(wsOrderbookUpdatePushDataJSON)); err != nil {
 		t.Errorf("%s websocket orderbook update push data error: %v", g.Name, err)
 	}
 }
@@ -2476,7 +2476,7 @@ const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	
 
 func TestWsPushOrders(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsSpotOrderPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsSpotOrderPushDataJSON)); err != nil {
 		t.Errorf("%s websocket orders push data error: %v", g.Name, err)
 	}
 }
@@ -2485,7 +2485,7 @@ const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrade
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsUserTradePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsUserTradePushDataJSON)); err != nil {
 		t.Errorf("%s websocket users trade push data error: %v", g.Name, err)
 	}
 }
@@ -2494,7 +2494,7 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsBalancesPushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsBalancesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket balances push data error: %v", g.Name, err)
 	}
 }
@@ -2503,7 +2503,7 @@ const wsMarginBalancePushDataJSON = `{"time": 1605248616,	"channel": "spot.fundi
 
 func TestMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsMarginBalancePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket margin balance push data error: %v", g.Name, err)
 	}
 }
@@ -2512,7 +2512,7 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket cross margin balance push data error: %v", g.Name, err)
 	}
 }
@@ -2521,7 +2521,7 @@ const wsCrossMarginBalanceLoan = `{	"time":1658289372,	"channel":"spot.cross_loa
 
 func TestCrossMarginBalanceLoan(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsCrossMarginBalanceLoan)); err != nil {
+	if err := g.WsHandleSpotData(t.Context(), nil, []byte(wsCrossMarginBalanceLoan)); err != nil {
 		t.Errorf("%s websocket cross margin loan push data error: %v", g.Name, err)
 	}
 }
@@ -2530,7 +2530,7 @@ const wsFuturesTickerPushDataJSON = `{"time": 1541659086,	"channel": "futures.ti
 
 func TestFuturesTicker(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesTickerPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesTickerPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket push data error: %v", g.Name, err)
 	}
 }
@@ -2539,7 +2539,7 @@ const wsFuturesTradesPushDataJSON = `{"channel": "futures.trades","event": "upda
 
 func TestFuturesTrades(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesTradesPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesTradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket push data error: %v", g.Name, err)
 	}
 }
@@ -2550,7 +2550,7 @@ const (
 
 func TestOrderbookData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesOrderbookTickerJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesOrderbookTickerJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket orderbook ticker push data error: %v", g.Name, err)
 	}
 }
@@ -2559,7 +2559,7 @@ const wsFuturesOrderPushDataJSON = `{	"channel": "futures.orders",	"event": "upd
 
 func TestFuturesOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesOrderPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesOrderPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures order push data error: %v", g.Name, err)
 	}
 }
@@ -2568,7 +2568,7 @@ const wsFuturesUsertradesPushDataJSON = `{"time": 1543205083,	"channel": "future
 
 func TestFuturesUserTrades(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesUsertradesPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesUsertradesPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures user trades push data error: %v", g.Name, err)
 	}
 }
@@ -2577,7 +2577,7 @@ const wsFuturesLiquidationPushDataJSON = `{"channel": "futures.liquidates",	"eve
 
 func TestFuturesLiquidationPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesLiquidationPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesLiquidationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures liquidation push data error: %v", g.Name, err)
 	}
 }
@@ -2586,7 +2586,7 @@ const wsFuturesAutoDelevergesNotification = `{"channel": "futures.auto_deleverag
 
 func TestFuturesAutoDeleverges(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesAutoDelevergesNotification), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesAutoDelevergesNotification), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures auto deleverge push data error: %v", g.Name, err)
 	}
 }
@@ -2595,7 +2595,7 @@ const wsFuturesPositionClosePushDataJSON = ` {"channel": "futures.position_close
 
 func TestPositionClosePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesPositionClosePushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesPositionClosePushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures position close push data error: %v", g.Name, err)
 	}
 }
@@ -2604,7 +2604,7 @@ const wsFuturesBalanceNotificationPushDataJSON = `{"channel": "futures.balances"
 
 func TestFuturesBalanceNotification(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesBalanceNotificationPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesBalanceNotificationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures balance notification push data error: %v", g.Name, err)
 	}
 }
@@ -2613,7 +2613,7 @@ const wsFuturesReduceRiskLimitNotificationPushDataJSON = `{"time": 1551858330,	"
 
 func TestFuturesReduceRiskLimitPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesReduceRiskLimitNotificationPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesReduceRiskLimitNotificationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures reduce risk limit notification push data error: %v", g.Name, err)
 	}
 }
@@ -2622,7 +2622,7 @@ const wsFuturesPositionsNotificationPushDataJSON = `{"time": 1588212926,"channel
 
 func TestFuturesPositionsNotification(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesPositionsNotificationPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesPositionsNotificationPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures positions change notification push data error: %v", g.Name, err)
 	}
 }
@@ -2631,7 +2631,7 @@ const wsFuturesAutoOrdersPushDataJSON = `{"time": 1596798126,"channel": "futures
 
 func TestFuturesAutoOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleFuturesData(t.Context(), []byte(wsFuturesAutoOrdersPushDataJSON), asset.Futures); err != nil {
+	if err := g.WsHandleFuturesData(t.Context(), nil, []byte(wsFuturesAutoOrdersPushDataJSON), asset.Futures); err != nil {
 		t.Errorf("%s websocket futures auto orders push data error: %v", g.Name, err)
 	}
 }
@@ -2642,7 +2642,7 @@ const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "opti
 
 func TestOptionsContractTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsContractTickerPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTickerPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options contract ticker push data failed with error %v", g.Name, err)
 	}
 }
@@ -2651,7 +2651,7 @@ const optionsUnderlyingTickerPushDataJSON = `{"time": 1630576352,	"channel": "op
 
 func TestOptionsUnderlyingTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingTickerPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingTickerPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options underlying ticker push data error: %v", g.Name, err)
 	}
 }
@@ -2660,7 +2660,7 @@ const optionsContractTradesPushDataJSON = `{"time": 1630576356,	"channel": "opti
 
 func TestOptionsContractTradesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsContractTradesPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket contract trades push data error: %v", g.Name, err)
 	}
 }
@@ -2669,7 +2669,7 @@ const optionsUnderlyingTradesPushDataJSON = `{"time": 1630576356,	"channel": "op
 
 func TestOptionsUnderlyingTradesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingTradesPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket underlying trades push data error: %v", g.Name, err)
 	}
 }
@@ -2678,7 +2678,7 @@ const optionsUnderlyingPricePushDataJSON = `{	"time": 1630576356,	"channel": "op
 
 func TestOptionsUnderlyingPricePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingPricePushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingPricePushDataJSON)); err != nil {
 		t.Errorf("%s websocket underlying price push data error: %v", g.Name, err)
 	}
 }
@@ -2687,7 +2687,7 @@ const optionsMarkPricePushDataJSON = `{	"time": 1630576356,	"channel": "options.
 
 func TestOptionsMarkPricePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsMarkPricePushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsMarkPricePushDataJSON)); err != nil {
 		t.Errorf("%s websocket mark price push data error: %v", g.Name, err)
 	}
 }
@@ -2696,7 +2696,7 @@ const optionsSettlementsPushDataJSON = `{	"time": 1630576356,	"channel": "option
 
 func TestSettlementsPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsSettlementsPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsSettlementsPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options settlements push data error: %v", g.Name, err)
 	}
 }
@@ -2705,7 +2705,7 @@ const optionsContractPushDataJSON = `{"time": 1630576356,	"channel": "options.co
 
 func TestOptionsContractPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsContractPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options contracts push data error: %v", g.Name, err)
 	}
 }
@@ -2717,10 +2717,10 @@ const (
 
 func TestOptionsCandlesticksPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsContractCandlesticksPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractCandlesticksPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options contracts candlestick push data error: %v", g.Name, err)
 	}
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsUnderlyingCandlesticksPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingCandlesticksPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options underlying candlestick push data error: %v", g.Name, err)
 	}
 }
@@ -2735,19 +2735,19 @@ const (
 func TestOptionsOrderbookPushData(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, g)
-	assert.NoError(t, g.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookTickerPushDataJSON)))
+	assert.NoError(t, g.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderbookTickerPushDataJSON)))
 	avail, err := g.GetAvailablePairs(asset.Options)
 	require.NoError(t, err, "GetAvailablePairs must not error")
-	assert.NoError(t, g.WsHandleOptionsData(t.Context(), fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String())))
-	assert.NoError(t, g.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookSnapshotPushDataJSON)))
-	assert.NoError(t, g.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
+	assert.NoError(t, g.WsHandleOptionsData(t.Context(), nil, fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String())))
+	assert.NoError(t, g.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderbookSnapshotPushDataJSON)))
+	assert.NoError(t, g.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
 }
 
 const optionsOrderPushDataJSON = `{"time": 1630654851,"channel": "options.orders",	"event": "update",	"result": [	   {		  "contract": "BTC_USDT-20211130-65000-C",		  "create_time": 1637897000,		  "fill_price": 0,		  "finish_as": "cancelled",		  "iceberg": 0,		  "id": 106,		  "is_close": false,		  "is_liq": false,		  "is_reduce_only": false,		  "left": -10,		  "mkfr": 0.0004,		  "price": 15000,		  "refr": 0,		  "refu": 0,		  "size": -10,		  "status": "finished",		  "text": "web",		  "tif": "gtc",		  "tkfr": 0.0004,		  "underlying": "BTC_USDT",		  "user": "9xxx",		  "time": 1639051907,"time_ms": 1639051907000}]}`
 
 func TestOptionsOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsOrderPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsOrderPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options orders push data error: %v", g.Name, err)
 	}
 }
@@ -2756,7 +2756,7 @@ const optionsUsersTradesPushDataJSON = `{	"time": 1639144214,	"channel": "option
 
 func TestOptionUserTradesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsUsersTradesPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsUsersTradesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options orders push data error: %v", g.Name, err)
 	}
 }
@@ -2765,7 +2765,7 @@ const optionsLiquidatesPushDataJSON = `{	"channel": "options.liquidates",	"event
 
 func TestOptionsLiquidatesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsLiquidatesPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsLiquidatesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options liquidates push data error: %v", g.Name, err)
 	}
 }
@@ -2774,7 +2774,7 @@ const optionsSettlementPushDataJSON = `{	"channel": "options.user_settlements",	
 
 func TestOptionsSettlementPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsSettlementPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsSettlementPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options settlement push data error: %v", g.Name, err)
 	}
 }
@@ -2783,7 +2783,7 @@ const optionsPositionClosePushDataJSON = `{"channel": "options.position_closes",
 
 func TestOptionsPositionClosePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsPositionClosePushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsPositionClosePushDataJSON)); err != nil {
 		t.Errorf("%s websocket options position close push data error: %v", g.Name, err)
 	}
 }
@@ -2792,7 +2792,7 @@ const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "u
 
 func TestOptionsBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsBalancePushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket options balance push data error: %v", g.Name, err)
 	}
 }
@@ -2801,7 +2801,7 @@ const optionsPositionPushDataJSON = `{"time": 1630654851,	"channel": "options.po
 
 func TestOptionsPositionPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsPositionPushDataJSON)); err != nil {
+	if err := g.WsHandleOptionsData(t.Context(), nil, []byte(optionsPositionPushDataJSON)); err != nil {
 		t.Errorf("%s websocket options position push data error: %v", g.Name, err)
 	}
 }
@@ -2813,11 +2813,11 @@ const (
 
 func TestFuturesOrderbookPushData(t *testing.T) {
 	t.Parallel()
-	err := g.WsHandleFuturesData(t.Context(), []byte(futuresOrderbookPushData), asset.Futures)
+	err := g.WsHandleFuturesData(t.Context(), nil, []byte(futuresOrderbookPushData), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
-	err = g.WsHandleFuturesData(t.Context(), []byte(futuresOrderbookUpdatePushData), asset.Futures)
+	err = g.WsHandleFuturesData(t.Context(), nil, []byte(futuresOrderbookUpdatePushData), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2827,7 +2827,7 @@ const futuresCandlesticksPushData = `{"time": 1678469467, "time_ms": 16784694679
 
 func TestFuturesCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	err := g.WsHandleFuturesData(t.Context(), []byte(futuresCandlesticksPushData), asset.Futures)
+	err := g.WsHandleFuturesData(t.Context(), nil, []byte(futuresCandlesticksPushData), asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
