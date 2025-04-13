@@ -49,10 +49,7 @@ func (co *CoinbaseInternational) WsConnect() error {
 	if !co.Websocket.IsEnabled() || !co.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer = gws.Dialer{
-		Proxy: http.ProxyFromEnvironment,
-	}
-	err := co.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := co.Websocket.Conn.Dial(&gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{})
 	if err != nil {
 		return err
 	}

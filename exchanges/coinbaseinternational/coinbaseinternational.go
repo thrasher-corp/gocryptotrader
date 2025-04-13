@@ -236,8 +236,7 @@ func (co *CoinbaseInternational) GetAggregatedCandlesDataPerInstrument(ctx conte
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument+"/candles", params, nil, &resp, false)
 }
 
-var intervalToStringMap = map[kline.Interval]string{kline.OneDay: "ONE_DAY", kline.SixHour: "SIX_HOUR", kline.TwoHour: "TWO_HOUR", kline.OneHour: "ONE_HOUR",
-	kline.ThirtyMin: "THIRTY_MINUTE", kline.FifteenMin: "FIFTEEN_MINUTE", kline.FiveMin: "FIVE_MINUTE", kline.OneMin: "ONE_MINUTE"}
+var intervalToStringMap = map[kline.Interval]string{kline.OneDay: "ONE_DAY", kline.SixHour: "SIX_HOUR", kline.TwoHour: "TWO_HOUR", kline.OneHour: "ONE_HOUR", kline.ThirtyMin: "THIRTY_MINUTE", kline.FifteenMin: "FIFTEEN_MINUTE", kline.FiveMin: "FIVE_MINUTE", kline.OneMin: "ONE_MINUTE"}
 
 func stringFromInterval(interval kline.Interval) (string, error) {
 	intervalString, ok := intervalToStringMap[interval]

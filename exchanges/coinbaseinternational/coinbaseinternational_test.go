@@ -917,6 +917,7 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
