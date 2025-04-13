@@ -11,16 +11,16 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -57,9 +57,9 @@ var subscriptionNames = map[string]string{
 // WsConnect connects to a websocket feed
 func (b *BTCMarkets) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (b *BTCMarkets) wsReadData() {
 
 // UnmarshalJSON implements the unmarshaler interface.
 func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
-	resp := make([][3]interface{}, len(data))
+	resp := make([][3]any, len(data))
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -185,9 +185,12 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	case tradeEndPoint:
-		if !b.IsSaveTradeDataEnabled() {
+		tradeFeed := b.IsTradeFeedEnabled()
+		saveTradeData := b.IsSaveTradeDataEnabled()
+		if !saveTradeData && !tradeFeed {
 			return nil
 		}
+
 		var t WsTrade
 		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -200,11 +203,16 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		side := order.Buy
-		if t.Side == "Ask" {
+		switch {
+		case t.Side.IsLong():
+			// Nothing to do
+		case t.Side.IsShort():
 			side = order.Sell
+		default:
+			return fmt.Errorf("%w: `%s`", order.ErrSideIsInvalid, t.Side)
 		}
 
-		return trade.AddTradesToBuffer(trade.Data{
+		td := trade.Data{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -213,7 +221,14 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Amount:       t.Volume,
 			Side:         side,
 			TID:          strconv.FormatInt(t.TradeID, 10),
-		})
+		}
+
+		if tradeFeed {
+			b.Websocket.DataHandler <- td
+		}
+		if saveTradeData {
+			return trade.AddTradesToBuffer(td)
+		}
 	case tick:
 		var tick WsTick
 		err := json.Unmarshal(respRaw, &tick)
@@ -337,7 +352,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
 	default:
-		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
+		b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: b.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -452,7 +467,7 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 
 // checksum provides assurance on current in memory liquidity
 func checksum(ob *orderbook.Base, checksum uint32) error {
-	check := crc32.ChecksumIEEE([]byte(concat(ob.Bids) + concat(ob.Asks)))
+	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 	if check != checksum {
 		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
 			ob.Exchange,
@@ -466,14 +481,10 @@ func checksum(ob *orderbook.Base, checksum uint32) error {
 	return nil
 }
 
-// concat concatenates price and amounts together for checksum processing
-func concat(liquidity orderbook.Tranches) string {
-	length := 10
-	if len(liquidity) < 10 {
-		length = len(liquidity)
-	}
+// concatOrderbookLiquidity concatenates price and amounts together for checksum processing
+func concatOrderbookLiquidity(liquidity orderbook.Tranches) string {
 	var c string
-	for x := range length {
+	for x := range min(10, len(liquidity)) {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)
 	}
 	return c

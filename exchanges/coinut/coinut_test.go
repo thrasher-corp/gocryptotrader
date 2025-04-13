@@ -8,19 +8,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -71,13 +71,13 @@ func setupWSTestAuth(t *testing.T) {
 	}
 
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	if sharedtestvalues.AreAPICredentialsSet(c) {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
@@ -608,34 +608,17 @@ func TestCurrencyMapInstrumentIDs(t *testing.T) {
 	t.Parallel()
 
 	var i instrumentMap
-	if r := i.GetInstrumentIDs(); len(r) > 0 {
-		t.Error("non initialised instrument map shouldn't return any ids")
-	}
+	assert.Empty(t, i.GetInstrumentIDs())
 
 	// Seed the instrument map
 	i.Seed("BTCUSD", 1234)
 	i.Seed("LTCUSD", 1337)
 
-	f := func(ids []int64, target int64) bool {
-		for x := range ids {
-			if ids[x] == target {
-				return true
-			}
-		}
-		return false
-	}
-
 	// Test 2 valid instruments and one invalid
 	ids := i.GetInstrumentIDs()
-	if r := f(ids, 1234); !r {
-		t.Error("unexpected result")
-	}
-	if r := f(ids, 1337); !r {
-		t.Error("unexpected result")
-	}
-	if r := f(ids, 4321); r {
-		t.Error("unexpected result")
-	}
+	assert.Contains(t, ids, int64(1234))
+	assert.Contains(t, ids, int64(1337))
+	assert.NotContains(t, ids, int64(4321))
 }
 
 func TestGetNonce(t *testing.T) {

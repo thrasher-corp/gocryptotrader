@@ -307,7 +307,7 @@ func (f fakeStrat) SupportsSimultaneousProcessing() bool {
 
 func (f fakeStrat) SetSimultaneousProcessing(bool) {}
 
-func (f fakeStrat) SetCustomSettings(map[string]interface{}) error {
+func (f fakeStrat) SetCustomSettings(map[string]any) error {
 	return nil
 }
 

@@ -3,6 +3,7 @@ package trackingcurrencies
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -101,12 +102,9 @@ func CreateUSDTrackingPairs(tp []TrackingPair, em *engine.ExchangeManager) ([]Tr
 // CurrencyIsUSDTracked checks if the currency passed in
 // tracks against USD value, ie is in rankedUSDs
 func CurrencyIsUSDTracked(code currency.Code) bool {
-	for i := range rankedUSDs {
-		if code.Equal(rankedUSDs[i]) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rankedUSDs, func(c currency.Code) bool {
+		return c.Equal(code)
+	})
 }
 
 // pairContainsUSD is a simple check to ensure that the currency pair

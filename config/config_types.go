@@ -107,7 +107,7 @@ type Config struct {
 	Currency             currency.Config           `json:"currencyConfig"`
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
-	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
+	Portfolio            *portfolio.Base           `json:"portfolioAddresses"`
 	Exchanges            []Exchange                `json:"exchanges"`
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
@@ -299,9 +299,9 @@ type BankTransaction struct {
 // FeaturesSupportedConfig stores the exchanges supported features
 type FeaturesSupportedConfig struct {
 	REST                  bool              `json:"restAPI"`
-	RESTCapabilities      protocol.Features `json:"restCapabilities,omitempty"`
+	RESTCapabilities      protocol.Features `json:"restCapabilities,omitzero"`
 	Websocket             bool              `json:"websocketAPI"`
-	WebsocketCapabilities protocol.Features `json:"websocketCapabilities,omitempty"`
+	WebsocketCapabilities protocol.Features `json:"websocketCapabilities,omitzero"`
 }
 
 // FeaturesEnabledConfig stores the exchanges enabled features

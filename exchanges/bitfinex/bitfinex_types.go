@@ -149,7 +149,7 @@ type Ticker struct {
 	Volume             float64
 	High               float64
 	Low                float64
-	FFRAmountAvailable float64
+	FRRAmountAvailable float64 // Flash Return Rate amount available
 }
 
 // DerivativeDataResponse stores data for queried derivative
@@ -254,7 +254,7 @@ type AccountInfoFees struct {
 
 // AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
-	Withdraw map[string]interface{} `json:"withdraw"`
+	Withdraw map[string]any `json:"withdraw"`
 }
 
 // AccountSummary holds account summary data
@@ -639,7 +639,7 @@ type WsFundingOffer struct {
 	Amount         float64
 	OriginalAmount float64
 	Type           string
-	Flags          interface{}
+	Flags          any
 	Status         string
 	Rate           float64
 	Period         int64
@@ -658,7 +658,7 @@ type WsCredit struct {
 	Created      time.Time
 	Updated      time.Time
 	Amount       float64
-	Flags        interface{} // Future params object (stay tuned)
+	Flags        any // Future params object (stay tuned)
 	Status       string
 	Rate         float64
 	Period       int64

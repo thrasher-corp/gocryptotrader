@@ -1,4 +1,4 @@
-# GoCryptoTrader package Exchange manager
+# GoCryptoTrader package Exchange Manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Exchange manager
+## Current Features for Exchange Manager
 + The exchange manager subsystem is used load and store exchanges so that the engine Bot can use them to track orderbooks, submit orders etc etc
 + The exchange manager itself is not customisable, it is always enabled.
 + The exchange manager by default will load all exchanges that are enabled in your config, however, it will also load exchanges by request via GRPC commands

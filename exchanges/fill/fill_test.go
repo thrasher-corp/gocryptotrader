@@ -9,7 +9,7 @@ import (
 // TestSetup tests the setup function of the Fills struct
 func TestSetup(t *testing.T) {
 	fill := &Fills{}
-	channel := make(chan interface{})
+	channel := make(chan any)
 	fill.Setup(true, channel)
 
 	if fill.dataHandler == nil {
@@ -23,7 +23,7 @@ func TestSetup(t *testing.T) {
 
 // TestUpdateDisabledFeed tests the Update function when fillsFeedEnabled is false
 func TestUpdateDisabledFeed(t *testing.T) {
-	channel := make(chan interface{}, 1)
+	channel := make(chan any, 1)
 	fill := Fills{dataHandler: channel, fillsFeedEnabled: false}
 
 	// Send a test data to the Update function
@@ -42,7 +42,7 @@ func TestUpdateDisabledFeed(t *testing.T) {
 
 // TestUpdate tests the Update function of the Fills struct.
 func TestUpdate(t *testing.T) {
-	channel := make(chan interface{}, 1)
+	channel := make(chan any, 1)
 	fill := &Fills{dataHandler: channel, fillsFeedEnabled: true}
 	receivedData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
 	if err := fill.Update(receivedData); err != nil {
@@ -66,7 +66,7 @@ func TestUpdate(t *testing.T) {
 
 // TestUpdateNoData tests the Update function with no Data objects
 func TestUpdateNoData(t *testing.T) {
-	channel := make(chan interface{}, 1)
+	channel := make(chan any, 1)
 	fill := &Fills{dataHandler: channel, fillsFeedEnabled: true}
 	if err := fill.Update(); err != nil {
 		t.Errorf("Update returned error %v", err)
@@ -82,7 +82,7 @@ func TestUpdateNoData(t *testing.T) {
 
 // TestUpdateMultipleData tests the Update function with multiple Data objects
 func TestUpdateMultipleData(t *testing.T) {
-	channel := make(chan interface{}, 2)
+	channel := make(chan any, 2)
 	fill := &Fills{dataHandler: channel, fillsFeedEnabled: true}
 	receivedData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
 	receivedData2 := Data{Timestamp: time.Now(), Price: 18.2, Amount: 9.0}

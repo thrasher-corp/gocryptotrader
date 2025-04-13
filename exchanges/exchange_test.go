@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -25,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -206,7 +206,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		Requester: requester,
 	}
 
-	newBase.Websocket = stream.NewWebsocket()
+	newBase.Websocket = websocket.NewManager()
 	err = newBase.SetClientProxyAddress("")
 	if err != nil {
 		t.Error(err)
@@ -769,7 +769,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 	assert.Equal(t, "btc~usd^ltc~btc", got)
 
 	_, err = e.FormatExchangeCurrencies(nil, asset.Spot)
-	assert.ErrorContains(t, err, "returned empty string", err, "FormatExchangeCurrencies should error correctly")
+	assert.ErrorContains(t, err, "returned empty string", "FormatExchangeCurrencies should error correctly")
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
@@ -866,9 +866,9 @@ func TestSetupDefaults(t *testing.T) {
 	}
 
 	// Test websocket support
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.Features.Supports.Websocket = true
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: &config.Exchange{
 			WebsocketTrafficTimeout: time.Second * 30,
 			Name:                    "test",
@@ -1193,8 +1193,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		t.Error("exchange doesn't support websocket")
 	}
 
-	b.Websocket = stream.NewWebsocket()
-	err := b.Websocket.Setup(&stream.WebsocketSetup{
+	b.Websocket = websocket.NewManager()
+	err := b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig: &config.Exchange{
 			Enabled:                 true,
 			WebsocketTrafficTimeout: time.Second * 30,
@@ -1603,7 +1603,7 @@ func TestGetWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	_, err = b.GetWebsocket()
 	if err != nil {
 		t.Fatal(err)
@@ -1617,7 +1617,7 @@ func TestFlushWebsocketChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	err = b.FlushWebsocketChannels()
 	if err == nil {
 		t.Fatal(err)
@@ -1631,7 +1631,7 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	err = b.SubscribeToWebsocketChannels(nil)
 	if err == nil {
 		t.Fatal(err)
@@ -1643,7 +1643,7 @@ func TestUnsubscribeToWebsocketChannels(t *testing.T) {
 	err := b.UnsubscribeToWebsocketChannels(nil)
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	err = b.UnsubscribeToWebsocketChannels(nil)
 	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
@@ -1655,7 +1655,7 @@ func TestGetSubscriptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Websocket = &stream.Websocket{}
+	b.Websocket = websocket.NewManager()
 	_, err = b.GetSubscriptions()
 	if err != nil {
 		t.Fatal(err)
@@ -2897,7 +2897,7 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	t.Parallel()
 	e := &FakeBase{}
 	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints(), "CanUseAuthenticatedWebsocketEndpoints should return false with nil websocket")
-	e.Websocket = stream.NewWebsocket()
+	e.Websocket = websocket.NewManager()
 	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints())
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
@@ -3143,4 +3143,9 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "🐋", b.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat.Delimiter, "ConfigFormat should be correct and have a blow hole")
 	assert.Equal(t, "🦥", b.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter, "RequestFormat should be correct and kinda lazy")
+}
+
+func TestWebsocketSubmitOrder(t *testing.T) {
+	_, err := (&Base{}).WebsocketSubmitOrder(context.Background(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }

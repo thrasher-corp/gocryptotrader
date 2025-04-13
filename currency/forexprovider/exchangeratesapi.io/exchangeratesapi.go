@@ -46,7 +46,7 @@ func (e *ExchangeRates) cleanCurrencies(baseCurrency, symbols string) string {
 		}
 	}
 
-	symbols = strings.Replace(symbols, "RUR", "RUB", -1)
+	symbols = strings.ReplaceAll(symbols, "RUR", "RUB")
 	s := strings.Split(symbols, ",")
 	cleanedCurrencies := make([]string, 0, len(s))
 	for _, x := range s {
@@ -254,7 +254,7 @@ func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
 }
 
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result
-func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
+func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, result any) error {
 	if e.APIKey == "" {
 		return errors.New("api key must be set")
 	}

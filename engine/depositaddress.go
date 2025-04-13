@@ -3,6 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 
@@ -97,9 +99,9 @@ func (m *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 		return nil, ErrDepositAddressNotFound
 	}
 
-	cpy := make(map[string][]deposit.Address, len(r))
-	for k, v := range r {
-		cpy[k] = v
+	cpy := maps.Clone(r)
+	for k, v := range cpy {
+		cpy[k] = slices.Clone(v)
 	}
 	return cpy, nil
 }

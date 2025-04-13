@@ -37,7 +37,7 @@ type EndpointLimit uint16
 type Weight uint8
 
 // RateLimitDefinitions is a map of endpoint limits to rate limiters
-type RateLimitDefinitions map[interface{}]*RateLimiterWithWeight
+type RateLimitDefinitions map[any]*RateLimiterWithWeight
 
 // RateLimiterWithWeight is a rate limiter coupled with a weight count which
 // refers to the number or weighting of the request. This is used to define

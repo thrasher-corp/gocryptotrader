@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1969,8 +1969,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 			<-b.Websocket.DataHandler
 		}
 	}()
-	bb.ResetTimer()
-	for range bb.N {
+	for bb.Loop() {
 		for x := range lines {
 			assert.NoError(bb, b.wsHandleData(lines[x]))
 		}
@@ -1985,12 +1984,12 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	if mockTests {
 		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
-		mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 			tb.Helper()
 			var req WsPayload
 			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
 			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
-			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
 		}
 		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
@@ -2007,12 +2006,12 @@ func TestSubscribeBadResp(t *testing.T) {
 	channels := subscription.List{
 		{Channel: "moons@ticker"},
 	}
-	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 		tb.Helper()
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(tb, err, "Unmarshal should not error")
-		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)

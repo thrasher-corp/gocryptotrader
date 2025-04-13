@@ -57,7 +57,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 				continue
 			}
 			for k, v := range result {
-				rates[strings.Replace(k, "_", "", -1)] = v
+				rates[strings.ReplaceAll(k, "_", "")] = v
 			}
 		}
 	}
@@ -75,7 +75,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 	}
 
 	for k, v := range result {
-		rates[strings.Replace(k, "_", "", -1)] = v
+		rates[strings.ReplaceAll(k, "_", "")] = v
 	}
 
 	return rates, nil
@@ -149,7 +149,7 @@ func (c *CurrencyConverter) GetCountries() (map[string]CountryItem, error) {
 
 // SendHTTPRequest sends a HTTP request, if account is not free it automatically
 // upgrades request to SSL.
-func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
+func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, result any) error {
 	var path string
 	var auth request.AuthType
 	if c.APIKey == "" || c.APIKey == defaultAPIKey {
