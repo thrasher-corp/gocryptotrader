@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"strings"
 	"testing"
@@ -14,18 +15,29 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var errNaughtySubs = errors.New("naughty subscriptions")
+var errDuplicateSubscription = errors.New("duplicate subscription")
 
 type mockExWithSubValidator struct {
 	Fail bool
 	*mockEx
 }
 
-func (m *mockExWithSubValidator) ValidateSubscriptions(List) error {
-	if m.Fail {
-		return errNaughtySubs
+func (m *mockExWithSubValidator) ValidateSubscriptions(in List) error {
+	check := make(map[string]bool)
+	for _, sub := range in {
+		if check[sub.QualifiedChannel] {
+			return fmt.Errorf("%w: '%s'", errDuplicateSubscription, sub.QualifiedChannel)
+		}
+		check[sub.QualifiedChannel] = true
 	}
 	return nil
+}
+
+func (m *mockExWithSubValidator) GetSubscriptions() (List, error) {
+	if m.Fail {
+		return List{{Channel: "single-channel"}}, nil
+	}
+	return nil, nil
 }
 
 type mockEx struct {
@@ -91,6 +103,7 @@ func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, e
 
 func (m *mockEx) GetAssetTypes(_ bool) asset.Items            { return m.assets }
 func (m *mockEx) CanUseAuthenticatedWebsocketEndpoints() bool { return m.auth }
+func (m *mockEx) GetSubscriptions() (List, error)             { return nil, nil }
 
 // equalLists is a utility function to compare subscription lists and show a pretty failure message
 // It overcomes the verbose depth of assert.ElementsMatch spewConfig

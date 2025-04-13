@@ -33,7 +33,7 @@ func TestExpandTemplates(t *testing.T) {
 	}
 
 	_, err := l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, Fail: true})
-	require.ErrorIs(t, err, errNaughtySubs)
+	require.ErrorIs(t, err, errDuplicateSubscription)
 	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e})
 	require.NoError(t, err)
 
