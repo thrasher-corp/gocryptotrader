@@ -44,7 +44,7 @@ func (b *Binance) GetEOptionsOrderbook(ctx context.Context, symbol string, limit
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *EOptionsOrderbook
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/depth", params), optionsDefaultRate, &resp)
@@ -58,7 +58,7 @@ func (b *Binance) GetEOptionsRecentTrades(ctx context.Context, symbol string, li
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EOptionsTradeItem
 	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, common.EncodeURLValues("/eapi/v1/trades", params), optionsRecentTradesRate, &resp)
@@ -75,7 +75,7 @@ func (b *Binance) GetEOptionsTradeHistory(ctx context.Context, symbol string, fr
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EOptionsTradeItem
 	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, common.EncodeURLValues("/eapi/v1/historicalTrades", params), optionsDefaultRate, &resp)
@@ -101,7 +101,7 @@ func (b *Binance) GetEOptionsCandlesticks(ctx context.Context, symbol string, in
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatUint(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []EOptionsCandlestick
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), optionsDefaultRate, &resp)
@@ -153,7 +153,7 @@ func (b *Binance) GetEOptionsHistoricalExerciseRecords(ctx context.Context, unde
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []ExerciseHistoryItem
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/exerciseHistory", params), optionsHistoricalExerciseRecordsRate, &resp)
@@ -170,6 +170,7 @@ func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset 
 	params := url.Values{}
 	params.Set("underlyingAsset", underlyingAsset.String())
 	params.Set("expiration", expiration.Format("020106"))
+	println("expiration.Format('020106'): ", expiration.Format("020106"))
 	var resp []OpenInterest
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/openInterest", params), optionsDefaultRate, &resp)
 }
@@ -385,7 +386,7 @@ func (b *Binance) getOptionsOrders(ctx context.Context, path, symbol string, sta
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []OptionOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, path, params, ratelimit, nil, &resp)
@@ -419,7 +420,7 @@ func (b *Binance) GetEOptionsAccountTradeList(ctx context.Context, symbol string
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []OptionsAccountTradeItem
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/userTrades", params, optionsAccountTradeListRate, nil, &resp)
@@ -440,7 +441,7 @@ func (b *Binance) GetUserOptionsExerciseRecord(ctx context.Context, symbol strin
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UserOptionsExerciseRecord
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/exerciseRecord", params, optionsUserExerciseRecordRate, nil, &resp)
@@ -465,7 +466,7 @@ func (b *Binance) GetAccountFundingFlow(ctx context.Context, ccy currency.Code, 
 		params.Set("recordId", strconv.FormatInt(recordID, 10))
 	}
 	if limit > 0 {
-		params.Set(order.Limit.String(), strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AccountFunding
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/bill", params, optionsDefaultRate, nil, &resp)

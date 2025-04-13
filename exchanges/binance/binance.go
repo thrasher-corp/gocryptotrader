@@ -171,9 +171,7 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 		return nil, errors.New("please set StartTime or FromId, but not both")
 	}
 	var resp []AggregatedTrade
-	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpot, common.EncodeURLValues("/api/v3/aggTrades", params),
-		aggTradesRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/aggTrades", params), aggTradesRate, &resp)
 }
 
 // batchAggregateTrades fetches trades in multiple requests
@@ -425,10 +423,13 @@ func (b *Binance) GetTickerData(ctx context.Context, symbols currency.Pairs, win
 	default:
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if windowSize < time.Minute {
+	switch {
+	case windowSize > time.Hour*24:
+		params.Set("windowSize", strconv.FormatInt(int64(windowSize/(time.Hour*24)), 10)+"d")
+	case windowSize >= time.Hour:
+		params.Set("windowSize", strconv.FormatInt(int64(windowSize/(time.Hour)), 10)+"h")
+	case windowSize >= time.Minute:
 		params.Set("windowSize", strconv.FormatInt(int64(windowSize/time.Minute), 10)+"m")
-	} else if windowSize > (time.Hour * 24) {
-		params.Set("windowSize", strconv.FormatInt(int64(windowSize/(time.Hour*24)), 10)+"h")
 	}
 	if tickerType != "" {
 		params.Set("type", tickerType)

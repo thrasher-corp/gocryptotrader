@@ -181,7 +181,10 @@ func TestUCompressedTrades(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	start, end := getTime()
+	start, end := time.UnixMilli(1744462163396), time.UnixMilli(1744552163396)
+	if !mockTests {
+		start, end = time.Now().Add(-time.Hour*25), time.Now()
+	}
 	result, err = b.UCompressedTrades(context.Background(), "LTCUSDT", "", 0, start, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2816,17 +2819,14 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestGetAggregatedTradesBatched(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	expectTime, err := time.Parse(time.RFC3339Nano, "2020-01-02T16:19:04.831Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	tests := []struct {
 		name string
 		// mock test or live test
@@ -2895,12 +2895,9 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				t.Skip("mock mismatch, skipping")
 			}
 			result, err := b.GetAggregatedTrades(context.Background(), tt.args)
-			if err != nil {
-				t.Error(err)
-			}
-			if len(result) != tt.numExpected {
-				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
-			}
+			assert.NoError(t, err)
+
+			assert.Len(t, result, tt.numExpected)
 			lastTradeTime := result[len(result)-1].TimeStamp
 			if !lastTradeTime.Time().Equal(tt.lastExpected) {
 				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
@@ -3073,10 +3070,8 @@ func TestWrapperGetActiveOrders(t *testing.T) {
 
 func TestWrapperGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
-		AssetType: asset.USDTMarginedFutures,
-	})
-	assert.Error(t, err, "expecting an error since invalid param combination is given. Got err: %v", err)
+	_, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures})
+	assert.Error(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	p, err := currency.NewPairFromString("EOSUSD_PERP")
@@ -5556,11 +5551,7 @@ func TestGetEOptionsOrderbook(t *testing.T) {
 	_, err := b.GetEOptionsOrderbook(context.Background(), "", 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	optionsTradablePairString := "ETH-240927-3800-P"
-	if !mockTests {
-		optionsTradablePairString = optionsTradablePair.String()
-	}
-	result, err := b.GetEOptionsOrderbook(context.Background(), optionsTradablePairString, 10)
+	result, err := b.GetEOptionsOrderbook(context.Background(), optionsTradablePair.String(), 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5594,12 +5585,11 @@ func TestGetEOptionsCandlesticks(t *testing.T) {
 	_, err = b.GetEOptionsCandlesticks(context.Background(), optionsTradablePair.String(), 0, time.Time{}, time.Time{}, 1000)
 	require.ErrorIs(t, err, kline.ErrInvalidInterval)
 
-	optionsTradablePairString := "ETH-240927-3800-P"
+	start, end := time.UnixMilli(1744459370269), time.UnixMilli(1744549370269)
 	if !mockTests {
-		optionsTradablePairString = optionsTradablePair.String()
+		start, end = time.Now().Add(-time.Hour*25), time.Now()
 	}
-	start, end := getTime()
-	result, err := b.GetEOptionsCandlesticks(context.Background(), optionsTradablePairString, kline.OneDay, start, end, 1000)
+	result, err := b.GetEOptionsCandlesticks(context.Background(), optionsTradablePair.String(), kline.OneDay, start, end, 1000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5645,15 +5635,16 @@ func TestGetEOptionsHistoricalExerciseRecords(t *testing.T) {
 
 func TestGetEOptionsOpenInterests(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetEOptionsOpenInterests(context.Background(), currency.ETH, time.Now().Add(time.Hour*24))
+	expTime := time.UnixMilli(1744633637579)
+	if !mockTests {
+		expTime = time.Now().Add(time.Hour * 24)
+	}
+	_, err := b.GetEOptionsOpenInterests(context.Background(), currency.EMPTYCODE, expTime)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = b.GetEOptionsOpenInterests(context.Background(), currency.EMPTYCODE, time.Now().Add(time.Hour*24))
+	_, err = b.GetEOptionsOpenInterests(context.Background(), currency.ETH, time.Time{})
 	require.ErrorIs(t, err, errExpirationTimeRequired)
 
-	if mockTests {
-		t.Skip("endpoint has problem")
-	}
-	result, err := b.GetEOptionsOpenInterests(context.Background(), currency.ETH, time.Now().Add(time.Hour*24))
+	result, err := b.GetEOptionsOpenInterests(context.Background(), currency.ETH, expTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -9197,7 +9188,10 @@ func (b *Binance) populateTradablePairs() error {
 	if len(tradablePairs) == 0 {
 		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Spot)
 	}
-	spotTradablePair = tradablePairs[0]
+	spotTradablePair, err = b.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if err != nil {
+		return err
+	}
 	tradablePairs, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
 		return err
@@ -9205,7 +9199,10 @@ func (b *Binance) populateTradablePairs() error {
 	if len(tradablePairs) == 0 {
 		usdtmTradablePair = currency.NewPair(currency.BTC, currency.USDT)
 	} else {
-		usdtmTradablePair = tradablePairs[0]
+		usdtmTradablePair, err = b.FormatExchangeCurrency(tradablePairs[0], asset.USDTMarginedFutures)
+		if err != nil {
+			return err
+		}
 	}
 	tradablePairs, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
@@ -9217,7 +9214,10 @@ func (b *Binance) populateTradablePairs() error {
 			return err
 		}
 	} else {
-		coinmTradablePair = tradablePairs[0]
+		coinmTradablePair, err = b.FormatExchangeCurrency(tradablePairs[0], asset.CoinMarginedFutures)
+		if err != nil {
+			return err
+		}
 	}
 	tradablePairs, err = b.GetEnabledPairs(asset.Options)
 	if err != nil {
@@ -9226,8 +9226,8 @@ func (b *Binance) populateTradablePairs() error {
 	if len(tradablePairs) == 0 {
 		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
 	}
-	optionsTradablePair = tradablePairs[0]
-	return nil
+	optionsTradablePair, err = b.FormatExchangeCurrency(tradablePairs[0], asset.Options)
+	return err
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
@@ -9260,7 +9260,7 @@ func TestUnmarshalJSONOrderbookTranches(t *testing.T) {
 	assert.Equal(t, 123.4, resp[0].Price)
 	assert.Equal(t, 321.0, resp[0].Amount)
 	assert.Equal(t, 123.6, resp[1].Price)
-	assert.Equal(t, 9, resp[1].Amount)
+	assert.Equal(t, 9.0, resp[1].Amount)
 }
 
 // ----------------- Copy Trading endpoints unit-tests ----------------
