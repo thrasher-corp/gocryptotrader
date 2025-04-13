@@ -2538,14 +2538,14 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 func getTimeInForce(s *order.Submit) (string, error) {
 	switch {
 	case s.TimeInForce.Is(order.ImmediateOrCancel):
-		return "ioc", nil // market taker only
+		return "ioc", nil
 	case s.TimeInForce.Is(order.FillOrKill):
 		return "fok", nil
 	case s.TimeInForce.Is(order.PostOnly):
 		return "poc", nil
 	case s.TimeInForce.Is(order.GoodTillCancel):
 		return "gtc", nil
-	case s.TimeInForce.Is(order.UnsetTIF):
+	case s.TimeInForce == order.UnsetTIF:
 		switch s.Type {
 		case order.Market:
 			return "ioc", nil
@@ -2555,7 +2555,7 @@ func getTimeInForce(s *order.Submit) (string, error) {
 			return "", nil
 		}
 	default:
-		return "", fmt.Errorf("%w: time-in-force value of %s", order.ErrInvalidTimeInForce, s.TimeInForce.String())
+		return "", fmt.Errorf("%w: time-in-force value of %v", order.ErrInvalidTimeInForce, s.TimeInForce)
 	}
 }
 
@@ -2680,10 +2680,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 				purchased = resp.FilledTotal.Float64()
 			}
 		}
-		tif, err := order.StringToTimeInForce(resp.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
+		_, tif := getTypeFromTimeInForceAndPrice(resp.TimeInForce, resp.Price.Float64())
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              resp.ID,
@@ -2700,7 +2697,6 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 			Side:                 side,
 			Status:               status,
 			TimeInForce:          tif,
-			PostOnly:             resp.TimeInForce == pocTIF,
 			Cost:                 cost,
 			Purchased:            purchased,
 			Fee:                  resp.Fee.Float64(),
@@ -2749,10 +2745,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		if resp.Text != "" && strings.HasPrefix(resp.Text, "t-") {
 			clientOrderID = resp.Text
 		}
-		tif, err := order.StringToTimeInForce(resp.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
+		_, tif := getTypeFromTimeInForceAndPrice(resp.TimeInForce, resp.Price.Float64())
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              strconv.FormatInt(resp.ID, 10),
@@ -2769,7 +2762,6 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 			Side:                 side,
 			Status:               status,
 			TimeInForce:          tif,
-			PostOnly:             resp.TimeInForce == pocTIF,
 			ReduceOnly:           resp.IsReduceOnly,
 		})
 	}

@@ -612,7 +612,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		Amount:       s.Amount,
 		Price:        s.Price,
 		TriggerPrice: s.TriggerPrice,
-		PostOnly:     s.PostOnly,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
 		ReduceOnly:   s.ReduceOnly,
 	}
 	switch {
@@ -791,7 +791,7 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 	var tif order.TimeInForce
 	tif, err = order.StringToTimeInForce(orderInfo.TimeInForce)
 	if err != nil {
-		tif = order.UnsetTIF
+		return nil, err
 	}
 	if orderInfo.PostOnly {
 		tif |= order.PostOnly
@@ -921,9 +921,9 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			var tif order.TimeInForce
 			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
 			if err != nil {
-				tif = order.UnsetTIF
+				return nil, err
 			}
-			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
+			if ordersData[y].PostOnly {
 				tif = order.PostOnly
 			}
 
@@ -1000,9 +1000,9 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			var tif order.TimeInForce
 			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
 			if err != nil {
-				tif = order.UnsetTIF
+				return nil, err
 			}
-			if ordersData[y].PostOnly { // TODO: Set ordersData[y].TimeInForce values
+			if ordersData[y].PostOnly {
 				tif |= order.PostOnly
 			}
 			resp = append(resp, order.Detail{

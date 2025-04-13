@@ -286,7 +286,7 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 
 func TestOrderSides(t *testing.T) {
 	t.Parallel()
-	var os = Buy
+	os := Buy
 	assert.Equal(t, "BUY", os.String())
 	assert.Equal(t, "buy", os.Lower())
 	assert.Equal(t, "Buy", os.Title())
@@ -380,7 +380,7 @@ func TestFilterOrdersByType(t *testing.T) {
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
 	FilterOrdersByType(&orders, Limit)
 	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -923,7 +923,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Equal(t, 1., od.Amount)
 	assert.Equal(t, 1., od.TriggerPrice)
 	assert.Equal(t, 1., od.RemainingAmount)
-	assert.Equal(t, "", od.Exchange, "Should not be able to update exchange via modify")
+	assert.Empty(t, od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, Type(1), od.Type)
 	assert.Equal(t, Side(1), od.Side)
@@ -937,13 +937,16 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 func TestTimeInForceIs(t *testing.T) {
 	t.Parallel()
 	tifValuesMap := map[TimeInForce][]TimeInForce{
-		GoodTillCancel | PostOnly:    {GoodTillCancel, PostOnly},
-		GoodTillCancel:               {GoodTillCancel},
-		ImmediateOrCancel | PostOnly: {ImmediateOrCancel, PostOnly},
-		GoodTillDay:                  {GoodTillDay},
-		FillOrKill | PostOnly:        {FillOrKill, PostOnly},
-		FillOrKill:                   {FillOrKill},
-		PostOnly:                     {PostOnly},
+		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
+		GoodTillCancel:              {GoodTillCancel},
+		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
+		GoodTillDay:                 {GoodTillDay},
+		GoodTillTime:                {GoodTillTime},
+		GoodTillTime | PostOnly:     {GoodTillTime, PostOnly},
+		ImmediateOrCancel:           {ImmediateOrCancel},
+		FillOrKill:                  {FillOrKill},
+		PostOnly:                    {PostOnly},
+		GoodTillCrossing:            {GoodTillCrossing},
 	}
 	for tif := range tifValuesMap {
 		for _, v := range tifValuesMap[tif] {
@@ -1376,7 +1379,7 @@ var inactiveBenchmark = Detail{Status: Closed, Amount: 1}
 // 1000000000	         1.043 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkIsInactive(b *testing.B) {
 	for b.Loop() {
-		assert.True(b, inactiveBenchmark.IsInactive())
+		require.True(b, inactiveBenchmark.IsInactive())
 	}
 }
 
@@ -1548,7 +1551,7 @@ func TestDeriveModifyResponse(t *testing.T) {
 	}
 
 	modresp, err := mod.DeriveModifyResponse()
-	require.NoError(t, err)
+	require.NoError(t, err, "DeriveModifyResponse must not error")
 	require.NotNil(t, modresp)
 
 	exp := &ModifyResponse{
@@ -1707,7 +1710,7 @@ func TestSideUnmarshal(t *testing.T) {
 
 func TestIsValid(t *testing.T) {
 	t.Parallel()
-	var timeInForceValidityMap = map[TimeInForce]bool{
+	timeInForceValidityMap := map[TimeInForce]bool{
 		TimeInForce(1):    false,
 		ImmediateOrCancel: true,
 		GoodTillTime:      true,
@@ -1724,38 +1727,38 @@ func TestIsValid(t *testing.T) {
 	}
 }
 
+var timeInForceStringToValueMap = map[string]struct {
+	TIF   TimeInForce
+	Error error
+}{
+	"Unknown":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
+	"GoodTillCancel":               {TIF: GoodTillCancel},
+	"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
+	"GTT":                          {TIF: GoodTillTime},
+	"GOOD_TIL_TIME":                {TIF: GoodTillTime},
+	"FILLORKILL":                   {TIF: FillOrKill},
+	"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel | PostOnly},
+	"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
+	"":                             {TIF: UnsetTIF},
+	"IOC":                          {TIF: ImmediateOrCancel},
+	"immediate_or_cancel":          {TIF: ImmediateOrCancel},
+	"IMMEDIATE_OR_CANCEL":          {TIF: ImmediateOrCancel},
+	"IMMEDIATEORCANCEL":            {TIF: ImmediateOrCancel},
+	"GOOD_TILL_CANCELLED":          {TIF: GoodTillCancel},
+	"good_till_day":                {TIF: GoodTillDay},
+	"GOOD_TILL_DAY":                {TIF: GoodTillDay},
+	"GTD":                          {TIF: GoodTillDay},
+	"GOODtillday":                  {TIF: GoodTillDay},
+	"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
+	"PoC":                          {TIF: PostOnly},
+	"PendingORCANCEL":              {TIF: PostOnly},
+	"GTX":                          {TIF: GoodTillCrossing},
+	"GOOD_TILL_CROSSING":           {TIF: GoodTillCrossing},
+	"Good Til crossing":            {TIF: GoodTillCrossing},
+}
+
 func TestStringToTimeInForce(t *testing.T) {
 	t.Parallel()
-	var timeInForceStringToValueMap = map[string]struct {
-		TIF   TimeInForce
-		Error error
-	}{
-		"Unknown":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-		"GoodTillCancel":               {TIF: GoodTillCancel},
-		"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
-		"GTT":                          {TIF: GoodTillTime},
-		"GOOD_TIL_TIME":                {TIF: GoodTillTime},
-		"FILLORKILL":                   {TIF: FillOrKill},
-		"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel},
-		"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
-		"":                             {TIF: UnsetTIF},
-		"IOC":                          {TIF: ImmediateOrCancel},
-		"immediate_or_cancel":          {TIF: ImmediateOrCancel},
-		"IMMEDIATE_OR_CANCEL":          {TIF: ImmediateOrCancel},
-		"IMMEDIATEORCANCEL":            {TIF: ImmediateOrCancel},
-		"GOOD_TILL_CANCELLED":          {TIF: GoodTillCancel},
-		"good_till_day":                {TIF: GoodTillDay},
-		"GOOD_TILL_DAY":                {TIF: GoodTillDay},
-		"GTD":                          {TIF: GoodTillDay},
-		"GOODtillday":                  {TIF: GoodTillDay},
-		"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-		"PoC":                          {TIF: PostOnly},
-		"PendingORCANCEL":              {TIF: PostOnly},
-		"GTX":                          {TIF: GoodTillCrossing},
-		"GOOD_TILL_CROSSING":           {TIF: GoodTillCrossing},
-		"Good Til crossing":            {TIF: GoodTillCrossing},
-	}
-
 	for tk := range timeInForceStringToValueMap {
 		result, err := StringToTimeInForce(tk)
 		assert.ErrorIsf(t, err, timeInForceStringToValueMap[tk].Error, "got %v, expected %v", err, timeInForceStringToValueMap[tk].Error)
@@ -1771,14 +1774,12 @@ func TestString(t *testing.T) {
 		GoodTillTime:                   "GTT",
 		GoodTillDay:                    "GTD",
 		FillOrKill:                     "FOK",
-		PostOnly:                       "POSTONLY",
 		UnknownTIF:                     "UNKNOWN",
 		UnsetTIF:                       "",
-		ImmediateOrCancel | PostOnly:   "IOC,POSTONLY",
+		PostOnly:                       "POSTONLY",
 		GoodTillCancel | PostOnly:      "GTC,POSTONLY",
 		GoodTillTime | PostOnly:        "GTT,POSTONLY",
 		GoodTillDay | PostOnly:         "GTD,POSTONLY",
-		FillOrKill | PostOnly:          "FOK,POSTONLY",
 		FillOrKill | ImmediateOrCancel: "IOC,FOK",
 	}
 	for x := range valMap {
@@ -1799,7 +1800,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	}{}
 	err := json.Unmarshal([]byte(data), &target)
 	require.NoError(t, err)
-	require.EqualValues(t, targets, target.TIFs)
+	require.Equal(t, targets, target.TIFs)
 }
 
 func TestSideMarshalJSON(t *testing.T) {
@@ -1874,6 +1875,33 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "json.Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","ImmediateOrCancel":false,"FillOrKill":false,"PostOnly":false,"ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
 	assert.Equal(t, exp, j)
+}
+
+func TestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	data, err := json.Marshal(GoodTillCrossing)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(`"GTX"`), data)
+
+	data = []byte(`{"tif":"IOC"}`)
+	target := &struct {
+		TimeInForce TimeInForce `json:"tif"`
+	}{}
+	err = json.Unmarshal(data, &target)
+	require.NoError(t, err)
+	assert.Equal(t, "IOC", target.TimeInForce.String())
+}
+
+func BenchmarkStringToTimeInForceA(b *testing.B) {
+	var result TimeInForce
+	var err error
+	for b.Loop() {
+		for k := range timeInForceStringToValueMap {
+			result, err = StringToTimeInForce(k)
+			assert.ErrorIs(b, err, timeInForceStringToValueMap[k].Error)
+			assert.Equal(b, timeInForceStringToValueMap[k].TIF, result)
+		}
+	}
 }

@@ -475,7 +475,6 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 		OrderType:     oType,
 		Price:         s.Price,
 		StopPrice:     s.TriggerPrice,
-		PostOnly:      s.PostOnly,
 		TimeInForce:   s.TimeInForce.String(),
 	})
 	if err != nil {

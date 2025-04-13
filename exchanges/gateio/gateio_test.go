@@ -1994,14 +1994,15 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:  g.Name,
-		Pair:      getPair(t, asset.CrossMargin),
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
-		AssetType: asset.CrossMargin,
+	_, err := g.SubmitOrder(request.WithVerbose(context.Background()), &order.Submit{
+		Exchange:    g.Name,
+		Pair:        getPair(t, asset.Spot),
+		Side:        order.Buy,
+		Type:        order.Limit,
+		Price:       20000,
+		Amount:      0.001,
+		AssetType:   asset.Spot,
+		TimeInForce: order.FillOrKill,
 	})
 	if err != nil {
 		t.Errorf("Order failed to be placed: %v", err)
@@ -2011,8 +2012,8 @@ func TestSubmitOrder(t *testing.T) {
 		Pair:      getPair(t, asset.Spot),
 		Side:      order.Buy,
 		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
+		Price:     20000,
+		Amount:    0.001,
 		AssetType: asset.Spot,
 	})
 	if err != nil {
@@ -3444,7 +3445,7 @@ func TestGetFutureOrderSize(t *testing.T) {
 func TestGetTimeInForce(t *testing.T) {
 	t.Parallel()
 
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.PostOnly})
+	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.GoodTillTime})
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
@@ -3691,7 +3692,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Buy,
 					Status:          order.Open,
-					PostOnly:        true,
 					TimeInForce:     order.PostOnly,
 				},
 				{
