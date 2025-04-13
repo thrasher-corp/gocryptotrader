@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -44,7 +44,7 @@ type Slack struct {
 	TargetChannelID string
 	Details         Response
 	ReconnectURL    string
-	WebsocketConn   *websocket.Conn
+	WebsocketConn   *gws.Conn
 	Connected       bool
 	Shutdown        bool
 	mu              sync.Mutex
@@ -195,7 +195,7 @@ func (s *Slack) NewConnection() error {
 // WebsocketConnect creates a websocket dialer amd initiates a websocket
 // connection
 func (s *Slack) WebsocketConnect() error {
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	var err error
 
 	websocketURL := s.Details.URL
@@ -376,7 +376,7 @@ func (s *Slack) WebsocketSend(eventType, text string) error {
 	if s.WebsocketConn == nil {
 		return errors.New("websocket not connected")
 	}
-	return s.WebsocketConn.WriteMessage(websocket.TextMessage, data)
+	return s.WebsocketConn.WriteMessage(gws.TextMessage, data)
 }
 
 // HandleMessage handles incoming messages and/or commands from slack

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -24,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -106,7 +106,7 @@ func (g *Gemini) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	g.Websocket = stream.NewWebsocket()
+	g.Websocket = websocket.NewManager()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -139,7 +139,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
+	err = g.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            geminiWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
@@ -153,7 +153,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
@@ -162,7 +162,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
@@ -436,7 +436,7 @@ allTrades:
 				Timestamp:    tradeTS,
 			})
 			if i == len(tradeData)-1 {
-				if ts == tradeTS {
+				if ts.Equal(tradeTS) {
 					break allTrades
 				}
 				ts = tradeTS
@@ -548,12 +548,17 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 	if err != nil {
 		return nil, err
 	}
+
 	var orderType order.Type
-	if resp.Type == "exchange limit" {
+	switch resp.Type {
+	case "exchange limit":
 		orderType = order.Limit
-	} else if resp.Type == "market buy" || resp.Type == "market sell" {
+	case "market buy", "market sell":
 		orderType = order.Market
+	default:
+		return nil, fmt.Errorf("unknown order type: %q", resp.Type)
 	}
+
 	var side order.Side
 	side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
@@ -657,12 +662,17 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		if err != nil {
 			return nil, err
 		}
+
 		var orderType order.Type
-		if resp[i].Type == "exchange limit" {
+		switch resp[i].Type {
+		case "exchange limit":
 			orderType = order.Limit
-		} else if resp[i].Type == "market buy" || resp[i].Type == "market sell" {
+		case "market buy", "market sell":
 			orderType = order.Market
+		default:
+			return nil, fmt.Errorf("unknown order type: %q", resp[i].Type)
 		}
+
 		var side order.Side
 		side, err = order.StringToOrderSide(resp[i].Side)
 		if err != nil {

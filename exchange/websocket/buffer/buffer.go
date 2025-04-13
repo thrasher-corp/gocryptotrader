@@ -35,8 +35,7 @@ var (
 
 // Setup sets private variables
 func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- any) error {
-	if exchangeConfig == nil { // exchange config fields are checked in stream package
-		// prior to calling this, so further checks are not needed.
+	if exchangeConfig == nil { // exchange config fields are checked in websocket package prior to calling this, so further checks are not needed
 		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
 	if c == nil {
@@ -50,8 +49,7 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
 
-	// NOTE: These variables are set by config.json under "orderbook" for each
-	// individual exchange.
+	// NOTE: These variables are set by config.json under "orderbook" for each individual exchange
 	w.bufferEnabled = exchangeConfig.Orderbook.WebsocketBufferEnabled
 	w.obBufferLimit = exchangeConfig.Orderbook.WebsocketBufferLimit
 

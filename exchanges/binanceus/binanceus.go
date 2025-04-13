@@ -807,13 +807,11 @@ func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, e
 	params := url.Values{}
 	params.Set("type", "SPOT")
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	if !(startTime.IsZero() && startTime.Unix() <= 0) && startTime.Before(time.Now()) {
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
-	if !(endTime.IsZero() && endTime.Unix() <= 0) && endTime.After(time.Now()) {
-		if (params.Get("startTime") != "" && endTime.After(startTime)) || params.Get("startTime") == "" {
-			params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-		}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -1728,7 +1726,7 @@ func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email stri
 func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
 	switch {
-	case !(userBusinessType == 0 || userBusinessType == 1):
+	case userBusinessType != 0 && userBusinessType != 1:
 		return nil, errInvalidUserBusinessType
 	case page == 0:
 		return nil, errMissingPageNumber
@@ -1854,7 +1852,7 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 
 // GetWsAuthStreamKey this method 'Creates User Data Stream' will retrieve a key to use for authorised WS streaming
 // Same as that of Binance
-// Start a new user data stream. The stream will close after 60 minutes unless a keepalive is sent.
+// Start a new user data websocket. The stream will close after 60 minutes unless a keepalive is sent.
 // If the account has an active listenKey,
 // that listenKey will be returned and its validity will be extended for 60 minutes.
 func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
@@ -1930,7 +1928,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 	}, request.AuthenticatedRequest)
 }
 
-// CloseUserDataStream Close out a user data stream.
+// CloseUserDataStream Close out a user data websocket.
 func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {

@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,8 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -164,7 +164,7 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ku.Websocket = stream.NewWebsocket()
+	ku.Websocket = websocket.NewManager()
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -192,7 +192,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = ku.Websocket.Setup(
-		&stream.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            kucoinWebsocketURL,
 			RunningURL:            wsRunningEndpoint,
@@ -211,7 +211,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return ku.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return ku.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
@@ -1003,9 +1003,10 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		if side == order.Sell {
+		switch side {
+		case order.Sell:
 			side = order.Short
-		} else if side == order.Buy {
+		case order.Buy:
 			side = order.Long
 		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
@@ -1201,7 +1202,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if err != nil {
 		return nil, err
 	}
-	if getOrdersRequest.Validate() != nil {
+	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
 	format, err := ku.GetPairFormat(getOrdersRequest.AssetType, true)
@@ -1241,15 +1242,19 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if !enabled {
 				continue
 			}
+
 			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
 			if err != nil {
 				return nil, err
 			}
-			if side == order.Sell {
+
+			switch side {
+			case order.Sell:
 				side = order.Short
-			} else if side == order.Buy {
+			case order.Buy:
 				side = order.Long
 			}
+
 			oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
 			if err != nil {
 				return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
@@ -1441,18 +1446,18 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 	if getOrdersRequest == nil {
 		return nil, common.ErrNilPointer
 	}
-	err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType)
+	if err := ku.CurrencyPairs.IsAssetEnabled(getOrdersRequest.AssetType); err != nil {
+		return nil, err
+	}
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
+	sideString, err := ku.OrderSideString(getOrdersRequest.Side)
 	if err != nil {
 		return nil, err
 	}
-	if getOrdersRequest.Validate() != nil {
-		return nil, err
-	}
-	var sideString string
-	sideString, err = ku.OrderSideString(getOrdersRequest.Side)
-	if err != nil {
-		return nil, err
-	}
+
 	var orders []order.Detail
 	var orderSide order.Side
 	var orderStatus order.Status

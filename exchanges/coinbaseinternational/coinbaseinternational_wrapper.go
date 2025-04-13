@@ -12,6 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,8 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -112,7 +112,7 @@ func (co *CoinbaseInternational) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	co.Websocket = stream.NewWebsocket()
+	co.Websocket = websocket.NewManager()
 	co.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	co.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	co.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -136,7 +136,7 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = co.Websocket.Setup(&stream.WebsocketSetup{
+	err = co.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinbaseinternationalWSAPIURL,
 		RunningURL:            wsRunningEndpoint,
@@ -153,7 +153,7 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return co.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return co.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  coinbaseinternationalWSAPIURL,

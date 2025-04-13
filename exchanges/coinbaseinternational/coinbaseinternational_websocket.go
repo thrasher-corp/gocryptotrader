@@ -7,18 +7,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -47,17 +47,17 @@ var defaultSubscriptions = []string{
 // market data updates for orders and trades.
 func (co *CoinbaseInternational) WsConnect() error {
 	if !co.Websocket.IsEnabled() || !co.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer = websocket.Dialer{
+	var dialer = gws.Dialer{
 		Proxy: http.ProxyFromEnvironment,
 	}
 	err := co.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	co.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.PingMessage,
+	co.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.PingMessage,
 		Delay:       time.Second * 10,
 	})
 	co.Websocket.Wg.Add(1)
@@ -71,7 +71,7 @@ func (co *CoinbaseInternational) WsConnect() error {
 }
 
 // wsReadData gets and passes on websocket messages for processing
-func (co *CoinbaseInternational) wsReadData(conn stream.Connection) {
+func (co *CoinbaseInternational) wsReadData(conn websocket.Connection) {
 	defer co.Websocket.Wg.Done()
 	for {
 		select {
@@ -151,7 +151,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 	case cnlOrderbookLevel2:
 		return co.processOrderbookLevel2(respRaw)
 	default:
-		co.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+		co.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 			Message: string(respRaw),
 		}
 		return fmt.Errorf("unhandled message: %s", string(respRaw))
