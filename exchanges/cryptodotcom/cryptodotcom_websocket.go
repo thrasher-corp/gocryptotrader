@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -62,9 +62,9 @@ var responseStream chan SubscriptionRawData
 func (cr *Cryptodotcom) WsConnect() error {
 	responseStream = make(chan SubscriptionRawData)
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 	err := cr.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -78,13 +78,13 @@ func (cr *Cryptodotcom) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			cr.Websocket.GetWebsocketURL())
 	}
-	cr.Websocket.Conn.SetupPingHandler(request.UnAuth, stream.PingHandler{
+	cr.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PingMessage,
+		MessageType:       gws.PingMessage,
 		Delay:             time.Second * 10,
 	})
 	if cr.Websocket.CanUseAuthenticatedEndpoints() {
-		var authDialer websocket.Dialer
+		var authDialer gws.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
 		err = cr.WsAuthConnect(&authDialer)
@@ -97,7 +97,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 
 // wsFunnelConnectionData receives data from multiple connection and pass the data
 // to wsRead through a channel responseStream
-func (cr *Cryptodotcom) wsFunnelConnectionData(ws stream.Connection, authenticated bool) {
+func (cr *Cryptodotcom) wsFunnelConnectionData(ws websocket.Connection, authenticated bool) {
 	defer cr.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -149,7 +149,7 @@ func (cr *Cryptodotcom) respondHeartbeat(resp *SubscriptionResponse, authConnect
 }
 
 // WsAuthConnect represents an authenticated connection to a websocket server
-func (cr *Cryptodotcom) WsAuthConnect(dialer *websocket.Dialer) error {
+func (cr *Cryptodotcom) WsAuthConnect(dialer *gws.Dialer) error {
 	if !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", cr.Name)
 	}
@@ -424,9 +424,9 @@ func (cr *Cryptodotcom) processCandlestick(resp *WsResult) error {
 	if err != nil {
 		return err
 	}
-	candles := make([]stream.KlineData, len(data))
+	candles := make([]websocket.KlineData, len(data))
 	for x := range data {
-		candles[x] = stream.KlineData{
+		candles[x] = websocket.KlineData{
 			Pair:      cp,
 			Exchange:  cr.Name,
 			Timestamp: data[x].UpdateTime.Time(),

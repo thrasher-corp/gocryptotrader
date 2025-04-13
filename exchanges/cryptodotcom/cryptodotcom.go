@@ -556,8 +556,7 @@ func (cr *Cryptodotcom) GetOTCInstruments(ctx context.Context) (*OTCInstrumentsR
 
 // RequestOTCQuote request a quote to buy or sell with either base currency or quote currency.
 // direction represents the order side enum with value of BUY, SELL, or TWO-WAY
-func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair currency.Pair,
-	baseCurrencySize, quoteCurrencySize float64, direction string) (*OTCQuoteResponse, error) {
+func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair currency.Pair, baseCurrencySize, quoteCurrencySize float64, direction string) (*OTCQuoteResponse, error) {
 	if !currencyPair.IsPopulated() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -597,8 +596,7 @@ func (cr *Cryptodotcom) AcceptOTCQuote(ctx context.Context, quoteID, direction s
 }
 
 // GetOTCQuoteHistory retrieves quote history.
-func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, currencyPair currency.Pair,
-	startTimestamp, endTimestamp time.Time, pageSize, page int64) (*QuoteHistoryResponse, error) {
+func (cr *Cryptodotcom) GetOTCQuoteHistory(ctx context.Context, currencyPair currency.Pair, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*QuoteHistoryResponse, error) {
 	params := make(map[string]interface{})
 	if !currencyPair.Base.IsEmpty() {
 		params["base_currency"] = currencyPair.Base.String()
@@ -679,9 +677,7 @@ func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, symbol, side, client
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, "private/otc/create-order", params, &resp)
 }
 
-var intervalMap = map[kline.Interval]string{
-	kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.FourHour: "4h",
-	kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.SevenDay: "7D", kline.TwoWeek: "14D", kline.OneMonth: "1M"}
+var intervalMap = map[kline.Interval]string{kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.FourHour: "4h", kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.SevenDay: "7D", kline.TwoWeek: "14D", kline.OneMonth: "1M"}
 
 // intervalToString returns a string representation of interval.
 func intervalToString(interval kline.Interval) (string, error) {
@@ -692,8 +688,7 @@ func intervalToString(interval kline.Interval) (string, error) {
 	return intervalString, nil
 }
 
-var intervalStringMap = map[string]kline.Interval{
-	"1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "1h": kline.OneHour, "4h": kline.FourHour, "6h": kline.SixHour, "12h": kline.TwelveHour, "1D": kline.OneDay, "7D": kline.SevenDay, "14D": kline.TwoWeek, "1M": kline.OneMonth}
+var intervalStringMap = map[string]kline.Interval{"1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "1h": kline.OneHour, "4h": kline.FourHour, "6h": kline.SixHour, "12h": kline.TwelveHour, "1D": kline.OneDay, "7D": kline.SevenDay, "14D": kline.TwoWeek, "1M": kline.OneMonth}
 
 // stringToInterval converts a string representation to kline.Interval instance.
 func stringToInterval(interval string) (kline.Interval, error) {
@@ -898,6 +893,7 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 	response := &RespData{
 		Result: result,
 	}
+	println("endpointPath + path: ", endpointPath+path)
 	err = cr.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,

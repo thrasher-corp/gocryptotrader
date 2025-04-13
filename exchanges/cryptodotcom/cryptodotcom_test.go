@@ -80,6 +80,7 @@ func TestGetRiskParameters(t *testing.T) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
+	cr.Verbose = true
 	result, err := cr.GetInstruments(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -147,6 +148,7 @@ func TestWithdrawFunds(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWsCreateWithdrawal(t *testing.T) {
 	t.Parallel()
 	_, err := cr.WsCreateWithdrawal(currency.EMPTYCODE, 10, core.BitcoinDonationAddress, "", "", "")
@@ -181,6 +183,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWsRetriveWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
@@ -303,7 +306,8 @@ func TestCreateOrder(t *testing.T) {
 		Side:      order.Buy,
 		OrderType: order.Limit,
 		Price:     123,
-		Quantity:  12})
+		Quantity:  12,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -329,6 +333,7 @@ func TestCancelExistingOrder(t *testing.T) {
 	err = cr.CancelExistingOrder(context.Background(), tradablePair.String(), "1232412")
 	assert.NoError(t, err)
 }
+
 func TestWsCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	err := cr.WsCancelExistingOrder("", "1232412")
@@ -390,6 +395,7 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWsRetrivePersonalOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
@@ -420,10 +426,12 @@ func TestCreateOrderList(t *testing.T) {
 	result, err := cr.CreateOrderList(context.Background(), "LIST", []CreateOrderParam{
 		{
 			Symbol: tradablePair.String(), ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
-		}})
+		},
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWsCreateOrderList(t *testing.T) {
 	t.Parallel()
 	_, err := cr.WsCreateOrderList("LIST", []CreateOrderParam{})
@@ -433,7 +441,8 @@ func TestWsCreateOrderList(t *testing.T) {
 	result, err := cr.WsCreateOrderList("LIST", []CreateOrderParam{
 		{
 			Symbol: tradablePair.String(), ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
-		}})
+		},
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -447,9 +456,7 @@ func TestCancelOrderList(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentNameOrOrderIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	result, err := cr.CancelOrderList(context.Background(), []CancelOrderParam{
-		{InstrumentName: tradablePair.String(), OrderID: "1234567"}, {InstrumentName: tradablePair.String(),
-			OrderID: "123450067"}})
+	result, err := cr.CancelOrderList(context.Background(), []CancelOrderParam{{InstrumentName: tradablePair.String(), OrderID: "1234567"}, {InstrumentName: tradablePair.String(), OrderID: "123450067"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -463,9 +470,7 @@ func TestWsCancelOrderList(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentNameOrOrderIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	result, err := cr.WsCancelOrderList([]CancelOrderParam{
-		{InstrumentName: tradablePair.String(), OrderID: "1234567"}, {InstrumentName: tradablePair.String(),
-			OrderID: "123450067"}})
+	result, err := cr.WsCancelOrderList([]CancelOrderParam{{InstrumentName: tradablePair.String(), OrderID: "1234567"}, {InstrumentName: tradablePair.String(), OrderID: "123450067"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -753,13 +758,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
-	var getOrdersRequest = order.MultiOrderRequest{
-		Type:      order.Limit,
-		Pairs:     currency.Pairs{tradablePair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)},
-		AssetType: asset.Spot,
-		Side:      order.Buy,
-	}
-	result, err := cr.GetActiveOrders(context.Background(), &getOrdersRequest)
+	result, err := cr.GetActiveOrders(context.Background(), &order.MultiOrderRequest{Type: order.Limit, Pairs: currency.Pairs{tradablePair, currency.NewPair(currency.USDT, currency.USD), currency.NewPair(currency.USD, currency.LTC)}, AssetType: asset.Spot, Side: order.Buy})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -767,7 +766,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
-	var getOrdersRequest = order.MultiOrderRequest{
+	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.Buy,
@@ -785,7 +784,7 @@ func TestGetOrderHistory(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
-	var orderSubmission = &order.Submit{
+	orderSubmission := &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
 			Quote: currency.BTC,
@@ -818,6 +817,7 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
@@ -881,7 +881,8 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 			Chain:      currency.BTC.String(),
 			Address:    core.BitcoinDonationAddress,
 			AddressTag: "",
-		}})
+		},
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -913,6 +914,7 @@ func TestWsRetriveCancelOnDisconnect(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestWsSetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
 	_, err := cr.WsSetCancelOnDisconnect("")
@@ -929,6 +931,7 @@ func TestGetCreateParamMap(t *testing.T) {
 	arg := &CreateOrderParam{Symbol: "", OrderType: order.Limit, Price: 123, Quantity: 12}
 	_, err := arg.getCreateParamMap()
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	var newone *CreateOrderParam
 	_, err = newone.getCreateParamMap()
 	require.ErrorIs(t, err, common.ErrNilPointer)
@@ -1153,7 +1156,7 @@ func TestStakingConversionRate(t *testing.T) {
 
 func TestTimeInForceString(t *testing.T) {
 	t.Parallel()
-	var timeInForceStringMap = map[order.TimeInForce]struct {
+	timeInForceStringMap := map[order.TimeInForce]struct {
 		String string
 		Error  error
 	}{
@@ -1172,7 +1175,7 @@ func TestTimeInForceString(t *testing.T) {
 
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	var orderTypeStringMap = map[order.Type]string{
+	orderTypeStringMap := map[order.Type]string{
 		order.Market:          "MARKET",
 		order.Limit:           "LIMIT",
 		order.StopLoss:        "STOP_LOSS",
@@ -1189,7 +1192,7 @@ func TestOrderTypeString(t *testing.T) {
 
 func TestPriceTypeToString(t *testing.T) {
 	t.Parallel()
-	var priceTypeToStringMap = map[order.PriceType]struct {
+	priceTypeToStringMap := map[order.PriceType]struct {
 		String string
 		Error  error
 	}{

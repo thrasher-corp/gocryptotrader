@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -37,7 +37,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.OTC, asset.Margin)
+	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.OTC)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -127,7 +127,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	cr.Websocket = stream.NewWebsocket()
+	cr.Websocket = websocket.NewManager()
 	cr.WebsocketResponseMaxLimit = time.Second * 15
 	cr.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	cr.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -152,7 +152,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = cr.Websocket.Setup(
-		&stream.WebsocketSetup{
+		&websocket.ManagerSetup{
 			ExchangeConfig:        exch,
 			DefaultURL:            cryptodotcomWebsocketUserAPI,
 			RunningURL:            wsRunningEndpoint,
@@ -167,7 +167,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = cr.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = cr.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  cryptodotcomWebsocketMarketAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -175,7 +175,7 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return cr.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return cr.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  cryptodotcomWebsocketUserAPI,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -638,9 +638,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		return nil, err
 	}
 	var ordersResp *CreateOrderResponse
-	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.PostOnly, TriggerPrice: s.TriggerPrice,
-		TriggerPriceType: priceTypeString,
-	}
+	arg := &CreateOrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.TimeInForce.Is(order.PostOnly), TriggerPrice: s.TriggerPrice, TriggerPriceType: priceTypeString}
 	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		ordersResp, err = cr.WsPlaceOrder(arg)
 	} else {
