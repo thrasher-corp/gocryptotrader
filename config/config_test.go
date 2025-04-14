@@ -1153,7 +1153,7 @@ func TestGetForexProviders(t *testing.T) {
 
 func TestGetPrimaryForexProvider(t *testing.T) {
 	t.Parallel()
-	fxr := "Fixer" // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	fxr := "Fixer"
 	cfg := &Config{
 		Currency: currency.Config{
 			ForexProviders: []currency.FXSettings{
@@ -1369,8 +1369,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
-	//nolint: gocritic
-	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
+	cpy := slices.Clone(cfg.Exchanges)
 
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true

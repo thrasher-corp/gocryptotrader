@@ -20,11 +20,9 @@ const (
 )
 
 var (
-	errInvalidAssetExpandPairs  = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
 	errAssetRecords             = errors.New("subscription template did not generate the expected number of asset records")
 	errPairRecords              = errors.New("subscription template did not generate the expected number of pair records")
 	errTooManyBatchSizePerAsset = errors.New("more than one BatchSize directive inside an AssetSeparator")
-	errAssetTemplateWithoutAll  = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
 	errNoTemplateContent        = errors.New("subscription template did not generate content")
 	errInvalidTemplate          = errors.New("GetSubscriptionTemplate did not return a template")
 )

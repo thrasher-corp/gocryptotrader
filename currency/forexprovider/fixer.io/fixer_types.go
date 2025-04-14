@@ -59,13 +59,13 @@ type Conversion struct {
 
 // TimeSeries holds timeseries data
 type TimeSeries struct {
-	Success    bool                   `json:"success"`
-	Error      RespError              `json:"error"`
-	Timeseries bool                   `json:"timeseries"`
-	StartDate  string                 `json:"start_date"`
-	EndDate    string                 `json:"end_date"`
-	Base       string                 `json:"base"`
-	Rates      map[string]interface{} `json:"rates"`
+	Success    bool           `json:"success"`
+	Error      RespError      `json:"error"`
+	Timeseries bool           `json:"timeseries"`
+	StartDate  string         `json:"start_date"`
+	EndDate    string         `json:"end_date"`
+	Base       string         `json:"base"`
+	Rates      map[string]any `json:"rates"`
 }
 
 // Fluctuation holds fluctuation data

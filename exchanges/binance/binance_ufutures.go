@@ -177,8 +177,8 @@ func (b *Binance) URecentTrades(ctx context.Context, symbol currency.Pair, fromI
 }
 
 // UFuturesHistoricalTrades gets historical public trades for USDTMarginedFutures
-func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]interface{}, error) {
-	var resp []interface{}
+func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]any, error) {
+	var resp []any
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
@@ -253,7 +253,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		rateBudget = uFuturesKlineMaxRate
 	}
 
-	var data [][10]interface{}
+	var data [][10]any
 	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return nil, err

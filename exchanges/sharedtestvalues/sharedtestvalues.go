@@ -12,9 +12,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // This package is only to be referenced in test files
@@ -40,8 +40,8 @@ const (
 
 // GetWebsocketInterfaceChannelOverride returns a new interface based channel
 // with the capacity set to WebsocketChannelOverrideCapacity
-func GetWebsocketInterfaceChannelOverride() chan interface{} {
-	return make(chan interface{}, WebsocketChannelOverrideCapacity)
+func GetWebsocketInterfaceChannelOverride() chan any {
+	return make(chan any, WebsocketChannelOverrideCapacity)
 }
 
 // GetWebsocketStructChannelOverride returns a new struct based channel
@@ -51,10 +51,10 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 }
 
 // NewTestWebsocket returns a test websocket object
-func NewTestWebsocket() *stream.Websocket {
-	w := stream.NewWebsocket()
-	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
-	w.ToRoutine = make(chan interface{}, 1000)
+func NewTestWebsocket() *websocket.Manager {
+	w := websocket.NewManager()
+	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan any, 1000)
 	return w
 }
 

@@ -21,14 +21,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Lbank is the overarching type across this package
 type Lbank struct {
 	exchange.Base
-	privateKey    *rsa.PrivateKey
-	WebsocketConn *stream.WebsocketConnection
+	privateKey *rsa.PrivateKey
 }
 
 const (
@@ -475,7 +473,7 @@ func ErrorCapture(code int64) error {
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (l *Lbank) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (l *Lbank) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := l.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -545,7 +543,7 @@ func (l *Lbank) sign(data string) (string, error) {
 }
 
 // SendAuthHTTPRequest sends an authenticated request
-func (l *Lbank) SendAuthHTTPRequest(ctx context.Context, method, endpoint string, vals url.Values, result interface{}) error {
+func (l *Lbank) SendAuthHTTPRequest(ctx context.Context, method, endpoint string, vals url.Values, result any) error {
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
 		return err

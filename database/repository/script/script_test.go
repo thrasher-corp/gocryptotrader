@@ -48,7 +48,7 @@ func TestScript(t *testing.T) {
 		config *database.Config
 		runner func()
 		closer func(dbConn *database.Instance) error
-		output interface{}
+		output any
 	}{
 		{
 			"SQLite-Write",

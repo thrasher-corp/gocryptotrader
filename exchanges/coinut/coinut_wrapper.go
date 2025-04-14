@@ -12,6 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,8 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -104,7 +104,7 @@ func (c *COINUT) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = stream.NewWebsocket()
+	c.Websocket = websocket.NewManager()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -130,7 +130,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
+	err = c.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinutWebsocketURL,
 		RunningURL:            wsRunningURL,
@@ -148,7 +148,7 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return c.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return c.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(33 * time.Millisecond),
@@ -505,7 +505,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 			return nil, errLookupInstrumentID
 		}
 
-		var APIResponse interface{}
+		var APIResponse any
 		var clientIDInt uint64
 		clientIDInt, err = strconv.ParseUint(o.ClientID, 10, 32)
 		if err != nil {
@@ -520,7 +520,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		responseMap, ok := APIResponse.(map[string]interface{})
+		responseMap, ok := APIResponse.(map[string]any)
 		if !ok {
 			return nil, errors.New("unable to type assert responseMap")
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"sort"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -30,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -57,7 +58,6 @@ var (
 )
 
 var (
-	errSetAssetPairStore                 = errors.New("error storing asset pair store")
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
@@ -1055,7 +1055,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Base) GetWebsocket() (*stream.Websocket, error) {
+func (b *Base) GetWebsocket() (*websocket.Manager, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1123,7 +1123,7 @@ func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 }
 
 // CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
-// Used to avoid import cycles on stream.websocket
+// Used to avoid import cycles on websocket.Manager
 func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
 	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
@@ -1292,12 +1292,8 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
-	urlMap := make(map[string]string)
-	for k, v := range e.defaults {
-		urlMap[k] = v
-	}
-	e.mu.RUnlock()
-	return urlMap
+	defer e.mu.RUnlock()
+	return maps.Clone(e.defaults)
 }
 
 // GetCachedOpenInterest returns open interest data if the exchange
@@ -1604,7 +1600,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 func (b *Base) Shutdown() error {
 	if b.Websocket != nil {
 		err := b.Websocket.Shutdown()
-		if err != nil && !errors.Is(err, stream.ErrNotConnected) {
+		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 			return err
 		}
 	}
@@ -1934,4 +1930,9 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 		return account.Holdings{}, err
 	}
 	return account.GetHoldings(b.Name, creds, assetType)
+}
+
+// WebsocketSubmitOrder submits an order to the exchange via a websocket connection
+func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }

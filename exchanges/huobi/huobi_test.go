@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -28,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -48,7 +48,6 @@ const (
 
 var (
 	h                  = &HUOBI{}
-	wsSetupRan         bool
 	btcFutureDatedPair currency.Pair
 	btccwPair          = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	btcusdPair         = currency.NewPairWithDelimiter("BTC", "USD", "-")
@@ -1313,9 +1312,9 @@ func TestWSCandles(t *testing.T) {
 	close(h.Websocket.DataHandler)
 	require.Len(t, h.Websocket.DataHandler, 1, "Must see correct number of records")
 	cAny := <-h.Websocket.DataHandler
-	c, ok := cAny.(stream.KlineData)
+	c, ok := cAny.(websocket.KlineData)
 	require.True(t, ok, "Must get the correct type from DataHandler")
-	exp := stream.KlineData{
+	exp := websocket.KlineData{
 		Timestamp:  time.UnixMilli(1489474082831),
 		Pair:       btcusdtPair,
 		AssetType:  asset.Spot,
@@ -1828,7 +1827,12 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 	_, err := h.FetchTradablePairs(context.Background(), asset.Futures)
 	require.NoError(t, err)
 
-	n := time.Now().Truncate(24 * time.Hour)
+	tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
+	require.NoError(t, err, "LoadLocation must not error")
+
+	n := time.Now()
+	n = time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, tz) // Do not use Truncate; https://github.com/golang/go/issues/55921
+
 	for _, cType := range contractExpiryNames {
 		p, err := h.pairFromContractExpiryCode(currency.Pair{
 			Base:  currency.BTC,
@@ -1845,8 +1849,6 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		require.True(t, ok, "%s type must be in contractExpiryNames", cType)
 		assert.Equal(t, currency.BTC, p.Base, "pair Base should be the same")
 		assert.Equal(t, exp, p.Quote, "pair Quote should be the same")
-		tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
-		require.NoError(t, err, "LoadLocation must not error")
 		d, err := time.ParseInLocation("060102", p.Quote.String(), tz)
 		require.NoError(t, err, "currency code must be a parsable date")
 		require.Falsef(t, d.Before(n), "%s expiry must be today or after", cType)
@@ -1981,20 +1983,20 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
-func wsFixture(tb testing.TB, msg []byte, w *websocket.Conn) error {
+func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
 	action, _ := jsonparser.GetString(msg, "action")
 	ch, _ := jsonparser.GetString(msg, "ch")
 	if action == "req" && ch == "auth" {
-		return w.WriteMessage(websocket.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
 	}
 	if action == "sub" {
-		return w.WriteMessage(websocket.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
 	}
 	id, _ := jsonparser.GetString(msg, "id")
 	sub, _ := jsonparser.GetString(msg, "sub")
 	if id != "" && sub != "" {
-		return w.WriteMessage(websocket.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
+		return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
 	}
 	return fmt.Errorf("%w: %s", errors.New("Unhandled mock websocket message"), msg)
 }

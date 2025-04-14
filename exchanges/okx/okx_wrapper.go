@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,8 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -177,7 +177,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.NewWebsocket()
+	ok.Websocket = websocket.NewManager()
 	ok.WebsocketResponseMaxLimit = websocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = websocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -208,7 +208,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
+	if err := ok.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             apiWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
@@ -228,7 +228,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apiWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
@@ -237,7 +237,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  apiWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     websocketResponseMaxLimit,
@@ -1751,7 +1751,7 @@ allOrders:
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
 				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime.Time() {
+				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1899,7 +1899,7 @@ allOrders:
 		for i := range orderList {
 			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
 				orderList[i].CreationTime.Time().Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime.Time() {
+				endTime.Equal(orderList[i].CreationTime.Time()) {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -2224,10 +2224,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 	}
 	// map of time indexes, allowing for easy lookup of slice index from unix time data
 	mti := make(map[int64]int)
-	for {
-		if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
-			break
-		}
+	for sd.Before(r.EndDate) {
 		var frh []FundingRateResponse
 		frh, err = ok.GetFundingRateHistory(ctx, fPair.String(), sd, r.EndDate, int64(requestLimit))
 		if err != nil {
@@ -2279,10 +2276,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
 			billDetailsFunc = ok.GetBillsDetailLast7Days
 		}
-		for {
-			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
-				break
-			}
+		for sd.Before(r.EndDate) {
 			var fri time.Duration
 			if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
 				// can infer funding rate interval from the only funding rate frequency defined
@@ -2346,20 +2340,20 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	if err != nil {
 		return 0, err
 	}
-	switch cfg[0].AccountLevel {
-	case "1":
+	switch cfg.AccountLevel {
+	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 		}
 		fallthrough
-	case "2":
+	case 2:
 		return collateral.SpotFuturesMode, nil
-	case "3":
+	case 3:
 		return collateral.MultiMode, nil
-	case "4":
+	case 4:
 		return collateral.PortfolioMode, nil
 	default:
-		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg[0].AccountLevel)
+		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg.AccountLevel)
 	}
 }
 
@@ -2573,6 +2567,10 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 	if err != nil {
 		return nil, err
 	}
+	contractsMap := make(map[currency.Pair]*futures.Contract)
+	for i := range contracts {
+		contractsMap[contracts[i].Name] = &contracts[i]
+	}
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
@@ -2580,18 +2578,12 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 		}
 		instrumentType := GetInstrumentTypeFromAssetItem(req.Asset)
 
-		multiplier := 1.0
-		var contractSettlementType futures.ContractSettlementType
-		if req.Asset.IsFutures() {
-			for j := range contracts {
-				if !contracts[j].Name.Equal(fPair) {
-					continue
-				}
-				multiplier = contracts[j].Multiplier
-				contractSettlementType = contracts[j].SettlementType
-				break
-			}
+		contract, exist := contractsMap[fPair]
+		if !exist {
+			return nil, fmt.Errorf("%w %v", futures.ErrContractNotSupported, fPair)
 		}
+		multiplier := contract.Multiplier
+		contractSettlementType := contract.SettlementType
 
 		resp[i] = futures.PositionResponse{
 			Pair:                   req.Pairs[i],
@@ -2617,7 +2609,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			return nil, err
 		}
 		for j := range positions {
-			if req.Pairs[i].String() != positions[j].InstrumentID {
+			if fPair.String() != positions[j].InstrumentID {
 				continue
 			}
 			var orderStatus order.Status

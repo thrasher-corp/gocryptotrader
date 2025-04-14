@@ -126,7 +126,7 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 		data[x].Symbol = formattedPair.String()
 	}
 
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["batchOrder"] = data
 
 	jsonData, err := json.Marshal(req)
@@ -230,7 +230,7 @@ func (k *Kraken) FuturesGetFills(ctx context.Context, lastFillTime time.Time) (F
 // FuturesTransfer transfers funds between accounts
 func (k *Kraken) FuturesTransfer(ctx context.Context, fromAccount, toAccount, unit string, amount float64) (FuturesTransferData, error) {
 	var resp FuturesTransferData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["fromAccount"] = fromAccount
 	req["toAccount"] = toAccount
 	req["unit"] = unit
@@ -333,7 +333,7 @@ func (k *Kraken) signFuturesRequest(secret, endpoint, nonce, data string) (strin
 }
 
 // SendFuturesAuthRequest will send an auth req
-func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result interface{}) error {
+func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result any) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
 		return err
