@@ -5,15 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -22,14 +19,26 @@ var (
 	errChannelEmpty     = errors.New("channel cannot be empty")
 )
 
+// authenticateSpot sends an authentication message to the websocket connection
+func (g *Gateio) authenticateSpot(ctx context.Context, conn websocket.Connection) error {
+	return g.websocketLogin(ctx, conn, "spot.login")
+}
+
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
-func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *WebsocketOrder) ([]WebsocketOrderResponse, error) {
-	return g.WebsocketSpotSubmitOrders(ctx, []WebsocketOrder{*order})
+func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) (*WebsocketOrderResponse, error) {
+	resps, err := g.WebsocketSpotSubmitOrders(ctx, order)
+	if err != nil {
+		return nil, err
+	}
+	if len(resps) != 1 {
+		return nil, common.ErrInvalidResponse
+	}
+	return &resps[0], nil
 }
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders []WebsocketOrder) ([]WebsocketOrderResponse, error) {
+func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -39,16 +48,16 @@ func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders []Websock
 			// API requires Text field, or it will be rejected
 			orders[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
 		}
-		if orders[i].CurrencyPair == "" {
+		if orders[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 		if orders[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if orders[i].Amount == "" {
+		if orders[i].Amount == 0 {
 			return nil, errInvalidAmount
 		}
-		if orders[i].Type == "limit" && orders[i].Price == "" {
+		if orders[i].Type == "limit" && orders[i].Price == 0 {
 			return nil, errInvalidPrice
 		}
 	}
@@ -152,73 +161,4 @@ func (g *Gateio) WebsocketSpotGetOrderStatus(ctx context.Context, orderID string
 
 	var resp WebsocketOrderResponse
 	return &resp, g.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_status", asset.Spot, params, &resp, 1)
-}
-
-// funnelResult is used to unmarshal the result of a websocket request back to the required caller type
-type funnelResult struct {
-	Result any `json:"result"`
-}
-
-// SendWebsocketRequest sends a websocket request to the exchange
-func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
-	paramPayload, err := json.Marshal(params)
-	if err != nil {
-		return err
-	}
-
-	conn, err := g.Websocket.GetConnection(connSignature)
-	if err != nil {
-		return err
-	}
-
-	tn := time.Now().Unix()
-	req := &WebsocketRequest{
-		Time:    tn,
-		Channel: channel,
-		Event:   "api",
-		Payload: WebsocketPayload{
-			// This request ID associated with the payload is the match to the
-			// response.
-			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
-			RequestParam: paramPayload,
-			Timestamp:    strconv.FormatInt(tn, 10),
-		},
-	}
-
-	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
-	if err != nil {
-		return err
-	}
-
-	if len(responses) == 0 {
-		return common.ErrNoResponse
-	}
-
-	var inbound WebsocketAPIResponse
-	// The last response is the one we want to unmarshal, the other is just
-	// an ack. If the request fails on the ACK then we can unmarshal the error
-	// from that as the next response won't come anyway.
-	endResponse := responses[len(responses)-1]
-
-	if err := json.Unmarshal(endResponse, &inbound); err != nil {
-		return err
-	}
-
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
-	}
-
-	return json.Unmarshal(inbound.Data, &funnelResult{Result: result})
-}
-
-type wsRespAckInspector struct{}
-
-// IsFinal checks the payload for an ack, it returns true if the payload does not contain an ack.
-// This will force the cancellation of further waiting for responses.
-func (wsRespAckInspector) IsFinal(data []byte) bool {
-	return !strings.Contains(string(data), "ack")
 }

@@ -13,6 +13,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -22,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 const (
@@ -154,11 +154,12 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 		return err
 	}
 
+	if push.RequestID != "" {
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+	}
+
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {
@@ -175,8 +176,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
-		var processed []order.Detail
-		processed, err = g.processFuturesOrdersPushData(respRaw, a)
+		processed, err := g.processFuturesOrdersPushData(respRaw, a)
 		if err != nil {
 			return err
 		}
