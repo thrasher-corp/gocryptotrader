@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,8 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -201,30 +201,22 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
-	var resp currency.Pairs
-	for _, x := range baseCurrencies {
-		var instrumentsData []InstrumentData
-		var err error
-		if d.Websocket.IsConnected() {
-			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(x), d.GetAssetKind(assetType), false)
-		} else {
-			instrumentsData, err = d.GetInstruments(ctx, currency.NewCode(x), d.GetAssetKind(assetType), false)
+
+	instruments, err := d.GetInstruments(ctx, currency.EMPTYCODE, d.GetAssetKind(assetType), false)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make(currency.Pairs, 0, len(instruments))
+	for _, inst := range instruments {
+		if !inst.IsActive {
+			continue
 		}
+		cp, err := currency.NewPairFromString(inst.InstrumentName)
 		if err != nil {
 			return nil, err
 		}
-
-		for y := range instrumentsData {
-			if !instrumentsData[y].IsActive {
-				continue
-			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
-			if err != nil {
-				return nil, err
-			}
-			resp = resp.Add(cp)
-		}
+		resp = resp.Add(cp)
 	}
 	return resp, nil
 }
@@ -1156,7 +1148,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 	}
 	resp := []futures.Contract{}
 	for _, ccy := range baseCurrencies {
-		var marketSummary []InstrumentData
+		var marketSummary []*InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
 			marketSummary, err = d.WSRetrieveInstrumentsData(currency.NewCode(ccy), d.GetAssetKind(item), false)
@@ -1166,17 +1158,16 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		if err != nil {
 			return nil, err
 		}
-		for i := range marketSummary {
-			if marketSummary[i].Kind != "future" && marketSummary[i].Kind != "future_combo" {
+		for _, inst := range marketSummary {
+			if inst.Kind != "future" && inst.Kind != "future_combo" {
 				continue
 			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(marketSummary[i].InstrumentName)
+			cp, err := currency.NewPairFromString(inst.InstrumentName)
 			if err != nil {
 				return nil, err
 			}
 			var ct futures.ContractType
-			switch marketSummary[i].SettlementPeriod {
+			switch inst.SettlementPeriod {
 			case "day":
 				ct = futures.Daily
 			case "week":
@@ -1187,7 +1178,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ct = futures.Perpetual
 			}
 			var contractSettlementType futures.ContractSettlementType
-			if marketSummary[i].InstrumentType == "reversed" {
+			if inst.InstrumentType == "reversed" {
 				contractSettlementType = futures.Inverse
 			} else {
 				contractSettlementType = futures.Linear
@@ -1195,16 +1186,16 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			resp = append(resp, futures.Contract{
 				Exchange:             d.Name,
 				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].BaseCurrency), currency.NewCode(marketSummary[i].QuoteCurrency)),
+				Underlying:           currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
 				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
-				StartDate:            marketSummary[i].CreationTimestamp.Time(),
-				EndDate:              marketSummary[i].ExpirationTimestamp.Time(),
+				SettlementCurrencies: []currency.Code{currency.NewCode(inst.SettlementCurrency)},
+				StartDate:            inst.CreationTimestamp.Time(),
+				EndDate:              inst.ExpirationTimestamp.Time(),
 				Type:                 ct,
 				SettlementType:       contractSettlementType,
-				IsActive:             marketSummary[i].IsActive,
-				MaxLeverage:          marketSummary[i].MaxLeverage,
-				Multiplier:           marketSummary[i].ContractSize,
+				IsActive:             inst.IsActive,
+				MaxLeverage:          inst.MaxLeverage,
+				Multiplier:           inst.ContractSize,
 			})
 		}
 	}
@@ -1217,7 +1208,7 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, a)
 	}
 	for _, bc := range baseCurrencies {
-		var instrumentsData []InstrumentData
+		var instrumentsData []*InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
 			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(bc), d.GetAssetKind(a), false)
@@ -1231,16 +1222,16 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		}
 
 		l := make([]limits.MinMaxLevel, len(instrumentsData))
-		for j := range instrumentsData {
+		for i, inst := range instrumentsData {
 			var pair currency.Pair
-			pair, err = currency.NewPairFromString(instrumentsData[j].InstrumentName)
+			pair, err = currency.NewPairFromString(inst.InstrumentName)
 			if err != nil {
 				return err
 			}
-			l[j] = limits.MinMaxLevel{
+			l[i] = limits.MinMaxLevel{
 				Key:                    key.NewExchangePairAssetKey(d.Name, a, pair),
-				PriceStepIncrementSize: instrumentsData[j].TickSize,
-				MinimumBaseAmount:      instrumentsData[j].MinimumTradeAmount,
+				PriceStepIncrementSize: inst.TickSize,
+				MinimumBaseAmount:      inst.MinimumTradeAmount,
 			}
 		}
 		err = limits.LoadLimits(l)

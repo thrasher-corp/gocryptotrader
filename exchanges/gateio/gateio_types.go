@@ -14,7 +14,7 @@ const (
 	// Order time in force variables
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
-	pocTIF = "poc"
+	pocTIF = "poc" // pending-or-cancel - post only
 	fokTIF = "fok" // fill-or-kill
 
 	// Frequently used order Status
@@ -1364,18 +1364,26 @@ type SpotAccount struct {
 	Locked    types.Number `json:"locked"`
 }
 
-// CreateOrderRequestData represents a single order creation param.
-type CreateOrderRequestData struct {
-	Text         string        `json:"text,omitempty"`
-	CurrencyPair currency.Pair `json:"currency_pair,omitzero"`
-	Type         string        `json:"type,omitempty"`
-	Account      string        `json:"account,omitempty"`
-	Side         string        `json:"side,omitempty"`
-	Iceberg      string        `json:"iceberg,omitempty"`
-	Amount       types.Number  `json:"amount,omitempty"`
-	Price        types.Number  `json:"price,omitempty"`
-	TimeInForce  string        `json:"time_in_force,omitempty"`
-	AutoBorrow   bool          `json:"auto_borrow,omitempty"`
+// CreateOrderRequest represents a single order creation param.
+type CreateOrderRequest struct {
+	Text                      string        `json:"text,omitempty"`
+	CurrencyPair              currency.Pair `json:"currency_pair,omitzero"`
+	Type                      string        `json:"type,omitempty"`
+	Account                   string        `json:"account,omitempty"`
+	Side                      string        `json:"side,omitempty"`
+	Iceberg                   string        `json:"iceberg,omitempty"`
+	Amount                    types.Number  `json:"amount,omitempty"`
+	Price                     types.Number  `json:"price,omitempty"`
+	TimeInForce               string        `json:"time_in_force,omitempty"`
+	AutoBorrow                bool          `json:"auto_borrow,omitempty"`
+	AutoRepay                 bool          `json:"auto_repay,omitempty"`
+	SelfTradePreventionAction string        `json:"stp_act,omitempty"`
+	// ActionMode specifies the processing mode for an order request, determining the fields returned in the response.
+	// Valid only during the request and omitted from the response. Options:
+	// - ACK: Asynchronous mode, returns only key order fields
+	// - RESULT: Excludes clearing information
+	// - FULL: Full mode (default)
+	ActionMode string `json:"action_mode,omitempty"`
 }
 
 // SpotOrder represents create order response.
@@ -1800,18 +1808,19 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
-// OrderCreateParams represents future order creation parameters
-type OrderCreateParams struct {
-	Contract      currency.Pair `json:"contract"`
-	Size          float64       `json:"size"`
-	Iceberg       int64         `json:"iceberg"`
-	Price         string        `json:"price"` // NOTE: Market orders require string "0"
-	TimeInForce   string        `json:"tif"`
-	Text          string        `json:"text,omitempty"`  // Omitempty required as payload sent as `text:""` will return error message: Text content not starting with `t-`"
-	ClosePosition bool          `json:"close,omitempty"` // Size needs to be zero if true
-	ReduceOnly    bool          `json:"reduce_only,omitempty"`
-	AutoSize      string        `json:"auto_size,omitempty"`
-	Settle        currency.Code `json:"-"` // Used in URL.
+// ContractOrderCreateParams represents future order creation parameters
+type ContractOrderCreateParams struct {
+	Contract                  currency.Pair `json:"contract"`
+	Size                      float64       `json:"size"`    // positive long, negative short
+	Iceberg                   int64         `json:"iceberg"` // required; can be zero
+	Price                     string        `json:"price"`   // NOTE: Market orders require string "0"
+	TimeInForce               string        `json:"tif"`
+	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
+	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true
+	ReduceOnly                bool          `json:"reduce_only,omitempty"`
+	AutoSize                  string        `json:"auto_size,omitempty"` // either close_long or close_short, requires zero in size field
+	Settle                    currency.Code `json:"-"`                   // Used in URL. REST Calls only.
+	SelfTradePreventionAction string        `json:"stp_act,omitempty"`
 }
 
 // Order represents future order response
