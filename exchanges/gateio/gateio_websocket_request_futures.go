@@ -7,9 +7,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 )
 
 // authenticateFutures sends an authentication message to the websocket connection
-func (g *Gateio) authenticateFutures(ctx context.Context, conn stream.Connection) error {
+func (g *Gateio) authenticateFutures(ctx context.Context, conn websocket.Connection) error {
 	return g.websocketLogin(ctx, conn, "futures.login")
 }
 
@@ -101,7 +101,7 @@ func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context,
 		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
 
-	params := struct {
+	params := &struct {
 		Contract currency.Pair `json:"contract"`
 		Side     string        `json:"side,omitempty"`
 	}{Contract: contract, Side: side}

@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -30,7 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -3164,13 +3164,11 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 }
 
-type DummyConnection struct{ stream.Connection }
+type DummyConnection struct{ websocket.Connection }
 
-func (d *DummyConnection) GenerateMessageID(bool) int64                               { return 1337 }
-func (d *DummyConnection) SetupPingHandler(request.EndpointLimit, stream.PingHandler) {}
-func (d *DummyConnection) DialContext(context.Context, *websocket.Dialer, http.Header) error {
-	return nil
-}
+func (d *DummyConnection) GenerateMessageID(bool) int64                                  { return 1337 }
+func (d *DummyConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
+func (d *DummyConnection) DialContext(context.Context, *gws.Dialer, http.Header) error   { return nil }
 
 func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
@@ -3182,7 +3180,7 @@ func TestWsConnect(t *testing.T) {
 	require.NoError(t, err)
 }
 
-var pushDataPublicMap = map[string]string{
+var pushDataMap = map[string]string{
 	"Orderbook Snapshot":   `{"topic":"orderbook.50.BTCUSDT","ts":1731035685326,"type":"snapshot","data":{"s":"BTCUSDT","b":[["75848.74","0.067669"],["75848.63","0.004772"],["75848.61","0.00659"],["75848.05","0.000329"],["75847.68","0.00159"],["75846.88","0.00159"],["75845.97","0.026366"],["75845.87","0.013185"],["75845.41","0.077259"],["75845.4","0.132228"],["75844.61","0.00159"],["75844.44","0.026367"],["75844.2","0.013185"],["75844","0.00039"],["75843.13","0.00159"],["75843.07","0.013185"],["75842.33","0.00159"],["75841.99","0.006"],["75841.75","0.019538"],["75841.74","0.04"],["75841.71","0.031817"],["75841.36","0.017336"],["75841.33","0.000072"],["75841.16","0.001872"],["75841.11","0.172641"],["75841.04","0.029772"],["75841","0.000065"],["75840.93","0.015244"],["75840.86","0.00159"],["75840.79","0.000072"],["75840.38","0.043333"],["75840.32","0.092539"],["75840.3","0.132228"],["75840.2","0.054966"],["75840.06","0.00159"],["75840","0.20726"],["75839.64","0.003744"],["75839.29","0.006592"],["75838.58","0.00159"],["75838.52","0.049778"],["75838.14","0.003955"],["75838","0.000065"],["75837.78","0.00159"],["75837.75","0.000587"],["75837.53","0.322245"],["75837.52","0.593323"],["75837.37","0.00384"],["75837.29","0.044335"],["75837.24","0.119228"],["75837.13","0.152844"]],"a":[["75848.75","0.747137"],["75848.89","0.060306"],["75848.9","0.1"],["75851.43","0.00159"],["75851.44","0.080754"],["75852.23","0.00159"],["75852.54","0.131067"],["75852.65","0.003955"],["75853.71","0.00159"],["75853.86","0.003955"],["75854.43","0.015684"],["75854.5","0.130389"],["75854.51","0.00159"],["75855.21","0.031168"],["75855.23","0.271494"],["75855.73","0.042698"],["75855.98","0.00159"],["75856.04","0.01346"],["75856.33","0.001872"],["75856.78","0.00159"],["75857.15","0.000072"],["75857.17","0.015127"],["75857.8","0.043322"],["75857.81","0.045305"],["75857.85","0.003792"],["75858.09","0.026344"],["75858.26","0.00159"],["75859.06","0.031618"],["75859.07","0.025"],["75859.1","0.006592"],["75859.98","0.013183"],["75860.12","0.00384"],["75860.54","0.00159"],["75860.74","0.051204"],["75860.75","0.065861"],["75861.18","0.031222"],["75861.33","0.00159"],["75861.64","0.003888"],["75861.96","0.042213"],["75862.28","0.000777"],["75862.79","0.013184"],["75862.81","0.00159"],["75862.84","0.027959"],["75863.16","0.003888"],["75863.51","0.043628"],["75863.52","0.002525"],["75863.61","0.00159"],["75864.2","0.003955"],["75864.76","0.000072"],["75864.81","0.002018"]],"u":2876700,"seq":47474967795},"cts":1731035685323}`,
 	"Orderbook Update":     `{"topic":"orderbook.50.BTCUSDT","ts":1731035685345,"type":"delta","data":{"s":"BTCUSDT","b":[["75848.62","0.014895"],["75837.13","0"]],"a":[["75848.89","0.088149"],["75851.44","0.078379"],["75852.65","0"],["75855.23","0.260219"],["75857.74","0.049778"]],"u":2876701,"seq":47474967823},"cts":1731035685342}`,
 	"Public Trade":         `{"topic":"publicTrade.BTCUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"BTCUSDT","BT":false}]}`,
@@ -3196,11 +3194,11 @@ var pushDataPublicMap = map[string]string{
 func TestPushDataPublic(t *testing.T) {
 	t.Parallel()
 
-	keys := slices.Collect(maps.Keys(pushDataPublicMap))
+	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
 
 	for x := range keys {
-		err := b.wsHandleData(context.Background(), []byte(pushDataPublicMap[keys[x]]), asset.Spot)
+		err := b.wsHandleData(context.Background(), []byte(pushDataMap[keys[x]]), asset.Spot)
 		assert.NoError(t, err, "wsHandleData should not error")
 	}
 }
@@ -3971,7 +3969,11 @@ func TestGetPairFromCategory(t *testing.T) {
 
 	p, a, err = b.getPairFromCategory("silly", exp.String())
 	require.Error(t, err)
+	require.Empty(t, p)
+	require.Empty(t, a)
 
 	p, a, err = b.getPairFromCategory("spot", "bad pair")
 	require.ErrorIs(t, err, currency.ErrPairNotFound)
+	require.Empty(t, p)
+	require.Empty(t, a)
 }

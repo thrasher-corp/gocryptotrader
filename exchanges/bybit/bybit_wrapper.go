@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,8 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -201,7 +201,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.NewWebsocket()
+	by.Websocket = websocket.NewManager()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -222,7 +222,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	if err := by.Websocket.Setup(&stream.WebsocketSetup{
+	if err := by.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		RunningURLAuth:               websocketPrivate,
 		Features:                     &by.Features.Supports.WebsocketCapabilities,
@@ -234,7 +234,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Spot
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      spotPublic,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
@@ -250,7 +250,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Options
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      optionPublic,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
@@ -266,7 +266,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Linear - USDT margined futures.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  linearPublic,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -287,7 +287,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Linear - USDC margined futures.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  linearPublic,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -308,7 +308,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Inverse - Coin margined futures.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   inversePublic,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -326,7 +326,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Private
-	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      websocketPrivate,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
@@ -1259,7 +1259,7 @@ func (by *Bybit) ConstructOrderDetails(tradeOrders []TradeOrder, assetType asset
 			return nil, err
 		}
 		if (pair.IsEmpty() && len(filterPairs) > 0 && !filterPairs.Contains(ePair, true)) ||
-			!(pair.IsEmpty() || pair.Equal(ePair)) {
+			(!pair.IsEmpty() && !pair.Equal(ePair)) {
 			continue
 		}
 		orderType, err := order.StringToOrderType(tradeOrders[x].OrderType)

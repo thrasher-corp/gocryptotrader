@@ -8,9 +8,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 )
 
 // authenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
+func (g *Gateio) authenticateSpot(ctx context.Context, conn websocket.Connection) error {
 	return g.websocketLogin(ctx, conn, "spot.login")
 }
 

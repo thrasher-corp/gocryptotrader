@@ -1,4 +1,4 @@
-# GoCryptoTrader package Datahistory manager
+# GoCryptoTrader package Datahistory Manager
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 

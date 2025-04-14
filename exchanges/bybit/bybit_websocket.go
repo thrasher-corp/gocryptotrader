@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -22,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -56,8 +56,6 @@ const (
 
 	// Main-net private
 	websocketPrivate = "wss://stream.bybit.com/v5/private"
-
-	privateConnection = "private"
 )
 
 var defaultSubscriptions = subscription.List{
@@ -83,12 +81,12 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect connects to a websocket feed
-func (by *Bybit) WsConnect(ctx context.Context, conn stream.Connection) error {
-	if err := conn.DialContext(ctx, &websocket.Dialer{}, http.Header{}); err != nil {
+func (by *Bybit) WsConnect(ctx context.Context, conn websocket.Connection) error {
+	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
@@ -96,7 +94,7 @@ func (by *Bybit) WsConnect(ctx context.Context, conn stream.Connection) error {
 }
 
 // WebsocketAuthenticateConnection sends an authentication message to the websocket
-func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn stream.Connection) error {
+func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn websocket.Connection) error {
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -127,11 +125,11 @@ func (by *Bybit) WebsocketAuthenticateConnection(ctx context.Context, conn strea
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(ctx context.Context, conn stream.Connection, channelsToSubscribe subscription.List) error {
+func (by *Bybit) Subscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
 	return by.handleSpotSubscription(ctx, conn, "subscribe", channelsToSubscribe)
 }
 
-func (by *Bybit) handleSubscriptions(conn stream.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
+func (by *Bybit) handleSubscriptions(conn websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(by)
 	if err != nil {
 		return
@@ -152,11 +150,11 @@ func (by *Bybit) handleSubscriptions(conn stream.Connection, operation string, s
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+func (by *Bybit) Unsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return by.handleSpotSubscription(ctx, conn, "unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSpotSubscription(ctx context.Context, conn stream.Connection, operation string, channelsToSubscribe subscription.List) error {
+func (by *Bybit) handleSpotSubscription(ctx context.Context, conn websocket.Connection, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptions(conn, operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -216,7 +214,7 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 			}
 		case "ping", "pong":
 		default:
-			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: string(respRaw)}
+			by.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
 			return nil
 		}
 		return nil
@@ -262,7 +260,7 @@ func (by *Bybit) wsHandleAuthenticated(_ context.Context, respRaw []byte) error 
 			}
 		case "ping", "pong":
 		default:
-			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: string(respRaw)}
+			by.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
 			return nil
 		}
 		return nil
@@ -452,13 +450,13 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	if err != nil {
 		return err
 	}
-	ltKline := make([]stream.KlineData, len(result))
+	ltKline := make([]websocket.KlineData, len(result))
 	for x := range result {
 		interval, err := stringToInterval(result[x].Interval)
 		if err != nil {
 			return err
 		}
-		ltKline[x] = stream.KlineData{
+		ltKline[x] = websocket.KlineData{
 			Timestamp:  result[x].Timestamp.Time(),
 			Pair:       cp,
 			AssetType:  assetType,
@@ -496,13 +494,13 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 	if err != nil {
 		return err
 	}
-	spotCandlesticks := make([]stream.KlineData, len(result))
+	spotCandlesticks := make([]websocket.KlineData, len(result))
 	for x := range result {
 		interval, err := stringToInterval(result[x].Interval)
 		if err != nil {
 			return err
 		}
-		spotCandlesticks[x] = stream.KlineData{
+		spotCandlesticks[x] = websocket.KlineData{
 			Timestamp:  result[x].Timestamp.Time(),
 			Pair:       cp,
 			AssetType:  assetType,
@@ -745,7 +743,7 @@ func hasPotentialDelimiter(a asset.Item) bool {
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (by *Bybit) handleSubscriptionNonTemplate(ctx context.Context, conn stream.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
+func (by *Bybit) handleSubscriptionNonTemplate(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptionsNonTemplate(conn, a, operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -783,7 +781,7 @@ func (by *Bybit) handleSubscriptionNonTemplate(ctx context.Context, conn stream.
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (by *Bybit) handleSubscriptionsNonTemplate(conn stream.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
+func (by *Bybit) handleSubscriptionsNonTemplate(conn websocket.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
@@ -868,12 +866,12 @@ func (by *Bybit) generateAuthSubscriptions() (subscription.List, error) {
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) authSubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
+func (by *Bybit) authSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) authUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
+func (by *Bybit) authUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
 

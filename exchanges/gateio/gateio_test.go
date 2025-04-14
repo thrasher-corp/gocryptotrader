@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -27,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -3382,7 +3382,7 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 
 func TestGetClientOrderIDFromText(t *testing.T) {
 	t.Parallel()
-	assert.Zero(t, getClientOrderIDFromText("api"), "should not return anything")
+	assert.Empty(t, getClientOrderIDFromText("api"), "should not return anything")
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
@@ -3516,7 +3516,7 @@ func TestGenerateWebsocketMessageID(t *testing.T) {
 	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
 }
 
-type DummyConnection struct{ stream.Connection }
+type DummyConnection struct{ websocket.Connection }
 
 func (d *DummyConnection) GenerateMessageID(bool) int64 { return 1337 }
 func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
@@ -3528,12 +3528,12 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := g.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, stream.Connection, string, subscription.List) ([]WsInput, error) {
+	err := g.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = g.handleSubscription(t.Context(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, stream.Connection, string, subscription.List) ([]WsInput, error) {
+	err = g.handleSubscription(t.Context(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)

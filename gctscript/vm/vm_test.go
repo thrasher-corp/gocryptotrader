@@ -268,7 +268,7 @@ func TestVMWithRunnerOnce(t *testing.T) {
 		config:  configHelper(true, true, maxTestVirtualMachines),
 		started: 1,
 	}
-	vmCount := VMSCount.Len() // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	vmCount := VMSCount.Len()
 	VM := manager.New()
 	if VM == nil {
 		t.Fatal("Failed to allocate new VM exiting")

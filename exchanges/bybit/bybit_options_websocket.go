@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -34,11 +34,11 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 }
 
 // OptionSubscribe sends a subscription message to options public channels.
-func (by *Bybit) OptionSubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
+func (by *Bybit) OptionSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
-func (by *Bybit) OptionUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
+func (by *Bybit) OptionUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -76,7 +76,7 @@ type IBotExchange interface {
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
-	GetWebsocket() (*stream.Websocket, error)
+	GetWebsocket() (*websocket.Manager, error)
 	SubscribeToWebsocketChannels(channels subscription.List) error
 	UnsubscribeToWebsocketChannels(channels subscription.List) error
 	GetSubscriptions() (subscription.List, error)

@@ -11,17 +11,17 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -57,9 +57,9 @@ var subscriptionNames = map[string]string{
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -67,8 +67,8 @@ func (b *Bitstamp) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
-		MessageType: websocket.TextMessage,
+	b.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		MessageType: gws.TextMessage,
 		Message:     hbMsg,
 		Delay:       hbInterval,
 	})
@@ -123,7 +123,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			}
 		}()
 	default:
-		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
+		b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: b.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
