@@ -3737,7 +3737,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bybit)
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -3785,7 +3785,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Bybit)
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -3798,7 +3798,7 @@ func TestSubscribe(t *testing.T) {
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bybit)
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b))
 	require.NoError(t, b.authSubscribe(context.Background(), &DummyConnection{}, subscription.List{}))
 
@@ -3818,7 +3818,7 @@ func TestAuthSubscribe(t *testing.T) {
 func TestWebsocketAuthenticateConnection(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bybit)
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b))
 	b.API.AuthenticatedSupport = true
 	b.API.AuthenticatedWebsocketSupport = true
@@ -3894,12 +3894,12 @@ func TestTransformSymbol(t *testing.T) {
 
 func TestWswsProcessOrder(t *testing.T) {
 	t.Parallel()
-	b := new(Bybit)
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b))
 
 	var wsOrderResponse WebsocketResponse
 	err := b.wsProcessOrder(&wsOrderResponse)
-	require.NotNil(t, err)
+	require.Error(t, err)
 	require.Contains(t, err.Error(), "unexpected end of JSON input")
 
 	wsOrderResponse = WebsocketResponse{
@@ -3908,16 +3908,16 @@ func TestWswsProcessOrder(t *testing.T) {
 
 	var o []order.Detail
 	var wg sync.WaitGroup
+	var ok bool
 	wg.Add(1)
 	go func() {
 		data := <-b.Websocket.DataHandler
-		var ok bool
 		o, ok = data.([]order.Detail)
-		require.True(t, ok)
 		wg.Done()
 	}()
 	require.NoError(t, b.wsProcessOrder(&wsOrderResponse))
 	wg.Wait()
+	require.True(t, ok)
 	require.Len(t, o, 1)
 	require.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", o[0].OrderID)
 	require.Equal(t, "BTC_USDT", o[0].Pair.String())

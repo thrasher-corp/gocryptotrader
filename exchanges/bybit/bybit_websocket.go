@@ -245,7 +245,6 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 }
 
 func (by *Bybit) wsHandleAuthenticated(_ context.Context, respRaw []byte) error {
-	fmt.Println(string(respRaw))
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
