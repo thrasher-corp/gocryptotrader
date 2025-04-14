@@ -379,7 +379,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 
 	privateUnifiedSpotEPL: standardRateLimit(),
 
-	websocketRateLimitNotNeededEPL: nil, // no rate limit for certain websocket functions
+	websocketRateLimitNotNeededEPL: request.RateLimitNotRequired, // no rate limit for certain websocket functions
 }
 
 func standardRateLimit() *request.RateLimiterWithWeight {
