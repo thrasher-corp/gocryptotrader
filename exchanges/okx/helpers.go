@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// orderTypeFromString returns order.Type instance from string
+// orderTypeFromString for converting case insensitive order type and returning a real Type specific to okx exchange
 func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {

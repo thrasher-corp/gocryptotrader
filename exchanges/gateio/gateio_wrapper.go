@@ -2555,7 +2555,7 @@ func getTimeInForce(s *order.Submit) (string, error) {
 			return "", nil
 		}
 	default:
-		return "", fmt.Errorf("%w: time-in-force value of %v", order.ErrInvalidTimeInForce, s.TimeInForce)
+		return "", fmt.Errorf("%w: `%s`", order.ErrInvalidTimeInForce, s.TimeInForce)
 	}
 }
 

@@ -916,7 +916,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				return nil, err
 			}
 			if ordersData[y].PostOnly {
-				tif = order.PostOnly
+				tif |= order.PostOnly
 			}
 
 			resp = append(resp, order.Detail{
