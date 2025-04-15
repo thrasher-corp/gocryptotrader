@@ -846,7 +846,14 @@
     },
     "urlEndpoints": null
    },
-   "features": null,
+   "features": {
+    "supports": {
+    "websocketAPI": true
+    },
+    "enabled": {
+     "websocketAPI": true
+    }
+   },
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 0,

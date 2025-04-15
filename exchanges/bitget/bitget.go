@@ -5217,8 +5217,8 @@ func (bi *Bitget) SendHTTPRequest(ctx context.Context, ep exchange.URL, rateLim 
 	if err != nil {
 		return err
 	}
+	path = common.EncodeURLValues(path, queryParams)
 	newRequest := func() (*request.Item, error) {
-		path = common.EncodeURLValues(path, queryParams)
 		return &request.Item{
 			Method:        "GET",
 			Path:          endpoint + path,

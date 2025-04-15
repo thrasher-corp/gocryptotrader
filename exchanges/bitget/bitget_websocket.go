@@ -235,7 +235,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 		case bitgetFillChannel:
 			err = bi.fillDataHandler(&wsResponse, respRaw)
 		case bitgetOrdersChannel:
-			err = bi.spotOrderDataHandler(&wsResponse, respRaw)
+			err = bi.genOrderDataHandler(&wsResponse, respRaw)
 		case bitgetOrdersAlgoChannel:
 			err = bi.triggerOrderDataHandler(&wsResponse, respRaw)
 		case bitgetPositionsChannel:
@@ -583,8 +583,8 @@ func (bi *Bitget) fillDataHandler(wsResponse *WsResponse, respRaw []byte) error 
 	return nil
 }
 
-// SpotOrderDataHandler handles spot order data
-func (bi *Bitget) spotOrderDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+// genOrderDataHandler handles generic order data
+func (bi *Bitget) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) error {
 	respAsset := itemDecoder(wsResponse.Arg.InstrumentType)
 	switch respAsset {
 	case asset.Spot:
