@@ -381,7 +381,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
 	switch {
-	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
+	case f.Exchange != "" && d.Exchange != f.Exchange:
 		return false
 	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
 		return false
