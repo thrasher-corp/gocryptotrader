@@ -210,11 +210,11 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 }
 
 // registerVersion takes instances of config versions and adds them to the registry
-func (m *manager) registerVersion(ver int, v any) {
+func (m *manager) registerVersion(ver uint16, v any) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	if ver >= len(m.versions) {
-		m.versions = slices.Grow(m.versions, ver+1)[:ver+1]
+	if int(ver) >= len(m.versions) {
+		m.versions = slices.Grow(m.versions, int(ver+1))[:ver+1]
 	}
 	m.versions[ver] = v
 }
