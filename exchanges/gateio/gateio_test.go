@@ -3895,6 +3895,22 @@ func TestConvertSmallBalances(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	err = g.ConvertSmallBalances(request.WithVerbose(t.Context()), currency.F16)
+	err = g.ConvertSmallBalances(t.Context(), currency.F16)
 	require.NoError(t, err)
+}
+
+func TestGetAccountDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+	got, err := g.GetAccountDetail(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+func TestGetUserTransactionRateLimitInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+	got, err := g.GetUserTransactionRateLimitInfo(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
 }
