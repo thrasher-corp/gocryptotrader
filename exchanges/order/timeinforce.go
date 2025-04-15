@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// var error definitions
 var (
 	ErrInvalidTimeInForce     = errors.New("invalid time in force value provided")
 	ErrUnsupportedTimeInForce = errors.New("unsupported time in force value")

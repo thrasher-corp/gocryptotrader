@@ -402,6 +402,7 @@ const (
 	CouldNotCloseLong
 	MissingData
 )
+
 // ByPrice used for sorting orders by price
 type ByPrice []Detail
 

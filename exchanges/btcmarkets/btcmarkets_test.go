@@ -1001,10 +1001,10 @@ func TestGetTimeInForce(t *testing.T) {
 	require.Empty(t, f)
 
 	f = b.getTimeInForce(&order.Submit{TimeInForce: order.ImmediateOrCancel})
-	require.Equal(t, f, "IOC")
+	require.Equal(t, "IOC", f)
 
 	f = b.getTimeInForce(&order.Submit{TimeInForce: order.FillOrKill})
-	require.Equal(t, f, "FOK")
+	assert.Equal(t, "FOK", f)
 }
 
 func TestReplaceOrder(t *testing.T) {
