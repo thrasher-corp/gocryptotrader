@@ -1350,19 +1350,19 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 // every 3 days.
 // Providing a list of currency codes will convert only those, else all small currencies will be converted.
 func (g *Gateio) ConvertSmallBalances(ctx context.Context, codes ...currency.Code) error {
-	out := make([]string, len(codes))
+	currencyList := make([]string, len(codes))
 	for i := range codes {
 		if codes[i].IsEmpty() {
 			return currency.ErrCurrencyCodeEmpty
 		}
-		out[i] = codes[i].Upper().String()
+		currencyList[i] = codes[i].Upper().String()
 	}
 
 	body := struct {
 		Currency []string `json:"currency"`
 		IsAll    bool     `json:"is_all"`
 	}{
-		Currency: out,
+		Currency: currencyList,
 		IsAll:    len(codes) == 0,
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, body, nil)
