@@ -317,7 +317,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.OrderID = m.OrderID
 		updated = true
 	}
-	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnsetTIF {
+	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
 		d.TimeInForce = m.TimeInForce
 		updated = true
 	}

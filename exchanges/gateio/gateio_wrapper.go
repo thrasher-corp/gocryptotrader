@@ -2493,22 +2493,22 @@ func getClientOrderIDFromText(text string) string {
 }
 
 // getTypeFromTimeInForceAndPrice returns the order type and if the order is post only
-func getTypeFromTimeInForceAndPrice(tif string, price float64) (orderType order.Type, postOnly order.TimeInForce) {
+func getTypeFromTimeInForceAndPrice(tif string, price float64) (order.Type, order.TimeInForce) {
 	oType := order.Market
 	if price > 0 {
 		oType = order.Limit
 	}
 	switch tif {
-	case "ioc":
+	case iocTIF:
 		return oType, order.ImmediateOrCancel
-	case "fok":
+	case fokTIF:
 		return oType, order.FillOrKill
-	case "poc":
+	case pocTIF:
 		return order.Limit, order.PostOnly
-	case "gtc":
+	case gtcTIF:
 		return order.Limit, order.GoodTillCancel
 	default:
-		return order.Limit, order.UnsetTIF
+		return order.Limit, order.UnknownTIF
 	}
 }
 
@@ -2545,7 +2545,7 @@ func getTimeInForce(s *order.Submit) (string, error) {
 		return "poc", nil
 	case s.TimeInForce.Is(order.GoodTillCancel):
 		return "gtc", nil
-	case s.TimeInForce == order.UnsetTIF:
+	case s.TimeInForce == order.UnknownTIF:
 		switch s.Type {
 		case order.Market:
 			return "ioc", nil
@@ -2680,7 +2680,10 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 				purchased = resp.FilledTotal.Float64()
 			}
 		}
-		_, tif := getTypeFromTimeInForceAndPrice(resp.TimeInForce, resp.Price.Float64())
+		tif, err := stringToTimeInForce(resp.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              resp.ID,
@@ -2745,7 +2748,10 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		if resp.Text != "" && strings.HasPrefix(resp.Text, "t-") {
 			clientOrderID = resp.Text
 		}
-		_, tif := getTypeFromTimeInForceAndPrice(resp.TimeInForce, resp.Price.Float64())
+		tif, err := stringToTimeInForce(resp.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              strconv.FormatInt(resp.ID, 10),

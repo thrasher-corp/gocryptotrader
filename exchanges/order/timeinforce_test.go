@@ -18,8 +18,7 @@ func TestIsValid(t *testing.T) {
 		GoodTillDay:       true,
 		FillOrKill:        true,
 		PostOnly:          true,
-		UnsetTIF:          false,
-		UnknownTIF:        false,
+		UnknownTIF:        true,
 	}
 	var tif TimeInForce
 	for tif = range timeInForceValidityMap {
@@ -31,7 +30,6 @@ var timeInForceStringToValueMap = map[string]struct {
 	TIF   TimeInForce
 	Error error
 }{
-	"Unknown":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
 	"GoodTillCancel":               {TIF: GoodTillCancel},
 	"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
 	"GTT":                          {TIF: GoodTillTime},
@@ -39,7 +37,6 @@ var timeInForceStringToValueMap = map[string]struct {
 	"FILLORKILL":                   {TIF: FillOrKill},
 	"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel | PostOnly},
 	"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
-	"":                             {TIF: UnsetTIF},
 	"IOC":                          {TIF: ImmediateOrCancel},
 	"immediate_or_cancel":          {TIF: ImmediateOrCancel},
 	"IMMEDIATE_OR_CANCEL":          {TIF: ImmediateOrCancel},
@@ -74,8 +71,7 @@ func TestString(t *testing.T) {
 		GoodTillTime:                   "GTT",
 		GoodTillDay:                    "GTD",
 		FillOrKill:                     "FOK",
-		UnknownTIF:                     "UNKNOWN",
-		UnsetTIF:                       "",
+		UnknownTIF:                     "",
 		PostOnly:                       "POSTONLY",
 		GoodTillCancel | PostOnly:      "GTC,POSTONLY",
 		GoodTillTime | PostOnly:        "GTT,POSTONLY",
@@ -91,7 +87,7 @@ func TestString(t *testing.T) {
 func TestUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	targets := []TimeInForce{
-		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnsetTIF, PostOnly | ImmediateOrCancel,
+		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnknownTIF, PostOnly | ImmediateOrCancel,
 		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
 	}
 	data := `{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`

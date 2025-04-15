@@ -686,6 +686,15 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 	return nil, common.ErrFunctionNotSupported
 }
 
+func timeInForceString(tif order.TimeInForce) (string, error) {
+	switch tif {
+	case order.GoodTillCancel, order.GoodTillDay, order.ImmediateOrCancel:
+		return tif.String(), nil
+	default:
+		return "", fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, tif.String())
+	}
+}
+
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(k.GetTradingRequirements())
@@ -697,9 +706,9 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := order.GoodTillCancel.String()
-		if s.TimeInForce.Is(order.ImmediateOrCancel) {
-			timeInForce = s.TimeInForce.String()
+		timeInForce, err := timeInForceString(s.TimeInForce)
+		if err != nil {
+			return nil, err
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{

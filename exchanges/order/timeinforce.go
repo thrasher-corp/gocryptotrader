@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	ErrInvalidTimeInForce = errors.New("invalid time in force value provided")
+	ErrInvalidTimeInForce     = errors.New("invalid time in force value provided")
+	ErrUnsupportedTimeInForce = errors.New("unsupported time in force value")
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
@@ -15,7 +16,7 @@ type TimeInForce uint16
 
 // TimeInForce types
 const (
-	UnsetTIF       TimeInForce = 0
+	UnknownTIF     TimeInForce = 0
 	GoodTillCancel TimeInForce = 1 << iota
 	GoodTillDay
 	GoodTillTime
@@ -23,7 +24,6 @@ const (
 	FillOrKill
 	ImmediateOrCancel
 	PostOnly
-	UnknownTIF
 
 	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly
 )
@@ -39,33 +39,23 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
 	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
-		result |= ImmediateOrCancel
-	}
-	switch timeInForce {
-	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String(), "POST_ONLY_GOOD_TIL_CANCELLED":
-		result |= GoodTillCancel
-	}
-	switch timeInForce {
+		result = ImmediateOrCancel
+	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String():
+		result = GoodTillCancel
 	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
-		result |= GoodTillDay
-	}
-	switch timeInForce {
+		result = GoodTillDay
 	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
-		result |= GoodTillTime
-	}
-	switch timeInForce {
+		result = GoodTillTime
 	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
-		result |= GoodTillCrossing
-	}
-	switch timeInForce {
+		result = GoodTillCrossing
 	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
-		result |= FillOrKill
+		result = FillOrKill
+	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
+		result = PostOnly
+	case "POST_ONLY_GOOD_TIL_CANCELLED":
+		result = GoodTillCancel | PostOnly
 	}
-	switch timeInForce {
-	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL", "POST_ONLY_GOOD_TIL_CANCELLED":
-		result |= PostOnly
-	}
-	if result == UnsetTIF && timeInForce != "" {
+	if result == UnknownTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
 	return result, nil
@@ -74,7 +64,11 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 // IsValid returns whether or not the supplied time in force value is valid or
 // not
 func (t TimeInForce) IsValid() bool {
-	return t != UnsetTIF && supportedTimeInForceFlag&t == t
+	if ((t|ImmediateOrCancel == ImmediateOrCancel) && t != ImmediateOrCancel) ||
+		((t|FillOrKill == FillOrKill) && t != FillOrKill) {
+		return false
+	}
+	return t == UnknownTIF || supportedTimeInForceFlag&t == t
 }
 
 // String implements the stringer interface.
@@ -101,7 +95,7 @@ func (t TimeInForce) String() string {
 	if t.Is(PostOnly) {
 		tifStrings = append(tifStrings, "POSTONLY")
 	}
-	if t == UnsetTIF {
+	if t == UnknownTIF {
 		return ""
 	}
 	if len(tifStrings) == 0 {

@@ -3399,8 +3399,8 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 	}{
 		{"gtc", 0}:   {order.Limit, order.GoodTillCancel},
 		{"gtc", 1.2}: {order.Limit, order.GoodTillCancel},
-		{"", 0}:      {order.Limit, order.UnsetTIF},
-		{"", 1.2}:    {order.Limit, order.UnsetTIF},
+		{"", 0}:      {order.Limit, order.UnknownTIF},
+		{"", 1.2}:    {order.Limit, order.UnknownTIF},
 		{"ioc", 0}:   {order.Market, order.ImmediateOrCancel},
 		{"ioc", 1.3}: {order.Limit, order.ImmediateOrCancel},
 		{"poc", .1}:  {order.Limit, order.PostOnly},

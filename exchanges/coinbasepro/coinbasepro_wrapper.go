@@ -430,14 +430,17 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fPair.String(),
 			"")
 	case order.Limit:
-		timeInForce := order.GoodTillCancel.String()
-		if s.TimeInForce.Is(order.ImmediateOrCancel) {
-			timeInForce = order.ImmediateOrCancel.String()
+		var timeInForceString string
+		switch s.TimeInForce {
+		case order.GoodTillCancel, order.GoodTillTime, order.ImmediateOrCancel, order.FillOrKill:
+			timeInForceString = s.TimeInForce.String()
+		default:
+			return nil, fmt.Errorf("%w, unsupported time-in-force value %v", order.ErrUnsupportedTimeInForce, s.TimeInForce.String())
 		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
 			s.Side.Lower(),
-			timeInForce,
+			timeInForceString,
 			"",
 			fPair.String(),
 			"",
