@@ -412,16 +412,16 @@ func (c *CoinbasePro) GetSubscriptionTemplate(_ *subscription.Subscription) (*te
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (c *CoinbasePro) Subscribe(subs subscription.List) error {
-	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs("subscribe", subs) }, 1)
+	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs(context.TODO(), "subscribe", subs) }, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
 func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
-	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs("unsubscribe", subs) }, 1)
+	return c.ParallelChanOp(subs, func(subs subscription.List) error { return c.manageSubs(context.TODO(), "unsubscribe", subs) }, 1)
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
-func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
+func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(c)
 	for _, s := range subs {
@@ -435,7 +435,7 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 		limitType := WSUnauthRate
 		if s.Authenticated {
 			limitType = WSAuthRate
-			if r.JWT, err = c.GetWSJWT(); err != nil {
+			if r.JWT, err = c.GetWSJWT(ctx); err != nil {
 				return err
 			}
 		}
@@ -453,7 +453,7 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 }
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
-func (c *CoinbasePro) GetWSJWT() (string, error) {
+func (c *CoinbasePro) GetWSJWT(ctx context.Context) (string, error) {
 	c.jwtStruct.m.RLock()
 	if c.jwtStruct.jwtExpire.After(time.Now()) {
 		retStr := c.jwtStruct.jwt
@@ -464,7 +464,7 @@ func (c *CoinbasePro) GetWSJWT() (string, error) {
 	c.jwtStruct.m.Lock()
 	defer c.jwtStruct.m.Unlock()
 	var err error
-	c.jwtStruct.jwt, c.jwtStruct.jwtExpire, err = c.GetJWT(context.Background(), "")
+	c.jwtStruct.jwt, c.jwtStruct.jwtExpire, err = c.GetJWT(ctx, "")
 	return c.jwtStruct.jwt, err
 }
 
