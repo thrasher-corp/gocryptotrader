@@ -2706,8 +2706,8 @@ type AccountDetail struct {
 
 // UserTransactionRateLimitInfo represents user transaction rate limit information
 type UserTransactionRateLimitInfo struct {
-	Tier      int64      `json:"tier,string"`
-	Ratio     float64    `json:"ratio,string"`
-	MainRatio float64    `json:"main_ratio,string"`
-	UpdatedAt types.Time `json:"updated_at"`
+	Tier      types.Number `json:"tier"`
+	Ratio     types.Number `json:"ratio"`
+	MainRatio types.Number `json:"main_ratio"`
+	UpdatedAt types.Time   `json:"updated_at"`
 }
