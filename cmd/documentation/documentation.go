@@ -39,7 +39,7 @@ const (
 	// ContributorFile defines contributor file
 	ContributorFile = "CONTRIBUTORS"
 
-	defaultGithubAPIPerPageLimit = "100"
+	defaultGithubAPIPerPageLimit = 100
 )
 
 var (
@@ -352,9 +352,9 @@ func GetTemplateFiles() (*template.Template, error) {
 func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contributor, error) {
 	var contributors []Contributor
 	vals := url.Values{}
-	vals.Set("per_page", defaultGithubAPIPerPageLimit)
-	page := 1
-	for {
+	vals.Set("per_page", strconv.Itoa(defaultGithubAPIPerPageLimit))
+
+	for page := 1; ; page++ {
 		vals.Set("page", strconv.Itoa(page))
 
 		contents, err := common.SendHTTPRequest(ctx, http.MethodGet, common.EncodeURLValues(repo+GithubAPIEndpoint, vals), nil, nil, verbose)
@@ -368,11 +368,9 @@ func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contr
 		}
 
 		contributors = append(contributors, resp...)
-		if len(resp) < 100 {
+		if len(resp) < defaultGithubAPIPerPageLimit {
 			return contributors, nil
 		}
-
-		page++
 	}
 }
 
