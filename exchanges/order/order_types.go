@@ -402,30 +402,6 @@ const (
 	CouldNotCloseLong
 	MissingData
 )
-
-// TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint16
-
-// Is checks to see if the enum contains the flag
-func (t TimeInForce) Is(in TimeInForce) bool {
-	return in != 0 && t&in == in
-}
-
-// TimeInForce types
-const (
-	UnsetTIF       TimeInForce = 0
-	GoodTillCancel TimeInForce = 1 << iota
-	GoodTillDay
-	GoodTillTime
-	GoodTillCrossing
-	FillOrKill
-	ImmediateOrCancel
-	PostOnly
-	UnknownTIF
-
-	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly
-)
-
 // ByPrice used for sorting orders by price
 type ByPrice []Detail
 

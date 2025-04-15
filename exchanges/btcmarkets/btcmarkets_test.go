@@ -998,19 +998,13 @@ func TestFormatOrderSide(t *testing.T) {
 func TestGetTimeInForce(t *testing.T) {
 	t.Parallel()
 	f := b.getTimeInForce(&order.Submit{})
-	if f != "" {
-		t.Fatal("unexpected value")
-	}
+	require.Empty(t, f)
 
 	f = b.getTimeInForce(&order.Submit{TimeInForce: order.ImmediateOrCancel})
-	if f != "IOC" {
-		t.Fatalf("received: '%v' but expected: '%v'", f, "IOC")
-	}
+	require.Equal(t, f, "IOC")
 
 	f = b.getTimeInForce(&order.Submit{TimeInForce: order.FillOrKill})
-	if f != "FOK" {
-		t.Fatalf("received: '%v' but expected: '%v'", f, "FOK")
-	}
+	require.Equal(t, f, "FOK")
 }
 
 func TestReplaceOrder(t *testing.T) {
