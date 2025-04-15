@@ -3887,3 +3887,14 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertSmallBalances(t *testing.T) {
+	t.Parallel()
+	err := g.ConvertSmallBalances(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
+	err = g.ConvertSmallBalances(request.WithVerbose(t.Context()), currency.F16)
+	require.NoError(t, err)
+}

@@ -1345,6 +1345,27 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, walletTotalBalance, params, nil, &response)
 }
 
+// ConvertSmallBalances converts small balances to Gate IO token (GT). This can only be performed once a day.
+// Providing a list of currency codes will convert only those, else all small currencies <= ~6 USD worth will be converted.
+func (g *Gateio) ConvertSmallBalances(ctx context.Context, codes ...currency.Code) error {
+	out := make([]string, len(codes))
+	for i := range codes {
+		if codes[i].IsEmpty() {
+			return currency.ErrCurrencyCodeEmpty
+		}
+		out[i] = codes[i].Upper().String()
+	}
+
+	body := struct {
+		Currency []string `json:"currency"`
+		IsAll    bool     `json:"is_all"`
+	}{
+		Currency: out,
+		IsAll:    len(codes) == 0,
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, body, nil)
+}
+
 // ********************************* Margin *******************************************
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
