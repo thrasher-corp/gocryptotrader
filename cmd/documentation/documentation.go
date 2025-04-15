@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -36,6 +38,8 @@ const (
 
 	// ContributorFile defines contributor file
 	ContributorFile = "CONTRIBUTORS"
+
+	defaultGithubAPIPerPageLimit = 100
 )
 
 var (
@@ -168,99 +172,14 @@ func main() {
 		if verbose {
 			fmt.Println("Fetching repository contributor list...")
 		}
-		contributors, err = GetContributorList(config.GithubRepo, verbose)
+		contributors, err = GetContributorList(context.TODO(), config.GithubRepo, verbose)
 		if err != nil {
 			log.Fatalf("Documentation Generation Tool - GetContributorList error %s",
 				err)
 		}
 
-		// Github API missing contributors
+		// Github API missing/deleted user contributors
 		contributors = append(contributors, []Contributor{
-			{
-				Login:         "andreygrehov",
-				URL:           "https://github.com/andreygrehov",
-				Contributions: 2,
-			},
-			{
-				Login:         "azhang",
-				URL:           "https://github.com/azhang",
-				Contributions: 2,
-			},
-			{
-				Login:         "bretep",
-				URL:           "https://github.com/bretep",
-				Contributions: 2,
-			},
-			{
-				Login:         "Christian-Achilli",
-				URL:           "https://github.com/Christian-Achilli",
-				Contributions: 2,
-			},
-			{
-				Login:         "cornelk",
-				URL:           "https://github.com/cornelk",
-				Contributions: 2,
-			},
-			{
-				Login:         "gam-phon",
-				URL:           "https://github.com/gam-phon",
-				Contributions: 2,
-			},
-			{
-				Login:         "if1live",
-				URL:           "https://github.com/if1live",
-				Contributions: 2,
-			},
-			{
-				Login:         "lozdog245",
-				URL:           "https://github.com/lozdog245",
-				Contributions: 2,
-			},
-			{
-				Login:         "MarkDzulko",
-				URL:           "https://github.com/MarkDzulko",
-				Contributions: 2,
-			},
-			{
-				Login:         "blombard",
-				URL:           "https://github.com/blombard",
-				Contributions: 1,
-			},
-			{
-				Login:         "cavapoo2",
-				URL:           "https://github.com/cavapoo2",
-				Contributions: 1,
-			},
-			{
-				Login:         "CodeLingoTeam",
-				URL:           "https://github.com/CodeLingoTeam",
-				Contributions: 1,
-			},
-			{
-				Login:         "CodeLingoBot",
-				URL:           "https://github.com/CodeLingoBot",
-				Contributions: 1,
-			},
-			{
-				Login:         "Daanikus",
-				URL:           "https://github.com/Daanikus",
-				Contributions: 1,
-			},
-			{
-				Login:         "daniel-cohen",
-				URL:           "https://github.com/daniel-cohen",
-				Contributions: 1,
-			},
-			{
-				Login:         "DirectX",
-				URL:           "https://github.com/DirectX",
-				Contributions: 1,
-			},
-			{
-				Login:         "frankzougc",
-				URL:           "https://github.com/frankzougc",
-				Contributions: 1,
-			},
 			// idoall's contributors were forked and merged, so his contributions
 			// aren't automatically retrievable
 			{
@@ -269,48 +188,8 @@ func main() {
 				Contributions: 1,
 			},
 			{
-				Login:         "Jimexist",
-				URL:           "https://github.com/Jimexist",
-				Contributions: 1,
-			},
-			{
-				Login:         "lookfirst",
-				URL:           "https://github.com/lookfirst",
-				Contributions: 1,
-			},
-			{
-				Login:         "m1kola",
-				URL:           "https://github.com/m1kola",
-				Contributions: 1,
-			},
-			{
-				Login:         "mattkanwisher",
-				URL:           "https://github.com/mattkanwisher",
-				Contributions: 1,
-			},
-			{
-				Login:         "merkeld",
-				URL:           "https://github.com/merkeld",
-				Contributions: 1,
-			},
-			{
-				Login:         "mKurrels",
-				URL:           "https://github.com/mKurrels",
-				Contributions: 1,
-			},
-			{
-				Login:         "soxipy",
-				URL:           "https://github.com/soxipy",
-				Contributions: 2,
-			},
-			{
 				Login:         "starit",
 				URL:           "https://github.com/starit",
-				Contributions: 1,
-			},
-			{
-				Login:         "zeldrinn",
-				URL:           "https://github.com/zeldrinn",
 				Contributions: 1,
 			},
 		}...)
@@ -469,21 +348,30 @@ func GetTemplateFiles() (*template.Template, error) {
 	return tmpl, filepath.Walk(toolDir, walkFn)
 }
 
-// GetContributorList fetches a list of contributors from the github api
-// endpoint
-func GetContributorList(repo string, verbose bool) ([]Contributor, error) {
-	contents, err := common.SendHTTPRequest(context.TODO(),
-		http.MethodGet,
-		repo+GithubAPIEndpoint,
-		nil,
-		nil,
-		verbose)
-	if err != nil {
-		return nil, err
-	}
+// GetContributorList fetches a list of contributors from the Github API endpoint
+func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contributor, error) {
+	var contributors []Contributor
+	vals := url.Values{}
+	vals.Set("per_page", strconv.Itoa(defaultGithubAPIPerPageLimit))
 
-	var resp []Contributor
-	return resp, json.Unmarshal(contents, &resp)
+	for page := 1; ; page++ {
+		vals.Set("page", strconv.Itoa(page))
+
+		contents, err := common.SendHTTPRequest(ctx, http.MethodGet, common.EncodeURLValues(repo+GithubAPIEndpoint, vals), nil, nil, verbose)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp []Contributor
+		if err := json.Unmarshal(contents, &resp); err != nil {
+			return nil, err
+		}
+
+		contributors = append(contributors, resp...)
+		if len(resp) < defaultGithubAPIPerPageLimit {
+			return contributors, nil
+		}
+	}
 }
 
 // GetDocumentationAttributes returns specific attributes for a file template
