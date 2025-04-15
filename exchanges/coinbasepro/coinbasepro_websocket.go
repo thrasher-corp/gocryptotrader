@@ -9,16 +9,16 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -59,9 +59,9 @@ var defaultSubscriptions = subscription.List{
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -155,10 +155,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 		if err := json.Unmarshal(inc.Events, &wsCandles); err != nil {
 			return &inc.Sequence, err
 		}
-		var sliToSend []stream.KlineData
+		var sliToSend []websocket.KlineData
 		for i := range wsCandles {
 			for j := range wsCandles[i].Candles {
-				sliToSend = append(sliToSend, stream.KlineData{
+				sliToSend = append(sliToSend, websocket.KlineData{
 					Timestamp:  inc.Timestamp,
 					Pair:       wsCandles[i].Candles[j].ProductID,
 					AssetType:  asset.Spot,

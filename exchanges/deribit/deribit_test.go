@@ -124,11 +124,11 @@ func instantiateTradablePairs() {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := d.UpdateTicker(context.Background(), currency.Pair{}, asset.Margin)
+	_, err := d.UpdateTicker(t.Context(), currency.Pair{}, asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.UpdateTicker(context.Background(), cp, assetType)
+		result, err := d.UpdateTicker(t.Context(), cp, assetType)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -137,7 +137,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.UpdateOrderbook(context.Background(), cp, assetType)
+		result, err := d.UpdateOrderbook(t.Context(), cp, assetType)
 		require.NoErrorf(t, err, "asset type: %v", assetType)
 		require.NotNil(t, result)
 	}
@@ -145,10 +145,10 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricTrades(context.Background(), futureComboTradablePair, asset.FutureCombo, time.Now().Add(-time.Minute*10), time.Now())
+	_, err := d.GetHistoricTrades(t.Context(), futureComboTradablePair, asset.FutureCombo, time.Now().Add(-time.Minute*10), time.Now())
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	for assetType, cp := range map[asset.Item]currency.Pair{asset.Spot: spotTradablePair, asset.Futures: futuresTradablePair} {
-		_, err = d.GetHistoricTrades(context.Background(), cp, assetType, time.Now().Add(-time.Minute*10), time.Now())
+		_, err = d.GetHistoricTrades(t.Context(), cp, assetType, time.Now().Add(-time.Minute*10), time.Now())
 		require.NoErrorf(t, err, "asset type: %v", assetType)
 	}
 }
@@ -156,7 +156,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestFetchRecentTrades(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.GetRecentTrades(context.Background(), cp, assetType)
+		result, err := d.GetRecentTrades(t.Context(), cp, assetType)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -177,7 +177,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		asset.OptionCombo: {Pair: optionComboTradablePair, Error: asset.ErrNotSupported},
 	}
 	for assetType, info := range assetTypesToPairMap {
-		resp, err := d.GetHistoricCandles(context.Background(), info.Pair, assetType, kline.FifteenMin, start, end)
+		resp, err := d.GetHistoricCandles(t.Context(), info.Pair, assetType, kline.FifteenMin, start, end)
 		require.ErrorIs(t, err, info.Error)
 		if info.Error == nil {
 			require.NotEmpty(t, resp)
@@ -200,7 +200,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		asset.OptionCombo: {Pair: optionComboTradablePair, Error: asset.ErrNotSupported},
 	}
 	for assetType, instance := range assetsToPairsMap {
-		resp, err := d.GetHistoricCandlesExtended(context.Background(), instance.Pair, assetType, kline.OneDay, start, end)
+		resp, err := d.GetHistoricCandlesExtended(t.Context(), instance.Pair, assetType, kline.OneDay, start, end)
 		require.ErrorIs(t, err, instance.Error)
 		if instance.Error == nil {
 			require.NotEmpty(t, resp)
@@ -220,12 +220,12 @@ func TestSubmitOrder(t *testing.T) {
 	var err error
 	var info *InstrumentData
 	for assetType, cp := range assetToPairStringMap {
-		info, err = d.GetInstrument(context.Background(), d.formatPairString(assetType, cp))
+		info, err = d.GetInstrument(t.Context(), d.formatPairString(assetType, cp))
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 
 		result, err = d.SubmitOrder(
-			context.Background(),
+			t.Context(),
 			&order.Submit{
 				Exchange:  d.Name,
 				Price:     10,
@@ -246,7 +246,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	var resp []MarkPriceHistory
 	err := json.Unmarshal([]byte(`[[1608142381229,0.5165791606037885],[1608142380231,0.5165737855432504],[1608142379227,0.5165768236356326]]`), &resp)
 	require.NoError(t, err)
-	_, err = d.GetMarkPriceHistory(context.Background(), "", time.Now().Add(-5*time.Minute), time.Now())
+	_, err = d.GetMarkPriceHistory(t.Context(), "", time.Now().Add(-5*time.Minute), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	var result []MarkPriceHistory
@@ -256,7 +256,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 		btcPerpInstrument,
 		futureComboTradablePair.String(),
 	} {
-		result, err = d.GetMarkPriceHistory(context.Background(), ps, time.Now().Add(-5*time.Minute), time.Now())
+		result, err = d.GetMarkPriceHistory(t.Context(), ps, time.Now().Add(-5*time.Minute), time.Now())
 		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
 		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
 	}
@@ -288,10 +288,10 @@ func TestGetBookSummaryByCurrency(t *testing.T) {
 	"last": null,	"instrument_name": "BTC-22FEB19",	"high": null,	"estimated_delivery_price": 3579.73,	"creation_timestamp": 1550230036440,
 	"bid_price": null,	"base_currency": "BTC",	"ask_price": null}`), &response)
 	require.NoError(t, err)
-	_, err = d.GetBookSummaryByCurrency(context.Background(), currency.EMPTYCODE, "future")
+	_, err = d.GetBookSummaryByCurrency(t.Context(), currency.EMPTYCODE, "future")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetBookSummaryByCurrency(context.Background(), currency.BTC, "option")
+	result, err := d.GetBookSummaryByCurrency(t.Context(), currency.BTC, "option")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -307,7 +307,7 @@ func TestWSRetrieveBookBySummary(t *testing.T) {
 
 func TestGetBookSummaryByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetBookSummaryByInstrument(context.Background(), "")
+	_, err := d.GetBookSummaryByInstrument(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	var result []BookSummaryData
@@ -318,7 +318,7 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 		d.optionPairToString(optionsTradablePair),
 		optionComboTradablePair.String(),
 	} {
-		result, err = d.GetBookSummaryByInstrument(context.Background(), ps)
+		result, err = d.GetBookSummaryByInstrument(t.Context(), ps)
 		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
 		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
 	}
@@ -344,9 +344,9 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 
 func TestGetContractSize(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetContractSize(context.Background(), "")
+	_, err := d.GetContractSize(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	result, err := d.GetContractSize(context.Background(), btcPerpInstrument)
+	result, err := d.GetContractSize(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -363,7 +363,7 @@ func TestWSRetrieveContractSize(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetCurrencies(context.Background())
+	result, err := d.GetCurrencies(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -377,10 +377,10 @@ func TestWSRetrieveCurrencies(t *testing.T) {
 
 func TestGetDeliveryPrices(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetDeliveryPrices(context.Background(), "", 0, 5)
+	_, err := d.GetDeliveryPrices(t.Context(), "", 0, 5)
 	require.ErrorIs(t, err, errUnsupportedIndexName)
 
-	result, err := d.GetDeliveryPrices(context.Background(), "btc_usd", 0, 5)
+	result, err := d.GetDeliveryPrices(t.Context(), "btc_usd", 0, 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -398,10 +398,10 @@ func TestWSRetrieveDeliveryPrices(t *testing.T) {
 func TestGetFundingChartData(t *testing.T) {
 	t.Parallel()
 	// only for perpetual instruments
-	_, err := d.GetFundingChartData(context.Background(), "", "8h")
+	_, err := d.GetFundingChartData(t.Context(), "", "8h")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := d.GetFundingChartData(context.Background(), btcPerpInstrument, "8h")
+	result, err := d.GetFundingChartData(t.Context(), btcPerpInstrument, "8h")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -418,10 +418,10 @@ func TestWSRetrieveFundingChartData(t *testing.T) {
 
 func TestGetFundingRateHistory(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateHistory(context.Background(), "", time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetFundingRateHistory(t.Context(), "", time.Now().Add(-time.Hour), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := d.GetFundingRateHistory(context.Background(), btcPerpInstrument, time.Now().Add(-time.Hour), time.Now())
+	result, err := d.GetFundingRateHistory(t.Context(), btcPerpInstrument, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -437,12 +437,12 @@ func TestWSRetrieveFundingRateHistory(t *testing.T) {
 
 func TestGetFundingRateValue(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFundingRateValue(context.Background(), "", time.Time{}, time.Time{})
+	_, err := d.GetFundingRateValue(t.Context(), "", time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	_, err = d.GetFundingRateValue(context.Background(), btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
+	_, err = d.GetFundingRateValue(t.Context(), btcPerpInstrument, time.Now(), time.Now().Add(-time.Hour*8))
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := d.GetFundingRateValue(context.Background(), btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
+	result, err := d.GetFundingRateValue(t.Context(), btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -459,10 +459,10 @@ func TestWSRetrieveFundingRateValue(t *testing.T) {
 
 func TestGetHistoricalVolatility(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricalVolatility(context.Background(), currency.EMPTYCODE)
+	_, err := d.GetHistoricalVolatility(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetHistoricalVolatility(context.Background(), currency.BTC)
+	result, err := d.GetHistoricalVolatility(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -479,9 +479,9 @@ func TestWSRetrieveHistoricalVolatility(t *testing.T) {
 
 func TestGetCurrencyIndexPrice(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetCurrencyIndexPrice(context.Background(), currency.EMPTYCODE)
+	_, err := d.GetCurrencyIndexPrice(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := d.GetCurrencyIndexPrice(context.Background(), currency.BTC)
+	result, err := d.GetCurrencyIndexPrice(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -497,9 +497,9 @@ func TestWSRetrieveCurrencyIndexPrice(t *testing.T) {
 
 func TestGetIndexPrice(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetIndexPrice(context.Background(), "")
+	_, err := d.GetIndexPrice(t.Context(), "")
 	require.ErrorIs(t, err, errUnsupportedIndexName)
-	result, err := d.GetIndexPrice(context.Background(), "ada_usd")
+	result, err := d.GetIndexPrice(t.Context(), "ada_usd")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -515,7 +515,7 @@ func TestWSRetrieveIndexPrice(t *testing.T) {
 
 func TestGetIndexPriceNames(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetIndexPriceNames(context.Background())
+	result, err := d.GetIndexPriceNames(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -529,12 +529,12 @@ func TestWSRetrieveIndexPriceNames(t *testing.T) {
 
 func TestGetInstrumentData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetInstrument(context.Background(), "")
+	_, err := d.GetInstrument(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = d.GetInstrument(context.Background(), d.formatPairString(assetType, cp))
+		result, err = d.GetInstrument(t.Context(), d.formatPairString(assetType, cp))
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -553,15 +553,15 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	}
 }
 
-func TestGetInstrumentsData(t *testing.T) {
+func TestGetInstruments(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetInstruments(context.Background(), currency.EMPTYCODE, "", false)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	result, err := d.GetInstruments(context.Background(), currency.BTC, "", false)
+	result, err := d.GetInstruments(t.Context(), currency.EMPTYCODE, "future", false)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	result, err = d.GetInstruments(context.Background(), currency.BTC, "", true)
+	result, err = d.GetInstruments(t.Context(), currency.BTC, "", false)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	result, err = d.GetInstruments(t.Context(), currency.BTC, "", true)
 	require.NoError(t, err)
 	for a := range result {
 		require.Falsef(t, result[a].IsActive, "expected expired instrument, but got active instrument %s", result[a].InstrumentName)
@@ -580,10 +580,10 @@ func TestWSRetrieveInstrumentsData(t *testing.T) {
 
 func TestGetLastSettlementsByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastSettlementsByCurrency(context.Background(), currency.EMPTYCODE, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	_, err := d.GetLastSettlementsByCurrency(t.Context(), currency.EMPTYCODE, "delivery", "5", 0, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetLastSettlementsByCurrency(context.Background(), currency.BTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	result, err := d.GetLastSettlementsByCurrency(t.Context(), currency.BTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -610,20 +610,20 @@ func TestWSRetrieveLastSettlementsByInstrument(t *testing.T) {
 
 func TestGetLastSettlementsByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastSettlementsByInstrument(context.Background(), "", "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	_, err := d.GetLastSettlementsByInstrument(t.Context(), "", "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := d.GetLastSettlementsByInstrument(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	result, err := d.GetLastSettlementsByInstrument(t.Context(), d.formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetLastTradesByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByCurrency(context.Background(), currency.EMPTYCODE, "option", "36798", "36799", "asc", 0, true)
+	_, err := d.GetLastTradesByCurrency(t.Context(), currency.EMPTYCODE, "option", "36798", "36799", "asc", 0, true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetLastTradesByCurrency(context.Background(), currency.BTC, "option", "36798", "36799", "asc", 0, true)
+	result, err := d.GetLastTradesByCurrency(t.Context(), currency.BTC, "option", "36798", "36799", "asc", 0, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -640,13 +640,13 @@ func TestWSRetrieveLastTradesByCurrency(t *testing.T) {
 
 func TestGetLastTradesByCurrencyAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByCurrencyAndTime(context.Background(), currency.EMPTYCODE, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	_, err := d.GetLastTradesByCurrencyAndTime(t.Context(), currency.EMPTYCODE, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetLastTradesByCurrencyAndTime(context.Background(), currency.BTC, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	result, err := d.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	result, err = d.GetLastTradesByCurrencyAndTime(context.Background(), currency.BTC, "option", "asc", 25, time.Now().Add(-8*time.Hour), time.Now())
+	result, err = d.GetLastTradesByCurrencyAndTime(t.Context(), currency.BTC, "option", "asc", 25, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -666,11 +666,11 @@ func TestWSRetrieveLastTradesByCurrencyAndTime(t *testing.T) {
 
 func TestGetLastTradesByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByInstrument(context.Background(), "", "", "", "", 0, false)
+	_, err := d.GetLastTradesByInstrument(t.Context(), "", "", "", "", 0, false)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.GetLastTradesByInstrument(context.Background(), d.formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
+		result, err := d.GetLastTradesByInstrument(t.Context(), d.formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
 		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
 		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
 	}
@@ -690,11 +690,11 @@ func TestWSRetrieveLastTradesByInstrument(t *testing.T) {
 
 func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastTradesByInstrumentAndTime(context.Background(), "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
+	_, err := d.GetLastTradesByInstrumentAndTime(t.Context(), "", "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.GetLastTradesByInstrumentAndTime(context.Background(), d.formatPairString(assetType, cp), "", 0, time.Now().Add(-8*time.Hour), time.Now())
+		result, err := d.GetLastTradesByInstrumentAndTime(t.Context(), d.formatPairString(assetType, cp), "", 0, time.Now().Add(-8*time.Hour), time.Now())
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
 		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
 	}
@@ -712,14 +712,61 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 	}
 }
 
+func TestWSProcessTrades(t *testing.T) {
+	t.Parallel()
+
+	d := new(Deribit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(d), "Setup instance must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", d.wsHandleData)
+	close(d.Websocket.DataHandler)
+
+	p, a, err := d.getAssetPairByInstrument("BTC-PERPETUAL")
+	require.NoError(t, err, "getAssetPairByInstrument must not error")
+
+	exp := []trade.Data{
+		{
+			Exchange:     d.Name,
+			CurrencyPair: p,
+			Timestamp:    time.UnixMilli(1742627465811).UTC(),
+			Price:        84295.5,
+			Amount:       8430.0,
+			Side:         order.Buy,
+			TID:          "356130997",
+			AssetType:    a,
+		},
+		{
+			Exchange:     d.Name,
+			CurrencyPair: p,
+			Timestamp:    time.UnixMilli(1742627361899).UTC(),
+			Price:        84319.0,
+			Amount:       580.0,
+			Side:         order.Sell,
+			TID:          "356130979",
+			AssetType:    a,
+		},
+	}
+	require.Len(t, d.Websocket.DataHandler, len(exp), "Must see the correct number of trades")
+	for resp := range d.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case trade.Data:
+			i := 1 - len(d.Websocket.DataHandler)
+			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Unexpected type in DataHandler: %T(%s)", v, v)
+		}
+	}
+}
+
 func TestGetOrderbookData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderbook(context.Background(), "", 0)
+	_, err := d.GetOrderbook(t.Context(), "", 0)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = d.GetOrderbook(context.Background(), d.formatPairString(assetType, cp), 0)
+		result, err = d.GetOrderbook(t.Context(), d.formatPairString(assetType, cp), 0)
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
 		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
 	}
@@ -743,19 +790,19 @@ func TestWSRetrieveOrderbookData(t *testing.T) {
 
 func TestGetOrderbookByInstrumentID(t *testing.T) {
 	t.Parallel()
-	combos, err := d.GetComboIDs(context.Background(), currency.BTC, "")
+	combos, err := d.GetComboIDs(t.Context(), currency.BTC, "")
 	require.NoError(t, err)
 	if len(combos) == 0 {
 		t.Skip("no combo instance found for currency BTC")
 	}
-	_, err = d.GetOrderbookByInstrumentID(context.Background(), 0, 50)
+	_, err = d.GetOrderbookByInstrumentID(t.Context(), 0, 50)
 	require.ErrorIs(t, err, errInvalidInstrumentID)
 
-	comboD, err := d.GetComboDetails(context.Background(), combos[0])
+	comboD, err := d.GetComboDetails(t.Context(), combos[0])
 	require.NoError(t, err)
 	require.NotNil(t, comboD)
 
-	result, err := d.GetOrderbookByInstrumentID(context.Background(), comboD.InstrumentID, 50)
+	result, err := d.GetOrderbookByInstrumentID(t.Context(), comboD.InstrumentID, 50)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -780,7 +827,7 @@ func TestWSRetrieveOrderbookByInstrumentID(t *testing.T) {
 
 func TestGetSupportedIndexNames(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetSupportedIndexNames(context.Background(), "derivative")
+	result, err := d.GetSupportedIndexNames(t.Context(), "derivative")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -794,9 +841,9 @@ func TestWsRetrieveSupportedIndexNames(t *testing.T) {
 
 func TestGetRequestForQuote(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetRequestForQuote(context.Background(), currency.EMPTYCODE, d.GetAssetKind(asset.Futures))
+	_, err := d.GetRequestForQuote(t.Context(), currency.EMPTYCODE, d.GetAssetKind(asset.Futures))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := d.GetRequestForQuote(context.Background(), currency.BTC, d.GetAssetKind(asset.Futures))
+	result, err := d.GetRequestForQuote(t.Context(), currency.BTC, d.GetAssetKind(asset.Futures))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -812,7 +859,7 @@ func TestWSRetrieveRequestForQuote(t *testing.T) {
 
 func TestGetTradeVolumes(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetTradeVolumes(context.Background(), false)
+	result, err := d.GetTradeVolumes(t.Context(), false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -826,13 +873,13 @@ func TestWSRetrieveTradeVolumes(t *testing.T) {
 
 func TestGetTradingViewChartData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetTradingViewChart(context.Background(), "", "60", time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetTradingViewChart(t.Context(), "", "60", time.Now().Add(-time.Hour), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := d.GetTradingViewChart(context.Background(), btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now())
+	result, err := d.GetTradingViewChart(t.Context(), btcPerpInstrument, "60", time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	result, err = d.GetTradingViewChart(context.Background(), spotTradablePair.String(), "60", time.Now().Add(-time.Hour), time.Now())
+	result, err = d.GetTradingViewChart(t.Context(), spotTradablePair.String(), "60", time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -851,14 +898,14 @@ func TestWSRetrievesTradingViewChartData(t *testing.T) {
 
 func TestGetVolatilityIndexData(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetVolatilityIndex(context.Background(), currency.EMPTYCODE, "60", time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetVolatilityIndex(t.Context(), currency.EMPTYCODE, "60", time.Now().Add(-time.Hour), time.Now())
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.GetVolatilityIndex(context.Background(), currency.BTC, "", time.Now().Add(-time.Hour), time.Now())
+	_, err = d.GetVolatilityIndex(t.Context(), currency.BTC, "", time.Now().Add(-time.Hour), time.Now())
 	require.ErrorIs(t, err, errResolutionNotSet)
-	_, err = d.GetVolatilityIndex(context.Background(), currency.BTC, "60", time.Now(), time.Now().Add(-time.Hour))
+	_, err = d.GetVolatilityIndex(t.Context(), currency.BTC, "60", time.Now(), time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := d.GetVolatilityIndex(context.Background(), currency.BTC, "60", time.Now().Add(-time.Hour), time.Now())
+	result, err := d.GetVolatilityIndex(t.Context(), currency.BTC, "60", time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -879,10 +926,10 @@ func TestWSRetrieveVolatilityIndexData(t *testing.T) {
 
 func TestGetPublicTicker(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetPublicTicker(context.Background(), "")
+	_, err := d.GetPublicTicker(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
-	result, err := d.GetPublicTicker(context.Background(), btcPerpInstrument)
+	result, err := d.GetPublicTicker(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -899,11 +946,11 @@ func TestWSRetrievePublicTicker(t *testing.T) {
 
 func TestGetAccountSummary(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetAccountSummary(context.Background(), currency.EMPTYCODE, false)
+	_, err := d.GetAccountSummary(t.Context(), currency.EMPTYCODE, false)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetAccountSummary(context.Background(), currency.BTC, false)
+	result, err := d.GetAccountSummary(t.Context(), currency.BTC, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -921,13 +968,13 @@ func TestWSRetrieveAccountSummary(t *testing.T) {
 
 func TestCancelTransferByID(t *testing.T) {
 	t.Parallel()
-	_, err := d.CancelTransferByID(context.Background(), currency.EMPTYCODE, "", 23487)
+	_, err := d.CancelTransferByID(t.Context(), currency.EMPTYCODE, "", 23487)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.CancelTransferByID(context.Background(), currency.BTC, "", 0)
+	_, err = d.CancelTransferByID(t.Context(), currency.BTC, "", 0)
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.CancelTransferByID(context.Background(), currency.BTC, "", 23487)
+	result, err := d.CancelTransferByID(t.Context(), currency.BTC, "", 23487)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -952,11 +999,11 @@ func TestGetTransfers(t *testing.T) {
 	var resp *TransfersData
 	err := json.Unmarshal([]byte(getTransferResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetTransfers(context.Background(), currency.EMPTYCODE, 0, 0)
+	_, err = d.GetTransfers(t.Context(), currency.EMPTYCODE, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetTransfers(context.Background(), currency.BTC, 0, 0)
+	result, err := d.GetTransfers(t.Context(), currency.BTC, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -979,13 +1026,13 @@ func TestCancelWithdrawal(t *testing.T) {
 	var resp *CancelWithdrawalData
 	err := json.Unmarshal([]byte(cancelWithdrawlPushDataJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.CancelWithdrawal(context.Background(), currency.EMPTYCODE, 123844)
+	_, err = d.CancelWithdrawal(t.Context(), currency.EMPTYCODE, 123844)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.CancelWithdrawal(context.Background(), currency.BTC, 0)
+	_, err = d.CancelWithdrawal(t.Context(), currency.BTC, 0)
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.CancelWithdrawal(context.Background(), currency.BTC, 123844)
+	result, err := d.CancelWithdrawal(t.Context(), currency.BTC, 123844)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1005,11 +1052,11 @@ func TestWSCancelWithdrawal(t *testing.T) {
 
 func TestCreateDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := d.CreateDepositAddress(context.Background(), currency.EMPTYCODE)
+	_, err := d.CreateDepositAddress(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.CreateDepositAddress(context.Background(), currency.SOL)
+	result, err := d.CreateDepositAddress(t.Context(), currency.SOL)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1027,11 +1074,11 @@ func TestWSCreateDepositAddress(t *testing.T) {
 
 func TestGetCurrentDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetCurrentDepositAddress(context.Background(), currency.EMPTYCODE)
+	_, err := d.GetCurrentDepositAddress(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetCurrentDepositAddress(context.Background(), currency.ETH)
+	result, err := d.GetCurrentDepositAddress(t.Context(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1054,11 +1101,11 @@ func TestGetDeposits(t *testing.T) {
 	var resp *DepositsData
 	err := json.Unmarshal([]byte(getDepositPushDataJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetDeposits(context.Background(), currency.EMPTYCODE, 25, 0)
+	_, err = d.GetDeposits(t.Context(), currency.EMPTYCODE, 25, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetDeposits(context.Background(), currency.BTC, 25, 0)
+	result, err := d.GetDeposits(t.Context(), currency.BTC, 25, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1081,11 +1128,11 @@ func TestGetWithdrawals(t *testing.T) {
 	var resp *WithdrawalsData
 	err := json.Unmarshal([]byte(getWithdrawalResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetWithdrawals(context.Background(), currency.EMPTYCODE, 25, 0)
+	_, err = d.GetWithdrawals(t.Context(), currency.EMPTYCODE, 25, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetWithdrawals(context.Background(), currency.BTC, 25, 0)
+	result, err := d.GetWithdrawals(t.Context(), currency.BTC, 25, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1103,15 +1150,15 @@ func TestWSRetrieveWithdrawals(t *testing.T) {
 
 func TestSubmitTransferBetweenSubAccounts(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitTransferBetweenSubAccounts(context.Background(), currency.EMPTYCODE, 12345, 2, "")
+	_, err := d.SubmitTransferBetweenSubAccounts(t.Context(), currency.EMPTYCODE, 12345, 2, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.SubmitTransferBetweenSubAccounts(context.Background(), currency.EURR, 0, 2, "")
+	_, err = d.SubmitTransferBetweenSubAccounts(t.Context(), currency.EURR, 0, 2, "")
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.SubmitTransferBetweenSubAccounts(context.Background(), currency.EURR, 12345, -1, "")
+	_, err = d.SubmitTransferBetweenSubAccounts(t.Context(), currency.EURR, 12345, -1, "")
 	require.ErrorIs(t, err, errInvalidDestinationID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitTransferBetweenSubAccounts(context.Background(), currency.EURR, 12345, 4, "")
+	result, err := d.SubmitTransferBetweenSubAccounts(t.Context(), currency.EURR, 12345, 4, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1133,15 +1180,15 @@ func TestWsSubmitTransferBetweenSubAccounts(t *testing.T) {
 
 func TestSubmitTransferToSubAccount(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitTransferToSubAccount(context.Background(), currency.EMPTYCODE, 0.01, 13434)
+	_, err := d.SubmitTransferToSubAccount(t.Context(), currency.EMPTYCODE, 0.01, 13434)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.SubmitTransferToSubAccount(context.Background(), currency.BTC, 0, 13434)
+	_, err = d.SubmitTransferToSubAccount(t.Context(), currency.BTC, 0, 13434)
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.SubmitTransferToSubAccount(context.Background(), currency.BTC, 0.01, 0)
+	_, err = d.SubmitTransferToSubAccount(t.Context(), currency.BTC, 0.01, 0)
 	require.ErrorIs(t, err, errInvalidDestinationID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitTransferToSubAccount(context.Background(), currency.BTC, 0.01, 13434)
+	result, err := d.SubmitTransferToSubAccount(t.Context(), currency.BTC, 0.01, 13434)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1163,15 +1210,15 @@ func TestWSSubmitTransferToSubAccount(t *testing.T) {
 
 func TestSubmitTransferToUser(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitTransferToUser(context.Background(), currency.EMPTYCODE, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0.001)
+	_, err := d.SubmitTransferToUser(t.Context(), currency.EMPTYCODE, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0.001)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.SubmitTransferToUser(context.Background(), currency.BTC, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0)
+	_, err = d.SubmitTransferToUser(t.Context(), currency.BTC, "", "0x4aa0753d798d668056920094d65321a8e8913e26", 0)
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.SubmitTransferToUser(context.Background(), currency.BTC, "", "", 0.001)
+	_, err = d.SubmitTransferToUser(t.Context(), currency.BTC, "", "", 0.001)
 	require.ErrorIs(t, err, errInvalidCryptoAddress)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitTransferToUser(context.Background(), currency.BTC, "", "13434", 0.001)
+	result, err := d.SubmitTransferToUser(t.Context(), currency.BTC, "", "13434", 0.001)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1198,15 +1245,15 @@ func TestSubmitWithdraw(t *testing.T) {
 	var resp *WithdrawData
 	err := json.Unmarshal([]byte(submitWithdrawalResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.SubmitWithdraw(context.Background(), currency.EMPTYCODE, core.BitcoinDonationAddress, "", 0.001)
+	_, err = d.SubmitWithdraw(t.Context(), currency.EMPTYCODE, core.BitcoinDonationAddress, "", 0.001)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.SubmitWithdraw(context.Background(), currency.BTC, core.BitcoinDonationAddress, "", 0)
+	_, err = d.SubmitWithdraw(t.Context(), currency.BTC, core.BitcoinDonationAddress, "", 0)
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.SubmitWithdraw(context.Background(), currency.BTC, "", "", 0.001)
+	_, err = d.SubmitWithdraw(t.Context(), currency.BTC, "", "", 0.001)
 	require.ErrorIs(t, err, errInvalidCryptoAddress)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitWithdraw(context.Background(), currency.BTC, core.BitcoinDonationAddress, "", 0.001)
+	result, err := d.SubmitWithdraw(t.Context(), currency.BTC, core.BitcoinDonationAddress, "", 0.001)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1227,7 +1274,7 @@ func TestWSSubmitWithdraw(t *testing.T) {
 
 func TestGetAnnouncements(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetAnnouncements(context.Background(), time.Now(), 5)
+	result, err := d.GetAnnouncements(t.Context(), time.Now(), 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1240,11 +1287,11 @@ func TestWSRetrieveAnnouncements(t *testing.T) {
 }
 
 func TestGetPublicPortfolioMargins(t *testing.T) {
-	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
 	require.NoError(t, err)
-	_, err = d.GetPublicPortfolioMargins(context.Background(), currency.EMPTYCODE, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
+	_, err = d.GetPublicPortfolioMargins(t.Context(), currency.EMPTYCODE, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := d.GetPublicPortfolioMargins(context.Background(), currency.BTC, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
+	result, err := d.GetPublicPortfolioMargins(t.Context(), currency.BTC, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1252,7 +1299,7 @@ func TestGetPublicPortfolioMargins(t *testing.T) {
 func TestGetAccessLog(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetAccessLog(context.Background(), 0, 0)
+	result, err := d.GetAccessLog(t.Context(), 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1267,15 +1314,15 @@ func TestWSRetrieveAccessLog(t *testing.T) {
 
 func TestChangeAPIKeyName(t *testing.T) {
 	t.Parallel()
-	_, err := d.ChangeAPIKeyName(context.Background(), 0, "TestKey123")
+	_, err := d.ChangeAPIKeyName(t.Context(), 0, "TestKey123")
 	require.ErrorIs(t, err, errInvalidID)
-	_, err = d.ChangeAPIKeyName(context.Background(), 2, "TestKey123$")
+	_, err = d.ChangeAPIKeyName(t.Context(), 2, "TestKey123$")
 	require.ErrorIs(t, err, errUnacceptableAPIKey)
-	_, err = d.ChangeAPIKeyName(context.Background(), 2, "#$#")
+	_, err = d.ChangeAPIKeyName(t.Context(), 2, "#$#")
 	require.ErrorIs(t, err, errUnacceptableAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.ChangeAPIKeyName(context.Background(), 1, "TestKey123")
+	result, err := d.ChangeAPIKeyName(t.Context(), 1, "TestKey123")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1293,11 +1340,11 @@ func TestWSChangeAPIKeyName(t *testing.T) {
 
 func TestChangeMarginModel(t *testing.T) {
 	t.Parallel()
-	_, err := d.ChangeMarginModel(context.Background(), 2, "", false)
+	_, err := d.ChangeMarginModel(t.Context(), 2, "", false)
 	require.ErrorIs(t, err, errInvalidMarginModel)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.ChangeMarginModel(context.Background(), 2, "segregated_pm", false)
+	result, err := d.ChangeMarginModel(t.Context(), 2, "segregated_pm", false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1315,11 +1362,11 @@ func TestWsChangeMarginModel(t *testing.T) {
 
 func TestChangeScopeInAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := d.ChangeScopeInAPIKey(context.Background(), -1, "account:read_write")
+	_, err := d.ChangeScopeInAPIKey(t.Context(), -1, "account:read_write")
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.ChangeScopeInAPIKey(context.Background(), 1, "account:read_write")
+	result, err := d.ChangeScopeInAPIKey(t.Context(), 1, "account:read_write")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1337,13 +1384,13 @@ func TestWSChangeScopeInAPIKey(t *testing.T) {
 
 func TestChangeSubAccountName(t *testing.T) {
 	t.Parallel()
-	err := d.ChangeSubAccountName(context.Background(), 0, "new_sub")
+	err := d.ChangeSubAccountName(t.Context(), 0, "new_sub")
 	require.ErrorIs(t, err, errInvalidID)
-	err = d.ChangeSubAccountName(context.Background(), 312313, "")
+	err = d.ChangeSubAccountName(t.Context(), 312313, "")
 	require.ErrorIs(t, err, errInvalidUsername)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err = d.ChangeSubAccountName(context.Background(), 1, "new_sub")
+	err = d.ChangeSubAccountName(t.Context(), 1, "new_sub")
 	assert.NoError(t, err)
 }
 
@@ -1362,7 +1409,7 @@ func TestWSChangeSubAccountName(t *testing.T) {
 func TestCreateAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.CreateAPIKey(context.Background(), "account:read_write", "new_sub", false)
+	result, err := d.CreateAPIKey(t.Context(), "account:read_write", "new_sub", false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1378,7 +1425,7 @@ func TestWSCreateAPIKey(t *testing.T) {
 func TestCreateSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.CreateSubAccount(context.Background())
+	result, err := d.CreateSubAccount(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1393,10 +1440,10 @@ func TestWSCreateSubAccount(t *testing.T) {
 
 func TestDisableAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := d.DisableAPIKey(context.Background(), 0)
+	_, err := d.DisableAPIKey(t.Context(), 0)
 	require.ErrorIs(t, err, errInvalidID)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.DisableAPIKey(context.Background(), 1)
+	result, err := d.DisableAPIKey(t.Context(), 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1413,13 +1460,13 @@ func TestWSDisableAPIKey(t *testing.T) {
 
 func TestEditAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := d.EditAPIKey(context.Background(), 0, "trade", "", false, []string{"read", "read_write"}, []string{})
+	_, err := d.EditAPIKey(t.Context(), 0, "trade", "", false, []string{"read", "read_write"}, []string{})
 	require.ErrorIs(t, err, errInvalidAPIKeyID)
-	_, err = d.EditAPIKey(context.Background(), 1234, "", "", false, []string{"read", "read_write"}, []string{})
+	_, err = d.EditAPIKey(t.Context(), 1234, "", "", false, []string{"read", "read_write"}, []string{})
 	require.ErrorIs(t, err, errMaxScopeIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.EditAPIKey(context.Background(), 1234, "trade", "", false, []string{"read", "read_write"}, []string{})
+	result, err := d.EditAPIKey(t.Context(), 1234, "trade", "", false, []string{"read", "read_write"}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1440,7 +1487,7 @@ func TestWsEditAPIKey(t *testing.T) {
 func TestEnableAffiliateProgram(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err := d.EnableAffiliateProgram(context.Background())
+	err := d.EnableAffiliateProgram(t.Context())
 	assert.NoError(t, err)
 }
 
@@ -1454,7 +1501,7 @@ func TestWSEnableAffiliateProgram(t *testing.T) {
 func TestEnableAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.EnableAPIKey(context.Background(), 1)
+	result, err := d.EnableAPIKey(t.Context(), 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1470,7 +1517,7 @@ func TestWSEnableAPIKey(t *testing.T) {
 func TestGetAffiliateProgramInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetAffiliateProgramInfo(context.Background())
+	result, err := d.GetAffiliateProgramInfo(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1486,7 +1533,7 @@ func TestWSRetrieveAffiliateProgramInfo(t *testing.T) {
 func TestGetEmailLanguage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetEmailLanguage(context.Background())
+	result, err := d.GetEmailLanguage(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1502,7 +1549,7 @@ func TestWSRetrieveEmailLanguage(t *testing.T) {
 func TestGetNewAnnouncements(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetNewAnnouncements(context.Background())
+	result, err := d.GetNewAnnouncements(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1517,11 +1564,11 @@ func TestWSRetrieveNewAnnouncements(t *testing.T) {
 
 func TestGetPrivatePortfolioMargins(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetPrivatePortfolioMargins(context.Background(), currency.EMPTYCODE, false, nil)
+	_, err := d.GetPrivatePortfolioMargins(t.Context(), currency.EMPTYCODE, false, nil)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetPrivatePortfolioMargins(context.Background(), currency.BTC, false, nil)
+	result, err := d.GetPrivatePortfolioMargins(t.Context(), currency.BTC, false, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1539,11 +1586,11 @@ func TestWsRetrievePrivatePortfolioMargins(t *testing.T) {
 
 func TestGetPosition(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetPosition(context.Background(), "")
+	_, err := d.GetPosition(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetPosition(context.Background(), btcPerpInstrument)
+	result, err := d.GetPosition(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1562,7 +1609,7 @@ func TestWSRetrievePosition(t *testing.T) {
 func TestGetSubAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetSubAccounts(context.Background(), false)
+	result, err := d.GetSubAccounts(t.Context(), false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1577,11 +1624,11 @@ func TestWSRetrieveSubAccounts(t *testing.T) {
 
 func TestGetSubAccountDetails(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetSubAccountDetails(context.Background(), currency.EMPTYCODE, false)
+	_, err := d.GetSubAccountDetails(t.Context(), currency.EMPTYCODE, false)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetSubAccountDetails(context.Background(), currency.BTC, false)
+	result, err := d.GetSubAccountDetails(t.Context(), currency.BTC, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1599,14 +1646,14 @@ func TestWSRetrieveSubAccountDetails(t *testing.T) {
 
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetPositions(context.Background(), currency.EMPTYCODE, "option")
+	_, err := d.GetPositions(t.Context(), currency.EMPTYCODE, "option")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetPositions(context.Background(), currency.BTC, "option")
+	result, err := d.GetPositions(t.Context(), currency.BTC, "option")
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	result, err = d.GetPositions(context.Background(), currency.ETH, "")
+	result, err = d.GetPositions(t.Context(), currency.ETH, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1632,11 +1679,11 @@ func TestGetTransactionLog(t *testing.T) {
 	var resp *TransactionsData
 	err := json.Unmarshal([]byte(getTransactionLogResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetTransactionLog(context.Background(), currency.EMPTYCODE, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
+	_, err = d.GetTransactionLog(t.Context(), currency.EMPTYCODE, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetTransactionLog(context.Background(), currency.BTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
+	result, err := d.GetTransactionLog(t.Context(), currency.BTC, "trade", time.Now().Add(-24*time.Hour), time.Now(), 5, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1655,7 +1702,7 @@ func TestWSRetrieveTransactionLog(t *testing.T) {
 func TestGetUserLocks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserLocks(context.Background())
+	result, err := d.GetUserLocks(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1671,7 +1718,7 @@ func TestWSRetrieveUserLocks(t *testing.T) {
 func TestListAPIKeys(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.ListAPIKeys(context.Background(), "")
+	result, err := d.ListAPIKeys(t.Context(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1686,10 +1733,10 @@ func TestWSListAPIKeys(t *testing.T) {
 
 func TestGetCustodyAccounts(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetCustodyAccounts(context.Background(), currency.EMPTYCODE)
+	_, err := d.GetCustodyAccounts(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetCustodyAccounts(context.Background(), currency.BTC)
+	result, err := d.GetCustodyAccounts(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1706,10 +1753,10 @@ func TestWsRetrieveCustodyAccounts(t *testing.T) {
 
 func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
-	err := d.RemoveAPIKey(context.Background(), 0)
+	err := d.RemoveAPIKey(t.Context(), 0)
 	require.ErrorIs(t, err, errInvalidID)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	err = d.RemoveAPIKey(context.Background(), 1)
+	err = d.RemoveAPIKey(t.Context(), 1)
 	assert.NoError(t, err)
 }
 
@@ -1725,7 +1772,7 @@ func TestWSRemoveAPIKey(t *testing.T) {
 func TestRemoveSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	err := d.RemoveSubAccount(context.Background(), 1)
+	err := d.RemoveSubAccount(t.Context(), 1)
 	assert.NoError(t, err)
 }
 
@@ -1738,10 +1785,10 @@ func TestWSRemoveSubAccount(t *testing.T) {
 
 func TestResetAPIKey(t *testing.T) {
 	t.Parallel()
-	_, err := d.ResetAPIKey(context.Background(), 0)
+	_, err := d.ResetAPIKey(t.Context(), 0)
 	require.ErrorIs(t, err, errInvalidID)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.ResetAPIKey(context.Background(), 1)
+	result, err := d.ResetAPIKey(t.Context(), 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1757,21 +1804,21 @@ func TestWSResetAPIKey(t *testing.T) {
 
 func TestSetAnnouncementAsRead(t *testing.T) {
 	t.Parallel()
-	err := d.SetAnnouncementAsRead(context.Background(), 0)
+	err := d.SetAnnouncementAsRead(t.Context(), 0)
 	require.ErrorIs(t, err, errInvalidID)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err = d.SetAnnouncementAsRead(context.Background(), 1)
+	err = d.SetAnnouncementAsRead(t.Context(), 1)
 	assert.NoError(t, err)
 }
 
 func TestSetEmailForSubAccount(t *testing.T) {
 	t.Parallel()
-	err := d.SetEmailForSubAccount(context.Background(), 0, "wrongemail@wrongemail.com")
+	err := d.SetEmailForSubAccount(t.Context(), 0, "wrongemail@wrongemail.com")
 	require.ErrorIs(t, err, errInvalidID)
-	err = d.SetEmailForSubAccount(context.Background(), 1, "")
+	err = d.SetEmailForSubAccount(t.Context(), 1, "")
 	require.ErrorIs(t, err, errInvalidEmailAddress)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err = d.SetEmailForSubAccount(context.Background(), 1, "wrongemail@wrongemail.com")
+	err = d.SetEmailForSubAccount(t.Context(), 1, "wrongemail@wrongemail.com")
 	assert.NoError(t, err)
 }
 
@@ -1789,11 +1836,11 @@ func TestWSSetEmailForSubAccount(t *testing.T) {
 
 func TestSetEmailLanguage(t *testing.T) {
 	t.Parallel()
-	err := d.SetEmailLanguage(context.Background(), "")
+	err := d.SetEmailLanguage(t.Context(), "")
 	require.ErrorIs(t, err, errLanguageIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err = d.SetEmailLanguage(context.Background(), "en")
+	err = d.SetEmailLanguage(t.Context(), "en")
 	assert.NoError(t, err)
 }
 
@@ -1809,10 +1856,10 @@ func TestWSSetEmailLanguage(t *testing.T) {
 
 func TestSetSelfTradingConfig(t *testing.T) {
 	t.Parallel()
-	_, err := d.SetSelfTradingConfig(context.Background(), "", false)
+	_, err := d.SetSelfTradingConfig(t.Context(), "", false)
 	require.ErrorIs(t, err, errTradeModeIsRequired)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SetSelfTradingConfig(context.Background(), "reject_taker", false)
+	result, err := d.SetSelfTradingConfig(t.Context(), "reject_taker", false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1830,11 +1877,11 @@ func TestWsSetSelfTradingConfig(t *testing.T) {
 
 func TestToggleNotificationsFromSubAccount(t *testing.T) {
 	t.Parallel()
-	err := d.ToggleNotificationsFromSubAccount(context.Background(), 0, false)
+	err := d.ToggleNotificationsFromSubAccount(t.Context(), 0, false)
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err = d.ToggleNotificationsFromSubAccount(context.Background(), 1, false)
+	err = d.ToggleNotificationsFromSubAccount(t.Context(), 1, false)
 	assert.NoError(t, err)
 }
 
@@ -1850,11 +1897,11 @@ func TestWSToggleNotificationsFromSubAccount(t *testing.T) {
 
 func TestTogglePortfolioMargining(t *testing.T) {
 	t.Parallel()
-	_, err := d.TogglePortfolioMargining(context.Background(), 0, false, false)
+	_, err := d.TogglePortfolioMargining(t.Context(), 0, false, false)
 	require.ErrorIs(t, err, errUserIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.TogglePortfolioMargining(context.Background(), 1234, false, false)
+	result, err := d.TogglePortfolioMargining(t.Context(), 1234, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1872,11 +1919,11 @@ func TestWSTogglePortfolioMargining(t *testing.T) {
 
 func TestToggleSubAccountLogin(t *testing.T) {
 	t.Parallel()
-	err := d.ToggleSubAccountLogin(context.Background(), -1, false)
+	err := d.ToggleSubAccountLogin(t.Context(), -1, false)
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	err = d.ToggleSubAccountLogin(context.Background(), 1, false)
+	err = d.ToggleSubAccountLogin(t.Context(), 1, false)
 	assert.NoError(t, err)
 }
 
@@ -1894,9 +1941,9 @@ func TestSubmitBuy(t *testing.T) {
 	t.Parallel()
 	pairs, err := d.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
-	_, err = d.SubmitBuy(context.Background(), &OrderBuyAndSellParams{})
+	_, err = d.SubmitBuy(t.Context(), &OrderBuyAndSellParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = d.SubmitBuy(context.Background(), &OrderBuyAndSellParams{
+	_, err = d.SubmitBuy(t.Context(), &OrderBuyAndSellParams{
 		Instrument: "", OrderType: "limit",
 		Label: "testOrder", TimeInForce: "",
 		Trigger: "", Advanced: "",
@@ -1906,7 +1953,7 @@ func TestSubmitBuy(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitBuy(context.Background(), &OrderBuyAndSellParams{
+	result, err := d.SubmitBuy(t.Context(), &OrderBuyAndSellParams{
 		Instrument: pairs[0].String(), OrderType: "limit",
 		Label: "testOrder", TimeInForce: "",
 		Trigger: "", Advanced: "",
@@ -1948,22 +1995,22 @@ func TestWSSubmitBuy(t *testing.T) {
 
 func TestSubmitSell(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitSell(context.Background(), &OrderBuyAndSellParams{})
+	_, err := d.SubmitSell(t.Context(), &OrderBuyAndSellParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
-	_, err = d.SubmitSell(context.Background(), &OrderBuyAndSellParams{OrderType: "limit", Label: "testOrder", TimeInForce: "", Trigger: "", Advanced: "", Amount: info.ContractSize * 3, Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false, RejectPostOnly: false, ReduceOnly: false, MMP: false})
+	_, err = d.SubmitSell(t.Context(), &OrderBuyAndSellParams{OrderType: "limit", Label: "testOrder", TimeInForce: "", Trigger: "", Advanced: "", Amount: info.ContractSize * 3, Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false, RejectPostOnly: false, ReduceOnly: false, MMP: false})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitSell(context.Background(), &OrderBuyAndSellParams{Instrument: btcPerpInstrument, OrderType: "limit", Label: "testOrder", TimeInForce: "", Trigger: "", Advanced: "", Amount: info.ContractSize * 3, Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false, RejectPostOnly: false, ReduceOnly: false, MMP: false})
+	result, err := d.SubmitSell(t.Context(), &OrderBuyAndSellParams{Instrument: btcPerpInstrument, OrderType: "limit", Label: "testOrder", TimeInForce: "", Trigger: "", Advanced: "", Amount: info.ContractSize * 3, Price: 500000, MaxShow: 0, TriggerPrice: 0, PostOnly: false, RejectPostOnly: false, ReduceOnly: false, MMP: false})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWSSubmitSell(t *testing.T) {
 	t.Parallel()
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	_, err = d.WSSubmitSell(&OrderBuyAndSellParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
@@ -1990,21 +2037,21 @@ func TestWSSubmitSell(t *testing.T) {
 
 func TestEditOrderByLabel(t *testing.T) {
 	t.Parallel()
-	_, err := d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{})
+	_, err := d.EditOrderByLabel(t.Context(), &OrderBuyAndSellParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{
+	_, err = d.EditOrderByLabel(t.Context(), &OrderBuyAndSellParams{
 		Label: "incorrectUserLabel", Instrument: "",
 		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false,
 	})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	_, err = d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{
+	_, err = d.EditOrderByLabel(t.Context(), &OrderBuyAndSellParams{
 		Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
 		Advanced: "", Amount: 0, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false,
 	})
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{
+	result, err := d.EditOrderByLabel(t.Context(), &OrderBuyAndSellParams{
 		Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
 		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false,
 	})
@@ -2043,11 +2090,11 @@ func TestSubmitCancel(t *testing.T) {
 	var resp *PrivateCancelData
 	err := json.Unmarshal([]byte(submitCancelResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.SubmitCancel(context.Background(), "")
+	_, err = d.SubmitCancel(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancel(context.Background(), "incorrectID")
+	result, err := d.SubmitCancel(t.Context(), "incorrectID")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2066,7 +2113,7 @@ func TestWSSubmitCancel(t *testing.T) {
 func TestSubmitCancelAll(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancelAll(context.Background(), false)
+	result, err := d.SubmitCancelAll(t.Context(), false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2081,11 +2128,11 @@ func TestWSSubmitCancelAll(t *testing.T) {
 
 func TestSubmitCancelAllByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitCancelAllByCurrency(context.Background(), currency.EMPTYCODE, "option", "", true)
+	_, err := d.SubmitCancelAllByCurrency(t.Context(), currency.EMPTYCODE, "option", "", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancelAllByCurrency(context.Background(), currency.BTC, "option", "", true)
+	result, err := d.SubmitCancelAllByCurrency(t.Context(), currency.BTC, "option", "", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2103,11 +2150,11 @@ func TestWSSubmitCancelAllByCurrency(t *testing.T) {
 
 func TestSubmitCancelAllByKind(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitCancelAllByKind(context.Background(), currency.EMPTYCODE, "option_combo", "trigger_all", true)
+	_, err := d.SubmitCancelAllByKind(t.Context(), currency.EMPTYCODE, "option_combo", "trigger_all", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancelAllByKind(context.Background(), currency.ETH, "option_combo", "trigger_all", true)
+	result, err := d.SubmitCancelAllByKind(t.Context(), currency.ETH, "option_combo", "trigger_all", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2125,11 +2172,11 @@ func TestWsSubmitCancelAllByKind(t *testing.T) {
 
 func TestSubmitCancelAllByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitCancelAllByInstrument(context.Background(), "", "all", true, true)
+	_, err := d.SubmitCancelAllByInstrument(t.Context(), "", "all", true, true)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancelAllByInstrument(context.Background(), btcPerpInstrument, "all", true, true)
+	result, err := d.SubmitCancelAllByInstrument(t.Context(), btcPerpInstrument, "all", true, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2148,7 +2195,7 @@ func TestWSSubmitCancelAllByInstrument(t *testing.T) {
 func TestSubmitCancelByLabel(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancelByLabel(context.Background(), "incorrectOrderLabel", currency.EMPTYCODE, true)
+	result, err := d.SubmitCancelByLabel(t.Context(), "incorrectOrderLabel", currency.EMPTYCODE, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2163,11 +2210,11 @@ func TestWSSubmitCancelByLabel(t *testing.T) {
 
 func TestSubmitCancelQuotes(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitCancelQuotes(context.Background(), currency.EMPTYCODE, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	_, err := d.SubmitCancelQuotes(t.Context(), currency.EMPTYCODE, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitCancelQuotes(context.Background(), currency.BTC, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	result, err := d.SubmitCancelQuotes(t.Context(), currency.BTC, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2185,11 +2232,11 @@ func TestWSSubmitCancelQuotes(t *testing.T) {
 
 func TestSubmitClosePosition(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitClosePosition(context.Background(), "", "limit", 35000)
+	_, err := d.SubmitClosePosition(t.Context(), "", "limit", 35000)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitClosePosition(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
+	result, err := d.SubmitClosePosition(t.Context(), d.formatFuturesTradablePair(futuresTradablePair), "limit", 35000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2207,15 +2254,15 @@ func TestWSSubmitClosePosition(t *testing.T) {
 
 func TestGetMargins(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetMargins(context.Background(), "", 5, 35000)
+	_, err := d.GetMargins(t.Context(), "", 5, 35000)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	_, err = d.GetMargins(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), 0, 35000)
+	_, err = d.GetMargins(t.Context(), d.formatFuturesTradablePair(futuresTradablePair), 0, 35000)
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.GetMargins(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), 5, -1)
+	_, err = d.GetMargins(t.Context(), d.formatFuturesTradablePair(futuresTradablePair), 5, -1)
 	require.ErrorIs(t, err, errInvalidPrice)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetMargins(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), 5, 35000)
+	result, err := d.GetMargins(t.Context(), d.formatFuturesTradablePair(futuresTradablePair), 5, 35000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2233,11 +2280,11 @@ func TestWSRetrieveMargins(t *testing.T) {
 
 func TestGetMMPConfig(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetMMPConfig(context.Background(), currency.EMPTYCODE)
+	_, err := d.GetMMPConfig(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetMMPConfig(context.Background(), currency.ETH)
+	result, err := d.GetMMPConfig(t.Context(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2260,11 +2307,11 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 	var resp []OrderData
 	err := json.Unmarshal([]byte(getOpenOrdersByCurrencyResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetOpenOrdersByCurrency(context.Background(), currency.EMPTYCODE, "option", "all")
+	_, err = d.GetOpenOrdersByCurrency(t.Context(), currency.EMPTYCODE, "option", "all")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOpenOrdersByCurrency(context.Background(), currency.BTC, "option", "all")
+	result, err := d.GetOpenOrdersByCurrency(t.Context(), currency.BTC, "option", "all")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2282,11 +2329,11 @@ func TestWSRetrieveOpenOrdersByCurrency(t *testing.T) {
 
 func TestGetOpenOrdersByLabel(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOpenOrdersByLabel(context.Background(), currency.EMPTYCODE, "the-label")
+	_, err := d.GetOpenOrdersByLabel(t.Context(), currency.EMPTYCODE, "the-label")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOpenOrdersByLabel(context.Background(), currency.EURR, "the-label")
+	result, err := d.GetOpenOrdersByLabel(t.Context(), currency.EURR, "the-label")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2304,11 +2351,11 @@ func TestWSRetrieveOpenOrdersByLabel(t *testing.T) {
 
 func TestGetOpenOrdersByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOpenOrdersByInstrument(context.Background(), "", "all")
+	_, err := d.GetOpenOrdersByInstrument(t.Context(), "", "all")
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOpenOrdersByInstrument(context.Background(), btcPerpInstrument, "all")
+	result, err := d.GetOpenOrdersByInstrument(t.Context(), btcPerpInstrument, "all")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2326,11 +2373,11 @@ func TestWSRetrieveOpenOrdersByInstrument(t *testing.T) {
 
 func TestGetOrderHistoryByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderHistoryByCurrency(context.Background(), currency.EMPTYCODE, "future", 0, 0, false, false)
+	_, err := d.GetOrderHistoryByCurrency(t.Context(), currency.EMPTYCODE, "future", 0, 0, false, false)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOrderHistoryByCurrency(context.Background(), currency.BTC, "future", 0, 0, false, false)
+	result, err := d.GetOrderHistoryByCurrency(t.Context(), currency.BTC, "future", 0, 0, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2348,11 +2395,11 @@ func TestWSRetrieveOrderHistoryByCurrency(t *testing.T) {
 
 func TestGetOrderHistoryByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderHistoryByInstrument(context.Background(), "", 0, 0, false, false)
+	_, err := d.GetOrderHistoryByInstrument(t.Context(), "", 0, 0, false, false)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOrderHistoryByInstrument(context.Background(), btcPerpInstrument, 0, 0, false, false)
+	result, err := d.GetOrderHistoryByInstrument(t.Context(), btcPerpInstrument, 0, 0, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2370,11 +2417,11 @@ func TestWSRetrieveOrderHistoryByInstrument(t *testing.T) {
 
 func TestGetOrderMarginsByID(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderMarginsByID(context.Background(), []string{})
+	_, err := d.GetOrderMarginsByID(t.Context(), []string{})
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOrderMarginsByID(context.Background(), []string{"21422175153", "21422175154"})
+	result, err := d.GetOrderMarginsByID(t.Context(), []string{"21422175153", "21422175154"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2392,11 +2439,11 @@ func TestWSRetrieveOrderMarginsByID(t *testing.T) {
 
 func TestGetOrderState(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderState(context.Background(), "")
+	_, err := d.GetOrderState(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOrderState(context.Background(), "brokenid123")
+	result, err := d.GetOrderState(t.Context(), "brokenid123")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2414,11 +2461,11 @@ func TestWSRetrievesOrderState(t *testing.T) {
 
 func TestGetOrderStateByLabel(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOrderStateByLabel(context.Background(), currency.EMPTYCODE, "the-label")
+	_, err := d.GetOrderStateByLabel(t.Context(), currency.EMPTYCODE, "the-label")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetOrderStateByLabel(context.Background(), currency.EURR, "the-label")
+	result, err := d.GetOrderStateByLabel(t.Context(), currency.EURR, "the-label")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2436,11 +2483,11 @@ func TestWsRetrieveOrderStateByLabel(t *testing.T) {
 
 func TestGetTriggerOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetTriggerOrderHistory(context.Background(), currency.EMPTYCODE, "", "", 0)
+	_, err := d.GetTriggerOrderHistory(t.Context(), currency.EMPTYCODE, "", "", 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetTriggerOrderHistory(context.Background(), currency.ETH, "", "", 0)
+	result, err := d.GetTriggerOrderHistory(t.Context(), currency.ETH, "", "", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2463,11 +2510,11 @@ func TestGetUserTradesByCurrency(t *testing.T) {
 	var resp *UserTradesData
 	err := json.Unmarshal([]byte(getUserTradesByCurrencyResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetUserTradesByCurrency(context.Background(), currency.EMPTYCODE, "future", "", "", "asc", 0, false)
+	_, err = d.GetUserTradesByCurrency(t.Context(), currency.EMPTYCODE, "future", "", "", "asc", 0, false)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserTradesByCurrency(context.Background(), currency.ETH, "future", "", "", "asc", 0, false)
+	result, err := d.GetUserTradesByCurrency(t.Context(), currency.ETH, "future", "", "", "asc", 0, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2485,11 +2532,11 @@ func TestWSRetrieveUserTradesByCurrency(t *testing.T) {
 
 func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetUserTradesByCurrencyAndTime(context.Background(), currency.EMPTYCODE, "future", "default", 5, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1))
+	_, err := d.GetUserTradesByCurrencyAndTime(t.Context(), currency.EMPTYCODE, "future", "default", 5, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserTradesByCurrencyAndTime(context.Background(), currency.ETH, "future", "default", 5, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1))
+	result, err := d.GetUserTradesByCurrencyAndTime(t.Context(), currency.ETH, "future", "default", 5, time.Now().Add(-time.Hour*10), time.Now().Add(-time.Hour*1))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2507,11 +2554,11 @@ func TestWSRetrieveUserTradesByCurrencyAndTime(t *testing.T) {
 
 func TestGetUserTradesByInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetUserTradesByInstrument(context.Background(), "", "asc", 5, 10, 4, true)
+	_, err := d.GetUserTradesByInstrument(t.Context(), "", "asc", 5, 10, 4, true)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserTradesByInstrument(context.Background(), btcPerpInstrument, "asc", 5, 10, 4, true)
+	result, err := d.GetUserTradesByInstrument(t.Context(), btcPerpInstrument, "asc", 5, 10, 4, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2529,11 +2576,11 @@ func TestWsRetrieveUserTradesByInstrument(t *testing.T) {
 
 func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetUserTradesByInstrumentAndTime(context.Background(), "", "asc", 10, time.Now().Add(-time.Hour), time.Now())
+	_, err := d.GetUserTradesByInstrumentAndTime(t.Context(), "", "asc", 10, time.Now().Add(-time.Hour), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserTradesByInstrumentAndTime(context.Background(), btcPerpInstrument, "asc", 10, time.Now().Add(-time.Hour), time.Now())
+	result, err := d.GetUserTradesByInstrumentAndTime(t.Context(), btcPerpInstrument, "asc", 10, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2551,11 +2598,11 @@ func TestWSRetrieveUserTradesByInstrumentAndTime(t *testing.T) {
 
 func TestGetUserTradesByOrder(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetUserTradesByOrder(context.Background(), "", "default")
+	_, err := d.GetUserTradesByOrder(t.Context(), "", "default")
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserTradesByOrder(context.Background(), "wrongOrderID", "default")
+	result, err := d.GetUserTradesByOrder(t.Context(), "wrongOrderID", "default")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2573,11 +2620,11 @@ func TestWSRetrieveUserTradesByOrder(t *testing.T) {
 
 func TestResetMMP(t *testing.T) {
 	t.Parallel()
-	err := d.ResetMMP(context.Background(), currency.EMPTYCODE)
+	err := d.ResetMMP(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	err = d.ResetMMP(context.Background(), currency.BTC)
+	err = d.ResetMMP(t.Context(), currency.BTC)
 	assert.NoError(t, err)
 }
 
@@ -2593,11 +2640,11 @@ func TestWSResetMMP(t *testing.T) {
 
 func TestSendRequestForQuote(t *testing.T) {
 	t.Parallel()
-	err := d.SendRequestForQuote(context.Background(), "", 1000, order.Buy)
+	err := d.SendRequestForQuote(t.Context(), "", 1000, order.Buy)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	err = d.SendRequestForQuote(context.Background(), d.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
+	err = d.SendRequestForQuote(t.Context(), d.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
 	assert.NoError(t, err)
 }
 
@@ -2613,11 +2660,11 @@ func TestWSSendRequestForQuote(t *testing.T) {
 
 func TestSetMMPConfig(t *testing.T) {
 	t.Parallel()
-	err := d.SetMMPConfig(context.Background(), currency.EMPTYCODE, kline.FiveMin, 5, 0, 0)
+	err := d.SetMMPConfig(t.Context(), currency.EMPTYCODE, kline.FiveMin, 5, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	err = d.SetMMPConfig(context.Background(), currency.BTC, kline.FiveMin, 5, 0, 0)
+	err = d.SetMMPConfig(t.Context(), currency.BTC, kline.FiveMin, 5, 0, 0)
 	assert.NoError(t, err)
 }
 
@@ -2633,11 +2680,11 @@ func TestWSSetMMPConfig(t *testing.T) {
 
 func TestGetSettlementHistoryByCurency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetSettlementHistoryByCurency(context.Background(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := d.GetSettlementHistoryByCurency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetSettlementHistoryByCurency(context.Background(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	result, err := d.GetSettlementHistoryByCurency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2662,7 +2709,7 @@ func TestGetSettlementHistoryByInstrument(t *testing.T) {
 	require.NoError(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err = d.GetSettlementHistoryByInstrument(context.Background(), btcPerpInstrument, "settlement", "", 10, time.Now().Add(-time.Hour))
+	result, err = d.GetSettlementHistoryByInstrument(t.Context(), btcPerpInstrument, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2680,13 +2727,13 @@ func TestWSRetrieveSettlementHistoryByInstrument(t *testing.T) {
 
 func TestSubmitEdit(t *testing.T) {
 	t.Parallel()
-	_, err := d.SubmitEdit(context.Background(), &OrderBuyAndSellParams{})
+	_, err := d.SubmitEdit(t.Context(), &OrderBuyAndSellParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = d.SubmitEdit(context.Background(), &OrderBuyAndSellParams{OrderID: "", Advanced: "", TriggerPrice: 0.001, Price: 100000, Amount: 123})
+	_, err = d.SubmitEdit(t.Context(), &OrderBuyAndSellParams{OrderID: "", Advanced: "", TriggerPrice: 0.001, Price: 100000, Amount: 123})
 	require.ErrorIs(t, err, errInvalidID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.SubmitEdit(context.Background(), &OrderBuyAndSellParams{OrderID: "incorrectID", Advanced: "", TriggerPrice: 0.001, Price: 100000, Amount: 123})
+	result, err := d.SubmitEdit(t.Context(), &OrderBuyAndSellParams{OrderID: "incorrectID", Advanced: "", TriggerPrice: 0.001, Price: 100000, Amount: 123})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2712,10 +2759,10 @@ func TestWSSubmitEdit(t *testing.T) {
 
 func TestGetComboIDS(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetComboIDs(context.Background(), currency.EMPTYCODE, "")
+	_, err := d.GetComboIDs(t.Context(), currency.EMPTYCODE, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetComboIDs(context.Background(), currency.BTC, "")
+	result, err := d.GetComboIDs(t.Context(), currency.BTC, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2732,10 +2779,10 @@ func TestWSRetrieveComboIDS(t *testing.T) {
 
 func TestGetComboDetails(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetComboDetails(context.Background(), "")
+	_, err := d.GetComboDetails(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidComboID)
 
-	result, err := d.GetComboDetails(context.Background(), futureComboTradablePair.String())
+	result, err := d.GetComboDetails(t.Context(), futureComboTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2752,24 +2799,24 @@ func TestWSRetrieveComboDetails(t *testing.T) {
 
 func TestGetCombos(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetCombos(context.Background(), currency.EMPTYCODE)
+	_, err := d.GetCombos(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := d.GetCombos(context.Background(), currency.BTC)
+	result, err := d.GetCombos(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestCreateCombo(t *testing.T) {
 	t.Parallel()
-	_, err := d.CreateCombo(context.Background(), []ComboParam{})
+	_, err := d.CreateCombo(t.Context(), []ComboParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
 	instruments, err := d.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
 	if len(instruments) < 2 {
 		t.Skip("no enough instrument found")
 	}
-	_, err = d.CreateCombo(context.Background(), []ComboParam{
+	_, err = d.CreateCombo(t.Context(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
 			Direction:      "sell",
@@ -2781,7 +2828,7 @@ func TestCreateCombo(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.CreateCombo(context.Background(), []ComboParam{
+	_, err = d.CreateCombo(t.Context(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
 			Amount:         123,
@@ -2793,7 +2840,7 @@ func TestCreateCombo(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
-	_, err = d.CreateCombo(context.Background(), []ComboParam{
+	_, err = d.CreateCombo(t.Context(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
 			Direction:      "buy",
@@ -2808,7 +2855,7 @@ func TestCreateCombo(t *testing.T) {
 	require.ErrorIs(t, err, errDifferentInstruments)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.CreateCombo(context.Background(), []ComboParam{
+	result, err := d.CreateCombo(t.Context(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
 			Direction:      "buy",
@@ -2879,16 +2926,16 @@ func TestWSCreateCombo(t *testing.T) {
 
 func TestVerifyBlockTrade(t *testing.T) {
 	t.Parallel()
-	_, err := d.VerifyBlockTrade(context.Background(), time.Now(), "", "maker", currency.EMPTYCODE, []BlockTradeParam{})
+	_, err := d.VerifyBlockTrade(t.Context(), time.Now(), "", "maker", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errMissingNonce)
-	_, err = d.VerifyBlockTrade(context.Background(), time.Now(), "nonce-string", "", currency.EMPTYCODE, []BlockTradeParam{})
+	_, err = d.VerifyBlockTrade(t.Context(), time.Now(), "nonce-string", "", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errInvalidTradeRole)
-	_, err = d.VerifyBlockTrade(context.Background(), time.Now(), "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{})
+	_, err = d.VerifyBlockTrade(t.Context(), time.Now(), "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	require.NotNil(t, info)
-	_, err = d.VerifyBlockTrade(context.Background(), time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
+	_, err = d.VerifyBlockTrade(t.Context(), time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -2899,7 +2946,7 @@ func TestVerifyBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errZeroTimestamp)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.VerifyBlockTrade(context.Background(), time.Now(), "something", "maker", currency.EMPTYCODE, []BlockTradeParam{
+	result, err := d.VerifyBlockTrade(t.Context(), time.Now(), "something", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -2919,7 +2966,7 @@ func TestWSVerifyBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidTradeRole)
 	_, err = d.WSVerifyBlockTrade(time.Now(), "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	require.NotNil(t, info)
 	_, err = d.WSVerifyBlockTrade(time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
@@ -2950,7 +2997,7 @@ func TestInvalidateBlockTradeSignature(t *testing.T) {
 	err := d.WsInvalidateBlockTradeSignature("")
 	require.ErrorIs(t, err, errMissingSignature)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	err = d.InvalidateBlockTradeSignature(context.Background(), "verified_signature_string")
+	err = d.InvalidateBlockTradeSignature(t.Context(), "verified_signature_string")
 	assert.NoError(t, err)
 }
 
@@ -2965,16 +3012,16 @@ func TestWsInvalidateBlockTradeSignature(t *testing.T) {
 
 func TestExecuteBlockTrade(t *testing.T) {
 	t.Parallel()
-	_, err := d.ExecuteBlockTrade(context.Background(), time.Now(), "", "maker", currency.EMPTYCODE, []BlockTradeParam{})
+	_, err := d.ExecuteBlockTrade(t.Context(), time.Now(), "", "maker", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errMissingNonce)
-	_, err = d.ExecuteBlockTrade(context.Background(), time.Now(), "nonce-string", "", currency.EMPTYCODE, []BlockTradeParam{})
+	_, err = d.ExecuteBlockTrade(t.Context(), time.Now(), "nonce-string", "", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errInvalidTradeRole)
-	_, err = d.ExecuteBlockTrade(context.Background(), time.Now(), "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{})
+	_, err = d.ExecuteBlockTrade(t.Context(), time.Now(), "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	require.NotNil(t, info)
-	_, err = d.ExecuteBlockTrade(context.Background(), time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
+	_, err = d.ExecuteBlockTrade(t.Context(), time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -2985,7 +3032,7 @@ func TestExecuteBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errZeroTimestamp)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.ExecuteBlockTrade(context.Background(), time.Now(), "something", "maker", currency.EMPTYCODE, []BlockTradeParam{
+	result, err := d.ExecuteBlockTrade(t.Context(), time.Now(), "something", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -3005,7 +3052,7 @@ func TestWSExecuteBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidTradeRole)
 	_, err = d.WSExecuteBlockTrade(time.Now(), "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	require.NotNil(t, info)
 	_, err = d.WSExecuteBlockTrade(time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{{
@@ -3036,11 +3083,11 @@ func TestGetUserBlocTrade(t *testing.T) {
 	var resp []BlockTradeData
 	err := json.Unmarshal([]byte(getUserBlocTradeResponseJSON), &resp)
 	require.NoError(t, err)
-	_, err = d.GetUserBlockTrade(context.Background(), "")
+	_, err = d.GetUserBlockTrade(t.Context(), "")
 	require.ErrorIs(t, err, errMissingBlockTradeID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetUserBlockTrade(context.Background(), "12345567")
+	result, err := d.GetUserBlockTrade(t.Context(), "12345567")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3058,11 +3105,11 @@ func TestWSRetrieveUserBlockTrade(t *testing.T) {
 
 func TestGetLastBlockTradesbyCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLastBlockTradesByCurrency(context.Background(), currency.EMPTYCODE, "", "", 5)
+	_, err := d.GetLastBlockTradesByCurrency(t.Context(), currency.EMPTYCODE, "", "", 5)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetLastBlockTradesByCurrency(context.Background(), currency.SOL, "", "", 5)
+	result, err := d.GetLastBlockTradesByCurrency(t.Context(), currency.SOL, "", "", 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3080,13 +3127,13 @@ func TestWSRetrieveLastBlockTradesByCurrency(t *testing.T) {
 
 func TestMovePositions(t *testing.T) {
 	t.Parallel()
-	_, err := d.MovePositions(context.Background(), currency.EMPTYCODE, 123, 345, []BlockTradeParam{})
+	_, err := d.MovePositions(t.Context(), currency.EMPTYCODE, 123, 345, []BlockTradeParam{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = d.MovePositions(context.Background(), currency.BTC, 0, 345, []BlockTradeParam{})
+	_, err = d.MovePositions(t.Context(), currency.BTC, 0, 345, []BlockTradeParam{})
 	require.ErrorIs(t, err, errMissingSubAccountID)
-	_, err = d.MovePositions(context.Background(), currency.BTC, 123, 0, []BlockTradeParam{})
+	_, err = d.MovePositions(t.Context(), currency.BTC, 123, 0, []BlockTradeParam{})
 	require.ErrorIs(t, err, errMissingSubAccountID)
-	_, err = d.MovePositions(context.Background(), currency.BTC, 123, 345, []BlockTradeParam{
+	_, err = d.MovePositions(t.Context(), currency.BTC, 123, 345, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: "",
@@ -3095,7 +3142,7 @@ func TestMovePositions(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	_, err = d.MovePositions(context.Background(), currency.BTC, 123, 345, []BlockTradeParam{
+	_, err = d.MovePositions(t.Context(), currency.BTC, 123, 345, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: "BTC-PERPETUAL",
@@ -3104,7 +3151,7 @@ func TestMovePositions(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.MovePositions(context.Background(), currency.BTC, 123, 345, []BlockTradeParam{
+	_, err = d.MovePositions(t.Context(), currency.BTC, 123, 345, []BlockTradeParam{
 		{
 			Price:          -4,
 			InstrumentName: "BTC-PERPETUAL",
@@ -3113,12 +3160,12 @@ func TestMovePositions(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidPrice)
-	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
 	require.NoError(t, err)
 	require.NotNil(t, info)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.MovePositions(context.Background(), currency.BTC, 123, 345, []BlockTradeParam{
+	result, err := d.MovePositions(t.Context(), currency.BTC, 123, 345, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: "BTC-PERPETUAL",
@@ -3165,7 +3212,7 @@ func TestWSMovePositions(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidPrice)
-	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
 	require.NoError(t, err)
 	require.NotNil(t, info)
 
@@ -3184,11 +3231,11 @@ func TestWSMovePositions(t *testing.T) {
 
 func TestSimulateBlockTrade(t *testing.T) {
 	t.Parallel()
-	_, err := d.SimulateBlockTrade(context.Background(), "", []BlockTradeParam{})
+	_, err := d.SimulateBlockTrade(t.Context(), "", []BlockTradeParam{})
 	require.ErrorIs(t, err, errInvalidTradeRole)
-	_, err = d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{})
+	_, err = d.SimulateBlockTrade(t.Context(), "maker", []BlockTradeParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-	_, err = d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{
+	_, err = d.SimulateBlockTrade(t.Context(), "maker", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: "",
@@ -3197,7 +3244,7 @@ func TestSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	_, err = d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{
+	_, err = d.SimulateBlockTrade(t.Context(), "maker", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -3206,7 +3253,7 @@ func TestSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
-	_, err = d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{
+	_, err = d.SimulateBlockTrade(t.Context(), "maker", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -3215,7 +3262,7 @@ func TestSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidAmount)
-	_, err = d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{
+	_, err = d.SimulateBlockTrade(t.Context(), "maker", []BlockTradeParam{
 		{
 			Price:          -1,
 			InstrumentName: btcPerpInstrument,
@@ -3226,9 +3273,9 @@ func TestSimulateBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPrice)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
 	require.NoError(t, err)
-	result, err := d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{
+	result, err := d.SimulateBlockTrade(t.Context(), "maker", []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
 			InstrumentName: btcPerpInstrument,
@@ -3284,7 +3331,7 @@ func TestWsSimulateBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPrice)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
+	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
 	require.NoError(t, err)
 	require.NotNil(t, info)
 	result, err := d.WsSimulateBlockTrade("taker", []BlockTradeParam{
@@ -3393,7 +3440,7 @@ func TestChannelName(t *testing.T) {
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.UpdateAccountInfo(context.Background(), asset.Futures)
+	result, err := d.UpdateAccountInfo(t.Context(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3401,7 +3448,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetAccountFundingHistory(context.Background())
+	result, err := d.GetAccountFundingHistory(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3409,7 +3456,7 @@ func TestGetFundingHistory(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Empty)
+	result, err := d.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Empty)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3419,7 +3466,7 @@ func TestGetRecentTrades(t *testing.T) {
 	var result []trade.Data
 	var err error
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err = d.GetRecentTrades(context.Background(), cp, assetType)
+		result, err = d.GetRecentTrades(t.Context(), cp, assetType)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -3427,7 +3474,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
 	t.Parallel()
-	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
+	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
 	require.NoError(t, err)
 	require.NotNil(t, info)
 	result, err := d.WSRetrievePublicPortfolioMargins(currency.BTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2})
@@ -3450,7 +3497,7 @@ func TestCancelAllOrders(t *testing.T) {
 	for assetType, cp := range assetTypeToPairsMap {
 		orderCancellation.AssetType = assetType
 		orderCancellation.Pair = cp
-		result, err = d.CancelAllOrders(context.Background(), orderCancellation)
+		result, err = d.CancelAllOrders(t.Context(), orderCancellation)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -3460,7 +3507,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.GetOrderInfo(context.Background(), "1234", cp, assetType)
+		result, err := d.GetOrderInfo(t.Context(), "1234", cp, assetType)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -3469,7 +3516,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	result, err := d.GetDepositAddress(t.Context(), currency.BTC, "", "")
 	require.ErrorIs(t, err, common.ErrNoResponse)
 	assert.NotNil(t, result)
 }
@@ -3477,7 +3524,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
+	result, err := d.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 		Exchange:    d.Name,
 		Amount:      1,
 		Currency:    currency.BTC,
@@ -3502,7 +3549,7 @@ func TestGetActiveOrders(t *testing.T) {
 	for assetType, cp := range assetTypeToPairsMap {
 		getOrdersRequest.Pairs = []currency.Pair{cp}
 		getOrdersRequest.AssetType = assetType
-		result, err := d.GetActiveOrders(context.Background(), &getOrdersRequest)
+		result, err := d.GetActiveOrders(t.Context(), &getOrdersRequest)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
@@ -3512,7 +3559,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	for assetType, cp := range assetTypeToPairsMap {
-		result, err := d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+		result, err := d.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 			Type: order.AnyType, AssetType: assetType,
 			Side: order.AnySide, Pairs: []currency.Pair{cp},
 		})
@@ -3583,7 +3630,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
-	result, err := d.GetFeeByType(context.Background(), feeBuilder)
+	result, err := d.GetFeeByType(t.Context(), feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	if !sharedtestvalues.AreAPICredentialsSet(d) {
@@ -3653,14 +3700,14 @@ func TestCalculateTradingFee(t *testing.T) {
 
 func TestGetTime(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetTime(context.Background())
+	result, err := d.GetTime(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetServerTime(context.Background(), asset.Empty)
+	result, err := d.GetServerTime(t.Context(), asset.Empty)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3675,15 +3722,15 @@ func TestModifyOrder(t *testing.T) {
 		{AssetType: asset.Futures, Pair: futuresTradablePair, Amount: 2}:       order.ErrOrderIDNotSet,
 	}
 	for param, errIncoming := range modifyParamToErrorMap {
-		_, err := d.ModifyOrder(context.Background(), param)
+		_, err := d.ModifyOrder(t.Context(), param)
 		require.ErrorIs(t, err, errIncoming)
 	}
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Futures, OrderID: "1234", Pair: futuresTradablePair, Amount: 2})
+	result, err := d.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Futures, OrderID: "1234", Pair: futuresTradablePair, Amount: 2})
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	result, err = d.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Options, OrderID: "1234", Pair: optionsTradablePair, Amount: 2})
+	result, err = d.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Options, OrderID: "1234", Pair: optionsTradablePair, Amount: 2})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3699,7 +3746,7 @@ func TestCancelOrder(t *testing.T) {
 	for assetType, cp := range assetTypeToPairsMap {
 		orderCancellation.AssetType = assetType
 		orderCancellation.Pair = cp
-		err := d.CancelOrder(context.Background(), orderCancellation)
+		err := d.CancelOrder(t.Context(), orderCancellation)
 		require.NoError(t, err)
 	}
 }
@@ -3789,13 +3836,13 @@ func TestWSRetrieveCombos(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+	_, err := d.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	result, err := d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+	result, err := d.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 		Pair:  futuresTradablePair,
 	})
@@ -3805,9 +3852,9 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := d.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	err := d.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
-	instrumentInfo, err := d.GetInstruments(context.Background(), currency.BTC, d.GetAssetKind(asset.Spot), false)
+	instrumentInfo, err := d.GetInstruments(t.Context(), currency.BTC, d.GetAssetKind(asset.Spot), false)
 	require.NoError(t, err)
 	require.NotEmpty(t, instrumentInfo, "instrument information must not be empty")
 	limits, err := d.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
@@ -3815,7 +3862,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	var instrumentDetail *InstrumentData
 	for a := range instrumentInfo {
 		if instrumentInfo[a].InstrumentName == spotTradablePair.String() {
-			instrumentDetail = &instrumentInfo[a]
+			instrumentDetail = instrumentInfo[a]
 			break
 		}
 	}
@@ -3826,7 +3873,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestGetLockedStatus(t *testing.T) {
 	t.Parallel()
-	result, err := d.GetLockedStatus(context.Background())
+	result, err := d.GetLockedStatus(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3857,7 +3904,7 @@ func TestWsDisableCancelOnDisconnect(t *testing.T) {
 func TestEnableCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	result, err := d.EnableCancelOnDisconnect(context.Background(), "account")
+	result, err := d.EnableCancelOnDisconnect(t.Context(), "account")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3879,13 +3926,13 @@ func TestLogout(t *testing.T) {
 
 func TestExchangeToken(t *testing.T) {
 	t.Parallel()
-	_, err := d.ExchangeToken(context.Background(), "", 1234)
+	_, err := d.ExchangeToken(t.Context(), "", 1234)
 	require.ErrorIs(t, err, errRefreshTokenRequired)
-	_, err = d.ExchangeToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", 0)
+	_, err = d.ExchangeToken(t.Context(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", 0)
 	require.ErrorIs(t, err, errSubjectIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.ExchangeToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", 1234)
+	result, err := d.ExchangeToken(t.Context(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", 1234)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3900,13 +3947,13 @@ func TestWsExchangeToken(t *testing.T) {
 
 func TestForkToken(t *testing.T) {
 	t.Parallel()
-	_, err := d.ForkToken(context.Background(), "", "Sami")
+	_, err := d.ForkToken(t.Context(), "", "Sami")
 	require.ErrorIs(t, err, errRefreshTokenRequired)
-	_, err = d.ForkToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "")
+	_, err = d.ForkToken(t.Context(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "")
 	require.ErrorIs(t, err, errSessionNameRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
-	result, err := d.ForkToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
+	result, err := d.ForkToken(t.Context(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3926,14 +3973,14 @@ func TestWsForkToken(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetFuturesContractDetails(context.Background(), asset.Binary)
+	_, err := d.GetFuturesContractDetails(t.Context(), asset.Binary)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	result, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
+	result, err := d.GetFuturesContractDetails(t.Context(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = d.GetFuturesContractDetails(context.Background(), asset.FutureCombo)
+	_, err = d.GetFuturesContractDetails(t.Context(), asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -3946,7 +3993,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	}
 
 	for param, errIncoming := range paramToErrorMap {
-		_, err := d.GetFuturesPositionSummary(context.Background(), param)
+		_, err := d.GetFuturesPositionSummary(t.Context(), param)
 		require.ErrorIs(t, err, errIncoming)
 	}
 
@@ -3955,42 +4002,42 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		Asset: asset.Futures,
 		Pair:  currency.NewPair(currency.BTC, currency.NewCode(perpString)),
 	}
-	result, err := d.GetFuturesPositionSummary(context.Background(), req)
+	result, err := d.GetFuturesPositionSummary(t.Context(), req)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetOpenInterest(context.Background(), key.PairAsset{
+	_, err := d.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.SOL.Item,
 		Quote: currency.USDC.Item,
 		Asset: asset.Spot,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+	_, err = d.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  optionsTradablePair.Base.Item,
 		Quote: optionsTradablePair.Quote.Item,
 		Asset: asset.Options,
 	})
 	require.NoError(t, err)
 
-	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+	_, err = d.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.NewCode(perpString).Item,
 		Asset: asset.Futures,
 	})
 	require.NoError(t, err)
 
-	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+	_, err = d.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.NewCode("XRP").Item,
 		Quote: currency.NewCode("USDC-PERPETUAL").Item,
 		Asset: asset.Futures,
 	})
 	require.NoError(t, err)
 
-	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+	_, err = d.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  futureComboTradablePair.Base.Item,
 		Quote: futureComboTradablePair.Quote.Item,
 		Asset: asset.FutureCombo,
@@ -4042,11 +4089,11 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		StartDate:       time.Now().Add(-time.Hour * 24 * 2),
 		EndDate:         time.Now(),
 	}
-	_, err = d.GetHistoricalFundingRates(context.Background(), r)
+	_, err = d.GetHistoricalFundingRates(t.Context(), r)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	r.Asset = asset.Futures
-	result, err := d.GetHistoricalFundingRates(context.Background(), r)
+	result, err := d.GetHistoricalFundingRates(t.Context(), r)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4120,7 +4167,7 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.EMPTYPAIR)
+	_, err := d.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	for _, a := range d.GetAssetTypes(false) {
@@ -4129,18 +4176,18 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
 		var resp string
-		resp, err = d.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err = d.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
 	// specific test to ensure perps work
 	cp := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
-	resp, err := d.GetCurrencyTradeURL(context.Background(), asset.Futures, cp)
+	resp, err := d.GetCurrencyTradeURL(t.Context(), asset.Futures, cp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 	// specific test to ensure options with dates work
 	cp = currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C"))
-	resp, err = d.GetCurrencyTradeURL(context.Background(), asset.Options, cp)
+	resp, err = d.GetCurrencyTradeURL(t.Context(), asset.Options, cp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }

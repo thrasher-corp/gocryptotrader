@@ -202,7 +202,7 @@ type Movement struct {
 	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
 	// by the requested amount. This might not represent the actual book on the
 	// exchange as they might restrict the amount of information being passed
-	// back from either a REST request or websocket stream.
+	// back from either a REST request or websocket update
 	FullBookSideConsumed bool
 }
 

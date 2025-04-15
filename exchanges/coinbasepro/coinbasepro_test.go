@@ -11,13 +11,14 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -25,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -98,7 +98,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err = c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
@@ -124,9 +124,9 @@ func TestWsConnect(t *testing.T) {
 	exch.Websocket = sharedtestvalues.NewTestWebsocket()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	err := exch.Websocket.Disable()
-	assert.ErrorIs(t, err, stream.ErrAlreadyDisabled)
+	assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled)
 	err = exch.WsConnect()
-	assert.ErrorIs(t, err, stream.ErrWebsocketNotEnabled)
+	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	exch.SetDefaults()
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
@@ -1500,9 +1500,9 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	p := currency.Pairs{testPairFiat}
 	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	require.NoError(t, err)
 	c.Websocket.Wg.Add(1)
