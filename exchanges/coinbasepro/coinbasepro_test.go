@@ -67,13 +67,14 @@ const (
 	skipInsufficientFundsOrWallets = "insufficient funds or wallets for test, skipping"
 	skipInsufficientTransactions   = "insufficient transactions for test, skipping"
 
-	errExpectMismatch         = "received: '%v' but expected: '%v'"
-	errExpectedNonEmpty       = "expected non-empty response"
-	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
-	errPortTransferInsufFunds = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
-	errInvalidProductID       = `CoinbasePro unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
-	errExpectedFeeRange       = "expected fee range of %v and %v, received %v"
-	errOptionInvalid          = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
+	errExpectMismatch          = "received: '%v' but expected: '%v'"
+	errExpectedNonEmpty        = "expected non-empty response"
+	errPortfolioNameDuplicate  = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
+	errPortTransferInsufFunds  = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
+	errInvalidProductID        = `CoinbasePro unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
+	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
+	errOptionInvalid           = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
+	errJSONUnmarshalUnexpected = "JSON umarshalling did not return expected error"
 )
 
 func TestMain(m *testing.M) {
@@ -1542,9 +1543,7 @@ func TestWsHandleData(t *testing.T) {
 	}()
 	_, err := c.wsHandleData(nil)
 	var syntaxErr *json.SyntaxError
-	if !assert.ErrorAs(t, err, &syntaxErr) {
-		assert.ErrorContains(t, err, "Syntax error no sources available, the input json is empty")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &syntaxErr) || assert.ErrorContains(t, err, "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	mockJSON := []byte(`{"type": "error"}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.Error(t, err)
@@ -1554,38 +1553,28 @@ func TestWsHandleData(t *testing.T) {
 	var unmarshalTypeErr *json.UnmarshalTypeError
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	if !assert.ErrorAs(t, err, &unmarshalTypeErr) {
-		assert.ErrorContains(t, err, "mismatched type with value")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &unmarshalTypeErr) || assert.ErrorContains(t, err, "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	if !assert.ErrorAs(t, err, &unmarshalTypeErr) {
-		assert.ErrorContains(t, err, "mismatched type with value")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &unmarshalTypeErr) || assert.ErrorContains(t, err, "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	if !assert.ErrorAs(t, err, &unmarshalTypeErr) {
-		assert.ErrorContains(t, err, "mismatched type with value")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &unmarshalTypeErr) || assert.ErrorContains(t, err, "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	if !assert.ErrorAs(t, err, &unmarshalTypeErr) {
-		assert.ErrorContains(t, err, "mismatched type with value")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &unmarshalTypeErr) || assert.ErrorContains(t, err, "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	if !assert.ErrorAs(t, err, &unmarshalTypeErr) {
-		assert.ErrorContains(t, err, "mismatched type with value")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &unmarshalTypeErr) || assert.ErrorContains(t, err, "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
@@ -1597,9 +1586,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
 	_, err = c.wsHandleData(mockJSON)
-	if !assert.ErrorAs(t, err, &unmarshalTypeErr) {
-		assert.ErrorContains(t, err, "mismatched type with value")
-	}
+	assert.Truef(t, assert.ErrorAs(t, err, &unmarshalTypeErr) || assert.ErrorContains(t, err, "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1"}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
 	_, err = c.wsHandleData(mockJSON)
 	assert.NoError(t, err)
