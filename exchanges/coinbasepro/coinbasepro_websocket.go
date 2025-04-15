@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -44,13 +45,13 @@ var subscriptionNames = map[string]string{
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.HeartbeatChannel},
-	{Enabled: false, Asset: asset.All, Channel: "status"},
+	{Enabled: true, Asset: asset.All, Channel: "status"},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.CandlesChannel},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	{Enabled: false, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
-	{Enabled: false, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
-	{Enabled: false, Asset: asset.Spot, Channel: "ticker_batch"},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Spot, Channel: "ticker_batch"},
 	/* Not Implemented:
 	{Enabled: false, Asset: asset.Spot, Channel: "futures_balance_summary", Authenticated: true},
 	*/
@@ -341,7 +342,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 
 // ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
-	bids, asks, err := processBidAskArray(snapshot)
+	bids, asks, err := processBidAskArray(snapshot, true)
 	if err != nil {
 		return err
 	}
@@ -354,28 +355,25 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 		LastUpdated:     timestamp,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	aliases := c.pairAliases.GetAlias(snapshot.ProductID)
-	var errs error
-	for i := range aliases {
-		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
+	for _, a := range c.pairAliases.GetAlias(snapshot.ProductID) {
+		isEnabled, err := c.IsPairEnabled(a, asset.Spot)
 		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
+			return err
 		}
 		if isEnabled {
-			book.Pair = aliases[i]
+			book.Pair = a
 			err = c.Websocket.Orderbook.LoadSnapshot(book)
 			if err != nil {
-				errs = common.AppendError(errs, err)
+				return err
 			}
 		}
 	}
-	return errs
+	return nil
 }
 
 // ProcessUpdate updates the orderbook local cache
 func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
-	bids, asks, err := processBidAskArray(update)
+	bids, asks, err := processBidAskArray(update, false)
 	if err != nil {
 		return err
 	}
@@ -386,23 +384,20 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-	aliases := c.pairAliases.GetAlias(update.ProductID)
-	var errs error
-	for i := range aliases {
-		isEnabled, err := c.CurrencyPairs.IsPairEnabled(aliases[i], asset.Spot)
+	for _, a := range c.pairAliases.GetAlias(update.ProductID) {
+		isEnabled, err := c.IsPairEnabled(a, asset.Spot)
 		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
+			return err
 		}
 		if isEnabled {
-			obU.Pair = aliases[i]
+			obU.Pair = a
 			err = c.Websocket.Orderbook.Update(obU)
 			if err != nil {
-				errs = common.AppendError(errs, err)
+				return err
 			}
 		}
 	}
-	return errs
+	return nil
 }
 
 // GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
@@ -440,10 +435,8 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 		limitType := WSUnauthRate
 		if s.Authenticated {
 			limitType = WSAuthRate
-			err = c.signWsRequest(r)
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
+			if r.JWT, err = c.GetWSJWT(); err != nil {
+				return err
 			}
 		}
 		if err = c.Websocket.Conn.SendJSONMessage(context.TODO(), limitType, r); err == nil {
@@ -457,15 +450,6 @@ func (c *CoinbasePro) manageSubs(op string, subs subscription.List) error {
 		errs = common.AppendError(errs, err)
 	}
 	return errs
-}
-
-func (c *CoinbasePro) signWsRequest(r *WebsocketRequest) error {
-	jwt, err := c.GetWSJWT()
-	if err != nil {
-		return err
-	}
-	r.JWT = jwt
-	return nil
 }
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
@@ -485,7 +469,7 @@ func (c *CoinbasePro) GetWSJWT() (string, error) {
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
-func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks orderbook.Tranches, err error) {
+func processBidAskArray(data *WebsocketOrderbookDataHolder, snapshot bool) (bids, asks orderbook.Tranches, err error) {
 	bids = make(orderbook.Tranches, 0, len(data.Changes))
 	asks = make(orderbook.Tranches, 0, len(data.Changes))
 	for i := range data.Changes {
@@ -499,8 +483,9 @@ func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks orderboo
 			return nil, nil, fmt.Errorf("%w %v", order.ErrSideIsInvalid, data.Changes[i].Side)
 		}
 	}
-	bids.SortBids()
-	asks.SortAsks()
+	if snapshot {
+		return slices.Clip(bids), slices.Clip(asks), nil
+	}
 	return bids, asks, nil
 }
 
