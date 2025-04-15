@@ -335,9 +335,14 @@ func (c *CoinbasePro) GetHolds(ctx context.Context, accountID string) ([]Account
 // timeInforce - [optional] GTC, GTT, IOC, or FOK (default is GTC)
 // cancelAfter - [optional] min, hour, day * Requires time_in_force to be GTT
 // postOnly - [optional] Post only flag Invalid when time_in_force is IOC or FOK
-func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef, side, timeInforce, cancelAfter, productID, stp string, price, amount float64, postOnly bool) (string, error) {
-	resp := GeneralizedOrderResponse{}
+func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef, cancelAfter, productID, stp string, side order.Side, timeInforce order.TimeInForce, price, amount float64) (string, error) {
+	timeInForceString, err := timeInForceString(timeInforce)
+	if err != nil {
+		return "", err
+	}
 	req := make(map[string]any)
+	req["post_only"] = timeInforce.Is(order.PostOnly)
+	req["time_in_force"] = timeInForceString
 	req["type"] = order.Limit.Lower()
 	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	req["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
@@ -347,25 +352,14 @@ func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef, side, time
 	if cancelAfter != "" {
 		req["cancel_after"] = cancelAfter
 	}
-	if timeInforce != "" {
-		req["time_in_force"] = timeInforce
-	}
 	if clientRef != "" {
 		req["client_oid"] = clientRef
 	}
 	if stp != "" {
 		req["stp"] = stp
 	}
-	if postOnly {
-		req["post_only"] = postOnly
-	}
-
-	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproOrders, req, &resp)
-	if err != nil {
-		return "", err
-	}
-
-	return resp.ID, nil
+	resp := GeneralizedOrderResponse{}
+	return resp.ID, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproOrders, req, &resp)
 }
 
 // PlaceMarketOrder places a new market order.

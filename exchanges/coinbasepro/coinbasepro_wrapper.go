@@ -430,23 +430,15 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fPair.String(),
 			"")
 	case order.Limit:
-		var timeInForceString string
-		switch s.TimeInForce {
-		case order.GoodTillCancel, order.GoodTillTime, order.ImmediateOrCancel, order.FillOrKill:
-			timeInForceString = s.TimeInForce.String()
-		default:
-			return nil, fmt.Errorf("%w, unsupported time-in-force value %v", order.ErrUnsupportedTimeInForce, s.TimeInForce.String())
-		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
-			s.Side.Lower(),
-			timeInForceString,
 			"",
 			fPair.String(),
 			"",
+			s.Side,
+			s.TimeInForce,
 			s.Price,
-			s.Amount,
-			false)
+			s.Amount)
 	default:
 		err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
@@ -454,6 +446,15 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		return nil, err
 	}
 	return s.DeriveSubmitResponse(orderID)
+}
+
+func timeInForceString(tif order.TimeInForce) (string, error) {
+	switch tif {
+	case order.UnknownTIF, order.GoodTillCancel, order.GoodTillTime, order.ImmediateOrCancel, order.FillOrKill:
+		return tif.String(), nil
+	default:
+		return "", fmt.Errorf("%w, unsupported time-in-force value %v", order.ErrUnsupportedTimeInForce, tif.String())
+	}
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
