@@ -1746,7 +1746,7 @@ func cancelOrder(c *cli.Context) error {
 	if c.IsSet("side") {
 		orderSide = c.String("side")
 	} else {
-		orderSide = c.Args().Get(6)
+		orderSide = c.Args().Get(5)
 	}
 
 	// pair is optional, but if it's set, do a validity check
@@ -1876,7 +1876,7 @@ func cancelBatchOrders(c *cli.Context) error {
 	if c.IsSet("side") {
 		orderSide = c.String("side")
 	} else {
-		orderSide = c.Args().Get(6)
+		orderSide = c.Args().Get(5)
 	}
 
 	// pair is optional, but if it's set, do a validity check
