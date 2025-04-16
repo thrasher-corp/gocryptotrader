@@ -3712,8 +3712,8 @@ func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.
 
 // GetAccountDetail retrieves account details
 func (g *Gateio) GetAccountDetail(ctx context.Context) (*AccountDetail, error) {
-	var resp AccountDetail
-	return &resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
+	var resp *AccountDetail
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
 }
 
 // GetUserTransactionRateLimitInfo retrieves user transaction rate limit info
