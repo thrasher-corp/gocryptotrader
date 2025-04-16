@@ -1,8 +1,6 @@
 package key
 
 import (
-	"strings"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -18,7 +16,7 @@ type ExchangePairAsset struct {
 // NewExchangePairAssetKey is a helper to reduce the amount of code needed to create a key
 func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
 	return ExchangePairAsset{
-		Exchange: strings.ToLower(exch),
+		Exchange: exch,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
 		Asset:    a,
@@ -32,7 +30,7 @@ func (k ExchangePairAsset) Pair() currency.Pair {
 
 // MatchesExchangeAsset checks if the key matches the exchange and asset
 func (k ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
-	return strings.EqualFold(k.Exchange, exch) && k.Asset == item
+	return k.Exchange == exch && k.Asset == item
 }
 
 // MatchesPairAsset checks if the key matches the pair and asset
@@ -44,7 +42,7 @@ func (k ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item)
 
 // MatchesExchange checks if the exchange matches
 func (k ExchangePairAsset) MatchesExchange(exch string) bool {
-	return strings.EqualFold(k.Exchange, exch)
+	return k.Exchange == exch
 }
 
 // ExchangeAsset is a unique map key signature for exchange and asset
