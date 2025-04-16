@@ -3138,49 +3138,33 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, g)
 
-	err := g.UpdateOrderExecutionLimits(t.Context(), 1336)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received %v, expected %v", err, asset.ErrNotSupported)
+	scenarios := []struct {
+		assetType     asset.Item
+		expectedError error
+	}{
+		{assetType: asset.Spot, expectedError: nil},
+		{assetType: asset.Futures, expectedError: nil},
+		{assetType: asset.DeliveryFutures, expectedError: nil},
+		{assetType: asset.Options, expectedError: nil},
+		{assetType: asset.CrossMargin, expectedError: asset.ErrNotSupported},
+		{assetType: asset.Margin, expectedError: asset.ErrNotSupported},
 	}
 
-	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received %v, expected %v", err, common.ErrNotYetImplemented)
-	}
-
-	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
+	for _, s := range scenarios {
+		err := g.UpdateOrderExecutionLimits(t.Context(), s.assetType)
+		assert.ErrorIs(t, err, s.expectedError)
 	}
 
 	avail, err := g.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "GetAvailablePairs must not error")
 
 	for i := range avail {
 		mm, err := g.GetOrderExecutionLimits(asset.Spot, avail[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if mm == (order.MinMaxLevel{}) {
-			t.Fatal("expected a value")
-		}
-
-		if mm.MinimumBaseAmount <= 0 {
-			t.Fatalf("MinimumBaseAmount expected 0 but received %v for %v", mm.MinimumBaseAmount, avail[i])
-		}
-
-		// 1INCH_TRY no minimum quote or base values are returned.
-
-		if mm.QuoteStepIncrementSize <= 0 {
-			t.Fatalf("QuoteStepIncrementSize expected 0 but received %v for %v", mm.QuoteStepIncrementSize, avail[i])
-		}
-
-		if mm.AmountStepIncrementSize <= 0 {
-			t.Fatalf("AmountStepIncrementSize expected 0 but received %v for %v", mm.AmountStepIncrementSize, avail[i])
-		}
+		require.NoError(t, err, "GetOrderExecutionLimits must not error")
+		require.NotEmpty(t, mm, "GetOrderExecutionLimits must not return empty value")
+		assert.Positive(t, mm.MinimumBaseAmount)
+		assert.Positive(t, mm.QuoteStepIncrementSize)
+		assert.Positive(t, mm.AmountStepIncrementSize)
 	}
 }
 

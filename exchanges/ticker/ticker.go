@@ -39,12 +39,7 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	tick, ok := service.Tickers[key.ExchangePairAsset{
-		Exchange: exchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	tick, ok := service.Tickers[key.NewExchangePairAssetKey(exchange, a, p)]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("ticker item not found for %s %s %s",
 			exchange,
@@ -82,12 +77,7 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	tick, ok := service.Tickers[key.ExchangePairAsset{
-		Exchange: exchange,
-		Base:     p.Base.Item,
-		Quote:    p.Quote.Item,
-		Asset:    a,
-	}]
+	tick, ok := service.Tickers[key.NewExchangePairAssetKey(exchange, a, p)]
 	if !ok {
 		return nil, fmt.Errorf("%w %s %s %s", ErrTickerNotFound, exchange, p, a)
 	}
@@ -191,12 +181,7 @@ func ProcessTicker(p *Price) error {
 // update updates ticker price
 func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)
-	mapKey := key.ExchangePairAsset{
-		Exchange: name,
-		Base:     p.Pair.Base.Item,
-		Quote:    p.Pair.Quote.Item,
-		Asset:    p.AssetType,
-	}
+	mapKey := key.NewExchangePairAssetKey(name, p.AssetType, p.Pair)
 	s.mu.Lock()
 	t, ok := service.Tickers[mapKey]
 	if !ok || t == nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -1237,16 +1238,15 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		return err
 	}
 	var errs error
-	limits := make([]order.MinMaxLevel, 0, len(summary))
+	l := make([]limits.MinMaxLevel, 0, len(summary))
 	for _, marketInfo := range summary {
 		p, err := marketInfo.Pair()
 		if err != nil {
 			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
 			continue
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Pair:                    p,
-			Asset:                   a,
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangePairAssetKey(b.Name, a, p),
 			MinimumBaseAmount:       marketInfo.MinOrderSize,
 			MaximumBaseAmount:       marketInfo.MaxOrderSize,
 			AmountStepIncrementSize: marketInfo.MinSizeIncrement,
@@ -1254,7 +1254,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			PriceStepIncrementSize:  marketInfo.MinPriceIncrement,
 		})
 	}
-	if err = b.LoadLimits(limits); err != nil {
+	if err = limits.LoadLimits(l); err != nil {
 		errs = common.AppendError(errs, err)
 	}
 	return errs
@@ -1294,12 +1294,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     symbol.Base.Item,
-				Quote:    symbol.Quote.Item,
-				Asset:    asset.Futures,
-			},
+			Key:          key.NewExchangePairAssetKey(b.Name, asset.Futures, symbol),
 			OpenInterest: tickers[i].OpenInterest,
 		})
 	}

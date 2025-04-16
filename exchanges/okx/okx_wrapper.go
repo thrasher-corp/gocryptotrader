@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -339,20 +340,19 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		limits := make([]order.MinMaxLevel, len(insts))
+		l := make([]limits.MinMaxLevel, len(insts))
 		for x := range insts {
 			pair, err := currency.NewPairFromString(insts[x].InstrumentID)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
+			l[x] = limits.MinMaxLevel{
+				Key:                    key.NewExchangePairAssetKey(ok.Name, a, pair),
 				PriceStepIncrementSize: insts[x].TickSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 			}
 		}
-		return ok.LoadLimits(limits)
+		return limits.LoadLimits(l)
 	case asset.Spread:
 		insts, err := ok.GetPublicSpreads(ctx, "", "", "", "live")
 		if err != nil {
@@ -361,21 +361,20 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		limits := make([]order.MinMaxLevel, len(insts))
+		l := make([]limits.MinMaxLevel, len(insts))
 		for x := range insts {
 			pair, err := currency.NewPairFromString(insts[x].SpreadID)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
+			l[x] = limits.MinMaxLevel{
+				Key:                    key.NewExchangePairAssetKey(ok.Name, a, pair),
 				PriceStepIncrementSize: insts[x].MinSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinSize.Float64(),
 				QuoteStepIncrementSize: insts[x].TickSize.Float64(),
 			}
 		}
-		return ok.LoadLimits(limits)
+		return limits.LoadLimits(l)
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -862,7 +861,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -994,7 +993,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
 		if s.TrackingValue == 0 {
-			return nil, fmt.Errorf("%w, tracking value required", order.ErrAmountBelowMin)
+			return nil, fmt.Errorf("%w, tracking value required", limits.ErrAmountBelowMin)
 		}
 		result, err = ok.PlaceChaseAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:  pairString,
@@ -1058,9 +1057,9 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	case "oco":
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
-			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, take profit price is required", limits.ErrPriceBelowMin)
 		case s.RiskManagementModes.StopLoss.Price <= 0:
-			return nil, fmt.Errorf("%w, stop loss price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, stop loss price is required", limits.ErrPriceBelowMin)
 		}
 		result, err = ok.PlaceAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID: pairString,
@@ -1167,7 +1166,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		}
 	case order.Trigger:
 		if action.TriggerPrice == 0 {
-			return nil, fmt.Errorf("%w, trigger price required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, trigger price required", limits.ErrPriceBelowMin)
 		}
 		var postTriggerTPSLOrders []SubTPSLParams
 		if action.RiskManagementModes.StopLoss.Price > 0 && action.RiskManagementModes.TakeProfit.Price > 0 {
@@ -1202,10 +1201,10 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		switch {
 		case action.RiskManagementModes.TakeProfit.Price <= 0 &&
 			action.RiskManagementModes.TakeProfit.LimitPrice <= 0:
-			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", limits.ErrPriceBelowMin)
 		case action.RiskManagementModes.StopLoss.Price <= 0 &&
 			action.RiskManagementModes.StopLoss.LimitPrice <= 0:
-			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", order.ErrPriceBelowMin)
+			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", limits.ErrPriceBelowMin)
 		}
 		_, err = ok.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
 			InstrumentID:              pairFormat.Format(action.Pair),
@@ -2903,12 +2902,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: ok.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    v,
-					},
+					Key:          key.NewExchangePairAssetKey(ok.Name, v, p),
 					OpenInterest: oid[j].OpenInterest.Float64(),
 				})
 			}
@@ -2955,12 +2949,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			continue
 		}
 		resp[0] = futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: ok.Name,
-				Base:     p.Base.Item,
-				Quote:    p.Quote.Item,
-				Asset:    k[0].Asset,
-			},
+			Key:          key.NewExchangePairAssetKey(ok.Name, k[0].Asset, p),
 			OpenInterest: oid[i].OpenInterest.Float64(),
 		}
 	}

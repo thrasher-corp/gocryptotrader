@@ -17,8 +17,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -488,7 +490,7 @@ func (b *Bitfinex) GetSiteListConfigData(ctx context.Context, set string) ([]str
 // GetSiteInfoConfigData returns site configuration data by pub:info:{AssetType} as a map
 // path should be bitfinexInfoPairs or bitfinexInfoPairsFuture???
 // NOTE: See https://docs.bitfinex.com/reference/rest-public-conf
-func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) ([]order.MinMaxLevel, error) {
+func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.Item) ([]limits.MinMaxLevel, error) {
 	var path string
 	switch assetType {
 	case asset.Spot:
@@ -498,10 +500,10 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 	default:
 		return nil, fmt.Errorf("invalid asset type for GetSiteInfoConfigData: %s", assetType)
 	}
-	url := bitfinexAPIVersion2 + path
+	u := bitfinexAPIVersion2 + path
 	var resp [][][]any
 
-	err := b.SendHTTPRequest(ctx, exchange.RestSpot, url, &resp, status)
+	err := b.SendHTTPRequest(ctx, exchange.RestSpot, u, &resp, status)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +511,7 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		return nil, errors.New("response did not contain only one item")
 	}
 	data := resp[0]
-	pairs := make([]order.MinMaxLevel, 0, len(data))
+	l := make([]limits.MinMaxLevel, 0, len(data))
 	for i := range data {
 		if len(data[i]) != 2 {
 			return nil, errors.New("response contained a tuple without exactly 2 items")
@@ -541,14 +543,13 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 		if err != nil {
 			return nil, err
 		}
-		pairs = append(pairs, order.MinMaxLevel{
-			Asset:             assetType,
-			Pair:              pair,
+		l = append(l, limits.MinMaxLevel{
+			Key:               key.NewExchangePairAssetKey(b.Name, assetType, pair),
 			MinimumBaseAmount: minOrder,
 			MaximumBaseAmount: maxOrder,
 		})
 	}
-	return pairs, nil
+	return l, nil
 }
 
 // GetDerivativeStatusInfo gets status data for the queried derivative
