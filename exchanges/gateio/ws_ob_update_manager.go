@@ -128,11 +128,11 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 			}
 		}
 	}
-	return c.ApplyPendingUpdates(g, pair, a)
+	return c.ApplyPendingUpdates(g, a)
 }
 
 // ApplyPendingUpdates applies all pending updates to the orderbook
-func (c *updateCache) ApplyPendingUpdates(g *Gateio, pair currency.Pair, a asset.Item) error {
+func (c *updateCache) ApplyPendingUpdates(g *Gateio, a asset.Item) error {
 	for _, data := range c.updates {
 		lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(data.update.Pair, a)
 		if err != nil {

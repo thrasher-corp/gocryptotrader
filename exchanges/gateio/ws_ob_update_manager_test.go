@@ -157,11 +157,11 @@ func TestApplyPendingUpdates(t *testing.T) {
 	}
 
 	cache.updates = []pendingUpdate{{update: update, firstUpdateID: 1337}}
-	err = cache.ApplyPendingUpdates(g, pair, asset.Futures)
+	err = cache.ApplyPendingUpdates(g, asset.Futures)
 	require.ErrorIs(t, err, errOrderbookSnapshotOutdated)
 
 	cache.updates[0].firstUpdateID = 1336
-	err = cache.ApplyPendingUpdates(g, pair, asset.Futures)
+	err = cache.ApplyPendingUpdates(g, asset.Futures)
 	require.NoError(t, err)
 }
 
