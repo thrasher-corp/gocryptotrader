@@ -3994,7 +3994,7 @@ type CancelOrderRequest struct {
 	OrderId       string                 `protobuf:"bytes,3,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	Pair          *CurrencyPair          `protobuf:"bytes,4,opt,name=pair,proto3" json:"pair,omitempty"`
 	AssetType     string                 `protobuf:"bytes,5,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
-	Side          string                 `protobuf:"bytes,7,opt,name=side,proto3" json:"side,omitempty"`
+	Side          string                 `protobuf:"bytes,6,opt,name=side,proto3" json:"side,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4078,7 +4078,7 @@ type CancelBatchOrdersRequest struct {
 	OrdersId      string                 `protobuf:"bytes,3,opt,name=orders_id,json=ordersId,proto3" json:"orders_id,omitempty"`
 	Pair          *CurrencyPair          `protobuf:"bytes,4,opt,name=pair,proto3" json:"pair,omitempty"`
 	AssetType     string                 `protobuf:"bytes,5,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
-	Side          string                 `protobuf:"bytes,7,opt,name=side,proto3" json:"side,omitempty"`
+	Side          string                 `protobuf:"bytes,6,opt,name=side,proto3" json:"side,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -15439,7 +15439,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\x04pair\x18\x04 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x1d\n" +
 	"\n" +
 	"asset_type\x18\x05 \x01(\tR\tassetType\x12\x12\n" +
-	"\x04side\x18\a \x01(\tR\x04side\"\xcf\x01\n" +
+	"\x04side\x18\x06 \x01(\tR\x04side\"\xcf\x01\n" +
 	"\x18CancelBatchOrdersRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x1d\n" +
 	"\n" +
@@ -15448,7 +15448,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\x04pair\x18\x04 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x1d\n" +
 	"\n" +
 	"asset_type\x18\x05 \x01(\tR\tassetType\x12\x12\n" +
-	"\x04side\x18\a \x01(\tR\x04side\"\xa8\x01\n" +
+	"\x04side\x18\x06 \x01(\tR\x04side\"\xa8\x01\n" +
 	"\x06Orders\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12B\n" +
 	"\forder_status\x18\x02 \x03(\v2\x1f.gctrpc.Orders.OrderStatusEntryR\vorderStatus\x1a>\n" +
