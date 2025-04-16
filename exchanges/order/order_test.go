@@ -1498,49 +1498,49 @@ func TestMatchFilter(t *testing.T) {
 	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
 
 	tests := []struct {
-		Description string
-		Filter      Filter
-		Order       Detail
-		Result      bool
+		description string
+		filter      Filter
+		order       Detail
+		result      bool
 	}{
 		{"Exchange ✓", Filter{Exchange: "A"}, Detail{Exchange: "A"}, true},
 		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
-		{"Exchange ◎", Filter{Exchange: "A"}, Detail{}, false},
+		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
 		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},
 		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.Must(uuid.NewV4())}, false},
-		{"InternalOrderID ◎", Filter{InternalOrderID: id}, Detail{}, false},
+		{"InternalOrderID Empty", Filter{InternalOrderID: id}, Detail{}, false},
 		{"OrderID ✓", Filter{OrderID: "A"}, Detail{OrderID: "A"}, true},
 		{"OrderID 𐄂", Filter{OrderID: "A"}, Detail{OrderID: "B"}, false},
-		{"OrderID ◎", Filter{OrderID: "A"}, Detail{}, false},
+		{"OrderID Empty", Filter{OrderID: "A"}, Detail{}, false},
 		{"ClientOrderID ✓", Filter{ClientOrderID: "A"}, Detail{ClientOrderID: "A"}, true},
 		{"ClientOrderID 𐄂", Filter{ClientOrderID: "A"}, Detail{ClientOrderID: "B"}, false},
-		{"ClientOrderID ◎", Filter{ClientOrderID: "A"}, Detail{}, false},
+		{"ClientOrderID Empty", Filter{ClientOrderID: "A"}, Detail{}, false},
 		{"ClientID ✓", Filter{ClientID: "A"}, Detail{ClientID: "A"}, true},
 		{"ClientID 𐄂", Filter{ClientID: "A"}, Detail{ClientID: "B"}, false},
-		{"ClientID ◎", Filter{ClientID: "A"}, Detail{}, false},
-		{"AnySide ▲", Filter{Side: AnySide}, Detail{Side: Buy}, true},
-		{"AnySide ▼", Filter{Side: AnySide}, Detail{Side: Sell}, true},
-		{"AnySide ◎", Filter{Side: AnySide}, Detail{}, true},
+		{"ClientID Empty", Filter{ClientID: "A"}, Detail{}, false},
+		{"AnySide Buy", Filter{Side: AnySide}, Detail{Side: Buy}, true},
+		{"AnySide Sell", Filter{Side: AnySide}, Detail{Side: Sell}, true},
+		{"AnySide Empty", Filter{Side: AnySide}, Detail{}, true},
 		{"Side ✓", Filter{Side: Buy}, Detail{Side: Buy}, true},
 		{"Side 𐄂", Filter{Side: Buy}, Detail{Side: Sell}, false},
-		{"Side ◎", Filter{Side: Buy}, Detail{}, false},
+		{"Side Empty", Filter{Side: Buy}, Detail{}, false},
 		{"Status ✓", Filter{Status: Open}, Detail{Status: Open}, true},
 		{"Status 𐄂", Filter{Status: Open}, Detail{Status: New}, false},
-		{"Status ◎", Filter{Status: Open}, Detail{}, false},
+		{"Status Empty", Filter{Status: Open}, Detail{}, false},
 		{"AssetType ✓", Filter{AssetType: asset.Spot}, Detail{AssetType: asset.Spot}, true},
 		{"AssetType 𐄂", Filter{AssetType: asset.Spot}, Detail{AssetType: asset.Index}, false},
-		{"AssetType ◎", Filter{AssetType: asset.Spot}, Detail{}, false},
+		{"AssetType Empty", Filter{AssetType: asset.Spot}, Detail{}, false},
 		{"Pair ✓", Filter{Pair: currency.NewBTCUSDT()}, Detail{Pair: currency.NewBTCUSDT()}, true},
 		{"Pair 𐄂", Filter{Pair: currency.NewBTCUSDT()}, Detail{Pair: currency.NewBTCUSD()}, false},
-		{"Pair ◎", Filter{Pair: currency.NewBTCUSDT()}, Detail{}, false},
+		{"Pair Empty", Filter{Pair: currency.NewBTCUSDT()}, Detail{}, false},
 		{"AccountID ✓", Filter{AccountID: "A"}, Detail{AccountID: "A"}, true},
 		{"AccountID 𐄂", Filter{AccountID: "A"}, Detail{AccountID: "B"}, false},
-		{"AccountID ◎", Filter{AccountID: "A"}, Detail{}, false},
+		{"AccountID Empty", Filter{AccountID: "A"}, Detail{}, false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.m, func(t *testing.T) {
+		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
-			require.Equalf(t, tt.e, tt.o.MatchFilter(&tt.f), "%s filter result must be correct", tt.m)
+			require.Equal(t, tt.result, tt.order.MatchFilter(&tt.filter), "MatchFilter must return correctly")
 		})
 	}
 }
