@@ -1662,7 +1662,7 @@ func simulateOrder(c *cli.Context) error {
 var cancelOrderCommand = &cli.Command{
 	Name:      "cancelorder",
 	Usage:     "cancel order cancels an exchange order",
-	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset> <wallet_address> <side>",
+	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset> <side>",
 	Action:    cancelOrder,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -1685,10 +1685,6 @@ var cancelOrderCommand = &cli.Command{
 			Name:  "asset",
 			Usage: "the asset type",
 		},
-		&cli.Float64Flag{
-			Name:  "wallet_address",
-			Usage: "the wallet address",
-		},
 		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side",
@@ -1706,7 +1702,6 @@ func cancelOrder(c *cli.Context) error {
 	var orderID string
 	var currencyPair string
 	var assetType string
-	var walletAddress string
 	var orderSide string
 
 	if c.IsSet("exchange") {
@@ -1748,16 +1743,10 @@ func cancelOrder(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("wallet_address") {
-		walletAddress = c.String("wallet_address")
-	} else {
-		walletAddress = c.Args().Get(5)
-	}
-
 	if c.IsSet("side") {
 		orderSide = c.String("side")
 	} else {
-		orderSide = c.Args().Get(6)
+		orderSide = c.Args().Get(5)
 	}
 
 	// pair is optional, but if it's set, do a validity check
@@ -1789,9 +1778,8 @@ func cancelOrder(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType:     assetType,
-		WalletAddress: walletAddress,
-		Side:          orderSide,
+		AssetType: assetType,
+		Side:      orderSide,
 	})
 	if err != nil {
 		return err
@@ -1804,7 +1792,7 @@ func cancelOrder(c *cli.Context) error {
 var cancelBatchOrdersCommand = &cli.Command{
 	Name:      "cancelbatchorders",
 	Usage:     "cancel batch orders cancels a list of exchange orders (comma separated)",
-	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <wallet_address> <side>",
+	ArgsUsage: "<exchange> <account_id> <order_ids> <pair> <asset> <side>",
 	Action:    cancelBatchOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -1827,10 +1815,6 @@ var cancelBatchOrdersCommand = &cli.Command{
 			Name:  "asset",
 			Usage: "the asset type",
 		},
-		&cli.Float64Flag{
-			Name:  "wallet_address",
-			Usage: "the wallet address",
-		},
 		&cli.StringFlag{
 			Name:  "side",
 			Usage: "the order side",
@@ -1848,7 +1832,6 @@ func cancelBatchOrders(c *cli.Context) error {
 	var orderID string
 	var currencyPair string
 	var assetType string
-	var walletAddress string
 	var orderSide string
 
 	if c.IsSet("exchange") {
@@ -1890,16 +1873,10 @@ func cancelBatchOrders(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("wallet_address") {
-		walletAddress = c.String("wallet_address")
-	} else {
-		walletAddress = c.Args().Get(5)
-	}
-
 	if c.IsSet("side") {
 		orderSide = c.String("side")
 	} else {
-		orderSide = c.Args().Get(6)
+		orderSide = c.Args().Get(5)
 	}
 
 	// pair is optional, but if it's set, do a validity check
@@ -1931,9 +1908,8 @@ func cancelBatchOrders(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType:     assetType,
-		WalletAddress: walletAddress,
-		Side:          orderSide,
+		AssetType: assetType,
+		Side:      orderSide,
 	})
 	if err != nil {
 		return err

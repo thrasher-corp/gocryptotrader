@@ -229,10 +229,6 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.ClientOrderID = m.ClientOrderID
 		updated = true
 	}
-	if m.WalletAddress != "" && m.WalletAddress != d.WalletAddress {
-		d.WalletAddress = m.WalletAddress
-		updated = true
-	}
 	if m.Type != UnknownType && m.Type != d.Type {
 		d.Type = m.Type
 		updated = true
@@ -385,7 +381,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
 	switch {
-	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
+	case f.Exchange != "" && d.Exchange != f.Exchange:
 		return false
 	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
 		return false
@@ -406,8 +402,6 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	case !f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID:
 		return false
 	case f.AccountID != "" && d.AccountID != f.AccountID:
-		return false
-	case f.WalletAddress != "" && d.WalletAddress != f.WalletAddress:
 		return false
 	default:
 		return true
@@ -681,7 +675,6 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 		AccountID:     d.AccountID,
 		ClientID:      d.ClientID,
 		ClientOrderID: d.ClientOrderID,
-		WalletAddress: d.WalletAddress,
 		Type:          d.Type,
 		Side:          d.Side,
 		Pair:          d.Pair,
