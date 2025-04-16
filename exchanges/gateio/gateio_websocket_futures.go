@@ -435,7 +435,7 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 		limit = deliveryFuturesUpdateLimit
 	}
 
-	return wsOBUpdateMgr.applyUpdate(ctx, g, limit, data.FirstUpdatedID, &orderbook.Update{
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, limit, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:       data.LastUpdatedID,
 		UpdateTime:     data.Timestamp.Time(),
 		UpdatePushedAt: pushTime,

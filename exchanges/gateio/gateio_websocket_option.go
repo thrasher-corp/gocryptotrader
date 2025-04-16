@@ -512,7 +512,7 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
-	return wsOBUpdateMgr.applyUpdate(ctx, g, optionOrderbookUpdateLimit, data.FirstUpdatedID, &orderbook.Update{
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, optionOrderbookUpdateLimit, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:       data.LastUpdatedID,
 		UpdateTime:     data.Timestamp.Time(),
 		UpdatePushedAt: pushTime,

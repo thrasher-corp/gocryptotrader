@@ -174,6 +174,7 @@ var (
 type Gateio struct {
 	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
+	wsOBUpdateMgr *wsOBUpdateManager
 }
 
 // ***************************************** SubAccounts ********************************

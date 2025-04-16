@@ -328,6 +328,23 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 	return book.ob.Retrieve()
 }
 
+// LastUpdateID returns the last update ID of the orderbook
+func (w *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
+	if p.IsEmpty() {
+		return 0, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return 0, asset.ErrInvalidAsset
+	}
+	w.mtx.Lock()
+	defer w.mtx.Unlock()
+	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	if !ok {
+		return 0, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, ErrDepthNotFound)
+	}
+	return book.ob.LastUpdateID()
+}
+
 // FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
