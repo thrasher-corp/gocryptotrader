@@ -1498,10 +1498,10 @@ func TestMatchFilter(t *testing.T) {
 	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
 
 	tests := []struct {
-		m string
-		f Filter
-		o Detail
-		e bool
+		Description string
+		Filter      Filter
+		Order       Detail
+		Result      bool
 	}{
 		{"Exchange ✓", Filter{Exchange: "A"}, Detail{Exchange: "A"}, true},
 		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
