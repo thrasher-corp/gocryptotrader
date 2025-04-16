@@ -22,6 +22,7 @@ type IExchange interface {
 	GetSubscriptionTemplate(*Subscription) (*template.Template, error)
 	CanUseAuthenticatedWebsocketEndpoints() bool
 	IsAssetWebsocketSupported(a asset.Item) bool
+	GetSubscriptions() (List, error)
 }
 
 // Strings returns a sorted slice of subscriptions

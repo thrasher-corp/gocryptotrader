@@ -1,0 +1,172 @@
+package gateio
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+)
+
+const defaultWSSnapshotSyncDelay = 2 * time.Second
+
+var errOrderbookSnapshotOutdated = errors.New("orderbook snapshot is outdated")
+
+type wsOBUpdateManager struct {
+	m                 map[key.PairAsset]*updateCache
+	snapshotSyncDelay time.Duration
+	mtx               sync.RWMutex
+}
+
+type updateCache struct {
+	updates  []pendingUpdate
+	updating bool
+	mtx      sync.Mutex
+}
+
+type pendingUpdate struct {
+	update        *orderbook.Update
+	firstUpdateID int64
+}
+
+func newWsOBUpdateManager(snapshotSyncDelay time.Duration) *wsOBUpdateManager {
+	return &wsOBUpdateManager{m: make(map[key.PairAsset]*updateCache), snapshotSyncDelay: snapshotSyncDelay}
+}
+
+// ProcessUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
+func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, limit uint64, firstUpdateID int64, update *orderbook.Update) error {
+	cache := m.LoadCache(update.Pair, update.Asset)
+	cache.mtx.Lock()
+	defer cache.mtx.Unlock()
+
+	if cache.updating {
+		cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
+		return nil
+	}
+
+	lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
+	if err != nil && !errors.Is(err, buffer.ErrDepthNotFound) {
+		return err
+	}
+
+	if lastUpdateID+1 >= firstUpdateID {
+		return cache.ApplyOrderbookUpdate(g, update)
+	}
+
+	// Orderbook is behind notifications, flush store to prevent trading on stale data
+	if err := g.Websocket.Orderbook.FlushOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, buffer.ErrDepthNotFound) {
+		return err
+	}
+
+	cache.updating = true
+	cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(m.snapshotSyncDelay):
+			if err := cache.SyncOrderbook(ctx, g, update.Pair, update.Asset, limit); err != nil {
+				g.Websocket.DataHandler <- fmt.Errorf("failed to sync orderbook for %v %v: %w", update.Pair, update.Asset, err)
+			}
+		}
+	}()
+
+	return nil
+}
+
+// LoadCache loads the cache for the given pair and asset. If the cache does not exist, it creates a new one.
+func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCache {
+	m.mtx.RLock()
+	cache, ok := m.m[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	if !ok {
+		go m.mtx.RUnlock()
+		m.mtx.Lock()
+		cache = &updateCache{}
+		m.m[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
+		m.mtx.Unlock()
+	} else {
+		m.mtx.RUnlock()
+	}
+	return cache
+}
+
+// SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
+// applied to the orderbook.
+func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currency.Pair, a asset.Item, limit uint64) error {
+	// TODO: When templates are introduced for all assets define channel key and use g.Websocket.GetSubscription(ChannelKey{&subscription.Subscription{Channel: channelName}})
+	// to get the subscription and levels for limit. So that this can scale to config changes. Spot is currently the only
+	// asset with templates but it has only one level.
+	book, err := g.UpdateOrderbookWithLimit(ctx, pair, a, limit)
+
+	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
+	defer func() { c.updates = c.updates[:0]; c.updating = false; c.mtx.Unlock() }()
+
+	if err != nil {
+		return err
+	}
+
+	if a != asset.Spot {
+		if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+			return err
+		}
+	} else {
+		// Spot, Margin, and Cross Margin books are the same
+		for _, a := range standardMarginAssetTypes {
+			if enabled, _ := g.IsPairEnabled(pair, a); !enabled {
+				continue
+			}
+			book.Asset = a
+			if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
+				return err
+			}
+		}
+	}
+	return c.ApplyPendingUpdates(g, a)
+}
+
+// ApplyPendingUpdates applies all pending updates to the orderbook
+func (c *updateCache) ApplyPendingUpdates(g *Gateio, a asset.Item) error {
+	for _, data := range c.updates {
+		lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(data.update.Pair, a)
+		if err != nil {
+			return err
+		}
+		nextID := lastUpdateID + 1
+		if data.firstUpdateID > nextID {
+			return errOrderbookSnapshotOutdated
+		}
+		if data.update.UpdateID < nextID {
+			continue // skip updates that are behind the current orderbook
+		}
+		if err := c.ApplyOrderbookUpdate(g, data.update); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ApplyOrderbookUpdate applies an orderbook update to the orderbook
+func (c *updateCache) ApplyOrderbookUpdate(g *Gateio, update *orderbook.Update) error {
+	if update.Asset != asset.Spot {
+		return g.Websocket.Orderbook.Update(update)
+	}
+
+	for _, a := range standardMarginAssetTypes {
+		if enabled, _ := g.IsPairEnabled(update.Pair, a); !enabled {
+			continue
+		}
+		update.Asset = a
+		if err := g.Websocket.Orderbook.Update(update); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
