@@ -56,10 +56,17 @@ var timeInForceStringToValueMap = map[string]struct {
 
 func TestStringToTimeInForce(t *testing.T) {
 	t.Parallel()
-	for tk := range timeInForceStringToValueMap {
-		result, err := StringToTimeInForce(tk)
-		assert.ErrorIsf(t, err, timeInForceStringToValueMap[tk].Error, "got %v, expected %v", err, timeInForceStringToValueMap[tk].Error)
-		assert.Equalf(t, result, timeInForceStringToValueMap[tk].TIF, "got %v, expected %v", result, timeInForceStringToValueMap[tk].TIF)
+	for tk, exp := range timeInForceStringToValueMap {
+		t.Run(tk, func(t *testing.T) {
+			t.Parallel()
+			result, err := StringToTimeInForce(tk)
+			if exp.Error != nil {
+				require.ErrorIs(t, err, exp.Error)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, exp.TIF, result)
+		})
 	}
 }
 
@@ -114,14 +121,11 @@ func TestMarshalJSON(t *testing.T) {
 	assert.Equal(t, "IOC", target.TimeInForce.String())
 }
 
+// BenchmarkStringToTimeInForce-8            416595              2834 ns/op            1368 B/op         81 allocs/op
 func BenchmarkStringToTimeInForce(b *testing.B) {
-	var result TimeInForce
-	var err error
 	for b.Loop() {
 		for k := range timeInForceStringToValueMap {
-			result, err = StringToTimeInForce(k)
-			assert.ErrorIs(b, err, timeInForceStringToValueMap[k].Error)
-			assert.Equal(b, timeInForceStringToValueMap[k].TIF, result)
+			_, _ = StringToTimeInForce(k)
 		}
 	}
 }

@@ -65,8 +65,9 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 // IsValid returns whether or not the supplied time in force value is valid or
 // not
 func (t TimeInForce) IsValid() bool {
-	if ((t|ImmediateOrCancel == ImmediateOrCancel) && t != ImmediateOrCancel) ||
-		((t|FillOrKill == FillOrKill) && t != FillOrKill) {
+	// Neither ImmediateOrCancel nor FillOrKill can coexist with anything else
+	// If either bit is set then it must be the only bit set
+	if t&(ImmediateOrCancel|FillOrKill) != 0 && t&(t-1) != 0 {
 		return false
 	}
 	return t == UnknownTIF || supportedTimeInForceFlag&t == t
