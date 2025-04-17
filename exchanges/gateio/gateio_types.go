@@ -1,12 +1,15 @@
 package gateio
 
 import (
+	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -26,6 +29,13 @@ const (
 	sideLend   = "lend"
 	sideBorrow = "borrow"
 )
+
+func stringToTimeInForce(timeInForceString string) (order.TimeInForce, error) {
+	if slices.Contains(validTimesInForce, timeInForceString) {
+		return order.StringToTimeInForce(timeInForceString)
+	}
+	return order.UnknownTIF, fmt.Errorf("%w, time-in-force: %s", order.ErrUnsupportedTimeInForce, timeInForceString)
+}
 
 var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
 
