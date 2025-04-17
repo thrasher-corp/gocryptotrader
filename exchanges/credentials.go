@@ -136,8 +136,6 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 
 	// Sub account override if set
 	if subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string); ok {
-		b.API.credMu.RLock()
-		defer b.API.credMu.RUnlock()
 		creds.SubAccount = subAccountOverride
 	}
 

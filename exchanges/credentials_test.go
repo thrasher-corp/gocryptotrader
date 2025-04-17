@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 )
@@ -55,8 +56,8 @@ func TestGetCredentials(t *testing.T) {
 
 	ctx = context.WithValue(context.Background(), account.ContextCredentialsFlag, "pewpew")
 	_, err = b.GetCredentials(ctx)
-	if !errors.Is(err, errContextCredentialsFailure) {
-		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
+	if !errors.Is(err, common.ErrTypeAssertFailure) {
+		t.Fatalf("received: %v but expected error to wrap: %v", err, common.ErrTypeAssertFailure)
 	}
 
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
