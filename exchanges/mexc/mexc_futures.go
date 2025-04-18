@@ -611,21 +611,8 @@ func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 	default:
 		return nil, fmt.Errorf("%w: order side is missing", order.ErrSideIsInvalid)
 	}
-	switch arg.OrderType {
-	case order.Market:
-		params.Set("type", "5")
-	case order.Limit:
-		params.Set("type", "1")
-	case order.FillOrKill:
-		params.Set("type", "4")
-	case order.PostOnly:
-		params.Set("type", "2")
-	case order.ImmediateOrCancel:
-		params.Set("type", "3")
-	case order.Chase:
-		params.Set("type", "6")
-	default:
-		return nil, fmt.Errorf("%w: type: %v", order.ErrUnsupportedOrderType, arg.OrderType)
+	if arg.OrderType != "" {
+		params.Set("type", arg.OrderType)
 	}
 	switch arg.MarginType {
 	case margin.Isolated:
@@ -718,22 +705,13 @@ func (me *MEXC) PlaceFuturesTriggerOrder(ctx context.Context, arg *PlaceFuturesT
 	if arg.TriggerPriceType == 0 {
 		return nil, fmt.Errorf("%w: TriggerPriceType is required", order.ErrUnknownPriceType)
 	}
-	if arg.ExecutionCycle <= 0 {
-		// return nil,
+	if arg.ExecutionCycle.Duration() <= time.Hour*24 {
+		params.Set("executeCycle", "hours")
+	} else {
+		params.Set("executeCycle", "days")
 	}
-	switch arg.OrderType {
-	case order.Limit:
-		params.Set("orderType", "1")
-	case order.PostOnly:
-		params.Set("orderType", "2")
-	case order.ImmediateOrCancel:
-		params.Set("orderType", "3")
-	case order.FillOrKill:
-		params.Set("orderType", "4")
-	case order.Market:
-		params.Set("orderType", "5")
-	default:
-		return nil, fmt.Errorf("%w: OrderType is not supported", order.ErrUnsupportedOrderType)
+	if arg.OrderType != "" {
+		params.Set("orderType", arg.OrderType)
 	}
 	switch arg.PriceType {
 	case order.LastPrice:

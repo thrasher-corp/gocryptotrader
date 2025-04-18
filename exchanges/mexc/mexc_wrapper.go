@@ -761,7 +761,7 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 	if err != nil {
 		return nil, err
 	}
-	orderTypeString, err := me.OrderTypeString(s.Type)
+	orderTypeString, err := me.OrderTypeStringFromOrderTypeAndTimeInForce(s.Type, s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -771,7 +771,7 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		if err != nil {
 			return nil, err
 		}
-		orderType, err := me.StringToOrderType(result.Type)
+		orderType, tif, err := me.StringToOrderTypeAndTimeInForce(result.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -804,15 +804,37 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			Amount:               result.OrigQty.Float64(),
 			LastUpdated:          result.TransactTime.Time(),
 			RemainingAmount:      result.OrigQty.Float64() - result.ExecutedQty.Float64(),
+			TimeInForce:          tif,
 		}, nil
 	case asset.Futures:
+		var oTypeInt string
+		switch s.Type {
+		case order.Limit:
+			if order.PostOnly.Is(s.TimeInForce) {
+				oTypeInt = "2"
+			} else {
+				oTypeInt = "1"
+			}
+		case order.Market:
+			switch s.TimeInForce {
+			case order.ImmediateOrCancel:
+				oTypeInt = "3"
+			case order.FillOrKill:
+				oTypeInt = "4"
+			default:
+				oTypeInt = "5"
+			}
+		case order.Chase,
+			order.TrailingStop:
+			oTypeInt = "6"
+		}
 		orderID, err := me.PlaceFuturesOrder(ctx, &PlaceFuturesOrderParams{
 			Symbol:          s.Pair.String(),
 			Price:           s.Price,
 			Volume:          s.Amount,
 			Leverage:        int64(s.Leverage),
 			Side:            s.Side,
-			OrderType:       s.Type,
+			OrderType:       oTypeInt,
 			MarginType:      s.MarginType,
 			ExternalOrderID: s.ClientOrderID,
 			// StopLossPrice:
@@ -909,7 +931,7 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		if err != nil {
 			return nil, err
 		}
-		oType, err := me.StringToOrderType(result.Type)
+		oType, tif, err := me.StringToOrderTypeAndTimeInForce(result.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -941,6 +963,7 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			AssetType:            asset.Spot,
 			LastUpdated:          result.TransactTime.Time(),
 			Pair:                 cp,
+			TimeInForce:          tif,
 		}, nil
 	case asset.Futures:
 		result, err := me.GetOrderByOrderID(ctx, orderID)
@@ -948,15 +971,19 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			return nil, err
 		}
 		var oType order.Type
+		var tif order.TimeInForce
 		switch result.OrderType {
 		case 1:
 			oType = order.Limit
 		case 2:
-			oType = order.PostOnly
+			tif = order.PostOnly
+			oType = order.Limit
 		case 3:
-			oType = order.ImmediateOrCancel
+			oType = order.Market
+			tif = order.ImmediateOrCancel
 		case 4:
-			oType = order.FillOrKill
+			oType = order.Market
+			tif = order.FillOrKill
 		case 5:
 			oType = order.Market
 		case 6:
@@ -1001,9 +1028,7 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			return nil, err
 		}
 		return &order.Detail{
-			ImmediateOrCancel:    oType == order.ImmediateOrCancel,
-			FillOrKill:           oType == order.FillOrKill,
-			PostOnly:             oType == order.PostOnly,
+			TimeInForce:          tif,
 			Leverage:             result.Leverage,
 			Price:                result.Price,
 			Amount:               result.Volume,
@@ -1132,15 +1157,20 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			}
 			for od := range result.Data {
 				var oType order.Type
+				var tif order.TimeInForce
 				switch result.Data[od].OrderType {
 				case 1:
 					oType = order.Limit
+					tif = order.GoodTillCancel
 				case 2:
-					oType = order.PostOnly
+					oType = order.Limit
+					tif = order.PostOnly
 				case 3:
-					oType = order.ImmediateOrCancel
+					oType = order.Market
+					tif = order.ImmediateOrCancel
 				case 4:
-					oType = order.FillOrKill
+					oType = order.Market
+					tif = order.FillOrKill
 				case 5:
 					oType = order.Market
 				case 6:
@@ -1183,6 +1213,7 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 					AssetType:            asset.Futures,
 					LastUpdated:          result.Data[od].UpdateTime.Time(),
 					Pair:                 getOrdersRequest.Pairs[p],
+					TimeInForce:          tif,
 				})
 			}
 		}

@@ -693,15 +693,20 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		var oType order.Type
+		var tif order.TimeInForce
 		switch body.PrivateOrders.OrderType {
 		case 1:
+			tif = order.GoodTillCancel
 			oType = order.Limit
 		case 2:
-			oType = order.PostOnly
+			tif = order.PostOnly
+			oType = order.Market
 		case 3:
-			oType = order.ImmediateOrCancel
+			tif = order.ImmediateOrCancel
+			oType = order.Market
 		case 4:
-			oType = order.FillOrKill
+			oType = order.Market
+			tif = order.FillOrKill
 		case 5:
 			oType = order.Market
 		case 100:
@@ -725,7 +730,6 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		me.Websocket.DataHandler <- &order.Detail{
-			PostOnly:             body.PrivateOrders.OrderType == 2,
 			Price:                body.PrivateOrders.Price.Float64(),
 			Amount:               body.PrivateOrders.Amount.Float64(),
 			ContractAmount:       body.PrivateOrders.Quantity.Float64(),
@@ -747,6 +751,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			AssetType:   asset.Spot,
 			LastUpdated: body.PrivateOrders.CreateTime.Time(),
 			Pair:        cp,
+			TimeInForce: tif,
 		}
 	default:
 		me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{

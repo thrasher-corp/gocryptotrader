@@ -802,42 +802,44 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 }
 
 // OrderTypeString returns a string representation of an order.Type instance.
-func (me *MEXC) OrderTypeString(oType order.Type) (string, error) {
+func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
 	switch oType {
 	case order.Limit:
 		return "LIMIT_ORDER", nil
-	case order.PostOnly:
-		return "POST_ONLY", nil
 	case order.Market:
 		return "MARKET_ORDER", nil
-	case order.ImmediateOrCancel:
-		return "IMMEDIATE_OR_CANCEL", nil
-	case order.FillOrKill:
-		return "FILL_OR_KILL", nil
 	case order.StopLimit:
 		return "STOP_LIMIT", nil
-	default:
-		return "", order.ErrUnsupportedOrderType
+	case order.UnknownType:
+		switch tif {
+		case order.PostOnly:
+			return "POST_ONLY", nil
+		case order.ImmediateOrCancel:
+			return "IMMEDIATE_OR_CANCEL", nil
+		case order.FillOrKill:
+			return "FILL_OR_KILL", nil
+		}
 	}
+	return "", order.ErrUnsupportedOrderType
 }
 
 // StringToOrderType returns an order type from string
-func (me *MEXC) StringToOrderType(oType string) (order.Type, error) {
+func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order.TimeInForce, error) {
 	switch oType {
 	case "LIMIT_ORDER":
-		return order.Limit, nil
+		return order.Limit, order.GoodTillCancel, nil
 	case "POST_ONLY":
-		return order.PostOnly, nil
+		return order.Limit, order.PostOnly, nil
 	case "MARKET_ORDER":
-		return order.Market, nil
+		return order.Market, order.UnknownTIF, nil
 	case "IMMEDIATE_OR_CANCEL":
-		return order.ImmediateOrCancel, nil
+		return order.Market, order.ImmediateOrCancel, nil
 	case "FILL_OR_KILL":
-		return order.FillOrKill, nil
+		return order.Market, order.FillOrKill, nil
 	case "STOP_LIMIT":
-		return order.StopLimit, nil
+		return order.StopLimit, order.UnknownTIF, nil
 	default:
-		return order.AnyType, order.ErrUnsupportedOrderType
+		return order.AnyType, order.UnknownTIF, order.ErrUnsupportedOrderType
 	}
 }
 

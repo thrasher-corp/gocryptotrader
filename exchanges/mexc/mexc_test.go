@@ -384,7 +384,7 @@ func TestCreateBatchOrder(t *testing.T) {
 	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	arg.OrderType, err = me.OrderTypeString(order.Limit)
+	arg.OrderType, err = me.OrderTypeStringFromOrderTypeAndTimeInForce(order.Limit, order.UnknownTIF)
 	require.NoError(t, err)
 	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
@@ -393,7 +393,7 @@ func TestCreateBatchOrder(t *testing.T) {
 	_, err = me.CreateBatchOrder(context.Background(), []BatchOrderCreationParam{arg})
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
-	arg.OrderType, err = me.OrderTypeString(order.Market)
+	arg.OrderType, err = me.OrderTypeStringFromOrderTypeAndTimeInForce(order.Market, order.UnknownTIF)
 	require.NoError(t, err)
 
 	arg.Quantity = 0
@@ -409,20 +409,23 @@ func TestCreateBatchOrder(t *testing.T) {
 
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	typesMap := map[order.Type]struct {
+	typesMap := map[struct {
+		Type        order.Type
+		TimeInForce order.TimeInForce
+	}]struct {
 		String string
 		Error  error
 	}{
-		order.Limit:             {String: "LIMIT_ORDER"},
-		order.PostOnly:          {String: "POST_ONLY"},
-		order.Market:            {String: "MARKET_ORDER"},
-		order.ImmediateOrCancel: {String: "IMMEDIATE_OR_CANCEL"},
-		order.FillOrKill:        {String: "FILL_OR_KILL"},
-		order.StopLimit:         {String: "STOP_LIMIT"},
-		order.OptimalLimitIOC:   {String: "", Error: order.ErrUnsupportedOrderType},
+		{Type: order.Limit}:                    {String: "LIMIT_ORDER"},
+		{TimeInForce: order.PostOnly}:          {String: "POST_ONLY"},
+		{Type: order.Market}:                   {String: "MARKET_ORDER"},
+		{TimeInForce: order.ImmediateOrCancel}: {String: "IMMEDIATE_OR_CANCEL"},
+		{TimeInForce: order.FillOrKill}:        {String: "FILL_OR_KILL"},
+		{Type: order.StopLimit}:                {String: "STOP_LIMIT"},
+		{Type: order.OptimalLimitIOC}:          {String: "", Error: order.ErrUnsupportedOrderType},
 	}
 	for a := range typesMap {
-		value, err := me.OrderTypeString(a)
+		value, err := me.OrderTypeStringFromOrderTypeAndTimeInForce(a.Type, a.TimeInForce)
 		assert.Equal(t, typesMap[a].String, value)
 		assert.ErrorIs(t, err, typesMap[a].Error)
 	}
@@ -1250,7 +1253,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	_, err = me.PlaceFuturesOrder(context.Background(), arg)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	arg.OrderType = order.Limit
+	arg.OrderType = order.Limit.String()
 	_, err = me.PlaceFuturesOrder(context.Background(), arg)
 	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
 

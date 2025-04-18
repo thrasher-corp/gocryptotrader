@@ -1271,7 +1271,7 @@ type PlaceFuturesOrderParams struct {
 	Volume          float64
 	Leverage        int64
 	Side            order.Side
-	OrderType       order.Type
+	OrderType       string
 	MarginType      margin.Type
 	ExternalOrderID string
 	StopLossPrice   float64
@@ -1292,7 +1292,7 @@ type PlaceFuturesTriggerOrderParams struct {
 	TriggerPrice     float64
 	TriggerPriceType order.PriceType
 	ExecutionCycle   kline.Interval
-	OrderType        order.Type
+	OrderType        string
 	PriceType        order.PriceType
 }
 
