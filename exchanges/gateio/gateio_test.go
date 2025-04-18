@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -215,7 +214,7 @@ func TestGetSpotAccounts(t *testing.T) {
 func TestCreateBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.CreateBatchOrders(t.Context(), []CreateOrderRequestData{
+	_, err := g.CreateBatchOrders(t.Context(), []CreateOrderRequest{
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
@@ -259,7 +258,7 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 func TestCreateSpotOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	if _, err := g.PlaceSpotOrder(t.Context(), &CreateOrderRequestData{
+	_, err := g.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
 		Amount:       1,
@@ -1019,7 +1018,7 @@ func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.PlaceDeliveryOrder(t.Context(), &OrderCreateParams{
+	_, err := g.PlaceDeliveryOrder(t.Context(), &ContractOrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1181,7 +1180,7 @@ func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.PlaceFuturesOrder(t.Context(), &OrderCreateParams{
+	_, err := g.PlaceFuturesOrder(t.Context(), &ContractOrderCreateParams{
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1224,7 +1223,7 @@ func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 func TestPlaceBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []OrderCreateParams{
+	_, err := g.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []ContractOrderCreateParams{
 		{
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
@@ -2904,12 +2903,12 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := g.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, stream.Connection, string, subscription.List) ([]WsInput, error) {
+	err := g.handleSubscription(t.Context(), &DummyConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = g.handleSubscription(t.Context(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, stream.Connection, string, subscription.List) ([]WsInput, error) {
+	err = g.handleSubscription(t.Context(), &DummyConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
@@ -2939,7 +2938,6 @@ func TestParseWSHeader(t *testing.T) {
 		}
 	}
 }
-
 
 func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()

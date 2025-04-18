@@ -2346,12 +2346,12 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		got, err := g.WebsocketSpotSubmitOrder(ctx, req)
+		resp, err := g.WebsocketSpotSubmitOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
-		return g.deriveSpotWebsocketOrderResponse(got)
-	case asset.Futures:
+		return g.deriveSpotWebsocketOrderResponse(resp)
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		amountWithDirection, err := getFutureOrderSize(s)
 		if err != nil {
 			return nil, err
@@ -2362,12 +2362,7 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		a, err := getAssetFromFuturesPair(s.Pair)
-		if err != nil {
-			return nil, err
-		}
-
-		got, err := g.WebsocketFuturesSubmitOrder(ctx, a, &ContractOrderCreateParams{
+		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
@@ -2378,18 +2373,18 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		if err != nil {
 			return nil, err
 		}
-		return g.deriveFuturesWebsocketOrderResponse(got)
+		return g.deriveFuturesWebsocketOrderResponse(resp)
 	default:
 		return nil, common.ErrNotYetImplemented
 	}
 }
 
 func (g *Gateio) deriveSpotWebsocketOrderResponse(responses *WebsocketOrderResponse) (*order.SubmitResponse, error) {
-	got, err := g.deriveSpotWebsocketOrderResponses([]*WebsocketOrderResponse{responses})
+	resp, err := g.deriveSpotWebsocketOrderResponses([]*WebsocketOrderResponse{responses})
 	if err != nil {
 		return nil, err
 	}
-	return got[0], nil
+	return resp[0], nil
 }
 
 // deriveSpotWebsocketOrderResponses returns the order submission responses for spot
@@ -2456,11 +2451,11 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 }
 
 func (g *Gateio) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
-	got, err := g.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{responses})
+	resp, err := g.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{responses})
 	if err != nil {
 		return nil, err
 	}
-	return got[0], nil
+	return resp[0], nil
 }
 
 // deriveFuturesWebsocketOrderResponses returns the order submission responses for futures

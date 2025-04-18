@@ -204,32 +204,3 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
-
-func TestGetAssetFromFuturesPair(t *testing.T) {
-	t.Parallel()
-	_, err := getAssetFromFuturesPair(currency.Pair{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	_, err = getAssetFromFuturesPair(currency.NewPair(currency.BTC, currency.USDC))
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	a, err := getAssetFromFuturesPair(BTCUSDT)
-	require.NoError(t, err)
-	require.Equal(t, asset.USDTMarginedFutures, a)
-
-	a, err = getAssetFromFuturesPair(BTCUSD)
-	require.NoError(t, err)
-	require.Equal(t, asset.CoinMarginedFutures, a)
-}
-
-func TestValidateFuturesPairAsset(t *testing.T) {
-	t.Parallel()
-	err := validateFuturesPairAsset(currency.Pair{}, asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	err = validateFuturesPairAsset(BTCUSDT, asset.USDTMarginedFutures)
-	require.NoError(t, err)
-
-	err = validateFuturesPairAsset(BTCUSD, asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-}
