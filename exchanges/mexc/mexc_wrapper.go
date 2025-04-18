@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"slices"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1226,20 +1228,157 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
-		result, err := me.GetAllOrders(ctx, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
+		var symbolString string
+		if len(getOrdersRequest.Pairs) == 1 {
+			symbolString = getOrdersRequest.Pairs[0].String()
+		}
+		result, err := me.GetAllOrders(ctx, symbolString, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
 		if err != nil {
 			return nil, err
 		}
-		println(len(result))
+		orderDetails := make(order.FilteredOrders, len(result))
+		for r := range result {
+			var oStatus order.Status
+			switch result[r].Status {
+			case "NEW":
+				oStatus = order.New
+			case "FILLED":
+				oStatus = order.Filled
+			case "PARTIALLY_FILLED":
+				oStatus = order.PartiallyFilled
+			case "CANCELED":
+				oStatus = order.Cancelled
+			case "PARTIALLY_CANCELED":
+				oStatus = order.PartiallyCancelled
+			}
+			oSide, err := order.StringToOrderSide(result[r].Side)
+			if err != nil {
+				return nil, err
+			}
+			oType, err := order.StringToOrderType(result[r].Type)
+			if err != nil {
+				return nil, err
+			}
+			orderDetails[r] = order.Detail{
+				Price:                result[r].Price.Float64(),
+				Amount:               result[r].OrigQty.Float64(),
+				AverageExecutedPrice: result[r].Price.Float64(),
+				QuoteAmount:          result[r].CummulativeQuoteQty.Float64(),
+				ExecutedAmount:       result[r].ExecutedQty.Float64(),
+				RemainingAmount:      result[r].OrigQty.Float64() - result[r].ExecutedQty.Float64(),
+				Exchange:             me.Name,
+				OrderID:              result[r].OrderID,
+				ClientOrderID:        result[r].ClientOrderID,
+				Type:                 oType,
+				Side:                 oSide,
+				Status:               oStatus,
+				AssetType:            asset.Spot,
+				LastUpdated:          result[r].TransactTime.Time(),
+			}
+		}
+		return orderDetails, nil
 	case asset.Futures:
-		// result, err := me.GetAllUserHistoricalOrders(ctx, getOrdersRequest.)
+		var symbolString string
+		if len(getOrdersRequest.Pairs) == 1 {
+			symbolString = getOrdersRequest.Pairs[0].String()
+		}
+		result, err := me.GetAllUserHistoricalOrders(ctx, symbolString, "", "", getOrdersRequest.Side.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		pairStrings := getOrdersRequest.Pairs.Strings()
+		orderDetails := make(order.FilteredOrders, len(result.Data))
+		for r := range result.Data {
+			if len(pairStrings) > 1 && slices.Contains(pairStrings, result.Data[r].Symbol) {
+				continue
+			}
+			cp, err := currency.NewPairFromString(result.Data[r].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			var marginType margin.Type
+			switch result.Data[r].OpenType {
+			case 1:
+				marginType = margin.Isolated
+			case 2:
+				marginType = margin.Multi
+			}
+
+			var oType order.Type
+			var tif order.TimeInForce
+			switch result.Data[r].OrderType {
+			case 1:
+				oType = order.Limit
+				tif = order.GoodTillCancel
+			case 2:
+				oType = order.Limit
+				tif = order.PostOnly
+			case 3:
+				oType = order.Market
+				tif = order.ImmediateOrCancel
+			case 4:
+				oType = order.Market
+				tif = order.FillOrKill
+			case 5:
+				oType = order.Market
+			case 6:
+				oType = order.Chase
+			}
+			// order direction 1 open long,2 close short,3 open short, 4 close long
+			var oSide order.Side
+			switch result.Data[r].Side {
+			case 1, 4:
+				oSide = order.Long
+			case 2, 3:
+				oSide = order.Short
+			}
+			// TODO: fix again
+			var oStatus order.Status
+			switch result.Data[r].State {
+			case 1:
+				oStatus = order.Active
+			case 2:
+				oStatus = order.AutoDeleverage
+			case 3:
+				oStatus = order.Closed
+			}
+
+			var fee float64
+			switch result.Data[r].OrderType {
+			case 1, 2:
+				fee = result.Data[r].MakerFee
+			case 3, 4, 5, 6:
+				fee = result.Data[r].TakerFee
+			}
+			orderDetails[r] = order.Detail{
+				Exchange:             me.Name,
+				TimeInForce:          tif,
+				Leverage:             result.Data[r].Leverage,
+				Price:                result.Data[r].Price,
+				Amount:               result.Data[r].Volume,
+				TriggerPrice:         result.Data[r].TakeProfitPrice,
+				AverageExecutedPrice: result.Data[r].DealAvgPrice,
+				ExecutedAmount:       result.Data[r].DealVol,
+				RemainingAmount:      result.Data[r].Volume - result.Data[r].DealVol,
+				Fee:                  fee,
+				FeeAsset:             currency.NewCode(result.Data[r].FeeCurrency),
+				OrderID:              strconv.FormatInt(result.Data[r].OrderID, 10),
+				ClientOrderID:        result.Data[r].ExternalOrderID,
+				Type:                 oType,
+				Side:                 oSide,
+				Status:               oStatus,
+				AssetType:            asset.Futures,
+				LastUpdated:          result.Data[r].UpdateTime.Time(),
+				Pair:                 cp,
+				MarginType:           marginType,
+			}
+		}
+		return orderDetails, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
