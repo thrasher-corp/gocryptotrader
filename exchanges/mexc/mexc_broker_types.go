@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// BrokerUniversalAssetTransfer holds a response data after universal asset transfer by brokers
+// BrokerAssetTransfer holds a response data after asset transfer by brokers
 type BrokerAssetTransfer struct {
 	TransactionID       string       `json:"tranId"`
 	FromAccount         string       `json:"fromAccount"`

@@ -31,14 +31,17 @@ const (
 	canManipulateAPIEndpoints = false
 )
 
-var me = &MEXC{}
-var assetsAndErrors = map[asset.Item]error{
-	asset.Spot:    nil,
-	asset.Futures: nil,
-	asset.Options: asset.ErrNotSupported,
-}
+var (
+	me = &MEXC{}
 
-var spotTradablePair, futuresTradablePair currency.Pair
+	assetsAndErrors = map[asset.Item]error{
+		asset.Spot:    nil,
+		asset.Futures: nil,
+		asset.Options: asset.ErrNotSupported,
+	}
+
+	spotTradablePair, futuresTradablePair currency.Pair
+)
 
 func TestMain(m *testing.M) {
 	me = new(MEXC)
@@ -165,7 +168,6 @@ func TestGetCurrentAveragePrice(t *testing.T) {
 	_, err := me.GetCurrentAveragePrice(context.Background(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	me.Verbose = true
 	result, err := me.GetCurrentAveragePrice(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -184,7 +186,6 @@ func TestGet24HourTickerPriceChangeStatistics(t *testing.T) {
 
 func TestGetSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	me.Verbose = true
 	result, err := me.GetSymbolPriceTicker(context.Background(), []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -812,10 +813,6 @@ func TestGetContractsDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	for s := range result.Data {
-		println(result.Data[s].DisplayNameEn)
-	}
-
 	result, err = me.GetFuturesContracts(context.Background(), result.Data[0].Symbol)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -897,7 +894,7 @@ func TestGetContractFundingPrice(t *testing.T) {
 
 func TestContractIntervalString(t *testing.T) {
 	t.Parallel()
-	var intervalToStringMap = map[kline.Interval]struct {
+	intervalToStringMap := map[kline.Interval]struct {
 		String string
 		Error  error
 	}{
@@ -996,10 +993,6 @@ func TestGetContractFundingRateHistory(t *testing.T) {
 	t.Parallel()
 	_, err := me.GetContractFundingRateHistory(context.Background(), "", 1, 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	// _, err = me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 0, 10)
-	// require.ErrorIs(t, err, errPageNumberRequired)
-	// _, err = me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 1, 0)
-	// require.ErrorIs(t, err, errPageSizeRequired)
 
 	result, err := me.GetContractFundingRateHistory(context.Background(), "BTC_USDT", 1, 10)
 	require.NoError(t, err)
@@ -1366,10 +1359,7 @@ func TestCreateBrokerSubAccountAPIKey(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidSubAccountNote)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
-	result, err := me.CreateBrokerSubAccountAPIKey(context.Background(), &BrokerSubAccountAPIKeyParams{
-		SubAccount:  "my-subaccount-name",
-		Permissions: []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"},
-		Note:        "note-here"})
+	result, err := me.CreateBrokerSubAccountAPIKey(context.Background(), &BrokerSubAccountAPIKeyParams{SubAccount: "my-subaccount-name", Permissions: []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"}, Note: "note-here"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

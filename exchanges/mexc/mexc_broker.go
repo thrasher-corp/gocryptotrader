@@ -160,6 +160,7 @@ func (me *MEXC) GetSubAccountDepositHistory(ctx context.Context, coin currency.C
 func (me *MEXC) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
 	return me.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec/getall", startTime, endTime, limit, page)
 }
+
 func (me *MEXC) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {

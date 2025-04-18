@@ -3,11 +3,10 @@ package mexc
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
-
-	"slices"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -40,7 +39,6 @@ const (
 func (me *MEXC) SetDefaults() {
 	me.Name = "MEXC"
 	me.Enabled = true
-	me.Verbose = true
 	me.API.CredentialsValidator.RequiresKey = true
 	me.API.CredentialsValidator.RequiresSecret = true
 
@@ -471,17 +469,17 @@ func (me *MEXC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		}
 		currBalances := make([]account.Balance, len(accAssets.Balances))
 		for b := range accAssets.Balances {
-			currBalances = append(currBalances, account.Balance{
+			currBalances[b] = account.Balance{
 				Currency: currency.NewCode(accAssets.Balances[b].Asset),
 				Total:    accAssets.Balances[b].Free.Float64() + accAssets.Balances[b].Locked.Float64(),
 				Hold:     accAssets.Balances[b].Locked.Float64(),
-			})
+			}
 		}
-		resp.Accounts = append(resp.Accounts, account.SubAccount{
+		resp.Accounts[sacc] = account.SubAccount{
 			ID:         subAccounts.SubAccounts[sacc].SubAccount,
 			AssetType:  assetType,
 			Currencies: currBalances,
-		})
+		}
 	}
 	return resp, nil
 }
@@ -499,15 +497,13 @@ func (me *MEXC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
-// withdrawals
+// GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	var err error
-	var resp []exchange.FundingHistory
 	result, err := me.GetFundDepositHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		return nil, err
 	}
+	resp := make([]exchange.FundingHistory, len(result))
 	for a := range result {
 		var statusString string
 		switch result[a].Status {
@@ -526,7 +522,7 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 		case 7:
 			statusString = "REJECTED"
 		}
-		resp = append(resp, exchange.FundingHistory{
+		resp[a] = exchange.FundingHistory{
 			ExchangeName:    me.Name,
 			Status:          statusString,
 			TransferID:      result[a].TransactionID,
@@ -535,12 +531,13 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 			Amount:          result[a].Amount.Float64(),
 			CryptoToAddress: result[a].Address,
 			TransferType:    "diposit",
-		})
+		}
 	}
 	withdrawals, err := me.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		return nil, err
 	}
+	resp = make([]exchange.FundingHistory, len(withdrawals))
 	for w := range withdrawals {
 		var wdrStatus string
 		switch withdrawals[w].Status {
@@ -565,7 +562,7 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 		case 10:
 			wdrStatus = "MANUAL"
 		}
-		resp = append(resp, exchange.FundingHistory{
+		resp[w] = exchange.FundingHistory{
 			ExchangeName:    me.Name,
 			Status:          wdrStatus,
 			TransferID:      withdrawals[w].TransactionID,
@@ -574,18 +571,18 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 			Amount:          withdrawals[w].Amount.Float64(),
 			CryptoToAddress: withdrawals[w].Address,
 			TransferType:    "withdrawal",
-		})
+		}
 	}
 	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	var resp []exchange.WithdrawalHistory
-	withdrawals, err := me.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
+func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+	withdrawals, err := me.GetWithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		return nil, err
 	}
+	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for w := range withdrawals {
 		var wdrStatus string
 		switch withdrawals[w].Status {
@@ -610,7 +607,7 @@ func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		case 10:
 			wdrStatus = "MANUAL"
 		}
-		resp = append(resp, exchange.WithdrawalHistory{
+		resp[w] = exchange.WithdrawalHistory{
 			Status:          wdrStatus,
 			TransferID:      withdrawals[w].TransactionID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
@@ -618,7 +615,7 @@ func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 			Amount:          withdrawals[w].Amount.Float64(),
 			CryptoToAddress: withdrawals[w].Address,
 			TransferType:    "withdrawal",
-		})
+		}
 	}
 	return resp, nil
 }
@@ -876,7 +873,7 @@ func (me *MEXC) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (me *MEXC) CancelBatchOrders(ctx context.Context, ords []order.Cancel) (*order.CancelBatchResponse, error) {
+func (me *MEXC) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1057,8 +1054,8 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (me *MEXC) GetDepositAddress(ctx context.Context, c currency.Code, _ string, chain string) (*deposit.Address, error) {
-	result, err := me.GenerateDepositAddress(ctx, currency.BTC, "")
+func (me *MEXC) GetDepositAddress(ctx context.Context, code currency.Code, _, chain string) (*deposit.Address, error) {
+	result, err := me.GenerateDepositAddress(ctx, code, chain)
 	if err != nil {
 		return nil, err
 	}
@@ -1548,8 +1545,7 @@ func (me *MEXC) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 			return nil, err
 		}
 		var contractType futures.ContractType
-		switch {
-		case strings.HasSuffix(contracts.Data[a].DisplayNameEn, "PERPETUAL"):
+		if strings.HasSuffix(contracts.Data[a].DisplayNameEn, "PERPETUAL") {
 			contractType = futures.Perpetual
 		}
 		var contractStatus string

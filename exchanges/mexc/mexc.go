@@ -134,11 +134,7 @@ func (me *MEXC) GetAggregatedTrades(ctx context.Context, symbol string, startTim
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, aggregatedTradesEPL, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
-var intervalToStringMap = map[string]map[kline.Interval]string{
-	"wsIntervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30", kline.OneHour: "Min60",
-		kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1", kline.OneWeek: "Week1", kline.OneMonth: "Month1"},
-	"intervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"},
-}
+var intervalToStringMap = map[string]map[kline.Interval]string{"wsIntervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "Min1", kline.FiveMin: "Min5", kline.FifteenMin: "Min15", kline.ThirtyMin: "Min30", kline.OneHour: "Min60", kline.FourHour: "Hour4", kline.EightHour: "Hour8", kline.OneDay: "Day1", kline.OneWeek: "Week1", kline.OneMonth: "Month1"}, "intervalToStringMap": {kline.HundredMilliseconds: "100ms", kline.TenMilliseconds: "10ms", kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "60m", kline.FourHour: "4h", kline.OneDay: "1d", kline.OneWeek: "1W", kline.OneMonth: "1M"}}
 
 func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, error) {
 	var intervalString string
@@ -406,7 +402,7 @@ func (me *MEXC) GetKYCStatus(ctx context.Context) (*KYCStatusInfo, error) {
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getKYCStatusEPL, http.MethodGet, "kyc/status", nil, nil, &resp, true)
 }
 
-// UserAPIDefaultSymbols retrieves a default user API symbols
+// UseAPIDefaultSymbols retrieves a default user API symbols
 func (me *MEXC) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
 	resp := &struct {
 		Data []string `json:"data"`
@@ -447,6 +443,9 @@ func (me *MEXC) WithdrawCapital(ctx context.Context, amount float64, coin curren
 	if memo != "" {
 		params.Set("memo", memo)
 	}
+	if remark != "" {
+		params.Set("remark", remark)
+	}
 	var resp *IDResponse
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, withdrawCapitalEPL, http.MethodPost, "capital/withdraw", params, nil, &resp, true)
 }
@@ -486,8 +485,8 @@ func (me *MEXC) GetFundDepositHistory(ctx context.Context, coin currency.Code, s
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getFundDepositHistoryEPL, http.MethodGet, "capital/deposit/hisrec", params, nil, &resp, true)
 }
 
-// GetWithdrawalHistory represents currency withdrawl history
-// possible values of withdraw status,1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
+// GetWithdrawalHistory represents currency withdrawal history possible values of withdraw status
+// 1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
 func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]WithdrawalInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
@@ -511,7 +510,7 @@ func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, st
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalHistoryEPL, http.MethodGet, "capital/withdraw/history", params, nil, &resp, true)
 }
 
-// GenerateDepositAddress generates a deposit address given the currency code and netowrk name
+// GenerateDepositAddress generates a deposit address given the currency code and network name
 func (me *MEXC) GenerateDepositAddress(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -801,7 +800,7 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, newOrderEPL, http.MethodPost, path, params, nil, &resp, true)
 }
 
-// OrderTypeString returns a string representation of an order.Type instance.
+// OrderTypeStringFromOrderTypeAndTimeInForce returns a string representation of an order.Type instance.
 func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
 	switch oType {
 	case order.Limit:
@@ -823,7 +822,7 @@ func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif
 	return "", order.ErrUnsupportedOrderType
 }
 
-// StringToOrderType returns an order type from string
+// StringToOrderTypeAndTimeInForce returns an order type from string
 func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order.TimeInForce, error) {
 	switch oType {
 	case "LIMIT_ORDER":

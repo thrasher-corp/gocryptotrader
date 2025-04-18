@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -53,7 +52,7 @@ func (me *MEXC) WsConnect() error {
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer = gws.Dialer{
+	dialer := gws.Dialer{
 		EnableCompression: true,
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
@@ -132,10 +131,12 @@ func (me *MEXC) generateSubscriptions() (subscription.List, error) {
 	return subscriptions, nil
 }
 
+// Subscribe subscribes to a channel
 func (me *MEXC) Subscribe(channelsToSubscribe subscription.List) error {
 	return me.handleSubscription("SUBSCRIPTION", channelsToSubscribe)
 }
 
+// Unsubscribe unsubscribes to a channel
 func (me *MEXC) Unsubscribe(channelsToSubscribe subscription.List) error {
 	return me.handleSubscription("UNSUBSCRIPTION", channelsToSubscribe)
 }
@@ -237,7 +238,6 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (me *MEXC) WsHandleData(respRaw []byte) error {
-	println(string(respRaw))
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 			if !me.Websocket.Match.IncomingWithData(id, respRaw) {
@@ -250,7 +250,6 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		return nil
 	}
 	dataSplit := strings.Split(string(respRaw), "@")
-	println("dataSplit[1]: ", dataSplit[1])
 	switch dataSplit[1] {
 	case chnlBookTiker:
 		var result mexc_proto_types.PublicAggreBookTickerV3Api
@@ -287,19 +286,11 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			Bids:  []orderbook.Tranche{bid},
 		})
 	case chnlAggregateDepthV3:
-		println("Here: ...")
 		var result mexc_proto_types.PublicAggreDepthsV3Api
 		err := proto.Unmarshal(respRaw, &result)
 		if err != nil {
-			println(err.Error())
 			return err
 		}
-		// valu, err := json.Marshal(&result)
-		// if err != nil {
-		// 	return err
-		// }
-		// println("string(valu): ", string(valu))
-		os.Exit(0)
 		cp, err := currency.NewPairFromString(dataSplit[3])
 		if err != nil {
 			return err

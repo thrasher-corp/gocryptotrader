@@ -335,6 +335,12 @@ func (me *MEXC) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, 
 		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+	if pageNumber > 0 {
+		params.Set("page_num", strconv.FormatInt(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
 	var resp *FuturesOrders
 	return resp, me.SendHTTPRequest(ctx, exchange.RestFutures, allUserHistoricalOrdersEPL, http.MethodGet, "private/order/list/history_orders", params, nil, &resp, true)
 }
@@ -643,14 +649,10 @@ func validateOrderParams(arg *PlaceFuturesOrderParams) (url.Values, error) {
 	return params, nil
 }
 
-// PostFuturesBatchOrders
+// PostFuturesBatchOrders places a batch of futures orders.
 func (me *MEXC) PostFuturesBatchOrders(ctx context.Context, args []PlaceFuturesOrderParams) ([]FuturesOrderInfo, error) {
 	return nil, nil
 }
-
-// func (me *MEXC) CancelOrder(ctx context.Context, )
-
-// TODO: I skipped the place batch orders and cancel order endpoints because of the umbiguity of how the data payload should be sent.
 
 // CancelOrderByClientOrderID cancels a single order by client supplied(external) order ID
 func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, externalOrderID string) (*OrderCancellationResponse, error) {

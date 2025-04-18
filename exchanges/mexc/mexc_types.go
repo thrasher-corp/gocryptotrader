@@ -1,9 +1,8 @@
 package mexc
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -152,6 +151,7 @@ type SymbolPriceTicker struct {
 // SymbolPriceTickers represent list of symbol price tickers
 type SymbolPriceTickers []SymbolPriceTicker
 
+// UnmarshalJSON deserializes a byte data into SymbolPriceTickers instance
 func (t *SymbolPriceTickers) UnmarshalJSON(data []byte) error {
 	tickers := []SymbolPriceTicker{}
 	err := json.Unmarshal(data, &tickers)
@@ -179,6 +179,7 @@ type SymbolOrderbookTicker struct {
 // SymbolOrderbookTickerList represents a list of symbols orderbook ticker detail
 type SymbolOrderbookTickerList []SymbolOrderbookTicker
 
+// UnmarshalJSON deserializes byte data into a SymbolOrderbookTickerList instance.
 func (t *SymbolOrderbookTickerList) UnmarshalJSON(data []byte) error {
 	tickers := []SymbolOrderbookTicker{}
 	err := json.Unmarshal(data, &tickers)
@@ -457,7 +458,7 @@ type AssetConvertableToMX struct {
 	Message           string        `json:"message"`
 }
 
-// DustConvertResponse represents a dust asset convertion response
+// DustConvertResponse holds a dust asset conversion response
 type DustConvertResponse struct {
 	SuccessList  []currency.Code `json:"successList"`
 	FailedList   []currency.Code `json:"failedList"`
