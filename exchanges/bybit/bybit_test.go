@@ -292,7 +292,6 @@ func TestModifyOrder(t *testing.T) {
 		Side:         order.Buy,
 		AssetType:    asset.Options,
 		Pair:         spotTradablePair,
-		PostOnly:     true,
 		Price:        1234,
 		Amount:       0.15,
 		TriggerPrice: 1145,
