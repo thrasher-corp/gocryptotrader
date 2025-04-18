@@ -163,7 +163,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -195,13 +195,13 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	case spotUserTradesChannel:
 		return g.processUserPersonalTrades(respRaw)
 	case spotBalancesChannel:
-		return g.processSpotBalances(respRaw)
+		return g.processSpotBalances(ctx, respRaw)
 	case marginBalancesChannel:
-		return g.processMarginBalances(respRaw)
+		return g.processMarginBalances(ctx, respRaw)
 	case spotFundingBalanceChannel:
 		return g.processFundingBalances(respRaw)
 	case crossMarginBalanceChannel:
-		return g.processCrossMarginBalance(respRaw)
+		return g.processCrossMarginBalance(ctx, respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
 	case spotPongChannel:
@@ -543,7 +543,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	return g.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processSpotBalances(data []byte) error {
+func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64           `json:"time"`
 		Channel string          `json:"channel"`
@@ -554,21 +554,29 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp.Result))
-	for x := range resp.Result {
-		code := currency.NewCode(resp.Result[x].Currency)
-		accountChanges[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Spot,
-			Amount:   resp.Result[x].Available.Float64(),
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
+	for i := range resp.Result {
+		changes[i] = account.Change{
+			Account:   resp.Result[i].User,
+			AssetType: asset.Spot,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Result[i].Currency),
+				Total:     resp.Result[i].Total.Float64(),
+				Free:      resp.Result[i].Available.Float64(),
+				Hold:      resp.Result[i].Total.Float64() - resp.Result[i].Available.Float64(),
+				UpdatedAt: resp.Result[i].Timestamp.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChanges
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
-func (g *Gateio) processMarginBalances(data []byte) error {
+func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -579,18 +587,25 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accountChange := make([]account.Change, len(resp.Result))
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
-		code := currency.NewCode(resp.Result[x].Currency)
-		accountChange[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available.Float64(),
+		changes[x] = account.Change{
+			AssetType: asset.Margin,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
+				Free:      resp.Result[x].Available.Float64(),
+				Hold:      resp.Result[x].Freeze.Float64(),
+				UpdatedAt: resp.Result[x].Timestamp.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChange
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
 func (g *Gateio) processFundingBalances(data []byte) error {
@@ -608,7 +623,7 @@ func (g *Gateio) processFundingBalances(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processCrossMarginBalance(data []byte) error {
+func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64                  `json:"time"`
 		Channel string                 `json:"channel"`
@@ -619,19 +634,25 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp.Result))
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
-		code := currency.NewCode(resp.Result[x].Currency)
-		accountChanges[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available.Float64(),
-			Account:  resp.Result[x].User,
+		changes[x] = account.Change{
+			Account:   resp.Result[x].User,
+			AssetType: asset.Margin,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Total:     resp.Result[x].Total.Float64(),
+				Free:      resp.Result[x].Available.Float64(),
+				UpdatedAt: resp.Result[x].Timestamp.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChanges
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
 func (g *Gateio) processCrossMarginLoans(data []byte) error {

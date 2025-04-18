@@ -67,11 +67,9 @@ type Balance struct {
 
 // Change defines incoming balance change on currency holdings
 type Change struct {
-	Exchange string
-	Currency currency.Code
-	Asset    asset.Item
-	Amount   float64
-	Account  string
+	Account   string
+	AssetType asset.Item
+	Balance   *Balance
 }
 
 // ProtectedBalance stores the full balance information for that specific asset

@@ -948,11 +948,13 @@ func (p *Poloniex) processAccountBalanceUpdate(notification []any) error {
 	// NOTES: This will affect free amount, a rest call might be needed to get
 	// locked and total amounts periodically.
 	p.Websocket.DataHandler <- account.Change{
-		Exchange: p.Name,
-		Currency: code,
-		Asset:    asset.Spot,
-		Account:  deriveWalletType(walletType),
-		Amount:   amount,
+		Account:   deriveWalletType(walletType),
+		AssetType: asset.Spot,
+		Balance: &account.Balance{
+			Currency: code,
+			Total:    amount,
+			Free:     amount,
+		},
 	}
 	return nil
 }

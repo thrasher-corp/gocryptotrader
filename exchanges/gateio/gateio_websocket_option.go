@@ -293,7 +293,7 @@ func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn websocket.Connecti
 }
 
 // WsHandleOptionsData handles options websocket data
-func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -339,7 +339,7 @@ func (g *Gateio) WsHandleOptionsData(_ context.Context, respRaw []byte) error {
 	case optionsPositionCloseChannel:
 		return g.processPositionCloseData(respRaw)
 	case optionsBalancesChannel:
-		return g.processBalancePushData(respRaw, asset.Options)
+		return g.processBalancePushData(ctx, respRaw, asset.Options)
 	case optionsPositionsChannel:
 		return g.processOptionsPositionPushData(respRaw)
 	default:
