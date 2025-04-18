@@ -353,8 +353,8 @@ func (me *MEXC) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, exter
 	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, getOrderBasedOnExternalNumberEPL, http.MethodGet, "private/order/external/"+symbol+"/"+externalOrderID, nil, &resp, true)
 }
 
-// GetOrderByOrderNumber retrieves a single order using order id
-func (me *MEXC) GetOrderByOrderNumber(ctx context.Context, orderID string) (*FuturesOrderDetail, error) {
+// GetOrderByOrderID retrieves a single order using order id
+func (me *MEXC) GetOrderByOrderID(ctx context.Context, orderID string) (*FuturesOrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -574,10 +574,10 @@ func (me *MEXC) ChangePositionMode(ctx context.Context, positionMode int64) (*St
 }
 
 // PlaceFuturesOrder placed a futures order
-func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (interface{}, error) {
+func (me *MEXC) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (int64, error) {
 	params, err := validateOrderParams(arg)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	var value int64
 	resp := &StatusResponse{

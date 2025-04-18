@@ -1092,11 +1092,11 @@ func TestGetOrderBasedOnExternalNumber(t *testing.T) {
 
 func TestGetOrderByOrderNumber(t *testing.T) {
 	t.Parallel()
-	_, err := me.GetOrderByOrderNumber(context.Background(), "")
+	_, err := me.GetOrderByOrderID(context.Background(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.GetOrderByOrderNumber(context.Background(), "12312312")
+	result, err := me.GetOrderByOrderID(context.Background(), "12312312")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
