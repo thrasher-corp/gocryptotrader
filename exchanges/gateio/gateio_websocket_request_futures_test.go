@@ -93,7 +93,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", BTCUSDT, asset.CoinMarginedFutures)
+	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", BTCUSDT, asset.Empty)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
