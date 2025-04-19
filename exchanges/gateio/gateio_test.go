@@ -2873,6 +2873,8 @@ func TestGetSettlementCurrency(t *testing.T) {
 		{asset.CoinMarginedFutures, currency.EMPTYPAIR, currency.BTC, nil},
 		{asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.BTC, nil},
 		{asset.CoinMarginedFutures, getPair(t, asset.USDTMarginedFutures), currency.EMPTYCODE, errInvalidSettlementBase},
+		{asset.CoinMarginedFutures, currency.Pair{Base: currency.ETH, Quote: currency.USD}, currency.EMPTYCODE, errInvalidSettlementBase},
+		{asset.CoinMarginedFutures, currency.NewBTCUSDT(), currency.EMPTYCODE, errInvalidSettlementQuote},
 	} {
 		c, err := getSettlementCurrency(tt.a, tt.p)
 		if tt.err == nil {

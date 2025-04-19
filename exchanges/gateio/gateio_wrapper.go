@@ -2551,10 +2551,15 @@ func getSettlementCurrency(a asset.Item, p currency.Pair) (currency.Code, error)
 		}
 		return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementQuote, a, p)
 	case asset.CoinMarginedFutures:
-		if p.IsEmpty() || p.Base.Equal(currency.BTC) {
-			return currency.BTC, nil
+		if !p.IsEmpty() {
+			if !p.Base.Equal(currency.BTC) { // We expect all Coin-M to be quoted in USD
+				return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementBase, a, p)
+			}
+			if !p.Quote.Equal(currency.USD) { // Only BTC endpoint currently available
+				return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementQuote, a, p)
+			}
 		}
-		return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementBase, a, p)
+		return currency.BTC, nil
 	}
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 }
