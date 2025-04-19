@@ -2210,7 +2210,7 @@ func (c *DeliveryContract) contractName() string {
 }
 
 func (g *Gateio) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
-	var contracts []openInterestContract
+	contracts := []openInterestContract{}
 	settle, err := getSettlementCurrency(a, p)
 	if err != nil {
 		return nil, err
