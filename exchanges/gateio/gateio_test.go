@@ -2173,11 +2173,9 @@ const (
 
 func TestOptionsOrderbookPushData(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, g)
+	p := getPair(t, asset.Options)
 	assert.NoError(t, g.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookTickerPushDataJSON)))
-	avail, err := g.GetAvailablePairs(asset.Options)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-	assert.NoError(t, g.WsHandleOptionsData(t.Context(), fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, avail[0].Upper().String())))
+	assert.NoError(t, g.WsHandleOptionsData(t.Context(), fmt.Appendf(nil, optionsOrderbookUpdatePushDataJSON, p.Upper().String())))
 	assert.NoError(t, g.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookSnapshotPushDataJSON)))
 	assert.NoError(t, g.WsHandleOptionsData(t.Context(), []byte(optionsOrderbookSnapshotUpdateEventPushDataJSON)))
 }
