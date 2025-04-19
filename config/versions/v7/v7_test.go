@@ -2,7 +2,7 @@ package v7_test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
 	"testing"
 
 	"github.com/buger/jsonparser"

@@ -2,7 +2,7 @@ package v7
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
 	"strings"
 
 	"github.com/buger/jsonparser"
