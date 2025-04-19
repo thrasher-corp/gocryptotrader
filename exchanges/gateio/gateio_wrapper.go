@@ -2317,9 +2317,8 @@ func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 		}
 		if a == asset.DeliveryFutures {
 			return tradeBaseURL + "futures-delivery/" + settle.String() + "/" + cp.Upper().String(), nil
-		} else {
-			return tradeBaseURL + futuresPath + settle.String() + "/" + cp.Upper().String(), nil
 		}
+		return tradeBaseURL + futuresPath + settle.String() + "/" + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
