@@ -5,5 +5,5 @@ import (
 )
 
 func init() {
-	Manager.registerVersion(0, &v7.Version{})
+	Manager.registerVersion(7, &v7.Version{})
 }
