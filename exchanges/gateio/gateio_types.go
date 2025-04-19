@@ -27,8 +27,6 @@ const (
 	sideBorrow = "borrow"
 )
 
-var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{
@@ -1112,7 +1110,7 @@ type SubAccountTransferParam struct {
 	SubAccount     string        `json:"sub_account"`
 	Direction      string        `json:"direction"`
 	Amount         types.Number  `json:"amount"`
-	SubAccountType string        `json:"sub_account_type"`
+	SubAccountType asset.Item    `json:"sub_account_type"`
 }
 
 // SubAccountTransferResponse represents transfer records between main and sub accounts

@@ -41,7 +41,7 @@ func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item,
 	}
 
 	for _, o := range orders {
-		if err := validateFuturesPairAsset(o.Contract, a); err != nil {
+		if err := validateFuturesPairAsset(a, o.Contract); err != nil {
 			return nil, err
 		}
 
@@ -79,7 +79,7 @@ func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string
 		return nil, order.ErrOrderIDNotSet
 	}
 
-	if err := validateFuturesPairAsset(contract, a); err != nil {
+	if err := validateFuturesPairAsset(a, contract); err != nil {
 		return nil, err
 	}
 
@@ -93,7 +93,7 @@ func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string
 
 // WebsocketFuturesCancelAllOpenFuturesOrders cancels multiple orders via the websocket.
 func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, a asset.Item, side string) ([]WebsocketFuturesOrderResponse, error) {
-	if err := validateFuturesPairAsset(contract, a); err != nil {
+	if err := validateFuturesPairAsset(a, contract); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (g *Gateio) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websocke
 		return nil, order.ErrOrderIDNotSet
 	}
 
-	if err := validateFuturesPairAsset(amend.Contract, amend.Asset); err != nil {
+	if err := validateFuturesPairAsset(amend.Asset, amend.Contract); err != nil {
 		return nil, err
 	}
 
@@ -138,7 +138,7 @@ func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketF
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
 
-	if err := validateFuturesPairAsset(list.Contract, list.Asset); err != nil {
+	if err := validateFuturesPairAsset(list.Asset, list.Contract); err != nil {
 		return nil, err
 	}
 
@@ -152,7 +152,7 @@ func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketF
 
 // WebsocketFuturesGetOrderStatus gets the status of an order via the websocket connection.
 func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract currency.Pair, a asset.Item, orderID string) (*WebsocketFuturesOrderResponse, error) {
-	if err := validateFuturesPairAsset(contract, a); err != nil {
+	if err := validateFuturesPairAsset(a, contract); err != nil {
 		return nil, err
 	}
 
@@ -168,37 +168,11 @@ func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract cu
 	return &resp, g.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)
 }
 
-func getAssetFromFuturesPair(pair currency.Pair) (asset.Item, error) {
-	if pair.IsEmpty() {
-		return asset.Empty, currency.ErrCurrencyPairEmpty
-	}
-	switch pair.Quote.Item {
-	case currency.USDT.Item:
-		return asset.USDTMarginedFutures, nil
-	case currency.USD.Item:
-		return asset.CoinMarginedFutures, nil
-	default:
-		return asset.Empty, fmt.Errorf("%w futures pair: `%v`", asset.ErrNotSupported, pair)
-	}
-}
-
-// validateFuturesPairAsset enforces the asset.Item to be either USDT or Coin margined futures in relation to the pair
-// for correct routing.
-func validateFuturesPairAsset(pair currency.Pair, a asset.Item) error {
+// validateFuturesPairAsset enforces a futures contract pair quote currency matches an asset
+func validateFuturesPairAsset(a asset.Item, pair currency.Pair) error {
 	if pair.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	switch a {
-	case asset.USDTMarginedFutures:
-		if pair.Quote.Item != currency.USDT.Item {
-			return fmt.Errorf("%w: '%v' for pair '%v'", asset.ErrNotSupported, a, pair)
-		}
-	case asset.CoinMarginedFutures:
-		if pair.Quote.Item != currency.USD.Item {
-			return fmt.Errorf("%w: '%v' for pair '%v'", asset.ErrNotSupported, a, pair)
-		}
-	default:
-		return fmt.Errorf("%w: '%v' for pair '%v'", asset.ErrNotSupported, a, pair)
-	}
-	return nil
+	_, err := getSettlementCurrency(a, pair)
+	return err
 }
