@@ -836,10 +836,9 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			OrderType:       oTypeInt,
 			MarginType:      s.MarginType,
 			ExternalOrderID: s.ClientOrderID,
-			// StopLossPrice:
-			// TakeProfitPrice
-			// PositionMode
-			ReduceOnly: s.ReduceOnly,
+			StopLossPrice:   s.RiskManagementModes.StopLoss.Price,
+			TakeProfitPrice: s.RiskManagementModes.TakeProfit.LimitPrice,
+			ReduceOnly:      s.ReduceOnly,
 		})
 		if err != nil {
 			return nil, err
@@ -1089,9 +1088,6 @@ func (me *MEXC) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 
 // GetActiveOrders retrieves any orders that are active/open
 func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
-		return nil, err
-	}
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
 		if len(getOrdersRequest.Pairs) == 0 {
@@ -1341,7 +1337,6 @@ func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 			case 3:
 				oStatus = order.Closed
 			}
-
 			var fee float64
 			switch result.Data[r].OrderType {
 			case 1, 2:

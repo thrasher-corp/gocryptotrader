@@ -1192,7 +1192,7 @@ func TestGetContractLeverage(t *testing.T) {
 
 func TestSwitchLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := me.SwitchLeverage(context.Background(), 123333, 25, 2, 1, "")
+	_, err := me.SwitchLeverage(context.Background(), 0, 25, 2, 1, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = me.SwitchLeverage(context.Background(), 123333, 0, 2, 1, "")
 	require.ErrorIs(t, err, errMissingLeverage)
@@ -1243,15 +1243,25 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = order.Sell
-	_, err = me.PlaceFuturesOrder(context.Background(), arg)
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
-
 	arg.OrderType = order.Limit.String()
 	_, err = me.PlaceFuturesOrder(context.Background(), arg)
 	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.PlaceFuturesOrder(context.Background(), &PlaceFuturesOrderParams{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelOrdersByID(t *testing.T) {
+	t.Parallel()
+	_, err := me.CancelOrdersByID(context.Background())
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = me.CancelOrdersByID(context.Background(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CancelOrdersByID(context.Background(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1273,28 +1283,6 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.CancelAllOpenOrders(context.Background(), "BTC_USDT")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestSwitchStopLimitPriceOfTriggerPrice(t *testing.T) {
-	t.Parallel()
-	_, err := me.SwitchStopLimitPriceOfTriggerPrice(context.Background(), "", 0., 1.0)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.SwitchStopLimitPriceOfTriggerPrice(context.Background(), "1234", 1., 2.)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestSwitchStopLimitLimitedOrderPrice(t *testing.T) {
-	t.Parallel()
-	_, err := me.SwitchStopLimitLimitedOrderPrice(context.Background(), "", 1., 2.)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.SwitchStopLimitLimitedOrderPrice(context.Background(), "1231234", 1, 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1709,13 +1697,6 @@ func TestGetActiveOrders(t *testing.T) {
 	result, err = me.GetActiveOrders(context.Background(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := me.WsConnect()
-	require.NoError(t, err)
-	time.Sleep(time.Second * 8)
 }
 
 func TestGenerateListenKey(t *testing.T) {

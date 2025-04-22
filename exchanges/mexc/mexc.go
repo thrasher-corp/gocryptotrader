@@ -32,10 +32,6 @@ const (
 	spotWSAPIURL = "https://api.mexc.com"
 
 	contractAPIURL = "https://contract.mexc.com/api/v1/"
-
-	// Public endpoints
-
-	// Authenticated endpoints
 )
 
 var (
@@ -1275,11 +1271,21 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reques
 		}
 		values.Set("signature", crypto.HexEncodeToString(hmac))
 	}
+	var payload string
+	if arg != nil {
+		var byteData []byte
+		byteData, err = json.Marshal(arg)
+		if err != nil {
+			return err
+		}
+		payload = string(byteData)
+	}
 	return me.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        method,
 			Path:          ePoint + common.EncodeURLValues(requestPath, values),
 			Headers:       headers,
+			Body:          strings.NewReader(payload),
 			Result:        result,
 			NonceEnabled:  true,
 			Verbose:       me.Verbose,

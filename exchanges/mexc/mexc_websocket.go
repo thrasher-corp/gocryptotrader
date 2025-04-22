@@ -143,8 +143,7 @@ func (me *MEXC) Unsubscribe(channelsToSubscribe subscription.List) error {
 
 func assetTypeToString(assetType asset.Item) (string, error) {
 	switch assetType {
-	case asset.Spot,
-		asset.Futures:
+	case asset.Spot, asset.Futures:
 		return strings.ToLower(assetType.String()), nil
 	default:
 		return "", fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)

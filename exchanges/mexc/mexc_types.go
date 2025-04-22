@@ -1334,3 +1334,17 @@ type WsSubscriptionResponse struct {
 	Code    int64  `json:"code"` // default: 0
 	Message string `json:"msg"`
 }
+
+// BatchOrdersCancelationResponseItem represents futures order cancellation response
+type BatchOrdersCancelationResponseItem struct {
+	OrderID   int64  `json:"orderId"`
+	ErrorCode int    `json:"errorCode"`
+	ErrorMsg  string `json:"errorMsg"`
+}
+
+// BatchOrdersCancelationResponse holds list of orderID and success message information for futures batch order cancellation
+type BatchOrdersCancelationResponse struct {
+	Data    []BatchOrdersCancelationResponseItem `json:"data"`
+	Code    int64                                `json:"code"`
+	Success bool                                 `json:"success"`
+}
