@@ -45,21 +45,23 @@ type ValueWithCurrency struct {
 
 // Account holds details for a trading account, returned by GetAccountByID and used as a sub-struct in the type AllAccountsResponse
 type Account struct {
-	UUID             string            `json:"uuid"`
-	Name             string            `json:"name"`
-	Currency         string            `json:"currency"`
-	AvailableBalance ValueWithCurrency `json:"available_balance"`
-	Default          bool              `json:"default"`
-	Active           bool              `json:"active"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
-	DeletedAt        time.Time         `json:"deleted_at"`
-	Type             string            `json:"type"`
-	Ready            bool              `json:"ready"`
-	Hold             ValueWithCurrency `json:"hold"`
+	UUID              string            `json:"uuid"`
+	Name              string            `json:"name"`
+	Currency          string            `json:"currency"`
+	AvailableBalance  ValueWithCurrency `json:"available_balance"`
+	Default           bool              `json:"default"`
+	Active            bool              `json:"active"`
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
+	DeletedAt         time.Time         `json:"deleted_at"`
+	Type              string            `json:"type"`
+	Ready             bool              `json:"ready"`
+	Hold              ValueWithCurrency `json:"hold"`
+	RetailPortfolioID string            `json:"retail_portfolio_id"`
+	Platform          string            `json:"platform"`
 }
 
-// AllAccountsResponse holds many Account structs, as well as pagination information, returned by GetAllAccounts
+// AllAccountsResponse holds many Account structs, as well as pagination information, returned by ListAccounts
 type AllAccountsResponse struct {
 	Accounts []Account `json:"accounts"`
 	HasNext  bool      `json:"has_next"`
@@ -377,7 +379,7 @@ type Fills struct {
 	Side               string        `json:"side"`
 }
 
-// FillResponse contains fill information, returned by GetFills
+// FillResponse contains fill information, returned by ListFills
 type FillResponse struct {
 	Fills  []Fills `json:"fills"`
 	Cursor string  `json:"cursor"`
@@ -537,7 +539,7 @@ type FuturesBalanceSummary struct {
 	LiquidationBufferPercentage float64           `json:"liquidation_buffer_percentage,string"`
 }
 
-// FuturesPosition contains information on a single futures position, returned by GetFuturesPositionByID
+// FuturesPosition contains information on a single futures position, returned by GetFuturesPositionByID and ListFuturesPositions
 type FuturesPosition struct {
 	// This may belong in a struct of its own called "position", requiring a bit more abstraction, but for the moment I'll assume it doesn't
 	ProductID         currency.Pair `json:"product_id"`
@@ -657,8 +659,8 @@ type TransactionSummary struct {
 	HasPromoFee             bool                `json:"has_promo_fee"`
 }
 
-// GetAllOrdersResp contains information on a lot of orders, returned by GetAllOrders
-type GetAllOrdersResp struct {
+// ListOrdersResp contains information on a lot of orders, returned by ListOrders
+type ListOrdersResp struct {
 	Orders   []GetOrderResponse `json:"orders"`
 	Sequence int64              `json:"sequence,string"`
 	HasNext  bool               `json:"has_next"`
@@ -678,13 +680,258 @@ type Disclosure struct {
 	Link        LinkStruct `json:"link"`
 }
 
+// WaivedDetails is a sub-struct used in FeeStruct
+type WaivedDetails struct {
+	Amount ValueWithCurrency `json:"amount"`
+	Source string            `json:"source"`
+}
+
 // FeeStruct is a sub-struct storing information on fees, used in ConvertResponse
 type FeeStruct struct {
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Amount      ValueWithCurrency `json:"amount"`
-	Label       string            `json:"label"`
-	Disclosure  Disclosure        `json:"disclosure"`
+	Title         string            `json:"title"`
+	Description   string            `json:"description"`
+	Amount        ValueWithCurrency `json:"amount"`
+	Label         string            `json:"label"`
+	Disclosure    Disclosure        `json:"disclosure"`
+	WaivedDetails WaivedDetails     `json:"waived_details"`
+}
+
+// AccountID is a sub-struct, used in AccountStruct
+type AccountID struct {
+	AccountID string `json:"account_id"`
+}
+
+// HashWithHeight is a sub-struct, used in AccountStruct
+type HashWithHeight struct {
+	Hash   string `json:"hsh"`
+	Height int32  `json:"height"`
+}
+
+// AddressHolder is a sub-struct, used in AccountStruct and FedWireInstitution
+type AddressHolder struct {
+	Lines       []string `json:"lines"`
+	CountryCode string   `json:"country_code"`
+}
+
+// FedAccountHolder is a sub-struct, used in Fedwire
+type FedAccountHolder struct {
+	LegalName     string        `json:"legal_name"`
+	AccountNumber string        `json:"account_number"`
+	Address       AddressHolder `json:"address"`
+}
+
+// FedWireInstitution is a sub-struct, used in Fedwire
+type FedWireInstitution struct {
+	Name           string        `json:"name"`
+	Address        AddressHolder `json:"address"`
+	Identifier     string        `json:"identifier"`
+	Type           string        `json:"type"`
+	IdentifierCode string        `json:"identifier_code"`
+}
+
+// Fedwire is a sub-struct, used in AccountStruct
+type Fedwire struct {
+	RoutingNumber    string             `json:"routing_number"`
+	AccountHolder    FedAccountHolder   `json:"account_holder"`
+	Bank             FedWireInstitution `json:"bank"`
+	IntermediaryBank FedWireInstitution `json:"intermediary_bank"`
+}
+
+// SwiftAccountHolder is a sub-struct, used in Swift
+type SwiftAccountHolder struct {
+	LegalName                  string `json:"legal_name"`
+	IBAN                       string `json:"iban"`
+	BBAN                       string `json:"bban"`
+	DomesticAccountID          string `json:"domestic_account_id"`
+	CustomerPaymentAddress1    string `json:"customer_payment_address1"`
+	CustomerPaymentAddress2    string `json:"customer_payment_address2"`
+	CustomerPaymentAddress3    string `json:"customer_payment_address3"`
+	CustomerPaymentCountryCode string `json:"customer_payment_country_code"`
+}
+
+// SwiftInstitution is a sub-struct, used in Swift
+type SwiftInstitution struct {
+	BIC                 string `json:"bic"`
+	Name                string `json:"name"`
+	BankAddress1        string `json:"bank_address1"`
+	BankAddress2        string `json:"bank_address2"`
+	BankAddress3        string `json:"bank_address3"`
+	BankCountryCode     string `json:"bank_country_code"`
+	DomesticBankID      string `json:"domestic_bank_id"`
+	InternationalBankID string `json:"international_bank_id"`
+}
+
+// Swift is a sub-struct, used in AccountStruct
+type Swift struct {
+	AccountHolder SwiftAccountHolder `json:"account_holder"`
+	Institution   SwiftInstitution   `json:"institution"`
+	Intermediary  SwiftInstitution   `json:"intermediary"`
+}
+
+// ValueWithStoreID is a sub-struct, used in CardInfo
+type ValueWithStoreID struct {
+	Value   string `json:"value"`
+	StoreID string `json:"store_id"`
+}
+
+// MonthYear is a sub-struct, used in CardInfo
+type MonthYear struct {
+	Month string `json:"month"`
+	Year  string `json:"year"`
+}
+
+// MerchantID is a sub-struct, used in CardInfo
+type MerchantID struct {
+	MerchantID string `json:"mid"`
+}
+
+// VaultToken is a sub-struct, used in CardInfo
+type VaultToken struct {
+	Value   string `json:"value"`
+	VaultID string `json:"vault_id"`
+}
+
+// WorldplayParams is a sub-struct, used in CardInfo
+type WorldplayParams struct {
+	TokenValue        string `json:"token_value"`
+	UsesMerchantToken bool   `json:"uses_merchant_token"`
+	AcceptHeader      string `json:"accept_header"`
+	UserAgentHeader   string `json:"user_agent_header"`
+	ShopperIP         string `json:"shopper_ip"`
+	ShopperSessionID  string `json:"shopper_session_id"`
+}
+
+// FullAddress is a sub-struct, used in CardInfo and UKAccountHolder
+type FullAddress struct {
+	Address1   string `json:"address1"`
+	Address2   string `json:"address2"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	PostalCode string `json:"postal_code"`
+	Country    string `json:"country"`
+}
+
+// FullDate is a sub-struct, used in CardInfo
+type FullDate struct {
+	Month string `json:"month"`
+	Day   string `json:"day"`
+	Year  string `json:"year"`
+}
+
+// SourceID is a sub-struct, used in CardInfo
+type SourceID struct {
+	SourceID string `json:"source_id"`
+}
+
+// CardInfo is a sub-struct, used in AccountStruct
+type CardInfo struct {
+	FirstDataToken              ValueWithStoreID `json:"first_data_token"`
+	ExpiryDate                  MonthYear        `json:"expiry_date"`
+	PostalCode                  string           `json:"postal_code"`
+	Merchant                    MerchantID       `json:"merchant"`
+	VaultToken                  VaultToken       `json:"vault_token"`
+	WorldpayParams              WorldplayParams  `json:"worldpay_params"`
+	PreviousSchemeTransactionID string           `json:"previous_scheme_tx_id"`
+	CustomerName                string           `json:"customer_name"`
+	Address                     FullAddress      `json:"address"`
+	PhoneNumber                 string           `json:"phone_number"`
+	UserID                      string           `json:"user_id"`
+	CustomerFirstName           string           `json:"customer_first_name"`
+	CustomerLastName            string           `json:"customer_last_name"`
+	SixDigitBin                 string           `json:"six_digit_bin"`
+	CustomerDateOfBirth         FullDate         `json:"customer_dob"`
+	Scheme                      string           `json:"scheme"`
+	EightDigitBin               string           `json:"eight_digit_bin"`
+	CheckoutToken               SourceID         `json:"checkout_token"`
+}
+
+// ZenginAccountHolder is a sub-struct, used in Zengin
+type ZenginAccountHolder struct {
+	LegalName  string `json:"legal_name"`
+	Identifier string `json:"identifier"`
+	Type       string `json:"type"`
+}
+
+// BankAndBranchCode is a sub-struct, used in Zengin
+type BankAndBranchCode struct {
+	BankCode   string `json:"bank_code"`
+	BranchCode string `json:"branch_code"`
+}
+
+// Zengin is a sub-struct, used in AccountStruct
+type Zengin struct {
+	AccountHolder ZenginAccountHolder `json:"account_holder"`
+	Institution   BankAndBranchCode   `json:"institution"`
+}
+
+// UKAccountHolder is a sub-struct, used in UKAccount
+type UKAccountHolder struct {
+	LegalName     string      `json:"legal_name"`
+	BBAN          string      `json:"bban"`
+	SortCode      string      `json:"sort_code"`
+	AccountNumber string      `json:"account_number"`
+	Address       FullAddress `json:"address"`
+}
+
+// Name is a sub-struct, used in UKAccount and AccountStruct
+type Name struct {
+	Name string `json:"name"`
+}
+
+// UKAccount is a sub-struct, used in AccountStruct
+type UKAccount struct {
+	AccountHolder     UKAccountHolder `json:"account_holder"`
+	Institution       Name            `json:"institution"`
+	CustomerFirstName string          `json:"customer_first_name"`
+	CustomerLastName  string          `json:"customer_last_name"`
+	Email             string          `json:"email"`
+	PhoneNumber       string          `json:"phone_number"`
+}
+
+// SEPAAccountHolder is a sub-struct, used in SEPA
+type SEPAAccountHolder struct {
+	LegalName string `json:"legal_name"`
+	IBAN      string `json:"iban"`
+	BBAN      string `json:"bban"`
+}
+
+// BICWithName is a sub-struct, used in SEPA
+type BICWithName struct {
+	BIC  string `json:"bic"`
+	Name string `json:"name"`
+}
+
+// SEPA is a sub-struct, used in AccountStruct
+type SEPA struct {
+	AccountHolder     SEPAAccountHolder `json:"account_holder"`
+	Institution       BICWithName       `json:"institution"`
+	CustomerFirstName string            `json:"customer_first_name"`
+	CustomerLastName  string            `json:"customer_last_name"`
+	Email             string            `json:"email"`
+	PhoneNumber       string            `json:"phone_number"`
+}
+
+// PayPalAccountHolder is a sub-struct, used in PayPal
+type PayPalAccountHolder struct {
+	PayPalID   string `json:"paypal_id"`
+	PayPalPMID string `json:"paypal_pm_id"`
+}
+
+// MerchantAccountID is a sub-struct, used in PayPal
+type MerchantAccountID struct {
+	MerchantAccountID string `json:"merchant_account_id"`
+}
+
+// PayPalCorrelationID is a sub-struct, used in PayPal
+type PayPalCorrelationID struct {
+	PayPalCorrelationID string `json:"paypal_correlation_id"`
+}
+
+// PayPal is a sub-struct, used in AccountStruct
+type PayPal struct {
+	AccountHolder PayPalAccountHolder `json:"account_holder"`
+	Merchant      MerchantAccountID   `json:"merchant"`
+	Metadata      PayPalCorrelationID `json:"metadata"`
 }
 
 // Owner is a sub-struct, used in LedgerAccount
@@ -702,11 +949,310 @@ type LedgerAccount struct {
 	Owner     Owner  `json:"owner"`
 }
 
+// PaymentMethodID is a sub-struct, used in AccountStruct
+type PaymentMethodID struct {
+	PaymentMethodID string `json:"payment_method_id"`
+}
+
+// ProAccount is a sub-struct, used in AccountStruct
+type ProAccount struct {
+	AccountID         string `json:"account_id"`
+	CoinbaseAccountID string `json:"coinbase_account_id"`
+	UserID            string `json:"user_id"`
+	Currency          string `json:"currency"`
+	PortfolioID       string `json:"portfolio_id"`
+}
+
+// RTPAccountHolder is a sub-struct, used in RTP
+type RTPAccountHolder struct {
+	LegalName  string `json:"legal_name"`
+	Identifier string `json:"identifier"`
+}
+
+// RoutingNumber is a sub-struct, used in RTP
+type RoutingNumber struct {
+	RoutingNumber string `json:"routing_number"`
+}
+
+// RTP is a sub-struct, used in AccountStruct
+type RTP struct {
+	AccountHolder RTPAccountHolder `json:"account_holder"`
+	Institution   RoutingNumber    `json:"institution"`
+}
+
+// LedgerNamedAccount is a sub-struct, used in AccountStruct
+type LedgerNamedAccount struct {
+	Name           string `json:"name"`
+	Currency       string `json:"currency"`
+	ForeignNetwork string `json:"foreign_network"`
+}
+
+// CustodialPool is a sub-struct, used in AccountStruct
+type CustodialPool struct {
+	Name    string `json:"name"`
+	Network string `json:"network"`
+	FiatID  string `json:"fiat_id"`
+}
+
+// NonceWithCorrelation is a sub-struct, used in ApplePay and GooglePay
+type NonceWithCorrelation struct {
+	Nonce         string `json:"nonce"`
+	CorrelationID string `json:"correlation_id"`
+}
+
+// ApplePay is a sub-struct, used in AccountStruct
+type ApplePay struct {
+	BrainTree      NonceWithCorrelation `json:"brain_tree"`
+	ApplePay       NonceWithCorrelation `json:"apple_pay"`
+	UserID         string               `json:"user_id"`
+	PostalCode     string               `json:"postal_code"`
+	CustomerName   string               `json:"customer_name"`
+	Address        FullAddress          `json:"address"`
+	SixDigitBin    string               `json:"six_digit_bin"`
+	LastFour       string               `json:"last_four"`
+	IssuingCountry string               `json:"issuing_country"`
+	IssuingBank    string               `json:"issuing_bank"`
+	ProductID      string               `json:"product_id"`
+	Scheme         string               `json:"scheme"`
+	Prepaid        string               `json:"prepaid"`
+	Debit          string               `json:"debit"`
+}
+
+// UserUUIDWithCurrency is a sub-struct, used in AccountStruct
+type UserUUIDWithCurrency struct {
+	UserUUID string `json:"user_uuid"`
+	Currency string `json:"currency"`
+}
+
+// RemitlyAccountHolder is a sub-struct, used in Remitly
+type RemitlyAccountHolder struct {
+	RecipientID      string `json:"recipient_id"`
+	PayoutMethodType string `json:"payout_method_type"`
+}
+
+// Remitly is a sub-struct, used in AccountStruct
+type Remitly struct {
+	AccountHolder RemitlyAccountHolder `json:"account_holder"`
+}
+
+// UserIDWithCurrency is a sub-struct, used in AccountStruct
+type UserIDWithCurrency struct {
+	UserID   string `json:"user_id"`
+	Currency string `json:"currency"`
+}
+
+// DAPP is a sub-struct, used in AccountStruct
+type DAPP struct {
+	UserUUID       string `json:"user_uuid"`
+	Network        string `json:"network"`
+	CohortID       string `json:"cohort_id"`
+	SigningBackend string `json:"signing_backend"`
+	Currency       string `json:"currency"`
+}
+
+// GooglePay is a sub-struct, used in AccountStruct
+type GooglePay struct {
+	BrainTree      NonceWithCorrelation `json:"brain_tree"`
+	GooglePay      NonceWithCorrelation `json:"google_pay"`
+	UserID         string               `json:"user_id"`
+	PostalCode     string               `json:"postal_code"`
+	CustomerName   string               `json:"customer_name"`
+	Address        FullAddress          `json:"address"`
+	SixDigitBin    string               `json:"six_digit_bin"`
+	LastFour       string               `json:"last_four"`
+	IssuingCountry string               `json:"issuing_country"`
+	ProductID      string               `json:"product_id"`
+	Scheme         string               `json:"scheme"`
+	Prepaid        string               `json:"prepaid"`
+	Debit          string               `json:"debit"`
+}
+
+// DAPPBlockchain is a sub-struct, used in AccountStruct
+type DAPPBlockchain struct {
+	Network  string `json:"network"`
+	Address  string `json:"address"`
+	CohortID string `json:"cohort_id"`
+	UserUUID string `json:"user_uuid"`
+	Pool     string `json:"pool"`
+}
+
+// PhoneNumber is a sub-struct, used in AccountStruct
+type PhoneNumber struct {
+	PhoneNumber string `json:"phone_number"`
+}
+
+// DenebUPI is a sub-struct, used in AccountStruct
+type DenebUPI struct {
+	VPAID             string      `json:"vpa_id"`
+	CustomerFirstName string      `json:"customer_first_name"`
+	CustomerLastName  string      `json:"customer_last_name"`
+	Email             string      `json:"email"`
+	PhoneNumber       PhoneNumber `json:"phone_number"`
+	PAN               string      `json:"pan"`
+	Address           FullAddress `json:"address"`
+}
+
+// BankAccount is a sub-struct, used in AccountStruct
+type BankAccount struct {
+	CustomerAccountType   string `json:"customer_account_type"`
+	CustomerAccountNumber string `json:"customer_account_number"`
+	CustomerRoutingNumber string `json:"customer_routing_number"`
+	CustomerName          string `json:"customer_name"`
+}
+
+// NetworkWithAddress is a sub-struct, used in AccountStruct
+type NetworkWithAddress struct {
+	Network string `json:"network"`
+	Address string `json:"address"`
+}
+
+// DenebIMPS is a sub-struct, used in AccountStruct
+type DenebIMPS struct {
+	IFSCCode          string      `json:"ifsc_code"`
+	AccountNumber     string      `json:"account_number"`
+	CustomerFirstName string      `json:"customer_first_name"`
+	CustomerLastName  string      `json:"customer_last_name"`
+	Email             string      `json:"email"`
+	PhoneNumber       PhoneNumber `json:"phone_number"`
+	PAN               string      `json:"pan"`
+	Address           FullAddress `json:"address"`
+}
+
+// Movements is a sub-struct, used in Legs
+type Movements struct {
+	ID                 string             `json:"id"`
+	SourceAccount      LedgerAccount      `json:"source_account"`
+	DestinationAccount LedgerAccount      `json:"destination_account"`
+	Amount             AmountWithCurrency `json:"amount"`
+}
+
+// Legs is a sub-struct, used in Allocation
+type Legs struct {
+	ID        string      `json:"id"`
+	Movements []Movements `json:"movements"`
+	IsNetted  bool        `json:"is_netted"`
+}
+
+// Allocation is a sub-struct, used in AccountStruct
+type Allocation struct {
+	ID       string `json:"id"`
+	Legs     []Legs `json:"legs"`
+	IsNetted bool   `json:"is_netted"`
+}
+
+// LiquidityPool is a sub-struct, used in AccountStruct
+type LiquidityPool struct {
+	Network     string `json:"network"`
+	Pool        string `json:"pool"`
+	Currency    string `json:"currency"`
+	AccountID   string `json:"account_id"`
+	FromAddress string `json:"from_address"`
+}
+
+// DirectDeposit is a sub-struct, used in AccountStruct
+type DirectDeposit struct {
+	DirectDepositAccount string `json:"direct_deposit_account"`
+}
+
+// NameAndIBAN is a sub-struct, used in SEPAV2
+type NameAndIBAN struct {
+	LegalName string `json:"legal_name"`
+	IBAN      string `json:"iban"`
+}
+
+// SEPAV2 is a sub-struct, used in AccountStruct
+type SEPAV2 struct {
+	Account             NameAndIBAN `json:"account"`
+	CustomerFirstName   string      `json:"customer_first_name"`
+	CustomerLastName    string      `json:"customer_last_name"`
+	Email               string      `json:"email"`
+	PhoneNumber         PhoneNumber `json:"phone_number"`
+	CustomerCountry     string      `json:"customer_country"`
+	Address             FullAddress `json:"address"`
+	SupportsOpenBanking bool        `json:"supports_open_banking"`
+}
+
+// ZeptoAccount is a sub-struct, used in Zepto
+type ZeptoAccount struct {
+	ContactID     string `json:"contact_id"`
+	BankAccountID string `json:"bank_account_id"`
+}
+
+// Zepto is a sub-struct, used in AccountStruct
+type Zepto struct {
+	Account ZeptoAccount `json:"account"`
+}
+
+// TransactionWithAccount is a sub-struct, used in PixEBANX
+type TransactionWithAccount struct {
+	TransactionID string `json:"transaction_id"`
+	AccountID     string `json:"account_id"`
+}
+
+// PixWithdrawal is a sub-struct, used in PixEBANX
+type PixWithdrawal struct {
+	AccountNumber string `json:"account_number"`
+	AccountType   string `json:"account_type"`
+	BankCode      string `json:"bank_code"`
+	BranchNumber  string `json:"branch_number"`
+	PixKey        string `json:"pix_key"`
+}
+
+// PixEBANX is a sub-struct, used in AccountStruct
+type PixEBANX struct {
+	PaymentMethodID string                 `json:"payment_method_id"`
+	UserUUID        string                 `json:"user_uuid"`
+	Deposit         TransactionWithAccount `json:"deposit"`
+	Withdrawal      PixWithdrawal          `json:"withdrawal"`
+}
+
+// Signet is a sub-struct, used in AccountStruct
+type Signet struct {
+	SignetWalletID string `json:"signet_wallet_id"`
+}
+
 // AccountStruct is a sub-struct storing information on accounts, used in ConvertResponse
 type AccountStruct struct {
-	Type          string        `json:"type"`
-	Network       string        `json:"network"`
-	LedgerAccount LedgerAccount `json:"ledger_account"`
+	Type                        string               `json:"type"`
+	Network                     string               `json:"network"`
+	PaymentMethodID             string               `json:"payment_method_id"`
+	BlockchainAddress           AddressInfo          `json:"blockchain_address"`
+	CoinbaseAccount             AccountID            `json:"coinbase_account"`
+	BlockchainTransaction       HashWithHeight       `json:"blockchain_transaction"`
+	Fedwire                     Fedwire              `json:"fedwire"`
+	Swift                       Swift                `json:"swift"`
+	Card                        CardInfo             `json:"card"`
+	Zengin                      Zengin               `json:"zengin"`
+	UK                          UKAccount            `json:"uk"`
+	SEPA                        SEPA                 `json:"sepa"`
+	PayPal                      PayPal               `json:"paypal"`
+	LedgerAccount               LedgerAccount        `json:"ledger_account"`
+	ExternalPaymentMethod       PaymentMethodID      `json:"external_payment_method"`
+	ProAccount                  ProAccount           `json:"pro_account"`
+	RTP                         RTP                  `json:"rtp"`
+	Venue                       Name                 `json:"venue"`
+	LedgerNamedAccount          LedgerNamedAccount   `json:"ledger_named_account"`
+	CustodialPool               CustodialPool        `json:"custodial_pool"`
+	ApplePay                    ApplePay             `json:"apple_pay"`
+	DefaultAccount              UserUUIDWithCurrency `json:"default_account"`
+	Remitly                     Remitly              `json:"remitly"`
+	ProInternalAccount          UserIDWithCurrency   `json:"pro_internal_account"`
+	DAPPWalletAccount           DAPP                 `json:"dapp_wallet_account"`
+	GooglePay                   GooglePay            `json:"google_pay"`
+	DAPPWalletBlockchainAddress DAPPBlockchain       `json:"dapp_wallet_blockchain_address"`
+	ZaakpayMobikwik             PhoneNumber          `json:"zaakpay_mobikwik"`
+	DenebUPI                    DenebUPI             `json:"deneb_upi"`
+	BankAccount                 BankAccount          `json:"bank_account"`
+	IdentityContractCall        NetworkWithAddress   `json:"identity_contract_call"`
+	DenebIMPS                   DenebIMPS            `json:"deneb_imps"`
+	Allocation                  Allocation           `json:"allocation"`
+	LiquidityPool               LiquidityPool        `json:"liquidity_pool"`
+	ZenginV2                    Zengin               `json:"zengin_v2"`
+	DirectDeposit               DirectDeposit        `json:"direct_deposit"`
+	SEPAV2                      SEPAV2               `json:"sepa_v2"`
+	Zepto                       Zepto                `json:"zepto"`
+	PixEBANX                    PixEBANX             `json:"pix_ebanx"`
+	Signet                      Signet               `json:"signet"`
 }
 
 // AmScale is a sub-struct storing information on amounts and scales, used in ConvertResponse
@@ -764,15 +1310,16 @@ type TradeIncentiveInfo struct {
 
 // ConvertResponse contains information on a convert trade, returned by CreateConvertQuote, CommitConvertTrade, and GetConvertTradeByID
 type ConvertResponse struct {
-	ID                 string             `json:"id"`
-	Status             string             `json:"status"`
-	UserEnteredAmount  ValueWithCurrency  `json:"user_entered_amount"`
-	Amount             ValueWithCurrency  `json:"amount"`
-	Subtotal           ValueWithCurrency  `json:"subtotal"`
-	Total              ValueWithCurrency  `json:"total"`
-	Fees               []FeeStruct        `json:"fees"`
-	TotalFee           FeeStruct          `json:"total_fee"`
-	Source             AccountStruct      `json:"source"`
+	ID                string            `json:"id"`
+	Status            string            `json:"status"`
+	UserEnteredAmount ValueWithCurrency `json:"user_entered_amount"`
+	Amount            ValueWithCurrency `json:"amount"`
+	Subtotal          ValueWithCurrency `json:"subtotal"`
+	Total             ValueWithCurrency `json:"total"`
+	Fees              []FeeStruct       `json:"fees"`
+	TotalFee          FeeStruct         `json:"total_fee"`
+	Source            AccountStruct     `json:"source"`
+
 	Target             AccountStruct      `json:"target"`
 	UnitPrice          UnitPrice          `json:"unit_price"`
 	UserWarnings       []UserWarnings     `json:"user_warnings"`
@@ -819,7 +1366,7 @@ type IDResource struct {
 	Email        string `json:"email"`
 }
 
-// PaginationResp holds pagination information, used in ListNotificationsResponse, GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, ManyDeposWithdrResp, and GetAllPaymentMethodsResp
+// PaginationResp holds pagination information, used in ListNotificationsResponse, GetAllWalletsResponse, GetAllAddrResponse, ManyTransactionsResp, and ManyDeposWithdrResp
 type PaginationResp struct {
 	EndingBefore         string `json:"ending_before"`
 	StartingAfter        string `json:"starting_after"`
@@ -831,7 +1378,7 @@ type PaginationResp struct {
 	NextURI              string `json:"next_uri"`
 }
 
-// PaginationInp holds information needed to engage in pagination with Sign in With Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses, GetAddressTransactions, GetAllTransactions, GetAllFiatTransfers, GetAllPaymentMethods, and preparePagination
+// PaginationInp holds information needed to engage in pagination with Sign in With Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses, GetAddressTransactions, GetAllTransactions, GetAllFiatTransfers, ListPaymentMethods, and preparePagination
 type PaginationInp struct {
 	Limit         uint8
 	OrderAscend   bool
@@ -1002,7 +1549,7 @@ type GetAllWalletsResponse struct {
 	Data       []WalletData    `json:"data"`
 }
 
-// AddressInfo holds an address and a destination tag, used in AddressData
+// AddressInfo holds an address and a destination tag, used in AddressData and AccountStruct
 type AddressInfo struct {
 	Address        string `json:"address"`
 	DestinationTag string `json:"destination_tag"`

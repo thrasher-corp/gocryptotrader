@@ -108,7 +108,7 @@ func (c *CoinbasePro) SetDefaults() {
 		Subscriptions:       defaultSubscriptions.Clone(),
 		TradingRequirements: protocol.TradingRequirements{},
 	}
-	c.Requester, err = request.New(c.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimit()))
+	c.Requester, err = request.New(c.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -243,7 +243,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 	)
 	response.Exchange = c.Name
 	for !done {
-		accountResp, err = c.GetAllAccounts(ctx, 250, cursor)
+		accountResp, err = c.ListAccounts(ctx, 250, cursor)
 		if err != nil {
 			return response, err
 		}
@@ -628,13 +628,13 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 		return nil, err
 	}
 	response := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
-	fillData, err := c.GetFills(ctx, orderID, "", "", time.Time{}, time.Now(), manyFills)
+	fillData, err := c.ListFills(ctx, orderID, "", "", time.Time{}, time.Now(), manyFills)
 	if err != nil {
 		return nil, err
 	}
 	cursor := fillData.Cursor
 	for cursor != "" {
-		tempFillData, err := c.GetFills(ctx, orderID, "", cursor, time.Time{}, time.Now(), manyFills)
+		tempFillData, err := c.ListFills(ctx, orderID, "", cursor, time.Time{}, time.Now(), manyFills)
 		if err != nil {
 			return nil, err
 		}
@@ -722,7 +722,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 	if withdrawRequest.WalletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	paymentMethods, err := c.GetAllPaymentMethods(ctx)
+	paymentMethods, err := c.ListPaymentMethods(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1083,7 +1083,7 @@ func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orde
 		productType = "FUTURE"
 	}
 	for hasNext {
-		interResp, err := c.GetAllOrders(ctx, productID, "", orderType, orderSide, cursor, productType, "", "", "", orderStatus, nil, limit, startDate, endDate)
+		interResp, err := c.ListOrders(ctx, productID, "", orderType, orderSide, cursor, productType, "", "", "", orderStatus, nil, limit, startDate, endDate)
 		if err != nil {
 			return nil, err
 		}

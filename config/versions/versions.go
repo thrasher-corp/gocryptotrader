@@ -6,7 +6,8 @@
 
   - Versions must upgrade to the next version. Do not retrospectively change versions to match new type changes. Create a new version
 
-  - Versions must implement ExchangeVersion or ConfigVersion, and may implement both */
+  - Versions must implement ExchangeVersion or ConfigVersion, and may implement both
+*/
 package versions
 
 import (

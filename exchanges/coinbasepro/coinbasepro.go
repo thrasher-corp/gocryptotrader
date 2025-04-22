@@ -160,8 +160,20 @@ var (
 	openStatus           = []string{"OPEN"}
 )
 
-// GetAllAccounts returns information on all trading accounts associated with the API key
-func (c *CoinbasePro) GetAllAccounts(ctx context.Context, limit uint8, cursor string) (*AllAccountsResponse, error) {
+// GetAccountByID returns information for a single account
+func (c *CoinbasePro) GetAccountByID(ctx context.Context, accountID string) (*Account, error) {
+	if accountID == "" {
+		return nil, errAccountIDEmpty
+	}
+	path := coinbaseV3 + coinbaseAccounts + "/" + accountID
+	resp := struct {
+		Account Account `json:"account"`
+	}{}
+	return &resp.Account, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+}
+
+// ListAccounts returns information on all trading accounts associated with the API key
+func (c *CoinbasePro) ListAccounts(ctx context.Context, limit uint8, cursor string) (*AllAccountsResponse, error) {
 	vals := url.Values{}
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatUint(uint64(limit), 10))
@@ -173,16 +185,23 @@ func (c *CoinbasePro) GetAllAccounts(ctx context.Context, limit uint8, cursor st
 	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseAccounts, vals, nil, true, &resp)
 }
 
-// GetAccountByID returns information for a single account
-func (c *CoinbasePro) GetAccountByID(ctx context.Context, accountID string) (*Account, error) {
-	if accountID == "" {
+// CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
+func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
+	if tradeID == "" {
+		return nil, errTransactionIDEmpty
+	}
+	if from == "" || to == "" {
 		return nil, errAccountIDEmpty
 	}
-	path := coinbaseV3 + coinbaseAccounts + "/" + accountID
+	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseTrade + "/" + tradeID
+	req := map[string]any{
+		"from_account": from,
+		"to_account":   to,
+	}
 	resp := struct {
-		Account Account `json:"account"`
+		Trade ConvertResponse `json:"trade"`
 	}{}
-	return &resp.Account, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
 // GetBestBidAsk returns the best bid/ask for all products. Can be filtered to certain products by passing through additional strings
@@ -264,8 +283,7 @@ func (c *CoinbasePro) GetHistoricKlines(ctx context.Context, productID, granular
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
-	validGran := common.StringSliceContains(allowedGranularities, granularity)
-	if !validGran {
+	if !common.StringSliceContains(allowedGranularities, granularity) {
 		return nil, fmt.Errorf("%w %v, allowed granularities are: %+v", kline.ErrUnsupportedInterval, granularity, allowedGranularities)
 	}
 	vals := url.Values{}
@@ -326,11 +344,13 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Pla
 		"side":                     ord.Side,
 		"order_configuration":      orderConfig,
 		"self_trade_prevention_id": ord.SelfTradePreventionID,
-		"leverage":                 strconv.FormatFloat(ord.Leverage, 'f', -1, 64),
 		"retail_portfolio_id":      ord.RetailPortfolioID,
 	}
 	if ord.MarginType != "" {
 		req["margin_type"] = FormatMarginType(ord.MarginType)
+	}
+	if ord.Leverage != 0 && ord.Leverage != 1 {
+		req["leverage"] = strconv.FormatFloat(ord.Leverage, 'f', -1, 64)
 	}
 	var resp PlaceOrderResp
 	return &resp,
@@ -391,8 +411,8 @@ func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
-// GetAllOrders lists orders, filtered by their status
-func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType, retailPortfolioID string, orderStatus, assetFilters []string, limit int32, startDate, endDate time.Time) (*GetAllOrdersResp, error) {
+// ListOrders lists orders, filtered by their status
+func (c *CoinbasePro) ListOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType, retailPortfolioID string, orderStatus, assetFilters []string, limit int32, startDate, endDate time.Time) (*ListOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
@@ -440,12 +460,12 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 		params.Values.Set("order_type", orderType)
 	}
 	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseBatch
-	var resp GetAllOrdersResp
+	var resp ListOrdersResp
 	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
 }
 
-// GetFills returns information of recent fills on the specified order
-func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
+// ListFills returns information of recent fills on the specified order
+func (c *CoinbasePro) ListFills(ctx context.Context, orderID, productID, cursor string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
 	var params Params
 	params.Values = url.Values{}
 	err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
@@ -610,8 +630,8 @@ func (c *CoinbasePro) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBal
 	return &resp.BalanceSummary, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
 }
 
-// GetAllFuturesPositions returns a list of all open positions in CFM futures products
-func (c *CoinbasePro) GetAllFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
+// ListFuturesPositions returns a list of all open positions in CFM futures products
+func (c *CoinbasePro) ListFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
 	resp := struct {
 		Positions []FuturesPosition `json:"positions"`
 	}{}
@@ -765,25 +785,6 @@ func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userInce
 	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
-// CommitConvertTrade commits a conversion between two currencies, using the trade_id returned from CreateConvertQuote
-func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
-	if tradeID == "" {
-		return nil, errTransactionIDEmpty
-	}
-	if from == "" || to == "" {
-		return nil, errAccountIDEmpty
-	}
-	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseTrade + "/" + tradeID
-	req := map[string]any{
-		"from_account": from,
-		"to_account":   to,
-	}
-	resp := struct {
-		Trade ConvertResponse `json:"trade"`
-	}{}
-	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
-}
-
 // GetConvertTradeByID returns information on a conversion between two currencies
 func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
 	if tradeID == "" {
@@ -809,8 +810,8 @@ func (c *CoinbasePro) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, nil, &resp)
 }
 
-// GetAllPaymentMethods returns a list of all payment methods associated with the user's account
-func (c *CoinbasePro) GetAllPaymentMethods(ctx context.Context) ([]PaymentMethodData, error) {
+// ListPaymentMethods returns a list of all payment methods associated with the user's account
+func (c *CoinbasePro) ListPaymentMethods(ctx context.Context) ([]PaymentMethodData, error) {
 	resp := struct {
 		PaymentMethods []PaymentMethodData `json:"payment_methods"`
 	}{}
