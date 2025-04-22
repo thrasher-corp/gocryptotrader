@@ -32,6 +32,7 @@ const UseLatestVersion = math.MaxUint16
 
 var (
 	errVersionIncompatible   = errors.New("version does not implement ConfigVersion or ExchangeVersion")
+	errAlreadyRegistered     = errors.New("version is already registered")
 	errModifyingExchange     = errors.New("error modifying exchange config")
 	errNoVersions            = errors.New("error retrieving latest config version: No config versions are registered")
 	errApplyingVersion       = errors.New("error applying version")
@@ -215,6 +216,9 @@ func (m *manager) registerVersion(ver uint16, v any) {
 	defer m.m.Unlock()
 	if int(ver) >= len(m.versions) {
 		m.versions = slices.Grow(m.versions, int(ver+1))[:ver+1]
+	}
+	if m.versions[ver] != nil {
+		panic(fmt.Errorf("%w: %d", errAlreadyRegistered, ver))
 	}
 	m.versions[ver] = v
 }

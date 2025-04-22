@@ -2,6 +2,7 @@ package versions
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"testing"
 
@@ -110,6 +111,10 @@ func TestRegisterVersion(t *testing.T) {
 	m.registerVersion(1, &TestVersion1{})
 	require.Equal(t, 3, len(m.versions), "Must leave len alone when registering out-of-sequence")
 	require.NotNil(t, m.versions[1], "Must put Version 1 in the correct slot")
+
+	assert.PanicsWithError(t, fmt.Sprintf("%s: %d", errAlreadyRegistered, 2), func() {
+		m.registerVersion(2, &TestVersion2{})
+	}, "registeringVersion must panic registering an existing version")
 }
 
 func TestLatest(t *testing.T) {
