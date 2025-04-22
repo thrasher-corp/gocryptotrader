@@ -2691,8 +2691,8 @@ type UnifiedUserAccount struct {
 	RefreshTime                    types.Time                       `json:"refresh_time"`
 }
 
-// AccountDetail represents account detail information
-type AccountDetail struct {
+// AccountDetails represents account detail information
+type AccountDetails struct {
 	IPWhitelist       []string  `json:"ip_whitelist"`
 	CurrencyPairs     []string  `json:"currency_pairs"`
 	UserID            int64     `json:"user_id"`

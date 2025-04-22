@@ -1345,27 +1345,26 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, walletTotalBalance, params, nil, &response)
 }
 
-// ConvertSmallBalances converts small balances of supported crypto (excluding delisted crypto) above 0.00000001 GT and
-// below 0.0001 BTC in value to GT. You can make a conversion every 6 hours. A quota of 100 GT is available per account
-// every 3 days.
-// Providing a list of currency codes will convert only those, else all small currencies will be converted.
-func (g *Gateio) ConvertSmallBalances(ctx context.Context, codes ...currency.Code) error {
-	currencyList := make([]string, len(codes))
-	for i := range codes {
-		if codes[i].IsEmpty() {
+// ConvertSmallBalances converts small balances of provided currencies into GT.
+// If no currencies are provided, all supported currencies will be converted
+// See [this documentation](https://www.gate.io/help/guide/functional_guidelines/22367) for details and restrictions.
+func (g *Gateio) ConvertSmallBalances(ctx context.Context, currs ...currency.Code) error {
+	currencyList := make([]string, len(currs))
+	for i := range currs {
+		if currs[i].IsEmpty() {
 			return currency.ErrCurrencyCodeEmpty
 		}
-		currencyList[i] = codes[i].Upper().String()
+		currencyList[i] = currs[i].Upper().String()
 	}
 
-	body := struct {
+	payload := struct {
 		Currency []string `json:"currency"`
 		IsAll    bool     `json:"is_all"`
 	}{
 		Currency: currencyList,
-		IsAll:    len(codes) == 0,
+		IsAll:    len(currs) == 0,
 	}
-	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, body, nil)
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, payload, nil)
 }
 
 // ********************************* Margin *******************************************
@@ -3710,9 +3709,9 @@ func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.
 	}
 }
 
-// GetAccountDetail retrieves account details
-func (g *Gateio) GetAccountDetail(ctx context.Context) (*AccountDetail, error) {
-	var resp *AccountDetail
+// GetAccountDetails retrieves account details
+func (g *Gateio) GetAccountDetails(ctx context.Context) (*AccountDetails, error) {
+	var resp *AccountDetails
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
 }
 

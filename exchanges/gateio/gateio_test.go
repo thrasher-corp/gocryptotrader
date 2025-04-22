@@ -3899,10 +3899,10 @@ func TestConvertSmallBalances(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetAccountDetail(t *testing.T) {
+func TestGetAccountDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	got, err := g.GetAccountDetail(t.Context())
+	got, err := g.GetAccountDetails(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
