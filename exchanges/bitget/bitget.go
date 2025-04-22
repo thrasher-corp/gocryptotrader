@@ -5232,10 +5232,10 @@ func (bi *Bitget) SendHTTPRequest(ctx context.Context, ep exchange.URL, rateLim 
 }
 
 func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnsetStart, ignoreUnsetEnd bool) error {
-	if startDate.After(endDate) && !(endDate.IsZero() || endDate.Equal(common.ZeroValueUnix)) {
+	if startDate.After(endDate) && !endDate.IsZero() && !endDate.Equal(common.ZeroValueUnix) {
 		return common.ErrStartAfterEnd
 	}
-	if startDate.Equal(endDate) && !(startDate.IsZero() || startDate.Equal(common.ZeroValueUnix)) {
+	if startDate.Equal(endDate) && !startDate.IsZero() && !startDate.Equal(common.ZeroValueUnix) {
 		return common.ErrStartEqualsEnd
 	}
 	if startDate.After(time.Now()) {

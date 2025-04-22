@@ -15,6 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -29,8 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -197,7 +197,7 @@ func (bi *Bitget) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	bi.Websocket = stream.NewWebsocket()
+	bi.Websocket = websocket.NewManager()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -221,7 +221,7 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = bi.Websocket.Setup(&stream.WebsocketSetup{
+	err = bi.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             bitgetPublicWSURL,
 		RunningURL:                             wsRunningEndpoint,
@@ -239,14 +239,7 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	bi.Websocket.Conn = &stream.WebsocketConnection{
-		ExchangeName:     bi.Name,
-		URL:              bi.Websocket.GetWebsocketURL(),
-		ProxyURL:         bi.Websocket.GetProxyAddress(),
-		Verbose:          bi.Verbose,
-		ResponseMaxLimit: exch.WebsocketResponseMaxLimit,
-	}
-	err = bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	err = bi.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  bitgetPublicWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -255,7 +248,7 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return bi.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return bi.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  bitgetPrivateWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

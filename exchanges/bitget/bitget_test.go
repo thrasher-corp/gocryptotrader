@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,6 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -30,8 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -97,17 +97,17 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err = bi.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
 	}
 	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData(bi.Websocket.Conn)
-	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Websocket:   true,
 		Message:     []byte(`ping`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,
 	})
 	switch json.Implementation {
@@ -151,16 +151,16 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound)
 	exch.API.Endpoints = oldEP
 	err = exch.Setup(cfg)
-	assert.ErrorIs(t, err, stream.ErrWebsocketAlreadyInitialised)
+	assert.ErrorIs(t, err, websocket.ErrWebsocketAlreadyInitialised)
 }
 
 func TestWsConnect(t *testing.T) {
 	exch := &Bitget{}
 	exch.Websocket = sharedtestvalues.NewTestWebsocket()
 	err := exch.Websocket.Disable()
-	assert.ErrorIs(t, err, stream.ErrAlreadyDisabled)
+	assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled)
 	err = exch.WsConnect()
-	assert.ErrorIs(t, err, stream.ErrWebsocketNotEnabled)
+	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	exch.SetDefaults()
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
@@ -3370,20 +3370,17 @@ func TestCancelBatchOrders(t *testing.T) {
 		OrderID:       "1",
 		ClientOrderID: "a",
 		Pair:          testPair,
-	})
-	orders = append(orders, order.Cancel{
+	}, order.Cancel{
 		AssetType:     asset.Futures,
 		OrderID:       "2",
 		ClientOrderID: "b",
 		Pair:          testPair2,
-	})
-	orders = append(orders, order.Cancel{
+	}, order.Cancel{
 		AssetType:     asset.Margin,
 		OrderID:       "3",
 		ClientOrderID: "c",
 		Pair:          testPair,
-	})
-	orders = append(orders, order.Cancel{
+	}, order.Cancel{
 		AssetType:     asset.CrossMargin,
 		OrderID:       "4",
 		ClientOrderID: "d",
@@ -3423,10 +3420,10 @@ func TestWsAuth(t *testing.T) {
 	err := bi.WsAuth(t.Context(), nil)
 	assert.ErrorIs(t, err, errAuthenticatedWebsocketDisabled)
 	if bi.Websocket.IsEnabled() && !bi.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(bi) {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	bi.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	go func() {
 		timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 		select {
@@ -3445,7 +3442,7 @@ func TestWsAuth(t *testing.T) {
 }
 
 // func TestWsReadData(t *testing.T) {
-// 	mock := func(tb testing.TB, msg []byte, w *websocket.Conn) error {
+// 	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 // 		tb.Helper()
 // 		return nil
 // 	}

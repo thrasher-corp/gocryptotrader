@@ -11,11 +11,12 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -23,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -99,9 +99,9 @@ var defaultSubscriptions = subscription.List{
 // WsConnect connects to a websocket feed
 func (bi *Bitget) WsConnect() error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := bi.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -111,14 +111,14 @@ func (bi *Bitget) WsConnect() error {
 	}
 	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData(bi.Websocket.Conn)
-	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Websocket:   true,
 		Message:     []byte(`ping`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,
 	})
 	if bi.IsWebsocketAuthenticationSupported() {
-		var authDialer websocket.Dialer
+		var authDialer gws.Dialer
 		err = bi.WsAuth(context.TODO(), &authDialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
@@ -129,7 +129,7 @@ func (bi *Bitget) WsConnect() error {
 }
 
 // WsAuth sends an authentication message to the websocket
-func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
+func (bi *Bitget) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	if !bi.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v %w", bi.Name, errAuthenticatedWebsocketDisabled)
 	}
@@ -139,10 +139,10 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	}
 	bi.Websocket.Wg.Add(1)
 	go bi.wsReadData(bi.Websocket.AuthConn)
-	bi.Websocket.AuthConn.SetupPingHandler(request.Unset, stream.PingHandler{
+	bi.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Websocket:   true,
 		Message:     []byte(`ping`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 		Delay:       time.Second * 25,
 	})
 	creds, err := bi.GetCredentials(ctx)
@@ -177,7 +177,7 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (bi *Bitget) wsReadData(ws stream.Connection) {
+func (bi *Bitget) wsReadData(ws websocket.Connection) {
 	defer bi.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -251,7 +251,7 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 		case bitgetAccountIsolatedChannel:
 			err = bi.isolatedAccountDataHandler(&wsResponse)
 		default:
-			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+			bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
 	case "update":
 		switch wsResponse.Arg.Channel {
@@ -264,10 +264,10 @@ func (bi *Bitget) wsHandleData(respRaw []byte) error {
 		case bitgetAccount:
 			err = bi.accountUpdateDataHandler(&wsResponse, respRaw)
 		default:
-			bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+			bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 		}
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return err
 }
@@ -331,7 +331,7 @@ func (bi *Bitget) tickerDataHandler(wsResponse *WsResponse, respRaw []byte) erro
 			}
 		}
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
@@ -347,7 +347,7 @@ func (bi *Bitget) candleDataHandler(wsResponse *WsResponse) error {
 	if err != nil {
 		return err
 	}
-	resp := make([]stream.KlineData, len(candles))
+	resp := make([]websocket.KlineData, len(candles))
 	for i := range candles {
 		ts, err := strconv.ParseInt(candles[i][0], 10, 64)
 		if err != nil {
@@ -373,7 +373,7 @@ func (bi *Bitget) candleDataHandler(wsResponse *WsResponse) error {
 		if err != nil {
 			return err
 		}
-		resp[i] = stream.KlineData{
+		resp[i] = websocket.KlineData{
 			Timestamp:  wsResponse.Timestamp.Time(),
 			Pair:       pair,
 			AssetType:  itemDecoder(wsResponse.Arg.InstrumentType),
@@ -517,7 +517,7 @@ func (bi *Bitget) accountSnapshotDataHandler(wsResponse *WsResponse, respRaw []b
 			}
 		}
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	// Plan to add handling of account.Holdings on websocketDataHandler side in a later PR
 	bi.Websocket.DataHandler <- hold
@@ -578,7 +578,7 @@ func (bi *Bitget) fillDataHandler(wsResponse *WsResponse, respRaw []byte) error 
 		}
 		bi.Websocket.DataHandler <- resp
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
@@ -694,7 +694,7 @@ func (bi *Bitget) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) er
 		}
 		bi.Websocket.DataHandler <- resp
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
@@ -763,7 +763,7 @@ func (bi *Bitget) triggerOrderDataHandler(wsResponse *WsResponse, respRaw []byte
 		}
 		bi.Websocket.DataHandler <- resp
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
@@ -1002,7 +1002,7 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 		}
 		bi.Websocket.DataHandler <- resp
 	default:
-		bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: bi.Name + stream.UnhandledMessage + string(respRaw)}
+		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
