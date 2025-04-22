@@ -232,7 +232,7 @@ func (d *Deribit) WSRetrieveInstrumentData(instrument string) (*InstrumentData, 
 }
 
 // WSRetrieveInstrumentsData gets data for all available instruments
-func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
+func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -245,7 +245,7 @@ func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expi
 		Expired:  expired,
 		Kind:     kind,
 	}
-	var resp []InstrumentData
+	var resp []*InstrumentData
 	return resp, d.SendWSRequest(nonMatchingEPL, getInstruments, input, &resp, false)
 }
 
@@ -2319,7 +2319,7 @@ func (d *Deribit) WSMovePositions(ccy currency.Code, sourceSubAccountUID, target
 	return resp, d.SendWSRequest(nonMatchingEPL, movePositions, input, &resp, true)
 }
 
-// WsSimulateBlockTrade checks if a block trade can be executed through the websocket stream.
+// WsSimulateBlockTrade checks if a block trade can be executed through the websocket
 func (d *Deribit) WsSimulateBlockTrade(role string, trades []BlockTradeParam) (bool, error) {
 	if role != roleMaker && role != roleTaker {
 		return false, errInvalidTradeRole

@@ -21,14 +21,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Lbank is the overarching type across this package
 type Lbank struct {
 	exchange.Base
-	privateKey    *rsa.PrivateKey
-	WebsocketConn *stream.WebsocketConnection
+	privateKey *rsa.PrivateKey
 }
 
 const (

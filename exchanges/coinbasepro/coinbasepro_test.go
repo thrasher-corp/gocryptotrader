@@ -8,19 +8,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -662,9 +662,9 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
+		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	require.NoError(t, err, "Dial must not error")
 	go c.wsReadData()

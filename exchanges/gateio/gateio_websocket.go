@@ -15,17 +15,18 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -76,12 +77,12 @@ var subscriptionNames = map[string]string{
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
 
 // WsConnectSpot initiates a websocket connection
-func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
+func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
+	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -89,22 +90,17 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
 		Websocket:   true,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 	return nil
 }
 
-// authenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
-	return g.websocketLogin(ctx, conn, "spot.login")
-}
-
 // websocketLogin authenticates the websocket connection
-func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, channel string) error {
+func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
 	if conn == nil {
 		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}
@@ -135,7 +131,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 
 	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
 
-	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, req.Payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -145,15 +141,16 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn stream.Connection, cha
 		return err
 	}
 
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	if inbound.Header.Status == http.StatusOK {
+		return nil
 	}
 
-	return nil
+	var wsErr WebsocketErrors
+	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
@@ -209,10 +206,10 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 		return g.processCrossMarginLoans(respRaw)
 	case spotPongChannel:
 	default:
-		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: g.Name + websocket.UnhandledMessage + string(respRaw),
 		}
-		return errors.New(stream.UnhandledMessage)
+		return errors.New(websocket.UnhandledMessage)
 	}
 	return nil
 }
@@ -333,10 +330,10 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 		return err
 	}
 
-	out := make([]stream.KlineData, 0, len(standardMarginAssetTypes))
+	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
-			out = append(out, stream.KlineData{
+			out = append(out, websocket.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
 				Exchange:   g.Name,
@@ -670,7 +667,7 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
-func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(g)
 	if errs != nil {
@@ -706,7 +703,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn stream.Conne
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
 		ID:      conn.GenerateMessageID(false),
 		Event:   event,
@@ -733,12 +730,12 @@ func (g *Gateio) manageSubReq(ctx context.Context, event string, conn stream.Con
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(ctx context.Context, conn stream.Connection, subs subscription.List) error {
+func (g *Gateio) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
@@ -784,10 +781,10 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+func (g *Gateio) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
 	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -815,4 +812,68 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 		}
 	}
 	return errs
+}
+
+type resultHolder struct {
+	Result any `json:"result"`
+}
+
+// SendWebsocketRequest sends a websocket request to the exchange
+func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
+	paramPayload, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+
+	conn, err := g.Websocket.GetConnection(connSignature)
+	if err != nil {
+		return err
+	}
+
+	tn := time.Now().Unix()
+	req := &WebsocketRequest{
+		Time:    tn,
+		Channel: channel,
+		Event:   "api",
+		Payload: WebsocketPayload{
+			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestParam: paramPayload,
+			Timestamp:    strconv.FormatInt(tn, 10),
+		},
+	}
+
+	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
+	if err != nil {
+		return err
+	}
+
+	if len(responses) == 0 {
+		return common.ErrNoResponse
+	}
+
+	// responses may include an ack resp, which we skip
+	endResponse := responses[len(responses)-1]
+
+	var inbound WebsocketAPIResponse
+	if err := json.Unmarshal(endResponse, &inbound); err != nil {
+		return err
+	}
+
+	if inbound.Header.Status != http.StatusOK {
+		var wsErr WebsocketErrors
+		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
+			return err
+		}
+		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	}
+
+	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
+}
+
+type wsRespAckInspector struct{}
+
+// IsFinal checks the payload for an ack, it returns true if the payload does not contain an ack.
+// This will force the cancellation of further waiting for responses.
+func (wsRespAckInspector) IsFinal(data []byte) bool {
+	return !strings.Contains(string(data), "ack")
 }
