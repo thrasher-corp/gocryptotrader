@@ -848,7 +848,7 @@
    },
    "features": {
     "supports": {
-    "websocketAPI": true
+     "websocketAPI": true
     },
     "enabled": {
      "websocketAPI": true
