@@ -1,26 +1,21 @@
-package versions
+package v1
 
 import (
 	"context"
 
 	"github.com/buger/jsonparser"
 	v0 "github.com/thrasher-corp/gocryptotrader/config/versions/v0"
-	v1 "github.com/thrasher-corp/gocryptotrader/config/versions/v1"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-// Version1 is an ExchangeVersion to upgrade currency pair format for exchanges
-type Version1 struct{}
-
-func init() {
-	Manager.registerVersion(1, &Version1{})
-}
+// Version is an ExchangeVersion to upgrade currency pair format for exchanges
+type Version struct{}
 
 // Exchanges returns all exchanges: "*"
-func (v *Version1) Exchanges() []string { return []string{"*"} }
+func (*Version) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange will upgrade currency pair format
-func (v *Version1) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if _, d, _, err := jsonparser.Get(e, "currencyPairs"); err == nil && d == jsonparser.Object {
 		return e, nil
 	}
@@ -30,12 +25,12 @@ func (v *Version1) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		return e, err
 	}
 
-	p := &v1.PairsManager{
+	p := &PairsManager{
 		UseGlobalFormat: true,
 		LastUpdated:     d.PairsLastUpdated,
 		ConfigFormat:    d.ConfigCurrencyPairFormat,
 		RequestFormat:   d.RequestCurrencyPairFormat,
-		Pairs: v1.FullStore{
+		Pairs: FullStore{
 			"spot": {
 				Available: d.AvailablePairs,
 				Enabled:   d.EnabledPairs,
@@ -53,6 +48,6 @@ func (v *Version1) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 }
 
 // DowngradeExchange doesn't do anything for v1; There's no downgrade path since the original state is lossy and v1 was before versioning
-func (v *Version1) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	return e, nil
 }
