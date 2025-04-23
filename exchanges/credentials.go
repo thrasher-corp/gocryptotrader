@@ -23,12 +23,11 @@ var (
 	// undertake an authenticated HTTP request.
 	ErrCredentialsAreEmpty = errors.New("credentials are empty")
 	// Errors related to API requirements and failures
-	errRequiresAPIKey            = errors.New("requires API key but default/empty one set")
-	errRequiresAPISecret         = errors.New("requires API secret but default/empty one set")
-	errRequiresAPIPEMKey         = errors.New("requires API PEM key but default/empty one set")
-	errRequiresAPIClientID       = errors.New("requires API Client ID but default/empty one set")
-	errBase64DecodeFailure       = errors.New("base64 decode has failed")
-	errContextCredentialsFailure = errors.New("context credentials type assertion failure")
+	errRequiresAPIKey      = errors.New("requires API key but default/empty one set")
+	errRequiresAPISecret   = errors.New("requires API secret but default/empty one set")
+	errRequiresAPIPEMKey   = errors.New("requires API PEM key but default/empty one set")
+	errRequiresAPIClientID = errors.New("requires API Client ID but default/empty one set")
+	errBase64DecodeFailure = errors.New("base64 decode has failed")
 )
 
 // SetKey sets new key for the default credentials
