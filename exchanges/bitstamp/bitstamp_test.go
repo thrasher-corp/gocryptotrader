@@ -1,7 +1,6 @@
 package bitstamp
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -53,7 +52,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 	feeBuilder := setFeeBuilder()
-	_, err := b.GetFeeByType(context.Background(), feeBuilder)
+	_, err := b.GetFeeByType(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
 	if mockTests {
 		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "TradeFee should be correct")
@@ -71,7 +70,7 @@ func TestGetFee(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	fee, err := b.GetFee(context.Background(), feeBuilder)
+	fee, err := b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.NotEmpty(t, fee, "Fee should not be empty")
@@ -80,13 +79,13 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	fee, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.Positive(t, fee, "Maker fee should be positive")
@@ -95,7 +94,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsTaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = false
-	fee, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.Positive(t, fee, "Taker fee should be positive")
@@ -104,33 +103,33 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	fee, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	assert.NotEmpty(t, fee, "Fee should not be empty")
 }
@@ -142,7 +141,7 @@ func TestGetAccountTradingFee(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 
-	fee, err := b.GetAccountTradingFee(context.Background(), currency.NewPair(currency.LTC, currency.BTC))
+	fee, err := b.GetAccountTradingFee(t.Context(), currency.NewPair(currency.LTC, currency.BTC))
 	require.NoError(t, err, "GetAccountTradingFee must not error")
 	if mockTests {
 		assert.Positive(t, fee.Fees.Maker, "Maker should be positive")
@@ -151,7 +150,7 @@ func TestGetAccountTradingFee(t *testing.T) {
 	assert.NotEmpty(t, fee.Symbol, "Symbol should not be empty")
 	assert.Equal(t, "ltcbtc", fee.Symbol, "Symbol should be correct")
 
-	_, err = b.GetAccountTradingFee(context.Background(), currency.EMPTYPAIR)
+	_, err = b.GetAccountTradingFee(t.Context(), currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "Should get back the right error")
 }
 
@@ -162,7 +161,7 @@ func TestGetAccountTradingFees(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 
-	fees, err := b.GetAccountTradingFees(context.Background())
+	fees, err := b.GetAccountTradingFees(t.Context())
 	require.NoError(t, err, "GetAccountTradingFee must not error")
 	if assert.NotEmpty(t, fees, "Should get back multiple fees") {
 		fee := fees[0]
@@ -177,7 +176,7 @@ func TestGetAccountTradingFees(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 
-	tick, err := b.GetTicker(context.Background(),
+	tick, err := b.GetTicker(t.Context(),
 		currency.BTC.String()+currency.USD.String(), false)
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Positive(t, tick.Ask, "Ask should be positive")
@@ -196,7 +195,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	ob, err := b.GetOrderbook(context.Background(), currency.BTC.String()+currency.USD.String())
+	ob, err := b.GetOrderbook(t.Context(), currency.BTC.String()+currency.USD.String())
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.NotEmpty(t, ob.Timestamp, "Timestamp should not be empty")
 	for i, o := range [][]OrderbookBase{ob.Asks, ob.Bids} {
@@ -212,7 +211,7 @@ func TestGetOrderbook(t *testing.T) {
 func TestGetTradingPairs(t *testing.T) {
 	t.Parallel()
 
-	p, err := b.GetTradingPairs(context.Background())
+	p, err := b.GetTradingPairs(t.Context())
 	require.NoError(t, err, "GetTradingPairs must not error")
 	assert.NotEmpty(t, p, "Pairs should not be empty")
 	for _, res := range p {
@@ -230,14 +229,14 @@ func TestGetTradingPairs(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 
-	p, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	p, err := b.FetchTradablePairs(t.Context(), asset.Spot)
 	require.NoError(t, err, "FetchTradablePairs must not error")
 	assert.True(t, p.Contains(currency.NewBTCUSD(), true), "Pairs should contain BTC/USD")
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), true)
+	err := b.UpdateTradablePairs(t.Context(), true)
 	require.NoError(t, err, "UpdateTradablePairs must not error")
 }
 
@@ -257,7 +256,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		},
 	}
 	for assetItem, limitTests := range tests {
-		if err := b.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
+		if err := b.UpdateOrderExecutionLimits(t.Context(), assetItem); err != nil {
 			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
 		}
 		for _, limitTest := range limitTests {
@@ -285,7 +284,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
 
-	tr, err := b.GetTransactions(context.Background(),
+	tr, err := b.GetTransactions(t.Context(),
 		currency.BTC.String()+currency.USD.String(), "hour")
 	require.NoError(t, err, "GetTransactions must not error")
 	assert.NotEmpty(t, tr, "Transactions should not be empty")
@@ -300,7 +299,7 @@ func TestGetTransactions(t *testing.T) {
 func TestGetEURUSDConversionRate(t *testing.T) {
 	t.Parallel()
 
-	c, err := b.GetEURUSDConversionRate(context.Background())
+	c, err := b.GetEURUSDConversionRate(t.Context())
 	require.NoError(t, err, "GetEURUSDConversionRate must not error")
 	assert.Positive(t, c.Sell, "Sell should be positive")
 	assert.Positive(t, c.Buy, "Buy should be positive")
@@ -312,7 +311,7 @@ func TestGetBalance(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	bal, err := b.GetBalance(context.Background())
+	bal, err := b.GetBalance(t.Context())
 	require.NoError(t, err, "GetBalance must not error")
 	if mockTests {
 		for k, e := range map[string]Balance{
@@ -343,7 +342,7 @@ func TestGetUserTransactions(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	tr, err := b.GetUserTransactions(context.Background(), "btcusd")
+	tr, err := b.GetUserTransactions(t.Context(), "btcusd")
 	require.NoError(t, err, "GetUserTransactions must not error")
 	if mockTests {
 		assert.NotEmpty(t, tr, "Transactions should not be empty")
@@ -360,7 +359,7 @@ func TestGetOpenOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOpenOrders(context.Background(), "btcusd")
+	o, err := b.GetOpenOrders(t.Context(), "btcusd")
 	require.NoError(t, err, "GetOpenOrders must not error")
 	if mockTests {
 		assert.NotEmpty(t, o, "Orders should not be empty")
@@ -384,7 +383,7 @@ func TestGetOrderStatus(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderStatus(context.Background(), 1458532827766784)
+	o, err := b.GetOrderStatus(t.Context(), 1458532827766784)
 	if !mockTests {
 		assert.ErrorContains(t, err, "Order not found")
 	} else {
@@ -411,7 +410,7 @@ func TestGetWithdrawalRequests(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	r, err := b.GetWithdrawalRequests(context.Background(), 1)
+	r, err := b.GetWithdrawalRequests(t.Context(), 1)
 	require.NoError(t, err, "GetWithdrawalRequests must not error")
 	if mockTests {
 		assert.NotEmpty(t, r, "GetWithdrawalRequests should return a withdrawal request")
@@ -436,7 +435,7 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	d, err := b.GetUnconfirmedBitcoinDeposits(context.Background())
+	d, err := b.GetUnconfirmedBitcoinDeposits(t.Context())
 	require.NoError(t, err, "GetUnconfirmedBitcoinDeposits must not error")
 	if mockTests {
 		assert.NotEmpty(t, d, "Deposits should not be empty")
@@ -454,7 +453,7 @@ func TestTransferAccountBalance(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	err := b.TransferAccountBalance(context.Background(),
+	err := b.TransferAccountBalance(t.Context(),
 		10000, "BTC", "1234567", true)
 	if !mockTests {
 		assert.ErrorContains(t, err, "Sub account with identifier \"1234567\" does not exist.")
@@ -479,7 +478,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
+	o, err := b.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -504,7 +503,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+	o, err := b.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -528,7 +527,7 @@ func TestSubmitOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	o, err := b.SubmitOrder(context.Background(), &order.Submit{
+	o, err := b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
@@ -561,7 +560,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	err := b.CancelOrder(context.Background(), &order.Cancel{
+	err := b.CancelOrder(t.Context(), &order.Cancel{
 		OrderID: "1453282316578816",
 	})
 	if !mockTests {
@@ -577,7 +576,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	resp, err := b.CancelAllOrders(context.Background(),
+	resp, err := b.CancelAllOrders(t.Context(),
 		&order.Cancel{AssetType: asset.Spot})
 	require.NoError(t, err, "TestCancelAllExchangeOrders must not error")
 	if len(resp.Status) > 0 {
@@ -588,7 +587,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Spot})
+	_, err := b.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
@@ -598,7 +597,7 @@ func TestWithdraw(t *testing.T) {
 	if !mockTests {
 		t.Skip("TestWithdraw not allowed for live tests")
 	}
-	w, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
+	w, err := b.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 		Exchange:    b.Name,
 		Amount:      6,
 		Currency:    currency.BTC,
@@ -645,7 +644,7 @@ func TestWithdrawFiat(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	w, err := b.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
+	w, err := b.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
 	if mockTests {
 		require.NoError(t, err, "WithdrawFiat must not error")
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
@@ -694,7 +693,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	w, err := b.WithdrawFiatFundsToInternationalBank(context.Background(),
+	w, err := b.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if mockTests {
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
@@ -709,7 +708,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	a, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
+	a, err := b.GetDepositAddress(t.Context(), currency.XRP, "", "")
 	require.NoError(t, err, "GetDepositAddress must not error")
 	assert.NotEmpty(t, a.Address, "Address should not be empty")
 	assert.NotEmpty(t, a.Tag, "Tag should not be empty")
@@ -868,7 +867,7 @@ func TestWsRequestReconnect(t *testing.T) {
 func TestBitstamp_OHLC(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	o, err := b.OHLC(context.Background(), "btcusd", start, end, "60", "10")
+	o, err := b.OHLC(t.Context(), "btcusd", start, end, "60", "10")
 	require.NoError(t, err, "TestBitstamp_OHLC must not error")
 	assert.Equal(t, "BTC/USD", o.Data.Pair, "Pair should be correct")
 	for _, req := range o.Data.OHLCV {
@@ -883,7 +882,7 @@ func TestBitstamp_OHLC(t *testing.T) {
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	c, err := b.GetHistoricCandles(context.Background(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
 	require.NoError(t, err, "GetHistoricCandles must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -901,7 +900,7 @@ func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	c, err := b.GetHistoricCandlesExtended(context.Background(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
 	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -921,7 +920,7 @@ func TestGetRecentTrades(t *testing.T) {
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
 	require.NoError(t, err, "NewPairFromString must not error")
 
-	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	tr, err := b.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
 	require.NoError(t, err, "GetRecentTrades must not error")
 	assert.NotEmpty(t, tr, "Trades should not be empty")
 	for _, req := range tr {
@@ -939,7 +938,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
 	require.NoError(t, err, "NewPairFromString must not error")
-	_, err = b.GetHistoricTrades(context.Background(),
+	_, err = b.GetHistoricTrades(t.Context(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
@@ -980,7 +979,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	h, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	h, err := b.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
 	require.NoError(t, err, "GetWithdrawalsHistory must not error")
 	if mockTests {
 		assert.NotEmpty(t, h, "WithdrawalHistory should not be empty")
@@ -998,7 +997,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", btcusdPair, asset.Spot)
+	o, err := b.GetOrderInfo(t.Context(), "1458532827766784", btcusdPair, asset.Spot)
 	if mockTests {
 		require.NoError(t, err, "GetOrderInfo must not error")
 		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "Date should match")
@@ -1019,7 +1018,7 @@ func TestFetchWSAuth(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	resp, err := b.FetchWSAuth(context.TODO())
+	resp, err := b.FetchWSAuth(t.Context())
 	require.NoError(t, err, "FetchWSAuth must not error")
 	assert.NotNil(t, resp, "resp should not be nil")
 	assert.Positive(t, resp.UserID, "UserID should be positive")
@@ -1034,7 +1033,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
-		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}

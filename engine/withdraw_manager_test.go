@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -24,7 +23,7 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	t.Helper()
 	em := NewExchangeManager()
 	b := new(okx.Okx)
-	cfg, err := exchange.GetDefaultConfig(context.Background(), b)
+	cfg, err := exchange.GetDefaultConfig(t.Context(), b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +79,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 			Bank: bank,
 		},
 	}
-	_, err = m.SubmitWithdrawal(context.Background(), req)
+	_, err = m.SubmitWithdrawal(t.Context(), req)
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received %v, expected %v", err, common.ErrFunctionNotSupported)
 	}
@@ -88,7 +87,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 	req.Type = withdraw.Crypto
 	req.Currency = currency.BTC
 	req.Crypto.Address = "1337"
-	_, err = m.SubmitWithdrawal(context.Background(), req)
+	_, err = m.SubmitWithdrawal(t.Context(), req)
 	if !errors.Is(err, withdraw.ErrStrAddressNotWhiteListed) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrAddressNotWhiteListed)
 	}
@@ -106,24 +105,24 @@ func TestSubmitWithdrawal(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
-	_, err = m.SubmitWithdrawal(context.Background(), req)
+	_, err = m.SubmitWithdrawal(t.Context(), req)
 	if !errors.Is(err, withdraw.ErrStrExchangeNotSupportedByAddress) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
 	}
 
 	adds[0].SupportedExchanges = withdrawManagerTestExchangeName
-	_, err = m.SubmitWithdrawal(context.Background(), req)
+	_, err = m.SubmitWithdrawal(t.Context(), req)
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 
-	_, err = m.SubmitWithdrawal(context.Background(), nil)
+	_, err = m.SubmitWithdrawal(t.Context(), nil)
 	if !errors.Is(err, withdraw.ErrRequestCannotBeNil) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrRequestCannotBeNil)
 	}
 
 	m.isDryRun = true
-	_, err = m.SubmitWithdrawal(context.Background(), req)
+	_, err = m.SubmitWithdrawal(t.Context(), req)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v, expected %v", err, nil)
 	}
