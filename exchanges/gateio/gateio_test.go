@@ -3898,3 +3898,30 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertSmallBalances(t *testing.T) {
+	t.Parallel()
+	err := g.ConvertSmallBalances(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+
+	err = g.ConvertSmallBalances(t.Context(), currency.F16)
+	require.NoError(t, err)
+}
+
+func TestGetAccountDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+	got, err := g.GetAccountDetails(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
+
+func TestGetUserTransactionRateLimitInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
+	got, err := g.GetUserTransactionRateLimitInfo(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
