@@ -1714,3 +1714,11 @@ func TestGetOrderInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	me.Websocket.Enable()
+	err := me.WsConnect()
+	assert.NoError(t, err)
+	time.Sleep(time.Second * 10)
+}
