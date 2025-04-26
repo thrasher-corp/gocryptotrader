@@ -1722,3 +1722,11 @@ func TestWsConnect(t *testing.T) {
 	assert.NoError(t, err)
 	time.Sleep(time.Second * 10)
 }
+
+func TestWsFuturesConnect(t *testing.T) {
+	t.Parallel()
+	me.Websocket.Enable()
+	err := me.WsFuturesConnect()
+	require.NoError(t, err)
+	time.Sleep(time.Second * 20)
+}

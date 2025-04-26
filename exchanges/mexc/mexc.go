@@ -151,6 +151,20 @@ var stringToIntervalMap = map[string]map[string]kline.Interval{
 	"intervalToStringMap":   {"100ms": kline.HundredMilliseconds, "10ms": kline.TenMilliseconds, "1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "60m": kline.OneHour, "4h": kline.FourHour, "1d": kline.OneDay, "1W": kline.OneWeek, "1M": kline.OneMonth},
 }
 
+func stringToInterval(intervalString string, isWebsocket ...bool) (kline.Interval, error) {
+	var interval kline.Interval
+	var ok bool
+	if len(isWebsocket) > 0 && isWebsocket[0] {
+		interval, ok = stringToIntervalMap["wsIntervalToStringMap"][intervalString]
+	} else {
+		interval, ok = stringToIntervalMap["intervalToStringMap"][intervalString]
+	}
+	if !ok {
+		return 0, fmt.Errorf("%w, %s", kline.ErrUnsupportedInterval, intervalString)
+	}
+	return interval, nil
+}
+
 // GetCandlestick retrieves kline/candlestick bars for a symbol.
 // Klines are uniquely identified by their open time.
 func (me *MEXC) GetCandlestick(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
