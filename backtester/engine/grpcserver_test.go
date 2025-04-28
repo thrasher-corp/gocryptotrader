@@ -28,18 +28,18 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
 	_, err := s.ExecuteStrategyFromFile(t.Context(), nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromFile should error correctly with a nil config")
 
 	s.config, err = config.GenerateDefaultConfig()
 	require.NoError(t, err, "GenerateDefaultConfig must not error")
 
 	s.config.Report.GenerateReport = false
 	_, err = s.ExecuteStrategyFromFile(t.Context(), nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromFile should error correctly with a nil task manager")
 
 	s.manager = NewTaskManager()
 	_, err = s.ExecuteStrategyFromFile(t.Context(), nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromFile should error correctly with a nil request")
 
 	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{})
 	assert.ErrorIs(t, err, common.ErrFileNotFound)
