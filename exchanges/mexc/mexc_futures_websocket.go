@@ -54,6 +54,7 @@ var defaultFuturesSubscriptions = []string{
 	cnlFFundingRate,
 }
 
+// WsFuturesConnect established a futures websocket connection
 func (me *MEXC) WsFuturesConnect() error {
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -96,15 +97,15 @@ func (me *MEXC) GenerateDefaultSubscriptions() (subscription.List, error) {
 	for c := range channels {
 		switch channels[c] {
 		case cnlFTicker, cnlFDeal, cnlFDepthFull, cnlFKline, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
-			subscriptionsList = append(subscriptionsList, &subscription.Subscription{
+			subscriptionsList[c] = &subscription.Subscription{
 				Channel: channels[c],
 				Pairs:   enabledPairs,
-			})
+			}
 		case cnlFTickers, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder,
 			cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode:
-			subscriptionsList = append(subscriptionsList, &subscription.Subscription{
+			subscriptionsList[c] = &subscription.Subscription{
 				Channel: channels[c],
-			})
+			}
 		}
 	}
 	return subscriptionsList, nil
@@ -120,21 +121,36 @@ func (me *MEXC) UnsubscribeFutures(subscriptions subscription.List) error {
 	return me.handleSubscriptionFuturesPayload(subscriptions, "unsub")
 }
 
-func (me *MEXC) handleSubscriptionFuturesPayload(subscriptions subscription.List, method string) error {
-	for s := range subscriptions {
-		params := make([]FWebsocketReqParam, len(subscriptions[s].Pairs))
-		for p := range params {
-			params[p] = FWebsocketReqParam{
-				Symbol: subscriptions[s].Pairs[p].String(),
+func (me *MEXC) handleSubscriptionFuturesPayload(subscriptionItems subscription.List, method string) error {
+	for x := range subscriptionItems {
+		switch subscriptionItems[x].Channel {
+		case cnlFDeal, cnlFTicker, cnlFDepthFull, cnlFKline, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
+			params := make([]FWebsocketReqParam, len(subscriptionItems[x].Pairs))
+			for p := range subscriptionItems[x].Pairs {
+				params[p].Symbol = subscriptionItems[x].Pairs[p].String()
+				if cnlFDeal == "" {
+					params[p].Compress = true
+					params[p].Limit = subscriptionItems[x].Levels
+				}
+				jsonData, err := json.Marshal(&WsFuturesReq{
+					Method: method + "." + subscriptionItems[x].Channel,
+					Param:  &params[p],
+				})
+				if err != nil {
+					return err
+				}
+				println(string(jsonData))
+				err = me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
+					Method: method + "." + subscriptionItems[x].Channel,
+					Param:  &params[p],
+				})
+				if err != nil {
+					return err
+				}
 			}
-			switch subscriptions[s].Channel {
-			case cnlFDeal:
-				params[p].Compress = true
-				params[p].Limit = subscriptions[s].Levels
-			}
+		default:
 			err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
-				Method: method + "." + subscriptions[s].Channel,
-				Param:  &params[p],
+				Method: method + "." + subscriptionItems[x].Channel,
 			})
 			if err != nil {
 				return err
@@ -171,15 +187,15 @@ func (me *MEXC) WsHandleFuturesData(respRaw []byte) error {
 		}
 		return nil
 	}
-	splitted := strings.Split(resp.Channel, ".")
-	if splitted[0] == "rs" {
+	cnlSplits := strings.Split(resp.Channel, ".")
+	if cnlSplits[0] == "rs" {
 		if !me.Websocket.Match.IncomingWithData(resp.Channel, respRaw) {
 			me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 				Message: string(respRaw) + websocket.UnhandledMessage,
 			}
 		}
 	}
-	switch splitted[1] {
+	switch cnlSplits[1] {
 	case cnlFTickers:
 		return me.processFuturesTickers(resp.Data)
 	case cnlFTicker:

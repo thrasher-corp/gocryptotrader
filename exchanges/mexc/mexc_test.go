@@ -1717,21 +1717,24 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	me.Websocket.Enable()
 	err := me.WsConnect()
 	assert.NoError(t, err)
-	time.Sleep(time.Second * 10)
 }
 
 func TestWsFuturesConnect(t *testing.T) {
 	t.Parallel()
-	me.Websocket.Enable()
 	err := me.WsFuturesConnect()
 	require.NoError(t, err)
-	time.Sleep(time.Second * 20)
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	// me.handleSubscriptionFuturesPayload(me.GenerateDefaultSubscriptions())
+	err := me.WsFuturesConnect()
+	require.NoError(t, err)
+
+	results, err := me.GenerateDefaultSubscriptions()
+	require.NoError(t, err)
+
+	err = me.SubscribeFutures(results)
+	assert.NoError(t, err)
 }

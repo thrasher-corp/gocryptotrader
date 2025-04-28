@@ -288,7 +288,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			Bids:  []orderbook.Tranche{bid},
 		})
 	case chnlAggregateDepthV3:
-		var result = mexc_proto_types.PushDataV3ApiWrapper{
+		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreDepths{},
 		}
 		err := proto.Unmarshal(respRaw, &result)

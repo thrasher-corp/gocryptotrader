@@ -1,8 +1,7 @@
 package mexc
 
 import (
-	"encoding/json"
-
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -21,7 +20,7 @@ type WsFuturesData struct {
 // WsFuturesReq holds a futures request payload.
 type WsFuturesReq struct {
 	Method string              `json:"method"`
-	GZip   bool                `json:"gzip"`
+	GZip   bool                `json:"gzip,omitempty"`
 	Param  *FWebsocketReqParam `json:"param,omitempty"`
 }
 
