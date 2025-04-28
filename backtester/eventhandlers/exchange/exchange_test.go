@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -449,10 +448,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
-		t.Error(err)
-	}
-	assert.NoError(t, err, "limitReducedAmount adjusted to 0.99999999, direction BUY, should fall in  buyside {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
+	assert.NoError(t, err, "ExecuteOrder should not error when limitReducedAmount adjusted to 0.99999999, direction BUY {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
 
 	o = &order.Order{
 		Base:           ev,
@@ -464,10 +460,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if err != nil && !strings.Contains(err.Error(), "exceed minimum size") {
-		t.Error(err)
-	}
-	assert.NoError(t, err, "limitReducedAmount adjust to 0.99999999, should fall in sell size {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
+	assert.NoError(t, err, "ExecuteOrder should not error when limitReducedAmount adjusted to 0.99999999, direction SELL {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
 
 	o = &order.Order{
 		Base:           ev,

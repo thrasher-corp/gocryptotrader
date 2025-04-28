@@ -380,7 +380,6 @@ func withInteractiveResponse(tb testing.TB, response string, fn func()) {
 	f, err := os.CreateTemp(tb.TempDir(), "*.in")
 	require.NoError(tb, err, "CreateTemp must not error")
 	defer f.Close()
-	defer os.Remove(f.Name())
 	_, err = f.WriteString(response)
 	require.NoError(tb, err, "WriteString must not error")
 	_, err = f.Seek(0, 0)

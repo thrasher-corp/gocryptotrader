@@ -1598,8 +1598,8 @@ func TestGetFees(t *testing.T) {
 
 	maker, taker, err := getFees(t.Context(), f, currency.NewPair(currency.BTC, currency.USDT))
 	assert.NoError(t, err, "getFees should not error")
-	assert.False(t, maker.IsZero(), "maker fee should be set")
-	assert.False(t, taker.IsZero(), "taker fee should be set")
+	assert.False(t, maker.IsZero(), "getFees should return a non-zero maker fee")
+	assert.False(t, taker.IsZero(), "getFees should return a non-zero taker fee")
 }
 
 func TestGenerateSummary(t *testing.T) {

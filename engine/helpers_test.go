@@ -1028,7 +1028,7 @@ func TestGetExchangeCryptocurrencyDepositAddress(t *testing.T) {
 	const exchName = "fake"
 	r, err := e.GetExchangeCryptocurrencyDepositAddress(t.Context(), exchName, "", "", currency.BTC, false)
 	require.NoError(t, err, "GetExchangeCryptocurrencyDepositAddress must not error")
-	assert.Equal(t, "fakeaddr", r.Address, "Address must be equal to fakeaddr")
+	assert.Equal(t, "fakeaddr", r.Address, "Should return the correct r.Address")
 	e.DepositAddressManager = SetupDepositAddressManager()
 	err = e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses())
 	assert.NoError(t, err, "Sync should not error")

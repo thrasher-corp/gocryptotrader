@@ -84,17 +84,17 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
 	_, err := s.ExecuteStrategyFromConfig(t.Context(), nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromConfig should error correctly with a nil config")
 
 	s.config, err = config.GenerateDefaultConfig()
 	require.NoError(t, err, "GenerateDefaultConfig must not error")
 	_, err = s.ExecuteStrategyFromConfig(t.Context(), nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromConfig should error correctly with a nil task manager")
 
 	s.config.Report.GenerateReport = false
 	s.manager = NewTaskManager()
 	_, err = s.ExecuteStrategyFromConfig(t.Context(), nil)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromConfig should error correctly with a nil request")
 
 	defaultConfig, err := config.ReadStrategyConfigFromFile(dcaConfigPath)
 	require.NoError(t, err, "ReadStrategyConfigFromFile must not error")
