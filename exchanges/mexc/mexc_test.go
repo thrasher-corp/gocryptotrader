@@ -1730,3 +1730,8 @@ func TestWsFuturesConnect(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second * 20)
 }
+
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+	// me.handleSubscriptionFuturesPayload(me.GenerateDefaultSubscriptions())
+}

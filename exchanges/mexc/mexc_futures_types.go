@@ -29,7 +29,7 @@ type WsFuturesReq struct {
 type FWebsocketReqParam struct {
 	Symbol   string `json:"symbol,omitempty"`
 	Compress bool   `json:"compress,omitempty"`
-	Limit    int64  `json:"limit,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
 }
 
 // FuturesTickerItem holds futures ticker data item

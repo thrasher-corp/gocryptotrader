@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -45,6 +46,14 @@ const (
 	cnlFPositionMode      = "personal.position.mode"
 )
 
+var defaultFuturesSubscriptions = []string{
+	cnlFTickers,
+	cnlFDeal,
+	cnlFDepthFull,
+	cnlFKline,
+	cnlFFundingRate,
+}
+
 func (me *MEXC) WsFuturesConnect() error {
 	if !me.Websocket.IsEnabled() || !me.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -71,6 +80,68 @@ func (me *MEXC) WsFuturesConnect() error {
 			Compress: true,
 		},
 	})
+}
+
+// GenerateDefaultSubscriptions generates a futures default subscription instances
+func (me *MEXC) GenerateDefaultSubscriptions() (subscription.List, error) {
+	channels := defaultFuturesSubscriptions
+	if me.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(channels, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder, cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode)
+	}
+	enabledPairs, err := me.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+	subscriptionsList := make(subscription.List, len(channels))
+	for c := range channels {
+		switch channels[c] {
+		case cnlFTicker, cnlFDeal, cnlFDepthFull, cnlFKline, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
+			subscriptionsList = append(subscriptionsList, &subscription.Subscription{
+				Channel: channels[c],
+				Pairs:   enabledPairs,
+			})
+		case cnlFTickers, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder,
+			cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode:
+			subscriptionsList = append(subscriptionsList, &subscription.Subscription{
+				Channel: channels[c],
+			})
+		}
+	}
+	return subscriptionsList, nil
+}
+
+// SubscribeFutures subscribes to a futures websocket channel
+func (me *MEXC) SubscribeFutures(subscriptions subscription.List) error {
+	return me.handleSubscriptionFuturesPayload(subscriptions, "sub")
+}
+
+// UnsubscribeFutures unsubscribes to a futures websocket channel
+func (me *MEXC) UnsubscribeFutures(subscriptions subscription.List) error {
+	return me.handleSubscriptionFuturesPayload(subscriptions, "unsub")
+}
+
+func (me *MEXC) handleSubscriptionFuturesPayload(subscriptions subscription.List, method string) error {
+	for s := range subscriptions {
+		params := make([]FWebsocketReqParam, len(subscriptions[s].Pairs))
+		for p := range params {
+			params[p] = FWebsocketReqParam{
+				Symbol: subscriptions[s].Pairs[p].String(),
+			}
+			switch subscriptions[s].Channel {
+			case cnlFDeal:
+				params[p].Compress = true
+				params[p].Limit = subscriptions[s].Levels
+			}
+			err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
+				Method: method + "." + subscriptions[s].Channel,
+				Param:  &params[p],
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // wsFuturesReadData sends futures assets related msgs from public and auth websockets to data handler
