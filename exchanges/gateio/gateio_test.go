@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -3931,90 +3932,174 @@ func TestValidateSubscriptions(t *testing.T) {
 	}), subscription.ErrExclusiveSubscription)
 }
 
-func TestValidateOrderbook(t *testing.T) {
+func TestCandlesChannelIntervals(t *testing.T) {
+	t.Parallel()
+	s := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: 0}
+	_, err := candlesChannelInterval(s)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "candlestickChannelInterval must error correctly with a 0 interval")
+	s.Interval = kline.ThousandMilliseconds
+	i, err := candlesChannelInterval(s)
+	require.NoError(t, err)
+	assert.Equal(t, "1000ms", i)
+}
+
+func TestOrderbookChannelIntervals(t *testing.T) {
 	t.Parallel()
 
-	for i, tc := range []struct {
-		channel  string
-		interval kline.Interval
-		asset    asset.Item
-		levels   int
-		expected error
-	}{
-		{channel: spotOrderbookTickerChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
-		{channel: spotOrderbookTickerChannel, interval: kline.TenMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
-		{channel: spotOrderbookTickerChannel, interval: kline.TenMilliseconds, asset: asset.Spot, levels: 1},
+	s := &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Interval: kline.TwentyMilliseconds, Levels: 100}
+	_, err := orderbookChannelInterval(s, asset.Futures)
+	require.ErrorIs(t, err, subscription.ErrInvalidInterval)
+	require.ErrorContains(t, err, "20ms only valid with Levels 20")
+	s.Levels = 20
+	i, err := orderbookChannelInterval(s, asset.Futures)
+	require.NoError(t, err)
+	assert.Equal(t, "20ms", i)
 
-		{channel: spotOrderbookUpdateChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
-		{channel: spotOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
-		{channel: spotOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 100},
+	for s, exp := range map[*subscription.Subscription]error{
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                                        nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                                   subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.HundredMilliseconds}:                      nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.ThousandMilliseconds}:                     nil,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:                nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                                  nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:                    subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: 0}:                                        nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:                       subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:          nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:      subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                          nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:            subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: 0}:                                nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:               subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:  nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}: nil,
 
-		{channel: spotOrderbookChannel, interval: 0, asset: asset.Spot, expected: subscription.ErrInvalidInterval},
-		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, expected: subscription.ErrInvalidLevel},
-		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 5},
-		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 10},
-		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 20},
-		{channel: spotOrderbookChannel, interval: kline.HundredMilliseconds, asset: asset.Spot, levels: 50},
-		{channel: spotOrderbookChannel, interval: kline.ThousandMilliseconds, asset: asset.Spot, levels: 100},
-
-		{channel: spotTickerChannel, asset: asset.Spot}, // no validation required
-
-		{channel: futuresOrderbookChannel, interval: 69, asset: asset.Futures, expected: subscription.ErrInvalidInterval},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, expected: subscription.ErrInvalidLevel},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 1},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 5},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 10},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 20},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 50},
-		{channel: futuresOrderbookChannel, interval: 0, asset: asset.Futures, levels: 100},
-
-		{channel: futuresOrderbookTickerChannel, interval: 69, asset: asset.Futures, expected: subscription.ErrInvalidInterval},
-		{channel: futuresOrderbookTickerChannel, interval: 0, asset: asset.Futures, expected: subscription.ErrInvalidLevel},
-		{channel: futuresOrderbookTickerChannel, interval: 0, asset: asset.Futures, levels: 1},
-
-		{channel: futuresOrderbookUpdateChannel, asset: asset.Futures, expected: subscription.ErrInvalidLevel},
-		{channel: futuresOrderbookUpdateChannel, asset: asset.Futures, levels: 20, expected: subscription.ErrInvalidInterval},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.TwentyMilliseconds, asset: asset.Futures, levels: 20},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Futures, levels: 20},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.TwentyMilliseconds, asset: asset.Futures, levels: 50, expected: subscription.ErrInvalidInterval},
-		{channel: futuresOrderbookUpdateChannel, interval: 0, asset: asset.Futures, levels: 50, expected: subscription.ErrInvalidInterval},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Futures, levels: 20},
-
-		{channel: futuresOrderbookUpdateChannel, asset: asset.DeliveryFutures, expected: subscription.ErrInvalidInterval},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, expected: subscription.ErrInvalidLevel},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 5},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 10},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 20},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 50},
-		{channel: futuresOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.DeliveryFutures, levels: 100},
-
-		{channel: optionsOrderbookTickerChannel, interval: kline.HundredMilliseconds, asset: asset.Options, expected: subscription.ErrInvalidInterval},
-		{channel: optionsOrderbookTickerChannel, interval: 0, asset: asset.Options, expected: subscription.ErrInvalidLevel},
-		{channel: optionsOrderbookTickerChannel, interval: 0, asset: asset.Options, levels: 1},
-
-		{channel: optionsOrderbookUpdateChannel, interval: 0, asset: asset.Options, expected: subscription.ErrInvalidInterval},
-		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, expected: subscription.ErrInvalidLevel},
-		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 5},
-		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 10},
-		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 20},
-		{channel: optionsOrderbookUpdateChannel, interval: kline.HundredMilliseconds, asset: asset.Options, levels: 50},
-
-		{channel: optionsOrderbookChannel, interval: 0, asset: asset.Options, expected: subscription.ErrInvalidInterval},
-		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, expected: subscription.ErrInvalidLevel},
-		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 5},
-		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 10},
-		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 20},
-		{channel: optionsOrderbookChannel, interval: kline.TwoHundredAndFiftyMilliseconds, asset: asset.Options, levels: 50},
-
-		{channel: spotTickerChannel, interval: 0, asset: asset.Margin}, // no validation required
+		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: kline.TenMilliseconds}:          subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: 0}:                              nil,
+		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: kline.TwoHundredAndFiftyMilliseconds}: subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: 0}:                                    nil,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.OneDay}:                   subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:      nil,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}:     nil,
 	} {
-		err := validateOrderbook(tc.channel, tc.asset, tc.interval, tc.levels)
-		require.ErrorIsf(t, err, tc.expected, "channel: `%s` case: `%d`", tc.channel, i+1)
+		t.Run(s.Asset.String()+"/"+s.Channel+"/"+s.Interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			i, err := orderbookChannelInterval(s, s.Asset)
+			if exp != nil {
+				require.ErrorIs(t, err, exp)
+			} else {
+				require.NoError(t, err)
+				switch {
+				case strings.HasSuffix(s.Channel, "_ticker"):
+					assert.Empty(t, i)
+				case s.Interval == 0:
+					assert.Equal(t, "0", i)
+				default:
+					exp, err2 := getIntervalString(s.Interval)
+					require.NoError(t, err2, "getIntervalString must not error for validating expected value")
+					require.Equal(t, exp, i)
+				}
+			}
+		})
 	}
 }
 
-func TestValidateOrderbookWrapper(t *testing.T) {
+func TestChannelLevels(t *testing.T) {
 	t.Parallel()
-	require.Panics(t, func() { validateOrderbookWrapper(optionsOrderbookChannel, 0, 0, 0) })
-	require.Empty(t, validateOrderbookWrapper(spotOrderbookTickerChannel, asset.Spot, kline.TenMilliseconds, 1))
+
+	for s, exp := range map[*subscription.Subscription]error{
+		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot}:                            nil,
+		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Levels: 1}:                 subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot}:                            nil,
+		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot, Levels: 100}:               subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot}:                                  subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 5}:                       nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 10}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 20}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 50}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 100}:                     nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures}:                            subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 1}:                 nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 5}:                 nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 10}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 20}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 50}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 100}:               nil,
+		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures}:                      nil,
+		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures, Levels: 1}:           subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures}:                      subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 20}:          nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 50}:          nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures}:              subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 5}:   nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 10}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 20}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 50}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 100}: nil,
+		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options}:                      nil,
+		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options, Levels: 1}:           subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options}:                      subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 5}:           nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 10}:          nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 20}:          nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 50}:          nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options}:                            subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 5}:                 nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 10}:                nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 20}:                nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 50}:                nil,
+	} {
+		t.Run(s.Asset.String()+"/"+s.Channel+"/"+strconv.Itoa(s.Levels), func(t *testing.T) {
+			t.Parallel()
+			l, err := channelLevels(s, s.Asset)
+			switch {
+			case exp != nil:
+				require.ErrorIs(t, err, exp)
+			case s.Levels == 0:
+				assert.Empty(t, l)
+			default:
+				require.NoError(t, err)
+				require.NotEmpty(t, l)
+			}
+		})
+	}
+}
+
+func TestGetIntervalString(t *testing.T) {
+	t.Parallel()
+	for k, exp := range map[kline.Interval]string{
+		kline.TenMilliseconds:                "10ms",
+		kline.TwentyMilliseconds:             "20ms",
+		kline.HundredMilliseconds:            "100ms",
+		kline.TwoHundredAndFiftyMilliseconds: "250ms",
+		kline.ThousandMilliseconds:           "1000ms",
+		kline.TenSecond:                      "10s",
+		kline.ThirtySecond:                   "30s",
+		kline.OneMin:                         "1m",
+		kline.FiveMin:                        "5m",
+		kline.FifteenMin:                     "15m",
+		kline.ThirtyMin:                      "30m",
+		kline.OneHour:                        "1h",
+		kline.TwoHour:                        "2h",
+		kline.FourHour:                       "4h",
+		kline.EightHour:                      "8h",
+		kline.TwelveHour:                     "12h",
+		kline.OneDay:                         "1d",
+		kline.SevenDay:                       "7d",
+		kline.OneMonth:                       "30d",
+	} {
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			s, err := getIntervalString(k)
+			require.NoError(t, err)
+			assert.Equal(t, exp, s)
+		})
+	}
+	_, err := getIntervalString(0)
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "0 should be an invalid interval")
+	_, err = getIntervalString(kline.FiveDay)
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -61,7 +62,7 @@ const (
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: spotOrderbookDepthLimit},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
@@ -629,10 +630,10 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 		Funcs(template.FuncMap{
 			"channelName":         channelName,
 			"singleSymbolChannel": singleSymbolChannel,
-			"interval":            g.GetIntervalString,
-			"validateOrderbook":   validateOrderbookWrapper,
-		}).
-		Parse(subTplText)
+			"orderbookInterval":   orderbookChannelInterval,
+			"candlesInterval":     candlesChannelInterval,
+			"levels":              channelLevels,
+		}).Parse(subTplText)
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
@@ -770,96 +771,106 @@ func isSingleOrderbookChannel(name string) bool {
 	return false
 }
 
-func validateOrderbookWrapper(channel string, a asset.Item, interval kline.Interval, level int) string {
-	if err := validateOrderbook(channel, a, interval, level); err != nil {
-		panic(err)
-	}
-	return "" // return empty string to satisfy the function signature
+var channelIntervalsMap = map[asset.Item]map[string][]kline.Interval{
+	asset.Spot: {
+		spotOrderbookTickerChannel: {},
+		spotOrderbookChannel:       {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+		spotOrderbookUpdateChannel: {kline.HundredMilliseconds},
+	},
+	asset.Futures: {
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookChannel:       {0},
+		futuresOrderbookUpdateChannel: {kline.TwentyMilliseconds, kline.HundredMilliseconds},
+	},
+	asset.DeliveryFutures: {
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookChannel:       {0},
+		futuresOrderbookUpdateChannel: {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+	},
+	asset.Options: {
+		optionsOrderbookTickerChannel: {},
+		optionsOrderbookChannel:       {0},
+		optionsOrderbookUpdateChannel: {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+	},
 }
 
-func validateOrderbook(channel string, a asset.Item, interval kline.Interval, levels int) error {
-	switch channelName(&subscription.Subscription{Channel: channel}) {
-	case spotOrderbookTickerChannel:
-		if interval != kline.TenMilliseconds {
-			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TenMilliseconds)
-		}
-		if levels != 1 {
-			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
-		}
-	case spotOrderbookUpdateChannel:
-		if interval != kline.HundredMilliseconds {
-			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
-		}
-		if levels != 100 {
-			return fmt.Errorf("%w for `%s` only `%d` is supported", subscription.ErrInvalidLevel, channel, 100)
-		}
-	case spotOrderbookChannel:
-		if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
-			return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
-		}
-		if levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
-			return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-		}
-	case futuresOrderbookChannel:
-		if interval != 0 {
-			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
-		}
-		if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
-			return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-		}
-	case futuresOrderbookTickerChannel:
-		if interval != 0 {
-			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
-		}
-		if levels != 1 {
-			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
-		}
-	case futuresOrderbookUpdateChannel:
-		if a == asset.Futures {
-			if levels != 20 && levels != 50 && levels != 100 {
-				return fmt.Errorf("%w for `%s` only `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-			}
-			if levels != 20 {
-				if interval == kline.TwentyMilliseconds {
-					return fmt.Errorf("%w for `%s` only `20` levels supports `%s`", subscription.ErrInvalidInterval, channel, kline.TwentyMilliseconds)
-				}
-				if interval != kline.HundredMilliseconds {
-					return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds)
-				}
-			} else if interval != kline.HundredMilliseconds && interval != kline.TwentyMilliseconds {
-				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.TwentyMilliseconds)
-			}
-		} else {
-			if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
-				return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
-			}
-			if levels != 5 && levels != 10 && levels != 20 && levels != 50 && levels != 100 {
-				return fmt.Errorf("%w for `%s` only `5`, `10`, `20`, `50` or `100` is supported", subscription.ErrInvalidLevel, channel)
-			}
-		}
-	case optionsOrderbookTickerChannel:
-		if interval != 0 {
-			return fmt.Errorf("%w for `%s` only `0` is supported", subscription.ErrInvalidInterval, channel)
-		}
-		if levels != 1 {
-			return fmt.Errorf("%w for `%s` only `1` is supported", subscription.ErrInvalidLevel, channel)
-		}
-	case optionsOrderbookUpdateChannel:
-		if interval != kline.HundredMilliseconds && interval != kline.ThousandMilliseconds {
-			return fmt.Errorf("%w for `%s` only `%s` or `%s` is supported", subscription.ErrInvalidInterval, channel, kline.HundredMilliseconds, kline.ThousandMilliseconds)
-		}
-		if levels != 5 && levels != 10 && levels != 20 && levels != 50 {
-			return fmt.Errorf("%w for `%s` only `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
-		}
-	case optionsOrderbookChannel:
-		if interval != kline.TwoHundredAndFiftyMilliseconds {
-			return fmt.Errorf("%w for `%s` only `%s` is supported", subscription.ErrInvalidInterval, channel, kline.TwoHundredAndFiftyMilliseconds)
-		}
-		if levels != 1 && levels != 5 && levels != 10 && levels != 20 && levels != 50 {
-			return fmt.Errorf("%w for `%s` only `1`, `5`, `10`, `20` or `50` is supported", subscription.ErrInvalidLevel, channel)
-		}
+func candlesChannelInterval(s *subscription.Subscription) (string, error) {
+	if s.Channel == subscription.CandlesChannel {
+		return getIntervalString(s.Interval)
 	}
-	return nil
+	return "", nil
+}
+
+func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (string, error) {
+	cName := channelName(s)
+
+	assetChannels, ok := channelIntervalsMap[a]
+	if !ok {
+		return "", nil
+	}
+
+	switch intervals, ok := assetChannels[cName]; {
+	case !ok:
+		return "", nil
+	case len(intervals) == 0:
+		if s.Interval != 0 {
+			return "", fmt.Errorf("%w for %s: `%s`; interval not supported for channel", subscription.ErrInvalidInterval, cName, s.Interval)
+		}
+		return "", nil
+	case !slices.Contains(intervals, s.Interval):
+		return "", fmt.Errorf("%w for %s: `%s`; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
+	case s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
+		return "", fmt.Errorf("%w for `%s`: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
+	case s.Interval == 0:
+		return "0", nil // Do not move this into getIntervalString, it's only valid for ws subs
+	}
+
+	return getIntervalString(s.Interval)
+}
+
+var channelLevelsMap = map[asset.Item]map[string][]int{
+	asset.Spot: {
+		spotOrderbookTickerChannel: {},
+		spotOrderbookUpdateChannel: {},
+		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+	},
+	asset.Futures: {
+		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookUpdateChannel: {20, 50, 100},
+	},
+	asset.DeliveryFutures: {
+		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookUpdateChannel: {5, 10, 20, 50, 100},
+	},
+	asset.Options: {
+		optionsOrderbookTickerChannel: {},
+		optionsOrderbookUpdateChannel: {5, 10, 20, 50},
+		optionsOrderbookChannel:       {5, 10, 20, 50},
+	},
+}
+
+func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
+	cName := channelName(s)
+	assetChannels, ok := channelLevelsMap[a]
+	if !ok {
+		return "", nil
+	}
+
+	switch levels, ok := assetChannels[cName]; {
+	case !ok:
+		return "", nil
+	case len(levels) == 0:
+		if s.Levels != 0 {
+			return "", fmt.Errorf("%w for %s: `%d`; levels not supported for channel", subscription.ErrInvalidLevel, cName, s.Levels)
+		}
+		return "", nil
+	case !slices.Contains(levels, s.Levels):
+		return "", fmt.Errorf("%w for %s: %d; supported: %v", subscription.ErrInvalidLevel, cName, s.Levels, levels)
+	}
+
+	return strconv.Itoa(s.Levels), nil
 }
 
 const subTplText = `
@@ -867,16 +878,15 @@ const subTplText = `
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
-				{{- validateOrderbook $name $asset $.S.Interval $.S.Levels }}
-				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
+				{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
 				{{- $p }}
-				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}
-				{{- if hasPrefix "spot.order_book" $name -}} , {{- interval $.S.Interval }}{{ end }}
+				{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
+				{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
 				{{- $.PairSeparator }}
 			{{- end }}
 			{{- $.AssetSeparator }}
 		{{- else }}
-			{{- $pairs.Join }}
+		  {{- $pairs.Join }}
 		{{- end }}
 	{{- end }}
 {{- end }}

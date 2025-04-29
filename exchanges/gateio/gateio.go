@@ -320,43 +320,23 @@ func (g *Gateio) GetTicker(ctx context.Context, currencyPair, timezone string) (
 	return nil, fmt.Errorf("no ticker data found for currency pair %v", currencyPair)
 }
 
-// GetIntervalString returns a string representation of the interval according to the Gateio exchange representation.
-func (g *Gateio) GetIntervalString(interval kline.Interval) (string, error) {
+// getIntervalString returns a string representation of the interval according to the Gateio exchange representation
+func getIntervalString(interval kline.Interval) (string, error) {
 	switch interval {
-	case kline.TwentyMilliseconds:
-		return "20ms", nil
-	case kline.HundredMilliseconds:
-		return "100ms", nil
 	case kline.ThousandMilliseconds:
 		return "1000ms", nil
-	case kline.TenSecond:
-		return "10s", nil
-	case kline.ThirtySecond:
-		return "30s", nil
-	case kline.OneMin:
-		return "1m", nil
-	case kline.FiveMin:
-		return "5m", nil
-	case kline.FifteenMin:
-		return "15m", nil
-	case kline.ThirtyMin:
-		return "30m", nil
-	case kline.OneHour:
-		return "1h", nil
-	case kline.TwoHour:
-		return "2h", nil
-	case kline.FourHour:
-		return "4h", nil
-	case kline.EightHour:
-		return "8h", nil
-	case kline.TwelveHour:
-		return "12h", nil
 	case kline.OneDay:
 		return "1d", nil
 	case kline.SevenDay:
 		return "7d", nil
 	case kline.OneMonth:
 		return "30d", nil
+	case kline.TenMilliseconds, kline.TwentyMilliseconds, kline.HundredMilliseconds, kline.TwoHundredAndFiftyMilliseconds,
+		kline.TenSecond, kline.ThirtySecond,
+		kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin,
+		kline.OneHour, kline.TwoHour, kline.FourHour, kline.EightHour, kline.TwelveHour:
+
+		return interval.Short(), nil
 	default:
 		return "", fmt.Errorf("'%s': %w", interval.String(), kline.ErrUnsupportedInterval)
 	}
@@ -466,7 +446,7 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
-		intervalString, err = g.GetIntervalString(interval)
+		intervalString, err = getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -1927,7 +1907,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle currency.Cod
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if interval.Duration().Microseconds() != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -1957,7 +1937,7 @@ func (g *Gateio) PremiumIndexKLine(ctx context.Context, settleCurrency currency.
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	intervalString, err := g.GetIntervalString(interval)
+	intervalString, err := getIntervalString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -2023,7 +2003,7 @@ func (g *Gateio) GetFutureStats(ctx context.Context, settle currency.Code, contr
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
 	if int64(interval) != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -2702,7 +2682,7 @@ func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle curr
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if int64(interval) != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -3469,7 +3449,7 @@ func (g *Gateio) GetOptionFuturesCandlesticks(ctx context.Context, contract curr
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	intervalString, err := g.GetIntervalString(interval)
+	intervalString, err := getIntervalString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -3495,7 +3475,7 @@ func (g *Gateio) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, unde
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if int64(interval) != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}

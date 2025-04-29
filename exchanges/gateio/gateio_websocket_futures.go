@@ -258,7 +258,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Conn
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
 			var frequencyString string
-			frequencyString, err = g.GetIntervalString(frequency)
+			frequencyString, err = getIntervalString(frequency)
 			if err != nil {
 				return nil, err
 			}
@@ -281,7 +281,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Conn
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if okay {
 				var intervalString string
-				intervalString, err = g.GetIntervalString(interval)
+				intervalString, err = getIntervalString(interval)
 				if err != nil {
 					return nil, err
 				}

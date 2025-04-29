@@ -246,7 +246,7 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 			if !ok {
 				return nil, fmt.Errorf("%w, missing options orderbook interval", orderbook.ErrOrderbookInvalid)
 			}
-			intervalString, err = g.GetIntervalString(interval)
+			intervalString, err = getIntervalString(interval)
 			if err != nil {
 				return nil, err
 			}
@@ -261,7 +261,7 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 			if !ok {
 				return nil, errors.New("missing options underlying candlesticks interval")
 			}
-			intervalString, err = g.GetIntervalString(interval)
+			intervalString, err = getIntervalString(interval)
 			if err != nil {
 				return nil, err
 			}
