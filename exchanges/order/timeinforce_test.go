@@ -11,14 +11,19 @@ import (
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	timeInForceValidityMap := map[TimeInForce]bool{
-		TimeInForce(1):    false,
-		ImmediateOrCancel: true,
-		GoodTillTime:      true,
-		GoodTillCancel:    true,
-		GoodTillDay:       true,
-		FillOrKill:        true,
-		PostOnly:          true,
-		UnknownTIF:        true,
+		TimeInForce(1):                     false,
+		ImmediateOrCancel:                  true,
+		GoodTillTime:                       true,
+		GoodTillCancel:                     true,
+		GoodTillDay:                        true,
+		FillOrKill:                         true,
+		PostOnly:                           true,
+		FillOrKill | ImmediateOrCancel:     false,
+		FillOrKill | GoodTillCancel:        false,
+		FillOrKill | PostOnly:              false,
+		ImmediateOrCancel | GoodTillCancel: false,
+		ImmediateOrCancel | PostOnly:       false,
+		UnknownTIF:                         true,
 	}
 	var tif TimeInForce
 	for tif = range timeInForceValidityMap {
