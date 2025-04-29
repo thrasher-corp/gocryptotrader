@@ -1273,7 +1273,7 @@ func TestCancelOrderByClientOrderID(t *testing.T) {
 	_, err := me.CancelOrderByClientOrderID(context.Background(), "", "12345")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = me.CancelOrderByClientOrderID(context.Background(), "BTC_USDT", "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.CancelOrderByClientOrderID(context.Background(), "BTC_USDT", "12345")

@@ -865,7 +865,12 @@ func (me *MEXC) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		_, err := me.CancelTradeOrder(ctx, ord.Pair.String(), ord.OrderID, ord.ClientOrderID, "")
 		return err
 	case asset.Futures:
-		_, err := me.CancelOrderByClientOrderID(ctx, ord.Pair.String(), ord.ClientOrderID)
+		var err error
+		if ord.OrderID != "" {
+			_, err = me.CancelOrdersByID(ctx, ord.Pair.String(), ord.OrderID)
+		} else {
+			_, err = me.CancelOrderByClientOrderID(ctx, ord.Pair.String(), ord.ClientOrderID)
+		}
 		return err
 	}
 	return fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, ord.AssetType)
@@ -1587,6 +1592,9 @@ func (me *MEXC) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pa
 	if err != nil {
 		return false, err
 	}
+	if len(result.Data) == 0 {
+		return false, common.ErrNoResults
+	}
 	return strings.HasSuffix(result.Data[0].DisplayNameEn, "PERPETUAL"), nil
 }
 
@@ -1598,13 +1606,6 @@ func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 	if !me.SupportsAsset(r.Asset) {
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
-	isPerpetual, err := me.IsPerpetualFutureCurrency(r.Asset, r.Pair)
-	if err != nil {
-		return nil, err
-	}
-	if !isPerpetual {
-		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
-	}
 	pFmt, err := me.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
@@ -1614,19 +1615,19 @@ func (me *MEXC) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]fundingrate.LatestRateResponse, 1)
-	resp[0] = fundingrate.LatestRateResponse{
-		Exchange: me.Name,
-		Asset:    asset.Futures,
-		Pair:     cp,
-		LatestRate: fundingrate.Rate{
-			Rate: decimal.NewFromFloat(fundingRates.Data.FundingRate),
-			Time: fundingRates.Data.Timestamp.Time(),
+	return []fundingrate.LatestRateResponse{
+		{
+			Exchange: me.Name,
+			Asset:    asset.Futures,
+			Pair:     cp,
+			LatestRate: fundingrate.Rate{
+				Rate: decimal.NewFromFloat(fundingRates.Data.FundingRate),
+				Time: fundingRates.Data.Timestamp.Time(),
+			},
+			TimeOfNextRate: fundingRates.Data.NextSettleTime.Time(),
+			TimeChecked:    time.Now(),
 		},
-		TimeOfNextRate: fundingRates.Data.NextSettleTime.Time(),
-		TimeChecked:    time.Now(),
-	}
-	return resp, nil
+	}, nil
 }
 
 // UpdateOrderExecutionLimits updates order execution limits

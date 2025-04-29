@@ -1276,7 +1276,7 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reques
 		}
 		payload = string(byteData)
 	}
-	return me.SendPayload(ctx, epl, func() (*request.Item, error) {
+	err = me.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        method,
 			Path:          ePoint + common.EncodeURLValues(requestPath, values),
@@ -1289,4 +1289,8 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reques
 			HTTPRecording: me.HTTPRecording,
 		}, nil
 	}, authType)
+	if err != nil && len(auth) > 0 && auth[0] {
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
+	}
+	return err
 }

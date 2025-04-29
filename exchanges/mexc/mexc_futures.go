@@ -369,7 +369,7 @@ func (me *MEXC) GetOrderByOrderID(ctx context.Context, orderID string) (*Futures
 	resp := &struct {
 		Data *FuturesOrderDetail `json:"data"`
 	}{}
-	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, orderByOrderNumberEPL, http.MethodGet, "private/order/get/"+orderID, nil, nil, &resp)
+	return resp.Data, me.SendHTTPRequest(ctx, exchange.RestFutures, orderByOrderNumberEPL, http.MethodGet, "private/order/get/"+orderID, nil, nil, &resp, true)
 }
 
 // GetBatchOrdersByOrderID retrieves a batch of futures orders by order ids
@@ -671,7 +671,7 @@ func (me *MEXC) CancelOrderByClientOrderID(ctx context.Context, symbol, external
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if externalOrderID == "" {
-		return nil, order.ErrOrderIDNotSet
+		return nil, order.ErrClientOrderIDMustBeSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
