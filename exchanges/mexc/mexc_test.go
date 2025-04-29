@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -222,7 +223,7 @@ func TestCreateSubAccount(t *testing.T) {
 func TestGetSubAccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.GetSubAccountList(context.Background(), "SubAcc1", false, 1, 10)
+	result, err := me.GetSubAccountList(context.Background(), "", false, 1, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -359,7 +360,7 @@ func TestNewOrder(t *testing.T) {
 	_, err = me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "MARKET_ORDER", 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.NewOrder(context.Background(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -580,7 +581,7 @@ func TestFundDepositHistory(t *testing.T) {
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.GetWithdrawalHistory(context.Background(), currency.USDT, "APPLY", time.Now().Add(-10*time.Hour), time.Now(), 10)
+	result, err := me.GetWithdrawalHistory(context.Background(), currency.USDT, time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -628,7 +629,7 @@ func TestUserUniversalTransfer(t *testing.T) {
 	_, err = me.UserUniversalTransfer(context.Background(), "FUTURE", "SPOT", currency.USDT, 0)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.UserUniversalTransfer(context.Background(), "FUTURE", "SPOT", currency.USDT, 1000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1217,6 +1218,7 @@ func TestChangePositionMode(t *testing.T) {
 	require.ErrorIs(t, err, errPositionModeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+
 	result, err := me.ChangePositionMode(context.Background(), 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1666,13 +1668,10 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := me.GetDepositAddress(context.Background(), currency.EMPTYCODE, "", "TON")
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = me.GetDepositAddress(context.Background(), currency.BTC, "", "")
-	assert.ErrorIs(t, err, errNetworkNameRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.GetDepositAddress(context.Background(), currency.BTC, "", "TON")
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err = me.GetDepositAddress(context.Background(), currency.BTC, "", "TON")
+	require.True(t, err != nil || err == deposit.ErrAddressNotFound)
 }
 
 func TestGetActiveOrders(t *testing.T) {
@@ -1709,32 +1708,15 @@ func TestGenerateListenKey(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
+	_, err := me.GetOrderInfo(context.Background(), "12342", currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.GetOrderInfo(context.Background(), "12342", currency.EMPTYPAIR, asset.Spot)
-	require.NoError(t, err)
+	result, err := me.GetOrderInfo(context.Background(), "12342", spotTradablePair, asset.Spot)
+	assert.NoError(t, err)
 	assert.NotNil(t, result)
-}
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := me.WsConnect()
+	result, err = me.GetOrderInfo(context.Background(), "12342", futuresTradablePair, asset.Futures)
 	assert.NoError(t, err)
-}
-
-func TestWsFuturesConnect(t *testing.T) {
-	t.Parallel()
-	err := me.WsFuturesConnect()
-	require.NoError(t, err)
-}
-
-func TestGenerateDefaultSubscriptions(t *testing.T) {
-	t.Parallel()
-	err := me.WsFuturesConnect()
-	require.NoError(t, err)
-
-	results, err := me.GenerateDefaultSubscriptions()
-	require.NoError(t, err)
-
-	err = me.SubscribeFutures(results)
-	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }

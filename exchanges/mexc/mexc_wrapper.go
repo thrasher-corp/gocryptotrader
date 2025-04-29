@@ -533,7 +533,7 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 			TransferType:    "diposit",
 		}
 	}
-	withdrawals, err := me.GetWithdrawalHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
+	withdrawals, err := me.GetWithdrawalHistory(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +578,7 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	withdrawals, err := me.GetWithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0)
+	withdrawals, err := me.GetWithdrawalHistory(ctx, c, time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -925,6 +925,9 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 	}
 	switch assetType {
 	case asset.Spot:
+		if pair.IsEmpty() {
+			return nil, currency.ErrSymbolStringEmpty
+		}
 		result, err := me.GetOrderByID(ctx, pairFormat.Format(pair), "", orderID)
 		if err != nil {
 			return nil, err
@@ -1054,7 +1057,7 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (me *MEXC) GetDepositAddress(ctx context.Context, code currency.Code, _, chain string) (*deposit.Address, error) {
-	result, err := me.GenerateDepositAddress(ctx, code, chain)
+	result, err := me.GetDepositAddressOfCoin(ctx, code, chain)
 	if err != nil {
 		return nil, err
 	}

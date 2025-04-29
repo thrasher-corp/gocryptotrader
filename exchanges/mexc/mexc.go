@@ -478,13 +478,13 @@ func (me *MEXC) GetFundDepositHistory(ctx context.Context, coin currency.Code, s
 
 // GetWithdrawalHistory represents currency withdrawal history possible values of withdraw status
 // 1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
-func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]WithdrawalInfo, error) {
+func (me *MEXC) GetWithdrawalHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, status, limit int64) ([]WithdrawalInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
 	}
-	if status != "" {
-		params.Set("status", status)
+	if status != 0 {
+		params.Set("status", strconv.FormatInt(status, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -522,6 +522,7 @@ func (me *MEXC) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code,
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
+	params.Set("coin", coin.String())
 	if network != "" {
 		params.Set("network", network)
 	}
@@ -1233,7 +1234,7 @@ func (me *MEXC) GenerateListenKey(ctx context.Context) (string, error) {
 	resp := &struct {
 		ListenKey string `json:"listenKey"`
 	}{}
-	return resp.ListenKey, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "v3/userDataStream", nil, nil, &resp, true)
+	return resp.ListenKey, me.SendHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "userDataStream", nil, nil, &resp, true)
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
@@ -1258,7 +1259,7 @@ func (me *MEXC) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reques
 		}
 		values.Set("recvWindow", "5000")
 		values.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(values.Encode()),
 			[]byte(creds.Secret))
 		if err != nil {
