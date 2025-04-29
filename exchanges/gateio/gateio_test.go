@@ -521,7 +521,7 @@ func TestRepayALoan(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	if _, err := g.RepayALoan(t.Context(), "1234", &RepayLoanRequestParam{
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		CurrencyPair: currency.NewBTCUSDT(),
 		Currency:     currency.BTC,
 		Mode:         "all",
 	}); err != nil {
@@ -558,7 +558,7 @@ func TestModifyALoanRecord(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	if _, err := g.ModifyALoanRecord(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:     currency.USDT,
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		CurrencyPair: currency.NewBTCUSDT(),
 		Side:         "lend",
 		AutoRenew:    true,
 		LoanID:       "1234",
@@ -1196,7 +1196,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetFuturesOrders(t.Context(), currency.NewPair(currency.BTC, currency.USD), statusOpen, "", currency.BTC, 0, 0, 1)
+	_, err := g.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, 1)
 	assert.NoError(t, err, "GetFuturesOrders should not error")
 }
 
@@ -1947,7 +1947,7 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	t.Parallel()
 	if uly, err := g.GetUnderlyingFromCurrencyPair(currency.Pair{Delimiter: currency.UnderscoreDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDT_LLK")}); err != nil {
 		t.Error(err)
-	} else if !uly.Equal(currency.NewPair(currency.BTC, currency.USDT)) {
+	} else if !uly.Equal(currency.NewBTCUSDT()) {
 		t.Error("unexpected underlying")
 	}
 }
@@ -2615,14 +2615,14 @@ func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := g.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 currency.NewBTCUSDT(),
 		IncludePredictedRate: true,
 	})
 	assert.NoError(t, err)
 
 	_, err = g.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
-		Pair:  currency.NewPair(currency.BTC, currency.USD),
+		Pair:  currency.NewBTCUSD(),
 	})
 	assert.NoError(t, err)
 
@@ -2947,7 +2947,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 		Exchange:             g.Name,
 		OrderID:              "766075454481",
 		AssetType:            asset.Spot,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+		Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 		ClientOrderID:        "t-1735720637181634009",
 		Date:                 time.UnixMilli(1735720637188),
 		LastUpdated:          time.UnixMilli(1735720637188),
@@ -2990,7 +2990,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Exchange:             g.Name,
 					OrderID:              "766075454481",
 					AssetType:            asset.Spot,
-					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:        "t-1735720637181634009",
 					Date:                 time.UnixMilli(1735720637188),
 					LastUpdated:          time.UnixMilli(1735720637188),
@@ -3043,7 +3043,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Exchange:        g.Name,
 					OrderID:         "766504537761",
 					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:   "t-1735780321603944400",
 					Date:            time.UnixMilli(1735780321729),
 					LastUpdated:     time.UnixMilli(1735780321729),
@@ -3181,7 +3181,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Exchange:        g.Name,
 					OrderID:         "596746193678",
 					AssetType:       asset.Futures,
-					Pair:            currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:            time.UnixMilli(1735789790476),
 					LastUpdated:     time.UnixMilli(1735789790476),
 					RemainingAmount: 1,
@@ -3195,7 +3195,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Exchange:        g.Name,
 					OrderID:         "596748780649",
 					AssetType:       asset.Futures,
-					Pair:            currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:            currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:            time.UnixMilli(1735790222185),
 					LastUpdated:     time.UnixMilli(1735790222185),
 					RemainingAmount: 1,
@@ -3209,7 +3209,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Exchange:             g.Name,
 					OrderID:              "36028797827161124",
 					AssetType:            asset.Futures,
-					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),
 					Amount:               1,
@@ -3223,7 +3223,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Exchange:             g.Name,
 					OrderID:              "36028797827225781",
 					AssetType:            asset.Futures,
-					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:                 currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					Date:                 time.UnixMilli(1740109172060),
 					LastUpdated:          time.UnixMilli(1740109172060),
 					Amount:               1,

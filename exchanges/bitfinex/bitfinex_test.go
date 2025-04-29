@@ -39,7 +39,7 @@ const (
 
 var (
 	b          *Bitfinex
-	btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+	btcusdPair = currency.NewBTCUSD()
 )
 
 func TestMain(m *testing.M) {
@@ -998,7 +998,7 @@ func TestModifyOrder(t *testing.T) {
 		&order.Modify{
 			OrderID:   "1337",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		})
 	if err != nil {
 		t.Error(err)
@@ -1179,7 +1179,7 @@ func TestWSSubscribe(t *testing.T) {
 	b := new(Bitfinex) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "TestInstance must not error")
 	testexch.SetupWs(t, b)
-	err := b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USD)}, Asset: asset.Spot}})
+	err := b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subrcribe should not error")
 	catcher := func() (ok bool) {
 		i := <-b.Websocket.ToRoutine
@@ -1192,7 +1192,7 @@ func TestWSSubscribe(t *testing.T) {
 	require.NoError(t, err, "GetSubscriptions should not error")
 	require.Len(t, subs, 1, "We should only have 1 subscription; subID subscription should have been Removed by subscribeToChan")
 
-	err = b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USD)}, Asset: asset.Spot}})
+	err = b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription should error correctly")
 
 	assert.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -1218,7 +1218,7 @@ func TestWSSubscribe(t *testing.T) {
 
 	err = b.Subscribe(subscription.List{{
 		Channel: subscription.TickerChannel,
-		Pairs:   currency.Pairs{currency.NewPair(currency.BTC, currency.USD)},
+		Pairs:   currency.Pairs{currency.NewBTCUSD()},
 		Asset:   asset.Spot,
 		Params:  map[string]any{"key": "tBTCUSD"},
 	}})
@@ -1230,7 +1230,7 @@ func TestSubToMap(t *testing.T) {
 	s := &subscription.Subscription{
 		Channel:  subscription.CandlesChannel,
 		Asset:    asset.Spot,
-		Pairs:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD)},
+		Pairs:    currency.Pairs{currency.NewBTCUSD()},
 		Interval: kline.OneMin,
 	}
 
