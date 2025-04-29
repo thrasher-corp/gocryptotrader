@@ -93,7 +93,7 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := v.ValidateSubscriptions(append(subs, expStoredSubs...)); err != nil {
+		if err := v.ValidateSubscriptions(slices.Concat(subs, expStoredSubs)); err != nil {
 			return nil, fmt.Errorf("error validating subscriptions: %w", err)
 		}
 	}
