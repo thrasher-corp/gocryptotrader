@@ -14,6 +14,11 @@ type Params struct {
 	url.Values
 }
 
+// RespWrapper wraps responses from the Bitget API for proper JSON decoding
+type RespWrapper struct {
+	Data any `json:"data"`
+}
+
 // AnnResp holds information on announcements
 type AnnResp struct {
 	AnnID    string     `json:"annId"`
@@ -339,6 +344,11 @@ type CrVirSubResp struct {
 	SuccessList []SuccessList `json:"successList"`
 }
 
+// ResultWrapper wraps certain responses from the Bitget API for proper JSON decoding
+type ResultWrapper struct {
+	Result any `json:"result"`
+}
+
 // SuccessBool is a type used to unmarshal strings that are either "success" or "failure" into bools
 type SuccessBool bool
 
@@ -640,11 +650,6 @@ type OrderbookResp struct {
 	Asks      [][2]types.Number `json:"asks"`
 	Bids      [][2]types.Number `json:"bids"`
 	Timestamp types.Time        `json:"ts"`
-}
-
-// CandleResponse contains unsorted candle data
-type CandleResponse struct {
-	Data [][8]any `json:"data"`
 }
 
 // OneSpotCandle contains a single candle

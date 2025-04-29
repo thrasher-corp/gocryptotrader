@@ -302,7 +302,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		pairs := make(currency.Pairs, len(resp))
 		var filter int
 		for x := range resp {
-			if resp[x].Symbol == "BNXUSDT" {
+			if (a == asset.Margin && !resp[x].IsIsolatedBaseBorrowable && !resp[x].IsIsolatedQuoteBorrowable) || (a == asset.CrossMargin && !resp[x].IsCrossBorrowable) || resp[x].Symbol == "ENAUSDT" {
 				continue
 			}
 			pairs[filter] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
