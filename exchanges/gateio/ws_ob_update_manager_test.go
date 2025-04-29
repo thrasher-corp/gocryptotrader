@@ -176,6 +176,7 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 		Pair:       pair,
 		Asset:      asset.Futures,
 		AllowEmpty: true,
+		UpdateTime: time.Now(),
 	}
 
 	err := cache.ApplyOrderbookUpdate(g, update)

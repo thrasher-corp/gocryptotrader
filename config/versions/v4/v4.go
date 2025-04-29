@@ -1,4 +1,4 @@
-package versions
+package v4
 
 import (
 	"bytes"
@@ -10,18 +10,14 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version4 is an Exchange upgrade to move currencyPairs.assetTypes to currencyPairs.pairs.*.assetEnabled
-type Version4 struct{}
-
-func init() {
-	Manager.registerVersion(4, &Version4{})
-}
+// Version is an Exchange upgrade to move currencyPairs.assetTypes to currencyPairs.pairs.*.assetEnabled
+type Version struct{}
 
 // Exchanges returns all exchanges: "*"
-func (v *Version4) Exchanges() []string { return []string{"*"} }
+func (*Version) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange sets AssetEnabled: true for all assets listed in assetTypes, and false for any with no field
-func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	toEnable := map[string]bool{}
 
 	assetTypesFn := func(asset []byte, valueType jsonparser.ValueType, _ int, _ error) {
@@ -31,7 +27,7 @@ func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 	}
 	_, err := jsonparser.ArrayEach(e, assetTypesFn, "currencyPairs", "assetTypes")
 	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return e, fmt.Errorf("%w assetTypes: %w", errUpgrading, err)
+		return e, fmt.Errorf("error upgrading assetTypes: %w", err)
 	}
 
 	assetEnabledFn := func(assetBytes, v []byte, _ jsonparser.ValueType, _ int) (err error) {
@@ -54,14 +50,14 @@ func (v *Version4) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) 
 		return err
 	}
 	if err = jsonparser.ObjectEach(bytes.Clone(e), assetEnabledFn, "currencyPairs", "pairs"); err != nil {
-		return e, fmt.Errorf("%w currencyPairs.pairs: %w", errUpgrading, err)
+		return e, fmt.Errorf("error upgrading currencyPairs.pairs: %w", err)
 	}
 	e = jsonparser.Delete(e, "currencyPairs", "assetTypes")
 	return e, err
 }
 
 // DowngradeExchange moves AssetEnabled assets into AssetType field
-func (v *Version4) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	assetTypes := []string{}
 
 	assetEnabledFn := func(asset, v []byte, _ jsonparser.ValueType, _ int) error {

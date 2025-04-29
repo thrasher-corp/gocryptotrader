@@ -1328,6 +1328,28 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, walletTotalBalance, params, nil, &response)
 }
 
+// ConvertSmallBalances converts small balances of provided currencies into GT.
+// If no currencies are provided, all supported currencies will be converted
+// See [this documentation](https://www.gate.io/help/guide/functional_guidelines/22367) for details and restrictions.
+func (g *Gateio) ConvertSmallBalances(ctx context.Context, currs ...currency.Code) error {
+	currencyList := make([]string, len(currs))
+	for i := range currs {
+		if currs[i].IsEmpty() {
+			return currency.ErrCurrencyCodeEmpty
+		}
+		currencyList[i] = currs[i].Upper().String()
+	}
+
+	payload := struct {
+		Currency []string `json:"currency"`
+		IsAll    bool     `json:"is_all"`
+	}{
+		Currency: currencyList,
+		IsAll:    len(currs) == 0,
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, payload, nil)
+}
+
 // ********************************* Margin *******************************************
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
@@ -3668,4 +3690,16 @@ func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.
 	default:
 		return currency.EMPTYCODE, fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)
 	}
+}
+
+// GetAccountDetails retrieves account details
+func (g *Gateio) GetAccountDetails(ctx context.Context) (*AccountDetails, error) {
+	var resp *AccountDetails
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
+}
+
+// GetUserTransactionRateLimitInfo retrieves user transaction rate limit info
+func (g *Gateio) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
+	var resp []UserTransactionRateLimitInfo
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }
