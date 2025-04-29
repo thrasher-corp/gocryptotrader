@@ -56,7 +56,7 @@ func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, limit 
 	}
 
 	if lastUpdateID+1 >= firstUpdateID {
-		return cache.ApplyOrderbookUpdate(g, update)
+		return cache.applyOrderbookUpdate(g, update)
 	}
 
 	// Orderbook is behind notifications, flush store to prevent trading on stale data
@@ -117,7 +117,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 			return err
 		}
 	} else {
-		// Spot, Margin, and Cross Margin books are the same
+		// Spot, Margin, and Cross Margin books are all classified as spot
 		for _, a := range standardMarginAssetTypes {
 			if enabled, _ := g.IsPairEnabled(pair, a); !enabled {
 				continue
@@ -128,11 +128,11 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 			}
 		}
 	}
-	return c.ApplyPendingUpdates(g, a)
+	return c.applyPendingUpdates(g, a)
 }
 
 // ApplyPendingUpdates applies all pending updates to the orderbook
-func (c *updateCache) ApplyPendingUpdates(g *Gateio, a asset.Item) error {
+func (c *updateCache) applyPendingUpdates(g *Gateio, a asset.Item) error {
 	for _, data := range c.updates {
 		lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(data.update.Pair, a)
 		if err != nil {
@@ -145,15 +145,15 @@ func (c *updateCache) ApplyPendingUpdates(g *Gateio, a asset.Item) error {
 		if data.update.UpdateID < nextID {
 			continue // skip updates that are behind the current orderbook
 		}
-		if err := c.ApplyOrderbookUpdate(g, data.update); err != nil {
+		if err := c.applyOrderbookUpdate(g, data.update); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// ApplyOrderbookUpdate applies an orderbook update to the orderbook
-func (c *updateCache) ApplyOrderbookUpdate(g *Gateio, update *orderbook.Update) error {
+// applyOrderbookUpdate applies an orderbook update to the orderbook
+func (c *updateCache) applyOrderbookUpdate(g *Gateio, update *orderbook.Update) error {
 	if update.Asset != asset.Spot {
 		return g.Websocket.Orderbook.Update(update)
 	}

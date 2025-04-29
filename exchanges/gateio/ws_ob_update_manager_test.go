@@ -74,7 +74,7 @@ func TestProcessUpdate(t *testing.T) {
 	assert.True(t, cache.updating)
 	cache.mtx.Unlock()
 
-	time.Sleep(time.Millisecond) // Allow sync delay to pass
+	time.Sleep(time.Millisecond * 2) // Allow sync delay to pass
 
 	cache.mtx.Lock()
 	assert.Empty(t, cache.updates)
@@ -157,11 +157,11 @@ func TestApplyPendingUpdates(t *testing.T) {
 	}
 
 	cache.updates = []pendingUpdate{{update: update, firstUpdateID: 1337}}
-	err = cache.ApplyPendingUpdates(g, asset.Futures)
+	err = cache.applyPendingUpdates(g, asset.Futures)
 	require.ErrorIs(t, err, errOrderbookSnapshotOutdated)
 
 	cache.updates[0].firstUpdateID = 1336
-	err = cache.ApplyPendingUpdates(g, asset.Futures)
+	err = cache.applyPendingUpdates(g, asset.Futures)
 	require.NoError(t, err)
 }
 
@@ -179,14 +179,14 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 
-	err := cache.ApplyOrderbookUpdate(g, update)
+	err := cache.applyOrderbookUpdate(g, update)
 	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
 
 	update.Asset = asset.Spot
-	err = cache.ApplyOrderbookUpdate(g, update)
+	err = cache.applyOrderbookUpdate(g, update)
 	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
 
 	update.Pair = currency.NewPair(currency.BABY, currency.BABYDOGE)
-	err = cache.ApplyOrderbookUpdate(g, update)
+	err = cache.applyOrderbookUpdate(g, update)
 	require.NoError(t, err)
 }
