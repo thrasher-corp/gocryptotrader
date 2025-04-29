@@ -339,8 +339,7 @@ func TestDoRequest(t *testing.T) {
 func TestDoRequest_Retries(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(int) time.Duration { return 0 }
-	r, err := New("test", new(http.Client), WithBackoff(backoff))
+	r, err := New("test", new(http.Client), WithBackoff(func(int) time.Duration { return 0 }))
 	require.NoError(t, err, "New requester must not error")
 
 	const numReqs = 4
@@ -513,8 +512,7 @@ func TestBasicLimiter(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
-	rl := NewBasicRateLimit(50*time.Millisecond, 1, 1)
-	r, err := New("TestRequest", http.DefaultClient, WithLimiter(rl))
+	r, err := New("TestRequest", new(http.Client), WithLimiter(NewBasicRateLimit(50*time.Millisecond, 1, 1)))
 	require.NoError(t, err, "New requester must not error")
 
 	sendIt := func() error {
@@ -527,47 +525,30 @@ func TestEnableDisableRateLimit(t *testing.T) {
 		}, AuthenticatedRequest)
 	}
 
-	t.Run("allow initial request", func(t *testing.T) {
-		require.NoError(t, sendIt(), "sendIt must not error")
-	})
+	// allow initial request
+	require.NoError(t, sendIt(), "sendIt must not error")
 
-	t.Run("error on redundant enable", func(t *testing.T) {
-		err := r.EnableRateLimiter()
-		assert.ErrorIs(t, err, ErrRateLimiterAlreadyEnabled)
-	})
+	// error on redundant enable
+	assert.ErrorIs(t, r.EnableRateLimiter(), ErrRateLimiterAlreadyEnabled)
 
-	t.Run("error on redundant disable", func(t *testing.T) {
-		require.NoError(t, r.DisableRateLimiter(), "DisableRateLimiter must not error")
-		err := r.DisableRateLimiter()
-		assert.ErrorIs(t, err, ErrRateLimiterAlreadyDisabled)
-	})
+	// error on redundant disable
+	require.NoError(t, r.DisableRateLimiter(), "DisableRateLimiter must not error")
+	assert.ErrorIs(t, r.DisableRateLimiter(), ErrRateLimiterAlreadyDisabled)
 
-	t.Run("allow requests when disabled", func(t *testing.T) {
-		require.NoError(t, sendIt(), "sendIt must not error")
-	})
+	// allow requests when disabled
+	require.NoError(t, sendIt(), "sendIt must not error")
 
-	t.Run("allow when re-enabled", func(t *testing.T) {
-		require.NoError(t, r.EnableRateLimiter(), "EnableRateLimiter must succeed")
-		require.NoError(t, sendIt(), "sendIt must not error")
-	})
+	// allow when re-enabled
+	require.NoError(t, r.EnableRateLimiter(), "EnableRateLimiter must succeed")
+	require.NoError(t, sendIt(), "sendIt must not error")
 
-	t.Run("block excess requests", func(t *testing.T) {
-		// consume the one token
-		require.NoError(t, sendIt(), "sendIt must not error")
-
-		// fire a second request and expect it to block for at least 20ms
-		errCh := make(chan error, 1)
-		go func() {
-			errCh <- sendIt()
-		}()
-
-		select {
-		case err := <-errCh:
-			assert.NoError(t, err, "Rate limiter should block until request is done")
-		case <-time.After(20 * time.Millisecond):
-			// still blocked 🌞
-		}
-	})
+	// block excess requests
+	require.NoError(t, sendIt(), "sendIt must not error") // consume the one token
+	start := time.Now()
+	err = sendIt() // this should block until a token is refilled
+	require.NoError(t, err, "sendIt must not error")
+	elapsed := time.Since(start)
+	assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
 }
 
 func TestSetHTTPClient(t *testing.T) {
