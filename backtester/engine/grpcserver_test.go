@@ -397,7 +397,7 @@ func TestGRPCStopTask(t *testing.T) {
 		Id: bt.MetaData.ID.String(),
 	})
 	assert.ErrorIs(t, err, errTaskHasNotRan)
-	assert.Len(t, s.manager.tasks, 1, "StopTask should not remove task")
+	require.Len(t, s.manager.tasks, 1, "StopTask must not remove task")
 
 	s.manager.tasks[0].MetaData.DateStarted = time.Now()
 	_, err = s.StopTask(t.Context(), &btrpc.StopTaskRequest{
@@ -429,7 +429,7 @@ func TestGRPCStopAllTasks(t *testing.T) {
 	assert.NoError(t, err, "AddTask should not error")
 	resp, err := s.StopAllTasks(t.Context(), &btrpc.StopAllTasksRequest{})
 	assert.NoError(t, err, "StopAllTasks should not error")
-	assert.Len(t, s.manager.tasks, 1, "StopAllTasks should return 1 task")
+	require.Len(t, s.manager.tasks, 1, "StopAllTasks must return 1 task")
 	assert.Empty(t, resp.TasksStopped, "TasksStopped should be empty")
 
 	s.manager.tasks[0].MetaData.DateStarted = time.Now()
@@ -463,7 +463,7 @@ func TestGRPCStartTask(t *testing.T) {
 		Id: bt.MetaData.ID.String(),
 	})
 	require.NoError(t, err, "StartTask must not error")
-	require.Len(t, s.manager.tasks, 1, "StartTask should return 1 task")
+	require.Len(t, s.manager.tasks, 1, "StartTask must return 1 task")
 	assert.False(t, s.manager.tasks[0].MetaData.DateStarted.IsZero(), "DateStarted should not be zero")
 }
 
@@ -489,7 +489,7 @@ func TestGRPCStartAllTasks(t *testing.T) {
 
 	_, err = s.StartAllTasks(t.Context(), &btrpc.StartAllTasksRequest{})
 	require.NoError(t, err, "StartAllTasks must not error")
-	assert.Len(t, s.manager.tasks, 1, "StartAllTasks should return 1 task")
+	require.Len(t, s.manager.tasks, 1, "StartAllTasks must return 1 task")
 	assert.False(t, s.manager.tasks[0].MetaData.DateStarted.IsZero(), "DateStarted should not be zero")
 }
 
