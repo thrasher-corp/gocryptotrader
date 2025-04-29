@@ -94,7 +94,7 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 			return nil, err
 		}
 		if err := v.ValidateSubscriptions(append(subs, expStoredSubs...)); err != nil {
-			return nil, fmt.Errorf("validate subscriptions: %w", err)
+			return nil, fmt.Errorf("error validating subscriptions: %w", err)
 		}
 	}
 
