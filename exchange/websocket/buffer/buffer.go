@@ -323,7 +323,7 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 	defer w.mtx.Unlock()
 	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, ErrDepthNotFound)
+		return nil, fmt.Errorf("%s %w: %s.%s", w.exchangeName, ErrDepthNotFound, a, p)
 	}
 	return book.ob.Retrieve()
 }
@@ -340,7 +340,7 @@ func (w *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
 	defer w.mtx.Unlock()
 	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		return 0, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, ErrDepthNotFound)
+		return 0, fmt.Errorf("%s %w: %s.%s", w.exchangeName, ErrDepthNotFound, a, p)
 	}
 	return book.ob.LastUpdateID()
 }

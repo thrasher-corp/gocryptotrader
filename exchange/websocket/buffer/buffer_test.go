@@ -743,13 +743,13 @@ func TestGetOrderbook(t *testing.T) {
 	bidLen, err := bufferOb.ob.GetBidLength()
 	require.NoError(t, err)
 
-	require.Equal(t, askLen, len(ob.Asks))
-	require.Equal(t, bidLen, len(ob.Bids))
-	require.Equal(t, b.Asset, ob.Asset)
-	require.Equal(t, b.Exchange, ob.Exchange)
-	require.Equal(t, b.LastUpdateID, ob.LastUpdateID)
-	require.Equal(t, b.PriceDuplication, ob.PriceDuplication)
-	require.Equal(t, b.Pair, ob.Pair)
+	assert.Equal(t, askLen, len(ob.Asks), "ask length mismatch")
+	assert.Equal(t, bidLen, len(ob.Bids), "bid length mismatch")
+	assert.Equal(t, b.Asset, ob.Asset, "asset mismatch")
+	assert.Equal(t, b.Exchange, ob.Exchange, "exchange name mismatch")
+	assert.Equal(t, b.LastUpdateID, ob.LastUpdateID, "last update ID mismatch")
+	assert.Equal(t, b.PriceDuplication, ob.PriceDuplication, "price duplication mismatch")
+	assert.Equal(t, b.Pair, ob.Pair, "pair mismatch")
 }
 
 func TestLastUpdateID(t *testing.T) {
