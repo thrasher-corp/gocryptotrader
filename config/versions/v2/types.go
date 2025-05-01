@@ -1,6 +1,8 @@
-package v1
+package v2
 
-import v0 "github.com/thrasher-corp/gocryptotrader/config/versions/v0"
+import (
+	v0 "github.com/thrasher-corp/gocryptotrader/config/versions/v0"
+)
 
 // PairsManager contains exchange pair management config
 type PairsManager struct {
@@ -17,6 +19,7 @@ type FullStore map[string]*PairStore
 
 // PairStore contains a pair store
 type PairStore struct {
+	AssetEnabled  bool           `json:"assetEnabled"`
 	Enabled       string         `json:"enabled"`
 	Available     string         `json:"available"`
 	RequestFormat *v0.PairFormat `json:"requestFormat,omitempty"`

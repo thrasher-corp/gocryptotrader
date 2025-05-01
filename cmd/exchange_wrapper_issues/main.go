@@ -86,9 +86,6 @@ func main() {
 	wg.Wait()
 	log.Println("Done.")
 
-	if withdrawAddressOverride != "" {
-		wrapperConfig.WalletAddress = withdrawAddressOverride
-	}
 	if orderTypeOverride != "LIMIT" {
 		wrapperConfig.OrderSubmission.OrderType = orderTypeOverride
 	}

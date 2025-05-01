@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -277,7 +276,7 @@ func TestCheckEventCondition(t *testing.T) {
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
 
-	conf, err := exchange.GetDefaultConfig(context.Background(), exch)
+	conf, err := exchange.GetDefaultConfig(t.Context(), exch)
 	require.NoError(t, err, "GetDefaultConfig must not error")
 
 	require.NoError(t, exch.Setup(conf), "Setup must not error")
@@ -293,7 +292,7 @@ func TestCheckEventCondition(t *testing.T) {
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 	m.m.Unlock()
 
-	_, err = exch.UpdateTicker(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err = exch.UpdateTicker(t.Context(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	require.NoError(t, err, "UpdateTicker must not error")
 
 	m.m.Lock()
@@ -311,7 +310,7 @@ func TestCheckEventCondition(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 	m.m.Unlock()
 
-	_, err = exch.UpdateOrderbook(context.Background(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err = exch.UpdateOrderbook(t.Context(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	require.NoError(t, err, "UpdateOrderbook must not error")
 
 	m.m.Lock()

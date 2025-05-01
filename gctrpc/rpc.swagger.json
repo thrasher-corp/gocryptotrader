@@ -4948,9 +4948,6 @@
         "assetType": {
           "type": "string"
         },
-        "walletAddress": {
-          "type": "string"
-        },
         "side": {
           "type": "string"
         }
@@ -4984,9 +4981,6 @@
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "assetType": {
-          "type": "string"
-        },
-        "walletAddress": {
           "type": "string"
         },
         "side": {

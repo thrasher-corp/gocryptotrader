@@ -687,8 +687,8 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 }
 
 func timeInForceString(tif order.TimeInForce) (string, error) {
-	switch tif {
-	case order.GoodTillCancel, order.GoodTillDay, order.ImmediateOrCancel:
+	switch {
+	case tif.Is(order.GoodTillCancel), tif.Is(order.GoodTillDay), tif.Is(order.ImmediateOrCancel):
 		return tif.String(), nil
 	default:
 		return "", fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, tif.String())

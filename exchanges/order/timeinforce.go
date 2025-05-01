@@ -67,7 +67,9 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 func (t TimeInForce) IsValid() bool {
 	// Neither ImmediateOrCancel nor FillOrKill can coexist with anything else
 	// If either bit is set then it must be the only bit set
-	if t&(ImmediateOrCancel|FillOrKill) != 0 && t&(t-1) != 0 {
+	isIOCorFOK := t&(ImmediateOrCancel|FillOrKill) != 0
+	hasTwoBitsSet := t&(t-1) != 0
+	if isIOCorFOK && hasTwoBitsSet {
 		return false
 	}
 	return t == UnknownTIF || supportedTimeInForceFlag&t == t
