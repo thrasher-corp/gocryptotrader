@@ -106,7 +106,11 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 	book, err := g.UpdateOrderbookWithLimit(ctx, pair, a, limit)
 
 	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
-	defer func() { c.updates = c.updates[:0]; c.updating = false; c.mtx.Unlock() }()
+	defer func() {
+		c.updates = c.updates[:0]
+		c.updating = false
+		c.mtx.Unlock()
+	}()
 
 	if err != nil {
 		return err
