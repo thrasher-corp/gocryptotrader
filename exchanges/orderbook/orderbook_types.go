@@ -176,8 +176,7 @@ type Update struct {
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
-	// AllowEmpty when set to true allows for an empty orderbook update to be loaded for when an UpdateID is needs to be
-	// set but no actual data is present
+	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data.
 	AllowEmpty bool
 }
 
