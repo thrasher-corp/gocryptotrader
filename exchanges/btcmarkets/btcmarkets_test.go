@@ -195,7 +195,7 @@ func TestGetTradeByID(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.SubmitOrder(context.Background(), &order.Submit{
+	_, err := b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:    b.Name,
 		Price:       100,
 		Amount:      1,
@@ -208,7 +208,7 @@ func TestSubmitOrder(t *testing.T) {
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
-	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+	_, err = b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:    b.Name,
 		Price:       100,
 		Amount:      1,
@@ -224,7 +224,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
-	_, err = b.SubmitOrder(context.Background(), &order.Submit{
+	_, err = b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:    b.Name,
 		Price:       100,
 		Amount:      1,
