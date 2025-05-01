@@ -1229,10 +1229,10 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	}
 	if job.DataType == dataHistoryTradeDataType {
 		if job.Interval > kline.FourHour {
-			log.Warnf(log.DataHistory, "job %s interval %v above the limit of 4h, defaulting to %v interval size worth of trades to fetch", job.Nickname, job.Interval.Duration(), defaultDataHistoryTradeInterval)
+			log.Warnf(log.DataHistory, "job %s interval %v above the limit of 4h, defaulting to %v interval size worth of trades to fetch", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 			job.Interval = defaultDataHistoryTradeInterval
 		} else if job.Interval < kline.OneMin {
-			log.Warnf(log.DataHistory, "job %s interval %v below the limit of 1m, defaulting to %v interval size worth of trades to fetch", job.Nickname, job.Interval.Duration(), defaultDataHistoryTradeInterval)
+			log.Warnf(log.DataHistory, "job %s interval %v below the limit of 1m, defaulting to %v interval size worth of trades to fetch", job.Nickname, job.Interval.Word(), defaultDataHistoryTradeInterval)
 			job.Interval = defaultDataHistoryTradeInterval
 		}
 		if job.RequestSizeLimit > defaultDataHistoryTradeRequestSize {
@@ -1245,14 +1245,14 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	// TODO: In future allow custom candles.
 	if !b.Features.Enabled.Kline.Intervals.ExchangeSupported(job.Interval) &&
 		(job.DataType == dataHistoryCandleDataType || job.DataType == dataHistoryCandleValidationDataType) {
-		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Duration(), kline.ErrUnsupportedInterval, job.Exchange)
+		return fmt.Errorf("job interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 	if job.DataType == dataHistoryConvertTradesDataType && job.Interval <= 0 {
-		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.Interval.Duration(), kline.ErrUnsupportedInterval, job.Exchange)
+		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.Interval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	if job.DataType == dataHistoryConvertCandlesDataType && job.ConversionInterval <= 0 {
-		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Duration(), kline.ErrUnsupportedInterval, job.Exchange)
+		return fmt.Errorf("job conversion interval %s %s %w %s", job.Nickname, job.ConversionInterval.Word(), kline.ErrUnsupportedInterval, job.Exchange)
 	}
 
 	if job.DataType == dataHistoryCandleValidationDataType {
