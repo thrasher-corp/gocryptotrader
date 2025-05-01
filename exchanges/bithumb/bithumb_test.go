@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -416,11 +415,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
 	}
 
 	err := b.CancelOrder(context.Background(), orderCancellation)
@@ -433,11 +431,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
 	}
 
 	resp, err := b.CancelAllOrders(context.Background(), orderCancellation)
