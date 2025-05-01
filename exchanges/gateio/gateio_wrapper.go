@@ -461,7 +461,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			if contracts[i].InDelisting {
 				continue
 			}
-			p := strings.ToUpper(btcContracts[x].Name)
+			p := strings.ToUpper(contracts[i].Name)
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -479,7 +479,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			if contracts[i].InDelisting {
 				continue
 			}
-			p := strings.ToUpper(usdtContracts[x].Name)
+			p := strings.ToUpper(contracts[i].Name)
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -1935,8 +1935,8 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangePairAssetKey(g.Name, a, pair),
-				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[x].Precision)),
-				AmountStepIncrementSize: math.Pow10(-int(pairsData[x].AmountPrecision)),
+				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].Precision)),
+				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
 			})
