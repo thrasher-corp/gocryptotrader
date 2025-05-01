@@ -232,6 +232,8 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+
+	testexch.UpdatePairsOnce(t, b)
 	err := b.UpdateTickers(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateTickers must not error")
 }
