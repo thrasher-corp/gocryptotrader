@@ -1304,8 +1304,14 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
-
-		ordertype, tif := getTypeFromTimeInForceAndPrice(fOrder.TimeInForce, fOrder.OrderPrice.Float64())
+		oType := order.Market
+		if fOrder.OrderPrice > 0 {
+			oType = order.Limit
+		}
+		tif, err := order.StringToTimeInForce(fOrder.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -1320,7 +1326,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			LastUpdated:          fOrder.FinishTime.Time(),
 			Pair:                 pair,
 			AssetType:            a,
-			Type:                 ordertype,
+			Type:                 oType,
 			TimeInForce:          tif,
 			Side:                 side,
 		}, nil
@@ -2254,26 +2260,6 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
-// getTypeFromTimeInForceAndPrice returns the order type and if the order is post only
-func getTypeFromTimeInForceAndPrice(tif string, price float64) (order.Type, order.TimeInForce) {
-	oType := order.Market
-	if price > 0 {
-		oType = order.Limit
-	}
-	switch tif {
-	case iocTIF:
-		return oType, order.ImmediateOrCancel
-	case fokTIF:
-		return oType, order.FillOrKill
-	case pocTIF:
-		return order.Limit, order.PostOnly
-	case gtcTIF:
-		return order.Limit, order.GoodTillCancel
-	default:
-		return order.Limit, order.UnknownTIF
-	}
-}
-
 // getSideAndAmountFromSize returns the order side, amount and remaining amounts
 func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, remaining float64) {
 	if size < 0 {
@@ -2442,7 +2428,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 				purchased = resp.FilledTotal.Float64()
 			}
 		}
-		tif, err := stringToTimeInForce(resp.TimeInForce)
+		tif, err := order.StringToTimeInForce(resp.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
@@ -2510,7 +2496,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		if resp.Text != "" && strings.HasPrefix(resp.Text, "t-") {
 			clientOrderID = resp.Text
 		}
-		tif, err := stringToTimeInForce(resp.TimeInForce)
+		tif, err := order.StringToTimeInForce(resp.TimeInForce)
 		if err != nil {
 			return nil, err
 		}

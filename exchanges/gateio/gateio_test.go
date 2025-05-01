@@ -2727,34 +2727,6 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
-func TestGetTypeFromTimeInForce(t *testing.T) {
-	t.Parallel()
-	type tifAndPrice struct {
-		TIF   string
-		Price float64
-	}
-	tifAndPriceStringToValueMap := map[tifAndPrice]struct {
-		OType order.Type
-		TIF   order.TimeInForce
-	}{
-		{"gtc", 0}:   {order.Limit, order.GoodTillCancel},
-		{"gtc", 1.2}: {order.Limit, order.GoodTillCancel},
-		{"", 0}:      {order.Limit, order.UnknownTIF},
-		{"", 1.2}:    {order.Limit, order.UnknownTIF},
-		{"ioc", 0}:   {order.Market, order.ImmediateOrCancel},
-		{"ioc", 1.3}: {order.Limit, order.ImmediateOrCancel},
-		{"poc", .1}:  {order.Limit, order.PostOnly},
-		{"poc", 0}:   {order.Limit, order.PostOnly},
-		{"fok", 0}:   {order.Market, order.FillOrKill},
-		{"fok", 1}:   {order.Limit, order.FillOrKill},
-	}
-	for k, v := range tifAndPriceStringToValueMap {
-		typeResp, tif := getTypeFromTimeInForceAndPrice(k.TIF, k.Price)
-		assert.Equal(t, v.OType, typeResp)
-		assert.Equal(t, v.TIF, tif)
-	}
-}
-
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
