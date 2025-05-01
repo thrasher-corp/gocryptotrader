@@ -3,6 +3,7 @@ package request
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -12,8 +13,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -136,7 +135,7 @@ func TestCheckRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var check *Item
 	_, err = check.validateRequest(ctx, &Requester{})
@@ -210,29 +209,20 @@ var globalshell = RateLimitDefinitions{
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
 	r, err := New("test", new(http.Client), WithLimiter(globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "New requester must not error")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err = (*Requester)(nil).SendPayload(ctx, Unset, nil, UnauthenticatedRequest)
-	if !errors.Is(ErrRequestSystemIsNil, err) {
-		t.Fatalf("expected: %v but received: %v", ErrRequestSystemIsNil, err)
-	}
+	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+
 	err = r.SendPayload(ctx, Unset, nil, UnauthenticatedRequest)
-	if !errors.Is(errRequestFunctionIsNil, err) {
-		t.Fatalf("expected: %v but received: %v", errRequestFunctionIsNil, err)
-	}
+	require.ErrorIs(t, err, errRequestFunctionIsNil)
 
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return nil, nil }, UnauthenticatedRequest)
-	if !errors.Is(errRequestItemNil, err) {
-		t.Fatalf("expected: %v but received: %v", errRequestItemNil, err)
-	}
+	require.ErrorIs(t, err, errRequestItemNil)
 
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) { return &Item{}, nil }, UnauthenticatedRequest)
-	if !errors.Is(errInvalidPath, err) {
-		t.Fatalf("expected: %v but received: %v", errInvalidPath, err)
-	}
+	require.ErrorIs(t, err, errInvalidPath)
 
 	var nilHeader http.Header
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
@@ -241,15 +231,11 @@ func TestDoRequest(t *testing.T) {
 			HeaderResponse: &nilHeader,
 		}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(errHeaderResponseMapIsNil, err) {
-		t.Fatalf("expected: %v but received: %v", errHeaderResponseMapIsNil, err)
-	}
+	require.ErrorIs(t, err, errHeaderResponseMapIsNil)
 
 	// Invalid/missing endpoint limit
 	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &Item{Path: testURL}, nil }, UnauthenticatedRequest)
-	if !errors.Is(err, errSpecificRateLimiterIsNil) {
-		t.Fatalf("expected: %v but received: %v", errSpecificRateLimiterIsNil, err)
-	}
+	require.ErrorIs(t, err, errSpecificRateLimiterIsNil)
 
 	// Force debug
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
@@ -263,40 +249,28 @@ func TestDoRequest(t *testing.T) {
 			Verbose:       true,
 		}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err, "SendPayload must not error")
 
 	// Fail new request call
 	newError := errors.New("request item failure")
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return nil, newError
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, newError) {
-		t.Fatalf("received: %v but expected: %v", err, newError)
-	}
+	require.ErrorIs(t, err, newError)
 
 	r._HTTPClient, err = newProtectedClient(common.NewHTTPClientWithTimeout(0))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "newProtectedClient must not error")
 
 	// timeout checker
 	err = r._HTTPClient.setHTTPClientTimeout(time.Millisecond * 50)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "setHTTPClientTimeout must not error")
 	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
 		return &Item{Path: testURL + "/timeout"}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, errFailedToRetryRequest) {
-		t.Fatalf("received: %v but expected: %v", err, errFailedToRetryRequest)
-	}
+	require.ErrorIs(t, err, errFailedToRetryRequest)
 	// reset timeout
 	err = r._HTTPClient.setHTTPClientTimeout(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "setHTTPClientTimeout must not error")
 
 	// Check JSON
 	var resp struct {
@@ -313,17 +287,10 @@ func TestDoRequest(t *testing.T) {
 			HeaderResponse: &passback,
 		}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err, "SendPayload must not error")
 
-	if passback.Get("Content-Length") != "17" {
-		t.Fatal("incorrect header value")
-	}
-
-	if passback.Get("Content-Type") != "application/json" {
-		t.Fatal("incorrect header value")
-	}
+	require.Equal(t, "17", passback.Get("Content-Length"), "Content-Length must have the correct value")
+	require.Equal(t, "application/json", passback.Get("Content-Type"), "Content-Type must have the correct value")
 
 	// Check error
 	var respErr struct {
@@ -336,89 +303,75 @@ func TestDoRequest(t *testing.T) {
 			Result: &respErr,
 		}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	if respErr.Error {
-		t.Fatal("unexpected value")
-	}
+	require.NoError(t, err, "SendPayload must not error")
+	require.False(t, respErr.Error, "Error must be false")
 
 	// Check client side rate limit
-	var failed int32
-	var wg sync.WaitGroup
-	wg.Add(5)
-	for range 5 {
-		go func(wg *sync.WaitGroup) {
+	const numReqs = 5
+	ec := common.CollectErrors(numReqs)
+
+	for range numReqs {
+		go func() {
+			defer ec.Wg.Done()
+
 			var resp struct {
 				Response bool `json:"response"`
 			}
-			payloadError := r.SendPayload(ctx, Auth, func() (*Item, error) {
+			if err := r.SendPayload(ctx, Auth, func() (*Item, error) {
 				return &Item{
 					Method: http.MethodGet,
 					Path:   testURL + "/rate",
 					Result: &resp,
 				}, nil
-			}, AuthenticatedRequest)
-			wg.Done()
-			if payloadError != nil {
-				atomic.StoreInt32(&failed, 1)
-				log.Fatal(payloadError)
+			}, AuthenticatedRequest); err != nil {
+				ec.C <- fmt.Errorf("SendPayload error: %w", err)
+				return
 			}
 			if !resp.Response {
-				atomic.StoreInt32(&failed, 1)
-				log.Fatal(unexpected)
+				ec.C <- fmt.Errorf("unexpected response: %+v", resp)
 			}
-		}(&wg)
+		}()
 	}
-	wg.Wait()
 
-	if failed != 0 {
-		t.Fatal("request failed")
-	}
+	require.NoError(t, ec.Collect(), "Collect must return no errors")
 }
 
 func TestDoRequest_Retries(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(int) time.Duration {
-		return 0
-	}
-	r, err := New("test", new(http.Client), WithBackoff(backoff))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var failed int32
-	var wg sync.WaitGroup
-	wg.Add(4)
-	for range 4 {
-		go func(wg *sync.WaitGroup) {
-			defer wg.Done()
+	r, err := New("test", new(http.Client), WithBackoff(func(int) time.Duration { return 0 }))
+	require.NoError(t, err, "New requester must not error")
+
+	const numReqs = 4
+
+	ec := common.CollectErrors(numReqs)
+
+	for range numReqs {
+		go func() {
+			defer ec.Wg.Done()
+
 			var resp struct {
 				Response bool `json:"response"`
 			}
-			payloadError := r.SendPayload(context.Background(), Auth, func() (*Item, error) {
+			itemFn := func() (*Item, error) {
 				return &Item{
 					Method: http.MethodGet,
 					Path:   testURL + "/rate-retry",
 					Result: &resp,
 				}, nil
-			}, AuthenticatedRequest)
-			if payloadError != nil {
-				atomic.StoreInt32(&failed, 1)
-				log.Fatal(payloadError)
+			}
+
+			if err := r.SendPayload(t.Context(), Auth, itemFn, AuthenticatedRequest); err != nil {
+				ec.C <- fmt.Errorf("SendPayload error: %w", err)
+				return
 			}
 			if !resp.Response {
-				atomic.StoreInt32(&failed, 1)
-				log.Fatal(unexpected)
+				ec.C <- fmt.Errorf("unexpected response: %+v", resp)
 			}
-		}(&wg)
+		}()
 	}
-	wg.Wait()
 
-	if failed != 0 {
-		t.Fatal("request failed")
-	}
+	require.NoError(t, ec.Collect(), "Collect must return no errors")
 }
 
 func TestDoRequest_RetryNonRecoverable(t *testing.T) {
@@ -431,7 +384,7 @@ func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = r.SendPayload(context.Background(), Unset, func() (*Item, error) {
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
 		return &Item{
 			Method: http.MethodGet,
 			Path:   testURL + "/always-retry",
@@ -456,7 +409,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = r.SendPayload(context.Background(), Unset, func() (*Item, error) {
+	err = r.SendPayload(t.Context(), Unset, func() (*Item, error) {
 		return &Item{
 			Method: http.MethodGet,
 			Path:   testURL + "/always-retry",
@@ -535,7 +488,7 @@ func TestBasicLimiter(t *testing.T) {
 		t.Fatal(err)
 	}
 	i := Item{Path: "http://www.google.com", Method: http.MethodGet}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tn := time.Now()
 	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil }, UnauthenticatedRequest)
@@ -559,77 +512,43 @@ func TestBasicLimiter(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
-	r, err := New("TestRequest", new(http.Client), WithLimiter(NewBasicRateLimit(time.Minute, 1, 1)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.Background()
+	r, err := New("TestRequest", new(http.Client), WithLimiter(NewBasicRateLimit(50*time.Millisecond, 1, 1)))
+	require.NoError(t, err, "New requester must not error")
 
-	var resp any
-	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
-		return &Item{
-			Method: http.MethodGet,
-			Path:   testURL,
-			Result: &resp,
-		}, nil
-	}, AuthenticatedRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = r.EnableRateLimiter()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-
-	err = r.DisableRateLimiter()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = r.SendPayload(ctx, Auth, func() (*Item, error) {
-		return &Item{
-			Method: http.MethodGet,
-			Path:   testURL,
-			Result: &resp,
-		}, nil
-	}, AuthenticatedRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = r.DisableRateLimiter()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-
-	err = r.EnableRateLimiter()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ti := time.NewTicker(time.Second)
-	c := make(chan struct{})
-	go func(c chan struct{}) {
-		err = r.SendPayload(ctx, Auth, func() (*Item, error) {
+	sendIt := func() error {
+		return r.SendPayload(t.Context(), Auth, func() (*Item, error) {
 			return &Item{
 				Method: http.MethodGet,
 				Path:   testURL,
-				Result: &resp,
+				Result: new(any),
 			}, nil
 		}, AuthenticatedRequest)
-		if err != nil {
-			log.Fatal(err)
-		}
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-c:
-		t.Fatal("rate limiting failure")
-	case <-ti.C:
-		// Correct test
 	}
+
+	// allow initial request
+	require.NoError(t, sendIt(), "sendIt must not error")
+
+	// error on redundant enable
+	assert.ErrorIs(t, r.EnableRateLimiter(), ErrRateLimiterAlreadyEnabled)
+
+	// error on redundant disable
+	require.NoError(t, r.DisableRateLimiter(), "DisableRateLimiter must not error")
+	assert.ErrorIs(t, r.DisableRateLimiter(), ErrRateLimiterAlreadyDisabled)
+
+	// allow requests when disabled
+	require.NoError(t, sendIt(), "sendIt must not error")
+
+	// allow when re-enabled
+	require.NoError(t, r.EnableRateLimiter(), "EnableRateLimiter must succeed")
+	require.NoError(t, sendIt(), "sendIt must not error")
+
+	// block excess requests
+	require.NoError(t, sendIt(), "sendIt must not error") // consume the one token
+	start := time.Now()
+	err = sendIt() // this should block until a token is refilled
+	require.NoError(t, err, "sendIt must not error")
+	elapsed := time.Since(start)
+	assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
 }
 
 func TestSetHTTPClient(t *testing.T) {
@@ -702,12 +621,12 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 
 func TestIsVerbose(t *testing.T) {
 	t.Parallel()
-	require.False(t, IsVerbose(context.Background(), false))
-	require.True(t, IsVerbose(context.Background(), true))
-	require.True(t, IsVerbose(WithVerbose(context.Background()), false))
-	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, false), false))
-	require.False(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, "bruh"), false))
-	require.True(t, IsVerbose(context.WithValue(context.Background(), contextVerboseFlag, true), false))
+	require.False(t, IsVerbose(t.Context(), false))
+	require.True(t, IsVerbose(t.Context(), true))
+	require.True(t, IsVerbose(WithVerbose(t.Context()), false))
+	require.False(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, false), false))
+	require.False(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, "bruh"), false))
+	require.True(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, true), false))
 }
 
 func TestGetRateLimiterDefinitions(t *testing.T) {

@@ -356,11 +356,10 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 		EncryptConfig: fileEncryptionEnabled,
 	}
 	testData := []byte("testdata")
-	f, err := os.CreateTemp("", "")
+	f, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err, "CreateTemp must not error")
 
 	targetFile := f.Name()
-	defer os.Remove(targetFile)
 
 	_, err = io.Copy(f, bytes.NewReader(testData))
 	require.NoError(t, err, "io.Copy must not error")
@@ -378,10 +377,9 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 
 func withInteractiveResponse(tb testing.TB, response string, fn func()) {
 	tb.Helper()
-	f, err := os.CreateTemp("", "*.in")
+	f, err := os.CreateTemp(tb.TempDir(), "*.in")
 	require.NoError(tb, err, "CreateTemp must not error")
 	defer f.Close()
-	defer os.Remove(f.Name())
 	_, err = f.WriteString(response)
 	require.NoError(tb, err, "WriteString must not error")
 	_, err = f.Seek(0, 0)

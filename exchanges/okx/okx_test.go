@@ -4983,7 +4983,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Futures, asset.PerpetualSwap, asset.Spread} {
-		result, err := ok.GetFuturesContractDetails(context.Background(), a)
+		result, err := ok.GetFuturesContractDetails(t.Context(), a)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 	}

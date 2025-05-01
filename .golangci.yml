@@ -11,7 +11,7 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-#   - unused
+    - unused
 
 # disabled by default linters
 #   - asasalint
@@ -105,7 +105,7 @@ linters:
     - unconvert
     - unparam
     - usestdlibvars
-#   - usetesting # Disabled temporarily due to the number of t.Context changes required
+    - usetesting
 #   - varnamelen
     - wastedassign
     - whitespace

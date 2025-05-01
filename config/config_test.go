@@ -1506,19 +1506,12 @@ func TestLoadConfig(t *testing.T) {
 func TestSaveConfigToFile(t *testing.T) {
 	cfg := &Config{}
 	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
-	}
-	f, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Errorf("TestSaveConfig create file: %s", err)
-	}
-	f.Close()
-	defer os.Remove(f.Name())
-	err2 := cfg.SaveConfigToFile(f.Name())
-	if err2 != nil {
-		t.Errorf("TestSaveConfig.SaveConfig, %s", err2.Error())
-	}
+	require.NoError(t, err, "LoadConfig must not error")
+	f, err := os.CreateTemp(t.TempDir(), "")
+	require.NoError(t, err, "CreateTemp must not error")
+	require.NoError(t, f.Close(), "Close must not error")
+	err = cfg.SaveConfigToFile(f.Name())
+	require.NoError(t, err, "SaveConfigToFile must not error")
 }
 
 func TestCheckConnectionMonitorConfig(t *testing.T) {

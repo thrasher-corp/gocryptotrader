@@ -25,7 +25,7 @@ func TestBootstrap(t *testing.T) {
 		make(chan int, 1),
 	}
 	m.Features.Enabled.AutoPairUpdates = true
-	err := exchange.Bootstrap(context.TODO(), m)
+	err := exchange.Bootstrap(t.Context(), m)
 	assert.NoError(t, err, "Bootstrap should not error")
 	assert.Equal(t, 42, <-m.flow, "UpdateTradablePairs should be called on the exchange")
 }

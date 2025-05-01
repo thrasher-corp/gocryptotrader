@@ -2,7 +2,6 @@ package v5_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json" //nolint:depguard // Direct use of golang json for Compact func
 	"strings"
 	"testing"
@@ -38,7 +37,7 @@ func TestUpgradeConfig(t *testing.T) {
 	for _, tt := range tests {
 		_ = t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v5.Version).UpgradeConfig(context.Background(), []byte(tt.in))
+			out, err := new(v5.Version).UpgradeConfig(t.Context(), []byte(tt.in))
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
 				return
@@ -56,11 +55,11 @@ func TestDowngradeConfig(t *testing.T) {
 
 	in := `{"orderManager":{"enabled":false,"verbose":true,"activelyTrackFuturesPositions":false,"futuresTrackingSeekDuration":-47000,"cancelOrdersOnShutdown":true,"respectOrderHistoryLimits":true}}`
 	exp := `{"orderManager":{"enabled":false,"verbose":true,"activelyTrackFuturesPositions":false,"futuresTrackingSeekDuration":-47000,"cancelOrdersOnShutdown":true,"respectOrderHistoryLimits":true}}`
-	out, err := new(v5.Version).DowngradeConfig(context.Background(), []byte(in))
+	out, err := new(v5.Version).DowngradeConfig(t.Context(), []byte(in))
 	require.NoError(t, err)
 	assert.Equal(t, exp, string(out), "DowngradeConfig should just reverse the futuresTrackingSeekDuration")
 
-	out, err = new(v5.Version).DowngradeConfig(context.Background(), []byte(exp))
+	out, err = new(v5.Version).DowngradeConfig(t.Context(), []byte(exp))
 	require.NoError(t, err)
 	assert.Equal(t, exp, string(out), "DowngradeConfig should leave an already negative futuresTrackingSeekDuration alone")
 }
