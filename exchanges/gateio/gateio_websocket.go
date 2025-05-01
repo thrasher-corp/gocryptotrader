@@ -731,7 +731,7 @@ func singleSymbolChannel(name string) bool {
 	return false
 }
 
-// ValidateSubscriptions implements the subscription.SubscriptionsValidator interface.
+// ValidateSubscriptions implements the subscription.ListValidator interface.
 // It ensures that, for each orderbook pair asset, only one type of subscription (e.g., best bid/ask, orderbook update, or orderbook snapshot)
 // is active at a time. Multiple concurrent subscriptions for the same asset are disallowed to prevent orderbook data corruption.
 func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
