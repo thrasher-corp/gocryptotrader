@@ -1,13 +1,14 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -21,122 +22,82 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
-	dbConfigPath  = filepath.Join("..", "config", "strategyexamples", "dca-database-candles.strat")
-)
+var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
 
 func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ExecuteStrategyFromFile(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.ExecuteStrategyFromFile(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromFile should error correctly with a nil config")
 
 	s.config, err = config.GenerateDefaultConfig()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	require.NoError(t, err, "GenerateDefaultConfig must not error")
+
 	s.config.Report.GenerateReport = false
-	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err = s.ExecuteStrategyFromFile(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromFile should error correctly with a nil task manager")
 
 	s.manager = NewTaskManager()
-	_, err = s.ExecuteStrategyFromFile(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err = s.ExecuteStrategyFromFile(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromFile should error correctly with a nil request")
 
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{})
-	if !errors.Is(err, common.ErrFileNotFound) {
-		t.Errorf("received '%v' expecting '%v'", err, common.ErrFileNotFound)
-	}
+	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{})
+	assert.ErrorIs(t, err, common.ErrFileNotFound)
 
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath: dcaConfigPath,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	assert.NoError(t, err, "ExecuteStrategyFromFile should not error")
 
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath:  dcaConfigPath,
 		StartTimeOverride: timestamppb.New(time.Now()),
 		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Minute)),
 	})
-	if !errors.Is(err, gctcommon.ErrStartAfterEnd) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartAfterEnd)
-	}
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
-		StrategyFilePath:  dbConfigPath,
-		StartTimeOverride: timestamppb.New(time.Now()),
-		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Minute)),
-	})
-	if !errors.Is(err, gctcommon.ErrStartAfterEnd) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrStartAfterEnd)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrStartAfterEnd)
 
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath:  dcaConfigPath,
 		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Minute)),
 		EndTimeOverride:   timestamppb.New(time.Now()),
 		IntervalOverride:  durationpb.New(time.Duration(1)),
 	})
-	if !errors.Is(err, gctkline.ErrInvalidInterval) {
-		t.Errorf("received '%v' expecting '%v'", err, gctkline.ErrInvalidInterval)
-	}
+	assert.ErrorIs(t, err, gctkline.ErrInvalidInterval)
 
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath:  dcaConfigPath,
 		StartTimeOverride: timestamppb.New(time.Now().Add(-time.Hour * 6).Truncate(time.Hour)),
 		EndTimeOverride:   timestamppb.New(time.Now().Add(-time.Hour * 2).Truncate(time.Hour)),
 		IntervalOverride:  durationpb.New(time.Hour),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	assert.NoError(t, err, "ExecuteStrategyFromFile should not error")
 
-	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+	_, err = s.ExecuteStrategyFromFile(t.Context(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath:    dcaConfigPath,
 		DoNotRunImmediately: true,
 		DoNotStore:          true,
 	})
-	if !errors.Is(err, errCannotHandleRequest) {
-		t.Errorf("received '%v' expecting '%v'", err, errCannotHandleRequest)
-	}
+	assert.ErrorIs(t, err, errCannotHandleRequest)
 }
 
 func TestExecuteStrategyFromConfig(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ExecuteStrategyFromConfig(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.ExecuteStrategyFromConfig(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromConfig should error correctly with a nil config")
 
 	s.config, err = config.GenerateDefaultConfig()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	require.NoError(t, err, "GenerateDefaultConfig must not error")
+	_, err = s.ExecuteStrategyFromConfig(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromConfig should error correctly with a nil task manager")
 
 	s.config.Report.GenerateReport = false
 	s.manager = NewTaskManager()
-	_, err = s.ExecuteStrategyFromConfig(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err = s.ExecuteStrategyFromConfig(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "ExecuteStrategyFromConfig should error correctly with a nil request")
 
 	defaultConfig, err := config.ReadStrategyConfigFromFile(dcaConfigPath)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	require.NoError(t, err, "ReadStrategyConfigFromFile must not error")
 	customSettings := make([]*btrpc.CustomSettings, len(defaultConfig.StrategySettings.CustomSettings))
 	x := 0
 	for k, v := range defaultConfig.StrategySettings.CustomSettings {
@@ -318,21 +279,17 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		},
 	}
 
-	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
+	_, err = s.ExecuteStrategyFromConfig(t.Context(), &btrpc.ExecuteStrategyFromConfigRequest{
 		Config: cfg,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expecting '%v'", err, nil)
-	}
+	require.NoError(t, err, "ExecuteStrategyFromConfig must not error")
 
-	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
+	_, err = s.ExecuteStrategyFromConfig(t.Context(), &btrpc.ExecuteStrategyFromConfigRequest{
 		DoNotRunImmediately: true,
 		DoNotStore:          true,
 		Config:              cfg,
 	})
-	if !errors.Is(err, errCannotHandleRequest) {
-		t.Errorf("received '%v' expecting '%v'", err, errCannotHandleRequest)
-	}
+	assert.ErrorIs(t, err, errCannotHandleRequest)
 
 	// coverage test to ensure the rest of the config can successfully be converted
 	// this will not have a successful response
@@ -385,27 +342,22 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds = ""
 		cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds = ""
 	}
-	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{
+	_, err = s.ExecuteStrategyFromConfig(t.Context(), &btrpc.ExecuteStrategyFromConfigRequest{
 		Config: cfg,
 	})
-	if err == nil {
-		t.Error("expected an error from a bad setup")
-	}
+	assert.True(t, errors.Is(err, gctcommon.ErrStartEqualsEnd) || errors.Is(err, errAmbiguousDataSource),
+		"ExecuteStrategyFromConfig should error")
 }
 
 func TestListAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ListAllTasks(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.ListAllTasks(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.ListAllTasks(context.Background(), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	_, err = s.ListAllTasks(t.Context(), nil)
+	assert.NoError(t, err, "ListAllTasks should not error")
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -415,31 +367,21 @@ func TestListAllTasks(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	resp, err := s.ListAllTasks(context.Background(), &btrpc.ListAllTasksRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(resp.Tasks) != 1 {
-		t.Errorf("received '%v' expecting '%v'", len(resp.Tasks), 1)
-	}
+	assert.NoError(t, err, "AddTask should not error")
+	resp, err := s.ListAllTasks(t.Context(), &btrpc.ListAllTasksRequest{})
+	assert.NoError(t, err, "ListAllTasks should not error")
+	assert.Len(t, resp.Tasks, 1, "ListAllTasks should return 1 task")
 }
 
 func TestGRPCStopTask(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.StopTask(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.StopTask(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.StopTask(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err = s.StopTask(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt := &BackTest{
 		Strategy:   &fakeStrat{},
@@ -450,44 +392,30 @@ func TestGRPCStopTask(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.StopTask(context.Background(), &btrpc.StopTaskRequest{
+	assert.NoError(t, err, "AddTask should not error")
+	_, err = s.StopTask(t.Context(), &btrpc.StopTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
-	if !errors.Is(err, errTaskHasNotRan) {
-		t.Errorf("received '%v' expecting '%v'", err, errTaskHasNotRan)
-	}
-	if len(s.manager.tasks) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
-	}
+	assert.ErrorIs(t, err, errTaskHasNotRan)
+	require.Len(t, s.manager.tasks, 1, "StopTask must not remove task")
 
 	s.manager.tasks[0].MetaData.DateStarted = time.Now()
-	_, err = s.StopTask(context.Background(), &btrpc.StopTaskRequest{
+	_, err = s.StopTask(t.Context(), &btrpc.StopTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if s.manager.tasks[0].MetaData.DateEnded.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateEnded, "a date")
-	}
+	require.NoError(t, err, "StopTask must not error")
+	assert.False(t, s.manager.tasks[0].MetaData.DateEnded.IsZero(), "DateEnded should not be zero")
 }
 
 func TestGRPCStopAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.StopAllTasks(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.StopAllTasks(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.StopAllTasks(context.Background(), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	_, err = s.StopAllTasks(t.Context(), nil)
+	assert.NoError(t, err, "StopAllTasks should not error")
 
 	bt := &BackTest{
 		Strategy:   &fakeStrat{},
@@ -498,46 +426,28 @@ func TestGRPCStopAllTasks(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	resp, err := s.StopAllTasks(context.Background(), &btrpc.StopAllTasksRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(s.manager.tasks) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
-	}
-	if len(resp.TasksStopped) != 0 {
-		t.Errorf("received '%v' expecting '%v'", len(resp.TasksStopped), 0)
-	}
+	assert.NoError(t, err, "AddTask should not error")
+	resp, err := s.StopAllTasks(t.Context(), &btrpc.StopAllTasksRequest{})
+	assert.NoError(t, err, "StopAllTasks should not error")
+	require.Len(t, s.manager.tasks, 1, "StopAllTasks must return 1 task")
+	assert.Empty(t, resp.TasksStopped, "TasksStopped should be empty")
 
 	s.manager.tasks[0].MetaData.DateStarted = time.Now()
-	resp, err = s.StopAllTasks(context.Background(), &btrpc.StopAllTasksRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if s.manager.tasks[0].MetaData.DateEnded.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateEnded, "a date")
-	}
-	if len(resp.TasksStopped) != 1 {
-		t.Errorf("received '%v' expecting '%v'", len(resp.TasksStopped), 1)
-	}
+	resp, err = s.StopAllTasks(t.Context(), &btrpc.StopAllTasksRequest{})
+	require.NoError(t, err, "StopAllTasks must not error")
+	assert.False(t, s.manager.tasks[0].MetaData.DateEnded.IsZero(), "DateEnded should not be zero")
+	assert.Len(t, resp.TasksStopped, 1, "TasksStopped should be 1 task")
 }
 
 func TestGRPCStartTask(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.StartTask(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.StartTask(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.StartTask(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err = s.StartTask(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt := &BackTest{
 		Strategy:   &fakeStrat{},
@@ -548,36 +458,24 @@ func TestGRPCStartTask(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.StartTask(context.Background(), &btrpc.StartTaskRequest{
+	assert.NoError(t, err, "AddTask should not error")
+	_, err = s.StartTask(t.Context(), &btrpc.StartTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(s.manager.tasks) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
-	}
-	if s.manager.tasks[0].MetaData.DateStarted.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateStarted, "a date")
-	}
+	require.NoError(t, err, "StartTask must not error")
+	require.Len(t, s.manager.tasks, 1, "StartTask must return 1 task")
+	assert.False(t, s.manager.tasks[0].MetaData.DateStarted.IsZero(), "DateStarted should not be zero")
 }
 
 func TestGRPCStartAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.StartAllTasks(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.StartAllTasks(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.StartAllTasks(context.Background(), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	_, err = s.StartAllTasks(t.Context(), nil)
+	assert.NoError(t, err, "StartAllTasks should not error")
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -587,34 +485,23 @@ func TestGRPCStartAllTasks(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.StartAllTasks(context.Background(), &btrpc.StartAllTasksRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(s.manager.tasks) != 1 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 1)
-	}
-	if s.manager.tasks[0].MetaData.DateStarted.IsZero() {
-		t.Errorf("received '%v' expecting '%v'", s.manager.tasks[0].MetaData.DateStarted, "a date")
-	}
+	assert.NoError(t, err, "AddTask should not error")
+
+	_, err = s.StartAllTasks(t.Context(), &btrpc.StartAllTasksRequest{})
+	require.NoError(t, err, "StartAllTasks must not error")
+	require.Len(t, s.manager.tasks, 1, "StartAllTasks must return 1 task")
+	assert.False(t, s.manager.tasks[0].MetaData.DateStarted.IsZero(), "DateStarted should not be zero")
 }
 
 func TestGRPCClearTask(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ClearTask(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.ClearTask(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.ClearTask(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err = s.ClearTask(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -624,33 +511,24 @@ func TestGRPCClearTask(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.ClearTask(context.Background(), &btrpc.ClearTaskRequest{
+	assert.NoError(t, err, "AddTask should not error")
+
+	_, err = s.ClearTask(t.Context(), &btrpc.ClearTaskRequest{
 		Id: bt.MetaData.ID.String(),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(s.manager.tasks) != 0 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 0)
-	}
+	assert.NoError(t, err, "ClearTask should not error")
+	assert.Empty(t, s.manager.tasks, "tasks should be empty")
 }
 
 func TestGRPCClearAllTasks(t *testing.T) {
 	t.Parallel()
 	s := &GRPCServer{}
-	_, err := s.ClearAllTasks(context.Background(), nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, err := s.ClearAllTasks(t.Context(), nil)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	s.manager = NewTaskManager()
-	_, err = s.ClearAllTasks(context.Background(), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
+	_, err = s.ClearAllTasks(t.Context(), nil)
+	assert.NoError(t, err, "ClearAllTasks should not error")
 
 	bt := &BackTest{
 		Strategy:   &binancecashandcarry.Strategy{},
@@ -660,14 +538,9 @@ func TestGRPCClearAllTasks(t *testing.T) {
 		shutdown:   make(chan struct{}),
 	}
 	err = s.manager.AddTask(bt)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	_, err = s.ClearAllTasks(context.Background(), &btrpc.ClearAllTasksRequest{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expecting '%v'", err, nil)
-	}
-	if len(s.manager.tasks) != 0 {
-		t.Fatalf("received '%v' expecting '%v'", len(s.manager.tasks), 0)
-	}
+	assert.NoError(t, err, "AddTask should not error")
+
+	_, err = s.ClearAllTasks(t.Context(), &btrpc.ClearAllTasksRequest{})
+	assert.NoError(t, err, "ClearAllTasks should not error")
+	assert.Empty(t, s.manager.tasks, "tasks should be empty")
 }

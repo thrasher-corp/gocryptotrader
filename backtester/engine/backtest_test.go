@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -1589,25 +1588,18 @@ func TestSetExchangeCredentials(t *testing.T) {
 
 func TestGetFees(t *testing.T) {
 	t.Parallel()
-	_, _, err := getFees(context.Background(), nil, currency.EMPTYPAIR)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, _, err := getFees(t.Context(), nil, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	f := &binance.Binance{}
 	f.SetDefaults()
-	_, _, err = getFees(context.Background(), f, currency.EMPTYPAIR)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	_, _, err = getFees(t.Context(), f, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	maker, taker, err := getFees(context.Background(), f, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
-	if maker.IsZero() || taker.IsZero() {
-		t.Error("expected maker and taker fees")
-	}
+	maker, taker, err := getFees(t.Context(), f, currency.NewPair(currency.BTC, currency.USDT))
+	assert.NoError(t, err, "getFees should not error")
+	assert.NotZero(t, maker, "getFees should return a non-zero maker fee")
+	assert.NotZero(t, taker, "getFees should return a non-zero taker fee")
 }
 
 func TestGenerateSummary(t *testing.T) {
