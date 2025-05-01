@@ -217,7 +217,7 @@ func TestMarketSellOrder(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, b.UpdateTradablePairs(t.Context(), false), "UpdateTradablePairs must not error")
+	testexch.UpdatePairsOnce(t, b)
 	tick, err := b.UpdateTicker(t.Context(), testPair, asset.Spot)
 	require.NoError(t, err, "UpdateTicker must not error")
 	assert.Positive(t, tick.High, "High should be positive")
@@ -485,7 +485,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestGetCandleStick(t *testing.T) {
 	t.Parallel()
-	c, err := b.GetCandleStick(t.Context(), "BTC_KRW", "1m")
+	c, err := b.GetCandleStick(t.Context(), testPair.String(), "1m")
 	require.NoError(t, err, "GetCandleStick must not error")
 	assert.NotEmpty(t, c.Status, "Status should not be empty")
 	assert.NotEmpty(t, c.Data, "Data should not be empty")
