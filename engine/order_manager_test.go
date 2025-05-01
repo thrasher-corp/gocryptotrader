@@ -261,7 +261,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		t.Fatal(err)
 	}
 
-	cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -420,31 +420,31 @@ func TestStore_modifyOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	m := OrdersSetup(t)
 
-	err := m.Cancel(context.Background(), nil)
+	err := m.Cancel(t.Context(), nil)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{})
+	err = m.Cancel(t.Context(), &order.Cancel{})
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		Exchange: testExchange,
 	})
 	if err == nil {
 		t.Error("Expected error due to no order ID")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		OrderID: "ID",
 	})
 	if err == nil {
 		t.Error("Expected error due to no Exchange")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		OrderID:   "ID",
 		Exchange:  testExchange,
 		AssetType: asset.Binary,
@@ -463,7 +463,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		OrderID:   "Unknown",
 		Exchange:  testExchange,
 		AssetType: asset.Spot,
@@ -479,7 +479,7 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		Pair:      btcusdPair,
 	}
-	err = m.Cancel(context.Background(), cancel)
+	err = m.Cancel(t.Context(), cancel)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -491,13 +491,13 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, asset.Empty)
+	_, err := m.GetOrderInfo(t.Context(), "", "", currency.EMPTYPAIR, asset.Empty)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
 	var result order.Detail
-	result, err = m.GetOrderInfo(context.Background(),
+	result, err = m.GetOrderInfo(t.Context(),
 		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
@@ -506,7 +506,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error("unexpected order returned")
 	}
 
-	result, err = m.GetOrderInfo(context.Background(),
+	result, err = m.GetOrderInfo(t.Context(),
 		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
@@ -527,7 +527,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{})
+	m.CancelAllOrders(t.Context(), []exchange.IBotExchange{})
 	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
 	if err != nil {
 		t.Fatal(err)
@@ -541,7 +541,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{exch})
+	m.CancelAllOrders(t.Context(), []exchange.IBotExchange{exch})
 	checkDeets, err = m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
 	if err != nil {
 		t.Fatal(err)
@@ -554,17 +554,17 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestSubmit(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.Submit(context.Background(), nil)
+	_, err := m.Submit(t.Context(), nil)
 	require.ErrorIs(t, err, errNilOrder)
 
 	o := &order.Submit{Type: order.Market}
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected error from empty exchange")
 	}
 
 	o.Exchange = testExchange
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected error from validation")
 	}
@@ -576,20 +576,20 @@ func TestSubmit(t *testing.T) {
 	o.Side = order.Buy
 	o.Amount = 1
 	o.Price = 1
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order market type is not allowed")
 	}
 	m.cfg.AllowMarketOrders = true
 	m.cfg.LimitAmount = 1
 	o.Amount = 2
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order limit exceeds allowed limit")
 	}
 	m.cfg.LimitAmount = 0
 	m.cfg.AllowedExchanges = []string{"fake"}
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order exchange not found in allowed list")
 	}
@@ -601,13 +601,13 @@ func TestSubmit(t *testing.T) {
 
 	m.cfg.AllowedExchanges = nil
 	m.cfg.AllowedPairs = currency.Pairs{failPair}
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order pair not found in allowed list")
 	}
 
 	m.cfg.AllowedPairs = nil
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
@@ -682,7 +682,7 @@ func TestOrderManager_Modify(t *testing.T) {
 			t.Error(err)
 		}
 
-		resp, err := m.Modify(context.Background(), &mod)
+		resp, err := m.Modify(t.Context(), &mod)
 		if expectError {
 			if err == nil {
 				t.Fatal("Expected error")

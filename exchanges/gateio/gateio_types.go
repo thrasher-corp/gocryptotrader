@@ -27,8 +27,6 @@ const (
 	sideBorrow = "borrow"
 )
 
-var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{
@@ -2689,4 +2687,26 @@ type UnifiedUserAccount struct {
 	SpotHedge                      bool                             `json:"spot_hedge"`
 	UseFunding                     bool                             `json:"use_funding"`
 	RefreshTime                    types.Time                       `json:"refresh_time"`
+}
+
+// AccountDetails represents account detail information
+type AccountDetails struct {
+	IPWhitelist       []string  `json:"ip_whitelist"`
+	CurrencyPairs     []string  `json:"currency_pairs"`
+	UserID            int64     `json:"user_id"`
+	VIPTier           int64     `json:"tier"`
+	VIPTierExpireTime time.Time `json:"tier_expire_time"`
+	Key               struct {
+		Mode int64 `json:"mode"` // mode: 1 - classic account 2 - portfolio margin account
+	} `json:"key"`
+	CopyTradingRole int64 `json:"copy_trading_role"` // User role: 0 - Ordinary user 1 - Order leader 2 - Follower 3 - Order leader and follower
+}
+
+// UserTransactionRateLimitInfo represents user transaction rate limit information
+type UserTransactionRateLimitInfo struct {
+	Type      string       `json:"type"`
+	Tier      types.Number `json:"tier"`
+	Ratio     types.Number `json:"ratio"`
+	MainRatio types.Number `json:"main_ratio"`
+	UpdatedAt types.Time   `json:"updated_at"`
 }
