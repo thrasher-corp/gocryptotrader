@@ -731,7 +731,9 @@ func singleSymbolChannel(name string) bool {
 	return false
 }
 
-// ValidateSubscriptions implements subscription.SubscriptionsValidator interface to ensure that conflicting orderbooks aren't subscribed to
+// ValidateSubscriptions implements the subscription.SubscriptionsValidator interface.
+// It ensures that, for each orderbook pair asset, only one type of subscription (e.g., best bid/ask, orderbook update, or orderbook snapshot)
+// is active at a time. Multiple concurrent subscriptions for the same asset are disallowed to prevent orderbook data corruption.
 func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {
@@ -754,7 +756,9 @@ func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
 	return nil
 }
 
-// isSingleOrderbookChannel returns if the channel is a single orderbook channel, as multiple orderbook subscriptions enabled will ruin the stored orderbook.
+// isSingleOrderbookChannel checks if the specified channel represents a single orderbook subscription.
+// It returns true for channels like orderbook updates, snapshots, or tickers, as multiple subscriptions
+// for the same pair asset could corrupt the stored orderbook data.
 func isSingleOrderbookChannel(name string) bool {
 	switch name {
 	case spotOrderbookUpdateChannel,
