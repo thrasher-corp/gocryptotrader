@@ -86,6 +86,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
+// TODO: Update to use the new subscription template system
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {

@@ -93,6 +93,7 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection
 }
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
+// TODO: Update to use the new subscription template system
 func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
