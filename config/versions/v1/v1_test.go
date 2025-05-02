@@ -2,7 +2,6 @@ package v1_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +21,7 @@ func TestUpgradeExchange(t *testing.T) {
 	in := []byte(`{"name":"Wibble","pairsLastUpdated":1566798411,"assetTypes":"spot","configCurrencyPairFormat":{"uppercase":true,"delimiter":"_"},"requestCurrencyPairFormat":{"uppercase":false,"delimiter":"_","separator":"-"},"enabledPairs":"LTC_BTC","availablePairs":"LTC_BTC,ETH_BTC,BTC_USD"}`)
 	exp := []byte(`{"name":"Wibble","currencyPairs":{"bypassConfigFormatUpgrades":false,"requestFormat":{"uppercase":false,"delimiter":"_","separator":"-"},"configFormat":{"uppercase":true,"delimiter":"_"},"useGlobalFormat":true,"lastUpdated":1566798411,"pairs":{"spot":{"enabled":"LTC_BTC","available":"LTC_BTC,ETH_BTC,BTC_USD"}}}}`)
 
-	out, err := v.UpgradeExchange(context.Background(), in)
+	out, err := v.UpgradeExchange(t.Context(), in)
 	require.NoError(t, err)
 	require.NotEmpty(t, out)
 	assert.Equal(t, string(exp), string(out))
@@ -31,7 +30,7 @@ func TestUpgradeExchange(t *testing.T) {
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
 	in := []byte("just leave me alone, mkay?")
-	out, err := new(v1.Version).DowngradeExchange(context.Background(), bytes.Clone(in))
+	out, err := new(v1.Version).DowngradeExchange(t.Context(), bytes.Clone(in))
 	require.NoError(t, err)
 	assert.Equal(t, out, in)
 }

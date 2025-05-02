@@ -3486,11 +3486,10 @@ func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          futuresTradablePair,
-		AssetType:     asset.Futures,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      futuresTradablePair,
+		AssetType: asset.Futures,
 	}
 	var result order.CancelAllResponse
 	var err error
@@ -3739,9 +3738,8 @@ func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
+		OrderID:   "1",
+		AccountID: "1",
 	}
 	for assetType, cp := range assetTypeToPairsMap {
 		orderCancellation.AssetType = assetType

@@ -1,7 +1,6 @@
 package account
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -27,30 +26,30 @@ func TestIsEmpty(t *testing.T) {
 
 func TestParseCredentialsMetadata(t *testing.T) {
 	t.Parallel()
-	_, err := ParseCredentialsMetadata(context.Background(), nil)
+	_, err := ParseCredentialsMetadata(t.Context(), nil)
 	if !errors.Is(err, errMetaDataIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errMetaDataIsNil)
 	}
 
-	_, err = ParseCredentialsMetadata(context.Background(), metadata.MD{})
+	_, err = ParseCredentialsMetadata(t.Context(), metadata.MD{})
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	ctx := metadata.AppendToOutgoingContext(context.Background(),
+	ctx := metadata.AppendToOutgoingContext(t.Context(),
 		string(ContextCredentialsFlag), "wow", string(ContextCredentialsFlag), "wow2")
 	nortyMD, _ := metadata.FromOutgoingContext(ctx)
 
-	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
+	_, err = ParseCredentialsMetadata(t.Context(), nortyMD)
 	if !errors.Is(err, errInvalidCredentialMetaDataLength) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCredentialMetaDataLength)
 	}
 
-	ctx = metadata.AppendToOutgoingContext(context.Background(),
+	ctx = metadata.AppendToOutgoingContext(t.Context(),
 		string(ContextCredentialsFlag), "brokenstring")
 	nortyMD, _ = metadata.FromOutgoingContext(ctx)
 
-	_, err = ParseCredentialsMetadata(context.Background(), nortyMD)
+	_, err = ParseCredentialsMetadata(t.Context(), nortyMD)
 	if !errors.Is(err, errMissingInfo) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errMissingInfo)
 	}
@@ -65,10 +64,10 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	}
 
 	flag, outGoing := beforeCreds.GetMetaData()
-	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outGoing)
+	ctx = metadata.AppendToOutgoingContext(t.Context(), flag, outGoing)
 	lovelyMD, _ := metadata.FromOutgoingContext(ctx)
 
-	ctx, err = ParseCredentialsMetadata(context.Background(), lovelyMD)
+	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
@@ -95,10 +94,10 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	}
 
 	flag, outGoing = subaccount.GetMetaData()
-	ctx = metadata.AppendToOutgoingContext(context.Background(), flag, outGoing)
+	ctx = metadata.AppendToOutgoingContext(t.Context(), flag, outGoing)
 	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
 
-	ctx, err = ParseCredentialsMetadata(context.Background(), lovelyMD)
+	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
