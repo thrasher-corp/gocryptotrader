@@ -11,14 +11,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// orderTypeFromString returns order.Type instance from string
+// orderTypeFromString returns the order Type and TimeInForce for okx order type strings
 func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case orderMarket:
-		return order.Market, order.UnsetTIF, nil
+		return order.Market, order.UnknownTIF, nil
 	case orderLimit:
-		return order.Limit, order.UnsetTIF, nil
+		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
 		return order.Limit, order.PostOnly, nil
 	case orderFOK:
@@ -28,17 +28,17 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	case orderOptimalLimitIOC:
 		return order.OptimalLimitIOC, order.ImmediateOrCancel, nil
 	case "mmp":
-		return order.MarketMakerProtection, order.UnsetTIF, nil
+		return order.MarketMakerProtection, order.UnknownTIF, nil
 	case "mmp_and_post_only":
 		return order.MarketMakerProtectionAndPostOnly, order.PostOnly, nil
 	case "twap":
-		return order.TWAP, order.UnsetTIF, nil
+		return order.TWAP, order.UnknownTIF, nil
 	case "move_order_stop":
 		return order.TrailingStop, 0, nil
 	case "chase":
-		return order.Chase, order.UnsetTIF, nil
+		return order.Chase, order.UnknownTIF, nil
 	default:
-		return order.UnknownType, order.UnsetTIF, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
