@@ -395,8 +395,7 @@ message CancelOrderRequest {
   string order_id = 3;
   CurrencyPair pair = 4;
   string asset_type = 5;
-  string wallet_address = 6;
-  string side = 7;
+  string side = 6;
 }
 
 message CancelBatchOrdersRequest {
@@ -405,8 +404,7 @@ message CancelBatchOrdersRequest {
   string orders_id = 3;
   CurrencyPair pair = 4;
   string asset_type = 5;
-  string wallet_address = 6;
-  string side = 7;
+  string side = 6;
 }
 
 message Orders {

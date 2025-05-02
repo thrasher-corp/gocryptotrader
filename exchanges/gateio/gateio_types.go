@@ -27,8 +27,6 @@ const (
 	sideBorrow = "borrow"
 )
 
-var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{

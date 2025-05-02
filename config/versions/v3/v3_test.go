@@ -1,7 +1,6 @@
 package v3_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,13 +10,13 @@ import (
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
 
-	got, err := (&v3.Version{}).UpgradeExchange(context.Background(), nil)
+	got, err := (&v3.Version{}).UpgradeExchange(t.Context(), nil)
 	require.NoError(t, err)
 	require.Nil(t, got)
 
 	payload := []byte(`{"orderbook": {"verificationBypass": false,"websocketBufferLimit": 5,"websocketBufferEnabled": false,"publishPeriod": 10000000000}}`)
 	expected := []byte(`{"orderbook": {"verificationBypass": false,"websocketBufferLimit": 5,"websocketBufferEnabled": false}}`)
-	got, err = (&v3.Version{}).UpgradeExchange(context.Background(), payload)
+	got, err = (&v3.Version{}).UpgradeExchange(t.Context(), payload)
 	require.NoError(t, err)
 	require.Equal(t, expected, got)
 }
@@ -25,13 +24,13 @@ func TestUpgradeExchange(t *testing.T) {
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
 
-	got, err := (&v3.Version{}).DowngradeExchange(context.Background(), nil)
+	got, err := (&v3.Version{}).DowngradeExchange(t.Context(), nil)
 	require.NoError(t, err)
 	require.Nil(t, got)
 
 	payload := []byte(`{"orderbook": {"verificationBypass": false,"websocketBufferLimit": 5,"websocketBufferEnabled": false}}`)
 	expected := []byte(`{"orderbook": {"verificationBypass": false,"websocketBufferLimit": 5,"websocketBufferEnabled": false,"publishPeriod":10000000000}}`)
-	got, err = (&v3.Version{}).DowngradeExchange(context.Background(), payload)
+	got, err = (&v3.Version{}).DowngradeExchange(t.Context(), payload)
 	require.NoError(t, err)
 	require.Equal(t, expected, got)
 }

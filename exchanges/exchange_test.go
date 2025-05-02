@@ -1664,7 +1664,7 @@ func TestGetSubscriptions(t *testing.T) {
 
 func TestAuthenticateWebsocket(t *testing.T) {
 	b := Base{}
-	if err := b.AuthenticateWebsocket(context.Background()); err == nil {
+	if err := b.AuthenticateWebsocket(t.Context()); err == nil {
 		t.Fatal("error cannot be nil")
 	}
 }
@@ -1983,7 +1983,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
+	if _, err := b.GetAvailableTransferChains(t.Context(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
 	}
 }
@@ -1991,7 +1991,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculatePNL(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.CalculatePNL(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -1999,7 +1999,7 @@ func TestCalculatePNL(t *testing.T) {
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.ScaleCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.ScaleCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2007,7 +2007,7 @@ func TestScaleCollateral(t *testing.T) {
 func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculateTotalCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.CalculateTotalCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2015,7 +2015,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if err := b.UpdateCurrencyStates(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+	if err := b.UpdateCurrencyStates(t.Context(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2059,7 +2059,7 @@ func TestSetFillsFeedStatus(t *testing.T) {
 func TestGetMarginRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetMarginRatesHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetMarginRatesHistory(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2067,7 +2067,7 @@ func TestGetMarginRateHistory(t *testing.T) {
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionSummary(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositionSummary(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2075,7 +2075,7 @@ func TestGetPositionSummary(t *testing.T) {
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionOrders(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositionOrders(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2083,7 +2083,7 @@ func TestGetFuturesPositions(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2091,7 +2091,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2507,7 +2507,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetCollateralMode(context.Background(), asset.Spot, collateral.SingleMode)
+	err := b.SetCollateralMode(t.Context(), asset.Spot, collateral.SingleMode)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2516,7 +2516,7 @@ func TestSetCollateralMode(t *testing.T) {
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetCollateralMode(context.Background(), asset.Spot)
+	_, err := b.GetCollateralMode(t.Context(), asset.Spot)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2525,7 +2525,7 @@ func TestGetCollateralMode(t *testing.T) {
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetMarginType(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
+	err := b.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2534,7 +2534,7 @@ func TestSetMarginType(t *testing.T) {
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.ChangePositionMargin(context.Background(), nil)
+	_, err := b.ChangePositionMargin(t.Context(), nil)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2543,7 +2543,7 @@ func TestChangePositionMargin(t *testing.T) {
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
+	err := b.SetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2552,7 +2552,7 @@ func TestSetLeverage(t *testing.T) {
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
+	_, err := b.GetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2777,7 +2777,7 @@ func TestIsPairEnabled(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetOpenInterest(context.Background()); !errors.Is(err, common.ErrFunctionNotSupported) {
+	if _, err := b.GetOpenInterest(t.Context()); !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
 	}
 }
@@ -2788,7 +2788,7 @@ func TestGetCachedOpenInterest(t *testing.T) {
 	b.Features.Supports.FuturesCapabilities.OpenInterest = OpenInterestSupport{
 		Supported: true,
 	}
-	_, err := b.GetCachedOpenInterest(context.Background())
+	_, err := b.GetCachedOpenInterest(t.Context())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 	b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker = true
 	b.Name = "test"
@@ -2800,10 +2800,10 @@ func TestGetCachedOpenInterest(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	_, err = b.GetCachedOpenInterest(context.Background())
+	_, err = b.GetCachedOpenInterest(t.Context())
 	assert.NoError(t, err)
 
-	_, err = b.GetCachedOpenInterest(context.Background(), key.PairAsset{
+	_, err = b.GetCachedOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.BONK.Item,
 		Asset: asset.Futures,
@@ -2874,10 +2874,10 @@ func TestGetDefaultConfig(t *testing.T) {
 
 	exch := &FakeBase{}
 
-	_, err := GetDefaultConfig(context.Background(), nil)
+	_, err := GetDefaultConfig(t.Context(), nil)
 	assert.ErrorIs(t, err, errExchangeIsNil)
 
-	c, err := GetDefaultConfig(context.Background(), exch)
+	c, err := GetDefaultConfig(t.Context(), exch)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", c.Name)
@@ -2885,7 +2885,7 @@ func TestGetDefaultConfig(t *testing.T) {
 
 	// Test below demonstrates that the requester is not overwritten so that
 	// SetDefaults is not called twice.
-	c, err = GetDefaultConfig(context.Background(), exch)
+	c, err = GetDefaultConfig(t.Context(), exch)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", c.Name)
@@ -2941,7 +2941,7 @@ func TestGetCachedAccountInfo(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	}
-	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})
@@ -3116,7 +3116,7 @@ func (f *FakeBase) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
@@ -3146,6 +3146,6 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
-	_, err := (&Base{}).WebsocketSubmitOrder(context.Background(), nil)
+	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }

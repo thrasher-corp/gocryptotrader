@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications"
@@ -1021,27 +1022,20 @@ func TestGetCryptocurrencyDepositAddressesByExchange(t *testing.T) {
 func TestGetExchangeCryptocurrencyDepositAddress(t *testing.T) {
 	t.Parallel()
 	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
+	_, err := e.GetExchangeCryptocurrencyDepositAddress(t.Context(), "non-existent", "", "", currency.BTC, false)
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
+
 	const exchName = "fake"
-	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "non-existent", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
-	}
-	r, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), exchName, "", "", currency.BTC, false)
-	if err != nil {
-		t.Error(err)
-	}
-	if r.Address != "fakeaddr" {
-		t.Error("unexpected address")
-	}
+	r, err := e.GetExchangeCryptocurrencyDepositAddress(t.Context(), exchName, "", "", currency.BTC, false)
+	require.NoError(t, err, "GetExchangeCryptocurrencyDepositAddress must not error")
+	assert.Equal(t, "fakeaddr", r.Address, "Should return the correct r.Address")
 	e.DepositAddressManager = SetupDepositAddressManager()
-	if err := e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), "meow", "", "", currency.BTC, false); !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
-	}
-	if _, err := e.GetExchangeCryptocurrencyDepositAddress(context.Background(), exchName, "", "", currency.BTC, false); err != nil {
-		t.Error(err)
-	}
+	err = e.DepositAddressManager.Sync(e.GetAllExchangeCryptocurrencyDepositAddresses())
+	assert.NoError(t, err, "Sync should not error")
+	_, err = e.GetExchangeCryptocurrencyDepositAddress(t.Context(), "meow", "", "", currency.BTC, false)
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
+	_, err = e.GetExchangeCryptocurrencyDepositAddress(t.Context(), exchName, "", "", currency.BTC, false)
+	assert.NoError(t, err, "GetExchangeCryptocurrencyDepositAddress should not error")
 }
 
 func TestGetAllExchangeCryptocurrencyDepositAddresses(t *testing.T) {
@@ -1281,7 +1275,7 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewExchangeByNameWithDefaults(context.Background(), "moarunlikelymeow")
+	_, err := NewExchangeByNameWithDefaults(t.Context(), "moarunlikelymeow")
 	assert.ErrorIs(t, err, ErrExchangeNotFound, "Invalid exchange name should error")
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
@@ -1293,7 +1287,7 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
 				t.Skipf("skipping %s unsupported", name)
 			}
-			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)
+			exch, err := NewExchangeByNameWithDefaults(t.Context(), name)
 			if assert.NoError(t, err, "NewExchangeByNameWithDefaults should not error") {
 				assert.Equal(t, name, strings.ToLower(exch.GetName()), "Should get correct exchange name")
 			}

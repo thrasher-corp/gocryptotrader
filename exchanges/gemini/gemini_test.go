@@ -1,7 +1,6 @@
 package gemini
 
 import (
-	"context"
 	"errors"
 	"net/url"
 	"strings"
@@ -39,7 +38,7 @@ var g = &Gemini{}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSymbols(context.Background())
+	_, err := g.GetSymbols(t.Context())
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
@@ -47,7 +46,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	pairs, err := g.FetchTradablePairs(context.Background(), asset.Spot)
+	pairs, err := g.FetchTradablePairs(t.Context(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,11 +63,11 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTicker(context.Background(), "BTCUSD")
+	_, err := g.GetTicker(t.Context(), "BTCUSD")
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
-	_, err = g.GetTicker(context.Background(), "bla")
+	_, err = g.GetTicker(t.Context(), "bla")
 	if err == nil {
 		t.Error("GetTicker() Expected error")
 	}
@@ -76,7 +75,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetOrderbook(context.Background(), testCurrency, url.Values{})
+	_, err := g.GetOrderbook(t.Context(), testCurrency, url.Values{})
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
 	}
@@ -84,7 +83,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTrades(context.Background(), testCurrency, 0, 0, false)
+	_, err := g.GetTrades(t.Context(), testCurrency, 0, 0, false)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
@@ -92,7 +91,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetNotionalVolume(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetNotionalVolume(context.Background())
+	_, err := g.GetNotionalVolume(t.Context())
 	if err != nil && mockTests {
 		t.Error("GetNotionalVolume() error", err)
 	} else if err == nil && !mockTests {
@@ -102,7 +101,7 @@ func TestGetNotionalVolume(t *testing.T) {
 
 func TestGetAuction(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAuction(context.Background(), testCurrency)
+	_, err := g.GetAuction(t.Context(), testCurrency)
 	if err != nil {
 		t.Error("GetAuction() error", err)
 	}
@@ -110,7 +109,7 @@ func TestGetAuction(t *testing.T) {
 
 func TestGetAuctionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetAuctionHistory(context.Background(), testCurrency, url.Values{})
+	_, err := g.GetAuctionHistory(t.Context(), testCurrency, url.Values{})
 	if err != nil {
 		t.Error("GetAuctionHistory() error", err)
 	}
@@ -118,7 +117,7 @@ func TestGetAuctionHistory(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.NewOrder(context.Background(),
+	_, err := g.NewOrder(t.Context(),
 		testCurrency,
 		1,
 		9000000,
@@ -133,7 +132,7 @@ func TestNewOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.CancelExistingOrder(context.Background(), 265555413)
+	_, err := g.CancelExistingOrder(t.Context(), 265555413)
 	if err != nil && mockTests {
 		t.Error("CancelExistingOrder() error", err)
 	} else if err == nil && !mockTests {
@@ -143,7 +142,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestCancelExistingOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.CancelExistingOrders(context.Background(), false)
+	_, err := g.CancelExistingOrders(t.Context(), false)
 	if err != nil && mockTests {
 		t.Error("CancelExistingOrders() error", err)
 	} else if err == nil && !mockTests {
@@ -153,7 +152,7 @@ func TestCancelExistingOrders(t *testing.T) {
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetOrderStatus(context.Background(), 265563260)
+	_, err := g.GetOrderStatus(t.Context(), 265563260)
 	if err != nil && mockTests {
 		t.Error("GetOrderStatus() error", err)
 	} else if err == nil && !mockTests {
@@ -163,7 +162,7 @@ func TestGetOrderStatus(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetOrders(context.Background())
+	_, err := g.GetOrders(t.Context())
 	if err != nil && mockTests {
 		t.Error("GetOrders() error", err)
 	} else if err == nil && !mockTests {
@@ -173,7 +172,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTradeHistory(context.Background(), testCurrency, 0)
+	_, err := g.GetTradeHistory(t.Context(), testCurrency, 0)
 	if err != nil && mockTests {
 		t.Error("GetTradeHistory() error", err)
 	} else if err == nil && !mockTests {
@@ -183,7 +182,7 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetTradeVolume(context.Background())
+	_, err := g.GetTradeVolume(t.Context())
 	if err != nil && mockTests {
 		t.Error("GetTradeVolume() error", err)
 	} else if err == nil && !mockTests {
@@ -193,7 +192,7 @@ func TestGetTradeVolume(t *testing.T) {
 
 func TestGetBalances(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetBalances(context.Background())
+	_, err := g.GetBalances(t.Context())
 	if err != nil && mockTests {
 		t.Error("GetBalances() error", err)
 	} else if err == nil && !mockTests {
@@ -203,7 +202,7 @@ func TestGetBalances(t *testing.T) {
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetCryptoDepositAddress(context.Background(), "LOL123", "btc")
+	_, err := g.GetCryptoDepositAddress(t.Context(), "LOL123", "btc")
 	if err == nil {
 		t.Error("GetCryptoDepositAddress() Expected error")
 	}
@@ -211,7 +210,7 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
-	_, err := g.WithdrawCrypto(context.Background(), "LOL123", "btc", 1)
+	_, err := g.WithdrawCrypto(t.Context(), "LOL123", "btc", 1)
 	if err == nil {
 		t.Error("WithdrawCrypto() Expected error")
 	}
@@ -219,7 +218,7 @@ func TestWithdrawCrypto(t *testing.T) {
 
 func TestPostHeartbeat(t *testing.T) {
 	t.Parallel()
-	_, err := g.PostHeartbeat(context.Background())
+	_, err := g.PostHeartbeat(t.Context())
 	if err != nil && mockTests {
 		t.Error("PostHeartbeat() error", err)
 	} else if err == nil && !mockTests {
@@ -244,7 +243,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
-	_, err := g.GetFeeByType(context.Background(), feeBuilder)
+	_, err := g.GetFeeByType(t.Context(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +267,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
 	if sharedtestvalues.AreAPICredentialsSet(g) || mockTests {
 		// CryptocurrencyTradeFee Basic
-		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+		if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
@@ -276,28 +275,28 @@ func TestGetFee(t *testing.T) {
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+		if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+		if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+		if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 			t.Error(err)
 		}
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+	if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -305,21 +304,21 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+	if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+	if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+	if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -327,7 +326,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := g.GetFee(context.Background(), feeBuilder); err != nil {
+	if _, err := g.GetFee(t.Context(), feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -358,7 +357,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := g.GetActiveOrders(context.Background(), &getOrdersRequest)
+	_, err := g.GetActiveOrders(t.Context(), &getOrdersRequest)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(g) && err != nil && !mockTests:
 		t.Errorf("Could not get open orders: %s", err)
@@ -378,7 +377,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := g.GetOrderHistory(context.Background(), &getOrdersRequest)
+	_, err := g.GetOrderHistory(t.Context(), &getOrdersRequest)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(g) && err != nil:
 		t.Errorf("Could not get order history: %s", err)
@@ -412,7 +411,7 @@ func TestSubmitOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	}
 
-	response, err := g.SubmitOrder(context.Background(), orderSubmission)
+	response, err := g.SubmitOrder(t.Context(), orderSubmission)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(g) && (err != nil || response.Status != order.New):
 		t.Errorf("Order failed to be placed: %v", err)
@@ -434,7 +433,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 	}
 
-	err := g.CancelOrder(context.Background(), orderCancellation)
+	err := g.CancelOrder(t.Context(), orderCancellation)
 	switch {
 	case !sharedtestvalues.AreAPICredentialsSet(g) && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
@@ -453,14 +452,13 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
 	}
 
-	resp, err := g.CancelAllOrders(context.Background(), orderCancellation)
+	resp, err := g.CancelAllOrders(t.Context(), orderCancellation)
 	switch {
 	case !sharedtestvalues.AreAPICredentialsSet(g) && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
@@ -479,7 +477,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, g, canManipulateRealOrders)
 
-	_, err := g.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Spot})
+	_, err := g.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -492,7 +490,7 @@ func TestWithdraw(t *testing.T) {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, g, canManipulateRealOrders)
 	}
 
-	_, err := g.WithdrawCryptocurrencyFunds(context.Background(),
+	_, err := g.WithdrawCryptocurrencyFunds(t.Context(),
 		&withdraw.Request{
 			Exchange:    g.Name,
 			Amount:      -1,
@@ -520,7 +518,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	withdrawFiatRequest := withdraw.Request{}
-	_, err := g.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
+	_, err := g.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
 			common.ErrFunctionNotSupported,
@@ -535,7 +533,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	withdrawFiatRequest := withdraw.Request{}
-	_, err := g.WithdrawFiatFundsToInternationalBank(context.Background(),
+	_, err := g.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
@@ -546,7 +544,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	_, err := g.GetDepositAddress(t.Context(), currency.BTC, "", "")
 	if err == nil {
 		t.Error("GetDepositAddress error cannot be nil")
 	}
@@ -566,7 +564,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	var dialer gws.Dialer
 	go g.wsReadData()
-	err = g.WsAuth(context.Background(), &dialer)
+	err = g.WsAuth(t.Context(), &dialer)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1186,7 +1184,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	_, err = g.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1204,7 +1202,7 @@ func TestGetHistoricTrades(t *testing.T) {
 		tStart = time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 0, 0, 0, time.UTC)
 		tEnd = time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 15, 0, 0, time.UTC)
 	}
-	_, err = g.GetHistoricTrades(context.Background(),
+	_, err = g.GetHistoricTrades(t.Context(),
 		currencyPair, asset.Spot, tStart, tEnd)
 	if err != nil {
 		t.Error(err)
@@ -1215,7 +1213,7 @@ func TestTransfers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 
-	_, err := g.Transfers(context.Background(), currency.BTC, time.Time{}, 100, "", true)
+	_, err := g.Transfers(t.Context(), currency.BTC, time.Time{}, 100, "", true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1225,7 +1223,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 
-	_, err := g.GetAccountFundingHistory(context.Background())
+	_, err := g.GetAccountFundingHistory(t.Context())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1235,7 +1233,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 
-	_, err := g.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	_, err := g.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1245,7 +1243,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 
-	_, err := g.GetOrderInfo(context.Background(), "1234", currency.EMPTYPAIR, asset.Empty)
+	_, err := g.GetOrderInfo(t.Context(), "1234", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1253,11 +1251,11 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestGetSymbolDetails(t *testing.T) {
 	t.Parallel()
-	_, err := g.GetSymbolDetails(context.Background(), "all")
+	_, err := g.GetSymbolDetails(t.Context(), "all")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = g.GetSymbolDetails(context.Background(), "btcusd")
+	_, err = g.GetSymbolDetails(t.Context(), "btcusd")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1265,11 +1263,11 @@ func TestGetSymbolDetails(t *testing.T) {
 
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	err := g.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatal(err)
 	}
@@ -1297,7 +1295,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		pairs, err := g.CurrencyPairs.GetPairs(a, false)
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
-		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := g.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
