@@ -2002,7 +2002,7 @@ func TimeInForceString(tif order.TimeInForce) (string, error) {
 	if tif.Is(order.ImmediateOrCancel) {
 		return order.ImmediateOrCancel.String(), nil
 	}
-	if tif == order.UnsetTIF {
+	if tif == order.UnknownTIF {
 		return "", nil
 	}
 	return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)
