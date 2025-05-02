@@ -113,8 +113,7 @@ func (t TimeInForce) Lower() string {
 
 // UnmarshalJSON deserializes a string data into TimeInForce instance.
 func (t *TimeInForce) UnmarshalJSON(data []byte) error {
-	tifStrings := strings.Split(strings.Trim(string(data), `"`), ",")
-	for _, val := range tifStrings {
+	for val := range strings.SplitSeq(strings.Trim(string(data), `"`), ",") {
 		tif, err := StringToTimeInForce(val)
 		if err != nil {
 			return err
