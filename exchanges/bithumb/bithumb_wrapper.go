@@ -226,13 +226,17 @@ func (b *Bithumb) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
 				pairs[i], pairs, tickers)
 		}
+		p, err := b.FormatExchangeCurrency(pairs[i], a)
+		if err != nil {
+			return err
+		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         t.MaxPrice,
 			Low:          t.MinPrice,
 			Volume:       t.UnitsTraded24Hr,
 			Open:         t.OpeningPrice,
 			Close:        t.ClosingPrice,
-			Pair:         pairs[i],
+			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
 		})

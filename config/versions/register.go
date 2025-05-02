@@ -8,6 +8,7 @@ import (
 	v4 "github.com/thrasher-corp/gocryptotrader/config/versions/v4"
 	v5 "github.com/thrasher-corp/gocryptotrader/config/versions/v5"
 	v6 "github.com/thrasher-corp/gocryptotrader/config/versions/v6"
+	v7 "github.com/thrasher-corp/gocryptotrader/config/versions/v7"
 )
 
 func init() {
@@ -18,4 +19,5 @@ func init() {
 	Manager.registerVersion(4, &v4.Version{})
 	Manager.registerVersion(5, &v5.Version{})
 	Manager.registerVersion(6, &v6.Version{})
+	Manager.registerVersion(7, &v7.Version{})
 }

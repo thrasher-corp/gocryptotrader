@@ -30,9 +30,6 @@ const (
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
 	tradeBaseURL                        = "https://www.gate.io/"
-	tradeSpot                           = "trade/"
-	tradeFutures                        = "futures/usdt/"
-	tradeDelivery                       = "futures-delivery/usdt/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -141,7 +138,7 @@ var (
 	errInvalidOrderSize                 = errors.New("invalid order size")
 	errInvalidOrderID                   = errors.New("invalid order id")
 	errInvalidAmount                    = errors.New("invalid amount")
-	errInvalidOrEmptySubaccount         = errors.New("invalid or empty subaccount")
+	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
 	errInvalidPrice                     = errors.New("invalid price")
@@ -165,7 +162,8 @@ var (
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
-	errCannotParseSettlementCurrency    = errors.New("cannot derive settlement currency")
+	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 )
@@ -1188,7 +1186,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if arg.SubAccount == "" {
-		return errInvalidOrEmptySubaccount
+		return errInvalidSubAccount
 	}
 	arg.Direction = strings.ToLower(arg.Direction)
 	if arg.Direction != "to" && arg.Direction != "from" {
@@ -1197,8 +1195,10 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	if arg.Amount <= 0 {
 		return errInvalidAmount
 	}
-	if arg.SubAccountType != "" && arg.SubAccountType != asset.Spot.String() && arg.SubAccountType != asset.Futures.String() && arg.SubAccountType != asset.CrossMargin.String() {
-		return fmt.Errorf("%v; only %v,%v, and %v are allowed", asset.ErrNotSupported, asset.Spot, asset.Futures, asset.CrossMargin)
+	switch arg.SubAccountType {
+	case "", "spot", "futures", "delivery":
+	default:
+		return fmt.Errorf("%w `%s` for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }
@@ -3698,19 +3698,6 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 		return currency.EMPTYPAIR, fmt.Errorf("invalid currency pair %v", p)
 	}
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
-}
-
-func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.Code, err error) {
-	quote := currencyPair.Quote.Upper().String()
-
-	switch {
-	case strings.HasPrefix(quote, currency.USDT.String()):
-		return currency.USDT, nil
-	case strings.HasPrefix(quote, currency.USD.String()):
-		return currency.BTC, nil
-	default:
-		return currency.EMPTYCODE, fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)
-	}
 }
 
 // GetAccountDetails retrieves account details

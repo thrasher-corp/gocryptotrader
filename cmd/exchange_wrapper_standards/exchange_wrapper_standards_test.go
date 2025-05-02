@@ -62,12 +62,12 @@ func TestAllExchangeWrappers(t *testing.T) {
 			if singleExchangeOverride != "" && name != singleExchangeOverride {
 				t.Skip("skipping ", name, " due to override")
 			}
-			ctx := context.Background()
+			ctx := t.Context()
 			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
+				ctx, cancelFn = context.WithTimeout(ctx, 0)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
@@ -614,6 +614,7 @@ var unsupportedExchangeNames = []string{
 	"alphapoint",
 	"bitflyer",    // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"btse",        // 	TODO rm once timeout issues resolved
+	"poloniex",    // 	outdated API // TODO rm once updated
 	"coinbasepro", // 	outdated API // TODO rm once updated
 }
 

@@ -83,7 +83,7 @@ func setupWSTestAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go c.wsReadData()
-	err = c.wsAuthenticate(context.Background())
+	err = c.wsAuthenticate(t.Context())
 	if err != nil {
 		t.Error(err)
 	}
@@ -95,14 +95,14 @@ func setupWSTestAuth(t *testing.T) {
 }
 
 func TestGetInstruments(t *testing.T) {
-	_, err := c.GetInstruments(context.Background())
+	_, err := c.GetInstruments(t.Context())
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
 }
 
 func TestSeedInstruments(t *testing.T) {
-	err := c.SeedInstruments(context.Background())
+	err := c.SeedInstruments(t.Context())
 	if err != nil {
 		// No point checking the next condition
 		t.Fatal(err)
@@ -125,7 +125,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
-	_, err := c.GetFeeByType(context.Background(), feeBuilder)
+	_, err := c.GetFeeByType(t.Context(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestGetActiveOrders(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
+	_, err := c.GetActiveOrders(t.Context(), &getOrdersRequest)
 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	}
@@ -273,7 +273,7 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)
+	_, err := c.GetOrderHistory(t.Context(), &getOrdersRequest)
 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
 		t.Errorf("Could not get order history: %s", err)
 	}
@@ -299,7 +299,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "123",
 		AssetType: asset.Spot,
 	}
-	response, err := c.SubmitOrder(context.Background(), orderSubmission)
+	response, err := c.SubmitOrder(t.Context(), orderSubmission)
 	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
@@ -313,14 +313,13 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.BTC, currency.USD)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
 	}
 
-	err := c.CancelOrder(context.Background(), orderCancellation)
+	err := c.CancelOrder(t.Context(), orderCancellation)
 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -335,14 +334,13 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-		AssetType:     asset.Spot,
+		OrderID:   "1",
+		AccountID: "1",
+		Pair:      currencyPair,
+		AssetType: asset.Spot,
 	}
 
-	resp, err := c.CancelAllOrders(context.Background(), orderCancellation)
+	resp, err := c.CancelAllOrders(t.Context(), orderCancellation)
 
 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
 		t.Error("Expecting an error when no keys are set")
@@ -359,12 +357,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if apiKey != "" || clientID != "" {
-		_, err := c.UpdateAccountInfo(context.Background(), asset.Spot)
+		_, err := c.UpdateAccountInfo(t.Context(), asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := c.UpdateAccountInfo(context.Background(), asset.Spot)
+		_, err := c.UpdateAccountInfo(t.Context(), asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -375,7 +373,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
-	_, err := c.ModifyOrder(context.Background(),
+	_, err := c.ModifyOrder(t.Context(),
 		&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -396,7 +394,7 @@ func TestWithdraw(t *testing.T) {
 		},
 	}
 
-	_, err := c.WithdrawCryptocurrencyFunds(context.Background(),
+	_, err := c.WithdrawCryptocurrencyFunds(t.Context(),
 		&withdrawCryptoRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected 'Not supported', received %v", err)
@@ -408,7 +406,7 @@ func TestWithdrawFiat(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
 	withdrawFiatRequest := withdraw.Request{}
-	_, err := c.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
+	_, err := c.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
 	}
@@ -419,7 +417,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
 	withdrawFiatRequest := withdraw.Request{}
-	_, err := c.WithdrawFiatFundsToInternationalBank(context.Background(),
+	_, err := c.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -427,7 +425,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	_, err := c.GetDepositAddress(t.Context(), currency.BTC, "", "")
 	if err == nil {
 		t.Error("GetDepositAddress() function unsupported cannot be nil")
 	}
@@ -519,7 +517,7 @@ func TestWsAuthCancelOrdersWrapper(t *testing.T) {
 	orderDetails := order.Cancel{
 		Pair: currency.NewPair(currency.LTC, currency.BTC),
 	}
-	_, err := c.CancelAllOrders(context.Background(), &orderDetails)
+	_, err := c.CancelAllOrders(t.Context(), &orderDetails)
 	if err != nil {
 		t.Error(err)
 	}
@@ -647,7 +645,7 @@ func TestWsOrderbook(t *testing.T) {
   "reply": "inst_order_book",
   "status": [ "OK" ]
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -661,7 +659,7 @@ func TestWsOrderbook(t *testing.T) {
   "side": "BUY",
   "trans_id": 169384
 }`)
-	err = c.wsHandleData(context.Background(), pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -679,7 +677,7 @@ func TestWsTicker(t *testing.T) {
   "volume": "0.07650000",
   "volume24": "56.07650000"
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -711,7 +709,7 @@ func TestWsGetInstruments(t *testing.T) {
       "OK"
    ]
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -758,7 +756,7 @@ func TestWsTrades(t *testing.T) {
       "trans_id": 169502
     }]
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -771,7 +769,7 @@ func TestWsTrades(t *testing.T) {
   "timestamp": 0,
   "trans_id": 169478
 }`)
-	err = c.wsHandleData(context.Background(), pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -801,7 +799,7 @@ func TestWsLogin(t *testing.T) {
    "unverified_email":"",
    "username":"test"
 }`)
-	ctx := account.DeployCredentialsToContext(context.Background(),
+	ctx := account.DeployCredentialsToContext(t.Context(),
 		&account.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
 	err := c.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
@@ -827,7 +825,7 @@ func TestWsAccountBalance(t *testing.T) {
   "reply": "user_balance",
   "trans_id": 15159032
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -849,7 +847,7 @@ func TestWsOrder(t *testing.T) {
       "side":"SELL",
       "trans_id":127303
    }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -879,7 +877,7 @@ func TestWsOrder(t *testing.T) {
     "timestamp": 1482903034617491,
     "trans_id": 20859252
   }`)
-	err = c.wsHandleData(context.Background(), pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -903,7 +901,7 @@ func TestWsOrder(t *testing.T) {
     "side": "BUY",
     "trans_id": 3282993
 }`)
-	err = c.wsHandleData(context.Background(), pressXToJSON)
+	err = c.wsHandleData(t.Context(), pressXToJSON)
 	if err == nil {
 		t.Error("Expected not enough balance error")
 	}
@@ -944,7 +942,7 @@ func TestWsOrders(t *testing.T) {
     "trans_id": 15155497
   }
 ]`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -980,7 +978,7 @@ func TestWsOpenOrders(t *testing.T) {
         }
     ]
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -996,7 +994,7 @@ func TestWsCancelOrder(t *testing.T) {
       "OK"
     ]
   }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1025,7 +1023,7 @@ func TestWsCancelOrders(t *testing.T) {
   ],
   "trans_id": 15166063
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1082,7 +1080,7 @@ func TestWsOrderHistory(t *testing.T) {
     }
   ]
 }`)
-	err := c.wsHandleData(context.Background(), pressXToJSON)
+	err := c.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1115,7 +1113,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	_, err = c.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1127,7 +1125,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.GetHistoricTrades(context.Background(),
+	_, err = c.GetHistoricTrades(t.Context(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Error(err)
@@ -1137,7 +1135,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.CancelBatchOrders(context.Background(), []order.Cancel{
+	_, err := c.CancelBatchOrders(t.Context(), []order.Cancel{
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
@@ -1156,7 +1154,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		pairs, err := c.CurrencyPairs.GetPairs(a, false)
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
-		resp, err := c.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := c.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}

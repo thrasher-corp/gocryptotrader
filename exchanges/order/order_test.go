@@ -774,10 +774,6 @@ func TestStringToOrderType(t *testing.T) {
 		{"TRAILING_STOP", TrailingStop, nil},
 		{"tRaIlInG_sToP", TrailingStop, nil},
 		{"tRaIlInG sToP", TrailingStop, nil},
-		{"trailing_stop_limit", TrailingStopLimit, nil},
-		{"TRAILING_STOP_LIMIT", TrailingStopLimit, nil},
-		{"tRaIlInG_sToP_LimIt", TrailingStopLimit, nil},
-		{"tRaIlInG sToP LIMIt", TrailingStopLimit, nil},
 		{"ios", IOS, nil},
 		{"any", AnyType, nil},
 		{"ANY", AnyType, nil},
@@ -793,7 +789,6 @@ func TestStringToOrderType(t *testing.T) {
 		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 		{"chase", Chase, nil},
-		{"limit_maker", LimitMaker, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
 		{"optimal_limit_IoC", OptimalLimitIOC, nil},
@@ -994,7 +989,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		AccountID:       "1",
 		ClientID:        "1",
 		ClientOrderID:   "DukeOfWombleton",
-		WalletAddress:   "1",
 		Type:            1,
 		Side:            1,
 		Status:          1,
@@ -1030,7 +1024,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, "1", od.ClientID)
 	assert.Equal(t, "DukeOfWombleton", od.ClientOrderID)
-	assert.Equal(t, "1", od.WalletAddress)
 	assert.Equal(t, Type(1), od.Type)
 	assert.Equal(t, Side(1), od.Side)
 	assert.Equal(t, Status(1), od.Status)
@@ -1160,103 +1153,55 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 func TestMatchFilter(t *testing.T) {
 	t.Parallel()
-	id, err := uuid.NewV4()
-	require.NoError(t, err)
-	filters := map[int]*Filter{
-		0:  {},
-		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: id},
-		3:  {OrderID: "2222"},
-		4:  {ClientOrderID: "3333"},
-		5:  {ClientID: "4444"},
-		6:  {WalletAddress: "5555"},
-		7:  {Type: AnyType},
-		8:  {Type: Limit},
-		9:  {Side: AnySide},
-		10: {Side: Sell},
-		11: {Status: AnyStatus},
-		12: {Status: New},
-		13: {AssetType: asset.Spot},
-		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
-		15: {Exchange: "Binance", Type: Limit, Status: New},
-		16: {Exchange: "Binance", Type: AnyType},
-		17: {AccountID: "8888"},
-	}
+	id := uuid.Must(uuid.NewV4())
 
-	orders := map[int]Detail{
-		0:  {},
-		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: id},
-		3:  {OrderID: "2222"},
-		4:  {ClientOrderID: "3333"},
-		5:  {ClientID: "4444"},
-		6:  {WalletAddress: "5555"},
-		7:  {Type: AnyType},
-		8:  {Type: Limit},
-		9:  {Side: AnySide},
-		10: {Side: Sell},
-		11: {Status: AnyStatus},
-		12: {Status: New},
-		13: {AssetType: asset.Spot},
-		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
-		15: {Exchange: "Binance", Type: Limit, Status: New},
-		16: {AccountID: "8888"},
-	}
-	// empty filter tests
-	emptyFilter := filters[0]
-	for _, o := range orders {
-		assert.True(t, o.MatchFilter(emptyFilter), "empty filter should match everything")
-	}
+	assert.True(t, new(Detail).MatchFilter(&Filter{}), "an empty filter should match an empty order")
+	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
 
-	tests := map[int]struct {
-		f              *Filter
-		o              Detail
-		expectedResult bool
+	tests := []struct {
+		description string
+		filter      Filter
+		order       Detail
+		result      bool
 	}{
-		0:  {filters[1], orders[1], true},
-		1:  {filters[1], orders[0], false},
-		2:  {filters[2], orders[2], true},
-		3:  {filters[2], orders[3], false},
-		4:  {filters[3], orders[3], true},
-		5:  {filters[3], orders[4], false},
-		6:  {filters[4], orders[4], true},
-		7:  {filters[4], orders[5], false},
-		8:  {filters[5], orders[5], true},
-		9:  {filters[5], orders[6], false},
-		10: {filters[6], orders[6], true},
-		11: {filters[6], orders[7], false},
-		12: {filters[7], orders[7], true},
-		13: {filters[7], orders[8], true},
-		14: {filters[7], orders[9], true},
-		15: {filters[8], orders[7], false},
-		16: {filters[8], orders[8], true},
-		17: {filters[8], orders[9], false},
-		18: {filters[9], orders[9], true},
-		19: {filters[9], orders[10], true},
-		20: {filters[9], orders[11], true},
-		21: {filters[10], orders[10], true},
-		22: {filters[10], orders[11], false},
-		23: {filters[10], orders[9], false},
-		24: {filters[11], orders[11], true},
-		25: {filters[11], orders[12], true},
-		26: {filters[11], orders[10], true},
-		27: {filters[12], orders[12], true},
-		28: {filters[12], orders[13], false},
-		29: {filters[12], orders[11], false},
-		30: {filters[13], orders[13], true},
-		31: {filters[13], orders[12], false},
-		32: {filters[14], orders[14], true},
-		33: {filters[14], orders[13], false},
-		34: {filters[15], orders[15], true},
-		35: {filters[16], orders[15], true},
-		36: {filters[17], orders[16], true},
-		37: {filters[17], orders[15], false},
+		{"Exchange ✓", Filter{Exchange: "A"}, Detail{Exchange: "A"}, true},
+		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
+		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
+		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},
+		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.Must(uuid.NewV4())}, false},
+		{"InternalOrderID Empty", Filter{InternalOrderID: id}, Detail{}, false},
+		{"OrderID ✓", Filter{OrderID: "A"}, Detail{OrderID: "A"}, true},
+		{"OrderID 𐄂", Filter{OrderID: "A"}, Detail{OrderID: "B"}, false},
+		{"OrderID Empty", Filter{OrderID: "A"}, Detail{}, false},
+		{"ClientOrderID ✓", Filter{ClientOrderID: "A"}, Detail{ClientOrderID: "A"}, true},
+		{"ClientOrderID 𐄂", Filter{ClientOrderID: "A"}, Detail{ClientOrderID: "B"}, false},
+		{"ClientOrderID Empty", Filter{ClientOrderID: "A"}, Detail{}, false},
+		{"ClientID ✓", Filter{ClientID: "A"}, Detail{ClientID: "A"}, true},
+		{"ClientID 𐄂", Filter{ClientID: "A"}, Detail{ClientID: "B"}, false},
+		{"ClientID Empty", Filter{ClientID: "A"}, Detail{}, false},
+		{"AnySide Buy", Filter{Side: AnySide}, Detail{Side: Buy}, true},
+		{"AnySide Sell", Filter{Side: AnySide}, Detail{Side: Sell}, true},
+		{"AnySide Empty", Filter{Side: AnySide}, Detail{}, true},
+		{"Side ✓", Filter{Side: Buy}, Detail{Side: Buy}, true},
+		{"Side 𐄂", Filter{Side: Buy}, Detail{Side: Sell}, false},
+		{"Side Empty", Filter{Side: Buy}, Detail{}, false},
+		{"Status ✓", Filter{Status: Open}, Detail{Status: Open}, true},
+		{"Status 𐄂", Filter{Status: Open}, Detail{Status: New}, false},
+		{"Status Empty", Filter{Status: Open}, Detail{}, false},
+		{"AssetType ✓", Filter{AssetType: asset.Spot}, Detail{AssetType: asset.Spot}, true},
+		{"AssetType 𐄂", Filter{AssetType: asset.Spot}, Detail{AssetType: asset.Index}, false},
+		{"AssetType Empty", Filter{AssetType: asset.Spot}, Detail{}, false},
+		{"Pair ✓", Filter{Pair: currency.NewBTCUSDT()}, Detail{Pair: currency.NewBTCUSDT()}, true},
+		{"Pair 𐄂", Filter{Pair: currency.NewBTCUSDT()}, Detail{Pair: currency.NewBTCUSD()}, false},
+		{"Pair Empty", Filter{Pair: currency.NewBTCUSDT()}, Detail{}, false},
+		{"AccountID ✓", Filter{AccountID: "A"}, Detail{AccountID: "A"}, true},
+		{"AccountID 𐄂", Filter{AccountID: "A"}, Detail{AccountID: "B"}, false},
+		{"AccountID Empty", Filter{AccountID: "A"}, Detail{}, false},
 	}
-	// specific tests
-	for num, tt := range tests {
-		t.Run(strconv.Itoa(num), func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tt.expectedResult, tt.o.MatchFilter(tt.f), "tests[%v] failed", num)
+			require.Equal(t, tt.result, tt.order.MatchFilter(&tt.filter), "MatchFilter must return correctly")
 		})
 	}
 }
@@ -1585,7 +1530,6 @@ func TestDeriveCancel(t *testing.T) {
 		AccountID:     "wow2",
 		ClientID:      "wow3",
 		ClientOrderID: "wow4",
-		WalletAddress: "wow5",
 		Type:          Market,
 		Side:          Long,
 		Pair:          pair,
@@ -1599,7 +1543,6 @@ func TestDeriveCancel(t *testing.T) {
 		cancel.AccountID != "wow2" ||
 		cancel.ClientID != "wow3" ||
 		cancel.ClientOrderID != "wow4" ||
-		cancel.WalletAddress != "wow5" ||
 		cancel.Type != Market ||
 		cancel.Side != Long ||
 		!cancel.Pair.Equal(pair) ||
@@ -1713,101 +1656,6 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
 
-func TestIsValid(t *testing.T) {
-	t.Parallel()
-	timeInForceValidityMap := map[TimeInForce]bool{
-		TimeInForce(1):    false,
-		ImmediateOrCancel: true,
-		GoodTillTime:      true,
-		GoodTillCancel:    true,
-		GoodTillDay:       true,
-		FillOrKill:        true,
-		PostOnly:          true,
-		UnsetTIF:          true,
-		UnknownTIF:        false,
-	}
-	var tif TimeInForce
-	for tif = range timeInForceValidityMap {
-		assert.Equalf(t, timeInForceValidityMap[tif], tif.IsValid(), "got %v, expected %v for %v with id %d", tif.IsValid(), timeInForceValidityMap[tif], tif, tif)
-	}
-}
-
-var timeInForceStringToValueMap = map[string]struct {
-	TIF   TimeInForce
-	Error error
-}{
-	"Unknown":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-	"GoodTillCancel":               {TIF: GoodTillCancel},
-	"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
-	"GTT":                          {TIF: GoodTillTime},
-	"GOOD_TIL_TIME":                {TIF: GoodTillTime},
-	"FILLORKILL":                   {TIF: FillOrKill},
-	"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel | PostOnly},
-	"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
-	"":                             {TIF: UnsetTIF},
-	"IOC":                          {TIF: ImmediateOrCancel},
-	"immediate_or_cancel":          {TIF: ImmediateOrCancel},
-	"IMMEDIATE_OR_CANCEL":          {TIF: ImmediateOrCancel},
-	"IMMEDIATEORCANCEL":            {TIF: ImmediateOrCancel},
-	"GOOD_TILL_CANCELLED":          {TIF: GoodTillCancel},
-	"good_till_day":                {TIF: GoodTillDay},
-	"GOOD_TILL_DAY":                {TIF: GoodTillDay},
-	"GTD":                          {TIF: GoodTillDay},
-	"GOODtillday":                  {TIF: GoodTillDay},
-	"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-	"PoC":                          {TIF: PostOnly},
-	"PendingORCANCEL":              {TIF: PostOnly},
-	"GTX":                          {TIF: GoodTillCrossing},
-	"GOOD_TILL_CROSSING":           {TIF: GoodTillCrossing},
-	"Good Til crossing":            {TIF: GoodTillCrossing},
-}
-
-func TestStringToTimeInForce(t *testing.T) {
-	t.Parallel()
-	for tk := range timeInForceStringToValueMap {
-		result, err := StringToTimeInForce(tk)
-		assert.ErrorIsf(t, err, timeInForceStringToValueMap[tk].Error, "got %v, expected %v", err, timeInForceStringToValueMap[tk].Error)
-		assert.Equalf(t, result, timeInForceStringToValueMap[tk].TIF, "got %v, expected %v", result, timeInForceStringToValueMap[tk].TIF)
-	}
-}
-
-func TestString(t *testing.T) {
-	t.Parallel()
-	valMap := map[TimeInForce]string{
-		ImmediateOrCancel:              "IOC",
-		GoodTillCancel:                 "GTC",
-		GoodTillTime:                   "GTT",
-		GoodTillDay:                    "GTD",
-		FillOrKill:                     "FOK",
-		UnknownTIF:                     "UNKNOWN",
-		UnsetTIF:                       "",
-		PostOnly:                       "POSTONLY",
-		GoodTillCancel | PostOnly:      "GTC,POSTONLY",
-		GoodTillTime | PostOnly:        "GTT,POSTONLY",
-		GoodTillDay | PostOnly:         "GTD,POSTONLY",
-		FillOrKill | ImmediateOrCancel: "IOC,FOK",
-	}
-	for x := range valMap {
-		result := x.String()
-		assert.Equalf(t, valMap[x], result, "expected %v, got %v", x, result)
-	}
-}
-
-func TestUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	targets := []TimeInForce{
-		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnsetTIF, PostOnly | ImmediateOrCancel,
-		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
-	}
-	data := `{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
-	target := &struct {
-		TIFs []TimeInForce `json:"tifs"`
-	}{}
-	err := json.Unmarshal([]byte(data), &target)
-	require.NoError(t, err)
-	require.Equal(t, targets, target.TIFs)
-}
-
 func TestSideMarshalJSON(t *testing.T) {
 	t.Parallel()
 	b, err := Buy.MarshalJSON()
@@ -1882,31 +1730,4 @@ func TestMarshalOrder(t *testing.T) {
 	require.NoError(t, err, "json.Marshal must not error")
 	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
 	assert.Equal(t, exp, j)
-}
-
-func TestMarshalJSON(t *testing.T) {
-	t.Parallel()
-	data, err := json.Marshal(GoodTillCrossing)
-	require.NoError(t, err)
-	assert.Equal(t, []byte(`"GTX"`), data)
-
-	data = []byte(`{"tif":"IOC"}`)
-	target := &struct {
-		TimeInForce TimeInForce `json:"tif"`
-	}{}
-	err = json.Unmarshal(data, &target)
-	require.NoError(t, err)
-	assert.Equal(t, "IOC", target.TimeInForce.String())
-}
-
-func BenchmarkStringToTimeInForceA(b *testing.B) {
-	var result TimeInForce
-	var err error
-	for b.Loop() {
-		for k := range timeInForceStringToValueMap {
-			result, err = StringToTimeInForce(k)
-			assert.ErrorIs(b, err, timeInForceStringToValueMap[k].Error)
-			assert.Equal(b, timeInForceStringToValueMap[k].TIF, result)
-		}
-	}
 }
