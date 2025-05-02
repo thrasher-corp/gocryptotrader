@@ -2727,34 +2727,6 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
-func TestGetTypeFromTimeInForce(t *testing.T) {
-	t.Parallel()
-	type tifAndPrice struct {
-		TIF   string
-		Price float64
-	}
-	tifAndPriceStringToValueMap := map[tifAndPrice]struct {
-		OType order.Type
-		TIF   order.TimeInForce
-	}{
-		{"gtc", 0}:   {order.Limit, order.GoodTillCancel},
-		{"gtc", 1.2}: {order.Limit, order.GoodTillCancel},
-		{"", 0}:      {order.Limit, order.UnsetTIF},
-		{"", 1.2}:    {order.Limit, order.UnsetTIF},
-		{"ioc", 0}:   {order.Market, order.ImmediateOrCancel},
-		{"ioc", 1.3}: {order.Limit, order.ImmediateOrCancel},
-		{"poc", .1}:  {order.Limit, order.PostOnly},
-		{"poc", 0}:   {order.Limit, order.PostOnly},
-		{"fok", 0}:   {order.Market, order.FillOrKill},
-		{"fok", 1}:   {order.Limit, order.FillOrKill},
-	}
-	for k, v := range tifAndPriceStringToValueMap {
-		typeResp, tif := getTypeFromTimeInForceAndPrice(k.TIF, k.Price)
-		assert.Equal(t, v.OType, typeResp)
-		assert.Equal(t, v.TIF, tif)
-	}
-}
-
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
@@ -2780,29 +2752,6 @@ func TestGetFutureOrderSize(t *testing.T) {
 	ret, err = getFutureOrderSize(&order.Submit{Side: order.Sell, Amount: 1})
 	require.NoError(t, err)
 	assert.Equal(t, -1.0, ret)
-}
-
-func TestGetTimeInForce(t *testing.T) {
-	t.Parallel()
-
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.GoodTillTime})
-	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
-
-	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
-	require.NoError(t, err)
-	assert.Equal(t, "ioc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.PostOnly})
-	require.NoError(t, err)
-	assert.Equal(t, "poc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit})
-	require.NoError(t, err)
-	assert.Equal(t, "gtc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FillOrKill})
-	require.NoError(t, err)
-	assert.Equal(t, "fok", ret)
 }
 
 func TestProcessFuturesOrdersPushData(t *testing.T) {
@@ -3078,6 +3027,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Sell,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 			},
 		},

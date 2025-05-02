@@ -6391,21 +6391,21 @@ func TestOrderTypeString(t *testing.T) {
 		Expected string
 		Error    error
 	}{
-		{OrderType: order.Market, TIF: order.UnsetTIF}:                {Expected: orderMarket},
-		{OrderType: order.Limit, TIF: order.UnsetTIF}:                 {Expected: orderLimit},
-		{OrderType: order.Limit, TIF: order.PostOnly}:                 {Expected: orderPostOnly},
-		{OrderType: order.Limit, TIF: order.FillOrKill}:               {Expected: orderFOK},
-		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:        {Expected: orderIOC},
-		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}: {Expected: orderOptimalLimitIOC},
-		{OrderType: order.MarketMakerProtection, TIF: order.UnsetTIF}: {Expected: "mmp"},
-		{OrderType: order.MarketMakerProtection, TIF: order.PostOnly}: {Expected: "mmp_and_post_only"},
-		{OrderType: order.Liquidation, TIF: order.UnsetTIF}:           {Error: order.ErrUnsupportedOrderType},
-		{OrderType: order.OCO, TIF: order.UnsetTIF}:                   {Expected: "oco"},
-		{OrderType: order.TrailingStop, TIF: order.UnsetTIF}:          {Expected: "move_order_stop"},
-		{OrderType: order.Chase, TIF: order.UnsetTIF}:                 {Expected: "chase"},
-		{OrderType: order.TWAP, TIF: order.UnsetTIF}:                  {Expected: "twap"},
-		{OrderType: order.ConditionalStop, TIF: order.UnsetTIF}:       {Expected: "conditional"},
-		{OrderType: order.Trigger, TIF: order.UnsetTIF}:               {Expected: "trigger"},
+		{OrderType: order.Market, TIF: order.UnknownTIF}:                {Expected: orderMarket},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:                 {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                   {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:                 {Expected: orderFOK},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:          {Expected: orderIOC},
+		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
+		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}: {Expected: "mmp"},
+		{OrderType: order.MarketMakerProtection, TIF: order.PostOnly}:   {Expected: "mmp_and_post_only"},
+		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.OCO, TIF: order.UnknownTIF}:                   {Expected: "oco"},
+		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:          {Expected: "move_order_stop"},
+		{OrderType: order.Chase, TIF: order.UnknownTIF}:                 {Expected: "chase"},
+		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                  {Expected: "twap"},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:       {Expected: "conditional"},
+		{OrderType: order.Trigger, TIF: order.UnknownTIF}:               {Expected: "trigger"},
 	}
 	for tc, val := range orderTypesToStringMap {
 		orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
