@@ -972,9 +972,14 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		timeInForce, err := getTimeInForce(s)
-		if err != nil {
-			return nil, err
+		var timeInForce string
+		switch s.TimeInForce {
+		case order.ImmediateOrCancel,
+			order.FillOrKill,
+			order.GoodTillCancel:
+			timeInForce = s.TimeInForce.Lower()
+		case order.PostOnly:
+			timeInForce = "poc"
 		}
 		settle, err := getSettlementCurrency(s.Pair, s.AssetType)
 		if err != nil {
@@ -2280,33 +2285,6 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 	}
 }
 
-// getTimeInForce returns the time-in-force for a given order.
-// If the time-in-force is unset, it assumes a Market order with an immediate-or-cancel (IOC) time-in-force value.
-// If the order type is Limit, it applies a good-til-cancel (GTC) policy.
-func getTimeInForce(s *order.Submit) (string, error) {
-	switch {
-	case s.TimeInForce.Is(order.ImmediateOrCancel):
-		return "ioc", nil
-	case s.TimeInForce.Is(order.FillOrKill):
-		return "fok", nil
-	case s.TimeInForce.Is(order.PostOnly):
-		return "poc", nil
-	case s.TimeInForce.Is(order.GoodTillCancel):
-		return "gtc", nil
-	case s.TimeInForce == order.UnknownTIF:
-		switch s.Type {
-		case order.Market:
-			return "ioc", nil
-		case order.Limit:
-			return "gtc", nil
-		default:
-			return "", nil
-		}
-	default:
-		return "", fmt.Errorf("%w: `%s`", order.ErrInvalidTimeInForce, s.TimeInForce)
-	}
-}
-
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := g.CurrencyPairs.IsPairEnabled(cp, a)
@@ -2363,9 +2341,14 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		timeInForce, err := getTimeInForce(s)
-		if err != nil {
-			return nil, err
+		var timeInForce string
+		switch s.TimeInForce {
+		case order.ImmediateOrCancel,
+			order.FillOrKill,
+			order.GoodTillCancel:
+			timeInForce = s.TimeInForce.Lower()
+		case order.PostOnly:
+			timeInForce = "poc"
 		}
 
 		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
@@ -2532,9 +2515,12 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, erro
 		return nil, order.ErrSideIsInvalid
 	}
 
-	timeInForce, err := getTimeInForce(s)
-	if err != nil {
-		return nil, err
+	var timeInForce string
+	switch s.TimeInForce {
+	case order.ImmediateOrCancel, order.FillOrKill, order.GoodTillCancel:
+		timeInForce = s.TimeInForce.Lower()
+	case order.PostOnly:
+		timeInForce = "poc"
 	}
 
 	return &CreateOrderRequest{

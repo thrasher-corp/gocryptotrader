@@ -53,8 +53,6 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		result = FillOrKill
 	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
 		result = PostOnly
-	case "POST_ONLY_GOOD_TIL_CANCELLED":
-		result = GoodTillCancel | PostOnly
 	}
 	if result == UnknownTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
@@ -106,6 +104,11 @@ func (t TimeInForce) String() string {
 		return "UNKNOWN"
 	}
 	return strings.Join(tifStrings, ",")
+}
+
+// Lower returns a lower case string representation of time-in-force
+func (t TimeInForce) Lower() string {
+	return strings.ToLower(t.String())
 }
 
 // UnmarshalJSON deserializes a string data into TimeInForce instance.

@@ -2754,29 +2754,6 @@ func TestGetFutureOrderSize(t *testing.T) {
 	assert.Equal(t, -1.0, ret)
 }
 
-func TestGetTimeInForce(t *testing.T) {
-	t.Parallel()
-
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.GoodTillTime})
-	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
-
-	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
-	require.NoError(t, err)
-	assert.Equal(t, "ioc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, TimeInForce: order.PostOnly})
-	require.NoError(t, err)
-	assert.Equal(t, "poc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit})
-	require.NoError(t, err)
-	assert.Equal(t, "gtc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FillOrKill})
-	require.NoError(t, err)
-	assert.Equal(t, "fok", ret)
-}
-
 func TestProcessFuturesOrdersPushData(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
