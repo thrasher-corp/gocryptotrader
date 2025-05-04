@@ -224,7 +224,6 @@ type Detail struct {
 	ClientOrderID        string
 	AccountID            string
 	ClientID             string
-	WalletAddress        string
 	Type                 Type
 	Side                 Side
 	Status               Status
@@ -247,7 +246,6 @@ type Filter struct {
 	ClientOrderID   string
 	AccountID       string
 	ClientID        string
-	WalletAddress   string
 	Type            Type
 	Side            Side
 	Status          Status
@@ -265,7 +263,6 @@ type Cancel struct {
 	ClientOrderID string
 	AccountID     string
 	ClientID      string
-	WalletAddress string
 	Type          Type
 	Side          Side
 	AssetType     asset.Item

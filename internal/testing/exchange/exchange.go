@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -217,7 +216,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 		return
 	}
 
-	err := e.UpdateTradablePairs(context.Background(), true)
+	err := e.UpdateTradablePairs(tb.Context(), true)
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
 	cache := new(currency.PairsManager)

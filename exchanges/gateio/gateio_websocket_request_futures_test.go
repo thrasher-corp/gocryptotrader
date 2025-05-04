@@ -93,7 +93,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", BTCUSDT, asset.CoinMarginedFutures)
+	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", BTCUSDT, asset.Empty)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
@@ -203,33 +203,4 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 	got, err := g.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "513170215869")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
-}
-
-func TestGetAssetFromFuturesPair(t *testing.T) {
-	t.Parallel()
-	_, err := getAssetFromFuturesPair(currency.Pair{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	_, err = getAssetFromFuturesPair(currency.NewPair(currency.BTC, currency.USDC))
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	a, err := getAssetFromFuturesPair(BTCUSDT)
-	require.NoError(t, err)
-	require.Equal(t, asset.USDTMarginedFutures, a)
-
-	a, err = getAssetFromFuturesPair(BTCUSD)
-	require.NoError(t, err)
-	require.Equal(t, asset.CoinMarginedFutures, a)
-}
-
-func TestValidateFuturesPairAsset(t *testing.T) {
-	t.Parallel()
-	err := validateFuturesPairAsset(currency.Pair{}, asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	err = validateFuturesPairAsset(BTCUSDT, asset.USDTMarginedFutures)
-	require.NoError(t, err)
-
-	err = validateFuturesPairAsset(BTCUSD, asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
