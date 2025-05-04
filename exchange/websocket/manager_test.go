@@ -308,7 +308,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err)
 
-	err = ws.connectionManager[0].connection.SendRawMessage(context.Background(), request.Unset, gws.TextMessage, []byte("test"))
+	err = ws.connectionManager[0].connection.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -528,9 +528,9 @@ func TestSendMessage(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		err = testCases[x].WC.SendJSONMessage(context.Background(), request.Unset, Ping)
+		err = testCases[x].WC.SendJSONMessage(t.Context(), request.Unset, Ping)
 		require.NoError(t, err)
-		err = testCases[x].WC.SendRawMessage(context.Background(), request.Unset, gws.TextMessage, []byte(Ping))
+		err = testCases[x].WC.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte(Ping))
 		require.NoError(t, err)
 	}
 }
@@ -567,22 +567,22 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		RequestID: wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
+	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
 	if err != nil {
 		t.Error(err)
 	}
 
-	cancelledCtx, fn := context.WithDeadline(context.Background(), time.Now())
+	cancelledCtx, fn := context.WithDeadline(t.Context(), time.Now())
 	fn()
 	_, err = wc.SendMessageReturnResponse(cancelledCtx, request.Unset, "123", req)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// with timeout
 	wc.ResponseMaxLimit = 1
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
+	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 
-	_, err = wc.SendMessageReturnResponsesWithInspector(context.Background(), request.Unset, "123", req, 1, inspection{})
+	_, err = wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, "123", req, 1, inspection{})
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
@@ -592,11 +592,11 @@ func TestWaitForResponses(t *testing.T) {
 		ResponseMaxLimit: time.Nanosecond,
 		Match:            NewMatch(),
 	}
-	_, err := dummy.waitForResponses(context.Background(), "silly", nil, 1, inspection{})
+	_, err := dummy.waitForResponses(t.Context(), "silly", nil, 1, inspection{})
 	require.ErrorIs(t, err, ErrSignatureTimeout)
 
 	dummy.ResponseMaxLimit = time.Second
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	_, err = dummy.waitForResponses(ctx, "silly", nil, 1, inspection{})
 	require.ErrorIs(t, err, context.Canceled)
@@ -604,7 +604,7 @@ func TestWaitForResponses(t *testing.T) {
 	// test break early and hit verbose path
 	ch := make(chan []byte, 1)
 	ch <- []byte("hello")
-	ctx = request.WithVerbose(context.Background())
+	ctx = request.WithVerbose(t.Context())
 
 	got, err := dummy.waitForResponses(ctx, "silly", ch, 2, inspection{breakEarly: true})
 	require.NoError(t, err)
@@ -1138,7 +1138,7 @@ func TestLatency(t *testing.T) {
 		RequestID:    wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
+	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
 	require.NoError(t, err)
 	require.NotEmpty(t, r.t, "Latency must have a duration")
 	require.Equal(t, exch, r.name, "Latency must have the correct exchange name")
@@ -1154,23 +1154,23 @@ func TestRemoveURLQueryString(t *testing.T) {
 func TestWriteToConn(t *testing.T) {
 	t.Parallel()
 	wc := connection{}
-	require.ErrorIs(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
+	require.ErrorIs(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
-	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// connection rate limit set
 	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
-	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
-	ctx, cancel := context.WithTimeout(context.Background(), 0) // deadline exceeded
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
+	ctx, cancel := context.WithTimeout(t.Context(), 0) // deadline exceeded
 	cancel()
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.DeadlineExceeded)
 	// definitions set but with fallover
 	wc.RateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),
 	}
-	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// match with global rate limit
-	require.NoError(t, wc.writeToConn(context.Background(), request.Auth, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Auth, func() error { return nil }))
 	// definitions set but connection rate limiter not set
 	wc.RateLimit = nil
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)

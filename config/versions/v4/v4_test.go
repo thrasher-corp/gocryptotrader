@@ -2,7 +2,6 @@ package v4_test
 
 import (
 	"bytes"
-	"context"
 	"testing"
 
 	"github.com/buger/jsonparser"
@@ -19,14 +18,14 @@ func TestExchanges(t *testing.T) {
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
 
-	_, err := new(v4.Version).UpgradeExchange(context.Background(), []byte{})
+	_, err := new(v4.Version).UpgradeExchange(t.Context(), []byte{})
 	require.ErrorContains(t, err, `error upgrading assetTypes`)
 
-	_, err = new(v4.Version).UpgradeExchange(context.Background(), []byte(`{}`))
+	_, err = new(v4.Version).UpgradeExchange(t.Context(), []byte(`{}`))
 	require.ErrorContains(t, err, `error upgrading currencyPairs.pairs`)
 
 	in := []byte(`{"name":"Cracken","currencyPairs":{"assetTypes":["spot"],"pairs":{"spot":{"enabled":"BTC-AUD","available":"BTC-AUD"},"futures":{"assetEnabled":true},"options":{},"margin":{"assetEnabled":null}}}}`)
-	out, err := new(v4.Version).UpgradeExchange(context.Background(), in)
+	out, err := new(v4.Version).UpgradeExchange(t.Context(), in)
 	require.NoError(t, err)
 	require.NotEmpty(t, out)
 
@@ -49,16 +48,16 @@ func TestUpgradeExchange(t *testing.T) {
 	require.NoError(t, err, "Must find assetEnabled for margin")
 	assert.False(t, e, "assetEnabled should be set to false")
 
-	out2, err := new(v4.Version).UpgradeExchange(context.Background(), out)
+	out2, err := new(v4.Version).UpgradeExchange(t.Context(), out)
 	require.NoError(t, err, "Must not error on re-upgrading")
 	assert.Equal(t, out, out2, "Should not affect an already upgraded config")
 
 	in = []byte(`{"name":"Cracken","currencyPairs":{"assetTypes":["spot"],"pairs":{"spot":{"assetEnabled":{}}}}}`)
-	_, err = new(v4.Version).UpgradeExchange(context.Background(), in)
+	_, err = new(v4.Version).UpgradeExchange(t.Context(), in)
 	require.NoError(t, err)
 
 	in = []byte(`{"name":"Cracken","currencyPairs":{"assetTypes":["spot"],"pairs":{"margin":{"assetEnabled":{}}}}}`)
-	_, err = new(v4.Version).UpgradeExchange(context.Background(), in)
+	_, err = new(v4.Version).UpgradeExchange(t.Context(), in)
 	require.ErrorIs(t, err, jsonparser.UnknownValueTypeError)
 	require.ErrorContains(t, err, "`margin`")
 	require.ErrorContains(t, err, "`object`")
@@ -68,7 +67,7 @@ func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
 
 	in := []byte(`{"name":"Cracken","currencyPairs":{"pairs":{"spot":{"enabled":"BTC-AUD","available":"BTC-AUD","assetEnabled":true},"futures":{"assetEnabled":false},"options":{},"options_combo":{"assetEnabled":true}}}}`)
-	out, err := new(v4.Version).DowngradeExchange(context.Background(), in)
+	out, err := new(v4.Version).DowngradeExchange(t.Context(), in)
 	require.NoError(t, err)
 	require.NotEmpty(t, out)
 

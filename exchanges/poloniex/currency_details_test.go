@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -65,7 +64,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatalf("expected: %v but received: %v", errCodeMapIsNil, err)
 	}
 
-	c, err := p.GetCurrencies(context.Background())
+	c, err := p.GetCurrencies(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +74,7 @@ func TestWsCurrencyMap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tick, err := p.GetTicker(context.Background())
+	tick, err := p.GetTicker(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
