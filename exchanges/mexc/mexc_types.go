@@ -232,6 +232,12 @@ type AssetTransferResponse struct {
 	TransferID int64 `json:"tranId"`
 }
 
+// UniversalTransferHistoryResponse represents a universal transfer history response detail
+type UniversalTransferHistoryResponse struct {
+	Rows  []UniversalTransferHistoryData `json:"rows"`
+	Total int64                          `json:"total"`
+}
+
 // UniversalTransferHistoryData represents a universal asset transfer history detail
 type UniversalTransferHistoryData struct {
 	TranID          string       `json:"tranId"`
@@ -460,10 +466,17 @@ type AssetConvertableToMX struct {
 
 // DustConvertResponse holds a dust asset conversion response
 type DustConvertResponse struct {
-	SuccessList  []currency.Code `json:"successList"`
-	FailedList   []currency.Code `json:"failedList"`
-	TotalConvert types.Number    `json:"totalConvert"`
-	ConvertFee   types.Number    `json:"convertFee"`
+	SuccessList  []currency.Code                   `json:"successList"`
+	FailedList   []DustAssetConversionFailResponse `json:"failedList"`
+	TotalConvert types.Number                      `json:"totalConvert"`
+	ConvertFee   types.Number                      `json:"convertFee"`
+}
+
+// DustAssetConversionFailResponse represents a dust asset convertion failure message for each asset.
+type DustAssetConversionFailResponse struct {
+	Asset   string `json:"asset"`
+	Message string `json:"message"`
+	Code    int64  `json:"code"`
 }
 
 // DustLogDetail represents a dust log detail

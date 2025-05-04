@@ -79,7 +79,7 @@ func (me *MEXC) WsConnect() error {
 		Message:     []byte(`{"method": "PING"}`),
 		Delay:       time.Second * 20,
 	})
-	return me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{Method: "SUBSCRIPTION", Params: []string{"spot@public.aggre.depth.v3.api.pb@100ms@BTCUSDT"}})
+	return nil
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
@@ -152,6 +152,8 @@ func assetTypeToString(assetType asset.Item) (string, error) {
 
 func (me *MEXC) handleSubscription(method string, subs subscription.List) error {
 	payloads := make([]WsSubscriptionPayload, len(subs))
+	successfulSubscriptions := subscription.List{}
+	failedSubscriptions := subscription.List{}
 	for s := range subs {
 		assetTypeString, err := assetTypeToString(subs[s].Asset)
 		if err != nil {
@@ -184,7 +186,9 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 			err = json.Unmarshal(data, &resp)
 			if err != nil {
 				return err
+				failedSubscriptions = append(failedSubscriptions, subs[s])
 			}
+			successfulSubscriptions = append(successfulSubscriptions, subs[s])
 		case chnlLimitDepthV3:
 			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
@@ -232,6 +236,8 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 			}
 		}
 	}
+	me.Websocket.RemoveSubscriptions(me.Websocket.Conn, failedSubscriptions...)
+	me.Websocket.AddSuccessfulSubscriptions(me.Websocket.Conn, successfulSubscriptions...)
 	return nil
 }
 

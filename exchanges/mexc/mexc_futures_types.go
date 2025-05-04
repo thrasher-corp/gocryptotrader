@@ -17,6 +17,14 @@ type WsFuturesData struct {
 	ID      int64  `json:"id"`
 }
 
+// WsFuturesLoginResponse holds push data information for futures data streams
+type WsFuturesLoginResponse struct {
+	Data    string `json:"data"`
+	Message string `json:"msg"`
+	Code    int64  `json:"code"`
+	ID      int64  `json:"id"`
+}
+
 // WsFuturesReq holds a futures request payload.
 type WsFuturesReq struct {
 	Method string              `json:"method"`
@@ -27,8 +35,14 @@ type WsFuturesReq struct {
 // FWebsocketReqParam holds the param detail or futures websocket subscription request
 type FWebsocketReqParam struct {
 	Symbol   string `json:"symbol,omitempty"`
+	Interval string `json:"interval,omitempty"`
 	Compress bool   `json:"compress,omitempty"`
 	Limit    int    `json:"limit,omitempty"`
+
+	// Used for authentication
+	APIKey      string `json:"apiKey,omitempty"`
+	Signature   string `json:"signature,omitempty"`
+	RequestTime int64  `json:"reqTime,omitempty,string"`
 }
 
 // FuturesTickerItem holds futures ticker data item

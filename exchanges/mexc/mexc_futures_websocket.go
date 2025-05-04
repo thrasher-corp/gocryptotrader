@@ -2,17 +2,21 @@ package mexc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -51,7 +55,6 @@ var defaultFuturesSubscriptions = []string{
 	cnlFDeal,
 	cnlFDepthFull,
 	cnlFKline,
-	cnlFFundingRate,
 }
 
 // WsFuturesConnect established a futures websocket connection
@@ -64,27 +67,66 @@ func (me *MEXC) WsFuturesConnect() error {
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}
-	err := me.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := me.Websocket.SetWebsocketURL(futuresWsURL, false, true)
+	if err != nil {
+		return err
+	}
+	err = me.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	me.Websocket.Wg.Add(1)
 	go me.wsFuturesReadData(me.Websocket.Conn)
+	if me.Websocket.CanUseAuthenticatedEndpoints() {
+		err := me.wsAuth()
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "authentication error: %v", err)
+			me.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
 	if me.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n", me.Websocket.GetWebsocketURL())
 	}
-	// Authentication process
-	return me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
-		Method: "sub.funding.rate",
-		Param: &FWebsocketReqParam{
-			Symbol:   "BTC_USDT",
-			Compress: true,
-		},
-	})
+	return nil
 }
 
-// GenerateDefaultSubscriptions generates a futures default subscription instances
-func (me *MEXC) GenerateDefaultSubscriptions() (subscription.List, error) {
+// wsAuth authenticates a futures websocket connection
+func (me *MEXC) wsAuth() error {
+	credentials, err := me.GetCredentials(context.Background())
+	if err != nil {
+		return err
+	}
+	param := &FWebsocketReqParam{
+		RequestTime: time.Now().UnixMilli(),
+		APIKey:      credentials.Key,
+	}
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(param.APIKey+strconv.FormatInt(param.RequestTime, 10)),
+		[]byte(credentials.Secret))
+	if err != nil {
+		return err
+	}
+	param.Signature = crypto.HexEncodeToString(hmac)
+	data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.Auth, "rs.login", &WsFuturesReq{
+		Param:  param,
+		Method: cnlLogin,
+	})
+	if err != nil {
+		return err
+	}
+	var result *WsFuturesLoginResponse
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return err
+	}
+	if result.Data != "success" {
+		return fmt.Errorf("code: %d, msg: %s", result.Code, result.Message)
+	}
+	return nil
+}
+
+// GenerateDefaultFuturesSubscriptions generates a futures default subscription instances
+func (me *MEXC) GenerateDefaultFuturesSubscriptions() (subscription.List, error) {
 	channels := defaultFuturesSubscriptions
 	if me.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder, cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode)
@@ -96,10 +138,16 @@ func (me *MEXC) GenerateDefaultSubscriptions() (subscription.List, error) {
 	subscriptionsList := make(subscription.List, len(channels))
 	for c := range channels {
 		switch channels[c] {
-		case cnlFTicker, cnlFDeal, cnlFDepthFull, cnlFKline, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
+		case cnlFTicker, cnlFDeal, cnlFDepthFull, cnlFFundingRate, cnlFIndexPrice, cnlFFairPrice:
 			subscriptionsList[c] = &subscription.Subscription{
 				Channel: channels[c],
 				Pairs:   enabledPairs,
+			}
+		case cnlFKline:
+			subscriptionsList[c] = &subscription.Subscription{
+				Channel:  channels[c],
+				Pairs:    enabledPairs,
+				Interval: kline.FifteenMin,
 			}
 		case cnlFTickers, cnlFPersonalPositions, cnlFPersonalAssets, cnlFPersonalOrder,
 			cnlFPersonalADLLevel, cnlFPersonalRiskLimit, cnlFPositionMode:
@@ -128,19 +176,18 @@ func (me *MEXC) handleSubscriptionFuturesPayload(subscriptionItems subscription.
 			params := make([]FWebsocketReqParam, len(subscriptionItems[x].Pairs))
 			for p := range subscriptionItems[x].Pairs {
 				params[p].Symbol = subscriptionItems[x].Pairs[p].String()
-				if cnlFDeal == "" {
+				switch subscriptionItems[x].Channel {
+				case cnlFDeal:
 					params[p].Compress = true
 					params[p].Limit = subscriptionItems[x].Levels
+				case cnlFKline:
+					intervalString, err := ContractIntervalString(subscriptionItems[x].Interval)
+					if err != nil {
+						return err
+					}
+					params[p].Interval = intervalString
 				}
-				jsonData, err := json.Marshal(&WsFuturesReq{
-					Method: method + "." + subscriptionItems[x].Channel,
-					Param:  &params[p],
-				})
-				if err != nil {
-					return err
-				}
-				println(string(jsonData))
-				err = me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
+				err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
 					Method: method + "." + subscriptionItems[x].Channel,
 					Param:  &params[p],
 				})
@@ -187,14 +234,14 @@ func (me *MEXC) WsHandleFuturesData(respRaw []byte) error {
 		}
 		return nil
 	}
-	cnlSplits := strings.Split(resp.Channel, ".")
-	if cnlSplits[0] == "rs" {
+	if resp.Channel == "rs.login" {
 		if !me.Websocket.Match.IncomingWithData(resp.Channel, respRaw) {
 			me.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
 				Message: string(respRaw) + websocket.UnhandledMessage,
 			}
 		}
 	}
+	cnlSplits := strings.Split(resp.Channel, ".")
 	switch cnlSplits[1] {
 	case cnlFTickers:
 		return me.processFuturesTickers(resp.Data)

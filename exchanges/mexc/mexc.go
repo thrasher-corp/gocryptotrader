@@ -570,7 +570,7 @@ func (me *MEXC) UserUniversalTransfer(ctx context.Context, fromAccountType, toAc
 }
 
 // GetUniversalTransferHistory retrieves users universal asset transfer history
-func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType string, startTime, endTime time.Time, page, size int64) ([]UniversalTransferHistoryData, error) {
+func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType string, startTime, endTime time.Time, page, size int64) (*UniversalTransferHistoryResponse, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
 	}
@@ -594,7 +594,8 @@ func (me *MEXC) GetUniversalTransferHistory(ctx context.Context, fromAccountType
 	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	var resp []UniversalTransferHistoryData
+
+	var resp *UniversalTransferHistoryResponse
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, getUniversalTransferhistoryEPL, http.MethodGet, "capital/transfer", params, nil, &resp, true)
 }
 
@@ -648,9 +649,10 @@ func (me *MEXC) DustLog(ctx context.Context, startTime, endTime time.Time, page,
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+	if limit <= 0 {
+		return nil, errLimitIsRequired
 	}
+	params.Set("limit", strconv.FormatInt(limit, 10))
 	var resp *DustLogDetail
 	return resp, me.SendHTTPRequest(ctx, exchange.RestSpot, dustLogEPL, http.MethodGet, "capital/convert", params, nil, &resp, true)
 }

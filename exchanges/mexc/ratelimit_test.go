@@ -1,7 +1,6 @@
 package mexc
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -121,7 +120,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 	for name, tt := range testTable {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if err := rl.InitiateRateLimit(context.Background(), tt); err != nil {
+			if err := rl.InitiateRateLimit(t.Context(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})
