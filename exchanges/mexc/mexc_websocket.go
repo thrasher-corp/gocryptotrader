@@ -186,6 +186,7 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 			err = json.Unmarshal(data, &resp)
 			if err != nil {
 				return err
+			} else if resp.Code != 0 {
 				failedSubscriptions = append(failedSubscriptions, subs[s])
 			}
 			successfulSubscriptions = append(successfulSubscriptions, subs[s])
@@ -236,9 +237,11 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 			}
 		}
 	}
-	me.Websocket.RemoveSubscriptions(me.Websocket.Conn, failedSubscriptions...)
-	me.Websocket.AddSuccessfulSubscriptions(me.Websocket.Conn, successfulSubscriptions...)
-	return nil
+	err := me.Websocket.RemoveSubscriptions(me.Websocket.Conn, failedSubscriptions...)
+	if err != nil {
+		return err
+	}
+	return me.Websocket.AddSuccessfulSubscriptions(me.Websocket.Conn, successfulSubscriptions...)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler

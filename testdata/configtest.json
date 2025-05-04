@@ -2432,6 +2432,64 @@
    }
   },
   {
+   "name": "Mexc",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 0,
+   "websocketResponseCheckTimeout": 0,
+   "websocketResponseMaxLimit": 0,
+   "websocketTrafficTimeout": 0,
+   "connectionMonitorDelay": 0,
+   "baseCurrencies": "",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "useGlobalFormat": false,
+    "pairs": {
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT,BTC-ETH,BTC-DOGE,BTC-DASH,BTC-XRP",
+      "available": "USDC-GRIN,BTC-BCN,BTC-DGB,BTC-XMR,USDT-STR,BTC-SC,BTC-ZRX,USDC-XMR,BTC-TRX,BTC-STR,BTC-SNT,USDT-QTUM,USDC-BTC,BTC-NMR,BTC-DASH,BTC-NXT,USDT-LTC,BTC-DCR,USDT-ZRX,USDC-ZEC,USDT-REP,USDT-BAT,BTC-MANA,USDC-BCHABC,USDC-STR,BTC-XRP,USDT-ETH,BTC-REP,USDT-EOS,USDC-ATOM,USDT-XRP,BTC-ETH,USDT-LSK,USDT-SC,USDT-MANA,USDC-ETC,USDC-ETH,BTC-BTS,BTC-LTC,BTC-ETC,BTC-OMG,BTC-STORJ,USDC-XRP,USDT-GRIN,BTC-QTUM,BTC-MAID,BTC-XEM,USDT-BTC,USDT-DASH,ETH-REP,BTC-ZEC,BTC-STRAT,USDC-LTC,BTC-FOAM,USDC-TRX,BTC-DOGE,BTC-VIA,BTC-VTC,ETH-ETC,USDT-ETC,ETH-EOS,USDC-BCHSV,USDT-NXT,USDT-XMR,BTC-ARDR,BTC-CVC,ETH-BAT,USDC-DOGE,BTC-XPM,BTC-LOOM,BTC-LPT,USDC-EOS,USDT-DGB,USDT-BCHSV,BTC-OMNI,ETH-ZEC,BTC-EOS,BTC-KNC,BTC-BCHSV,BTC-POLY,USDC-DASH,USDT-GNT,BTC-BCHABC,BTC-GRIN,BTC-ATOM,USDT-ATOM,USDT-BCHABC,BTC-LSK,ETH-ZRX,BTC-GAS,BTC-BAT,BTC-BNT,USDT-TRX,BTC-FCT,USDT-ZEC,BTC-GNT,USDT-DOGE,USDC-USDT",
+      "requestFormat": {
+       "uppercase": true
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "futures": {
+      "assetEnabled": true,
+      "enabled": "BTC_USDT,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",
+      "available": "USDC_GRIN,BTC_BCN,BTC_DGB,BTC_XMR,USDT_STR,BTC_SC,BTC_ZRX,USDC_XMR,BTC_TRX,BTC_STR,BTC_SNT,USDT_QTUM,USDC_BTC,BTC_NMR,BTC_DASH,BTC_NXT,USDT_LTC,BTC_DCR,USDT_ZRX,USDC_ZEC,USDT_REP,USDT_BAT,BTC_MANA,USDC_BCHABC,USDC_STR,BTC_XRP,USDT_ETH,BTC_REP,USDT_EOS,USDC_ATOM,USDT_XRP,BTC_ETH,USDT_LSK,USDT_SC,USDT_MANA,USDC_ETC,USDC_ETH,BTC_BTS,BTC_LTC,BTC_ETC,BTC_OMG,BTC_STORJ,USDC_XRP,USDT_GRIN,BTC_QTUM,BTC_MAID,BTC_XEM,USDT_BTC,USDT_DASH,ETH_REP,BTC_ZEC,BTC_STRAT,USDC_LTC,BTC_FOAM,USDC_TRX,BTC_DOGE,BTC_VIA,BTC_VTC,ETH_ETC,USDT_ETC,ETH_EOS,USDC_BCHSV,USDT_NXT,USDT_XMR,BTC_ARDR,BTC_CVC,ETH_BAT,USDC_DOGE,BTC_XPM,BTC_LOOM,BTC_LPT,USDC_EOS,USDT_DGB,USDT_BCHSV,BTC_OMNI,ETH_ZEC,BTC_EOS,BTC_KNC,BTC_BCHSV,BTC_POLY,USDC_DASH,USDT_GNT,BTC_BCHABC,BTC_GRIN,BTC_ATOM,USDT_ATOM,USDT_BCHABC,BTC_LSK,ETH_ZRX,BTC_GAS,BTC_BAT,BTC_BNT,USDT_TRX,BTC_FCT,USDT_ZEC,BTC_GNT,USDT_DOGE,USDC_USDT",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      }
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "urlEndpoints": null
+   },
+   "features": null,
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 0,
+    "websocketBufferEnabled": false,
+    "publishPeriod": null
+   }
+  },
+  {
    "name": "Okx",
    "enabled": true,
    "verbose": false,
@@ -2729,64 +2787,6 @@
     "websocketBufferEnabled": false,
     "publishPeriod": 10000000000
    }
-  },
-  {
-    "name": "Mexc",
-    "enabled": true,
-    "verbose": false,
-    "httpTimeout": 0,
-    "websocketResponseCheckTimeout": 0,
-    "websocketResponseMaxLimit": 0,
-    "websocketTrafficTimeout": 0,
-    "connectionMonitorDelay": 0,
-    "baseCurrencies": "",
-    "currencyPairs": {
-    "bypassConfigFormatUpgrades": false,
-    "useGlobalFormat": false,
-    "pairs": {
-        "spot": {
-            "assetEnabled": true,
-            "enabled": "BTC-USDT,BTC-ETH,BTC-DOGE,BTC-DASH,BTC-XRP",
-            "available": "USDC-GRIN,BTC-BCN,BTC-DGB,BTC-XMR,USDT-STR,BTC-SC,BTC-ZRX,USDC-XMR,BTC-TRX,BTC-STR,BTC-SNT,USDT-QTUM,USDC-BTC,BTC-NMR,BTC-DASH,BTC-NXT,USDT-LTC,BTC-DCR,USDT-ZRX,USDC-ZEC,USDT-REP,USDT-BAT,BTC-MANA,USDC-BCHABC,USDC-STR,BTC-XRP,USDT-ETH,BTC-REP,USDT-EOS,USDC-ATOM,USDT-XRP,BTC-ETH,USDT-LSK,USDT-SC,USDT-MANA,USDC-ETC,USDC-ETH,BTC-BTS,BTC-LTC,BTC-ETC,BTC-OMG,BTC-STORJ,USDC-XRP,USDT-GRIN,BTC-QTUM,BTC-MAID,BTC-XEM,USDT-BTC,USDT-DASH,ETH-REP,BTC-ZEC,BTC-STRAT,USDC-LTC,BTC-FOAM,USDC-TRX,BTC-DOGE,BTC-VIA,BTC-VTC,ETH-ETC,USDT-ETC,ETH-EOS,USDC-BCHSV,USDT-NXT,USDT-XMR,BTC-ARDR,BTC-CVC,ETH-BAT,USDC-DOGE,BTC-XPM,BTC-LOOM,BTC-LPT,USDC-EOS,USDT-DGB,USDT-BCHSV,BTC-OMNI,ETH-ZEC,BTC-EOS,BTC-KNC,BTC-BCHSV,BTC-POLY,USDC-DASH,USDT-GNT,BTC-BCHABC,BTC-GRIN,BTC-ATOM,USDT-ATOM,USDT-BCHABC,BTC-LSK,ETH-ZRX,BTC-GAS,BTC-BAT,BTC-BNT,USDT-TRX,BTC-FCT,USDT-ZEC,BTC-GNT,USDT-DOGE,USDC-USDT",
-            "requestFormat": {
-                "uppercase": true
-            },
-            "configFormat": {
-                "uppercase": true,
-                "delimiter": "-"
-            }
-        },
-        "futures": {
-            "assetEnabled": true,
-            "enabled": "BTC_USDT,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",
-            "available": "USDC_GRIN,BTC_BCN,BTC_DGB,BTC_XMR,USDT_STR,BTC_SC,BTC_ZRX,USDC_XMR,BTC_TRX,BTC_STR,BTC_SNT,USDT_QTUM,USDC_BTC,BTC_NMR,BTC_DASH,BTC_NXT,USDT_LTC,BTC_DCR,USDT_ZRX,USDC_ZEC,USDT_REP,USDT_BAT,BTC_MANA,USDC_BCHABC,USDC_STR,BTC_XRP,USDT_ETH,BTC_REP,USDT_EOS,USDC_ATOM,USDT_XRP,BTC_ETH,USDT_LSK,USDT_SC,USDT_MANA,USDC_ETC,USDC_ETH,BTC_BTS,BTC_LTC,BTC_ETC,BTC_OMG,BTC_STORJ,USDC_XRP,USDT_GRIN,BTC_QTUM,BTC_MAID,BTC_XEM,USDT_BTC,USDT_DASH,ETH_REP,BTC_ZEC,BTC_STRAT,USDC_LTC,BTC_FOAM,USDC_TRX,BTC_DOGE,BTC_VIA,BTC_VTC,ETH_ETC,USDT_ETC,ETH_EOS,USDC_BCHSV,USDT_NXT,USDT_XMR,BTC_ARDR,BTC_CVC,ETH_BAT,USDC_DOGE,BTC_XPM,BTC_LOOM,BTC_LPT,USDC_EOS,USDT_DGB,USDT_BCHSV,BTC_OMNI,ETH_ZEC,BTC_EOS,BTC_KNC,BTC_BCHSV,BTC_POLY,USDC_DASH,USDT_GNT,BTC_BCHABC,BTC_GRIN,BTC_ATOM,USDT_ATOM,USDT_BCHABC,BTC_LSK,ETH_ZRX,BTC_GAS,BTC_BAT,BTC_BNT,USDT_TRX,BTC_FCT,USDT_ZEC,BTC_GNT,USDT_DOGE,USDC_USDT",
-            "requestFormat": {
-                "uppercase": true,
-                "delimiter": "_"
-            },
-            "configFormat": {
-                "uppercase": true,
-                "delimiter": "_"
-            }
-        }
-     }
-    },
-    "api": {
-    "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
-    "credentials": {
-        "key": "Key",
-        "secret": "Secret"
-    },
-    "urlEndpoints": null
-    },
-    "features": null,
-    "orderbook": {
-        "verificationBypass": false,
-        "websocketBufferLimit": 0,
-        "websocketBufferEnabled": false,
-        "publishPeriod": null
-    }
   }
  ],
  "bankAccounts": [

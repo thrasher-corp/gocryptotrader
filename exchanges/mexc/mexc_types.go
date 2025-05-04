@@ -472,7 +472,7 @@ type DustConvertResponse struct {
 	ConvertFee   types.Number                      `json:"convertFee"`
 }
 
-// DustAssetConversionFailResponse represents a dust asset convertion failure message for each asset.
+// DustAssetConversionFailResponse represents a dust asset conversion failure message for each asset.
 type DustAssetConversionFailResponse struct {
 	Asset   string `json:"asset"`
 	Message string `json:"message"`
