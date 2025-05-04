@@ -584,15 +584,8 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	if err != nil {
 		return nil, err
 	}
-	var timeInForce string
-	switch {
-	case s.TimeInForce.Is(order.GoodTillCancel):
-		timeInForce = "good_til_cancelled"
-	case s.TimeInForce.Is(order.GoodTillDay):
-		timeInForce = "good_till_day"
-	case s.TimeInForce.Is(order.FillOrKill):
-		timeInForce = "fill_or_kill"
-	case s.TimeInForce.Is(order.ImmediateOrCancel):
+	timeInForce := ""
+	if s.TimeInForce.Is(order.ImmediateOrCancel) {
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData
@@ -916,7 +909,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				return nil, err
 			}
 			if ordersData[y].PostOnly {
-				tif = order.PostOnly
+				tif |= order.PostOnly
 			}
 
 			resp = append(resp, order.Detail{
