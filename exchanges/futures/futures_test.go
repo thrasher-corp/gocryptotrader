@@ -848,16 +848,16 @@ func TestSetupPositionTracker(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	p := &PNLCalculator{}
-	_, err := p.CalculatePNL(context.Background(), nil)
+	_, err := p.CalculatePNL(t.Context(), nil)
 	if !errors.Is(err, ErrNilPNLCalculator) {
 		t.Errorf("received '%v' expected '%v", err, ErrNilPNLCalculator)
 	}
-	_, err = p.CalculatePNL(context.Background(), &PNLCalculatorRequest{})
+	_, err = p.CalculatePNL(t.Context(), &PNLCalculatorRequest{})
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}
 
-	_, err = p.CalculatePNL(context.Background(),
+	_, err = p.CalculatePNL(t.Context(),
 		&PNLCalculatorRequest{
 			OrderDirection:   order.Short,
 			CurrentDirection: order.Long,
