@@ -53,8 +53,6 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 		result = FillOrKill
 	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
 		result = PostOnly
-	case "POST_ONLY_GOOD_TIL_CANCELLED":
-		result = GoodTillCancel | PostOnly
 	}
 	if result == UnknownTIF && timeInForce != "" {
 		return UnknownTIF, fmt.Errorf("%w: tif=%s", ErrInvalidTimeInForce, timeInForce)
@@ -67,7 +65,9 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 func (t TimeInForce) IsValid() bool {
 	// Neither ImmediateOrCancel nor FillOrKill can coexist with anything else
 	// If either bit is set then it must be the only bit set
-	if t&(ImmediateOrCancel|FillOrKill) != 0 && t&(t-1) != 0 {
+	isIOCorFOK := t&(ImmediateOrCancel|FillOrKill) != 0
+	hasTwoBitsSet := t&(t-1) != 0
+	if isIOCorFOK && hasTwoBitsSet {
 		return false
 	}
 	return t == UnknownTIF || supportedTimeInForceFlag&t == t
@@ -106,10 +106,14 @@ func (t TimeInForce) String() string {
 	return strings.Join(tifStrings, ",")
 }
 
+// Lower returns a lower case string representation of time-in-force
+func (t TimeInForce) Lower() string {
+	return strings.ToLower(t.String())
+}
+
 // UnmarshalJSON deserializes a string data into TimeInForce instance.
 func (t *TimeInForce) UnmarshalJSON(data []byte) error {
-	tifStrings := strings.Split(strings.Trim(string(data), `"`), ",")
-	for _, val := range tifStrings {
+	for val := range strings.SplitSeq(strings.Trim(string(data), `"`), ",") {
 		tif, err := StringToTimeInForce(val)
 		if err != nil {
 			return err

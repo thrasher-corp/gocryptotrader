@@ -2394,7 +2394,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 			return nil, errInvalidPrice
 		}
 		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
-			return nil, fmt.Errorf("%w: `%s`; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
+			return nil, fmt.Errorf("%w: `%s`; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
 			return nil, errInvalidTextValue
