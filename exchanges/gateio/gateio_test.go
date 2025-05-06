@@ -1034,7 +1034,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), "open", currency.USDT, "", 0, 0, 1)
+	_, err := g.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, 1)
 	assert.NoError(t, err, "GetDeliveryOrders should not error")
 }
 
@@ -1110,7 +1110,7 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestGetDeliveryAllAutoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetDeliveryAllAutoOrder(t.Context(), "open", currency.USDT, getPair(t, asset.DeliveryFutures), 0, 1)
+	_, err := g.GetDeliveryAllAutoOrder(t.Context(), statusOpen, currency.USDT, getPair(t, asset.DeliveryFutures), 0, 1)
 	assert.NoError(t, err, "GetDeliveryAllAutoOrder should not error")
 }
 
@@ -1196,7 +1196,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.GetFuturesOrders(t.Context(), currency.NewPair(currency.BTC, currency.USD), "open", "", currency.BTC, 0, 0, 1)
+	_, err := g.GetFuturesOrders(t.Context(), currency.NewPair(currency.BTC, currency.USD), statusOpen, "", currency.BTC, 0, 0, 1)
 	assert.NoError(t, err, "GetFuturesOrders should not error")
 }
 
@@ -1328,7 +1328,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 func TestListAllFuturesAutoOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	_, err := g.ListAllFuturesAutoOrders(t.Context(), "open", currency.BTC, currency.EMPTYPAIR, 0, 0)
+	_, err := g.ListAllFuturesAutoOrders(t.Context(), statusOpen, currency.BTC, currency.EMPTYPAIR, 0, 0)
 	assert.NoError(t, err, "ListAllFuturesAutoOrders should not error")
 }
 
