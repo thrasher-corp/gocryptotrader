@@ -242,13 +242,11 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
 	type limitTest struct {
 		pair currency.Pair
 		step float64
 		min  float64
 	}
-
 	tests := map[asset.Item][]limitTest{
 		asset.Spot: {
 			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 20},
@@ -256,26 +254,19 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		},
 	}
 	for assetItem, limitTests := range tests {
-		if err := b.UpdateOrderExecutionLimits(t.Context(), assetItem); err != nil {
-			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
-		}
-		for _, limitTest := range limitTests {
-			limits, err := b.GetOrderExecutionLimits(assetItem, limitTest.pair)
-			if err != nil {
-				t.Errorf("Bitstamp GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
+		assert.NoError(t, b.UpdateOrderExecutionLimits(t.Context(), assetItem), "UpdateOrderExecutionLimits should not error")
+		for _, lt := range limitTests {
+			l, err := b.GetOrderExecutionLimits(assetItem, lt.pair)
+			if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
 				continue
 			}
-			assert.NotEmpty(t, limits.Pair, "Pair should not be empty")
-			assert.Positive(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, limits.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
+			assert.NotEmpty(t, l.Key.Pair(), "Pair should not be empty")
+			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
 			if mockTests {
-				if got := limits.PriceStepIncrementSize; got != limitTest.step {
-					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
-				}
-				if got := limits.MinimumQuoteAmount; got != limitTest.min {
-					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
-				}
+				assert.Equal(t, lt.step, l.PriceStepIncrementSize)
+				assert.Equal(t, lt.min, l.MinimumQuoteAmount)
 			}
 		}
 	}

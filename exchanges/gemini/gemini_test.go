@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1277,12 +1278,12 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	for x := range availPairs {
-		var limit order.MinMaxLevel
-		limit, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])
+		var l limits.MinMaxLevel
+		l, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])
 		if err != nil {
 			t.Fatal(err, availPairs[x])
 		}
-		if limit == (order.MinMaxLevel{}) {
+		if l == (limits.MinMaxLevel{}) {
 			t.Fatal("exchange limit should be loaded")
 		}
 	}

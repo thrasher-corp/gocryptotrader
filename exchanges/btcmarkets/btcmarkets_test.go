@@ -1067,23 +1067,14 @@ func TestWrapperModifyOrder(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 
-	lim, err := b.ExecutionLimits.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if lim == (order.MinMaxLevel{}) {
-		t.Fatal("expected value return")
-	}
+	lim, err := b.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	require.NotEmpty(t, lim, "limit must be populated")
 }
 
 func TestConvertToKlineCandle(t *testing.T) {

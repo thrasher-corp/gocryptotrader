@@ -21,15 +21,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const testExchange = "binance"
+const testExchange = "okx"
 
 type fakeFund struct{}
 
@@ -129,7 +128,7 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &binance.Binance{}
+	f := &okx.Okx{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
@@ -210,9 +209,14 @@ func TestPlaceOrder(t *testing.T) {
 	assert.ErrorIs(t, err, engine.ErrExchangeNameIsEmpty)
 
 	f.Exchange = testExchange
+	err = exch.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
-	assert.ErrorIs(t, err, gctorder.ErrPairIsEmpty)
-
+	if !errors.Is(err, gctorder.ErrPairIsEmpty) {
+		t.Errorf("received: %v, expected: %v", err, gctorder.ErrPairIsEmpty)
+	}
 	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
@@ -245,7 +249,7 @@ func TestExecuteOrder(t *testing.T) {
 	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(t.Context(), p, a)
 	require.NoError(t, err, "UpdateOrderbook must not error")
-	f := &binanceus.Binanceus{}
+	f := &okx.Okx{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,

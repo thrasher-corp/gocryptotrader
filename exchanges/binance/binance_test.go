@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -2517,46 +2518,28 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.CoinMarginedFutures)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	require.NoError(t, err)
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.USDTMarginedFutures)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Binary)
-	if err == nil {
-		t.Fatal("expected unhandled case")
-	}
+	require.Error(t, err, "UpdateOrderExecutionLimits must error for unsupported asset type")
 
 	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if limit == (order.MinMaxLevel{}) {
-		t.Fatal("exchange limit should be loaded")
-	}
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	require.NotEmpty(t, limit, "exchange limit must exist")
 
 	err = limit.Conforms(0.000001, 0.1, order.Limit)
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Fatalf("expected %v, but received %v", order.ErrAmountBelowMin, err)
-	}
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "expected amount to be below min")
 
 	err = limit.Conforms(0.01, 1, order.Limit)
-	if !errors.Is(err, order.ErrPriceBelowMin) {
-		t.Fatalf("expected %v, but received %v", order.ErrPriceBelowMin, err)
+	if !errors.Is(err, limits.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, but received %v", limits.ErrPriceBelowMin, err)
 	}
 }
 
@@ -2761,11 +2744,11 @@ func TestFetchExchangeLimits(t *testing.T) {
 	t.Parallel()
 	limits, err := b.FetchExchangeLimits(t.Context(), asset.Spot)
 	assert.NoError(t, err, "FetchExchangeLimits should not error")
-	assert.NotEmpty(t, limits, "Should get some limits back")
+	assert.NotEmpty(t, l, "Should get some limits back")
 
 	limits, err = b.FetchExchangeLimits(t.Context(), asset.Margin)
 	assert.NoError(t, err, "FetchExchangeLimits should not error")
-	assert.NotEmpty(t, limits, "Should get some limits back")
+	assert.NotEmpty(t, l, "Should get some limits back")
 
 	_, err = b.FetchExchangeLimits(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits should error on other asset types")
@@ -2790,28 +2773,28 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		require.NoError(t, err, "UpdateOrderExecutionLimits should not error")
 
 		p := tests[a]
-		limits, err := b.GetOrderExecutionLimits(a, p)
+		l, err := b.GetOrderExecutionLimits(a, p)
 		require.NoErrorf(t, err, "GetOrderExecutionLimits should not error for %s pair %s", a, p)
-		assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaxPrice, "MaxPrice must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.MinPrice, "MinPrice must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.MaxPrice, "MaxPrice must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", a, p)
+		assert.Positivef(t, l.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", a, p)
 		switch a {
 		case asset.Spot, asset.Margin:
-			assert.Positivef(t, limits.MaxIcebergParts, "MaxIcebergParts must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MaxIcebergParts, "MaxIcebergParts must be positive for %s pair %s", a, p)
 		case asset.USDTMarginedFutures:
-			assert.Positivef(t, limits.MinNotional, "MinNotional must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MinNotional, "MinNotional must be positive for %s pair %s", a, p)
 			fallthrough
 		case asset.CoinMarginedFutures:
-			assert.Positivef(t, limits.MultiplierUp, "MultiplierUp must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MultiplierDown, "MultiplierDown must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MarketMinQty, "MarketMinQty must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MarketStepIncrementSize, "MarketStepIncrementSize must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MaxAlgoOrders, "MaxAlgoOrders must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MultiplierUp, "MultiplierUp must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MultiplierDown, "MultiplierDown must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MarketMinQty, "MarketMinQty must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MarketStepIncrementSize, "MarketStepIncrementSize must be positive for %s pair %s", a, p)
+			assert.Positivef(t, l.MaxAlgoOrders, "MaxAlgoOrders must be positive for %s pair %s", a, p)
 		}
 	}
 }
