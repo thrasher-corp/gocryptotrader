@@ -1,6 +1,7 @@
 package order
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,10 +89,11 @@ func TestString(t *testing.T) {
 		GoodTillTime | PostOnly:        "GTT,POSTONLY",
 		GoodTillDay | PostOnly:         "GTD,POSTONLY",
 		FillOrKill | ImmediateOrCancel: "IOC,FOK",
+		TimeInForce(1):                 "UNKNOWN",
 	}
 	for x := range valMap {
-		result := x.String()
-		assert.Equalf(t, valMap[x], result, "expected %v, got %v", x, result)
+		assert.Equal(t, valMap[x], x.String())
+		assert.Equal(t, strings.ToLower(valMap[x]), x.Lower())
 	}
 }
 
@@ -108,6 +110,13 @@ func TestUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(data), &target)
 	require.NoError(t, err)
 	require.Equal(t, targets, target.TIFs)
+
+	data = `{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	target = &struct {
+		TIFs []TimeInForce `json:"tifs"`
+	}{}
+	err = json.Unmarshal([]byte(data), &target)
+	require.ErrorIs(t, err, ErrInvalidTimeInForce)
 }
 
 func TestMarshalJSON(t *testing.T) {
