@@ -184,14 +184,14 @@ func TestExchangePairs(t *testing.T) {
 	}
 }
 
-func TestAccountInfo(t *testing.T) {
+func TestExchangeAccountInfo(t *testing.T) {
 	t.Parallel()
 	_, err := gct.ExchangeAccountInfo()
 	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	obj, err := gct.ExchangeAccountInfo(ctx, exch, assetType)
 	require.NoError(t, err)
 	rString, ok := objects.ToString(obj)
-	require.True(t, ok)
+	require.True(t, ok, "ExchangeAccountInfo return value must return correctly from objects.ToString")
 	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 
@@ -245,7 +245,7 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	require.NoError(t, err)
 
 	rString, ok := objects.ToString(obj)
-	require.True(t, ok)
+	require.True(t, ok, "OrderSubmit return value must return correctly from objects.ToString")
 	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 

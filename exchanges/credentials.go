@@ -120,7 +120,7 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 
 		creds := ctxCredStore.Get()
 		if err := b.CheckCredentials(creds, true); err != nil {
-			return nil, fmt.Errorf("context credentials issue: %w", err)
+			return nil, fmt.Errorf("error checking credentials from context: %w", err)
 		}
 		return creds, nil
 	}
