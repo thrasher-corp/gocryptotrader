@@ -119,14 +119,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestInterface(t *testing.T) {
-	t.Parallel()
-	var e exchange.IBotExchange
-	e = new(Bitget)
-	_, ok := e.(exchange.IBotExchange)
-	assert.True(t, ok)
-}
-
 func TestSetup(t *testing.T) {
 	cfg, err := bi.GetStandardConfig()
 	assert.NoError(t, err)
