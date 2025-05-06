@@ -70,10 +70,7 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 // with or without delimiter
 func NewPairFromString(currencyPair string) (Pair, error) {
 	if len(currencyPair) < 3 {
-		return EMPTYPAIR,
-			fmt.Errorf("%w from %s string too short to be a currency pair",
-				errCannotCreatePair,
-				currencyPair)
+		return EMPTYPAIR, fmt.Errorf("%w from %s string too short to be a currency pair", errCannotCreatePair, currencyPair)
 	}
 
 	for x := range currencyPair {
