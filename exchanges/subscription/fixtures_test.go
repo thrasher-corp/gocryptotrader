@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var errDuplicateSubscription = errors.New("duplicate subscription")
+var errValidateSubscriptionsTestError = errors.New("validate subscriptions test error")
 
 type mockExWithSubValidator struct {
 	Fail bool
@@ -23,19 +23,17 @@ type mockExWithSubValidator struct {
 }
 
 func (m *mockExWithSubValidator) ValidateSubscriptions(in List) error {
-	check := make(map[string]bool)
 	for _, sub := range in {
-		if check[sub.QualifiedChannel] {
-			return fmt.Errorf("%w: '%s'", errDuplicateSubscription, sub.QualifiedChannel)
+		if sub.Channel == "fail-channel" {
+			return fmt.Errorf("%w: '%s'", errValidateSubscriptionsTestError, sub.String())
 		}
-		check[sub.QualifiedChannel] = true
 	}
 	return nil
 }
 
 func (m *mockExWithSubValidator) GetSubscriptions() (List, error) {
 	if m.Fail {
-		return List{{Channel: "single-channel"}}, nil
+		return List{{Channel: "fail-channel"}}, nil
 	}
 	return nil, nil
 }

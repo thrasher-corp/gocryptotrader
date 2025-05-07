@@ -86,14 +86,7 @@ func (l List) ExpandTemplates(e IExchange) (List, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Expand stored subscriptions to ensure we have the same template applied to validate
-		// against the incoming subscriptions. Pass e using IExchange interface to prevent exposure
-		// to ListValidator and avoid recursion.
-		expStoredSubs, err := storedSubs.ExpandTemplates(struct{ IExchange }{e})
-		if err != nil {
-			return nil, err
-		}
-		if err := v.ValidateSubscriptions(slices.Concat(subs, expStoredSubs)); err != nil {
+		if err := v.ValidateSubscriptions(slices.Concat(subs, storedSubs)); err != nil {
 			return nil, fmt.Errorf("error validating subscriptions: %w", err)
 		}
 	}
