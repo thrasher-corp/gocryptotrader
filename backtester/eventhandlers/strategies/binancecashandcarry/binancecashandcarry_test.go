@@ -116,7 +116,7 @@ func TestSortSignals(t *testing.T) {
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err := d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -321,7 +321,7 @@ func (p portfolerino) GetPositions(common.Event) ([]futures.Position, error) {
 		{
 			Exchange:           exchangeName,
 			Asset:              asset.Spot,
-			Pair:               currency.NewPair(currency.BTC, currency.USD),
+			Pair:               currency.NewBTCUSD(),
 			Underlying:         currency.BTC,
 			CollateralCurrency: currency.USD,
 		},
@@ -336,14 +336,14 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, base.ErrNoDataToProcess)
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	d := &datakline.DataFromKline{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange:       exchangeName,
 			Asset:          asset.Spot,
 			Pair:           cp,
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			UnderlyingPair: currency.NewBTCUSD(),
 		},
 	}
 	tt := time.Now()
@@ -450,7 +450,7 @@ func TestCloseAllPositions(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 	leet := decimal.NewFromInt(1337)
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	h := []holdings.Holding{
 		{
 			Offset:   1,

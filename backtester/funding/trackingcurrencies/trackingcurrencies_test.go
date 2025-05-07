@@ -92,8 +92,8 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 	tests := []testPair{
 		{
 			description:    "already has USDT",
-			initialPair:    currency.NewPair(currency.BTC, currency.USDT),
-			availablePairs: &currency.PairStore{Available: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}},
+			initialPair:    currency.NewBTCUSDT(),
+			availablePairs: &currency.PairStore{Available: currency.Pairs{currency.NewBTCUSDT()}},
 			basePair:       currency.EMPTYPAIR,
 			quotePair:      currency.EMPTYPAIR,
 			expectedErr:    ErrCurrencyContainsUSD,
@@ -101,8 +101,8 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 		{
 			description:    "successful",
 			initialPair:    currency.NewPair(currency.BTC, currency.LTC),
-			availablePairs: &currency.PairStore{Available: currency.Pairs{currency.NewPair(currency.BTC, currency.LTC), currency.NewPair(currency.BTC, currency.USDT), currency.NewPair(currency.LTC, currency.TUSD)}},
-			basePair:       currency.NewPair(currency.BTC, currency.USDT),
+			availablePairs: &currency.PairStore{Available: currency.Pairs{currency.NewPair(currency.BTC, currency.LTC), currency.NewBTCUSDT(), currency.NewPair(currency.LTC, currency.TUSD)}},
+			basePair:       currency.NewBTCUSDT(),
 			quotePair:      currency.NewPair(currency.LTC, currency.TUSD),
 			expectedErr:    nil,
 		},
@@ -167,7 +167,7 @@ func TestPairContainsUSD(t *testing.T) {
 		{
 			"btcusdt",
 			true,
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 		},
 		{
 			"btcdoge",
@@ -192,7 +192,7 @@ func TestPairContainsUSD(t *testing.T) {
 		{
 			"btcusd",
 			true,
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 		},
 		{
 			"btcaud",

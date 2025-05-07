@@ -269,7 +269,7 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Pairs:     []currency.Pair{currency.NewBTCUSD()},
 		Side:      order.AnySide,
 	}
 
@@ -311,7 +311,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.BTC, currency.USD)
+	currencyPair := currency.NewBTCUSD()
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
 		AccountID: "1",
@@ -1139,7 +1139,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		},
 	})
 	if err != nil {

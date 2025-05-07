@@ -21,7 +21,7 @@ func TestLoadCandles(t *testing.T) {
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -48,7 +48,7 @@ func TestLoadTrades(t *testing.T) {
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{

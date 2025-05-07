@@ -446,7 +446,7 @@ func TestModifyOrder(t *testing.T) {
 		OrderID:   "1337",
 		Price:     1337,
 		AssetType: asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 	})
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(p) && err != nil && mockTests:
@@ -1096,7 +1096,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		},
 	})
 	if err != nil {
