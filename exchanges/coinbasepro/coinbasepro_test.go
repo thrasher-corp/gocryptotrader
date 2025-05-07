@@ -1,8 +1,6 @@
 package coinbasepro
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -16,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -81,7 +80,7 @@ func TestHistoryUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	data := `[[1746649200,96269.22,96307.18,96275.58,96307.18,1.85952049],[1746649140,96256.39,96297.31,96296,96273.29,3.41045323],[1746649080,96256.01,96365.73,96365.73,96299.99,3.56073877]]`
 	var resp []History
-	err := json.Unmarshal([]byte(data), resp)
+	err := json.Unmarshal([]byte(data), &resp)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, History{
@@ -97,7 +96,7 @@ func TestHistoryUnmarshalJSON(t *testing.T) {
 func TestGetHistoricRates(t *testing.T) {
 	t.Parallel()
 	c.Verbose = true
-	result, err := c.GetHistoricRates(context.Background(), "BTC-USD", "", "", 0)
+	result, err := c.GetHistoricRates(t.Context(), "BTC-USD", "", "", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
