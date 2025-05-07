@@ -133,7 +133,6 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 		return nil, fmt.Errorf("error checking credentials: %w", err)
 	}
 
-	// Sub account override if set
 	if subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string); ok {
 		creds.SubAccount = subAccountOverride
 	}
