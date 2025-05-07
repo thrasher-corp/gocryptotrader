@@ -1,6 +1,8 @@
 package coinbasepro
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -73,6 +75,31 @@ func TestGetTrades(t *testing.T) {
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
+}
+
+func TestHistoryUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := `[[1746649200,96269.22,96307.18,96275.58,96307.18,1.85952049],[1746649140,96256.39,96297.31,96296,96273.29,3.41045323],[1746649080,96256.01,96365.73,96365.73,96299.99,3.56073877]]`
+	var resp []History
+	err := json.Unmarshal([]byte(data), resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, History{
+		Time:   time.Unix(1746649200, 0),
+		Low:    96269.22,
+		High:   96307.18,
+		Open:   96275.58,
+		Close:  96307.18,
+		Volume: 1.85952049,
+	}, resp[0])
+}
+
+func TestGetHistoricRates(t *testing.T) {
+	t.Parallel()
+	c.Verbose = true
+	result, err := c.GetHistoricRates(context.Background(), "BTC-USD", "", "", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {

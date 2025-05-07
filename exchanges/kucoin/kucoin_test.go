@@ -174,6 +174,24 @@ func TestGetTradeHistory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestKlineUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := `[["1746645900","96248.3","96060.4","96248.3","95991.1","7.30387554","701787.956631596"],["1746645600","96407.2","96243.5","96420.2","96213.1","6.72799595","648257.95148221"],["1746645300","96382.8","96407.2","96466.1","96227.8","7.31425727","704541.034713515"],["1746645000","96490.5","96382.8","96503","96376.7","5.06147446","488102.261377795"],["1746644700","96424","96490.5","96517.9","96323.4","12.04216802","1160916.511036681"],["1746644400","96593.4","96423.9","96608.6","96403","10.75654084","1037793.471887188"],["1746644100","96200.5","96588.1","96591.6","96200.5","10.12317892","976893.020212471"],["1746643800","96182.2","96191.8","96241.7","95998.6","8.00901063","769988.0586614"],["1746643500","96404.1","96160.1","96477.6","96102.8","10.86244787","1045287.271213675"],["1746643200","96680.1","96395.4","96734.7","96395.3","9.54921963","921978.587594588"],["1746642900","96790.7","96680.1","96851.6","96587.5","11.35501379","1098593.622144195"],["1746642600","96447.7","96760","96868.5","96291.1","16.35392542","1580649.199051741"]]`
+	var target []Kline
+	err := json.Unmarshal([]byte(data), &target)
+	require.NoError(t, err)
+	require.NotNil(t, target)
+	assert.Equal(t, Kline{
+		StartTime: time.Unix(1746645900, 0),
+		Open:      96248.3,
+		Close:     96060.4,
+		High:      96248.3,
+		Low:       95991.1,
+		Volume:    7.30387554,
+		Amount:    701787.956631596,
+	}, target[0])
+}
+
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetKlines(t.Context(), "", "1week", time.Time{}, time.Time{})
@@ -184,6 +202,7 @@ func TestGetKlines(t *testing.T) {
 	result, err := ku.GetKlines(t.Context(), spotTradablePair.String(), "1week", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+	ku.Verbose = true
 	result, err = ku.GetKlines(t.Context(), spotTradablePair.String(), "5min", time.Now().Add(-time.Hour*1), time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1508,6 +1527,23 @@ func TestGetFuturesServiceStatus(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestFuturesKlineUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := `[1746518400000,1806.48,1806.48,1794.41,1794.41,1560]`
+	var target *FuturesKline
+	err := json.Unmarshal([]byte(data), &target)
+	require.NoError(t, err)
+	require.NotNil(t, target)
+	assert.Equal(t, FuturesKline{
+		StartTime: time.UnixMilli(1746518400000),
+		Open:      1806.48,
+		High:      1806.48,
+		Low:       1794.41,
+		Close:     1794.41,
+		Volume:    1560,
+	}, *target)
+}
+
 func TestGetFuturesKline(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetFuturesKline(t.Context(), 0, "XBTUSDTM", time.Time{}, time.Time{})
@@ -1517,6 +1553,7 @@ func TestGetFuturesKline(t *testing.T) {
 	_, err = ku.GetFuturesKline(t.Context(), int64(kline.ThirtyMin.Duration().Minutes()), "", time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
+	ku.Verbose = true
 	result, err := ku.GetFuturesKline(t.Context(), int64(kline.ThirtyMin.Duration().Minutes()), futuresTradablePair.String(), time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

@@ -1,6 +1,7 @@
 package kucoin
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -153,6 +154,18 @@ type FuturesKline struct {
 	High      float64
 	Low       float64
 	Volume    float64
+}
+
+// UnmarshalJSON parses kline data from a JSON array into FuturesKline fields.
+func (f *FuturesKline) UnmarshalJSON(data []byte) error {
+	var startTime types.Time
+	target := &[6]any{&startTime, &(f.Open), &(f.High), &(f.Low), &(f.Close), &(f.Volume)}
+	err := json.Unmarshal(data, target)
+	if err != nil {
+		return err
+	}
+	f.StartTime = startTime.Time()
+	return nil
 }
 
 // FutureOrdersResponse represents a future order response list detail

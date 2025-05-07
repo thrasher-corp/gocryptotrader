@@ -1767,11 +1767,11 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			timeseries = append(
 				timeseries, kline.Candle{
 					Time:   candles[x].StartTime,
-					Open:   candles[x].Open,
-					High:   candles[x].High,
-					Low:    candles[x].Low,
-					Close:  candles[x].Close,
-					Volume: candles[x].Volume,
+					Open:   candles[x].Open.Float64(),
+					High:   candles[x].High.Float64(),
+					Low:    candles[x].Low.Float64(),
+					Close:  candles[x].Close.Float64(),
+					Volume: candles[x].Volume.Float64(),
 				})
 		}
 	default:
@@ -1825,11 +1825,11 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				timeSeries = append(
 					timeSeries, kline.Candle{
 						Time:   candles[x].StartTime,
-						Open:   candles[x].Open,
-						High:   candles[x].High,
-						Low:    candles[x].Low,
-						Close:  candles[x].Close,
-						Volume: candles[x].Volume,
+						Open:   candles[x].Open.Float64(),
+						High:   candles[x].High.Float64(),
+						Low:    candles[x].Low.Float64(),
+						Close:  candles[x].Close.Float64(),
+						Volume: candles[x].Volume.Float64(),
 					})
 			}
 		}

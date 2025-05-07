@@ -1,9 +1,11 @@
 package coinbasepro
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Product holds product information
@@ -55,6 +57,18 @@ type History struct {
 	Open   float64
 	Close  float64
 	Volume float64
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into History fields.
+func (h *History) UnmarshalJSON(data []byte) error {
+	var t types.Time
+	target := []any{&t, &(h.Low), &(h.High), &(h.Open), &(h.Close), &(h.Volume)}
+	err := json.Unmarshal(data, &target)
+	if err != nil {
+		return err
+	}
+	h.Time = t.Time()
+	return nil
 }
 
 // Stats holds last 24 hr data for coinbasepro
