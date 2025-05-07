@@ -130,7 +130,7 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	creds := b.API.credentials
 	b.API.credMu.RUnlock()
 	if err := b.CheckCredentials(&creds, false); err != nil {
-		return nil, fmt.Errorf("invalid default credentials: %w", err)
+		return nil, fmt.Errorf("error checking credentials: %w", err)
 	}
 
 	// Sub account override if set
