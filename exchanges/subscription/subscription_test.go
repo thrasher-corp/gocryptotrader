@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	btcusdtPair = currency.NewPair(currency.BTC, currency.USDT)
+	btcusdtPair = currency.NewBTCUSDT()
 	ethusdcPair = currency.NewPair(currency.ETH, currency.USDC)
 	ltcusdcPair = currency.NewPair(currency.LTC, currency.USDC)
 )
@@ -81,7 +81,7 @@ func TestSubscriptionMarshaling(t *testing.T) {
 	assert.NoError(t, err, "Marshalling should not error")
 	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
-	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}})
+	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: currency.Pairs{currency.NewBTCUSDT()}})
 	assert.NoError(t, err, "Marshalling should not error")
 	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","pairs":"BTCUSDT","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 

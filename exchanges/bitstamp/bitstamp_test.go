@@ -32,7 +32,7 @@ const (
 
 var (
 	b          = &Bitstamp{}
-	btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+	btcusdPair = currency.NewBTCUSD()
 )
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -252,7 +252,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	tests := map[asset.Item][]limitTest{
 		asset.Spot: {
 			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 20},
-			{currency.NewPair(currency.BTC, currency.USDT), 0.01, 20},
+			{currency.NewBTCUSDT(), 0.01, 20},
 		},
 	}
 	for assetItem, limitTests := range tests {

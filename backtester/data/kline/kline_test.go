@@ -23,7 +23,7 @@ func TestLoad(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	tt := time.Now()
 	d := DataFromKline{
 		Base: &data.Base{},
@@ -60,7 +60,7 @@ func TestHasDataAtTime(t *testing.T) {
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
@@ -148,7 +148,7 @@ func TestHasDataAtTime(t *testing.T) {
 func TestAppend(t *testing.T) {
 	t.Parallel()
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	tt1 := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	tt2 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	d := DataFromKline{
@@ -211,7 +211,7 @@ func TestStreamOpen(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
@@ -258,7 +258,7 @@ func TestStreamVolume(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
@@ -305,7 +305,7 @@ func TestStreamClose(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
@@ -353,7 +353,7 @@ func TestStreamHigh(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
@@ -401,7 +401,7 @@ func TestStreamLow(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base:        &data.Base{},
 		RangeHolder: &gctkline.IntervalRangeHolder{},

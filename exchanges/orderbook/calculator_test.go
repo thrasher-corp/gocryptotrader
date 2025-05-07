@@ -12,7 +12,7 @@ import (
 func testSetup() Base {
 	return Base{
 		Exchange: "a",
-		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Pair:     currency.NewBTCUSD(),
 		Asks: []Tranche{
 			{Price: 7000, Amount: 1},
 			{Price: 7001, Amount: 2},

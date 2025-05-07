@@ -155,7 +155,7 @@ func TestUpsertJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
 	}
 
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
+	dhj.Pair = currency.NewBTCUSD()
 	err = m.UpsertJob(dhj, false)
 	if !errors.Is(err, kline.ErrUnsupportedInterval) {
 		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
@@ -182,7 +182,7 @@ func TestUpsertJob(t *testing.T) {
 		Nickname:                 dhj.Nickname,
 		Exchange:                 testExchange,
 		Asset:                    asset.Spot,
-		Pair:                     currency.NewPair(currency.BTC, currency.USD),
+		Pair:                     currency.NewBTCUSD(),
 		StartDate:                startDate,
 		EndDate:                  time.Now().Add(-time.Minute),
 		Interval:                 kline.FifteenMin,
@@ -217,7 +217,7 @@ func TestSetJobStatus(t *testing.T) {
 		Nickname:  "TestSetJobStatus",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -295,7 +295,7 @@ func TestGetByNickname(t *testing.T) {
 		Nickname:  "TestGetByNickname",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -338,7 +338,7 @@ func TestGetByID(t *testing.T) {
 		Nickname:  "TestGetByID",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -382,7 +382,7 @@ func TestRetrieveJobs(t *testing.T) {
 		Nickname:  "TestRetrieveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -421,7 +421,7 @@ func TestGetActiveJobs(t *testing.T) {
 		Nickname:  "TestGetActiveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -487,7 +487,7 @@ func TestValidateJob(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, errCurrencyNotEnabled)
 	}
 
-	dhj.Pair = currency.NewPair(currency.BTC, currency.USD)
+	dhj.Pair = currency.NewBTCUSD()
 	err = m.validateJob(dhj)
 	if !errors.Is(err, kline.ErrUnsupportedInterval) {
 		t.Errorf("error '%v', expected '%v'", err, kline.ErrUnsupportedInterval)
@@ -547,7 +547,7 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 		Nickname:  "TestGetActiveJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -613,7 +613,7 @@ func TestCompareJobsToData(t *testing.T) {
 		Nickname:           "TestGenerateJobSummary",
 		Exchange:           testExchange,
 		Asset:              asset.Spot,
-		Pair:               currency.NewPair(currency.BTC, currency.USD),
+		Pair:               currency.NewBTCUSD(),
 		StartDate:          tt.Add(-time.Minute * 5),
 		EndDate:            tt,
 		Interval:           kline.OneMin,
@@ -662,7 +662,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:  "TestRunJobDataHistoryCandleDataType",
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			StartDate: tt.Add(-kline.FifteenMin.Duration()),
 			EndDate:   tt,
 			Interval:  kline.FifteenMin,
@@ -672,7 +672,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:  "TestRunJobDataHistoryTradeDataType",
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			StartDate: tt.Add(-kline.OneMin.Duration()),
 			EndDate:   tt,
 			Interval:  kline.OneMin,
@@ -682,7 +682,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:           "TestRunJobDataHistoryConvertCandlesDataType",
 			Exchange:           testExchange,
 			Asset:              asset.Spot,
-			Pair:               currency.NewPair(currency.BTC, currency.USDT),
+			Pair:               currency.NewBTCUSDT(),
 			StartDate:          tt.Add(-kline.OneHour.Duration()),
 			EndDate:            tt,
 			Interval:           kline.FifteenMin,
@@ -693,7 +693,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:           "TestRunJobDataHistoryConvertTradesDataType",
 			Exchange:           testExchange,
 			Asset:              asset.Spot,
-			Pair:               currency.NewPair(currency.BTC, currency.USDT),
+			Pair:               currency.NewBTCUSDT(),
 			StartDate:          tt.Add(-kline.OneHour.Duration()),
 			EndDate:            tt,
 			Interval:           kline.FifteenMin,
@@ -704,7 +704,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:  "TestRunJobDataHistoryCandleValidationDataType",
 			Exchange:  testExchange,
 			Asset:     asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			StartDate: tt.Add(-kline.OneHour.Duration()),
 			EndDate:   tt,
 			Interval:  kline.OneHour,
@@ -714,7 +714,7 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 			Nickname:                "TestRunJobDataHistoryCandleSecondaryValidationDataType",
 			Exchange:                testExchange,
 			Asset:                   asset.Spot,
-			Pair:                    currency.NewPair(currency.BTC, currency.USDT),
+			Pair:                    currency.NewBTCUSDT(),
 			StartDate:               tt.Add(-kline.OneMin.Duration()),
 			EndDate:                 tt,
 			Interval:                kline.OneMin,
@@ -774,7 +774,7 @@ func TestGenerateJobSummaryTest(t *testing.T) {
 		Nickname:  "TestGenerateJobSummary",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().Add(-time.Minute * 5),
 		EndDate:   time.Now(),
 		Interval:  kline.OneMin,
@@ -842,7 +842,7 @@ func TestConverters(t *testing.T) {
 		Nickname:  "TestProcessJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-time.Hour * 24),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
@@ -915,8 +915,8 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 	if !errors.Is(err, nil) {
 		t.Fatalf("error '%v', expected '%v'", err, nil)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	cp2 := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSD()
+	cp2 := currency.NewBTCUSDT()
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
@@ -1011,7 +1011,7 @@ func TestProcessCandleData(t *testing.T) {
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2).Truncate(kline.OneHour.Duration()),
 		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
@@ -1067,7 +1067,7 @@ func TestProcessTradeData(t *testing.T) {
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2).Truncate(kline.OneHour.Duration()),
 		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
@@ -1122,7 +1122,7 @@ func TestConvertJobTradesToCandles(t *testing.T) {
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
@@ -1154,7 +1154,7 @@ func TestUpscaleJobCandleData(t *testing.T) {
 		Nickname:           "",
 		Exchange:           testExchange,
 		Asset:              asset.Spot,
-		Pair:               currency.NewPair(currency.BTC, currency.USDT),
+		Pair:               currency.NewBTCUSDT(),
 		StartDate:          time.Now().Add(-kline.OneHour.Duration() * 24),
 		EndDate:            time.Now(),
 		Interval:           kline.OneHour,
@@ -1186,7 +1186,7 @@ func TestValidateCandles(t *testing.T) {
 		Nickname:  "",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		StartDate: time.Now().Add(-kline.OneHour.Duration() * 2),
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,

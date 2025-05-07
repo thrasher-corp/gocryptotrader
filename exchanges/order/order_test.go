@@ -635,7 +635,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 
 	orders := []Detail{
 		{
-			Pair: currency.NewPair(currency.BTC, currency.USD),
+			Pair: currency.NewBTCUSD(),
 		},
 		{
 			Pair: currency.NewPair(currency.LTC, currency.EUR),
@@ -647,7 +647,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 	}
 
 	currencies := []currency.Pair{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB),
 	}
@@ -657,7 +657,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 	}
 
 	currencies = []currency.Pair{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.EUR),
 	}
 	FilterOrdersByPairs(&orders, currencies)
@@ -665,7 +665,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	currencies = []currency.Pair{currency.NewBTCUSD()}
 	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -690,16 +690,16 @@ func TestFilterOrdersByPairs(t *testing.T) {
 }
 
 var filterOrdersByPairsBenchmark = &[]Detail{
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
 }
 
 // BenchmarkFilterOrdersByPairs benchmark
@@ -707,7 +707,7 @@ var filterOrdersByPairsBenchmark = &[]Detail{
 // 400032	      2977 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 6977242	       172.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByPairs(b *testing.B) {
-	pairs := []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	pairs := []currency.Pair{currency.NewBTCUSD()}
 	for b.Loop() {
 		FilterOrdersByPairs(filterOrdersByPairsBenchmark, pairs)
 	}
@@ -1381,7 +1381,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrPairIsEmpty)
 	}
 
-	cancelMe.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	cancelMe.Pair = currency.NewBTCUSDT()
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
 	if err == nil || err.Error() != ErrAssetNotSet.Error() {
 		t.Errorf("received '%v' expected '%v'", err, ErrAssetNotSet)

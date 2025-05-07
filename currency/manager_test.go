@@ -400,7 +400,7 @@ func TestDisablePair(t *testing.T) {
 	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Empty pair should error")
 
 	p.Pairs = nil
-	err = p.DisablePair(asset.Spot, NewPair(BTC, USD))
+	err = p.DisablePair(asset.Spot, NewBTCUSD())
 	assert.ErrorIs(t, err, ErrPairManagerNotInitialised, "Uninitialised PairManager should error")
 
 	p = initTest(t)
@@ -415,7 +415,7 @@ func TestDisablePair(t *testing.T) {
 	err = p.DisablePair(asset.Spot, NewPair(LTC, USD))
 	assert.ErrorIs(t, err, ErrPairNotFound, "Not Enabled pair should error")
 
-	err = p.DisablePair(asset.Spot, NewPair(BTC, USD))
+	err = p.DisablePair(asset.Spot, NewBTCUSD())
 	assert.NoError(t, err, "DisablePair should not error")
 }
 
@@ -423,13 +423,13 @@ func TestEnablePair(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
 
-	if err := p.EnablePair(asset.Empty, NewPair(BTC, USD)); !errors.Is(err, asset.ErrNotSupported) {
+	if err := p.EnablePair(asset.Empty, NewBTCUSD()); !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
 	p.Pairs = nil
 	// Test enabling a pair when the pair manager is not initialised
-	if err := p.EnablePair(asset.Spot, NewPair(BTC, USD)); err == nil {
+	if err := p.EnablePair(asset.Spot, NewBTCUSD()); err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -452,7 +452,7 @@ func TestEnablePair(t *testing.T) {
 	}
 
 	// Test enabling a pair which already is enabled
-	if err := p.EnablePair(asset.Spot, NewPair(BTC, USD)); err == nil {
+	if err := p.EnablePair(asset.Spot, NewBTCUSD()); err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -616,7 +616,7 @@ func TestIsPairEnabled(t *testing.T) {
 
 func TestEnsureOnePairEnabled(t *testing.T) {
 	t.Parallel()
-	p := NewPair(BTC, USDT)
+	p := NewBTCUSDT()
 	pm := PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {},
@@ -721,7 +721,7 @@ func TestLoad(t *testing.T) {
 	base := PairsManager{}
 	fmt1 := &PairFormat{Uppercase: true}
 	fmt2 := &PairFormat{Uppercase: true, Delimiter: DashDelimiter}
-	p := NewPair(BTC, USDT)
+	p := NewBTCUSDT()
 	tt := int64(1337)
 	seed := PairsManager{
 		LastUpdated:     tt,
