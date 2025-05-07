@@ -705,7 +705,7 @@ func TestSortOrdersByOrderType(t *testing.T) {
 	}
 
 	SortOrdersByType(&orders, false)
-	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), Limit.String()), "Expected: '%v', received: '%v'", TrailingStop, orders[0].Type)
+	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), Limit.String()), "Expected: '%v', received: '%v'", Limit, orders[0].Type)
 }
 
 func TestStringToOrderSide(t *testing.T) {

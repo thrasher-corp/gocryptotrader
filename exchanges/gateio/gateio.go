@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -169,7 +168,7 @@ var (
 )
 
 // validTimesInForce holds a list of supported time-in-force values
-var validTimesInForce = []string{gtcTIF, iocTIF, pocTIF, fokTIF}
+var validTimesInForce = map[string]order.TimeInForce{gtcTIF: order.GoodTillCancel, iocTIF: order.ImmediateOrCancel, pocTIF: order.PostOnly, fokTIF: order.FillOrKill}
 
 // Gateio is the overarching type across this package
 type Gateio struct {
@@ -2297,7 +2296,7 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	if !slices.Contains(validTimesInForce, arg.TimeInForce) {
+	if _, ok := validTimesInForce[arg.TimeInForce]; !ok {
 		return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.Price == "" {
@@ -2387,7 +2386,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
 		args[x].TimeInForce = strings.ToLower(args[x].TimeInForce)
-		if !slices.Contains(validTimesInForce, args[x].TimeInForce) {
+		if _, ok := validTimesInForce[args[x].TimeInForce]; !ok {
 			return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Price == "" {
@@ -2872,7 +2871,7 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
 	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
-	if !slices.Contains(validTimesInForce, arg.TimeInForce) {
+	if _, ok := validTimesInForce[arg.TimeInForce]; !ok {
 		return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.Price == "" {

@@ -973,13 +973,15 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			return nil, err
 		}
 		var timeInForce string
-		switch s.TimeInForce {
-		case order.ImmediateOrCancel,
-			order.FillOrKill,
-			order.GoodTillCancel:
-			timeInForce = s.TimeInForce.Lower()
-		case order.PostOnly:
+		switch {
+		case s.TimeInForce.Is(order.PostOnly):
 			timeInForce = "poc"
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
+			timeInForce = order.ImmediateOrCancel.Lower()
+		case s.TimeInForce.Is(order.FillOrKill):
+			timeInForce = order.FillOrKill.Lower()
+		case s.TimeInForce.Is(order.GoodTillCancel):
+			timeInForce = order.GoodTillCancel.Lower()
 		}
 		settle, err := getSettlementCurrency(s.Pair, s.AssetType)
 		if err != nil {
@@ -1313,10 +1315,6 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if fOrder.OrderPrice > 0 {
 			oType = order.Limit
 		}
-		tif, err := order.StringToTimeInForce(fOrder.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -1332,7 +1330,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:                 pair,
 			AssetType:            a,
 			Type:                 oType,
-			TimeInForce:          tif,
+			TimeInForce:          validTimesInForce[fOrder.TimeInForce],
 			Side:                 side,
 		}, nil
 	case asset.Options:
@@ -1518,10 +1516,6 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			if futuresOrders[i].Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
 				continue
 			}
-			var tif order.TimeInForce
-			if futuresOrders[i].TimeInForce == "poc" {
-				tif = order.PostOnly
-			}
 			side, amount, remaining := getSideAndAmountFromSize(futuresOrders[i].Size, futuresOrders[i].RemainingAmount)
 			orders = append(orders, order.Detail{
 				Status:               order.Open,
@@ -1541,7 +1535,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Type:                 order.Limit,
 				SettlementCurrency:   settle,
 				ReduceOnly:           futuresOrders[i].IsReduceOnly,
-				TimeInForce:          tif,
+				TimeInForce:          validTimesInForce[futuresOrders[i].TimeInForce],
 				AverageExecutedPrice: futuresOrders[i].FillPrice.Float64(),
 			})
 		}
@@ -2342,13 +2336,15 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		}
 
 		var timeInForce string
-		switch s.TimeInForce {
-		case order.ImmediateOrCancel,
-			order.FillOrKill,
-			order.GoodTillCancel:
-			timeInForce = s.TimeInForce.Lower()
-		case order.PostOnly:
+		switch {
+		case s.TimeInForce.Is(order.PostOnly):
 			timeInForce = "poc"
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
+			timeInForce = order.ImmediateOrCancel.Lower()
+		case s.TimeInForce.Is(order.FillOrKill):
+			timeInForce = order.FillOrKill.Lower()
+		case s.TimeInForce.Is(order.GoodTillCancel):
+			timeInForce = order.GoodTillCancel.Lower()
 		}
 
 		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{

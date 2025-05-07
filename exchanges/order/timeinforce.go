@@ -13,7 +13,7 @@ var (
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint16
+type TimeInForce uint8
 
 // TimeInForce types
 const (
@@ -87,6 +87,9 @@ func (t TimeInForce) IsValid() bool {
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
 	var tifStrings []string
+	if t == UnknownTIF {
+		return ""
+	}
 	if t.Is(ImmediateOrCancel) {
 		tifStrings = append(tifStrings, iocStr)
 	}
@@ -107,9 +110,6 @@ func (t TimeInForce) String() string {
 	}
 	if t.Is(PostOnly) {
 		tifStrings = append(tifStrings, postonlyStr)
-	}
-	if t == UnknownTIF {
-		return ""
 	}
 	if len(tifStrings) == 0 {
 		return "UNKNOWN"

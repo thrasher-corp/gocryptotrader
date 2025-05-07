@@ -24,6 +24,10 @@ func TestIsValid(t *testing.T) {
 		FillOrKill | PostOnly:              false,
 		ImmediateOrCancel | GoodTillCancel: false,
 		ImmediateOrCancel | PostOnly:       false,
+		GoodTillTime | PostOnly:            true,
+		GoodTillDay | PostOnly:             true,
+		GoodTillCrossing | PostOnly:        true,
+		GoodTillCancel | PostOnly:          true,
 		UnknownTIF:                         true,
 	}
 	var tif TimeInForce

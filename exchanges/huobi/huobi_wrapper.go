@@ -1046,10 +1046,10 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 				oType = "optimal_20_ioc"
 			}
 		case order.Limit:
-			switch {
-			case s.Type == order.Limit:
+			if s.Type == order.Limit {
 				oType = "limit"
-			case s.TimeInForce.Is(order.PostOnly):
+			}
+			if s.TimeInForce.Is(order.PostOnly) {
 				oType = "post_only"
 			}
 		}
