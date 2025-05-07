@@ -30,7 +30,8 @@ import (
 // Okx is the overarching type across this package
 type Okx struct {
 	exchange.Base
-	counter                common.Counter
+
+	messageIDSeq           common.Counter
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
 }

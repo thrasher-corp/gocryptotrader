@@ -220,7 +220,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         websocketResponseMaxLimit,
 		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
-		BespokeGenerateMessageID: func(bool) int64 { return ok.counter.IncrementAndGet() },
+		BespokeGenerateMessageID: func(bool) int64 { return ok.messageIDSeq.IncrementAndGet() },
 	}); err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:         websocketResponseMaxLimit,
 		Authenticated:            true,
 		RateLimit:                request.NewRateLimitWithWeight(time.Second, 2, 1),
-		BespokeGenerateMessageID: func(bool) int64 { return ok.counter.IncrementAndGet() },
+		BespokeGenerateMessageID: func(bool) int64 { return ok.messageIDSeq.IncrementAndGet() },
 	})
 }
 
