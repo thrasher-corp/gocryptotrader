@@ -36,8 +36,8 @@ const (
 	ufuturesAPIURL = "https://fapi.binance.com"
 	tradeBaseURL   = "https://www.binance.com/en/"
 
-	testnetSpotURL = "https://testnet.binance.vision/api"
-	testnetFutures = "https://testnet.binancefuture.com"
+	testnetSpotURL = "https://testnet.binance.vision/api" //nolint:unused // Can be used for testing via setting useTestNet to true
+	testnetFutures = "https://testnet.binancefuture.com"  //nolint:unused // Can be used for testing via setting useTestNet to true
 
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"

@@ -23,7 +23,7 @@ func TestCreateKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v', but expected '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err = CreateKlineRequest("name", pair, currency.EMPTYPAIR, 0, 0, 0, time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v', but expected '%v'", err, currency.ErrCurrencyPairEmpty)
@@ -118,7 +118,7 @@ func TestGetRanges(t *testing.T) {
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 
 	var r *Request
 	_, err := r.GetRanges(100)
@@ -198,7 +198,7 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 
 	var r *Request
 	_, err := r.ProcessResponse(nil)
@@ -333,7 +333,7 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	ohc := getOneHour()
 	start := ohc[0].Time
 	end := ohc[len(ohc)-1].Time.Add(OneHour.Duration())
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 
 	var rExt *ExtendedRequest
 	_, err := rExt.ProcessResponse(nil)

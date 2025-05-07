@@ -635,7 +635,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 
 	orders := []Detail{
 		{
-			Pair: currency.NewPair(currency.BTC, currency.USD),
+			Pair: currency.NewBTCUSD(),
 		},
 		{
 			Pair: currency.NewPair(currency.LTC, currency.EUR),
@@ -647,7 +647,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 	}
 
 	currencies := []currency.Pair{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB),
 	}
@@ -657,7 +657,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 	}
 
 	currencies = []currency.Pair{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.EUR),
 	}
 	FilterOrdersByPairs(&orders, currencies)
@@ -665,7 +665,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	currencies = []currency.Pair{currency.NewBTCUSD()}
 	FilterOrdersByPairs(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -690,16 +690,16 @@ func TestFilterOrdersByPairs(t *testing.T) {
 }
 
 var filterOrdersByPairsBenchmark = &[]Detail{
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
-	{Pair: currency.NewPair(currency.BTC, currency.USD)},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
+	{Pair: currency.NewBTCUSD()},
 }
 
 // BenchmarkFilterOrdersByPairs benchmark
@@ -707,7 +707,7 @@ var filterOrdersByPairsBenchmark = &[]Detail{
 // 400032	      2977 ns/op	   15840 B/op	       5 allocs/op // PREV
 // 6977242	       172.8 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkFilterOrdersByPairs(b *testing.B) {
-	pairs := []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	pairs := []currency.Pair{currency.NewBTCUSD()}
 	for b.Loop() {
 		FilterOrdersByPairs(filterOrdersByPairsBenchmark, pairs)
 	}
@@ -1187,7 +1187,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		AccountID:         "1",
 		ClientID:          "1",
 		ClientOrderID:     "DukeOfWombleton",
-		WalletAddress:     "1",
 		Type:              1,
 		Side:              1,
 		Status:            1,
@@ -1263,9 +1262,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		t.Error("Failed to update")
 	}
 	if od.ClientOrderID != "DukeOfWombleton" {
-		t.Error("Failed to update")
-	}
-	if od.WalletAddress != "1" {
 		t.Error("Failed to update")
 	}
 	if od.Type != 1 {
@@ -1385,7 +1381,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrPairIsEmpty)
 	}
 
-	cancelMe.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	cancelMe.Pair = currency.NewBTCUSDT()
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
 	if err == nil || err.Error() != ErrAssetNotSet.Error() {
 		t.Errorf("received '%v' expected '%v'", err, ErrAssetNotSet)
@@ -1496,109 +1492,55 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 func TestMatchFilter(t *testing.T) {
 	t.Parallel()
-	id, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
-	filters := map[int]*Filter{
-		0:  {},
-		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: id},
-		3:  {OrderID: "2222"},
-		4:  {ClientOrderID: "3333"},
-		5:  {ClientID: "4444"},
-		6:  {WalletAddress: "5555"},
-		7:  {Type: AnyType},
-		8:  {Type: Limit},
-		9:  {Side: AnySide},
-		10: {Side: Sell},
-		11: {Status: AnyStatus},
-		12: {Status: New},
-		13: {AssetType: asset.Spot},
-		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
-		15: {Exchange: "Binance", Type: Limit, Status: New},
-		16: {Exchange: "Binance", Type: AnyType},
-		17: {AccountID: "8888"},
-	}
+	id := uuid.Must(uuid.NewV4())
 
-	orders := map[int]Detail{
-		0:  {},
-		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: id},
-		3:  {OrderID: "2222"},
-		4:  {ClientOrderID: "3333"},
-		5:  {ClientID: "4444"},
-		6:  {WalletAddress: "5555"},
-		7:  {Type: AnyType},
-		8:  {Type: Limit},
-		9:  {Side: AnySide},
-		10: {Side: Sell},
-		11: {Status: AnyStatus},
-		12: {Status: New},
-		13: {AssetType: asset.Spot},
-		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
-		15: {Exchange: "Binance", Type: Limit, Status: New},
-		16: {AccountID: "8888"},
-	}
-	// empty filter tests
-	emptyFilter := filters[0]
-	for _, o := range orders {
-		if !o.MatchFilter(emptyFilter) {
-			t.Error("empty filter should match everything")
-		}
-	}
+	assert.True(t, new(Detail).MatchFilter(&Filter{}), "an empty filter should match an empty order")
+	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
 
-	tests := map[int]struct {
-		f              *Filter
-		o              Detail
-		expectedResult bool
+	tests := []struct {
+		description string
+		filter      Filter
+		order       Detail
+		result      bool
 	}{
-		0:  {filters[1], orders[1], true},
-		1:  {filters[1], orders[0], false},
-		2:  {filters[2], orders[2], true},
-		3:  {filters[2], orders[3], false},
-		4:  {filters[3], orders[3], true},
-		5:  {filters[3], orders[4], false},
-		6:  {filters[4], orders[4], true},
-		7:  {filters[4], orders[5], false},
-		8:  {filters[5], orders[5], true},
-		9:  {filters[5], orders[6], false},
-		10: {filters[6], orders[6], true},
-		11: {filters[6], orders[7], false},
-		12: {filters[7], orders[7], true},
-		13: {filters[7], orders[8], true},
-		14: {filters[7], orders[9], true},
-		15: {filters[8], orders[7], false},
-		16: {filters[8], orders[8], true},
-		17: {filters[8], orders[9], false},
-		18: {filters[9], orders[9], true},
-		19: {filters[9], orders[10], true},
-		20: {filters[9], orders[11], true},
-		21: {filters[10], orders[10], true},
-		22: {filters[10], orders[11], false},
-		23: {filters[10], orders[9], false},
-		24: {filters[11], orders[11], true},
-		25: {filters[11], orders[12], true},
-		26: {filters[11], orders[10], true},
-		27: {filters[12], orders[12], true},
-		28: {filters[12], orders[13], false},
-		29: {filters[12], orders[11], false},
-		30: {filters[13], orders[13], true},
-		31: {filters[13], orders[12], false},
-		32: {filters[14], orders[14], true},
-		33: {filters[14], orders[13], false},
-		34: {filters[15], orders[15], true},
-		35: {filters[16], orders[15], true},
-		36: {filters[17], orders[16], true},
-		37: {filters[17], orders[15], false},
+		{"Exchange ✓", Filter{Exchange: "A"}, Detail{Exchange: "A"}, true},
+		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
+		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
+		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},
+		{"InternalOrderID 𐄂", Filter{InternalOrderID: id}, Detail{InternalOrderID: uuid.Must(uuid.NewV4())}, false},
+		{"InternalOrderID Empty", Filter{InternalOrderID: id}, Detail{}, false},
+		{"OrderID ✓", Filter{OrderID: "A"}, Detail{OrderID: "A"}, true},
+		{"OrderID 𐄂", Filter{OrderID: "A"}, Detail{OrderID: "B"}, false},
+		{"OrderID Empty", Filter{OrderID: "A"}, Detail{}, false},
+		{"ClientOrderID ✓", Filter{ClientOrderID: "A"}, Detail{ClientOrderID: "A"}, true},
+		{"ClientOrderID 𐄂", Filter{ClientOrderID: "A"}, Detail{ClientOrderID: "B"}, false},
+		{"ClientOrderID Empty", Filter{ClientOrderID: "A"}, Detail{}, false},
+		{"ClientID ✓", Filter{ClientID: "A"}, Detail{ClientID: "A"}, true},
+		{"ClientID 𐄂", Filter{ClientID: "A"}, Detail{ClientID: "B"}, false},
+		{"ClientID Empty", Filter{ClientID: "A"}, Detail{}, false},
+		{"AnySide Buy", Filter{Side: AnySide}, Detail{Side: Buy}, true},
+		{"AnySide Sell", Filter{Side: AnySide}, Detail{Side: Sell}, true},
+		{"AnySide Empty", Filter{Side: AnySide}, Detail{}, true},
+		{"Side ✓", Filter{Side: Buy}, Detail{Side: Buy}, true},
+		{"Side 𐄂", Filter{Side: Buy}, Detail{Side: Sell}, false},
+		{"Side Empty", Filter{Side: Buy}, Detail{}, false},
+		{"Status ✓", Filter{Status: Open}, Detail{Status: Open}, true},
+		{"Status 𐄂", Filter{Status: Open}, Detail{Status: New}, false},
+		{"Status Empty", Filter{Status: Open}, Detail{}, false},
+		{"AssetType ✓", Filter{AssetType: asset.Spot}, Detail{AssetType: asset.Spot}, true},
+		{"AssetType 𐄂", Filter{AssetType: asset.Spot}, Detail{AssetType: asset.Index}, false},
+		{"AssetType Empty", Filter{AssetType: asset.Spot}, Detail{}, false},
+		{"Pair ✓", Filter{Pair: currency.NewBTCUSDT()}, Detail{Pair: currency.NewBTCUSDT()}, true},
+		{"Pair 𐄂", Filter{Pair: currency.NewBTCUSDT()}, Detail{Pair: currency.NewBTCUSD()}, false},
+		{"Pair Empty", Filter{Pair: currency.NewBTCUSDT()}, Detail{}, false},
+		{"AccountID ✓", Filter{AccountID: "A"}, Detail{AccountID: "A"}, true},
+		{"AccountID 𐄂", Filter{AccountID: "A"}, Detail{AccountID: "B"}, false},
+		{"AccountID Empty", Filter{AccountID: "A"}, Detail{}, false},
 	}
-	// specific tests
-	for num, tt := range tests {
-		t.Run(strconv.Itoa(num), func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
-			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
-				t.Errorf("tests[%v] failed", num)
-			}
+			require.Equal(t, tt.result, tt.order.MatchFilter(&tt.filter), "MatchFilter must return correctly")
 		})
 	}
 }
@@ -1958,7 +1900,6 @@ func TestDeriveCancel(t *testing.T) {
 		AccountID:     "wow2",
 		ClientID:      "wow3",
 		ClientOrderID: "wow4",
-		WalletAddress: "wow5",
 		Type:          Market,
 		Side:          Long,
 		Pair:          pair,
@@ -1973,7 +1914,6 @@ func TestDeriveCancel(t *testing.T) {
 		cancel.AccountID != "wow2" ||
 		cancel.ClientID != "wow3" ||
 		cancel.ClientOrderID != "wow4" ||
-		cancel.WalletAddress != "wow5" ||
 		cancel.Type != Market ||
 		cancel.Side != Long ||
 		!cancel.Pair.Equal(pair) ||

@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -143,7 +142,7 @@ func TestLoadDataAPI(t *testing.T) {
 	bt := BackTest{
 		Reports: &report.Data{},
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
@@ -198,7 +197,7 @@ func TestLoadDataCSV(t *testing.T) {
 	bt := BackTest{
 		Reports: &report.Data{},
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
@@ -256,7 +255,7 @@ func TestLoadDataDatabase(t *testing.T) {
 		Reports:  &report.Data{},
 		shutdown: make(chan struct{}),
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
@@ -330,7 +329,7 @@ func TestLoadDataLive(t *testing.T) {
 		shutdown:        make(chan struct{}),
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	cfg := &config.Config{
 		CurrencySettings: []config.CurrencySettings{
 			{
@@ -446,7 +445,7 @@ func TestReset(t *testing.T) {
 func TestFullCycle(t *testing.T) {
 	t.Parallel()
 	ex := testExchange
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	tt := time.Now()
 
@@ -580,7 +579,7 @@ func TestStop(t *testing.T) {
 func TestFullCycleMulti(t *testing.T) {
 	t.Parallel()
 	ex := testExchange
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	tt := time.Now()
 
@@ -721,7 +720,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.USDTMarginedFutures
 	expectedError = gctcommon.ErrNilPointer
 	ev := &evkline.Kline{
@@ -814,7 +813,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Futures
 	ev := &evkline.Kline{
 		Base: &event.Base{
@@ -892,7 +891,7 @@ func TestProcessSignalEvent(t *testing.T) {
 		EventQueue: &eventholder.Holder{},
 		shutdown:   make(chan struct{}),
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.USDTMarginedFutures
 	de := &evkline.Kline{
 		Base: &event.Base{
@@ -960,7 +959,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		DataHolder: &data.HandlerHolder{},
 		shutdown:   make(chan struct{}),
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.USDTMarginedFutures
 	de := &evkline.Kline{
 		Base: &event.Base{
@@ -1081,7 +1080,7 @@ func TestProcessFillEvent(t *testing.T) {
 		DataHolder: &data.HandlerHolder{},
 		shutdown:   make(chan struct{}),
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Futures
 	tt := time.Now()
 	de := &evkline.Kline{
@@ -1194,7 +1193,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		DataHolder: &data.HandlerHolder{},
 		shutdown:   make(chan struct{}),
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Futures
 	de := &evkline.Kline{
 		Base: &event.Base{
@@ -1348,7 +1347,7 @@ func TestCloseAllPositions(t *testing.T) {
 	dc.dataHolder = bt.DataHolder
 	dc.report = &report.Data{}
 	dc.funding = bt.Funding
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	dc.sourcesToCheck = append(dc.sourcesToCheck, &liveDataSourceDataHandler{
 		exchange:                  &binance.Binance{},
 		exchangeName:              testExchange,
@@ -1428,7 +1427,7 @@ func TestRunLive(t *testing.T) {
 		funding:           bt.Funding,
 	}
 	bt.LiveDataHandler = dc
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	i := &gctkline.Item{
 		Pair:           cp,
 		UnderlyingPair: cp,
@@ -1589,25 +1588,18 @@ func TestSetExchangeCredentials(t *testing.T) {
 
 func TestGetFees(t *testing.T) {
 	t.Parallel()
-	_, _, err := getFees(context.Background(), nil, currency.EMPTYPAIR)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	_, _, err := getFees(t.Context(), nil, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	f := &binance.Binance{}
 	f.SetDefaults()
-	_, _, err = getFees(context.Background(), f, currency.EMPTYPAIR)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	_, _, err = getFees(t.Context(), f, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	maker, taker, err := getFees(context.Background(), f, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
-	if maker.IsZero() || taker.IsZero() {
-		t.Error("expected maker and taker fees")
-	}
+	maker, taker, err := getFees(t.Context(), f, currency.NewBTCUSDT())
+	assert.NoError(t, err, "getFees should not error")
+	assert.NotZero(t, maker, "getFees should return a non-zero maker fee")
+	assert.NotZero(t, taker, "getFees should return a non-zero taker fee")
 }
 
 func TestGenerateSummary(t *testing.T) {
@@ -1922,7 +1914,7 @@ func TestProcessSingleDataEvent(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	ev := &evkline.Kline{
 		Base: &event.Base{

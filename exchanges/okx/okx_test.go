@@ -3350,7 +3350,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	tests := map[asset.Item][]currency.Pair{
 		asset.Spot: {
 			currency.NewPair(currency.ETH, currency.USDT),
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 		},
 		asset.Margin: {
 			currency.NewPair(currency.ETH, currency.USDT),
@@ -3384,7 +3384,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	result, err := ok.UpdateTicker(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	result, err := ok.UpdateTicker(contextGenerate(), currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3434,10 +3434,10 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetRecentTrades(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualSwap)
+	result, err := ok.GetRecentTrades(contextGenerate(), currency.NewBTCUSDT(), asset.PerpetualSwap)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	result, err = ok.GetRecentTrades(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spread)
+	result, err = ok.GetRecentTrades(contextGenerate(), currency.NewBTCUSDT(), asset.Spread)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3584,9 +3584,8 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	arg := &order.Cancel{
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		AssetType:     asset.Binary,
+		AccountID: "1",
+		AssetType: asset.Binary,
 	}
 	err := ok.CancelOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -3601,22 +3600,17 @@ func TestCancelOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
-		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
-		AccountID: "1", Pair: spotTP, AssetType: asset.Spot,
+		OrderID: "1", AccountID: "1", Pair: spotTP, AssetType: asset.Spot,
 	})
 	assert.NoError(t, err)
 
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
-		Type:    order.OCO,
-		OrderID: "1", WalletAddress: core.BitcoinDonationAddress,
-		AccountID: "1", Pair: spotTP, AssetType: asset.Spot,
+		Type: order.OCO, OrderID: "1", AccountID: "1", Pair: spotTP, AssetType: asset.Spot,
 	})
 	assert.NoError(t, err)
 
 	err = ok.CancelOrder(contextGenerate(), &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress, AccountID: "1",
-		Pair: spreadTP, AssetType: asset.Spread,
+		OrderID: "1", AccountID: "1", Pair: spreadTP, AssetType: asset.Spread,
 	})
 	assert.NoError(t, err)
 }
@@ -3629,9 +3623,8 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 
 	arg := order.Cancel{
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		AssetType:     asset.Binary,
+		AccountID: "1",
+		AssetType: asset.Binary,
 	}
 	_, err = ok.CancelBatchOrders(contextGenerate(), []order.Cancel{arg})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -3656,26 +3649,23 @@ func TestCancelBatchOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	orderCancellationParams := []order.Cancel{
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          spotTP,
-			AssetType:     asset.Spot,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      spotTP,
+			AssetType: asset.Spot,
 		},
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Pair:          perpetualSwapTP,
-			AssetType:     asset.PerpetualSwap,
+			OrderID:   "1",
+			AccountID: "1",
+			Pair:      perpetualSwapTP,
+			AssetType: asset.PerpetualSwap,
 		},
 		{
-			OrderID:       "1",
-			WalletAddress: core.BitcoinDonationAddress,
-			AccountID:     "1",
-			Type:          order.Trigger,
-			Pair:          spotTP,
-			AssetType:     asset.Spot,
+			OrderID:   "1",
+			AccountID: "1",
+			Type:      order.Trigger,
+			Pair:      spotTP,
+			AssetType: asset.Spot,
 		},
 	}
 	result, err := ok.CancelBatchOrders(contextGenerate(), orderCancellationParams)
@@ -3923,7 +3913,7 @@ func TestValidateAPICredentials(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	startTime := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.AddDate(0, 0, 100)
 	_, err := ok.GetHistoricCandles(contextGenerate(), pair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
@@ -3936,7 +3926,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	currencyPair := currency.NewPair(currency.BTC, currency.USDT)
+	currencyPair := currency.NewBTCUSDT()
 	result, err := ok.GetHistoricCandlesExtended(contextGenerate(), currencyPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4080,7 +4070,7 @@ func TestPushDataDynamic(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetHistoricTrades(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, time.Now().Add(-time.Minute*4), time.Now().Add(-time.Minute*2))
+	result, err := ok.GetHistoricTrades(contextGenerate(), currency.NewBTCUSDT(), asset.Spot, time.Now().Add(-time.Minute*4), time.Now().Add(-time.Minute*2))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4316,7 +4306,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	is, err := ok.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	is, err := ok.IsPerpetualFutureCurrency(asset.Binary, currency.NewBTCUSDT())
 	require.NoError(t, err)
 	require.False(t, is)
 
@@ -5401,9 +5391,9 @@ func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	_, err := ok.GetLeadTraderCurrentLeadPositions(contextGenerate(), instTypeSwap, "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
-	result, err := ok.GetLeadTraderCurrentLeadPositions(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
+	_, err = ok.GetLeadTraderCurrentLeadPositions(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	// No test validation of positions performed as the lead trader may not have any positions open
 }
 
 func TestGetLeadTraderLeadPositionHistory(t *testing.T) {

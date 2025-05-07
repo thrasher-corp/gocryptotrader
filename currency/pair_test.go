@@ -87,13 +87,13 @@ func TestIsCryptoPair(t *testing.T) {
 		t.Error("TestIsCryptoPair. Expected true result")
 	}
 
-	if NewPair(BTC, USD).IsCryptoPair() {
+	if NewBTCUSD().IsCryptoPair() {
 		t.Error("TestIsCryptoPair. Expected false result")
 	}
 }
 
 func TestIsCryptoFiatPair(t *testing.T) {
-	if !NewPair(BTC, USD).IsCryptoFiatPair() {
+	if !NewBTCUSD().IsCryptoFiatPair() {
 		t.Error("TestIsCryptoPair. Expected true result")
 	}
 
@@ -113,7 +113,7 @@ func TestIsFiatPair(t *testing.T) {
 }
 
 func TestIsCryptoStablePair(t *testing.T) {
-	if !NewPair(BTC, USDT).IsCryptoStablePair() {
+	if !NewBTCUSDT().IsCryptoStablePair() {
 		t.Error("TestIsCryptoStablePair. Expected true result")
 	}
 
@@ -142,7 +142,7 @@ func TestIsStablePair(t *testing.T) {
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if actual, expected := defaultPair, pair.String(); actual != expected {
 		t.Errorf("String(): %s was not equal to expected value: %s",
 			actual, expected)
@@ -151,7 +151,7 @@ func TestString(t *testing.T) {
 
 func TestFirstCurrency(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if actual, expected := pair.Base, BTC; !actual.Equal(expected) {
 		t.Errorf(
 			"GetFirstCurrency(): %s was not equal to expected value: %s",
@@ -162,7 +162,7 @@ func TestFirstCurrency(t *testing.T) {
 
 func TestSecondCurrency(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if actual, expected := pair.Quote, USD; !actual.Equal(expected) {
 		t.Errorf(
 			"GetSecondCurrency(): %s was not equal to expected value: %s",
@@ -173,7 +173,7 @@ func TestSecondCurrency(t *testing.T) {
 
 func TestPair(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if actual, expected := pair.String(), defaultPair; actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
@@ -222,8 +222,8 @@ func TestDisplay(t *testing.T) {
 
 func TestEquall(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
-	secondPair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
+	secondPair := NewBTCUSD()
 	actual := pair.Equal(secondPair)
 	expected := true
 	if actual != expected {
@@ -256,8 +256,8 @@ func TestEquall(t *testing.T) {
 
 func TestEqualIncludeReciprocal(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
-	secondPair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
+	secondPair := NewBTCUSD()
 	actual := pair.EqualIncludeReciprocal(secondPair)
 	expected := true
 	if actual != expected {
@@ -290,7 +290,7 @@ func TestEqualIncludeReciprocal(t *testing.T) {
 
 func TestSwap(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if actual, expected := pair.Swap().String(), "USDBTC"; actual != expected {
 		t.Errorf(
 			"TestSwap: %s was not equal to expected value: %s",
@@ -301,7 +301,7 @@ func TestSwap(t *testing.T) {
 
 func TestEmpty(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if pair.IsEmpty() {
 		t.Error("Empty() returned true when the pair was initialised")
 	}
@@ -314,7 +314,7 @@ func TestEmpty(t *testing.T) {
 
 func TestNewPair(t *testing.T) {
 	t.Parallel()
-	pair := NewPair(BTC, USD)
+	pair := NewBTCUSD()
 	if expected, actual := defaultPair, pair.String(); actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
@@ -471,7 +471,7 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 }
 
 func TestContainsCurrency(t *testing.T) {
-	p := NewPair(BTC, USD)
+	p := NewBTCUSD()
 
 	if !p.Contains(BTC) {
 		t.Error("TestContains: Expected currency was not found")
@@ -506,13 +506,13 @@ func TestFormatPairs(t *testing.T) {
 }
 
 func TestCopyPairFormat(t *testing.T) {
-	pairOne := NewPair(BTC, USD)
+	pairOne := NewBTCUSD()
 	pairOne.Delimiter = "-"
 
 	var pairs []Pair
 	pairs = append(pairs, pairOne, NewPair(LTC, USD))
 
-	testPair := NewPair(BTC, USD)
+	testPair := NewBTCUSD()
 	testPair.Delimiter = "~"
 
 	result := CopyPairFormat(testPair, pairs, false)
@@ -529,7 +529,7 @@ func TestCopyPairFormat(t *testing.T) {
 
 func TestPairsToStringArray(t *testing.T) {
 	var pairs Pairs
-	pairs = append(pairs, NewPair(BTC, USD))
+	pairs = append(pairs, NewBTCUSD())
 
 	expected := []string{defaultPair}
 	actual := pairs.Strings()
@@ -552,7 +552,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 
 	// Test that a populated pairs array returns a non-empty currency pair
 	var pairs Pairs
-	pairs = append(pairs, NewPair(BTC, USD))
+	pairs = append(pairs, NewBTCUSD())
 	result, err = pairs.GetRandomPair()
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -748,7 +748,7 @@ func TestOther(t *testing.T) {
 }
 
 func TestIsPopulated(t *testing.T) {
-	if receiver := NewPair(BTC, USDT).IsPopulated(); !receiver {
+	if receiver := NewBTCUSDT().IsPopulated(); !receiver {
 		t.Fatal("unexpected value")
 	}
 	if receiver := NewPair(BTC, NewCode("USD-1245")).IsPopulated(); !receiver {
@@ -765,7 +765,7 @@ func TestIsPopulated(t *testing.T) {
 func TestGetOrderParameters(t *testing.T) {
 	t.Parallel()
 
-	p := NewPair(BTC, USDT)
+	p := NewBTCUSDT()
 	testCases := []struct {
 		Pair           Pair
 		currency       Code
@@ -847,10 +847,10 @@ func TestIsAssociated(t *testing.T) {
 		associate      Pair
 		expectedResult bool
 	}{
-		{Pair: NewPair(BTC, USDT), associate: NewPair(BTC, USDT), expectedResult: true},
-		{Pair: NewPair(USDT, BTC), associate: NewPair(BTC, USDT), expectedResult: true},
-		{Pair: NewPair(BTC, USDT), associate: NewPair(USDT, BTC), expectedResult: true},
-		{Pair: NewPair(BTC, USDT), associate: NewPair(XRP, USDT), expectedResult: true},
+		{Pair: NewBTCUSDT(), associate: NewBTCUSDT(), expectedResult: true},
+		{Pair: NewPair(USDT, BTC), associate: NewBTCUSDT(), expectedResult: true},
+		{Pair: NewBTCUSDT(), associate: NewPair(USDT, BTC), expectedResult: true},
+		{Pair: NewBTCUSDT(), associate: NewPair(XRP, USDT), expectedResult: true},
 		{Pair: NewPair(BTC, LTC), associate: NewPair(XRP, USDT), expectedResult: false},
 		{Pair: NewPair(MA, LTC), associate: NewPair(LTC, USDT), expectedResult: true},
 	}
@@ -867,7 +867,7 @@ func TestIsAssociated(t *testing.T) {
 
 func TestPair_GetFormatting(t *testing.T) {
 	t.Parallel()
-	pFmt, err := NewPair(BTC, USDT).GetFormatting()
+	pFmt, err := NewBTCUSDT().GetFormatting()
 	require.NoError(t, err)
 	assert.True(t, pFmt.Uppercase)
 	assert.Empty(t, pFmt.Delimiter)
