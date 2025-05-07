@@ -245,7 +245,7 @@ func TestExchangeOrderSubmit(t *testing.T) {
 	require.NoError(t, err)
 
 	rString, ok := objects.ToString(obj)
-	require.True(t, ok, "OrderSubmit return value must return correctly from objects.ToString")
+	require.True(t, ok, "ExchangeOrderSubmit return value must return correctly from objects.ToString")
 	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 
