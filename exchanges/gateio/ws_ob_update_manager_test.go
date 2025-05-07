@@ -173,7 +173,7 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 
 	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
 
 	update := &orderbook.Update{
