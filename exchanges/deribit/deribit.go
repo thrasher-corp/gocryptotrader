@@ -291,28 +291,9 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var data [][2]any
-	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
+	var data []HistoricalVolatilityData
+	return data, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getHistoricalVolatility, params), &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]HistoricalVolatilityData, len(data))
-	for x := range data {
-		timeData, ok := data[x][0].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][0], "time data")
-		}
-		val, ok := data[x][1].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][1], "volatility value")
-		}
-		resp[x] = HistoricalVolatilityData{
-			Timestamp: timeData,
-			Value:     val,
-		}
-	}
-	return resp, nil
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.

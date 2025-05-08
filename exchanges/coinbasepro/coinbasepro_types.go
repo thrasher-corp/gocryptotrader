@@ -51,7 +51,7 @@ type Trade struct {
 
 // History holds historic rate information
 type History struct {
-	Time   time.Time
+	Time   types.Time
 	Low    float64
 	High   float64
 	Open   float64
@@ -61,14 +61,7 @@ type History struct {
 
 // UnmarshalJSON deserilizes kline data from a JSON array into History fields.
 func (h *History) UnmarshalJSON(data []byte) error {
-	var t types.Time
-	target := []any{&t, &(h.Low), &(h.High), &(h.Open), &(h.Close), &(h.Volume)}
-	err := json.Unmarshal(data, &target)
-	if err != nil {
-		return err
-	}
-	h.Time = t.Time()
-	return nil
+	return json.Unmarshal(data, &[6]any{&(h.Time), &(h.Low), &(h.High), &(h.Open), &(h.Close), &(h.Volume)})
 }
 
 // Stats holds last 24 hr data for coinbasepro

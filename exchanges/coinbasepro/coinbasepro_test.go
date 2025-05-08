@@ -25,6 +25,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -84,7 +85,7 @@ func TestHistoryUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, History{
-		Time:   time.Unix(1746649200, 0),
+		Time:   types.Time(time.Unix(1746649200, 0)),
 		Low:    96269.22,
 		High:   96307.18,
 		Open:   96275.58,
@@ -95,7 +96,6 @@ func TestHistoryUnmarshalJSON(t *testing.T) {
 
 func TestGetHistoricRates(t *testing.T) {
 	t.Parallel()
-	c.Verbose = true
 	result, err := c.GetHistoricRates(t.Context(), "BTC-USD", "", "", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)

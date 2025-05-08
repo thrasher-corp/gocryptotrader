@@ -1,8 +1,6 @@
 package kucoin
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -148,7 +146,7 @@ type FundingHistoryItem struct {
 
 // FuturesKline stores kline data
 type FuturesKline struct {
-	StartTime time.Time
+	StartTime types.Time
 	Open      float64
 	Close     float64
 	High      float64
@@ -158,14 +156,7 @@ type FuturesKline struct {
 
 // UnmarshalJSON parses kline data from a JSON array into FuturesKline fields.
 func (f *FuturesKline) UnmarshalJSON(data []byte) error {
-	var startTime types.Time
-	target := &[6]any{&startTime, &(f.Open), &(f.High), &(f.Low), &(f.Close), &(f.Volume)}
-	err := json.Unmarshal(data, target)
-	if err != nil {
-		return err
-	}
-	f.StartTime = startTime.Time()
-	return nil
+	return json.Unmarshal(data, &[6]any{&(f.StartTime), &(f.Open), &(f.High), &(f.Low), &(f.Close), &(f.Volume)})
 }
 
 // FutureOrdersResponse represents a future order response list detail

@@ -1684,12 +1684,12 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		listCandlesticks = make([]kline.Candle, len(candles))
 		for i := range candles {
 			listCandlesticks[i] = kline.Candle{
-				Time:   candles[i].Timestamp,
-				Open:   candles[i].OpenPrice,
-				High:   candles[i].HighestPrice,
-				Low:    candles[i].LowestPrice,
-				Close:  candles[i].ClosePrice,
-				Volume: candles[i].QuoteCcyVolume,
+				Time:   candles[i].Timestamp.Time(),
+				Open:   candles[i].OpenPrice.Float64(),
+				High:   candles[i].HighestPrice.Float64(),
+				Low:    candles[i].LowestPrice.Float64(),
+				Close:  candles[i].ClosePrice.Float64(),
+				Volume: candles[i].QuoteCcyVolume.Float64(),
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
@@ -1739,12 +1739,12 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			for j := range candles {
 				candlestickItems = append(candlestickItems, kline.Candle{
-					Time:   candles[j].Timestamp,
-					Open:   candles[j].OpenPrice,
-					High:   candles[j].HighestPrice,
-					Low:    candles[j].LowestPrice,
-					Close:  candles[j].ClosePrice,
-					Volume: candles[j].QuoteCcyVolume,
+					Time:   candles[j].Timestamp.Time(),
+					Open:   candles[j].OpenPrice.Float64(),
+					High:   candles[j].HighestPrice.Float64(),
+					Low:    candles[j].LowestPrice.Float64(),
+					Close:  candles[j].ClosePrice.Float64(),
+					Volume: candles[j].QuoteCcyVolume.Float64(),
 				})
 			}
 		case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:

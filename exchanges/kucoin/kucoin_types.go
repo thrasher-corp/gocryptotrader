@@ -179,7 +179,7 @@ type Trade struct {
 
 // Kline stores kline data
 type Kline struct {
-	StartTime time.Time
+	StartTime types.Time
 	Open      types.Number
 	Close     types.Number
 	High      types.Number
@@ -190,14 +190,7 @@ type Kline struct {
 
 // UnmarshalJSON deserilizes kline data from a JSON array into Kline fields.
 func (k *Kline) UnmarshalJSON(data []byte) error {
-	var startTime types.Time
-	target := [7]any{&startTime, &(k.Open), &(k.Close), &(k.High), &(k.Low), &(k.Volume), &(k.Amount)}
-	err := json.Unmarshal(data, &target)
-	if err != nil {
-		return err
-	}
-	k.StartTime = startTime.Time()
-	return nil
+	return json.Unmarshal(data, &[7]any{&(k.StartTime), &(k.Open), &(k.Close), &(k.High), &(k.Low), &(k.Volume), &(k.Amount)})
 }
 
 // CurrencyBase represents currency code response details

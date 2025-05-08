@@ -33,6 +33,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -182,7 +183,7 @@ func TestKlineUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, target)
 	assert.Equal(t, Kline{
-		StartTime: time.Unix(1746645900, 0),
+		StartTime: types.Time(time.Unix(1746645900, 0)),
 		Open:      96248.3,
 		Close:     96060.4,
 		High:      96248.3,
@@ -202,7 +203,7 @@ func TestGetKlines(t *testing.T) {
 	result, err := ku.GetKlines(t.Context(), spotTradablePair.String(), "1week", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	ku.Verbose = true
+
 	result, err = ku.GetKlines(t.Context(), spotTradablePair.String(), "5min", time.Now().Add(-time.Hour*1), time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1535,7 +1536,7 @@ func TestFuturesKlineUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, target)
 	assert.Equal(t, FuturesKline{
-		StartTime: time.UnixMilli(1746518400000),
+		StartTime: types.Time(time.UnixMilli(1746518400000)),
 		Open:      1806.48,
 		High:      1806.48,
 		Low:       1794.41,
@@ -1553,7 +1554,6 @@ func TestGetFuturesKline(t *testing.T) {
 	_, err = ku.GetFuturesKline(t.Context(), int64(kline.ThirtyMin.Duration().Minutes()), "", time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	ku.Verbose = true
 	result, err := ku.GetFuturesKline(t.Context(), int64(kline.ThirtyMin.Duration().Minutes()), futuresTradablePair.String(), time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
