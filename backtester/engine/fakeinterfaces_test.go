@@ -167,7 +167,7 @@ func (f fakeDataHolder) SetDataForCurrency(string, asset.Item, currency.Pair, da
 }
 
 func (f fakeDataHolder) GetAllData() ([]data.Handler, error) {
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	return []data.Handler{
 		&kline.DataFromKline{
 			Base: &data.Base{},
@@ -321,8 +321,8 @@ func (f fakeStrat) CloseAllPositions([]holdings.Holding, []data.Event) ([]signal
 				Exchange:       testExchange,
 				Time:           time.Now(),
 				Interval:       gctkline.FifteenSecond,
-				CurrencyPair:   currency.NewPair(currency.BTC, currency.USD),
-				UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+				CurrencyPair:   currency.NewBTCUSD(),
+				UnderlyingPair: currency.NewBTCUSD(),
 				AssetType:      asset.Spot,
 			},
 			OpenPrice:  leet,

@@ -118,7 +118,7 @@ func (f *fakerino) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 	if f.GetAvailablePairsError {
 		return nil, errExchange
 	}
-	return currency.Pairs{currency.NewPair(currency.BTC, currency.USD)}, nil
+	return currency.Pairs{currency.NewBTCUSD()}, nil
 }
 
 func (f *fakerino) GetBase() *exchange.Base {

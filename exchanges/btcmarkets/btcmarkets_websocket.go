@@ -320,13 +320,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		creds, err := b.GetCredentials(context.TODO())
-		if err != nil {
+		clientID := ""
+		if creds, err := b.GetCredentials(context.TODO()); err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: b.Name,
 				OrderID:  orderID,
 				Err:      err,
 			}
+		} else if creds != nil {
+			clientID = creds.ClientID
 		}
 
 		b.Websocket.DataHandler <- &order.Detail{
@@ -335,7 +337,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
 			OrderID:         orderID,
-			ClientID:        creds.ClientID,
+			ClientID:        clientID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,

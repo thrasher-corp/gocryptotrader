@@ -24,7 +24,7 @@ func TestSimulate(t *testing.T) {
 		},
 	}
 	o, err := b.UpdateOrderbook(t.Context(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+		currency.NewBTCUSD(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

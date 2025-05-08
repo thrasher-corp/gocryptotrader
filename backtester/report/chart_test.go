@@ -135,7 +135,7 @@ func TestCreatePNLCharts(t *testing.T) {
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
@@ -171,7 +171,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	}
 
 	tt := time.Now()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	cp2 := currency.NewPair(currency.BTC, currency.DOGE)
 	var d Data
 	d.Statistics = &statistics.Statistic{}
