@@ -111,7 +111,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 		}
 		// There is no way to set levels when we subscribe for this specific subscription case.
 		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
-		limit = uint64(sub.Interval.Duration().Milliseconds())
+		limit = uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		limit = futuresOrderbookUpdateLimit
 	case asset.DeliveryFutures:

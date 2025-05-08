@@ -105,7 +105,7 @@ func TestSyncOrderbook(t *testing.T) {
 	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 
-	// Add dummy subscription so that it can be matched and a limit/level can be extracted for intial orderbook sync spot.
+	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
 	err := g.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
 	require.NoError(t, err)
 
