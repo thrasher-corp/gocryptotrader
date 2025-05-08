@@ -130,7 +130,7 @@ func TestSqlDataToTrade(t *testing.T) {
 
 func TestTradeToSQLData(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	sqlData, err := tradeToSQLData(Data{
 		Timestamp:    time.Now(),
 		Exchange:     "test!",

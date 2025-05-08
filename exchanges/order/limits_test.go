@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	btcusd = currency.NewPair(currency.BTC, currency.USD)
+	btcusd = currency.NewBTCUSD()
 	ltcusd = currency.NewPair(currency.LTC, currency.USD)
 	btcltc = currency.NewPair(currency.BTC, currency.LTC)
 )

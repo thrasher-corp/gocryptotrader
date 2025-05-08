@@ -32,7 +32,7 @@ func TestGetBase(t *testing.T) {
 	tt := time.Now()
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&kline.Kline{
 		Base: &event.Base{

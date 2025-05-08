@@ -274,7 +274,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
-	currPair := currency.NewPair(currency.BTC, currency.USD)
+	currPair := currency.NewBTCUSD()
 	currPair.Delimiter = "_"
 	getOrdersRequest.Pairs = []currency.Pair{currPair}
 

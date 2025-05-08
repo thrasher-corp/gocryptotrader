@@ -973,7 +973,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err := b.GetOrderInfo(t.Context(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err := b.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err)
 }
 
@@ -984,7 +984,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		},
 	})
 	require.NoError(t, err)
@@ -1009,7 +1009,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 currency.NewBTCUSDT(),
 		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
@@ -1036,11 +1036,11 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.BTC, currency.USD))
+	isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, currency.NewBTCUSD())
 	require.NoError(t, err)
 	require.False(t, isPerp)
 
-	isPerp, err = b.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewPair(currency.BTC, currency.USD))
+	isPerp, err = b.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewBTCUSD())
 	require.NoError(t, err)
 	require.True(t, isPerp)
 }
