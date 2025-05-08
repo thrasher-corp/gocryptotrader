@@ -53,7 +53,7 @@ func TestCanTradePair(t *testing.T) {
 		t.Fatalf("received: %v, but expected: %v", err, errEmptyCurrency)
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err = (&States{}).CanTradePair(cp, asset.Empty)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)

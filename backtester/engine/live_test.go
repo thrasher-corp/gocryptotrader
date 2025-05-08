@@ -281,7 +281,7 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	setup.pair = currency.NewPair(currency.BTC, currency.USDT)
+	setup.pair = currency.NewBTCUSDT()
 	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, kline.ErrInvalidInterval) {
 		t.Errorf("received '%v' expected '%v'", err, kline.ErrInvalidInterval)
@@ -384,7 +384,7 @@ func TestLoadCandleData(t *testing.T) {
 
 	exch := &binanceus.Binanceus{}
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
+	cp := currency.NewBTCUSDT().Format(
 		currency.PairFormat{
 			Uppercase: true,
 		})

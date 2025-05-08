@@ -196,8 +196,8 @@ func TestSizeOrder(t *testing.T) {
 			Offset:         1,
 			Exchange:       "binance",
 			Time:           time.Now(),
-			CurrencyPair:   currency.NewPair(currency.BTC, currency.USDT),
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair:   currency.NewBTCUSDT(),
+			UnderlyingPair: currency.NewBTCUSDT(),
 			AssetType:      asset.Spot,
 		},
 	}

@@ -173,7 +173,7 @@ func TestExchange_CancelOrder(t *testing.T) {
 		t.Skip("no exchange configured test skipped")
 	}
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	a := asset.Spot
 	_, err := exchangeTest.CancelOrder(t.Context(),
 		exchName, orderID, cp, a)

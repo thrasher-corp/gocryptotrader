@@ -677,7 +677,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 currency.NewBTCUSDT(),
 		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error on Margin")
@@ -696,7 +696,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	isPerp, err := b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USD))
+	isPerp, err := b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, currency.NewBTCUSD())
 	assert.NoError(t, err, "IsPerpetualFutureCurrency should not error")
 	assert.False(t, isPerp, "IsPerpetualFutureCurrency should return true for a Margin pair")
 
