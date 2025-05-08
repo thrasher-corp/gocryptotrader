@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -30,11 +31,9 @@ func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	err := ok.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, id, "order", []PlaceOrderRequestParam{*arg}, &resp)
-	if err != nil {
-		return nil, mergeErrors(err, resp)
+	if err := ok.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, id, "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
+		return nil, err
 	}
-
 	return singleItem(resp)
 }
 
@@ -53,11 +52,7 @@ func (ok *Okx) WSPlaceMultipleOrder(ctx context.Context, args []PlaceOrderReques
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	err := ok.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
-	if err != nil {
-		err = mergeErrors(err, resp)
-	}
-	return resp, err
+	return resp, ok.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, id, "batch-orders", args, &resp)
 }
 
 // WSCancelOrder cancels an order
@@ -76,7 +71,7 @@ func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 
 	var resp []*OrderData
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, id, "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
-		return nil, mergeErrors(err, resp)
+		return nil, err
 	}
 
 	return singleItem(resp)
@@ -100,11 +95,7 @@ func (ok *Okx) WSCancelMultipleOrder(ctx context.Context, args []CancelOrderRequ
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
-	if err != nil {
-		err = mergeErrors(err, resp)
-	}
-	return resp, err
+	return resp, ok.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, id, "batch-cancel-orders", args, &resp)
 }
 
 // WSAmendOrder amends an order
@@ -126,9 +117,8 @@ func (ok *Okx) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 
 	var resp []*OrderData
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, id, "amend-order", []AmendOrderRequestParams{*arg}, &resp); err != nil {
-		return nil, mergeErrors(err, resp)
+		return nil, err
 	}
-
 	return singleItem(resp)
 }
 
@@ -153,11 +143,7 @@ func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 	id := strconv.FormatInt(ok.Websocket.AuthConn.GenerateMessageID(false), 10)
 
 	var resp []*OrderData
-	err := ok.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
-	if err != nil {
-		err = mergeErrors(err, resp)
-	}
-	return resp, err
+	return resp, ok.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, id, "batch-amend-orders", args, &resp)
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
@@ -206,7 +192,7 @@ func (ok *Okx) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*
 
 	var resp []*SpreadOrderResponse
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, placeSpreadOrderEPL, id, "sprd-order", []SpreadOrderParam{*arg}, &resp); err != nil {
-		return nil, mergeErrors(err, resp)
+		return nil, err
 	}
 
 	return singleItem(resp)
@@ -228,7 +214,7 @@ func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 
 	var resp []*SpreadOrderResponse
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, amendSpreadOrderEPL, id, "sprd-amend-order", []AmendSpreadOrderParam{*arg}, &resp); err != nil {
-		return nil, mergeErrors(err, resp)
+		return nil, err
 	}
 
 	return singleItem(resp)
@@ -252,7 +238,7 @@ func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID s
 
 	var resp []*SpreadOrderResponse
 	if err := ok.SendAuthenticatedWebsocketRequest(ctx, cancelSpreadOrderEPL, id, "sprd-cancel-order", []map[string]string{arg}, &resp); err != nil {
-		return nil, mergeErrors(err, resp)
+		return nil, err
 	}
 
 	return singleItem(resp)
@@ -328,22 +314,23 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl reques
 	case 0:
 		return nil
 	case 1:
-		return errOperationFailed
+		return parseWSResponseErrors(result, errOperationFailed)
 	case 2:
-		return errPartialSuccess
+		return parseWSResponseErrors(result, errPartialSuccess)
 	default:
 		return getStatusError(intermediary.Code, intermediary.Message)
 	}
 }
 
-func mergeErrors[T interface{ Error() error }](err error, resp []T) error {
-	var errs error
-	for i := range resp {
-		if err := resp[i].Error(); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("index: `%d` error: `%w`", i+1, err))
+func parseWSResponseErrors(result any, err error) error {
+	s := reflect.ValueOf(result).Elem()
+	for i := range s.Len() {
+		v := s.Index(i)
+		if subErr, ok := v.Interface().(interface{ Error() error }); ok && subErr.Error() != nil {
+			err = common.AppendError(err, fmt.Errorf("%s[%d]: %w", v.Type(), i+1, subErr.Error()))
 		}
 	}
-	return common.AppendError(err, errs)
+	return err
 }
 
 func singleItem[T any](resp []*T) (*T, error) {

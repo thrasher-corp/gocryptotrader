@@ -225,23 +225,31 @@ func TestWSCancelAllSpreadOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
-var errElement = errors.New("element error")
-
-type SillyElement struct{}
-
-func (s *SillyElement) Error() error {
-	return errElement
+type mockHasError struct {
+	err error
 }
 
-func TestMergeErrors(t *testing.T) {
+func (m *mockHasError) Error() error {
+	return m.err
+}
+
+func TestParseWSResponseErrors(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, mergeErrors(nil, []interface{ Error() error }(nil)))
-	sillyErr := errors.New("silly error")
-	require.ErrorIs(t, mergeErrors(sillyErr, []interface{ Error() error }(nil)), sillyErr)
-	require.ErrorIs(t, mergeErrors(nil, []*SillyElement{{}}), errElement)
-	require.ErrorIs(t, mergeErrors(sillyErr, []*SillyElement{{}}), errElement)
-	require.ErrorIs(t, mergeErrors(sillyErr, []*SillyElement{{}}), sillyErr)
+	require.Panics(t, func() { _ = parseWSResponseErrors(123, nil) }, "result must be a pointer")
+	require.Panics(t, func() { _ = parseWSResponseErrors(&mockHasError{}, nil) }, "result must be a slice")
+
+	var emptySlice []*mockHasError
+	require.NoError(t, parseWSResponseErrors(&emptySlice, nil))
+	require.ErrorIs(t, parseWSResponseErrors(&emptySlice, errOperationFailed), errOperationFailed)
+
+	err1 := errors.New("error 1")
+	err2 := errors.New("error 2")
+	mockSlice := []*mockHasError{{err: nil}, {err: err1}, {err: err2}}
+	err := parseWSResponseErrors(&mockSlice, errPartialSuccess)
+	require.ErrorIs(t, err, errPartialSuccess)
+	require.ErrorIs(t, err, err1)
+	require.ErrorIs(t, err, err2)
 }
 
 func TestSingleItem(t *testing.T) {
@@ -249,10 +257,10 @@ func TestSingleItem(t *testing.T) {
 
 	_, err := singleItem([]*any(nil))
 	require.ErrorIs(t, err, common.ErrNoResponse)
-	_, err = singleItem([]*SillyElement{{}, {}})
+	_, err = singleItem([]*mockHasError{{}, {}})
 	require.ErrorIs(t, err, errMultipleItemsReturned)
 
-	got, err := singleItem([]*SillyElement{{}})
+	got, err := singleItem([]*mockHasError{{}})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 }
