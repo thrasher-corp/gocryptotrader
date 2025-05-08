@@ -18,7 +18,7 @@ const testExchange = "okx"
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneHour
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -44,7 +44,7 @@ func TestLoadCandles(t *testing.T) {
 func TestLoadTrades(t *testing.T) {
 	t.Parallel()
 	interval := gctkline.OneMin
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	a := asset.Spot
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)

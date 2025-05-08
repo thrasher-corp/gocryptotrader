@@ -93,7 +93,7 @@ func TestIsEvent(t *testing.T) {
 func TestPair(t *testing.T) {
 	t.Parallel()
 	e := &Base{
-		CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+		CurrencyPair: currency.NewBTCUSDT(),
 	}
 	y := e.Pair()
 	if y.IsEmpty() {
@@ -148,7 +148,7 @@ func TestGetBase(t *testing.T) {
 func TestGetUnderlyingPair(t *testing.T) {
 	t.Parallel()
 	b1 := &Base{
-		UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+		UnderlyingPair: currency.NewBTCUSDT(),
 	}
 	if !b1.UnderlyingPair.Equal(b1.GetUnderlyingPair()) {
 		t.Errorf("expected '%v' received '%v'", b1.UnderlyingPair, b1.GetUnderlyingPair())

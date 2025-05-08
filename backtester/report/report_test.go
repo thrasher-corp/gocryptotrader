@@ -23,7 +23,7 @@ func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	e := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := Data{
 		Config: &config.Config{
 			StrategySettings: config.StrategySettings{
@@ -137,7 +137,7 @@ func TestGenerateReport(t *testing.T) {
 			{
 				Exchange:  "Bitstamp",
 				Asset:     a,
-				Pair:      currency.NewPair(currency.BTC, currency.USD),
+				Pair:      currency.NewBTCUSD(),
 				Interval:  gctkline.OneDay,
 				Watermark: "BITSTAMP - SPOT - BTC-USD - 1d",
 				Candles: []DetailedCandle{
@@ -349,7 +349,7 @@ func TestEnhanceCandles(t *testing.T) {
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
@@ -373,7 +373,7 @@ func TestEnhanceCandles(t *testing.T) {
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{

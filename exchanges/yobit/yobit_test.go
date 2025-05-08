@@ -113,7 +113,7 @@ func TestGetOpenOrders(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, y)
-	_, err := y.GetOrderInfo(t.Context(), "1337", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err := y.GetOrderInfo(t.Context(), "1337", currency.NewBTCUSD(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

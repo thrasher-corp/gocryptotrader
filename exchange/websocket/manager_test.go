@@ -861,7 +861,7 @@ func TestFlushChannels(t *testing.T) {
 
 	newgen := GenSubs{EnabledPairs: []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD),
-		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewBTCUSDT(),
 	}}
 
 	w := NewManager()

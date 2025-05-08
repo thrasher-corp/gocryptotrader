@@ -34,7 +34,7 @@ const (
 
 var (
 	bi              = &Binanceus{}
-	testPairMapping = currency.NewPair(currency.BTC, currency.USDT)
+	testPairMapping = currency.NewBTCUSDT()
 	// this lock guards against orderbook tests race
 	binanceusOrderBookLock = &sync.Mutex{}
 )
@@ -210,7 +210,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 
-	pair := currency.NewPair(currency.BTC, currency.USD)
+	pair := currency.NewBTCUSD()
 	err := bi.CancelOrder(t.Context(), &order.Cancel{
 		AssetType: asset.Spot,
 		OrderID:   "1337",
@@ -385,7 +385,7 @@ func TestGetFee(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
@@ -402,7 +402,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	startTime := time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
@@ -426,7 +426,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetMostRecentTrades(t.Context(), RecentTradeRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Symbol: currency.NewBTCUSDT(),
 		Limit:  15,
 	})
 	if err != nil {
@@ -451,7 +451,7 @@ func TestGetAggregateTrades(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetAggregateTrades(t.Context(),
 		&AggregatedTradeRequestParams{
-			Symbol: currency.NewPair(currency.BTC, currency.USDT),
+			Symbol: currency.NewBTCUSDT(),
 			Limit:  5,
 		})
 	if err != nil {
@@ -462,7 +462,7 @@ func TestGetAggregateTrades(t *testing.T) {
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
 	_, er := bi.GetOrderBookDepth(t.Context(), &OrderBookDataRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Symbol: currency.NewBTCUSDT(),
 		Limit:  1000,
 	})
 	if er != nil {
@@ -473,7 +473,7 @@ func TestGetOrderBookDepth(t *testing.T) {
 func TestGetCandlestickData(t *testing.T) {
 	t.Parallel()
 	_, er := bi.GetSpotKline(t.Context(), &KlinesRequestParams{
-		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:    currency.NewBTCUSDT(),
 		Interval:  kline.FiveMin.Short(),
 		Limit:     24,
 		StartTime: time.Unix(1577836800, 0),
@@ -505,7 +505,7 @@ func TestGetSinglePriceData(t *testing.T) {
 
 func TestGetAveragePrice(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetAveragePrice(t.Context(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := bi.GetAveragePrice(t.Context(), currency.NewBTCUSDT())
 	if err != nil {
 		t.Error("Binance GetAveragePrice() error", err)
 	}
@@ -513,7 +513,7 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestGetBestPrice(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetBestPrice(t.Context(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := bi.GetBestPrice(t.Context(), currency.NewBTCUSDT())
 	if err != nil {
 		t.Error("Binanceus GetBestPrice() error", err)
 	}
@@ -521,7 +521,7 @@ func TestGetBestPrice(t *testing.T) {
 
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetPriceChangeStats(t.Context(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := bi.GetPriceChangeStats(t.Context(), currency.NewBTCUSDT())
 	if err != nil {
 		t.Error("Binance GetPriceChangeStats() error", err)
 	}
@@ -1704,7 +1704,7 @@ func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)
 	if err != nil {
@@ -1742,7 +1742,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		AssetType:       asset.Spot,
 		Date:            time.UnixMilli(1616627567900),
 		LastUpdated:     time.UnixMilli(1616627567900),
-		Pair:            currency.NewPair(currency.BTC, currency.USDT),
+		Pair:            currency.NewBTCUSDT(),
 	}
 	for len(bi.Websocket.DataHandler) > 0 {
 		<-bi.Websocket.DataHandler

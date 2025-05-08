@@ -134,18 +134,18 @@ func TestSetCurrency(t *testing.T) {
 	cs := &Settings{
 		Exchange:      f,
 		UseRealOrders: true,
-		Pair:          currency.NewPair(currency.BTC, currency.USDT),
+		Pair:          currency.NewBTCUSDT(),
 		Asset:         asset.Spot,
 	}
-	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
-	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewBTCUSDT(), cs)
+	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewBTCUSDT())
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !result.UseRealOrders {
 		t.Error("expected true")
 	}
-	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewBTCUSDT(), cs)
 	if len(e.CurrencySettings) != 1 {
 		t.Error("expected 1")
 	}
@@ -213,7 +213,7 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	assert.ErrorIs(t, err, gctorder.ErrPairIsEmpty)
 
-	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
+	f.CurrencyPair = currency.NewBTCUSDT()
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
@@ -240,7 +240,7 @@ func TestExecuteOrder(t *testing.T) {
 	err = bot.OrderManager.Start()
 	require.NoError(t, err, "OrderManager.Start must not error")
 
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	a := asset.Spot
 	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(t.Context(), p, a)

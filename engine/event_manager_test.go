@@ -284,7 +284,7 @@ func TestCheckEventCondition(t *testing.T) {
 	err = em.Add(exch)
 	require.NoError(t, err, "ExchangeManager Add must not error")
 
-	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
+	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewBTCUSD(), asset.Spot, action)
 	require.NoError(t, err, "eventManager Add must not error")
 
 	m.m.Lock()
@@ -292,7 +292,7 @@ func TestCheckEventCondition(t *testing.T) {
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 	m.m.Unlock()
 
-	_, err = exch.UpdateTicker(t.Context(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err = exch.UpdateTicker(t.Context(), currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err, "UpdateTicker must not error")
 
 	m.m.Lock()
@@ -310,7 +310,7 @@ func TestCheckEventCondition(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 	m.m.Unlock()
 
-	_, err = exch.UpdateOrderbook(t.Context(), currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err = exch.UpdateOrderbook(t.Context(), currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err, "UpdateOrderbook must not error")
 
 	m.m.Lock()

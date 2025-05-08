@@ -3110,7 +3110,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 	req := &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
-		Pair:  currency.NewPair(currency.BTC, currency.USD),
+		Pair:  currency.NewBTCUSD(),
 	}
 	_, err = ku.GetLatestFundingRates(t.Context(), req)
 	require.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
