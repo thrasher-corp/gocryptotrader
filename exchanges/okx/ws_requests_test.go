@@ -22,9 +22,9 @@ func TestWSPlaceOrder(t *testing.T) {
 
 	out := &PlaceOrderRequestParam{
 		InstrumentID: btcusdt,
-		TradeMode:    TradeModeCash,
+		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
 		Side:         "Buy",
-		OrderType:    "limit",
+		OrderType:    "post_only",
 		Amount:       0.0001,
 		Price:        20000,
 		Currency:     "USDT",
@@ -48,9 +48,9 @@ func TestWSPlaceMultipleOrder(t *testing.T) {
 
 	out := PlaceOrderRequestParam{
 		InstrumentID: btcusdt,
-		TradeMode:    TradeModeCash,
+		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
 		Side:         "Buy",
-		OrderType:    "limit",
+		OrderType:    "post_only",
 		Amount:       0.0001,
 		Price:        20000,
 		Currency:     "USDT",

@@ -36,7 +36,11 @@ var (
 	pingMsg = []byte("ping")
 	pongMsg = []byte("pong")
 
-	authConnErrorCodes = []string{"60007", "60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009", "60005", "60021", "60031"} // See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
+	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
+	authConnErrorCodes = []string{
+		"60007", "60022", "60023", "60024", "60026", "63999", "60032", "60011", "60009",
+		"60005", "60021", "60031", "50110",
+	}
 )
 
 const (
@@ -435,7 +439,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%w unmarshalling %v", err, respRaw)
 	}
-	if resp.Event != "" && (resp.Event == operationLogin || (resp.Event == "error" && slices.Contains(authConnErrorCodes, resp.StatusCode))) {
+	if resp.Event == operationLogin || (resp.Event == "error" && slices.Contains(authConnErrorCodes, resp.StatusCode)) {
 		return ok.Websocket.Match.RequireMatchWithData("login-response", respRaw)
 	}
 	if len(resp.Data) == 0 {
