@@ -2727,25 +2727,6 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
-func TestGetTypeFromTimeInForce(t *testing.T) {
-	t.Parallel()
-	typeResp, postOnly := getTypeFromTimeInForce("gtc")
-	assert.Equal(t, order.Limit, typeResp, "should be a limit order")
-	assert.False(t, postOnly, "should return false")
-
-	typeResp, postOnly = getTypeFromTimeInForce("ioc")
-	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return false")
-
-	typeResp, postOnly = getTypeFromTimeInForce("poc")
-	assert.Equal(t, order.Limit, typeResp, "should be limit order")
-	assert.True(t, postOnly, "should return true")
-
-	typeResp, postOnly = getTypeFromTimeInForce("fok")
-	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return false")
-}
-
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
@@ -2771,29 +2752,6 @@ func TestGetFutureOrderSize(t *testing.T) {
 	ret, err = getFutureOrderSize(&order.Submit{Side: order.Sell, Amount: 1})
 	require.NoError(t, err)
 	assert.Equal(t, -1.0, ret)
-}
-
-func TestGetTimeInForce(t *testing.T) {
-	t.Parallel()
-
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, PostOnly: true})
-	assert.ErrorIs(t, err, errPostOnlyOrderTypeUnsupported)
-
-	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
-	require.NoError(t, err)
-	assert.Equal(t, "ioc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, PostOnly: true})
-	require.NoError(t, err)
-	assert.Equal(t, "poc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit})
-	require.NoError(t, err)
-	assert.Equal(t, "gtc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, FillOrKill: true})
-	require.NoError(t, err)
-	assert.Equal(t, "fok", ret)
 }
 
 func TestProcessFuturesOrdersPushData(t *testing.T) {
@@ -2956,7 +2914,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 		Type:                 order.Market,
 		Side:                 order.Sell,
 		Status:               order.Filled,
-		ImmediateOrCancel:    true,
+		TimeInForce:          order.ImmediateOrCancel,
 		Cost:                 0.0001,
 		Purchased:            9.35033,
 	}, got)
@@ -2999,7 +2957,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Sell,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					Cost:                 0.0001,
 					Purchased:            9.35033,
 				},
@@ -3017,7 +2975,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Buy,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					Cost:                 9.991512,
 					Purchased:            816.3,
 				},
@@ -3035,7 +2993,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Limit,
 					Side:                 order.Buy,
 					Status:               order.Filled,
-					FillOrKill:           true,
+					TimeInForce:          order.FillOrKill,
 					Cost:                 7.346,
 					Purchased:            200,
 				},
@@ -3053,7 +3011,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Buy,
 					Status:          order.Open,
-					PostOnly:        true,
+					TimeInForce:     order.PostOnly,
 				},
 				{
 					Exchange:        g.Name,
@@ -3069,6 +3027,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Sell,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 			},
 		},
@@ -3116,7 +3075,7 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		Type:                 order.Market,
 		Side:                 order.Long,
 		Status:               order.Filled,
-		ImmediateOrCancel:    true,
+		TimeInForce:          order.ImmediateOrCancel,
 		ReduceOnly:           true,
 	}, got)
 }
@@ -3159,7 +3118,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Long,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					ReduceOnly:           true,
 				},
 				{
@@ -3175,7 +3134,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Short,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 				},
 				{
 					Exchange:        g.Name,
@@ -3190,6 +3149,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Long,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 				{
 					Exchange:        g.Name,
@@ -3204,6 +3164,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Short,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 				{
 					Exchange:             g.Name,
@@ -3217,7 +3178,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Long,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 				},
 				{
 					Exchange:             g.Name,
@@ -3231,7 +3192,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Short,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					ReduceOnly:           true,
 				},
 			},
