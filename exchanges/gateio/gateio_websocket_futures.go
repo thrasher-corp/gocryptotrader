@@ -422,12 +422,7 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Amount = data.Bids[x].Size
 	}
 
-	limit := futuresOrderbookUpdateLimit
-	if a == asset.DeliveryFutures {
-		limit = deliveryFuturesUpdateLimit
-	}
-
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, limit, data.FirstUpdatedID, &orderbook.Update{
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:       data.LastUpdatedID,
 		UpdateTime:     data.Timestamp.Time(),
 		UpdatePushedAt: pushTime,

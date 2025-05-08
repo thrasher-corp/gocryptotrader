@@ -55,14 +55,12 @@ const (
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
-
-	spotOrderbookDepthLimit = 100
 )
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.TwentyMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
@@ -386,7 +384,7 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, spotOrderbookDepthLimit, data.FirstUpdateID, &orderbook.Update{
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:       data.LastUpdateID,
 		UpdateTime:     data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
@@ -779,7 +777,7 @@ var channelIntervalsMap = map[asset.Item]map[string][]kline.Interval{
 	asset.Spot: {
 		spotOrderbookTickerChannel: {},
 		spotOrderbookChannel:       {kline.HundredMilliseconds, kline.ThousandMilliseconds},
-		spotOrderbookUpdateChannel: {kline.HundredMilliseconds},
+		spotOrderbookUpdateChannel: {kline.TwentyMilliseconds, kline.HundredMilliseconds},
 	},
 	asset.Futures: {
 		futuresOrderbookTickerChannel: {},
@@ -823,7 +821,7 @@ func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (strin
 		return "", nil
 	case !slices.Contains(intervals, s.Interval):
 		return "", fmt.Errorf("%w for %s: `%s`; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
-	case s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
+	case cName == futuresOrderbookUpdateChannel && s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
 		return "", fmt.Errorf("%w for `%s`: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
 	case s.Interval == 0:
 		return "0", nil // Do not move this into getIntervalString, it's only valid for ws subs

@@ -9,7 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -17,7 +19,7 @@ func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
 
 	m := newWsOBUpdateManager(0)
-	err := m.ProcessUpdate(t.Context(), g, 20, 1337, &orderbook.Update{})
+	err := m.ProcessUpdate(t.Context(), g, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
@@ -33,7 +35,7 @@ func TestProcessUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = m.ProcessUpdate(t.Context(), g, 20, 1337, &orderbook.Update{
+	err = m.ProcessUpdate(t.Context(), g, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -43,7 +45,7 @@ func TestProcessUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessUpdate(t.Context(), g, 20, 1340, &orderbook.Update{
+	err = m.ProcessUpdate(t.Context(), g, 1340, &orderbook.Update{
 		UpdateID:   1341,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -60,7 +62,7 @@ func TestProcessUpdate(t *testing.T) {
 	cache.mtx.Unlock()
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessUpdate(t.Context(), g, 20, 1342, &orderbook.Update{
+	err = m.ProcessUpdate(t.Context(), g, 1342, &orderbook.Update{
 		UpdateID:   1343,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -103,6 +105,10 @@ func TestSyncOrderbook(t *testing.T) {
 	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 
+	// Add dummy subscription so that it can be matched and a limit/level can be extracted for intial orderbook sync spot.
+	err := g.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds})
+	require.NoError(t, err)
+
 	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 
 	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
@@ -113,15 +119,20 @@ func TestSyncOrderbook(t *testing.T) {
 
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: a}}}
 		cache.updating = true
-		err = cache.SyncOrderbook(t.Context(), g, pair, a, 100)
+		err = cache.SyncOrderbook(t.Context(), g, pair, a)
 		require.NoError(t, err)
 		require.False(t, cache.updating)
 		require.Empty(t, cache.updates)
 
+		expectedLimit := 20
+		if a == asset.Spot {
+			expectedLimit = 100
+		}
+
 		b, err := g.Websocket.Orderbook.GetOrderbook(pair, a)
 		require.NoError(t, err)
-		require.Len(t, b.Bids, 100)
-		require.Len(t, b.Asks, 100)
+		require.Len(t, b.Bids, expectedLimit)
+		require.Len(t, b.Asks, expectedLimit)
 	}
 }
 

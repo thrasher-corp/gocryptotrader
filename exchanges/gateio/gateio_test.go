@@ -2271,7 +2271,7 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 					case subscription.CandlesChannel:
 						s.QualifiedChannel = "5m," + pairs[i].String()
 					case subscription.OrderbookChannel:
-						s.QualifiedChannel = pairs[i].String() + ",100ms"
+						s.QualifiedChannel = pairs[i].String() + ",20ms"
 					case spotOrderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
 					}

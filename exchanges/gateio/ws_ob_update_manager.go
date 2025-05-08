@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 const defaultWSSnapshotSyncDelay = 2 * time.Second
@@ -40,7 +41,7 @@ func newWsOBUpdateManager(snapshotSyncDelay time.Duration) *wsOBUpdateManager {
 }
 
 // ProcessUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
-func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, limit uint64, firstUpdateID int64, update *orderbook.Update) error {
+func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, firstUpdateID int64, update *orderbook.Update) error {
 	cache := m.LoadCache(update.Pair, update.Asset)
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
@@ -72,7 +73,7 @@ func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, limit 
 		case <-ctx.Done():
 			return
 		case <-time.After(m.snapshotSyncDelay):
-			if err := cache.SyncOrderbook(ctx, g, update.Pair, update.Asset, limit); err != nil {
+			if err := cache.SyncOrderbook(ctx, g, update.Pair, update.Asset); err != nil {
 				g.Websocket.DataHandler <- fmt.Errorf("failed to sync orderbook for %v %v: %w", update.Pair, update.Asset, err)
 			}
 		}
@@ -99,10 +100,26 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
-func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currency.Pair, a asset.Item, limit uint64) error {
-	// TODO: When templates are introduced for all assets define channel key and use g.Websocket.GetSubscription(ChannelKey{&subscription.Subscription{Channel: channelName}})
-	// to get the subscription and levels for limit. So that this can scale to config changes. Spot is currently the only
-	// asset with templates but it has only one level.
+func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currency.Pair, a asset.Item) error {
+	// TODO: When templates are introduced for all assets, scale to dynamic supported limit/levels provided from config.
+	var limit uint64
+	switch a {
+	case asset.Spot:
+		sub := g.Websocket.GetSubscription(spotOrderbookUpdateKey)
+		if sub == nil {
+			return fmt.Errorf("no subscription found for %s", spotOrderbookUpdateKey)
+		}
+		// There is no way to set levels when we subscribe for this specific subscription case.
+		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
+		limit = uint64(sub.Interval.Duration().Milliseconds())
+	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+		limit = futuresOrderbookUpdateLimit
+	case asset.DeliveryFutures:
+		limit = deliveryFuturesUpdateLimit
+	case asset.Options:
+		limit = optionOrderbookUpdateLimit
+	}
+
 	book, err := g.UpdateOrderbookWithLimit(ctx, pair, a, limit)
 
 	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
@@ -173,4 +190,20 @@ func (c *updateCache) applyOrderbookUpdate(g *Gateio, update *orderbook.Update) 
 	}
 
 	return nil
+}
+
+var spotOrderbookUpdateKey = channelKey{&subscription.Subscription{Channel: subscription.OrderbookChannel}}
+
+var _ subscription.MatchableKey = channelKey{}
+
+type channelKey struct {
+	*subscription.Subscription
+}
+
+func (k channelKey) Match(eachKey subscription.MatchableKey) bool {
+	return k.Subscription.Channel == eachKey.GetSubscription().Channel
+}
+
+func (k channelKey) GetSubscription() *subscription.Subscription {
+	return k.Subscription
 }
