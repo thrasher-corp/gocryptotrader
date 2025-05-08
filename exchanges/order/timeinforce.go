@@ -86,10 +86,10 @@ func (t TimeInForce) IsValid() bool {
 
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
-	var tifStrings []string
 	if t == UnknownTIF {
 		return ""
 	}
+	var tifStrings []string
 	if t.Is(ImmediateOrCancel) {
 		tifStrings = append(tifStrings, iocStr)
 	}
