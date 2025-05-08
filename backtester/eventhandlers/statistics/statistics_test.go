@@ -60,7 +60,7 @@ func TestAddDataEventForTime(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -101,7 +101,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -150,7 +150,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -199,7 +199,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -255,7 +255,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
@@ -314,7 +314,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	s := Statistic{}
 
 	err := s.AddComplianceSnapshotForTime(nil, nil)
@@ -500,7 +500,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	tt := time.Now()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	err := s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
@@ -573,7 +573,7 @@ func TestCalculateTheResults(t *testing.T) {
 	tt2 := time.Now().Add(-gctkline.OneDay.Duration() * 6)
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	p2 := currency.NewPair(currency.XRP, currency.DOGE)
 	err = s.SetEventForOffset(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
@@ -824,7 +824,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	var events []data.Event
 	for i := range int64(100) {
 		tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -960,7 +960,7 @@ func TestAddPNLForTime(t *testing.T) {
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,

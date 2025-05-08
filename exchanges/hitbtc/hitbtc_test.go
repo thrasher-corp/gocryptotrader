@@ -1055,7 +1055,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
 
-	_, err := h.GetOrderInfo(t.Context(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err := h.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSD(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

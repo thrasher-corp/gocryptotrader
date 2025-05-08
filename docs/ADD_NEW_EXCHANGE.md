@@ -282,7 +282,7 @@ for i := range bot.Exchanges {
 
 // Public calls - wrapper functions
 
-pair := currency.NewPair(currency.BTC, currency.USD)
+pair := currency.NewBTCUSD()
 
 // Fetches current ticker information
 tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot) // e -> f 
