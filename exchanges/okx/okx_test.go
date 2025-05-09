@@ -68,6 +68,7 @@ func TestMain(m *testing.M) {
 		ok.API.AuthenticatedSupport = true
 		ok.API.AuthenticatedWebsocketSupport = true
 		ok.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
 	os.Exit(m.Run())

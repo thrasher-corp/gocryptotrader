@@ -3864,16 +3864,16 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequ
 	if req.MinLeadDays != 0 {
 		params.Set("minLeadDays", strconv.FormatUint(req.MinLeadDays, 10))
 	}
-	if req.MinAssets != 0 {
+	if req.MinAssets > 0 {
 		params.Set("minAssets", strconv.FormatFloat(req.MinAssets, 'f', -1, 64))
 	}
-	if req.MaxAssets != 0 {
+	if req.MaxAssets > 0 {
 		params.Set("maxAssets", strconv.FormatFloat(req.MaxAssets, 'f', -1, 64))
 	}
-	if req.MinAssetsUnderManagement != 0 {
+	if req.MinAssetsUnderManagement > 0 {
 		params.Set("minAum", strconv.FormatFloat(req.MinAssetsUnderManagement, 'f', -1, 64))
 	}
-	if req.MaxAssetsUnderManagement != 0 {
+	if req.MaxAssetsUnderManagement > 0 {
 		params.Set("maxAum", strconv.FormatFloat(req.MaxAssetsUnderManagement, 'f', -1, 64))
 	}
 	if req.DataVersion != 0 {
@@ -3882,7 +3882,7 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequ
 	if req.Page != 0 {
 		params.Set("page", strconv.FormatUint(req.Page, 10))
 	}
-	if req.Limit > 0 {
+	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp []LeadTradersRank

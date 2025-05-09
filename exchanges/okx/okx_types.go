@@ -4733,17 +4733,17 @@ type CopyTradingLeadTrader struct {
 
 // LeadTraderRanksRequest represents lead trader ranks request parameters
 type LeadTraderRanksRequest struct {
-	InstrumentType           string
-	SortType                 string
-	State                    uint64
-	MinLeadDays              uint64
-	MinAssets                float64
-	MaxAssets                float64
-	MinAssetsUnderManagement float64
-	MaxAssetsUnderManagement float64
-	DataVersion              uint64
-	Page                     uint64
-	Limit                    uint64
+	InstrumentType           string  // Instrument type e.g 'SWAP'. The default value is 'SWAP'
+	SortType                 string  // Overview, the default value. pnl: profit and loss, aum: assets under management, win_ratio: win ratio,pnl_ratio: pnl ratio, current_copy_trader_pnl: current copy trader pnl
+	State                    uint64  // 0: All lead traders, the default, including vacancy and non-vacancy. 1: lead traders who have vacancy
+	MinLeadDays              uint64  // 1: 7 days. 2: 30 days. 3: 90 days. 4: 180 days
+	MinAssets                float64 // Minimum assets in USDT
+	MaxAssets                float64 // Maximum assets in USDT
+	MinAssetsUnderManagement float64 // Minimum assets under management in USDT
+	MaxAssetsUnderManagement float64 // Maximum assets under management in USDT
+	DataVersion              uint64  // It is 14 numbers. e.g. 20231010182400 used for pagination. A new version will be generated every 10 minutes. Only last 5 versions are stored. The default is latest version
+	Page                     uint64  // Page number for pagination
+	Limit                    uint64  // Number of results per request. The maximum is 20; the default is 10
 }
 
 // LeadTradersRank represents lead traders rank info
