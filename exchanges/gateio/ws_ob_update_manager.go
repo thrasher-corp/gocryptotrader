@@ -101,7 +101,7 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 // SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
 func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currency.Pair, a asset.Item) error {
-	// TODO: When templates are introduced for all assets, scale to dynamic supported limit/levels provided from config.
+	// TODO: When subscription config is added for all assets update limits to use sub.Levels
 	var limit uint64
 	switch a {
 	case asset.Spot:
