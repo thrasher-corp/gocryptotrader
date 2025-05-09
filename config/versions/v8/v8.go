@@ -1,4 +1,4 @@
-package versions
+package v8
 
 import (
 	"context"
@@ -7,18 +7,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-// Version10 is an ExchangeVersion to add the websocketMetricsLogging field
-type Version10 struct{}
-
-func init() {
-	Manager.registerVersion(7, &Version10{})
-}
+// Version is an ExchangeVersion to add the websocketMetricsLogging field
+type Version struct{}
 
 // Exchanges returns all exchanges: "*"
-func (v *Version10) Exchanges() []string { return []string{"*"} }
+func (v *Version) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange will upgrade the exchange config with the websocketMetricsLogging field
-func (v *Version10) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if len(e) == 0 {
 		return e, nil
 	}
@@ -33,6 +29,6 @@ func (v *Version10) UpgradeExchange(_ context.Context, e []byte) ([]byte, error)
 }
 
 // DowngradeExchange will downgrade the exchange config by removing the websocketMetricsLogging field
-func (v *Version10) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+func (v *Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	return jsonparser.Delete(e, "websocketMetricsLogging"), nil
 }
