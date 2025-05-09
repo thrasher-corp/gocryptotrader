@@ -35,7 +35,7 @@ func TestDefaultProcessReporter(t *testing.T) {
 	w.SetProcessReportManager(&reporterManager)
 	conn := &DummyConnection{ch: make(chan []byte)}
 	w.Wg.Add(1)
-	go w.Reader(context.Background(), conn, ProcessWithSomeSweetLag)
+	go w.Reader(t.Context(), conn, ProcessWithSomeSweetLag)
 
 	for range 100 {
 		conn.Push([]byte("test"))
