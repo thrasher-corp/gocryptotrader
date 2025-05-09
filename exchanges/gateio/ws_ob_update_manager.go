@@ -87,7 +87,7 @@ func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCach
 	m.mtx.RLock()
 	cache, ok := m.m[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		go m.mtx.RUnlock()
+		m.mtx.RUnlock()
 		m.mtx.Lock()
 		cache = &updateCache{}
 		m.m[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
