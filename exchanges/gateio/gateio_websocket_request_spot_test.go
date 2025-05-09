@@ -185,7 +185,7 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
 	testexch.UpdatePairsOnce(t, g)
-	g := newExchangeWithWebsocket(t, asset.Spot)
+	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	got, err := g.WebsocketSpotGetOrderStatus(t.Context(), "644999650452", BTCUSDT, "")
 	require.NoError(t, err)
@@ -199,7 +199,7 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Gateio {
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
-	g := new(Gateio)
+	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, g)
 	g.API.AuthenticatedSupport = true

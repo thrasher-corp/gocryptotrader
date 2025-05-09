@@ -31,6 +31,12 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "batching", Asset: asset.Spot},
 		{Channel: "single-channel", Authenticated: true},
 	}
+
+	_, err := l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, Fail: true})
+	require.ErrorIs(t, err, errValidateSubscriptionsTestError)
+	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e})
+	require.NoError(t, err)
+
 	got, err := l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	exp := List{
