@@ -19,16 +19,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 const (
@@ -103,11 +104,6 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) e
 	return nil
 }
 
-// authenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) authenticateSpot(ctx context.Context, conn websocket.Connection) error {
-	return g.websocketLogin(ctx, conn, "spot.login")
-}
-
 // websocketLogin authenticates the websocket connection
 func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
 	if conn == nil {
@@ -140,7 +136,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, 
 
 	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
 
-	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, req.Payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -150,15 +146,16 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, 
 		return err
 	}
 
-	if inbound.Header.Status != "200" {
-		var wsErr WebsocketErrors
-		if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-			return err
-		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	if inbound.Header.Status == http.StatusOK {
+		return nil
 	}
 
-	return nil
+	var wsErr WebsocketErrors
+	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
 func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
@@ -827,4 +824,68 @@ func (g *Gateio) sendSubPayload(ctx context.Context, conn websocket.Connection, 
 		return g.Websocket.AddSuccessfulSubscriptions(conn, s)
 	}
 	return g.Websocket.RemoveSubscriptions(conn, s)
+}
+
+type resultHolder struct {
+	Result any `json:"result"`
+}
+
+// SendWebsocketRequest sends a websocket request to the exchange
+func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
+	paramPayload, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+
+	conn, err := g.Websocket.GetConnection(connSignature)
+	if err != nil {
+		return err
+	}
+
+	tn := time.Now().Unix()
+	req := &WebsocketRequest{
+		Time:    tn,
+		Channel: channel,
+		Event:   "api",
+		Payload: WebsocketPayload{
+			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestParam: paramPayload,
+			Timestamp:    strconv.FormatInt(tn, 10),
+		},
+	}
+
+	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
+	if err != nil {
+		return err
+	}
+
+	if len(responses) == 0 {
+		return common.ErrNoResponse
+	}
+
+	// responses may include an ack resp, which we skip
+	endResponse := responses[len(responses)-1]
+
+	var inbound WebsocketAPIResponse
+	if err := json.Unmarshal(endResponse, &inbound); err != nil {
+		return err
+	}
+
+	if inbound.Header.Status != http.StatusOK {
+		var wsErr WebsocketErrors
+		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
+			return err
+		}
+		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	}
+
+	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
+}
+
+type wsRespAckInspector struct{}
+
+// IsFinal checks the payload for an ack, it returns true if the payload does not contain an ack.
+// This will force the cancellation of further waiting for responses.
+func (wsRespAckInspector) IsFinal(data []byte) bool {
+	return !strings.Contains(string(data), "ack")
 }

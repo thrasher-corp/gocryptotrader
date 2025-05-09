@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -23,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -320,13 +320,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		creds, err := b.GetCredentials(context.TODO())
-		if err != nil {
+		clientID := ""
+		if creds, err := b.GetCredentials(context.TODO()); err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: b.Name,
 				OrderID:  orderID,
 				Err:      err,
 			}
+		} else if creds != nil {
+			clientID = creds.ClientID
 		}
 
 		b.Websocket.DataHandler <- &order.Detail{
@@ -335,7 +337,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
 			OrderID:         orderID,
-			ClientID:        creds.ClientID,
+			ClientID:        clientID,
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,

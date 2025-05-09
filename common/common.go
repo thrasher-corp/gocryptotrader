@@ -67,6 +67,7 @@ var (
 	ErrEmptyParams               = errors.New("empty parameters")
 	ErrCannotCalculateOffline    = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse                = errors.New("no response")
+	ErrInvalidResponse           = errors.New("invalid response")
 	ErrTypeAssertFailure         = errors.New("type assert failure")
 	ErrNoResults                 = errors.New("no results found")
 	ErrUnknownError              = errors.New("unknown error")

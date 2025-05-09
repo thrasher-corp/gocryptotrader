@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -61,12 +62,12 @@ func TestAllExchangeWrappers(t *testing.T) {
 			if singleExchangeOverride != "" && name != singleExchangeOverride {
 				t.Skip("skipping ", name, " due to override")
 			}
-			ctx := context.Background()
+			ctx := t.Context()
 			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
+				ctx, cancelFn = context.WithTimeout(ctx, 0)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
@@ -649,6 +650,7 @@ var acceptableErrors = []error{
 	account.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
+	websocket.ErrNotConnected,
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
@@ -674,7 +676,7 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 			return p[i], nil
 		}
 	}
-	goodBtc := currency.NewPair(currency.BTC, currency.USDT).Format(pFmt)
+	goodBtc := currency.NewBTCUSDT().Format(pFmt)
 	if p.Contains(goodBtc, true) {
 		return goodBtc, nil
 	}

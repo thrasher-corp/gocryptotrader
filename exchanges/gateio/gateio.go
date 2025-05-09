@@ -29,9 +29,6 @@ const (
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
 	tradeBaseURL                        = "https://www.gate.io/"
-	tradeSpot                           = "trade/"
-	tradeFutures                        = "futures/usdt/"
-	tradeDelivery                       = "futures-delivery/usdt/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -140,9 +137,8 @@ var (
 	errInvalidOrderSize                 = errors.New("invalid order size")
 	errInvalidOrderID                   = errors.New("invalid order id")
 	errInvalidAmount                    = errors.New("invalid amount")
-	errInvalidOrEmptySubaccount         = errors.New("invalid or empty subaccount")
+	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
-	errInvalidOrderSide                 = errors.New("invalid order side")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
 	errInvalidPrice                     = errors.New("invalid price")
 	errNoValidParameterPassed           = errors.New("no valid parameter passed")
@@ -166,7 +162,8 @@ var (
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
-	errCannotParseSettlementCurrency    = errors.New("cannot derive settlement currency")
+	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 )
@@ -560,7 +557,7 @@ func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*Uni
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
-func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderRequestData) ([]SpotOrder, error) {
+func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]SpotOrder, error) {
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
@@ -576,7 +573,7 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 		}
 		args[x].Side = strings.ToLower(args[x].Side)
 		if args[x].Side != "buy" && args[x].Side != "sell" {
-			return nil, errInvalidOrderSide
+			return nil, order.ErrSideIsInvalid
 		}
 		if !strings.EqualFold(args[x].Account, asset.Spot.String()) &&
 			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
@@ -633,7 +630,7 @@ func (g *Gateio) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Context,
 
 // PlaceSpotOrder creates a spot order you can place orders with spot, margin or cross margin account through setting the accountfield.
 // It defaults to spot, which means spot account is used to place orders.
-func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData) (*SpotOrder, error) {
+func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) (*SpotOrder, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -642,7 +639,7 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	}
 	arg.Side = strings.ToLower(arg.Side)
 	if arg.Side != "buy" && arg.Side != "sell" {
-		return nil, errInvalidOrderSide
+		return nil, order.ErrSideIsInvalid
 	}
 	if !strings.EqualFold(arg.Account, asset.Spot.String()) &&
 		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
@@ -852,7 +849,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, errors.New("invalid order type, only order type 'limit' is allowed")
 	}
 	if arg.Put.Side != "buy" && arg.Put.Side != "sell" {
-		return nil, errInvalidOrderSide
+		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Put.Price < 0 {
 		return nil, fmt.Errorf("%w, %s", errInvalidPrice, "put price has to be greater than 0")
@@ -1186,7 +1183,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if arg.SubAccount == "" {
-		return errInvalidOrEmptySubaccount
+		return errInvalidSubAccount
 	}
 	arg.Direction = strings.ToLower(arg.Direction)
 	if arg.Direction != "to" && arg.Direction != "from" {
@@ -1195,8 +1192,10 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	if arg.Amount <= 0 {
 		return errInvalidAmount
 	}
-	if arg.SubAccountType != "" && arg.SubAccountType != asset.Spot.String() && arg.SubAccountType != asset.Futures.String() && arg.SubAccountType != asset.CrossMargin.String() {
-		return fmt.Errorf("%v; only %v,%v, and %v are allowed", asset.ErrNotSupported, asset.Spot, asset.Futures, asset.CrossMargin)
+	switch arg.SubAccountType {
+	case "", "spot", "futures", "delivery":
+	default:
+		return fmt.Errorf("%w `%s` for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }
@@ -1346,6 +1345,28 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, walletTotalBalance, params, nil, &response)
 }
 
+// ConvertSmallBalances converts small balances of provided currencies into GT.
+// If no currencies are provided, all supported currencies will be converted
+// See [this documentation](https://www.gate.io/help/guide/functional_guidelines/22367) for details and restrictions.
+func (g *Gateio) ConvertSmallBalances(ctx context.Context, currs ...currency.Code) error {
+	currencyList := make([]string, len(currs))
+	for i := range currs {
+		if currs[i].IsEmpty() {
+			return currency.ErrCurrencyCodeEmpty
+		}
+		currencyList[i] = currs[i].Upper().String()
+	}
+
+	payload := struct {
+		Currency []string `json:"currency"`
+		IsAll    bool     `json:"is_all"`
+	}{
+		Currency: currencyList,
+		IsAll:    len(currs) == 0,
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, payload, nil)
+}
+
 // ********************************* Margin *******************************************
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
@@ -1445,7 +1466,7 @@ func (g *Gateio) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*
 // GetMarginAllLoans retrieves all loans (borrow and lending) orders.
 func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]MarginLoanResponse, error) {
 	if side != sideLend && side != sideBorrow {
-		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", errInvalidOrderSide)
+		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", order.ErrSideIsInvalid)
 	}
 	params := url.Values{}
 	params.Set("side", side)
@@ -2263,7 +2284,7 @@ func (g *Gateio) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle c
 // Set reduce_only to true can keep the position from changing side when reducing position size
 // In single position mode, to close a position, you need to set size to 0 and close to true
 // In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
-func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) (*Order, error) {
+func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2271,7 +2292,7 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
@@ -2351,7 +2372,7 @@ func (g *Gateio) CancelMultipleFuturesOpenOrders(ctx context.Context, contract c
 // In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
 // If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
 // In the rate limiting, each order is counted individually
-func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []OrderCreateParams) ([]Order, error) {
+func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2360,7 +2381,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 	}
 	for x := range args {
 		if args[x].Size == 0 {
-			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
 		if args[x].TimeInForce != gtcTIF &&
 			args[x].TimeInForce != iocTIF &&
@@ -2839,7 +2860,7 @@ func (g *Gateio) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle cur
 
 // PlaceDeliveryOrder create a futures order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams) (*Order, error) {
+func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2847,7 +2868,7 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
+		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
@@ -3675,15 +3696,14 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
 }
 
-func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.Code, err error) {
-	quote := currencyPair.Quote.Upper().String()
+// GetAccountDetails retrieves account details
+func (g *Gateio) GetAccountDetails(ctx context.Context) (*AccountDetails, error) {
+	var resp *AccountDetails
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
+}
 
-	switch {
-	case strings.HasPrefix(quote, currency.USDT.String()):
-		return currency.USDT, nil
-	case strings.HasPrefix(quote, currency.USD.String()):
-		return currency.BTC, nil
-	default:
-		return currency.EMPTYCODE, fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)
-	}
+// GetUserTransactionRateLimitInfo retrieves user transaction rate limit info
+func (g *Gateio) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
+	var resp []UserTransactionRateLimitInfo
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }

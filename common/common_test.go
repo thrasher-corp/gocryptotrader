@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -32,21 +31,21 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	_, err := SendHTTPRequest(context.Background(),
+	_, err := SendHTTPRequest(t.Context(),
 		methodGarbage, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Expected error 'invalid HTTP method specified'")
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodPost, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
@@ -59,21 +58,21 @@ func TestSendHTTPRequest(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodDelete, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodGet, ":missingprotocolscheme", headers,
 		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Common HTTPRequest accepted missing protocol")
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodGet, "test://unsupportedprotocolscheme", headers,
 		strings.NewReader(""), true,
 	)

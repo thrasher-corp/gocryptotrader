@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -27,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -226,13 +226,17 @@ func (b *Bithumb) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
 				pairs[i], pairs, tickers)
 		}
+		p, err := b.FormatExchangeCurrency(pairs[i], a)
+		if err != nil {
+			return err
+		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         t.MaxPrice,
 			Low:          t.MinPrice,
 			Volume:       t.UnitsTraded24Hr,
 			Open:         t.OpeningPrice,
 			Close:        t.ClosingPrice,
-			Pair:         pairs[i],
+			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
 		})

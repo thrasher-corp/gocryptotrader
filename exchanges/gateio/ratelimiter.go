@@ -68,6 +68,7 @@ const (
 	walletSavedAddressesEPL
 	walletTradingFeeEPL
 	walletTotalBalanceEPL
+	walletConvertSmallBalancesEPL
 	walletWithdrawEPL
 	walletCancelWithdrawEPL
 
@@ -256,6 +257,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	walletSavedAddressesEPL:                 standardRateLimit(),
 	walletTradingFeeEPL:                     standardRateLimit(),
 	walletTotalBalanceEPL:                   personalAccountRateLimit(),
+	walletConvertSmallBalancesEPL:           personalAccountRateLimit(),
 	walletWithdrawEPL:                       withdrawFromWalletRateLimit(),
 	walletCancelWithdrawEPL:                 standardRateLimit(),
 

@@ -3,9 +3,7 @@ package gateio
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +11,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -22,12 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 const (
-	futuresWebsocketBtcURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
-	futuresWebsocketUsdtURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
+	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
 
 	futuresPingChannel            = "futures.ping"
 	futuresTickersChannel         = "futures.tickers"
@@ -59,12 +57,14 @@ var defaultFuturesSubscriptions = []string{
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
-	if err != nil {
+	a := asset.USDTMarginedFutures
+	if conn.GetURL() == btcFuturesWebsocketURL {
+		a = asset.CoinMarginedFutures
+	}
+	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
-	if err != nil {
+	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -85,27 +85,18 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
-func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (subscription.List, error) {
+func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
-	pairs, err := g.GetEnabledPairs(asset.Futures)
+	pairs, err := g.GetEnabledPairs(a)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
 		}
 		return nil, err
-	}
-
-	switch {
-	case settlement.Equal(currency.USDT):
-		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return !p.Quote.Equal(currency.USDT) })
-	case settlement.Equal(currency.BTC):
-		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return p.Quote.Equal(currency.USDT) })
-	default:
-		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
 	}
 
 	var subscriptions subscription.List
@@ -122,7 +113,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				params["frequency"] = kline.ThousandMilliseconds
 				params["level"] = "100"
 			}
-			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], a)
 			if err != nil {
 				return nil, err
 			}
@@ -130,7 +121,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
-				Asset:   asset.Futures,
+				Asset:   a,
 			})
 		}
 	}
@@ -154,11 +145,12 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 		return err
 	}
 
+	if push.RequestID != "" {
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+	}
+
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {
@@ -175,8 +167,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
-		var processed []order.Detail
-		processed, err = g.processFuturesOrdersPushData(respRaw, a)
+		processed, err := g.processFuturesOrdersPushData(respRaw, a)
 		if err != nil {
 			return err
 		}

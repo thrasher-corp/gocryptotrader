@@ -21,7 +21,7 @@ const (
 	a    = asset.Spot
 )
 
-var p = currency.NewPair(currency.BTC, currency.USD)
+var p = currency.NewBTCUSD()
 
 type fakeEvent struct {
 	secretID int64
@@ -223,7 +223,7 @@ func TestSetStream(t *testing.T) {
 	if len(b.stream) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err = b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -288,7 +288,7 @@ func TestSetStream(t *testing.T) {
 func TestNext(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -344,7 +344,7 @@ func TestNext(t *testing.T) {
 func TestHistory(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -398,7 +398,7 @@ func TestHistory(t *testing.T) {
 func TestLatest(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -463,7 +463,7 @@ func TestLatest(t *testing.T) {
 func TestList(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -505,7 +505,7 @@ func TestList(t *testing.T) {
 func TestIsLastEvent(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -621,7 +621,7 @@ func TestAppendStream(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
 	}
 	tt := time.Now().Add(-time.Hour)
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	e.Exchange = "b"
 	e.AssetType = asset.Spot
 	e.CurrencyPair = cp
@@ -762,7 +762,7 @@ func (f fakeEvent) GetTime() time.Time {
 }
 
 func (f fakeEvent) Pair() currency.Pair {
-	return currency.NewPair(currency.BTC, currency.USD)
+	return currency.NewBTCUSD()
 }
 
 func (f fakeEvent) GetExchange() string {

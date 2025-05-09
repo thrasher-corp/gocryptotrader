@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 const (
@@ -173,6 +173,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			}
 		}
 
+		clientID := ""
+		if creds != nil {
+			clientID = creds.ClientID
+		}
+
 		if wsOrder.UserID != "" {
 			var p currency.Pair
 			var a asset.Item
@@ -191,7 +196,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Exchange:        c.Name,
 				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
-				ClientID:        creds.ClientID,
+				ClientID:        clientID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,

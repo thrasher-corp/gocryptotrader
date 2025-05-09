@@ -170,7 +170,7 @@ func TestPrintTickerSummary(t *testing.T) {
 	}
 	atomic.StoreInt32(&m.started, 1)
 	m.PrintTickerSummary(&ticker.Price{
-		Pair: currency.NewPair(currency.BTC, currency.USDT),
+		Pair: currency.NewBTCUSDT(),
 	}, "REST", nil)
 	m.fiatDisplayCurrency = currency.USD
 	m.PrintTickerSummary(&ticker.Price{
