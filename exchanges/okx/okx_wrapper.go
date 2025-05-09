@@ -1518,9 +1518,6 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	instrumentID := pairFormat.Format(pair)
-	if !ok.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
-	}
 	orderDetail, err := ok.GetOrderDetail(ctx, &OrderDetailRequestParam{
 		InstrumentID: instrumentID,
 		OrderID:      orderID,
@@ -2731,16 +2728,32 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			var cp, underlying currency.Pair
-			underlying, err = currency.NewPairFromString(result[i].Underlying)
+			cp, err := currency.NewPairFromString(result[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
-			cp, err = currency.NewPairFromString(result[i].InstrumentID)
-			if err != nil {
-				return nil, err
+
+			var (
+				isLive                 = result[i].State == "live"
+				underlying             currency.Pair
+				settleCurr             currency.Code
+				contractSettlementType futures.ContractSettlementType
+			)
+
+			if isLive {
+				underlying, err = currency.NewPairFromString(result[i].Underlying)
+				if err != nil {
+					return nil, err
+				}
+
+				settleCurr = currency.NewCode(result[i].SettlementCurrency)
+
+				contractSettlementType = futures.Linear
+				if result[i].SettlementCurrency == result[i].BaseCurrency {
+					contractSettlementType = futures.Inverse
+				}
 			}
-			settleCurr := currency.NewCode(result[i].SettlementCurrency)
+
 			var ct futures.ContractType
 			if item == asset.PerpetualSwap {
 				ct = futures.Perpetual
@@ -2752,25 +2765,25 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 					ct = futures.Quarterly
 				}
 			}
-			contractSettlementType := futures.Linear
-			if result[i].SettlementCurrency == result[i].BaseCurrency {
-				contractSettlementType = futures.Inverse
-			}
+
 			resp[i] = futures.Contract{
-				Exchange:             ok.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            result[i].ListTime.Time(),
-				EndDate:              result[i].ExpTime.Time(),
-				IsActive:             result[i].State == "live",
-				Status:               result[i].State,
-				Type:                 ct,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{settleCurr},
-				MarginCurrency:       settleCurr,
-				Multiplier:           result[i].ContractValue.Float64(),
-				MaxLeverage:          result[i].MaxLeverage.Float64(),
+				Exchange:       ok.Name,
+				Name:           cp,
+				Underlying:     underlying,
+				Asset:          item,
+				StartDate:      result[i].ListTime.Time(),
+				EndDate:        result[i].ExpTime.Time(),
+				IsActive:       result[i].State == "live",
+				Status:         result[i].State,
+				Type:           ct,
+				SettlementType: contractSettlementType,
+				MarginCurrency: settleCurr,
+				Multiplier:     result[i].ContractValue.Float64(),
+				MaxLeverage:    result[i].MaxLeverage.Float64(),
+			}
+
+			if !settleCurr.IsEmpty() {
+				resp[i].SettlementCurrencies = currency.Currencies{settleCurr}
 			}
 		}
 		return resp, nil

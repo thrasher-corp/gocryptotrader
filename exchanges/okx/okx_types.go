@@ -4731,6 +4731,21 @@ type CopyTradingLeadTrader struct {
 	CopyState               string       `json:"copyState"`
 }
 
+// LeadTraderRanksRequest represents lead trader ranks request parameters
+type LeadTraderRanksRequest struct {
+	InstrumentType           string
+	SortType                 string
+	State                    uint64
+	MinLeadDays              uint64
+	MinAssets                float64
+	MaxAssets                float64
+	MinAssetsUnderManagement float64
+	MaxAssetsUnderManagement float64
+	DataVersion              uint64
+	Page                     uint64
+	Limit                    uint64
+}
+
 // LeadTradersRank represents lead traders rank info
 type LeadTradersRank struct {
 	DataVer string `json:"dataVer"`

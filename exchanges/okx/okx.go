@@ -3850,43 +3850,40 @@ func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after,
 // Sort type"overview": overview, the default value "pnl": profit and loss "aum": assets under management "win_ratio": win ratio "pnl_ratio": pnl ratio "current_copy_trader_pnl": current copy trader pnl
 // Lead trader state: "0": All lead traders, the default, including vacancy and non-vacancy "1": lead traders who have vacancy
 // Minimum lead days '1': 7 days '2': 30 days '3': 90 days '4': 180 days
-func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType, state,
-	minLeadDays, minAssets, maxAssets, minAssetUnderManagement, maxAssetUnderManagement,
-	dataVersion, page string, limit int64,
-) ([]LeadTradersRank, error) {
+func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequest) ([]LeadTradersRank, error) {
 	params := url.Values{}
-	if instrumentType != "" {
-		params.Set("instType", instrumentType)
+	if req.InstrumentType != "" {
+		params.Set("instType", req.InstrumentType)
 	}
-	if sortType != "" {
-		params.Set("sortType", sortType)
+	if req.SortType != "" {
+		params.Set("sortType", req.SortType)
 	}
-	if state != "" {
-		params.Set("state", state)
+	if req.State != 0 {
+		params.Set("state", strconv.FormatUint(req.State, 10))
 	}
-	if minLeadDays != "" {
-		params.Set("minLeadDays", minLeadDays)
+	if req.MinLeadDays != 0 {
+		params.Set("minLeadDays", strconv.FormatUint(req.MinLeadDays, 10))
 	}
-	if minAssets != "" {
-		params.Set("minAssets", minAssets)
+	if req.MinAssets != 0 {
+		params.Set("minAssets", strconv.FormatFloat(req.MinAssets, 'f', -1, 64))
 	}
-	if maxAssets != "" {
-		params.Set("maxAssets", maxAssets)
+	if req.MaxAssets != 0 {
+		params.Set("maxAssets", strconv.FormatFloat(req.MaxAssets, 'f', -1, 64))
 	}
-	if minAssetUnderManagement != "" {
-		params.Set("minAum", minAssetUnderManagement)
+	if req.MinAssetsUnderManagement != 0 {
+		params.Set("minAum", strconv.FormatFloat(req.MinAssetsUnderManagement, 'f', -1, 64))
 	}
-	if maxAssetUnderManagement != "" {
-		params.Set("maxAum", maxAssetUnderManagement)
+	if req.MaxAssetsUnderManagement != 0 {
+		params.Set("maxAum", strconv.FormatFloat(req.MaxAssetsUnderManagement, 'f', -1, 64))
 	}
-	if dataVersion != "" {
-		params.Set("dataVer", dataVersion)
+	if req.DataVersion != 0 {
+		params.Set("dataVer", strconv.FormatUint(req.DataVersion, 10))
 	}
-	if page != "" {
-		params.Set("page", page)
+	if req.Page != 0 {
+		params.Set("page", strconv.FormatUint(req.Page, 10))
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+	if req.Limit > 0 {
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp []LeadTradersRank
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, request.UnauthenticatedRequest)

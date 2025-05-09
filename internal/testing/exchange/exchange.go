@@ -191,7 +191,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = w.Connect()
-	require.NoError(tb, err, "WsConnect should not error")
+	require.NoError(tb, err, "Connect must not error")
 
 	setupWsOnce[e] = true
 }
