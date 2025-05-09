@@ -283,7 +283,7 @@ func TestDeployDepth(t *testing.T) {
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", c, asset.Empty)
-	require.ErrorIs(t, err, errAssetTypeNotSet)
+	require.ErrorIs(t, err, ErrAssetTypeNotSet)
 	d, err := DeployDepth("test", c, asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, d)
