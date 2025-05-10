@@ -232,11 +232,15 @@ func (p *Poloniex) processBalance(result *SubscriptionResponse) error {
 	accountChanges := make([]account.Change, len(resp))
 	for x := range resp {
 		accountChanges[x] = account.Change{
-			Exchange: p.Name,
-			Currency: currency.NewCode(resp[x].Currency),
-			Asset:    stringToAccountType(resp[x].AccountType),
-			Amount:   resp[x].Available.Float64(),
-			Account:  resp[x].AccountType,
+			Account:   resp[x].AccountType,
+			AssetType: stringToAccountType(resp[x].AccountType),
+			Balance: &account.Balance{
+				Hold:      resp[x].Hold.Float64(),
+				Total:     resp[x].Available.Float64(),
+				UpdatedAt: resp[x].Timestamp.Time(),
+				Currency:  currency.NewCode(resp[x].Currency),
+				Free:      resp[x].Available.Float64() - resp[x].Hold.Float64(),
+			},
 		}
 	}
 	p.Websocket.DataHandler <- accountChanges

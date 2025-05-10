@@ -250,10 +250,14 @@ func (p *Poloniex) processFuturesAccountData(data []byte) error {
 	for a := range resp {
 		for b := range resp[a].Details {
 			accChanges = append(accChanges, account.Change{
-				Exchange: p.Name,
-				Currency: currency.NewCode(resp[a].Details[b].Currency),
-				Asset:    asset.Futures,
-				Amount:   resp[a].Details[b].Available.Float64(),
+				AssetType: asset.Futures,
+				Balance: &account.Balance{
+					Currency:  currency.NewCode(resp[a].Details[b].Currency),
+					Total:     resp[a].Details[b].Available.Float64(),
+					Hold:      resp[a].Details[b].TrdHold.Float64(),
+					Free:      resp[a].Details[b].Available.Float64() - resp[a].Details[b].TrdHold.Float64(),
+					UpdatedAt: resp[a].Details[b].UpdateTime.Time(),
+				},
 			})
 		}
 	}
