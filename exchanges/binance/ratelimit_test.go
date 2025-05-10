@@ -44,7 +44,7 @@ func TestRateLimit_Limit(t *testing.T) {
 				t.Fatalf("incorrect limit applied for '%s': \nexp: %v\ngot: %v", name, exp, got)
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			if !tt.Deadline.IsZero() {
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithDeadline(ctx, tt.Deadline)
@@ -411,7 +411,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := rl.InitiateRateLimit(context.Background(), tt); err != nil {
+			if err := rl.InitiateRateLimit(t.Context(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})

@@ -1,7 +1,6 @@
 package v0_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +11,7 @@ import (
 func TestUpgradeConfig(t *testing.T) {
 	t.Parallel()
 	in := []byte(`{"untouched":true}`)
-	out, err := new(v0.Version).UpgradeConfig(context.Background(), in)
+	out, err := new(v0.Version).UpgradeConfig(t.Context(), in)
 	require.NoError(t, err)
 	assert.Equal(t, in, out)
 }
@@ -20,7 +19,7 @@ func TestUpgradeConfig(t *testing.T) {
 func TestDowngradeConfig(t *testing.T) {
 	t.Parallel()
 	in := []byte(`{"untouched":true}`)
-	out, err := new(v0.Version).DowngradeConfig(context.Background(), in)
+	out, err := new(v0.Version).DowngradeConfig(t.Context(), in)
 	require.NoError(t, err)
 	assert.Equal(t, in, out)
 }

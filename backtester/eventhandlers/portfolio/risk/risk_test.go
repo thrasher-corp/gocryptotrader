@@ -18,9 +18,9 @@ import (
 
 func TestAssessHoldingsRatio(t *testing.T) {
 	t.Parallel()
-	ratio := assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
+	ratio := assessHoldingsRatio(currency.NewBTCUSDT(), []holdings.Holding{
 		{
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			BaseValue: decimal.NewFromInt(2),
 		},
 		{
@@ -32,9 +32,9 @@ func TestAssessHoldingsRatio(t *testing.T) {
 		t.Errorf("expected %v received %v", 0.5, ratio)
 	}
 
-	ratio = assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
+	ratio = assessHoldingsRatio(currency.NewBTCUSDT(), []holdings.Holding{
 		{
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			BaseValue: decimal.NewFromInt(1),
 		},
 		{
@@ -58,7 +58,7 @@ func TestEvaluateOrder(t *testing.T) {
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	e := "binance"
 	a := asset.Spot
 	o := &order.Order{

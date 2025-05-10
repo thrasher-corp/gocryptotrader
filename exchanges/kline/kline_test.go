@@ -90,7 +90,7 @@ func TestValidateData(t *testing.T) {
 func TestCreateKline(t *testing.T) {
 	t.Parallel()
 
-	pair := currency.NewPair(currency.BTC, currency.USD)
+	pair := currency.NewBTCUSD()
 	_, err := CreateKline(nil, OneMin, pair, asset.Spot, "Binance")
 	if !errors.Is(err, errInsufficientTradeData) {
 		t.Fatalf("received: '%v' but expected '%v'", err, errInsufficientTradeData)
@@ -463,7 +463,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	t.Parallel()
 	tempKline := Item{
 		Exchange: "testExchange",
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: OneDay,
 	}
@@ -703,7 +703,7 @@ func genOHCLVData() (out candle.Item, outItem Item, err error) {
 
 	outItem.Interval = OneDay
 	outItem.Asset = asset.Spot
-	outItem.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	outItem.Pair = currency.NewBTCUSDT()
 	outItem.Exchange = testExchanges[0].Name
 
 	for x := range 365 {
@@ -917,7 +917,7 @@ func TestConvertToNewInterval(t *testing.T) {
 
 	old := &Item{
 		Exchange: "lol",
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: OneDay,
 		Candles: []Candle{

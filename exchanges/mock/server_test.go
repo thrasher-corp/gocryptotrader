@@ -2,7 +2,6 @@ package mock
 
 import (
 	"bytes"
-	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -66,7 +65,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = common.SendHTTPRequest(context.Background(),
+	_, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
@@ -76,7 +75,7 @@ func TestNewVCRServer(t *testing.T) {
 	}
 
 	// Expected good outcome
-	r, err := common.SendHTTPRequest(context.Background(),
+	r, err := common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		deets,
 		nil,
@@ -89,7 +88,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Error("Was not expecting any value returned:", r)
 	}
 
-	r, err = common.SendHTTPRequest(context.Background(),
+	r, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		deets+"/test?"+queryString,
 		nil,
