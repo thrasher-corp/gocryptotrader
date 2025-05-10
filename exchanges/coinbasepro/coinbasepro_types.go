@@ -496,17 +496,6 @@ type wsStatus struct {
 	Type string `json:"type"`
 }
 
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// CoinbaseRequestParamsTimeGTC GTC
-	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// CoinbaseRequestParamsTimeIOC IOC
-	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
-
 // TransferHistory returns wallet transfer history
 type TransferHistory struct {
 	ID          string    `json:"id"`
