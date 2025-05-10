@@ -3286,3 +3286,14 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 
 	return enabledPairs
 }
+
+func BenchmarkTimeInForceFromString(b *testing.B) {
+	for b.Loop() {
+		for _, tifString := range []string{gtcTIF, iocTIF, pocTIF, fokTIF} {
+			tif := timeInForceFromString(tifString)
+			if tif == order.UnknownTIF {
+				b.Fatal(tifString)
+			}
+		}
+	}
+}

@@ -1330,7 +1330,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:                 pair,
 			AssetType:            a,
 			Type:                 oType,
-			TimeInForce:          validTimesInForce[fOrder.TimeInForce],
+			TimeInForce:          timeInForceFromString(fOrder.TimeInForce),
 			Side:                 side,
 		}, nil
 	case asset.Options:
@@ -1535,7 +1535,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Type:                 order.Limit,
 				SettlementCurrency:   settle,
 				ReduceOnly:           futuresOrders[i].IsReduceOnly,
-				TimeInForce:          validTimesInForce[futuresOrders[i].TimeInForce],
+				TimeInForce:          timeInForceFromString(futuresOrders[i].TimeInForce),
 				AverageExecutedPrice: futuresOrders[i].FillPrice.Float64(),
 			})
 		}
