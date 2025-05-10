@@ -167,8 +167,22 @@ var (
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 )
 
-// validTimesInForce holds a list of supported time-in-force values
-var validTimesInForce = map[string]order.TimeInForce{gtcTIF: order.GoodTillCancel, iocTIF: order.ImmediateOrCancel, pocTIF: order.PostOnly, fokTIF: order.FillOrKill}
+// validTimesInForces holds a list of supported time-in-force values and corresponding string representations.
+var validTimesInForces = []struct {
+	String      string
+	TimeInForce order.TimeInForce
+}{
+	{gtcTIF, order.GoodTillCancel}, {iocTIF, order.ImmediateOrCancel}, {pocTIF, order.PostOnly}, {fokTIF, order.FillOrKill},
+}
+
+func timeInForceFromString(tif string) order.TimeInForce {
+	for a := range validTimesInForces {
+		if validTimesInForces[a].String == tif {
+			return validTimesInForces[a].TimeInForce
+		}
+	}
+	return order.UnknownTIF
+}
 
 // Gateio is the overarching type across this package
 type Gateio struct {
@@ -2296,7 +2310,7 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	if _, ok := validTimesInForce[arg.TimeInForce]; !ok {
+	if tif := timeInForceFromString(arg.TimeInForce); tif == order.UnknownTIF {
 		return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.Price == "" {
@@ -2386,7 +2400,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
 		args[x].TimeInForce = strings.ToLower(args[x].TimeInForce)
-		if _, ok := validTimesInForce[args[x].TimeInForce]; !ok {
+		if tif := timeInForceFromString(args[x].TimeInForce); tif == order.UnknownTIF {
 			return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Price == "" {
@@ -2871,7 +2885,7 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
 	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
-	if _, ok := validTimesInForce[arg.TimeInForce]; !ok {
+	if tif := timeInForceFromString(arg.TimeInForce); tif == order.UnknownTIF {
 		return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.Price == "" {
