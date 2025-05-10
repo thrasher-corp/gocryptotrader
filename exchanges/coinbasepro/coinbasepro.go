@@ -233,27 +233,11 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
-	var resp [][6]float64
+	var resp []History
 	path := common.EncodeURLValues(
 		fmt.Sprintf("%s/%s/%s", coinbaseproProducts, currencyPair, coinbaseproHistory),
 		values)
-	if err := c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp); err != nil {
-		return nil, err
-	}
-
-	history := make([]History, len(resp))
-	for x := range resp {
-		history[x] = History{
-			Time:   time.Unix(int64(resp[x][0]), 0),
-			Low:    resp[x][1],
-			High:   resp[x][2],
-			Open:   resp[x][3],
-			Close:  resp[x][4],
-			Volume: resp[x][5],
-		}
-	}
-
-	return history, nil
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetStats returns a 24 hr stat for the product. Volume is in base currency
@@ -335,15 +319,13 @@ func (c *CoinbasePro) GetHolds(ctx context.Context, accountID string) ([]Account
 // timeInforce - [optional] GTC, GTT, IOC, or FOK (default is GTC)
 // cancelAfter - [optional] min, hour, day * Requires time_in_force to be GTT
 // postOnly - [optional] Post only flag Invalid when time_in_force is IOC or FOK
-func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, price, amount float64, side string, timeInforce RequestParamsTimeForceType, cancelAfter, productID, stp string, postOnly bool) (string, error) {
-	resp := GeneralizedOrderResponse{}
+func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, price, amount float64, side, timeInforce, cancelAfter, productID, stp string, postOnly bool) (string, error) {
 	req := make(map[string]any)
 	req["type"] = order.Limit.Lower()
 	req["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	req["size"] = strconv.FormatFloat(amount, 'f', -1, 64)
 	req["side"] = side
 	req["product_id"] = productID
-
 	if cancelAfter != "" {
 		req["cancel_after"] = cancelAfter
 	}
@@ -359,13 +341,8 @@ func (c *CoinbasePro) PlaceLimitOrder(ctx context.Context, clientRef string, pri
 	if postOnly {
 		req["post_only"] = postOnly
 	}
-
-	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproOrders, req, &resp)
-	if err != nil {
-		return "", err
-	}
-
-	return resp.ID, nil
+	resp := GeneralizedOrderResponse{}
+	return resp.ID, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproOrders, req, &resp)
 }
 
 // PlaceMarketOrder places a new market order.
