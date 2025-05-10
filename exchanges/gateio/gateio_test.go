@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -2045,7 +2047,8 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsBalancesPushDataJSON)); err != nil {
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	if err := g.WsHandleSpotData(ctx, []byte(wsBalancesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket balances push data error: %v", g.Name, err)
 	}
 }
@@ -2063,7 +2066,8 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleSpotData(t.Context(), []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	if err := g.WsHandleSpotData(ctx, []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket cross margin balance push data error: %v", g.Name, err)
 	}
 }
@@ -2082,7 +2086,13 @@ func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error { return g.WsHandleFuturesData(t.Context(), m, asset.CoinMarginedFutures) })
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error {
+		ctx := t.Context()
+		if strings.Contains(string(m), "futures.balances") {
+			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
+		}
+		return g.WsHandleFuturesData(ctx, m, asset.CoinMarginedFutures)
+	})
 	close(g.Websocket.DataHandler)
 	assert.Len(t, g.Websocket.DataHandler, 14, "Should see the correct number of messages")
 	for resp := range g.Websocket.DataHandler {
@@ -2246,7 +2256,8 @@ const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "u
 
 func TestOptionsBalancePushData(t *testing.T) {
 	t.Parallel()
-	if err := g.WsHandleOptionsData(t.Context(), []byte(optionsBalancePushDataJSON)); err != nil {
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	if err := g.WsHandleOptionsData(ctx, []byte(optionsBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket options balance push data error: %v", g.Name, err)
 	}
 }

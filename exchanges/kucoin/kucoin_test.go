@@ -2339,6 +2339,9 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 func TestPushData(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.SetCredentials("mock", "test", "test", "", "", "")
+	ku.API.AuthenticatedSupport = true
+	ku.API.AuthenticatedWebsocketSupport = true
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 

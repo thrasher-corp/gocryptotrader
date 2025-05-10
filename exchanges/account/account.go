@@ -26,7 +26,6 @@ var (
 var (
 	errHoldingsIsNil                = errors.New("holdings cannot be nil")
 	errExchangeNameUnset            = errors.New("exchange name unset")
-	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errBalanceIsNil                 = errors.New("balance is nil")
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
@@ -34,7 +33,28 @@ var (
 	errOutOfSequence                = errors.New("out of sequence")
 	errUpdatedAtIsZero              = errors.New("updatedAt may not be zero")
 	errLoadingBalance               = errors.New("error loading balance")
+	errExchangeAlreadyExists        = errors.New("exchange already exists")
+	errCannotUpdateBalance          = errors.New("cannot update balance")
 )
+
+// initAccounts adds a new empty shared account accounts entry for an exchange
+// must be called with s.mu locked
+func (s *Service) initAccounts(exch string) (*Accounts, error) {
+	id, err := s.mux.GetID()
+	if err != nil {
+		return nil, err
+	}
+	_, ok := s.exchangeAccounts[exch]
+	if ok {
+		return nil, errExchangeAlreadyExists
+	}
+	accounts := &Accounts{
+		ID:          id,
+		subAccounts: make(map[Credentials]map[key.SubAccountAsset]currencyBalances),
+	}
+	s.exchangeAccounts[exch] = accounts
+	return accounts, nil
+}
 
 // CollectBalances converts a map of sub-account balances into a slice
 func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount, err error) {
@@ -64,9 +84,10 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exchange]
 	if !ok {
-		return dispatch.Pipe{}, fmt.Errorf("cannot subscribe %s %w",
-			exchange,
-			errExchangeAccountsNotFound)
+		var err error
+		if accounts, err = service.initAccounts(exchange); err != nil {
+			return dispatch.Pipe{}, fmt.Errorf("cannot subscribe to exchange account %w", err)
+		}
 	}
 	return service.mux.Subscribe(accounts.ID)
 }
@@ -74,6 +95,11 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 // Process processes new account holdings updates
 func Process(h *Holdings, c *Credentials) error {
 	return service.Save(h, c)
+}
+
+// ProcessChange updates the changes to the exchange account
+func ProcessChange(exch string, changes []Change, c *Credentials) error {
+	return service.Update(exch, changes, c)
 }
 
 // GetHoldings returns full holdings for an exchange.
@@ -192,36 +218,31 @@ func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c cur
 // incoming should be a full update, and any missing currencies will be zeroed
 func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 	if incoming == nil {
-		return fmt.Errorf("cannot update holdings: %w", errHoldingsIsNil)
+		return fmt.Errorf("cannot save holdings: %w", errHoldingsIsNil)
 	}
 
 	if incoming.Exchange == "" {
-		return fmt.Errorf("cannot update holdings: %w", errExchangeNameUnset)
+		return fmt.Errorf("cannot save holdings: %w", errExchangeNameUnset)
 	}
 
 	if creds.IsEmpty() {
-		return fmt.Errorf("cannot update holdings: %w", errCredentialsAreNil)
+		return fmt.Errorf("cannot save holdings: %w", errCredentialsAreNil)
 	}
 
 	exch := strings.ToLower(incoming.Exchange)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	accounts, exist := s.exchangeAccounts[exch]
-	if !exist {
-		id, err := s.mux.GetID()
-		if err != nil {
-			return err
+	accounts, ok := s.exchangeAccounts[exch]
+	if !ok {
+		var err error
+		if accounts, err = s.initAccounts(exch); err != nil {
+			return fmt.Errorf("cannot save holdings for %s %w", exch, err)
 		}
-		accounts = &Accounts{
-			ID:          id,
-			subAccounts: make(map[Credentials]map[key.SubAccountAsset]currencyBalances),
-		}
-		s.exchangeAccounts[exch] = accounts
 	}
 
-	subAccounts, exist := accounts.subAccounts[*creds]
-	if !exist {
+	subAccounts, ok := accounts.subAccounts[*creds]
+	if !ok {
 		subAccounts = make(map[key.SubAccountAsset]currencyBalances)
 		accounts.subAccounts[*creds] = subAccounts
 	}
@@ -250,8 +271,8 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 			SubAccount: incoming.Accounts[x].ID,
 			Asset:      incoming.Accounts[x].AssetType,
 		}
-		assets, exist := subAccounts[accAsset]
-		if !exist {
+		assets, ok := subAccounts[accAsset]
+		if !ok {
 			assets = make(map[*currency.Item]*ProtectedBalance)
 			accounts.subAccounts[*creds][accAsset] = assets
 		}
@@ -289,6 +310,78 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 		}
 	}
 
+	return errs
+}
+
+// Update updates the balance for a specific exchange and credentials
+func (s *Service) Update(exch string, changes []Change, creds *Credentials) error {
+	if exch == "" {
+		return fmt.Errorf("%w: %w", errCannotUpdateBalance, errExchangeNameUnset)
+	}
+
+	if creds.IsEmpty() {
+		return fmt.Errorf("%w: %w", errCannotUpdateBalance, errCredentialsAreNil)
+	}
+
+	exch = strings.ToLower(exch)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	accounts, ok := s.exchangeAccounts[exch]
+	if !ok {
+		var err error
+		if accounts, err = s.initAccounts(exch); err != nil {
+			return fmt.Errorf("%w for %s %w", errCannotUpdateBalance, exch, err)
+		}
+	}
+
+	subAccounts, ok := accounts.subAccounts[*creds]
+	if !ok {
+		subAccounts = make(map[key.SubAccountAsset]currencyBalances)
+		accounts.subAccounts[*creds] = subAccounts
+	}
+
+	var errs error
+	for _, change := range changes {
+		if !change.AssetType.IsValid() {
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s %w",
+				errCannotUpdateBalance, change.Account, change.AssetType, asset.ErrNotSupported))
+			continue
+		}
+		if change.Balance == nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s %w",
+				errCannotUpdateBalance, change.Account, change.AssetType, errBalanceIsNil))
+			continue
+		}
+
+		accAsset := key.SubAccountAsset{
+			SubAccount: change.Account,
+			Asset:      change.AssetType,
+		}
+		assets, ok := subAccounts[accAsset]
+		if !ok {
+			assets = make(map[*currency.Item]*ProtectedBalance)
+			accounts.subAccounts[*creds][accAsset] = assets
+		}
+		bal, ok := assets[change.Balance.Currency.Item]
+		if !ok || bal == nil {
+			bal = &ProtectedBalance{}
+			assets[change.Balance.Currency.Item] = bal
+		}
+
+		if err := bal.load(change.Balance); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w",
+				errCannotUpdateBalance,
+				change.Account,
+				change.AssetType,
+				change.Balance.Currency,
+				err))
+			continue
+		}
+		if err := s.mux.Publish(change, accounts.ID); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("cannot publish update balance for %s: %w", exch, err))
+		}
+	}
 	return errs
 }
 
