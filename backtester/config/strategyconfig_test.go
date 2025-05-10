@@ -50,7 +50,7 @@ var (
 	initialFunds100000  *decimal.Decimal
 	initialFunds10      *decimal.Decimal
 
-	mainCurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
+	mainCurrencyPair = currency.NewBTCUSDT()
 )
 
 func TestMain(m *testing.M) {

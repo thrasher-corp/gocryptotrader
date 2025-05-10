@@ -479,7 +479,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -499,7 +499,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	}
 	exch.SetDefaults()
 	b = exch.GetBase()
-	cp = currency.NewPair(currency.BTC, currency.USDT)
+	cp = currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -774,7 +774,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	// error checks
 	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
 	defaultEnd := time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC)
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	_, err := s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
 		Pair: &gctrpc.CurrencyPair{
@@ -935,7 +935,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	// no data found response
 	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UTC()
 	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UTC()
@@ -1037,7 +1037,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	// no data found response
 	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
 	defaultEnd := time.Date(2020, 0, 0, 4, 0, 0, 0, time.UTC)
@@ -1338,7 +1338,7 @@ func TestGetOrders(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1449,7 +1449,7 @@ func TestGetOrder(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1536,16 +1536,16 @@ func TestGetOrder(t *testing.T) {
 func TestCheckVars(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
-	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err := checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
 
 	e = &binance.Binance{}
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
 
 	e.SetEnabled(true)
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParams should error correctly")
 
 	b := e.GetBase()
@@ -1566,7 +1566,7 @@ func TestCheckVars(t *testing.T) {
 		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
 	}
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams should error correctly")
 
 	data := []currency.Pair{
@@ -1576,13 +1576,13 @@ func TestCheckVars(t *testing.T) {
 	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
 	require.NoError(t, err, "StorePairs must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
 
 	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
 	require.NoError(t, err, "EnablePair must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	require.NoError(t, err, "checkParams must not error")
 }
 
@@ -1658,7 +1658,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:    currency.Pairs{cp},
@@ -1713,7 +1713,7 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		Nickname:  "TestGetDataHistoryJobDetails",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1769,7 +1769,7 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 		Nickname:  "TestDeleteDataHistoryJob",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1827,7 +1827,7 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 		Nickname:  "TestGetActiveDataHistoryJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1855,7 +1855,7 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 		Nickname:  "GetDataHistoryJobsBetween",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1900,7 +1900,7 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		Nickname:  "TestGetDataHistoryJobSummary",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1929,7 +1929,7 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -2002,7 +2002,7 @@ func TestGetManagedOrders(t *testing.T) {
 		Side:      order.Sell,
 		Status:    order.New,
 		AssetType: asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -4254,8 +4254,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  true,
-		Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
-		Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
+		Available:     []currency.Pair{currency.NewBTCUSDT()},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	})

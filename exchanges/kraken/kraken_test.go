@@ -1526,7 +1526,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		Pair:                 currency.NewBTCUSD(),
 		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error")
@@ -1548,11 +1548,11 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	is, err := k.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	is, err := k.IsPerpetualFutureCurrency(asset.Binary, currency.NewBTCUSDT())
 	assert.NoError(t, err)
 	assert.False(t, is, "IsPerpetualFutureCurrency should return false for a binary asset")
 
-	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.BTC, currency.USDT))
+	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewBTCUSDT())
 	assert.NoError(t, err)
 	assert.False(t, is, "IsPerpetualFutureCurrency should return false for a non-perpetual future")
 

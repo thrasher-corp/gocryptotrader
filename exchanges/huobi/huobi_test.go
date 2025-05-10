@@ -486,7 +486,7 @@ func TestGetOrderHistory(t *testing.T) {
 	updatePairsOnce(t, h)
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
-		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
 	}
@@ -1156,7 +1156,7 @@ func TestGetActiveOrders(t *testing.T) {
 	getOrdersRequest := order.MultiOrderRequest{
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
-		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
 		Side:      order.AnySide,
 	}
 
@@ -1680,7 +1680,7 @@ func TestFormatFuturesPair(t *testing.T) {
 	assert.Len(t, r, 9, "Should be an 9 character string")
 	assert.Equal(t, "BTC2", r[0:4], "Should start with btc and a date this millennium")
 
-	r, err = h.formatFuturesPair(currency.NewPair(currency.BTC, currency.USDT), false)
+	r, err = h.formatFuturesPair(currency.NewBTCUSDT(), false)
 	require.NoError(t, err)
 	assert.Equal(t, "BTC-USDT", r)
 }
@@ -1706,7 +1706,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 		},
 	})
 	require.NoError(t, err)
@@ -1740,19 +1740,19 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 	_, err := h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		Pair:                 currency.NewBTCUSD(),
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.CoinMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		Pair:                 currency.NewBTCUSD(),
 		IncludePredictedRate: true,
 	})
 	require.NoError(t, err)
 
-	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USD))
+	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewBTCUSD())
 	require.ErrorIs(t, err, currency.ErrPairAlreadyEnabled)
 
 	_, err = h.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
@@ -1764,11 +1764,11 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	is, err := h.IsPerpetualFutureCurrency(asset.Binary, currency.NewPair(currency.BTC, currency.USDT))
+	is, err := h.IsPerpetualFutureCurrency(asset.Binary, currency.NewBTCUSDT())
 	require.NoError(t, err)
 	assert.False(t, is)
 
-	is, err = h.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USDT))
+	is, err = h.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, currency.NewBTCUSDT())
 	require.NoError(t, err)
 	assert.True(t, is)
 }
@@ -1896,7 +1896,7 @@ func TestContractOpenInterestUSDT(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	resp, err = h.ContractOpenInterestUSDT(t.Context(), cp, currency.EMPTYPAIR, "", "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)

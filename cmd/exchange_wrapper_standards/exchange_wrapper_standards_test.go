@@ -676,7 +676,7 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 			return p[i], nil
 		}
 	}
-	goodBtc := currency.NewPair(currency.BTC, currency.USDT).Format(pFmt)
+	goodBtc := currency.NewBTCUSDT().Format(pFmt)
 	if p.Contains(goodBtc, true) {
 		return goodBtc, nil
 	}

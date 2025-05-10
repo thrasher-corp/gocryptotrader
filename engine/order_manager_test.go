@@ -29,7 +29,7 @@ type omfExchange struct {
 	exchange.IBotExchange
 }
 
-var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+var btcusdPair = currency.NewBTCUSD()
 
 // CancelOrder overrides testExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required
@@ -1160,7 +1160,7 @@ func Test_getActiveOrders(t *testing.T) {
 func TestGetFuturesPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	_, err := o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1208,7 +1208,7 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 func TestClearFuturesPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	err := o.ClearFuturesTracking("test", asset.Spot, cp)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1260,7 +1260,7 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	_, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1395,7 +1395,7 @@ func TestUpdateExisting(t *testing.T) {
 	od.Exchange = testExchange
 	od.AssetType = asset.Futures
 	od.OrderID = "123"
-	od.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	od.Pair = currency.NewBTCUSDT()
 	od.Side = order.Buy
 	od.Type = order.Market
 	od.Date = time.Now()

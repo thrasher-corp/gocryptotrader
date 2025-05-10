@@ -53,7 +53,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	if !pairs.Contains(currency.NewPair(currency.STORJ, currency.USD), false) {
 		t.Error("expected pair STORJ-USD")
 	}
-	if !pairs.Contains(currency.NewPair(currency.BTC, currency.USD), false) {
+	if !pairs.Contains(currency.NewBTCUSD(), false) {
 		t.Error("expected pair BTC-USD")
 	}
 	if !pairs.Contains(currency.NewPair(currency.AAVE, currency.USD), false) {
@@ -430,7 +430,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	orderCancellation := &order.Cancel{
 		OrderID:   "266029865",
 		AssetType: asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 	}
 
 	err := g.CancelOrder(t.Context(), orderCancellation)
