@@ -383,10 +383,10 @@ func TestFilterOrdersByType(t *testing.T) {
 	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
 	FilterOrdersByType(&orders, Limit)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
 	FilterOrdersByType(&orders, Stop)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 }
 
 var filterOrdersByTypeBenchmark = &[]Detail{
@@ -609,10 +609,10 @@ func TestSortOrdersByPrice(t *testing.T) {
 	}
 
 	SortOrdersByPrice(&orders, false)
-	assert.Equalf(t, 0., orders[0].Price, "Expected: '%v', received: '%v'", 0, orders[0].Price)
+	assert.Equalf(t, float64(0), orders[0].Price, "Expected: '%v', received: '%v'", 0, orders[0].Price)
 
 	SortOrdersByPrice(&orders, true)
-	assert.Equalf(t, 100., orders[0].Price, "Expected: '%v', received: '%v'", 100, orders[0].Price)
+	assert.Equalf(t, float64(100), orders[0].Price, "Expected: '%v', received: '%v'", 100, orders[0].Price)
 }
 
 func TestSortOrdersByDate(t *testing.T) {
@@ -704,8 +704,8 @@ func TestSortOrdersByOrderType(t *testing.T) {
 		},
 	}
 
-	SortOrdersByType(&orders, true)
-	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), TrailingStop.String()), "Expected: '%v', received: '%v'", TrailingStop, orders[0].Type)
+	SortOrdersByType(&orders, false)
+	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), Limit.String()), "Expected: '%v', received: '%v'", Limit, orders[0].Type)
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -1083,7 +1083,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
-	assert.Falsef(t, err == nil || err.Error() != ErrPairIsEmpty.Error(), "received '%v' expected '%v'", err, ErrPairIsEmpty)
+	assert.ErrorIs(t, err, ErrPairIsEmpty)
 
 	cancelMe.Pair = currency.NewBTCUSDT()
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
@@ -1396,7 +1396,7 @@ func TestDetail_Copy(t *testing.T) {
 		r := d[i].Copy()
 		assert.True(t, reflect.DeepEqual(d[i], r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
 		if len(d[i].Trades) > 0 {
-			assert.Equalf(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
+			assert.NotSamef(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
 		}
 	}
 }
@@ -1418,7 +1418,7 @@ func TestDetail_CopyToPointer(t *testing.T) {
 		r := d[i].CopyToPointer()
 		assert.Truef(t, reflect.DeepEqual(d[i], *r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
 		if len(d[i].Trades) > 0 {
-			assert.Equalf(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
+			assert.NotSamef(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
 		}
 	}
 }
@@ -1441,7 +1441,7 @@ func TestDetail_CopyPointerOrderSlice(t *testing.T) {
 	for i := range sliceCopy {
 		assert.Truef(t, reflect.DeepEqual(*sliceCopy[i], *d[i]), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, sliceCopy[i], d[i])
 		if len(sliceCopy[i].Trades) > 0 {
-			assert.Equalf(t, &sliceCopy[i].Trades[0], &d[i].Trades[0], "[%d]Trades point to the same data elements", i)
+			assert.NotSamef(t, &sliceCopy[i].Trades[0], &d[i].Trades[0], "[%d]Trades point to the same data elements", i)
 		}
 	}
 }
@@ -1659,7 +1659,6 @@ func TestSideMarshalJSON(t *testing.T) {
 	b, err := Buy.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"BUY"`, string(b))
-
 	b, err = UnknownSide.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"UNKNOWN"`, string(b))
