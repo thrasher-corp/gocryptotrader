@@ -29,7 +29,7 @@ type AssetInfoWithSupportedNetwork struct {
 	MinWithdrawalAmount types.Number `json:"min_withdrawal_amt"`
 	MaxWithdrawalAmount types.Number `json:"max_withdrawal_amt"`
 	NetworkConfirms     int64        `json:"network_confirms"`
-	ProcessingTime      types.Time   `json:"processing_time"`
+	ProcessingTime      int64        `json:"processing_time"` // Number of seconds estimated to process a transaction on the network
 	IsDefault           bool         `json:"is_default"`
 }
 
@@ -677,6 +677,11 @@ type CounterpartyWithdrawalResponse struct {
 	TargetCounterpartyID string  `json:"target_counterparty_id"`
 	Asset                string  `json:"asset"`
 	Amount               float64 `json:"amount"`
+}
+
+// CounterpartyWithdrawalLimi represents a counterparty withdrawal limit instance.
+type CounterpartyWithdrawalLimi struct {
+	MaxCtnWithdrawAmount string `json:"max_ctn_withdraw_amount"`
 }
 
 // SubscriptionInput holds channel subscription information

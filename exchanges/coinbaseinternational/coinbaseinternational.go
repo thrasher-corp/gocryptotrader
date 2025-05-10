@@ -89,6 +89,12 @@ func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Contex
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/networks", nil, nil, &resp, false)
 }
 
+// GetFeeRateTiers return all the fee rate tiers.
+func (co *CoinbaseInternational) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
+	var resp []FeeRateInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, true)
+}
+
 // GetIndexComposition retrieves the latest index composition (metadata) with an ordered set of constituents
 func (co *CoinbaseInternational) GetIndexComposition(ctx context.Context, indexName string) (*IndexMetadata, error) {
 	if indexName == "" {
@@ -236,14 +242,20 @@ func (co *CoinbaseInternational) GetAggregatedCandlesDataPerInstrument(ctx conte
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument+"/candles", params, nil, &resp, false)
 }
 
-var intervalToStringMap = map[kline.Interval]string{kline.OneDay: "ONE_DAY", kline.SixHour: "SIX_HOUR", kline.TwoHour: "TWO_HOUR", kline.OneHour: "ONE_HOUR", kline.ThirtyMin: "THIRTY_MINUTE", kline.FifteenMin: "FIFTEEN_MINUTE", kline.FiveMin: "FIVE_MINUTE", kline.OneMin: "ONE_MINUTE"}
+var intervalToStringList = []struct {
+	Interval kline.Interval
+	String   string
+}{
+	{kline.OneDay, "ONE_DAY"}, {kline.SixHour, "SIX_HOUR"}, {kline.TwoHour, "TWO_HOUR"}, {kline.OneHour, "ONE_HOUR"}, {kline.ThirtyMin, "THIRTY_MINUTE"}, {kline.FifteenMin, "FIFTEEN_MINUTE"}, {kline.FiveMin, "FIVE_MINUTE"}, {kline.OneMin, "ONE_MINUTE"},
+}
 
 func stringFromInterval(interval kline.Interval) (string, error) {
-	intervalString, ok := intervalToStringMap[interval]
-	if !ok {
-		return "", kline.ErrUnsupportedInterval
+	for a := range intervalToStringList {
+		if intervalToStringList[a].Interval == interval {
+			return intervalToStringList[a].String, nil
+		}
 	}
-	return intervalString, nil
+	return "", kline.ErrUnsupportedInterval
 }
 
 // GetHistoricalFundingRate retrieves the historical funding rates for a specific instrument.
@@ -882,6 +894,18 @@ func (co *CoinbaseInternational) WithdrawToCounterpartyID(ctx context.Context, a
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw/counterparty", nil, arg, &resp, true)
 }
 
+// GetCounterpartyWithdrawalLimit retrieves counterparty withdrawal limit within coinbase transfer network
+func (co *CoinbaseInternational) GetCounterpartyWithdrawalLimit(ctx context.Context, portfolio, assetIdentifier string) (*CounterpartyWithdrawalLimi, error) {
+	if portfolio == "" {
+		return nil, errMissingPortfolioID
+	}
+	if assetIdentifier == "" {
+		return nil, errAssetIdentifierRequired
+	}
+	var resp *CounterpartyWithdrawalLimi
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw/"+portfolio+"/"+assetIdentifier, nil, nil, &resp, true)
+}
+
 // SendHTTPRequest sends a public HTTP request.
 func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result interface{}, authenticated bool) error {
 	endpoint, err := co.API.Endpoints.GetURL(ep)
@@ -1022,10 +1046,4 @@ func (co *CoinbaseInternational) calculateTradingFee(ctx context.Context, base, 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
 func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.02 * price * amount
-}
-
-// GetFeeRateTiers return all the fee rate tiers.
-func (co *CoinbaseInternational) GetFeeRateTiers(ctx context.Context) ([]FeeRateInfo, error) {
-	var resp []FeeRateInfo
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "fee-rate-tiers", nil, nil, &resp, true)
 }
