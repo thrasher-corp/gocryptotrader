@@ -972,9 +972,16 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		timeInForce, err := getTimeInForce(s)
-		if err != nil {
-			return nil, err
+		var timeInForce string
+		switch {
+		case s.TimeInForce.Is(order.PostOnly):
+			timeInForce = "poc"
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
+			timeInForce = order.ImmediateOrCancel.Lower()
+		case s.TimeInForce.Is(order.FillOrKill):
+			timeInForce = order.FillOrKill.Lower()
+		case s.TimeInForce.Is(order.GoodTillCancel):
+			timeInForce = order.GoodTillCancel.Lower()
 		}
 		settle, err := getSettlementCurrency(s.Pair, s.AssetType)
 		if err != nil {
@@ -1304,8 +1311,10 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
-
-		ordertype, tif := getTypeFromTimeInForceAndPrice(fOrder.TimeInForce, fOrder.OrderPrice.Float64())
+		oType := order.Market
+		if fOrder.OrderPrice > 0 {
+			oType = order.Limit
+		}
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -1320,8 +1329,8 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			LastUpdated:          fOrder.FinishTime.Time(),
 			Pair:                 pair,
 			AssetType:            a,
-			Type:                 ordertype,
-			TimeInForce:          tif,
+			Type:                 oType,
+			TimeInForce:          validTimesInForce[fOrder.TimeInForce],
 			Side:                 side,
 		}, nil
 	case asset.Options:
@@ -1507,12 +1516,6 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			if futuresOrders[i].Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
 				continue
 			}
-
-			var tif order.TimeInForce
-			if futuresOrders[i].TimeInForce == "poc" {
-				tif = order.PostOnly
-			}
-
 			side, amount, remaining := getSideAndAmountFromSize(futuresOrders[i].Size, futuresOrders[i].RemainingAmount)
 			orders = append(orders, order.Detail{
 				Status:               order.Open,
@@ -1532,7 +1535,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Type:                 order.Limit,
 				SettlementCurrency:   settle,
 				ReduceOnly:           futuresOrders[i].IsReduceOnly,
-				TimeInForce:          tif,
+				TimeInForce:          validTimesInForce[futuresOrders[i].TimeInForce],
 				AverageExecutedPrice: futuresOrders[i].FillPrice.Float64(),
 			})
 		}
@@ -2256,26 +2259,6 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
-// getTypeFromTimeInForceAndPrice returns the order type and if the order is post only
-func getTypeFromTimeInForceAndPrice(tif string, price float64) (orderType order.Type, postOnly order.TimeInForce) {
-	oType := order.Market
-	if price > 0 {
-		oType = order.Limit
-	}
-	switch tif {
-	case "ioc":
-		return oType, order.ImmediateOrCancel
-	case "fok":
-		return oType, order.FillOrKill
-	case "poc":
-		return order.Limit, order.PostOnly
-	case "gtc":
-		return order.Limit, order.GoodTillCancel
-	default:
-		return order.Limit, order.UnsetTIF
-	}
-}
-
 // getSideAndAmountFromSize returns the order side, amount and remaining amounts
 func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, remaining float64) {
 	if size < 0 {
@@ -2293,33 +2276,6 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 		return -s.Amount, nil
 	default:
 		return 0, order.ErrSideIsInvalid
-	}
-}
-
-// getTimeInForce returns the time-in-force for a given order.
-// If the time-in-force is unset, it assumes a Market order with an immediate-or-cancel (IOC) time-in-force value.
-// If the order type is Limit, it applies a good-til-cancel (GTC) policy.
-func getTimeInForce(s *order.Submit) (string, error) {
-	switch {
-	case s.TimeInForce.Is(order.ImmediateOrCancel):
-		return "ioc", nil
-	case s.TimeInForce.Is(order.FillOrKill):
-		return "fok", nil
-	case s.TimeInForce.Is(order.PostOnly):
-		return "poc", nil
-	case s.TimeInForce.Is(order.GoodTillCancel):
-		return "gtc", nil
-	case s.TimeInForce == order.UnsetTIF:
-		switch s.Type {
-		case order.Market:
-			return "ioc", nil
-		case order.Limit:
-			return "gtc", nil
-		default:
-			return "", nil
-		}
-	default:
-		return "", fmt.Errorf("%w: time-in-force value of %v", order.ErrInvalidTimeInForce, s.TimeInForce)
 	}
 }
 
@@ -2379,9 +2335,16 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		timeInForce, err := getTimeInForce(s)
-		if err != nil {
-			return nil, err
+		var timeInForce string
+		switch {
+		case s.TimeInForce.Is(order.PostOnly):
+			timeInForce = "poc"
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
+			timeInForce = order.ImmediateOrCancel.Lower()
+		case s.TimeInForce.Is(order.FillOrKill):
+			timeInForce = order.FillOrKill.Lower()
+		case s.TimeInForce.Is(order.GoodTillCancel):
+			timeInForce = order.GoodTillCancel.Lower()
 		}
 
 		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
@@ -2444,7 +2407,10 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 				purchased = resp.FilledTotal.Float64()
 			}
 		}
-		_, tif := getTypeFromTimeInForceAndPrice(resp.TimeInForce, resp.Price.Float64())
+		tif, err := order.StringToTimeInForce(resp.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              resp.ID,
@@ -2509,7 +2475,10 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		if resp.Text != "" && strings.HasPrefix(resp.Text, "t-") {
 			clientOrderID = resp.Text
 		}
-		_, tif := getTypeFromTimeInForceAndPrice(resp.TimeInForce, resp.Price.Float64())
+		tif, err := order.StringToTimeInForce(resp.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              strconv.FormatInt(resp.ID, 10),
@@ -2542,9 +2511,12 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, erro
 		return nil, order.ErrSideIsInvalid
 	}
 
-	timeInForce, err := getTimeInForce(s)
-	if err != nil {
-		return nil, err
+	var timeInForce string
+	switch s.TimeInForce {
+	case order.ImmediateOrCancel, order.FillOrKill, order.GoodTillCancel:
+		timeInForce = s.TimeInForce.Lower()
+	case order.PostOnly:
+		timeInForce = "poc"
 	}
 
 	return &CreateOrderRequest{

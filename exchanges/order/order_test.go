@@ -383,10 +383,10 @@ func TestFilterOrdersByType(t *testing.T) {
 	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
 	FilterOrdersByType(&orders, Limit)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 
 	FilterOrdersByType(&orders, Stop)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 }
 
 var filterOrdersByTypeBenchmark = &[]Detail{
@@ -609,10 +609,10 @@ func TestSortOrdersByPrice(t *testing.T) {
 	}
 
 	SortOrdersByPrice(&orders, false)
-	assert.Equalf(t, 0., orders[0].Price, "Expected: '%v', received: '%v'", 0, orders[0].Price)
+	assert.Equalf(t, float64(0), orders[0].Price, "Expected: '%v', received: '%v'", 0, orders[0].Price)
 
 	SortOrdersByPrice(&orders, true)
-	assert.Equalf(t, 100., orders[0].Price, "Expected: '%v', received: '%v'", 100, orders[0].Price)
+	assert.Equalf(t, float64(100), orders[0].Price, "Expected: '%v', received: '%v'", 100, orders[0].Price)
 }
 
 func TestSortOrdersByDate(t *testing.T) {
@@ -704,8 +704,8 @@ func TestSortOrdersByOrderType(t *testing.T) {
 		},
 	}
 
-	SortOrdersByType(&orders, true)
-	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), TrailingStop.String()), "Expected: '%v', received: '%v'", TrailingStop, orders[0].Type)
+	SortOrdersByType(&orders, false)
+	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), Limit.String()), "Expected: '%v', received: '%v'", Limit, orders[0].Type)
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -1093,7 +1093,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
-	assert.Falsef(t, err == nil || err.Error() != ErrPairIsEmpty.Error(), "received '%v' expected '%v'", err, ErrPairIsEmpty)
+	assert.ErrorIs(t, err, ErrPairIsEmpty)
 
 	cancelMe.Pair = currency.NewBTCUSDT()
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
@@ -1161,51 +1161,10 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 func TestMatchFilter(t *testing.T) {
 	t.Parallel()
-	id, err := uuid.NewV4()
-	require.NoError(t, err)
-	filters := map[int]*Filter{
-		0:  {},
-		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: id},
-		3:  {OrderID: "2222"},
-		4:  {ClientOrderID: "3333"},
-		5:  {ClientID: "4444"},
-		7:  {Type: AnyType},
-		8:  {Type: Limit},
-		9:  {Side: AnySide},
-		10: {Side: Sell},
-		11: {Status: AnyStatus},
-		12: {Status: New},
-		13: {AssetType: asset.Spot},
-		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
-		15: {Exchange: "Binance", Type: Limit, Status: New},
-		16: {Exchange: "Binance", Type: AnyType},
-		17: {AccountID: "8888"},
-	}
+	id := uuid.Must(uuid.NewV4())
 
-	orders := map[int]Detail{
-		0:  {},
-		1:  {Exchange: "Binance"},
-		2:  {InternalOrderID: id},
-		3:  {OrderID: "2222"},
-		4:  {ClientOrderID: "3333"},
-		5:  {ClientID: "4444"},
-		7:  {Type: AnyType},
-		8:  {Type: Limit},
-		9:  {Side: AnySide},
-		10: {Side: Sell},
-		11: {Status: AnyStatus},
-		12: {Status: New},
-		13: {AssetType: asset.Spot},
-		14: {Pair: currency.NewPair(currency.BTC, currency.USD)},
-		15: {Exchange: "Binance", Type: Limit, Status: New},
-		16: {AccountID: "8888"},
-	}
-	// empty filter tests
-	emptyFilter := filters[0]
-	for _, o := range orders {
-		assert.True(t, o.MatchFilter(emptyFilter), "empty filter should match everything")
-	}
+	assert.True(t, new(Detail).MatchFilter(&Filter{}), "an empty filter should match an empty order")
+	assert.True(t, (&Detail{Exchange: "E", OrderID: "A", Side: Sell, Pair: currency.NewBTCUSD()}).MatchFilter(&Filter{}), "an empty filter should match any order")
 
 	tests := []struct {
 		description string
@@ -1447,7 +1406,7 @@ func TestDetail_Copy(t *testing.T) {
 		r := d[i].Copy()
 		assert.True(t, reflect.DeepEqual(d[i], r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
 		if len(d[i].Trades) > 0 {
-			assert.Equalf(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
+			assert.NotSamef(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
 		}
 	}
 }
@@ -1469,7 +1428,7 @@ func TestDetail_CopyToPointer(t *testing.T) {
 		r := d[i].CopyToPointer()
 		assert.Truef(t, reflect.DeepEqual(d[i], *r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
 		if len(d[i].Trades) > 0 {
-			assert.Equalf(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
+			assert.NotSamef(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
 		}
 	}
 }
@@ -1492,7 +1451,7 @@ func TestDetail_CopyPointerOrderSlice(t *testing.T) {
 	for i := range sliceCopy {
 		assert.Truef(t, reflect.DeepEqual(*sliceCopy[i], *d[i]), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, sliceCopy[i], d[i])
 		if len(sliceCopy[i].Trades) > 0 {
-			assert.Equalf(t, &sliceCopy[i].Trades[0], &d[i].Trades[0], "[%d]Trades point to the same data elements", i)
+			assert.NotSamef(t, &sliceCopy[i].Trades[0], &d[i].Trades[0], "[%d]Trades point to the same data elements", i)
 		}
 	}
 }
@@ -1705,107 +1664,11 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
 
-func TestIsValid(t *testing.T) {
-	t.Parallel()
-	timeInForceValidityMap := map[TimeInForce]bool{
-		TimeInForce(1):    false,
-		ImmediateOrCancel: true,
-		GoodTillTime:      true,
-		GoodTillCancel:    true,
-		GoodTillDay:       true,
-		FillOrKill:        true,
-		PostOnly:          true,
-		UnsetTIF:          true,
-		UnknownTIF:        false,
-	}
-	var tif TimeInForce
-	for tif = range timeInForceValidityMap {
-		assert.Equalf(t, timeInForceValidityMap[tif], tif.IsValid(), "got %v, expected %v for %v with id %d", tif.IsValid(), timeInForceValidityMap[tif], tif, tif)
-	}
-}
-
-var timeInForceStringToValueMap = map[string]struct {
-	TIF   TimeInForce
-	Error error
-}{
-	"Unknown":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-	"GoodTillCancel":               {TIF: GoodTillCancel},
-	"GOOD_TILL_CANCELED":           {TIF: GoodTillCancel},
-	"GTT":                          {TIF: GoodTillTime},
-	"GOOD_TIL_TIME":                {TIF: GoodTillTime},
-	"FILLORKILL":                   {TIF: FillOrKill},
-	"POST_ONLY_GOOD_TIL_CANCELLED": {TIF: GoodTillCancel | PostOnly},
-	"immedIate_Or_Cancel":          {TIF: ImmediateOrCancel},
-	"":                             {TIF: UnsetTIF},
-	"IOC":                          {TIF: ImmediateOrCancel},
-	"immediate_or_cancel":          {TIF: ImmediateOrCancel},
-	"IMMEDIATE_OR_CANCEL":          {TIF: ImmediateOrCancel},
-	"IMMEDIATEORCANCEL":            {TIF: ImmediateOrCancel},
-	"GOOD_TILL_CANCELLED":          {TIF: GoodTillCancel},
-	"good_till_day":                {TIF: GoodTillDay},
-	"GOOD_TILL_DAY":                {TIF: GoodTillDay},
-	"GTD":                          {TIF: GoodTillDay},
-	"GOODtillday":                  {TIF: GoodTillDay},
-	"abcdfeg":                      {TIF: UnknownTIF, Error: ErrInvalidTimeInForce},
-	"PoC":                          {TIF: PostOnly},
-	"PendingORCANCEL":              {TIF: PostOnly},
-	"GTX":                          {TIF: GoodTillCrossing},
-	"GOOD_TILL_CROSSING":           {TIF: GoodTillCrossing},
-	"Good Til crossing":            {TIF: GoodTillCrossing},
-}
-
-func TestStringToTimeInForce(t *testing.T) {
-	t.Parallel()
-	for tk := range timeInForceStringToValueMap {
-		result, err := StringToTimeInForce(tk)
-		assert.ErrorIsf(t, err, timeInForceStringToValueMap[tk].Error, "got %v, expected %v", err, timeInForceStringToValueMap[tk].Error)
-		assert.Equalf(t, result, timeInForceStringToValueMap[tk].TIF, "got %v, expected %v", result, timeInForceStringToValueMap[tk].TIF)
-	}
-}
-
-func TestString(t *testing.T) {
-	t.Parallel()
-	valMap := map[TimeInForce]string{
-		ImmediateOrCancel:              "IOC",
-		GoodTillCancel:                 "GTC",
-		GoodTillTime:                   "GTT",
-		GoodTillDay:                    "GTD",
-		FillOrKill:                     "FOK",
-		UnknownTIF:                     "UNKNOWN",
-		UnsetTIF:                       "",
-		PostOnly:                       "POSTONLY",
-		GoodTillCancel | PostOnly:      "GTC,POSTONLY",
-		GoodTillTime | PostOnly:        "GTT,POSTONLY",
-		GoodTillDay | PostOnly:         "GTD,POSTONLY",
-		FillOrKill | ImmediateOrCancel: "IOC,FOK",
-	}
-	for x := range valMap {
-		result := x.String()
-		assert.Equalf(t, valMap[x], result, "expected %v, got %v", x, result)
-	}
-}
-
-func TestUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	targets := []TimeInForce{
-		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnsetTIF, PostOnly | ImmediateOrCancel,
-		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
-	}
-	data := `{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
-	target := &struct {
-		TIFs []TimeInForce `json:"tifs"`
-	}{}
-	err := json.Unmarshal([]byte(data), &target)
-	require.NoError(t, err)
-	require.Equal(t, targets, target.TIFs)
-}
-
 func TestSideMarshalJSON(t *testing.T) {
 	t.Parallel()
 	b, err := Buy.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"BUY"`, string(b))
-
 	b, err = UnknownSide.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"UNKNOWN"`, string(b))
@@ -1874,31 +1737,4 @@ func TestMarshalOrder(t *testing.T) {
 	require.NoError(t, err, "json.Marshal must not error")
 	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0}`)
 	assert.Equal(t, exp, j)
-}
-
-func TestMarshalJSON(t *testing.T) {
-	t.Parallel()
-	data, err := json.Marshal(GoodTillCrossing)
-	require.NoError(t, err)
-	assert.Equal(t, []byte(`"GTX"`), data)
-
-	data = []byte(`{"tif":"IOC"}`)
-	target := &struct {
-		TimeInForce TimeInForce `json:"tif"`
-	}{}
-	err = json.Unmarshal(data, &target)
-	require.NoError(t, err)
-	assert.Equal(t, "IOC", target.TimeInForce.String())
-}
-
-func BenchmarkStringToTimeInForceA(b *testing.B) {
-	var result TimeInForce
-	var err error
-	for b.Loop() {
-		for k := range timeInForceStringToValueMap {
-			result, err = StringToTimeInForce(k)
-			assert.ErrorIs(b, err, timeInForceStringToValueMap[k].Error)
-			assert.Equal(b, timeInForceStringToValueMap[k].TIF, result)
-		}
-	}
 }

@@ -1,7 +1,6 @@
 package coinbasepro
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -162,9 +161,9 @@ func TestAuthRequests(t *testing.T) {
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	orderResponse, err := c.PlaceLimitOrder(context.Background(),
-		"",
-		order.Buy.Lower(), "", "", testPair.String(), "", 0.001, 0.001, false)
+	orderResponse, err := c.PlaceLimitOrder(t.Context(),
+		"", 0.001, 0.001,
+		order.Buy.Lower(), "", "", testPair.String(), "", false)
 	if orderResponse != "" {
 		t.Error("Expecting no data returned")
 	}

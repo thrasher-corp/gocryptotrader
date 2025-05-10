@@ -153,11 +153,10 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 
 	tt, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
 	require.NoError(t, err)
-
-	assert.False(t, tt.MaximumBaseAmount != newLimits[0].MaximumBaseAmount ||
-		tt.MinimumBaseAmount != newLimits[0].MinimumBaseAmount ||
-		tt.MaxPrice != newLimits[0].MaxPrice ||
-		tt.MinPrice != newLimits[0].MinPrice)
+	assert.Equal(t, newLimits[0].MaximumBaseAmount, tt.MaximumBaseAmount)
+	assert.Equal(t, newLimits[0].MinimumBaseAmount, tt.MinimumBaseAmount)
+	assert.Equal(t, newLimits[0].MaxPrice, tt.MaxPrice)
+	assert.Equal(t, newLimits[0].MinPrice, tt.MinPrice)
 }
 
 func TestCheckLimit(t *testing.T) {
@@ -262,7 +261,7 @@ func TestConformToDecimalAmount(t *testing.T) {
 
 	tt = MinMaxLevel{}
 	val := tt.ConformToDecimalAmount(decimal.NewFromInt(1))
-	assert.True(t, val.Equal(decimal.NewFromInt(1))) // If there is no step amount set this should not change
+	assert.True(t, val.Equal(decimal.NewFromInt(1))) // If there is no step amount set, this should not change the inputted amount
 
 	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))

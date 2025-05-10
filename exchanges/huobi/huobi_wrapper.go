@@ -1046,7 +1046,9 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 				oType = "optimal_20_ioc"
 			}
 		case order.Limit:
-			oType = "limit"
+			if s.Type == order.Limit {
+				oType = "limit"
+			}
 			if s.TimeInForce.Is(order.PostOnly) {
 				oType = "post_only"
 			}
@@ -1336,9 +1338,9 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			if err != nil {
 				return nil, err
 			}
-			maker := true
+			maker := false
 			if orderVars.OrderType == order.Limit || orderVars.TimeInForce.Is(order.PostOnly) {
-				maker = false
+				maker = true
 			}
 			orderDetail.Trades = append(orderDetail.Trades, order.TradeHistory{
 				Price:    orderInfo.Data[x].Price,

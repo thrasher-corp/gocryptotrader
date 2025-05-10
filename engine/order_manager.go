@@ -395,9 +395,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 
 	// Populate additional Modify fields as some of them are required by various
 	// exchange implementations.
-	mod.Pair = det.Pair               // Used by Bithumb.
-	mod.Side = det.Side               // Used by Bithumb.
-	mod.TimeInForce = det.TimeInForce // PostOnly used by Poloniex.
+	mod.Pair = det.Pair
+	mod.Side = det.Side
+	mod.TimeInForce = det.TimeInForce
 
 	// Following is just a precaution to not modify orders by mistake if exchange
 	// implementations do not check fields of the Modify struct for zero values.

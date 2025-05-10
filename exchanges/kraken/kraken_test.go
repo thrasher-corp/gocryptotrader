@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -182,7 +181,7 @@ func TestFuturesSendOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 
-	_, err := k.FuturesSendOrder(context.Background(), order.Limit, futuresTestPair, "buy", "", "", "", order.ImmediateOrCancel, 1, 1, 0.9)
+	_, err := k.FuturesSendOrder(t.Context(), order.Limit, futuresTestPair, "buy", "", "", "", order.ImmediateOrCancel, 1, 1, 0.9)
 	assert.NoError(t, err, "FuturesSendOrder should not error")
 }
 
