@@ -1689,7 +1689,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				High:   candles[i].HighestPrice.Float64(),
 				Low:    candles[i].LowestPrice.Float64(),
 				Close:  candles[i].ClosePrice.Float64(),
-				Volume: candles[i].QuoteCcyVolume.Float64(),
+				Volume: candles[i].BaseCcyAmount.Float64(),
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
