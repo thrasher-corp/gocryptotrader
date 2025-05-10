@@ -549,7 +549,7 @@ func TestSetPairs(t *testing.T) {
 	t.Parallel()
 	var c Config
 	pairs := currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
 
@@ -804,7 +804,7 @@ func TestSupportsPair(t *testing.T) {
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
 							AssetEnabled:  true,
-							Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+							Available:     []currency.Pair{currency.NewBTCUSD()},
 							ConfigFormat:  fmt,
 							RequestFormat: fmt,
 						},
@@ -815,13 +815,13 @@ func TestSupportsPair(t *testing.T) {
 	}
 	assetType := asset.Spot
 	if cfg.SupportsPair("asdf",
-		currency.NewPair(currency.BTC, currency.USD), assetType) {
+		currency.NewBTCUSD(), assetType) {
 		t.Error(
 			"TestSupportsPair. Expected error from Non-existent exchange",
 		)
 	}
 
-	if !cfg.SupportsPair(bfx, currency.NewPair(currency.BTC, currency.USD), assetType) {
+	if !cfg.SupportsPair(bfx, currency.NewBTCUSD(), assetType) {
 		t.Errorf(
 			"expected true",
 		)
@@ -961,7 +961,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 	_, err = c.GetAvailablePairs(testFakeExchangeName, asset.Spot)
 	if err != nil {
@@ -1004,11 +1004,11 @@ func TestGetEnabledPairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 
 	_, err = c.GetEnabledPairs(testFakeExchangeName, asset.Spot)

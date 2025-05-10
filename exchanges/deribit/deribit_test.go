@@ -3836,7 +3836,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 currency.NewBTCUSDT(),
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)

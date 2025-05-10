@@ -2302,6 +2302,9 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 func TestPushData(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.SetCredentials("mock", "test", "test", "", "", "")
+	ku.API.AuthenticatedSupport = true
+	ku.API.AuthenticatedWebsocketSupport = true
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
@@ -3110,7 +3113,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 	req := &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
-		Pair:  currency.NewPair(currency.BTC, currency.USD),
+		Pair:  currency.NewBTCUSD(),
 	}
 	_, err = ku.GetLatestFundingRates(t.Context(), req)
 	require.ErrorIs(t, err, futures.ErrNotPerpetualFuture)

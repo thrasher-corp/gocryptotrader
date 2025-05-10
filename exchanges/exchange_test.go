@@ -923,7 +923,7 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	pairs := currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 	err := b.SetPairs(pairs, asset.Spot, true)
 	if err != nil {
@@ -1078,7 +1078,7 @@ func TestUpdatePairs(t *testing.T) {
 
 	pairs := currency.Pairs{
 		currency.NewPair(currency.XRP, currency.USD),
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
@@ -1105,7 +1105,7 @@ func TestUpdatePairs(t *testing.T) {
 	if uacEnabledPairs.Contains(currency.NewPair(currency.XRP, currency.USD), true) {
 		t.Fatal("expected currency pair not found")
 	}
-	if uacEnabledPairs.Contains(currency.NewPair(currency.BTC, currency.USD), true) {
+	if uacEnabledPairs.Contains(currency.NewBTCUSD(), true) {
 		t.Fatal("expected currency pair not found")
 	}
 	if uacEnabledPairs.Contains(currency.NewPair(currency.LTC, currency.USD), true) {
@@ -1308,7 +1308,7 @@ func TestPrintEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 	}
 
@@ -1332,7 +1332,7 @@ func TestGetBase(t *testing.T) {
 
 func TestGetAssetType(t *testing.T) {
 	var b Base
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 	if _, err := b.GetPairAssetType(p); err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -1340,10 +1340,10 @@ func TestGetAssetType(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: true,
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 		Available: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
 	}
@@ -1378,10 +1378,10 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: true,
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 		Available: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 	}
 	p, a, err := b.GetRequestFormattedPairAndAssetType("btc#usd")
@@ -2099,7 +2099,7 @@ func TestGetFundingRates(t *testing.T) {
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.BTC, currency.USD)); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSD()); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2248,7 +2248,7 @@ func TestGetKlineRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err = b.GetKlineRequest(pair, asset.Empty, 0, time.Time{}, time.Time{}, false)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
@@ -2412,7 +2412,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err = b.GetKlineExtendedRequest(pair, asset.Empty, 0, time.Time{}, time.Time{})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
@@ -2571,7 +2571,7 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 			asset.Spot: {
 				AssetEnabled: true,
 				Available: []currency.Pair{
-					currency.NewPair(currency.BTC, currency.USDT),
+					currency.NewBTCUSDT(),
 				},
 			},
 		},
@@ -2640,7 +2640,7 @@ func TestGetStandardConfig(t *testing.T) {
 func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	whatIWant := currency.NewBTCUSDT()
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
 		Available:    []currency.Pair{whatIWant},
@@ -2676,7 +2676,7 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 func TestMatchSymbolCheckEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	whatIWant := currency.NewBTCUSDT()
 	availButNoEnabled := currency.NewPair(currency.BTC, currency.AUD)
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
@@ -2735,7 +2735,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 func TestIsPairEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	whatIWant := currency.NewBTCUSDT()
 	availButNoEnabled := currency.NewPair(currency.BTC, currency.AUD)
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
@@ -2906,7 +2906,7 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 func TestGetCachedTicker(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err := b.GetCachedTicker(pair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
@@ -2921,7 +2921,7 @@ func TestGetCachedTicker(t *testing.T) {
 func TestGetCachedOrderbook(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
@@ -3116,7 +3116,7 @@ func (f *FakeBase) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.NewBTCUSDT())
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 

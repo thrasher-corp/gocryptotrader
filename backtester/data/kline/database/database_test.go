@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 func TestLoadDataCandles(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	var err error
 	bot := &engine.Engine{}
 	dbConfg := database.Config{
@@ -132,7 +132,7 @@ func TestLoadDataCandles(t *testing.T) {
 func TestLoadDataTrades(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	var err error
 	bot := &engine.Engine{}
 	dbConfg := database.Config{
@@ -200,7 +200,7 @@ func TestLoadDataTrades(t *testing.T) {
 func TestLoadDataInvalid(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, false)
