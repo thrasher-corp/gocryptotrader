@@ -4024,7 +4024,18 @@ var pushDataMap = map[string]string{
 func TestPushData(t *testing.T) {
 	t.Parallel()
 	var err error
+	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(ok), "Setup must not error")
+
 	for x := range pushDataMap {
+		if x == "Balance And Position" {
+			ok.API.AuthenticatedSupport = true
+			ok.API.AuthenticatedWebsocketSupport = true
+			ok.SetCredentials("test", "test", "test", "", "", "")
+		} else {
+			ok.API.AuthenticatedSupport = false
+			ok.API.AuthenticatedWebsocketSupport = false
+		}
 		err = ok.WsHandleData([]byte(pushDataMap[x]))
 		require.NoErrorf(t, err, "Okx %s error %v", x, err)
 	}

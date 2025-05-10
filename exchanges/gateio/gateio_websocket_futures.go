@@ -139,7 +139,7 @@ func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn websocket.Connecti
 }
 
 // WsHandleFuturesData handles futures websocket data
-func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
+func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresAutoPositionCloseChannel:
 		return g.processPositionCloseData(respRaw)
 	case futuresBalancesChannel:
-		return g.processBalancePushData(respRaw, a)
+		return g.processBalancePushData(ctx, respRaw, a)
 	case futuresReduceRiskLimitsChannel:
 		return g.processFuturesReduceRiskLimitNotification(respRaw)
 	case futuresPositionsChannel:
@@ -652,7 +652,7 @@ func (g *Gateio) processPositionCloseData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processBalancePushData(data []byte, assetType asset.Item) error {
+func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    int64       `json:"time"`
 		Channel string      `json:"channel"`
@@ -663,23 +663,29 @@ func (g *Gateio) processBalancePushData(data []byte, assetType asset.Item) error
 	if err != nil {
 		return err
 	}
-	accountChange := make([]account.Change, len(resp.Result))
-	for x := range resp.Result {
-		info := strings.Split(resp.Result[x].Text, currency.UnderscoreDelimiter)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
+	for x, bal := range resp.Result {
+		info := strings.Split(bal.Text, currency.UnderscoreDelimiter)
 		if len(info) != 2 {
 			return errors.New("malformed text")
 		}
-		code := currency.NewCode(info[0])
-		accountChange[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    assetType,
-			Amount:   resp.Result[x].Balance,
-			Account:  resp.Result[x].User,
+		changes[x] = account.Change{
+			AssetType: assetType,
+			Account:   bal.User,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(info[0]),
+				Total:     bal.Balance,
+				Free:      bal.Balance,
+				UpdatedAt: bal.Time.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChange
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
 func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {
