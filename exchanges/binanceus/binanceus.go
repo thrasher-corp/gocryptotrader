@@ -1026,7 +1026,7 @@ func (bi *Binanceus) newOrder(ctx context.Context, api string, o *NewOrderReques
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
 	if o.TimeInForce != "" {
-		params.Set("timeInForce", string(o.TimeInForce))
+		params.Set("timeInForce", o.TimeInForce)
 	}
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderId", o.NewClientOrderID)
