@@ -261,7 +261,7 @@ func TestConformToDecimalAmount(t *testing.T) {
 
 	tt = MinMaxLevel{}
 	val := tt.ConformToDecimalAmount(decimal.NewFromInt(1))
-	assert.True(t, val.Equal(decimal.NewFromInt(1))) // If there is no step amount set this should not change
+	assert.True(t, val.Equal(decimal.NewFromInt(1))) // If there is no step amount set, this should not change the inputted amount
 
 	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToDecimalAmount(decimal.NewFromFloat(1.001))

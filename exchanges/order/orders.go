@@ -158,7 +158,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 
 	var updated bool
-	if d.TimeInForce != m.TimeInForce {
+	if m.TimeInForce != UnknownTIF && d.TimeInForce != m.TimeInForce {
 		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
