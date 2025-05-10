@@ -660,12 +660,18 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		frozenAmount, err := strconv.ParseFloat(body.FrozenAmount, 64)
+		if err != nil {
+			return err
+		}
 		me.Websocket.DataHandler <- account.Change{
-			Exchange: me.Name,
-			Currency: currency.NewCode(body.VcoinName),
-			Asset:    asset.Spot,
-			Amount:   balanceAmount,
-			Account:  body.Type,
+			AssetType: asset.Spot,
+			Balance: &account.Balance{
+				Currency: currency.NewCode(body.VcoinName),
+				Total:    balanceAmount,
+				Hold:     frozenAmount,
+				Free:     balanceAmount - frozenAmount,
+			},
 		}
 		return nil
 	case chnlPrivateDealsV3:

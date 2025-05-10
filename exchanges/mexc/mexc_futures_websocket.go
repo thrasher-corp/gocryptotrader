@@ -362,10 +362,13 @@ func (me *MEXC) processPersonalAsset(data []byte) error {
 		return err
 	}
 	me.Websocket.DataHandler <- account.Change{
-		Currency: currency.NewCode(resp.Currency),
-		Exchange: me.Name,
-		Asset:    asset.Futures,
-		Amount:   resp.AvailableBalance,
+		AssetType: asset.Futures,
+		Balance: &account.Balance{
+			Currency: currency.NewCode(resp.Currency),
+			Total:    resp.AvailableBalance,
+			Hold:     resp.FrozenBalance,
+			Free:     resp.AvailableBalance - resp.FrozenBalance,
+		},
 	}
 	return nil
 }
