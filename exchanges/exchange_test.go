@@ -769,11 +769,8 @@ func TestIsEnabled(t *testing.T) {
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
-	newRequester, err := request.New("testSetupDefaults",
-		common.NewHTTPClientWithTimeout(0))
-	if err != nil {
-		t.Fatal(err)
-	}
+	newRequester, err := request.New("testSetupDefaults", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
 
 	b := Base{
 		Name:      "awesomeTest",
@@ -787,35 +784,22 @@ func TestSetupDefaults(t *testing.T) {
 		ConnectionMonitorDelay: time.Second * 5,
 	}
 
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.HTTPTimeout.String() != "15s" {
-		t.Error("HTTP timeout should be set to 15s")
-	}
+	require.NoError(t, b.SetupDefaults(&cfg))
+	assert.Equal(t, 15*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should default correctly")
 
-	// Test custom HTTP timeout is set
 	cfg.HTTPTimeout = time.Second * 30
-	err = b.SetupDefaults(&cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.HTTPTimeout.String() != "30s" {
-		t.Error("HTTP timeout should be set to 30s")
-	}
+	require.NoError(t, b.SetupDefaults(&cfg))
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should respect override")
 
 	// Test asset types
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{Enabled: currency.Pairs{btcusdPair}})
 	require.NoError(t, err, "Store must not error")
-	require.NoError(t, b.SetupDefaults(&cfg), "SetupDefaults must not error")
+	require.NoError(t, b.SetupDefaults(&cfg))
+
 	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ps.Enabled.Contains(btcusdPair, true) {
-		t.Error("default pair should be stored in the configs pair store")
-	}
+	require.NoError(t, err, "CurrencyPairs.Get must not error")
+	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
 
 	// Test websocket support
 	b.Websocket = websocket.NewManager()
@@ -833,16 +817,9 @@ func TestSetupDefaults(t *testing.T) {
 		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.Websocket.Enable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !b.IsWebsocketEnabled() {
-		t.Error("websocket should be enabled")
-	}
+	require.NoError(t, err, "Websocket.Setup must not error")
+	require.NoError(t, b.Websocket.Enable(), "Websocket.Enable must not error")
+	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
 }
 
 func TestSetPairs(t *testing.T) {
