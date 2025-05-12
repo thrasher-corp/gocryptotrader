@@ -801,26 +801,6 @@ func TestSetupDefaults(t *testing.T) {
 	require.NoError(t, err, "CurrencyPairs.Get must not error")
 	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
 
-	// Test websocket support
-	b.Websocket = websocket.NewManager()
-	b.Features.Supports.Websocket = true
-	err = b.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig: &config.Exchange{
-			WebsocketTrafficTimeout: time.Second * 30,
-			Name:                    "test",
-			Features:                &config.FeaturesConfig{},
-		},
-		Features:              &protocol.Features{},
-		DefaultURL:            "ws://something.com",
-		RunningURL:            "ws://something.com",
-		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
-		Subscriber:            func(subscription.List) error { return nil },
-	})
-	require.NoError(t, err, "Websocket.Setup must not error")
-	require.NoError(t, b.Websocket.Enable(), "Websocket.Enable must not error")
-	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
-
 	assert.Same(t, account.GetService(), b.accounts, "SetDefualts should should default accounts to the service singleton")
 	a := &account.Service{}
 	b.accounts = a
@@ -1128,9 +1108,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	t.Parallel()
 
 	var b Base
-	if b.IsWebsocketEnabled() {
-		t.Error("exchange doesn't support websocket")
-	}
+	require.False(t, b.IsWebsocketEnabled(), "IsWebsocketEnabled must return false on an empty Base")
 
 	b.Websocket = websocket.NewManager()
 	err := b.Websocket.Setup(&websocket.ManagerSetup{
@@ -1151,12 +1129,10 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
-	if err != nil {
-		t.Error(err)
-	}
-	if !b.IsWebsocketEnabled() {
-		t.Error("websocket should be enabled")
-	}
+	require.NoError(t, err, "Websocket.Setup must not error")
+	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
+	require.NoError(t, b.Websocket.Disable(), "Websocket.Disable must not error")
+	assert.False(t, b.IsWebsocketEnabled(), "websocket should not be enabled")
 }
 
 func TestSupportsWithdrawPermissions(t *testing.T) {
