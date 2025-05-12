@@ -13,10 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-func init() {
-	service.exchangeAccounts = make(map[string]*Accounts)
-	service.mux = dispatch.GetNewMux(nil)
-}
+var service Service
 
 // Public errors
 var (
@@ -34,7 +31,18 @@ var (
 	errLoadingBalance               = errors.New("error loading balance")
 	errExchangeAlreadyExists        = errors.New("exchange already exists")
 	errCannotUpdateBalance          = errors.New("cannot update balance")
+	errAccountBalancesIsNil         = errors.New("account balances is nil")
 )
+
+func init() {
+	service.exchangeAccounts = make(map[string]*Accounts)
+	service.mux = dispatch.GetNewMux(nil)
+}
+
+// GetService returns a reference to the account service singleton
+func GetService() *Service {
+	return &service
+}
 
 // initAccounts adds a new empty shared account accounts entry for an exchange
 // must be called with s.mu locked
