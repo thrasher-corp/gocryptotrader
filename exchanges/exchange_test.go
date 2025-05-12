@@ -820,6 +820,12 @@ func TestSetupDefaults(t *testing.T) {
 	require.NoError(t, err, "Websocket.Setup must not error")
 	require.NoError(t, b.Websocket.Enable(), "Websocket.Enable must not error")
 	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
+
+	assert.Same(t, account.GetService(), b.accounts, "SetDefualts should should default accounts to the service singleton")
+	a := &account.Service{}
+	b.accounts = a
+	require.NoError(t, b.SetupDefaults(&cfg))
+	assert.Same(t, a, b.accounts, "SetDefaults should respect accounts override")
 }
 
 func TestSetPairs(t *testing.T) {
