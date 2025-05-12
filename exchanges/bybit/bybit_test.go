@@ -2873,6 +2873,8 @@ func TestUpdateAccountInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
+	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
 	r, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateAccountInfo must not error")
 	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
@@ -3069,8 +3071,10 @@ var pushDataMap = map[string]string{
 	"Execution":            `{"id": "592324803b2785-26fa-4214-9963-bdd4727f07be", "topic": "execution", "creationTime": 1672364174455, "data": [ { "category": "linear", "symbol": "XRPUSDT", "execFee": "0.005061", "execId": "7e2ae69c-4edf-5800-a352-893d52b446aa", "execPrice": "0.3374", "execQty": "25", "execType": "Trade", "execValue": "8.435", "isMaker": false, "feeRate": "0.0006", "tradeIv": "", "markIv": "", "blockTradeId": "", "markPrice": "0.3391", "indexPrice": "", "underlyingPrice": "", "leavesQty": "0", "orderId": "f6e324ff-99c2-4e89-9739-3086e47f9381", "orderLinkId": "", "orderPrice": "0.3207", "orderQty":"25","orderType":"Market","stopOrderType":"UNKNOWN","side":"Sell","execTime":"1672364174443","isLeverage": "0","closedSize": "","seq":4688002127}]}`,
 }
 
-func TestPushData(t *testing.T) {
+func TestWSHandleData(t *testing.T) {
 	t.Parallel()
+
+	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
@@ -3084,11 +3088,11 @@ func TestPushData(t *testing.T) {
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
 		return e.wsHandleData(t.Context(), assetRouting[0], r)
