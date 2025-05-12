@@ -2785,6 +2785,8 @@ func TestUpdateAccountInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 
+	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
 	r, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateAccountInfo must not error")
 	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
@@ -2982,8 +2984,10 @@ var pushDataMap = map[string]string{
 	"unhandled":            `{"topic": "unhandled"}`,
 }
 
-func TestPushDataPublic(t *testing.T) {
+func TestWSHandleData(t *testing.T) {
 	t.Parallel()
+
+	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
@@ -3172,11 +3176,11 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange) //nolint:govet // Intentional shadow
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
 		return e.wsHandleData(nil, assetRouting[0], r)
