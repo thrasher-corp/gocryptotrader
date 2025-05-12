@@ -1,7 +1,6 @@
 package account
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -11,12 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-)
-
-// Vars for the ticker package
-var (
-	service                 Service
-	errAccountBalancesIsNil = errors.New("account balances is nil")
 )
 
 // Service holds ticker information for each individual exchange
