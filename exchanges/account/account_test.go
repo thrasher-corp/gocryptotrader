@@ -507,3 +507,10 @@ func TestTrackNewAccounts(t *testing.T) {
 	s.mu.Unlock()
 	assert.ErrorIs(t, err, errExchangeAlreadyExists)
 }
+
+func TestGetService(t *testing.T) {
+	t.Parallel()
+	s := GetService()
+	require.NotNil(t, s)
+	assert.Same(t, &service, s)
+}
