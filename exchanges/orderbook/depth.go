@@ -53,7 +53,7 @@ type Depth struct {
 
 // NewDepth returns a new orderbook depth
 func NewDepth(id uuid.UUID) *Depth {
-	return &Depth{_ID: id, mux: service.Mux}
+	return &Depth{_ID: id, mux: s.signalMux}
 }
 
 // Publish alerts any subscribed routines using a dispatch mux
