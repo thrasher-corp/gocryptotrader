@@ -19,7 +19,7 @@ func (cr *Cryptodotcom) WsSetCancelOnDisconnect(scope string) (*CancelOnDisconne
 	if scope != "ACCOUNT" && scope != "CONNECTION" {
 		return nil, errInvalidOrderCancellationScope
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["scope"] = scope
 	var resp *CancelOnDisconnectScope
 	return resp, cr.SendWebsocketRequest("private/set-cancel-on-disconnect", params, &resp, true)
@@ -44,7 +44,7 @@ func (cr *Cryptodotcom) WsCreateWithdrawal(ccy currency.Code, amount float64, ad
 	if address == "" {
 		return nil, errAddressRequired
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["currency"] = ccy.String()
 	params["amount"] = amount
 	params["address"] = address
@@ -85,7 +85,7 @@ func (cr *Cryptodotcom) WsCancelExistingOrder(symbol, orderID string) error {
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	params["order_id"] = orderID
 	return cr.SendWebsocketRequest(privateCancelOrder, params, nil, true)
@@ -98,7 +98,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 	if len(arg) == 0 {
 		return nil, common.ErrNilPointer
 	}
-	orderParams := make([]map[string]interface{}, len(arg))
+	orderParams := make([]map[string]any, len(arg))
 	for x := range arg {
 		p, err := arg[x].getCreateParamMap()
 		if err != nil {
@@ -109,7 +109,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 	if contingencyType == "" {
 		contingencyType = "LIST"
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["order_list"] = orderParams
 	params["contingency_type"] = contingencyType
 	var resp *OrderCreationResponse
@@ -121,12 +121,12 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
-	cancelOrderList := []map[string]interface{}{}
+	cancelOrderList := []map[string]any{}
 	for x := range args {
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
 			return nil, errInstrumentNameOrOrderIDRequired
 		}
-		result := make(map[string]interface{})
+		result := make(map[string]any)
 		if args[x].InstrumentName != "" {
 			result["instrument_name"] = args[x].InstrumentName
 		}
@@ -135,7 +135,7 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 		}
 		cancelOrderList = append(cancelOrderList, result)
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["order_list"] = cancelOrderList
 	var resp *CancelOrdersResponse
 	return resp, cr.SendWebsocketRequest(privateCancelOrderList, params, &resp, true)
@@ -147,7 +147,7 @@ func (cr *Cryptodotcom) WsCancelAllPersonalOrders(symbol string) error {
 	if symbol == "" {
 		return currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["instrument_name"] = symbol
 	return cr.SendWebsocketRequest(privateCancelAllOrders, params, nil, true)
 }
@@ -156,7 +156,7 @@ func (cr *Cryptodotcom) WsCancelAllPersonalOrders(symbol string) error {
 //
 // If paging is used, enumerate each page (starting with 0) until an empty order_list array appears in the response.
 func (cr *Cryptodotcom) WsRetrivePersonalOrderHistory(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalOrdersResponse, error) {
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
 	}
@@ -178,7 +178,7 @@ func (cr *Cryptodotcom) WsRetrivePersonalOrderHistory(instrumentName string, sta
 
 // WsRetrivePersonalOpenOrders retrieves all open orders of particular instrument through the websocket connection
 func (cr *Cryptodotcom) WsRetrivePersonalOpenOrders(instrumentName string, pageSize, page int64) (*PersonalOrdersResponse, error) {
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
 	}
@@ -195,7 +195,7 @@ func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, erro
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["order_id"] = orderID
 	var resp *OrderDetail
 	return resp, cr.SendWebsocketRequest(privateGetOrderDetail, params, &resp, true)
@@ -206,7 +206,7 @@ func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, erro
 // If paging is used, enumerate each page (starting with 0) until an empty trade_list array appears in the response.
 // Users should use user.trade to keep track of real-time trades, and private/get-trades should primarily be used for recovery; typically when the websocket is disconnected.
 func (cr *Cryptodotcom) WsRetrivePrivateTrades(instrumentName string, startTimestamp, endTimestamp time.Time, pageSize, page int64) (*PersonalTrades, error) {
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	if instrumentName != "" {
 		params["instrument_name"] = instrumentName
 	}
@@ -226,7 +226,7 @@ func (cr *Cryptodotcom) WsRetrivePrivateTrades(instrumentName string, startTimes
 
 // WsRetriveAccountSummary returns the account balance of a user for a particular token through the websocket connection.
 func (cr *Cryptodotcom) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, error) {
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	if !ccy.IsEmpty() {
 		params["currency"] = ccy.String()
 	}
@@ -235,7 +235,7 @@ func (cr *Cryptodotcom) WsRetriveAccountSummary(ccy currency.Code) (*Accounts, e
 }
 
 // SendWebsocketRequest pushed a request data through the websocket data for authenticated and public messages.
-func (cr *Cryptodotcom) SendWebsocketRequest(method string, arg map[string]interface{}, result interface{}, authenticated bool) error {
+func (cr *Cryptodotcom) SendWebsocketRequest(method string, arg map[string]any, result interface{}, authenticated bool) error {
 	if authenticated && !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return errors.New("can not send authenticated websocket request")
 	}

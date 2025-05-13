@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,7 +38,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.OTC)
+	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin, asset.OTC, asset.PerpetualSwap)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -119,8 +120,9 @@ func (cr *Cryptodotcom) SetDefaults() {
 	}
 	cr.API.Endpoints = cr.NewEndpoints()
 	err = cr.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                   cryptodotcomAPIURLV2,
+		exchange.RestSpot:                   cryptodotcomAPIURLV1,
 		exchange.RestSpotSupplementary:      cryptodotcomAPIURLV1,
+		exchange.RestFutures:                restURL,
 		exchange.WebsocketSpot:              cryptodotcomWebsocketMarketAPI,
 		exchange.WebsocketSpotSupplementary: cryptodotcomWebsocketUserAPI,
 	})
@@ -189,17 +191,38 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
 	}
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		instruments, err := cr.GetInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
-		pairs := make(currency.Pairs, len(instruments.Instruments))
+		pairs := currency.Pairs{}
 		for x := range instruments.Instruments {
-			pairs[x], err = currency.NewPairFromString(instruments.Instruments[x].InstrumentName)
+			if instruments.Instruments[x].InstrumentType != "CCY_PAIR" {
+				continue
+			}
+			pair, err := currency.NewPairFromString(instruments.Instruments[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
+			pairs = append(pairs, pair)
+		}
+		return pairs, nil
+	case asset.PerpetualSwap:
+		instruments, err := cr.GetInstruments(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs := currency.Pairs{}
+		for x := range instruments.Instruments {
+			if instruments.Instruments[x].InstrumentType != "PERPETUAL_SWAP" {
+				continue
+			}
+			pair, err := currency.NewPairFromString(instruments.Instruments[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 		return pairs, nil
 	case asset.OTC:
@@ -750,15 +773,15 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 	if err != nil {
 		return nil, err
 	}
-	status, err := order.StringToOrderStatus(orderDetail.OrderInfo.Status)
+	status, err := order.StringToOrderStatus(orderDetail.Status)
 	if err != nil {
 		return nil, err
 	}
-	orderType, err := StringToOrderType(orderDetail.OrderInfo.Type)
+	orderType, err := StringToOrderType(orderDetail.OrderType)
 	if err != nil {
 		return nil, err
 	}
-	side, err := order.StringToOrderSide(orderDetail.OrderInfo.Side)
+	side, err := order.StringToOrderSide(orderDetail.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -767,7 +790,7 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 		return nil, err
 	}
 	var tif order.TimeInForce
-	switch orderDetail.OrderInfo.TimeInForce {
+	switch orderDetail.TimeInForce {
 	case "GOOD_TILL_CANCEL":
 		tif = order.GoodTillCancel
 	case "IMMEDIATE_OR_CANCEL":
@@ -779,20 +802,20 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 		tif |= order.PostOnly
 	}
 	return &order.Detail{
-		Amount:         orderDetail.OrderInfo.Quantity,
+		Amount:         orderDetail.Quantity.Float64(),
 		Exchange:       cr.Name,
-		OrderID:        orderDetail.OrderInfo.OrderID,
-		ClientOrderID:  orderDetail.OrderInfo.ClientOid,
+		OrderID:        orderDetail.OrderID,
+		ClientOrderID:  orderDetail.ClientOrderID,
 		Side:           side,
 		Type:           orderType,
 		Pair:           pair,
-		Cost:           orderDetail.OrderInfo.CumulativeValue,
+		Cost:           orderDetail.CumulativeValue.Float64(),
 		AssetType:      assetType,
 		Status:         status,
-		Price:          orderDetail.OrderInfo.Price,
-		ExecutedAmount: orderDetail.OrderInfo.CumulativeQuantity - orderDetail.OrderInfo.Quantity,
-		Date:           orderDetail.OrderInfo.CreateTime.Time(),
-		LastUpdated:    orderDetail.OrderInfo.UpdateTime.Time(),
+		Price:          orderDetail.Price.Float64(),
+		ExecutedAmount: orderDetail.CumulativeQuantity.Float64() - orderDetail.Quantity.Float64(),
+		Date:           orderDetail.CreateTime.Time(),
+		LastUpdated:    orderDetail.UpdateTime.Time(),
 		TimeInForce:    tif,
 	}, err
 }
@@ -1117,22 +1140,15 @@ func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.
 
 	limits := make([]order.MinMaxLevel, 0, len(instrumentsResponse.Instruments))
 	for x := range instrumentsResponse.Instruments {
-		pair, err := currency.NewPairFromString(instrumentsResponse.Instruments[x].InstrumentName)
+		pair, err := currency.NewPairFromString(instrumentsResponse.Instruments[x].Symbol)
 		if err != nil {
 			return err
-		}
-		if instrumentsResponse.Instruments[x].MinQuantity.Float64() > instrumentsResponse.Instruments[x].MaxQuantity.Float64() {
-			instrumentsResponse.Instruments[x].MinQuantity, instrumentsResponse.Instruments[x].MaxQuantity = instrumentsResponse.Instruments[x].MaxQuantity, instrumentsResponse.Instruments[x].MinQuantity
 		}
 		limits = append(limits, order.MinMaxLevel{
 			Pair:                    pair,
 			Asset:                   a,
-			AmountStepIncrementSize: instrumentsResponse.Instruments[x].QuantityTickSize.Float64(),
+			AmountStepIncrementSize: instrumentsResponse.Instruments[x].QtyTickSize.Float64(),
 			PriceStepIncrementSize:  instrumentsResponse.Instruments[x].PriceTickSize.Float64(),
-			MinimumBaseAmount:       instrumentsResponse.Instruments[x].MinQuantity.Float64(),
-			MaximumBaseAmount:       instrumentsResponse.Instruments[x].MaxQuantity.Float64(),
-			MinPrice:                instrumentsResponse.Instruments[x].MinPrice.Float64(),
-			MaxPrice:                instrumentsResponse.Instruments[x].MaxPrice.Float64(),
 		})
 	}
 	return cr.LoadLimits(limits)
@@ -1167,4 +1183,17 @@ func timeInForceString(tif order.TimeInForce) (string, error) {
 	default:
 		return "", fmt.Errorf("%w: time-in-force value %v", order.ErrInvalidTimeInForce, tif.String())
 	}
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (cr *Cryptodotcom) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
+	if pair.IsEmpty() {
+		return false, currency.ErrCurrencyPairEmpty
+	}
+	if assetType != asset.Futures {
+		// deribit considers future combo, even if ending in "PERP" to not be a perpetual
+		return false, nil
+	}
+	return strings.HasSuffix(pair.Quote.String(), "PERP"), nil
 }

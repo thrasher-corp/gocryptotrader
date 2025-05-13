@@ -89,7 +89,9 @@ func (cr *Cryptodotcom) WsConnect() error {
 		authDialer.WriteBufferSize = 8192
 		err = cr.WsAuthConnect(&authDialer)
 		if err != nil {
-			return err
+			log.Errorf(log.ExchangeSys,
+				"%v unable to connect to authenticated Websocket. Error: %s", cr.Name, err)
+			cr.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	return nil

@@ -1357,7 +1357,10 @@
    "currencyPairs": {
     "bypassConfigFormatUpgrades": false,
     "assetTypes": [
-     "spot"
+     "spot",
+     "margin",
+     "perpetualswap",
+     "otc"
     ],
     "pairs": {
      "spot": {
@@ -1384,8 +1387,8 @@
      "requiresSecret": true
     },
     "urlEndpoints": {
-     "RestSpotURL": "https://api.crypto.com/v2/",
-     "WebsocketSpotURL": "wss://stream.crypto.com/v2/market"
+     "RestSpotURL": "https://api.crypto.com/exchange/v1/",
+     "WebsocketSpotURL": "wss://api.crypto.com/exchange/v1/market"
     }
    },
    "features": {

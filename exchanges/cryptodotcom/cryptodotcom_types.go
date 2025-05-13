@@ -24,26 +24,9 @@ var (
 	errInvalidRate                     = errors.New("invalid rate")
 	errInvalidSlippageToleraceBPs      = errors.New("invalid slippage tolerance base points")
 	errValuationTypeUnset              = errors.New("valuation type unset")
+	errAccountIDMissing                = errors.New("account id is required")
+	errContingencyTypeRequired         = errors.New("contingency type is required")
 )
-
-// Instrument represents an details.
-type Instrument struct {
-	InstrumentName          string     `json:"instrument_name"`
-	QuoteCurrency           string     `json:"quote_currency"`
-	BaseCurrency            string     `json:"base_currency"`
-	PriceDecimals           int64      `json:"price_decimals"`
-	QuantityDecimals        int64      `json:"quantity_decimals"`
-	MarginTradingEnabled    bool       `json:"margin_trading_enabled"`
-	MarginTradingEnabled5X  bool       `json:"margin_trading_enabled_5x"`
-	MarginTradingEnabled10X bool       `json:"margin_trading_enabled_10x"`
-	MaxQuantity             SafeNumber `json:"max_quantity"`
-	MinQuantity             SafeNumber `json:"min_quantity"`
-	MaxPrice                SafeNumber `json:"max_price"`
-	MinPrice                SafeNumber `json:"min_price"`
-	LastUpdateDate          types.Time `json:"last_update_date"`
-	QuantityTickSize        SafeNumber `json:"quantity_tick_size"`
-	PriceTickSize           SafeNumber `json:"price_tick_size"`
-}
 
 // OrderbookDetail public order book detail.
 type OrderbookDetail struct {
@@ -280,8 +263,8 @@ type PersonalTradeItem struct {
 	OrderID        string     `json:"order_id"`
 }
 
-// OrderDetail represents an order detail.
-type OrderDetail struct {
+// OrderAndTrades represents an order detail.
+type OrderAndTrades struct {
 	TradeList []struct {
 		Side           string     `json:"side"`
 		InstrumentName string     `json:"instrument_name"`
@@ -763,9 +746,30 @@ type WSRespData struct {
 	Result        interface{} `json:"result"`
 }
 
-// InstrumentList represents a list of instruments detail items.
-type InstrumentList struct {
-	Instruments []Instrument `json:"instruments"`
+// AllInstruments holds all instruments detail.
+type AllInstruments struct {
+	Instruments []InstrumentDetail `json:"data"`
+}
+
+// InstrumentDetail holds a trading instrument detail
+type InstrumentDetail struct {
+	Symbol            string       `json:"symbol"`
+	InstrumentType    string       `json:"inst_type"`
+	DisplayName       string       `json:"display_name"`
+	BaseCcy           string       `json:"base_ccy"`
+	QuoteCcy          string       `json:"quote_ccy"`
+	QuoteDecimals     int          `json:"quote_decimals"`
+	QuantityDecimals  int          `json:"quantity_decimals"`
+	PriceTickSize     types.Number `json:"price_tick_size"`
+	QtyTickSize       types.Number `json:"qty_tick_size"`
+	MaxLeverage       types.Number `json:"max_leverage"`
+	Tradable          bool         `json:"tradable"`
+	ExpiryTimestampMs types.Time   `json:"expiry_timestamp_ms"`
+	BetaProduct       bool         `json:"beta_product"`
+	UnderlyingSymbol  string       `json:"underlying_symbol,omitempty"`
+	ContractSize      types.Number `json:"contract_size,omitempty"`
+	MarginBuyEnabled  bool         `json:"margin_buy_enabled"`
+	MarginSellEnabled bool         `json:"margin_sell_enabled"`
 }
 
 // StakingConversionRate represents staked token and liquid staking token
@@ -912,4 +916,171 @@ type SmartCrossMarginRiskParameter struct {
 		MaxProductLeverageForSpot string       `json:"max_product_leverage_for_spot,omitempty"`
 		MaxShortSellLimit         types.Number `json:"max_short_sell_limit,omitempty"`
 	} `json:"base_currency_config"`
+}
+
+// UserAccountBalanceDetail holds user's account balance detail
+type UserAccountBalanceDetail struct {
+	Data []UserPositionBalanceDetail `json:"data"`
+}
+
+// UserPositionBalanceDetail holds user's position balance valuation detail.
+type UserPositionBalanceDetail struct {
+	TotalAvailableBalance     types.Number      `json:"total_available_balance"`
+	TotalMarginBalance        types.Number      `json:"total_margin_balance"`
+	TotalInitialMargin        types.Number      `json:"total_initial_margin"`
+	TotalPositionIm           string            `json:"total_position_im"`
+	TotalHaircut              string            `json:"total_haircut"`
+	TotalMaintenanceMargin    types.Number      `json:"total_maintenance_margin"`
+	TotalPositionCost         types.Number      `json:"total_position_cost"`
+	TotalCashBalance          types.Number      `json:"total_cash_balance"`
+	TotalCollateralValue      types.Number      `json:"total_collateral_value"`
+	TotalSessionUnrealizedPnl types.Number      `json:"total_session_unrealized_pnl"`
+	InstrumentName            string            `json:"instrument_name"`
+	TotalSessionRealizedPnl   string            `json:"total_session_realized_pnl"`
+	IsLiquidating             bool              `json:"is_liquidating"`
+	TotalEffectiveLeverage    string            `json:"total_effective_leverage"`
+	PositionLimit             types.Number      `json:"position_limit"`
+	UsedPositionLimit         types.Number      `json:"used_position_limit"`
+	PositionBalances          []PositionBalance `json:"position_balances"`
+}
+
+// PositionBalance holds user's position balance detail.
+type PositionBalance struct {
+	InstrumentName       string       `json:"instrument_name"`
+	Quantity             types.Number `json:"quantity"`
+	MarketValue          types.Number `json:"market_value"`
+	CollateralEligible   string       `json:"collateral_eligible"`
+	Haircut              string       `json:"haircut"`
+	CollateralAmount     types.Number `json:"collateral_amount"`
+	MaxWithdrawalBalance types.Number `json:"max_withdrawal_balance"`
+	ReservedQty          types.Number `json:"reserved_qty"`
+}
+
+// UserBalanceHistory holds a brief information of user balance history
+type UserBalanceHistory struct {
+	InstrumentName string `json:"instrument_name"`
+	Data           []struct {
+		Time             types.Time   `json:"t"`
+		TotalCashBalance types.Number `json:"c"`
+	} `json:"data"`
+}
+
+// SubAccountBalances holds list of sub-account balance
+type SubAccountBalances struct {
+	Data []SubAccountBalance `json:"data"`
+}
+
+// SubAccountBalance represents a sub-account balance detail
+type SubAccountBalance struct {
+	Account                   string                      `json:"account"`
+	InstrumentName            string                      `json:"instrument_name"`
+	TotalAvailableBalance     types.Number                `json:"total_available_balance"`
+	TotalMarginBalance        types.Number                `json:"total_margin_balance"`
+	TotalInitialMargin        types.Number                `json:"total_initial_margin"`
+	TotalMaintenanceMargin    types.Number                `json:"total_maintenance_margin"`
+	TotalPositionCost         types.Number                `json:"total_position_cost"`
+	TotalCashBalance          types.Number                `json:"total_cash_balance"`
+	TotalCollateralValue      types.Number                `json:"total_collateral_value"`
+	TotalSessionUnrealizedPnl types.Number                `json:"total_session_unrealized_pnl"`
+	TotalSessionRealizedPnl   types.Number                `json:"total_session_realized_pnl"`
+	TotalEffectiveLeverage    types.Number                `json:"total_effective_leverage"`
+	PositionLimit             types.Number                `json:"position_limit"`
+	UsedPositionLimit         types.Number                `json:"used_position_limit"`
+	IsLiquidating             bool                        `json:"is_liquidating"`
+	PositionBalances          []SubAccountPositionBalance `json:"position_balances"`
+}
+
+// SubAccountPositionBalance holds sub-account's position balance detail
+type SubAccountPositionBalance struct {
+	InstrumentName       string       `json:"instrument_name"`
+	Quantity             types.Number `json:"quantity"`
+	MarketValue          string       `json:"market_value"`
+	CollateralEligible   string       `json:"collateral_eligible"`
+	Haircut              string       `json:"haircut"`
+	CollateralAmount     types.Number `json:"collateral_amount"`
+	MaxWithdrawalBalance types.Number `json:"max_withdrawal_balance"`
+}
+
+// UsersPositions holds user's positions
+type UsersPositions struct {
+	Data []UserPosition `json:"data"`
+}
+
+// UserPosition holds a brief of user's position information
+type UserPosition struct {
+	AccountID         string       `json:"account_id"`
+	Quantity          types.Number `json:"quantity"`
+	Cost              string       `json:"cost"`
+	OpenPositionPnl   types.Number `json:"open_position_pnl"`
+	OpenPosCost       types.Number `json:"open_pos_cost"`
+	SessionPnl        types.Number `json:"session_pnl"`
+	UpdateTimestampMs types.Time   `json:"update_timestamp_ms"`
+	InstrumentName    string       `json:"instrument_name"`
+	InstrumentType    string       `json:"type"`
+}
+
+// InstrumentTrades holds list of executed trades of an instrument
+type InstrumentTrades struct {
+	Data []TradeDetail `json:"data"`
+}
+
+// TradeDetail holds instrument's executed trade detail
+type TradeDetail struct {
+	AccountID         string       `json:"account_id"`
+	EventDate         string       `json:"event_date"`
+	JournalType       string       `json:"journal_type"`
+	TradedQuantity    types.Number `json:"traded_quantity"`
+	TradedPrice       types.Number `json:"traded_price"`
+	Fees              types.Number `json:"fees"`
+	OrderID           string       `json:"order_id"`
+	TradeID           string       `json:"trade_id"`
+	TradeMatchID      string       `json:"trade_match_id"`
+	ClientOrderID     string       `json:"client_oid"`
+	TakerSide         string       `json:"taker_side"`
+	Side              string       `json:"side"`
+	InstrumentName    string       `json:"instrument_name"`
+	FeeInstrumentName string       `json:"fee_instrument_name"`
+	CreateTime        types.Time   `json:"create_time"`
+	CreateTimeNs      types.Time   `json:"create_time_ns"`
+}
+
+// OrderIDsDetail holds order id and client supplied order id
+type OrderIDsDetail struct {
+	ClientOid string `json:"client_oid"`
+	OrderID   string `json:"order_id"`
+}
+
+// OrdersDetail holds list of detailed order
+type OrdersDetail struct {
+	Data []OrderDetail `json:"data"`
+}
+
+// OrderDetail holds order detail
+type OrderDetail struct {
+	AccountID          string       `json:"account_id"`
+	OrderID            string       `json:"order_id"`
+	ClientOrderID      string       `json:"client_oid"`
+	OrderType          string       `json:"type"`
+	TimeInForce        string       `json:"time_in_force"`
+	Side               string       `json:"side"`
+	ExecInst           []any        `json:"exec_inst"`
+	Quantity           types.Number `json:"quantity"`
+	Price              types.Number `json:"price,omitempty"`
+	OrderValue         types.Number `json:"order_value"`
+	AvgPrice           types.Number `json:"avg_price"`
+	TriggerPrice       types.Number `json:"trigger_price"`
+	CumulativeQuantity types.Number `json:"cumulative_quantity"`
+	CumulativeValue    types.Number `json:"cumulative_value"`
+	CumulativeFee      types.Number `json:"cumulative_fee"`
+	Status             string       `json:"status"`
+	UpdateUserID       string       `json:"update_user_id"`
+	OrderDate          string       `json:"order_date"`
+	InstrumentName     string       `json:"instrument_name"`
+	FeeInstrumentName  string       `json:"fee_instrument_name"`
+	ListID             string       `json:"list_id"`
+	ContingencyType    string       `json:"contingency_type"`
+	TriggerPriceType   string       `json:"trigger_price_type"`
+	CreateTime         types.Time   `json:"create_time"`
+	CreateTimeNs       types.Time   `json:"create_time_ns"`
+	UpdateTime         types.Time   `json:"update_time"`
 }

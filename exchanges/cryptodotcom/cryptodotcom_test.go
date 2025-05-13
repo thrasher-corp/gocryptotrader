@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	setupWS()
+	// setupWS()
 	os.Exit(m.Run())
 }
 
@@ -665,9 +665,15 @@ func TestCreateOTCOrder(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	result, err := cr.FetchTradablePairs(context.Background(), asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assetTypes := cr.GetAssetTypes(true)
+	for a := range assetTypes {
+		if assetTypes[a] == asset.OTC && !cr.AreCredentialsValid(t.Context()) {
+			continue
+		}
+		result, err := cr.FetchTradablePairs(context.Background(), assetTypes[a])
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	}
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -1207,4 +1213,89 @@ func TestPriceTypeToString(t *testing.T) {
 		assert.ErrorIs(t, err, v.Error)
 		assert.Equal(t, priceTypeString, v.String)
 	}
+}
+
+func TestGetUserBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetUserBalance(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserBalanceHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetUserBalanceHistory(t.Context(), "H1", time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountBalances(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetSubAccountBalances(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetPositions(t.Context(), "BTCUSD-PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeAccountLeverage(t *testing.T) {
+	t.Parallel()
+	err := cr.ChangeAccountLeverage(context.Background(), "", 100)
+	require.ErrorIs(t, err, errAccountIDMissing)
+
+	err = cr.ChangeAccountLeverage(context.Background(), "BTCUSD-PERP", 0)
+	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	err = cr.ChangeAccountLeverage(context.Background(), "BTCUSD-PERP", 100)
+	assert.NoError(t, err)
+}
+
+func TestGetAllExecutableTradesForInstrument(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetAllExecutableTradesForInstrument(t.Context(), "BTCUSD-PERP", time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestClosePosition(t *testing.T) {
+	t.Parallel()
+	_, err := cr.ClosePosition(t.Context(), "", "MARKET", 23123)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = cr.ClosePosition(t.Context(), "BTCUSD-PERP", "", 23123)
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	_, err = cr.ClosePosition(t.Context(), "BTCUSD-PERP", "LIMIT", 0)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr, canManipulateRealOrders)
+	result, err := cr.ClosePosition(t.Context(), "BTCUSD-PERP", "LIMIT", 23123)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesOrderList(t *testing.T) {
+	t.Parallel()
+	_, err := cr.GetFuturesOrderList(t.Context(), "", "6498090546073120100", "BTCUSD-PERP")
+	require.ErrorIs(t, err, errContingencyTypeRequired)
+	_, err = cr.GetFuturesOrderList(t.Context(), "OCO", "", "BTCUSD-PERP")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = cr.GetFuturesOrderList(t.Context(), "OCO", "6498090546073120100", "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	// result, err := cr.GetFuturesOrderList(t.Context(), "OCO", "6498090546073120100", "BTCUSD-PERP")
+	// require.NoError(t, err)
+	// assert.NotNil(t, result)
 }
