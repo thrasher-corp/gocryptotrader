@@ -434,7 +434,7 @@ func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, 
 // GetTraderFuturesAccountRatio gets a traders futures account long/short ratio
 func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]TopTraderAccountRatio, error) {
 	if pair.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !slices.Contains(validFuturesIntervals, period) {
 		return nil, errInvalidPeriodOrInterval

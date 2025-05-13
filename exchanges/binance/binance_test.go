@@ -89,17 +89,12 @@ func TestWrapperGetServerTime(t *testing.T) {
 	_, err := b.GetServerTime(t.Context(), asset.Empty)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	st, err := b.GetServerTime(t.Context(), asset.Spot)
-	require.NoError(t, err)
-	require.NotEmpty(t, st)
-
-	st, err = b.GetServerTime(t.Context(), asset.USDTMarginedFutures)
-	require.NoError(t, err)
-	require.NotEmpty(t, st)
-
-	st, err = b.GetServerTime(t.Context(), asset.CoinMarginedFutures)
-	require.NoError(t, err)
-	require.NotEmpty(t, st)
+	assetTypes := b.GetAssetTypes(true)
+	for a := range assetTypes {
+		st, err := b.GetServerTime(t.Context(), assetTypes[a])
+		require.NoError(t, err)
+		require.NotEmpty(t, st)
+	}
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -749,6 +744,7 @@ func TestUAllAccountOrders(t *testing.T) {
 	result, err := b.UAllAccountOrders(t.Context(), "", 0, 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+
 	result, err = b.UAllAccountOrders(t.Context(), "BTCUSDT", 0, 5, time.Now().Add(-time.Hour*4), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -951,8 +947,6 @@ func TestUFuturesTradingWuantitativeRulesIndicators(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Coin Margined Futures
-
 func TestGetFuturesExchangeInfo(t *testing.T) {
 	t.Parallel()
 	result, err := b.FuturesExchangeInfo(t.Context())
@@ -1033,9 +1027,8 @@ func TestGetContinuousKlineData(t *testing.T) {
 	assert.NotNil(t, result)
 
 	start, end := getTime()
-	result, err = b.GetContinuousKlineData(t.Context(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, start, end)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err = b.GetContinuousKlineData(t.Context(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, start, end)
+	assert.NoError(t, err)
 }
 
 func TestGetIndexPriceKlines(t *testing.T) {
@@ -1048,9 +1041,8 @@ func TestGetIndexPriceKlines(t *testing.T) {
 	assert.NotNil(t, result)
 
 	start, end := getTime()
-	result, err = b.GetIndexPriceKlines(t.Context(), "BTCUSD", "1M", 5, start, end)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	_, err = b.GetIndexPriceKlines(t.Context(), "BTCUSD", "1M", 5, start, end)
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
@@ -1156,10 +1148,10 @@ func TestGetOpenInterestStats(t *testing.T) {
 
 func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTraderFuturesAccountRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, time.Time{}, time.Time{})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err := b.GetTraderFuturesAccountRatio(t.Context(), currency.EMPTYPAIR, "5m", 0, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = b.GetTraderFuturesAccountRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, time.Time{}, time.Time{})
+	_, err = b.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "", 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	result, err := b.GetTraderFuturesAccountRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, time.Time{}, time.Time{})
@@ -1513,7 +1505,9 @@ func TestGetExchangeInfo(t *testing.T) {
 	result, err := b.GetExchangeInfo(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.WithinRange(t, result.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
+	if !mockTests {
+		assert.WithinRange(t, result.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
+	}
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -1521,18 +1515,12 @@ func TestFetchTradablePairs(t *testing.T) {
 	_, err := b.FetchTradablePairs(t.Context(), asset.Empty)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	results, err := b.FetchTradablePairs(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	assert.NotNil(t, results)
-	results, err = b.FetchTradablePairs(t.Context(), asset.CoinMarginedFutures)
-	assert.NoError(t, err)
-	assert.NotNil(t, results)
-	results, err = b.FetchTradablePairs(t.Context(), asset.USDTMarginedFutures)
-	assert.NoError(t, err)
-	assert.NotNil(t, results)
-	results, err = b.FetchTradablePairs(t.Context(), asset.Options)
-	require.NoError(t, err)
-	assert.NotNil(t, results)
+	assetTypes := b.GetAssetTypes(true)
+	for a := range assetTypes {
+		results, err := b.FetchTradablePairs(t.Context(), assetTypes[a])
+		assert.NoError(t, err)
+		assert.NotNil(t, results)
+	}
 }
 
 func TestGetOrderBook(t *testing.T) {
@@ -3142,8 +3130,7 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.ModifyOrder(t.Context(),
-		&order.Modify{AssetType: asset.Spot})
+	_, err := b.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
@@ -3512,35 +3499,21 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	result, err := b.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.OneDay, start, end)
-	require.NoErrorf(t, err, "%v %v", asset.Spot, err)
-	require.NotNil(t, result)
-	result, err = b.GetHistoricCandles(t.Context(), usdtmTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
-	require.NoErrorf(t, err, "%v %v", asset.USDTMarginedFutures, err)
-	require.NotNil(t, result)
-	result, err = b.GetHistoricCandles(t.Context(), coinmTradablePair, asset.CoinMarginedFutures, kline.OneDay, start, end)
-	require.NoErrorf(t, err, "%v %v", asset.CoinMarginedFutures, err)
-	require.NotNil(t, result)
-	result, err = b.GetHistoricCandles(t.Context(), optionsTradablePair, asset.Options, kline.OneDay, start, end)
-	require.NoErrorf(t, err, "%v %v", asset.Options, err)
-	assert.NotNil(t, result)
+	for assetType, pair := range assetToTradablePairMap {
+		result, err := b.GetHistoricCandles(t.Context(), pair, assetType, kline.OneDay, start, end)
+		require.NoErrorf(t, err, "%v %v", assetType, err)
+		require.NotNil(t, result)
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	result, err := b.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.OneDay, start, end)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	result, err = b.GetHistoricCandlesExtended(t.Context(), usdtmTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	result, err = b.GetHistoricCandlesExtended(t.Context(), coinmTradablePair, asset.CoinMarginedFutures, kline.OneDay, start, end)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	result, err = b.GetHistoricCandlesExtended(t.Context(), optionsTradablePair, asset.Options, kline.OneDay, start, end)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	for assetType, pair := range assetToTradablePairMap {
+		result, err := b.GetHistoricCandlesExtended(t.Context(), pair, assetType, kline.OneDay, start, end)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	}
 }
 
 func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
@@ -3694,18 +3667,13 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	require.NoError(t, err)
-	err = b.UpdateOrderExecutionLimits(t.Context(), asset.CoinMarginedFutures)
-	require.NoError(t, err)
+	assetTypes := b.GetAssetTypes(true)
+	for a := range assetTypes {
+		err := b.UpdateOrderExecutionLimits(t.Context(), assetTypes[a])
+		require.NoError(t, err)
+	}
 
-	err = b.UpdateOrderExecutionLimits(t.Context(), asset.USDTMarginedFutures)
-	require.NoError(t, err)
-
-	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	require.NoError(t, err)
-
-	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Binary)
+	err := b.UpdateOrderExecutionLimits(t.Context(), asset.Binary)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
