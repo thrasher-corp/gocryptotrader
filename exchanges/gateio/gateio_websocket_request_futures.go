@@ -168,37 +168,11 @@ func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract cu
 	return &resp, g.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)
 }
 
-func getAssetFromFuturesPair(pair currency.Pair) (asset.Item, error) {
-	if pair.IsEmpty() {
-		return asset.Empty, currency.ErrCurrencyPairEmpty
-	}
-	switch pair.Quote.Item {
-	case currency.USDT.Item:
-		return asset.USDTMarginedFutures, nil
-	case currency.USD.Item:
-		return asset.CoinMarginedFutures, nil
-	default:
-		return asset.Empty, fmt.Errorf("%w futures pair: `%v`", asset.ErrNotSupported, pair)
-	}
-}
-
-// validateFuturesPairAsset enforces the asset.Item to be either USDT or Coin margined futures in relation to the pair
-// for correct routing.
+// validateFuturesPairAsset enforces that a futures pair's quote currency matches the given asset
 func validateFuturesPairAsset(pair currency.Pair, a asset.Item) error {
 	if pair.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	switch a {
-	case asset.USDTMarginedFutures:
-		if pair.Quote.Item != currency.USDT.Item {
-			return fmt.Errorf("%w: '%v' for pair '%v'", asset.ErrNotSupported, a, pair)
-		}
-	case asset.CoinMarginedFutures:
-		if pair.Quote.Item != currency.USD.Item {
-			return fmt.Errorf("%w: '%v' for pair '%v'", asset.ErrNotSupported, a, pair)
-		}
-	default:
-		return fmt.Errorf("%w: '%v' for pair '%v'", asset.ErrNotSupported, a, pair)
-	}
-	return nil
+	_, err := getSettlementCurrency(pair, a)
+	return err
 }

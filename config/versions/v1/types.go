@@ -12,8 +12,11 @@ type PairsManager struct {
 	Pairs                      FullStore      `json:"pairs"`
 }
 
-// FullStore contains a pair store by asset name
-type FullStore map[string]struct {
+// FullStore holds all supported asset types with the enabled and available pairs for an exchange.
+type FullStore map[string]*PairStore
+
+// PairStore contains a pair store
+type PairStore struct {
 	Enabled       string         `json:"enabled"`
 	Available     string         `json:"available"`
 	RequestFormat *v0.PairFormat `json:"requestFormat,omitempty"`

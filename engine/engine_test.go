@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"os"
 	"slices"
@@ -380,7 +379,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 
-			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+			defaultCfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err, "GetDefaultConfig must not error")
 			require.NotNil(t, defaultCfg)
 			assert.NotEmpty(t, defaultCfg.Name, "Name should not be empty")
@@ -480,7 +479,7 @@ func TestSetupExchanges(t *testing.T) {
 		exchLoader := func(exch exchange.IBotExchange) {
 			exch.SetDefaults()
 			exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
-			cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+			cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err)
 			e.Config.Exchanges = append(e.Config.Exchanges, *cfg)
 		}

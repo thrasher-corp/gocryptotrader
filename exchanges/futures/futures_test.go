@@ -245,7 +245,7 @@ func TestSetupMultiPositionTracker(t *testing.T) {
 		t.Error(err)
 	}
 
-	setup.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	setup.Pair = currency.NewBTCUSDT()
 	_, err = SetupMultiPositionTracker(setup)
 	if !errors.Is(err, errEmptyUnderlying) {
 		t.Error(err)
@@ -277,7 +277,7 @@ func TestMultiPositionTrackerTrackNewOrder(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	item := asset.Futures
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	setup := &MultiPositionTrackerSetup{
 		Asset:                  item,
 		Pair:                   pair,
@@ -460,7 +460,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 	err = pc.TrackNewOrder(&order.Detail{
 		Date:      time.Now(),
 		Exchange:  "hi",
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Spot,
 		Side:      order.Long,
 		OrderID:   "lol",
@@ -471,7 +471,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 
 	err = pc.TrackNewOrder(&order.Detail{
 		Date:      time.Now(),
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Futures,
 		Side:      order.Long,
 		OrderID:   "lol",
@@ -483,7 +483,7 @@ func TestPositionControllerTestTrackNewOrder(t *testing.T) {
 	err = pc.TrackNewOrder(&order.Detail{
 		Exchange:  testExchange,
 		Date:      time.Now(),
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Futures,
 		Side:      order.Long,
 		OrderID:   "lol",
@@ -588,7 +588,7 @@ func TestGetPositions(t *testing.T) {
 func TestGetPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	c := &PositionController{}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 
 	_, err := c.GetPositionsForExchange("", asset.Futures, p)
 	if !errors.Is(err, common.ErrExchangeNameUnset) {
@@ -677,7 +677,7 @@ func TestGetPositionsForExchange(t *testing.T) {
 func TestClearPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	c := &PositionController{}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	err := c.ClearPositionsForExchange("", asset.Futures, p)
 	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
@@ -805,7 +805,7 @@ func TestSetupPositionTracker(t *testing.T) {
 		t.Error("expected nil")
 	}
 
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	p, err = SetupPositionTracker(&PositionTrackerSetup{
 		Exchange: testExchange,
 		Asset:    asset.Futures,
@@ -848,16 +848,16 @@ func TestSetupPositionTracker(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	p := &PNLCalculator{}
-	_, err := p.CalculatePNL(context.Background(), nil)
+	_, err := p.CalculatePNL(t.Context(), nil)
 	if !errors.Is(err, ErrNilPNLCalculator) {
 		t.Errorf("received '%v' expected '%v", err, ErrNilPNLCalculator)
 	}
-	_, err = p.CalculatePNL(context.Background(), &PNLCalculatorRequest{})
+	_, err = p.CalculatePNL(t.Context(), &PNLCalculatorRequest{})
 	if !errors.Is(err, errCannotCalculateUnrealisedPNL) {
 		t.Errorf("received '%v' expected '%v", err, errCannotCalculateUnrealisedPNL)
 	}
 
-	_, err = p.CalculatePNL(context.Background(),
+	_, err = p.CalculatePNL(t.Context(),
 		&PNLCalculatorRequest{
 			OrderDirection:   order.Short,
 			CurrentDirection: order.Long,
@@ -893,17 +893,17 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	pc := SetupPositionController()
 
-	_, err := pc.UpdateOpenPositionUnrealisedPNL("", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err := pc.UpdateOpenPositionUnrealisedPNL("", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Errorf("received '%v' expected '%v", err, common.ErrExchangeNameUnset)
 	}
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, ErrPositionNotFound) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
 	}
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Spot, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Spot, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, ErrNotFuturesAsset) {
 		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
@@ -911,7 +911,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	err = pc.TrackNewOrder(&order.Detail{
 		Date:      time.Now(),
 		Exchange:  "hi",
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Futures,
 		Side:      order.Long,
 		OrderID:   "lol",
@@ -922,12 +922,12 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi2", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi2", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, ErrPositionNotFound) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
 	}
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.PerpetualSwap, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.PerpetualSwap, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, ErrPositionNotFound) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
 	}
@@ -937,7 +937,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, ErrPositionNotFound)
 	}
 
-	pnl, err := pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	pnl, err := pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
@@ -946,7 +946,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	}
 
 	var nilPC *PositionController
-	_, err = nilPC.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.USDT), 2, time.Now())
+	_, err = nilPC.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v", err, common.ErrNilPointer)
 	}
@@ -964,7 +964,7 @@ func TestSetCollateralCurrency(t *testing.T) {
 	if !errors.Is(err, ErrNotFuturesAsset) {
 		t.Errorf("received '%v' expected '%v", err, ErrNotFuturesAsset)
 	}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	pc.multiPositionTrackers = make(map[key.ExchangePairAsset]*MultiPositionTracker)
 	err = pc.SetCollateralCurrency("hi", asset.Futures, p, currency.DOGE)
 	if !errors.Is(err, ErrPositionNotFound) {
@@ -1025,7 +1025,7 @@ func TestSetCollateralCurrency(t *testing.T) {
 
 func TestMPTUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	t.Parallel()
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	pc := SetupPositionController()
 	err := pc.TrackNewOrder(&order.Detail{
 		Date:      time.Now(),
@@ -1578,7 +1578,7 @@ func TestCheckTrackerPrerequisitesLowerExchange(t *testing.T) {
 	if !errors.Is(err, order.ErrPairIsEmpty) {
 		t.Errorf("received '%v' expected '%v", err, order.ErrPairIsEmpty)
 	}
-	lowerExch, err := checkTrackerPrerequisitesLowerExchange(upperExch, asset.Futures, currency.NewPair(currency.BTC, currency.USDT))
+	lowerExch, err := checkTrackerPrerequisitesLowerExchange(upperExch, asset.Futures, currency.NewBTCUSDT())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}

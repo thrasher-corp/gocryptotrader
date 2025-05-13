@@ -93,7 +93,7 @@ func TestOnSignal(t *testing.T) {
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -184,7 +184,7 @@ func TestOnSignals(t *testing.T) {
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{

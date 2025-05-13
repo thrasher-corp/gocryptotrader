@@ -32,7 +32,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	_, err := SubscribeToExchangeOrderbooks("")
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	b := Base{
 		Pair:     p,
@@ -52,7 +52,7 @@ func TestVerify(t *testing.T) {
 	b := Base{
 		Exchange:        "TestExchange",
 		Asset:           asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USD),
+		Pair:            currency.NewBTCUSD(),
 		VerifyOrderbook: true,
 	}
 

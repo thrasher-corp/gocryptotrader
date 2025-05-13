@@ -53,7 +53,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 
 	usdKline := gctkline.Item{
 		Exchange: "binance",
-		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Pair:     currency.NewBTCUSD(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneHour,
 		Candles: []gctkline.Candle{
@@ -176,7 +176,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	ri.USDPairCandle = &kline.DataFromKline{
 		Base: &data.Base{},
 		Item: &gctkline.Item{

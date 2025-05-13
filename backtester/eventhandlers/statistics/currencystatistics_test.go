@@ -28,7 +28,7 @@ func TestCalculateResults(t *testing.T) {
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
@@ -163,7 +163,7 @@ func TestPrintResults(t *testing.T) {
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
@@ -310,7 +310,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 
 	e := testExchange
 	a := asset.Futures
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	c.Asset = asset.Futures
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{

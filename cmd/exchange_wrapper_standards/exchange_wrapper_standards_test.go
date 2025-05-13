@@ -62,12 +62,12 @@ func TestAllExchangeWrappers(t *testing.T) {
 			if singleExchangeOverride != "" && name != singleExchangeOverride {
 				t.Skip("skipping ", name, " due to override")
 			}
-			ctx := context.Background()
+			ctx := t.Context()
 			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
+				ctx, cancelFn = context.WithTimeout(ctx, 0)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
@@ -670,7 +670,7 @@ func getPairFromPairs(t *testing.T, p currency.Pairs) (currency.Pair, error) {
 			return p[i], nil
 		}
 	}
-	goodBtc := currency.NewPair(currency.BTC, currency.USDT).Format(pFmt)
+	goodBtc := currency.NewBTCUSDT().Format(pFmt)
 	if p.Contains(goodBtc, true) {
 		return goodBtc, nil
 	}

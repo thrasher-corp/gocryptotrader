@@ -1,8 +1,7 @@
-package versions
+package v5_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json" //nolint:depguard // Direct use of golang json for Compact func
 	"strings"
 	"testing"
@@ -10,9 +9,10 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v5 "github.com/thrasher-corp/gocryptotrader/config/versions/v5"
 )
 
-func TestVersion5Upgrade(t *testing.T) {
+func TestUpgradeConfig(t *testing.T) {
 	t.Parallel()
 
 	expDef := `{"orderManager":{"enabled":true,"verbose":false,"activelyTrackFuturesPositions":true,"futuresTrackingSeekDuration":31536000000000000,"cancelOrdersOnShutdown":false,"respectOrderHistoryLimits":true}}`
@@ -37,7 +37,7 @@ func TestVersion5Upgrade(t *testing.T) {
 	for _, tt := range tests {
 		_ = t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(Version5).UpgradeConfig(context.Background(), []byte(tt.in))
+			out, err := new(v5.Version).UpgradeConfig(t.Context(), []byte(tt.in))
 			if tt.err != nil {
 				require.ErrorIs(t, err, tt.err)
 				return
@@ -50,16 +50,16 @@ func TestVersion5Upgrade(t *testing.T) {
 	}
 }
 
-func TestVersion5Downgrade(t *testing.T) {
+func TestDowngradeConfig(t *testing.T) {
 	t.Parallel()
 
 	in := `{"orderManager":{"enabled":false,"verbose":true,"activelyTrackFuturesPositions":false,"futuresTrackingSeekDuration":-47000,"cancelOrdersOnShutdown":true,"respectOrderHistoryLimits":true}}`
 	exp := `{"orderManager":{"enabled":false,"verbose":true,"activelyTrackFuturesPositions":false,"futuresTrackingSeekDuration":-47000,"cancelOrdersOnShutdown":true,"respectOrderHistoryLimits":true}}`
-	out, err := new(Version5).DowngradeConfig(context.Background(), []byte(in))
+	out, err := new(v5.Version).DowngradeConfig(t.Context(), []byte(in))
 	require.NoError(t, err)
 	assert.Equal(t, exp, string(out), "DowngradeConfig should just reverse the futuresTrackingSeekDuration")
 
-	out, err = new(Version5).DowngradeConfig(context.Background(), []byte(exp))
+	out, err = new(v5.Version).DowngradeConfig(t.Context(), []byte(exp))
 	require.NoError(t, err)
 	assert.Equal(t, exp, string(out), "DowngradeConfig should leave an already negative futuresTrackingSeekDuration alone")
 }

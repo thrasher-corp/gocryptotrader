@@ -395,7 +395,7 @@ func TestGenerateReport(t *testing.T) {
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: exchName,
-			Pair:     currency.NewPair(currency.BTC, currency.USDT),
+			Pair:     currency.NewBTCUSDT(),
 			Asset:    a,
 			Interval: gctkline.OneHour,
 			Candles: []gctkline.Candle{
@@ -589,7 +589,7 @@ func TestFundingLiquidate(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 		},
 	})
 	if !errors.Is(err, nil) {
@@ -617,7 +617,7 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 		},
 	}
 	err = f.Liquidate(ev)
@@ -751,7 +751,7 @@ func TestUpdateCollateral(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     exchName,
 			AssetType:    asset.Futures,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			CurrencyPair: currency.NewBTCUSD(),
 		},
 	}
 	f.items = append(f.items, &Item{

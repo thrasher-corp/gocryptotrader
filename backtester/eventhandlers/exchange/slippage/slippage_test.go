@@ -1,7 +1,6 @@
 package slippage
 
 import (
-	"context"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -25,8 +24,8 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
 
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	ob, err := b.UpdateOrderbook(context.Background(), cp, asset.Spot)
+	cp := currency.NewBTCUSD()
+	ob, err := b.UpdateOrderbook(t.Context(), cp, asset.Spot)
 	require.NoError(t, err, "UpdateOrderbook must not error")
 
 	amountOfFunds := decimal.NewFromInt(1000)
