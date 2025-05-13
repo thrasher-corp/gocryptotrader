@@ -289,14 +289,14 @@ func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	err := l.loadPrivKey(t.Context())
+	err := l.LoadPrivKey(t.Context())
 	if err != nil {
 		t.Error(err)
 	}
 
 	ctx := account.DeployCredentialsToContext(t.Context(),
 		&account.Credentials{Secret: "errortest"})
-	err = l.loadPrivKey(ctx)
+	err = l.LoadPrivKey(ctx)
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")
 	}
@@ -306,7 +306,7 @@ func TestSign(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	err := l.loadPrivKey(t.Context())
+	err := l.LoadPrivKey(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

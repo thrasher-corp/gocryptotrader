@@ -42,7 +42,6 @@ var (
 	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
 	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
 
-	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")
 	errMissingPNLCalculationFunctions = errors.New("futures tracker requires exchange PNL calculation functions")
