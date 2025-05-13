@@ -27,60 +27,66 @@ import (
 )
 
 const (
-	coinbaseAPIURL             = "https://api.coinbase.com"
-	coinbaseV1APIURL           = "https://api.exchange.coinbase.com/"
-	coinbaseproSandboxAPIURL   = "https://api-public.sandbox.exchange.coinbase.com/"
-	tradeBaseURL               = "https://www.coinbase.com/advanced-trade/spot/"
-	coinbaseV3                 = "/api/v3/brokerage/"
-	coinbaseAccounts           = "accounts"
-	coinbaseBestBidAsk         = "best_bid_ask"
-	coinbaseProductBook        = "product_book"
-	coinbaseProducts           = "products"
-	coinbaseOrders             = "orders"
-	coinbaseBatchCancel        = "batch_cancel"
-	coinbaseHistorical         = "historical"
-	coinbaseBatch              = "batch"
-	coinbaseEdit               = "edit"
-	coinbaseEditPreview        = "edit_preview"
-	coinbaseFills              = "fills"
-	coinbaseCandles            = "candles"
-	coinbaseTicker             = "ticker"
-	coinbasePreview            = "preview"
-	coinbasePortfolios         = "portfolios"
-	coinbaseMoveFunds          = "move_funds"
-	coinbaseCFM                = "cfm"
-	coinbaseBalanceSummary     = "balance_summary"
-	coinbasePositions          = "positions"
-	coinbaseSweeps             = "sweeps"
-	coinbaseSchedule           = "schedule"
-	coinbaseIntx               = "intx"
-	coinbaseAllocate           = "allocate"
-	coinbasePortfolio          = "portfolio"
-	coinbaseTransactionSummary = "transaction_summary"
-	coinbaseConvert            = "convert"
-	coinbaseQuote              = "quote"
-	coinbaseTrade              = "trade"
-	coinbasePaymentMethods     = "payment_methods"
-	coinbaseV2                 = "/v2/"
-	coinbaseNotifications      = "notifications"
-	coinbaseUser               = "user"
-	coinbaseAddresses          = "addresses"
-	coinbaseTransactions       = "transactions"
-	coinbaseDeposits           = "deposits"
-	coinbaseCommit             = "commit"
-	coinbaseWithdrawals        = "withdrawals"
-	coinbaseCurrencies         = "currencies"
-	coinbaseCrypto             = "crypto"
-	coinbaseExchangeRates      = "exchange-rates"
-	coinbasePrices             = "prices"
-	coinbaseTime               = "time"
-	coinbaseVolumeSummary      = "volume-summary"
-	coinbaseBook               = "book"
-	coinbaseStats              = "stats"
-	coinbaseTrades             = "trades"
-	coinbaseWrappedAssets      = "wrapped-assets"
-	coinbaseConversionRate     = "conversion-rate"
-	coinbaseMarket             = "market"
+	coinbaseAPIURL              = "https://api.coinbase.com"
+	coinbaseV1APIURL            = "https://api.exchange.coinbase.com/"
+	coinbaseproSandboxAPIURL    = "https://api-sandbox.coinbase.com"
+	tradeBaseURL                = "https://www.coinbase.com/advanced-trade/spot/"
+	coinbaseV3                  = "/api/v3/brokerage/"
+	coinbaseAccounts            = "accounts"
+	coinbaseConvert             = "convert"
+	coinbaseTrade               = "trade"
+	coinbaseQuote               = "quote"
+	coinbaseKeyPermissions      = "key_permissions"
+	coinbaseTransactionSummary  = "transaction_summary"
+	coinbaseCFM                 = "cfm"
+	coinbaseSweeps              = "sweeps"
+	coinbaseIntraday            = "intraday"
+	coinbaseCurrentMarginWindow = "current_margin_window"
+	coinbaseBalanceSummary      = "balance_summary"
+	coinbasePositions           = "positions"
+	coinbaseMarginSetting       = "margin_setting"
+	coinbaseSchedule            = "schedule"
+	coinbaseOrders              = "orders"
+	coinbaseBatchCancel         = "batch_cancel"
+	coinbaseClosePosition       = "close_position"
+	coinbaseEdit                = "edit"
+	coinbaseEditPreview         = "edit_preview"
+	coinbaseHistorical          = "historical"
+	coinbaseFills               = "fills"
+	coinbaseBatch               = "batch"
+
+	coinbaseBestBidAsk     = "best_bid_ask"
+	coinbaseProductBook    = "product_book"
+	coinbaseProducts       = "products"
+	coinbaseCandles        = "candles"
+	coinbaseTicker         = "ticker"
+	coinbasePreview        = "preview"
+	coinbasePortfolios     = "portfolios"
+	coinbaseMoveFunds      = "move_funds"
+	coinbaseIntx           = "intx"
+	coinbaseAllocate       = "allocate"
+	coinbasePortfolio      = "portfolio"
+	coinbasePaymentMethods = "payment_methods"
+	coinbaseV2             = "/v2/"
+	coinbaseNotifications  = "notifications"
+	coinbaseUser           = "user"
+	coinbaseAddresses      = "addresses"
+	coinbaseTransactions   = "transactions"
+	coinbaseDeposits       = "deposits"
+	coinbaseCommit         = "commit"
+	coinbaseWithdrawals    = "withdrawals"
+	coinbaseCurrencies     = "currencies"
+	coinbaseCrypto         = "crypto"
+	coinbaseExchangeRates  = "exchange-rates"
+	coinbasePrices         = "prices"
+	coinbaseTime           = "time"
+	coinbaseVolumeSummary  = "volume-summary"
+	coinbaseBook           = "book"
+	coinbaseStats          = "stats"
+	coinbaseTrades         = "trades"
+	coinbaseWrappedAssets  = "wrapped-assets"
+	coinbaseConversionRate = "conversion-rate"
+	coinbaseMarket         = "market"
 
 	granUnknown     = "UNKNOWN_GRANULARITY"
 	granOneMin      = "ONE_MINUTE"
@@ -123,7 +129,6 @@ var (
 	errProductIDEmpty           = errors.New("product id cannot be empty")
 	errOrderIDEmpty             = errors.New("order ids cannot be empty")
 	errCancelLimitExceeded      = errors.New("100 order cancel limit exceeded")
-	errOpenPairWithOtherTypes   = errors.New("cannot pair open orders with other order types")
 	errSizeAndPriceZero         = errors.New("size and price cannot both be 0")
 	errCurrWalletConflict       = errors.New("exactly one of walletID and currency must be specified")
 	errWalletIDEmpty            = errors.New("wallet id cannot be empty")
@@ -154,6 +159,8 @@ var (
 	errPairsDisabledOrErrored   = errors.New("pairs are either disabled or errored")
 	errDateLabelEmpty           = errors.New("date label cannot be empty")
 	errParamValuesNil           = errors.New("param values cannot be nil")
+	errMarginProfileTypeEmpty   = errors.New("margin profile type cannot be empty")
+	errSettingEmpty             = errors.New("setting cannot be empty")
 
 	allowedGranularities = []string{granOneMin, granFiveMin, granFifteenMin, granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	closedStatuses       = []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
@@ -202,6 +209,378 @@ func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to 
 		Trade ConvertResponse `json:"trade"`
 	}{}
 	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+// CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
+func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userIncentiveID, codeVal string, amount float64) (*ConvertResponse, error) {
+	if from == "" || to == "" {
+		return nil, errAccountIDEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseQuote
+	tIM := map[string]any{
+		"user_incentive_id": userIncentiveID,
+		"code_val":          codeVal,
+	}
+	req := map[string]any{
+		"from_account":             from,
+		"to_account":               to,
+		"amount":                   strconv.FormatFloat(amount, 'f', -1, 64),
+		"trade_incentive_metadata": tIM,
+	}
+	resp := struct {
+		Trade ConvertResponse `json:"trade"`
+	}{}
+	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+// GetConvertTradeByID returns information on a conversion between two currencies
+func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
+	if tradeID == "" {
+		return nil, errTransactionIDEmpty
+	}
+	if from == "" || to == "" {
+		return nil, errAccountIDEmpty
+	}
+	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseTrade + "/" + tradeID
+	req := map[string]any{
+		"from_account": from,
+		"to_account":   to,
+	}
+	resp := struct {
+		Trade ConvertResponse `json:"trade"`
+	}{}
+	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
+}
+
+// GetPermissions returns the permissions associated with the API key
+func (c *CoinbasePro) GetPermissions(ctx context.Context) (*PermissionsResponse, error) {
+	var resp PermissionsResponse
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseKeyPermissions, nil, nil, true, &resp)
+}
+
+// GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
+func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, productVenue, productType, contractExpiryType string) (*TransactionSummary, error) {
+	var params Params
+	params.Values = url.Values{}
+	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
+	if err != nil {
+		return nil, err
+	}
+	if contractExpiryType != "" {
+		params.Values.Set("contract_expiry_type", contractExpiryType)
+	}
+	if productType != "" {
+		params.Values.Set("product_type", productType)
+	}
+	if productVenue != "" {
+		params.Values.Set("product_venue", productVenue)
+	}
+	var resp TransactionSummary
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseTransactionSummary, params.Values, nil, true, &resp)
+}
+
+// CancelPendingFuturesSweep cancels a pending sweep request
+func (c *CoinbasePro) CancelPendingFuturesSweep(ctx context.Context) (bool, error) {
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
+	resp := struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, &resp)
+}
+
+// GetCurrentMarginWindow returns the futures current margin window
+func (c *CoinbasePro) GetCurrentMarginWindow(ctx context.Context, marginProfileType string) (*CurrentMarginWindow, error) {
+	if marginProfileType == "" {
+		return nil, errMarginProfileTypeEmpty
+	}
+	vals := url.Values{}
+	if marginProfileType != "" {
+		vals.Set("margin_profile_type", marginProfileType)
+	}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseCurrentMarginWindow
+	var resp CurrentMarginWindow
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+}
+
+// GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets futures trading
+func (c *CoinbasePro) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBalanceSummary, error) {
+	resp := struct {
+		BalanceSummary FuturesBalanceSummary `json:"balance_summary"`
+	}{}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseBalanceSummary
+	return &resp.BalanceSummary, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+}
+
+// GetFuturesPositionByID returns information on a single open position in CFM futures products
+func (c *CoinbasePro) GetFuturesPositionByID(ctx context.Context, productID string) (*FuturesPosition, error) {
+	if productID == "" {
+		return nil, errProductIDEmpty
+	}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions + "/" + productID
+	resp := struct {
+		Position FuturesPosition `json:"position"`
+	}{}
+	return &resp.Position, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+}
+
+// GetIntradayMarginSetting returns the futures intraday margin setting
+func (c *CoinbasePro) GetIntradayMarginSetting(ctx context.Context) (string, error) {
+	resp := struct {
+		Setting string `json:"setting"`
+	}{}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseMarginSetting
+	return resp.Setting, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+}
+
+// ListFuturesPositions returns a list of all open positions in CFM futures products
+func (c *CoinbasePro) ListFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
+	resp := struct {
+		Positions []FuturesPosition `json:"positions"`
+	}{}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions
+	return resp.Positions, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+}
+
+// ListFuturesSweeps returns information on pending and/or processing requests to sweep funds
+func (c *CoinbasePro) ListFuturesSweeps(ctx context.Context) ([]SweepData, error) {
+	resp := struct {
+		Sweeps []SweepData `json:"sweeps"`
+	}{}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
+	return resp.Sweeps, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
+}
+
+// ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following business day, requests submitted after are processed in 2 business days. Only one sweep request can be pending at a time. Funds transferred depend on the excess available in the futures account. An amount of 0 will sweep all available excess funds
+func (c *CoinbasePro) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps + "/" + coinbaseSchedule
+	var req map[string]any
+	if amount != 0 {
+		req = map[string]any{"usd_amount": strconv.FormatFloat(amount, 'f', -1, 64)}
+	}
+	resp := struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+// SetIntradayMarginSetting sets the futures intraday margin setting
+func (c *CoinbasePro) SetIntradayMarginSetting(ctx context.Context, setting string) error {
+	if setting == "" {
+		return errSettingEmpty
+	}
+	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseIntraday + "/" + coinbaseMarginSetting
+	req := map[string]any{"setting": setting}
+	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, nil)
+}
+
+// CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
+func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]OrderCancelDetail, error) {
+	if len(orderIDs) <= 0 {
+		return nil, errOrderIDEmpty
+	}
+	if len(orderIDs) > 100 {
+		return nil, errCancelLimitExceeded
+	}
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseBatchCancel
+	req := map[string]any{"order_ids": orderIDs}
+	resp := struct {
+		Results []OrderCancelDetail `json:"results"`
+	}{}
+	return resp.Results, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+func (c *CoinbasePro) ClosePosition(ctx context.Context, clientOrderID string, productID currency.Pair, size float64) (*SuccessFailureConfig, error) {
+	if clientOrderID == "" {
+		return nil, errClientOrderIDEmpty
+	}
+	if productID.IsEmpty() {
+		return nil, errProductIDEmpty
+	}
+	if size <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseClosePosition
+	req := map[string]any{
+		"client_order_id": clientOrderID,
+		"product_id":      productID.String(),
+		"size":            strconv.FormatFloat(size, 'f', -1, 64),
+	}
+	var resp SuccessFailureConfig
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+// PlaceOrder places either a limit, market, or stop order
+func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*SuccessFailureConfig, error) {
+	if ord.ClientOID == "" {
+		return nil, errClientOrderIDEmpty
+	}
+	if ord.ProductID == "" {
+		return nil, errProductIDEmpty
+	}
+	if ord.BaseAmount <= 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	orderConfig, err := createOrderConfig(ord.OrderType, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
+	if err != nil {
+		return nil, err
+	}
+	req := map[string]any{
+		"client_order_id":          ord.ClientOID,
+		"product_id":               ord.ProductID,
+		"side":                     ord.Side,
+		"order_configuration":      orderConfig,
+		"self_trade_prevention_id": ord.SelfTradePreventionID,
+		"retail_portfolio_id":      ord.RetailPortfolioID,
+	}
+	if ord.MarginType != "" {
+		req["margin_type"] = FormatMarginType(ord.MarginType)
+	}
+	if ord.Leverage != 0 && ord.Leverage != 1 {
+		req["leverage"] = strconv.FormatFloat(ord.Leverage, 'f', -1, 64)
+	}
+	var resp SuccessFailureConfig
+	return &resp,
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbaseOrders, nil, req, true, &resp)
+}
+
+// EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time in force can be edited
+func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
+	if orderID == "" {
+		return false, errOrderIDEmpty
+	}
+	if size <= 0 && price <= 0 {
+		return false, errSizeAndPriceZero
+	}
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseEdit
+	req := map[string]any{
+		"order_id": orderID,
+		"size":     strconv.FormatFloat(size, 'f', -1, 64),
+		"price":    strconv.FormatFloat(price, 'f', -1, 64),
+	}
+	resp := struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+// EditOrderPreview simulates an edit order request, to preview the result. Only limit orders with a good-till-cancelled time in force can be edited.
+func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size, price float64) (*EditOrderPreviewResp, error) {
+	if orderID == "" {
+		return nil, errOrderIDEmpty
+	}
+	if size <= 0 && price <= 0 {
+		return nil, errSizeAndPriceZero
+	}
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseEditPreview
+	req := map[string]any{
+		"order_id": orderID,
+		"size":     strconv.FormatFloat(size, 'f', -1, 64),
+		"price":    strconv.FormatFloat(price, 'f', -1, 64),
+	}
+	var resp *EditOrderPreviewResp
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
+}
+
+// GetOrderByID returns a single order by order id.
+func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID string, userNativeCurrency currency.Code) (*GetOrderResponse, error) {
+	if orderID == "" {
+		return nil, errOrderIDEmpty
+	}
+	vals := url.Values{}
+	if clientOID != "" {
+		vals.Set("client_order_id", clientOID)
+	}
+	if !userNativeCurrency.IsEmpty() {
+		vals.Set("user_native_currency", userNativeCurrency.String())
+	}
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + orderID
+	resp := struct {
+		Order GetOrderResponse `json:"order"`
+	}{}
+	return &resp.Order, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+}
+
+// ListFills returns information on recent fills
+func (c *CoinbasePro) ListFills(ctx context.Context, orderIDs, tradeIDs []string, productIDs currency.Pairs, cursor, sortBy string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
+	var params Params
+	params.Values = url.Values{}
+	err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
+	if err != nil {
+		return nil, err
+	}
+	for i := range orderIDs {
+		params.Values.Add("order_ids", orderIDs[i])
+	}
+	for i := range tradeIDs {
+		params.Values.Add("trade_ids", tradeIDs[i])
+	}
+	for i := range productIDs {
+		params.Values.Add("product_ids", productIDs[i].String())
+	}
+	params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
+	params.Values.Set("cursor", cursor)
+	if sortBy != "" {
+		params.Values.Set("sort_by", sortBy)
+	}
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseFills
+	var resp FillResponse
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
+}
+
+// old signature ListOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType, retailPortfolioID string, orderStatus, assetFilters []string, limit int32, startDate, endDate time.Time) (*ListOrdersResp, error) {
+
+// ListOrders lists orders, filtered by their status
+func (c *CoinbasePro) ListOrders(ctx context.Context, orderIDs, orderStatus, timeInForces, orderTypes, assetFilters []string, productIDs currency.Pairs, productType, orderSide, orderPlacementSource, contractExpiryType, retailPortfolioID, cursor, sortBy string, limit int32, startDate, endDate time.Time, userNativeCurrency currency.Code) (*ListOrdersResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
+	if err != nil {
+		return nil, err
+	}
+	for x := range orderStatus {
+		params.Values.Add("order_status", orderStatus[x])
+	}
+	for x := range orderIDs {
+		params.Values.Add("order_ids", orderIDs[x])
+	}
+	for x := range timeInForces {
+		params.Values.Add("time_in_forces", timeInForces[x])
+	}
+	for x := range orderTypes {
+		params.Values.Add("order_types", orderTypes[x])
+	}
+	for x := range assetFilters {
+		params.Values.Add("asset_filters", assetFilters[x])
+	}
+	for x := range productIDs {
+		params.Values.Add("product_ids", productIDs[x].String())
+	}
+	if productType != "" {
+		params.Values.Set("product_type", productType)
+	}
+	if orderSide != "" {
+		params.Values.Set("order_side", orderSide)
+	}
+	if orderPlacementSource != "" {
+		params.Values.Set("order_placement_source", orderPlacementSource)
+	}
+	if contractExpiryType != "" {
+		params.Values.Set("contract_expiry_type", contractExpiryType)
+	}
+	if sortBy != "" {
+		params.Values.Set("sort_by", sortBy)
+	}
+	params.Values.Set("cursor", cursor)
+	params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
+	params.Values.Set("user_native_currency", userNativeCurrency.String())
+	// This functionality has been deprecated, and only works for legacy API keys
+	params.Values.Set("retail_portfolio_id", retailPortfolioID)
+	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseBatch
+	var resp ListOrdersResp
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
 }
 
 // GetBestBidAsk returns the best bid/ask for all products. Can be filtered to certain products by passing through additional strings
@@ -323,194 +702,9 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
-// PlaceOrder places either a limit, market, or stop order
-func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*PlaceOrderResp, error) {
-	if ord.ClientOID == "" {
-		return nil, errClientOrderIDEmpty
-	}
-	if ord.ProductID == "" {
-		return nil, errProductIDEmpty
-	}
-	if ord.BaseAmount <= 0 {
-		return nil, order.ErrAmountIsInvalid
-	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
-	if err != nil {
-		return nil, err
-	}
-	req := map[string]any{
-		"client_order_id":          ord.ClientOID,
-		"product_id":               ord.ProductID,
-		"side":                     ord.Side,
-		"order_configuration":      orderConfig,
-		"self_trade_prevention_id": ord.SelfTradePreventionID,
-		"retail_portfolio_id":      ord.RetailPortfolioID,
-	}
-	if ord.MarginType != "" {
-		req["margin_type"] = FormatMarginType(ord.MarginType)
-	}
-	if ord.Leverage != 0 && ord.Leverage != 1 {
-		req["leverage"] = strconv.FormatFloat(ord.Leverage, 'f', -1, 64)
-	}
-	var resp PlaceOrderResp
-	return &resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseV3+coinbaseOrders, nil, req, true, &resp)
-}
-
-// CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
-func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]OrderCancelDetail, error) {
-	if len(orderIDs) == 0 {
-		return nil, errOrderIDEmpty
-	}
-	if len(orderIDs) > 100 {
-		return nil, errCancelLimitExceeded
-	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseBatchCancel
-	req := map[string]any{"order_ids": orderIDs}
-	resp := struct {
-		Results []OrderCancelDetail `json:"results"`
-	}{}
-	return resp.Results, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
-}
-
-// EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time in force can be edited
-func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
-	if orderID == "" {
-		return false, errOrderIDEmpty
-	}
-	if size == 0 && price == 0 {
-		return false, errSizeAndPriceZero
-	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseEdit
-	req := map[string]any{
-		"order_id": orderID,
-		"size":     strconv.FormatFloat(size, 'f', -1, 64),
-		"price":    strconv.FormatFloat(price, 'f', -1, 64),
-	}
-	resp := struct {
-		Success bool `json:"success"`
-	}{}
-	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
-}
-
-// EditOrderPreview simulates an edit order request, to preview the result. Only limit orders with a good-till-cancelled time in force can be edited.
-func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size, price float64) (*EditOrderPreviewResp, error) {
-	if orderID == "" {
-		return nil, errOrderIDEmpty
-	}
-	if size == 0 && price == 0 {
-		return nil, errSizeAndPriceZero
-	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseEditPreview
-	req := map[string]any{
-		"order_id": orderID,
-		"size":     strconv.FormatFloat(size, 'f', -1, 64),
-		"price":    strconv.FormatFloat(price, 'f', -1, 64),
-	}
-	var resp *EditOrderPreviewResp
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
-}
-
-// ListOrders lists orders, filtered by their status
-func (c *CoinbasePro) ListOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType, retailPortfolioID string, orderStatus, assetFilters []string, limit int32, startDate, endDate time.Time) (*ListOrdersResp, error) {
-	var params Params
-	params.Values = make(url.Values)
-	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
-	if err != nil {
-		return nil, err
-	}
-	for x := range orderStatus {
-		if orderStatus[x] == "OPEN" && len(orderStatus) > 1 {
-			return nil, errOpenPairWithOtherTypes
-		}
-		params.Values.Add("order_status", orderStatus[x])
-	}
-	for x := range assetFilters {
-		params.Values.Add("asset_filters", assetFilters[x])
-	}
-	if productID != "" {
-		params.Values.Set("product_id", productID)
-	}
-	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
-	}
-	if cursor != "" {
-		params.Values.Set("cursor", cursor)
-	}
-	if userNativeCurrency != "" {
-		params.Values.Set("user_native_currency", userNativeCurrency)
-	}
-	if orderPlacementSource != "" {
-		params.Values.Set("order_placement_source", orderPlacementSource)
-	}
-	if productType != "" {
-		params.Values.Set("product_type", productType)
-	}
-	if orderSide != "" {
-		params.Values.Set("order_side", orderSide)
-	}
-	if contractExpiryType != "" {
-		params.Values.Set("contract_expiry_type", contractExpiryType)
-	}
-	// This functionality has been deprecated, and only works for legacy API keys
-	if retailPortfolioID != "" {
-		params.Values.Set("retail_portfolio_id", retailPortfolioID)
-	}
-	if orderType != "" {
-		params.Values.Set("order_type", orderType)
-	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseBatch
-	var resp ListOrdersResp
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
-}
-
-// ListFills returns information of recent fills on the specified order
-func (c *CoinbasePro) ListFills(ctx context.Context, orderID, productID, cursor string, startDate, endDate time.Time, limit uint16) (*FillResponse, error) {
-	var params Params
-	params.Values = url.Values{}
-	err := params.encodeDateRange(startDate, endDate, "start_sequence_timestamp", "end_sequence_timestamp")
-	if err != nil {
-		return nil, err
-	}
-	if orderID != "" {
-		params.Values.Set("order_id", orderID)
-	}
-	if productID != "" {
-		params.Values.Set("product_id", productID)
-	}
-	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
-	}
-	if cursor != "" {
-		params.Values.Set("cursor", cursor)
-	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + coinbaseFills
-	var resp FillResponse
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params.Values, nil, true, &resp)
-}
-
-// GetOrderByID returns a single order by order id.
-func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID, userNativeCurrency string) (*GetOrderResponse, error) {
-	if orderID == "" {
-		return nil, errOrderIDEmpty
-	}
-	resp := struct {
-		Order GetOrderResponse `json:"order"`
-	}{}
-	vals := url.Values{}
-	if clientOID != "" {
-		vals.Set("client_order_id", clientOID)
-	}
-	if userNativeCurrency != "" {
-		vals.Set("user_native_currency", userNativeCurrency)
-	}
-	path := coinbaseV3 + coinbaseOrders + "/" + coinbaseHistorical + "/" + orderID
-	return &resp.Order, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
-}
-
 // PreviewOrder simulates the results of an order request
 func (c *CoinbasePro) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (*PreviewOrderResp, error) {
-	if inf.BaseAmount == 0 && inf.QuoteAmount == 0 {
+	if inf.BaseAmount <= 0 && inf.QuoteAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	orderConfig, err := createOrderConfig(inf.OrderType, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, inf.EndTime, inf.PostOnly)
@@ -567,7 +761,7 @@ func (c *CoinbasePro) MovePortfolioFunds(ctx context.Context, cur, from, to stri
 	if cur == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if amount == 0 {
+	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	funds := FundsData{
@@ -621,65 +815,6 @@ func (c *CoinbasePro) EditPortfolio(ctx context.Context, portfolioID, name strin
 	return &resp.Portfolio, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, nil, req, true, &resp)
 }
 
-// GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets futures trading
-func (c *CoinbasePro) GetFuturesBalanceSummary(ctx context.Context) (*FuturesBalanceSummary, error) {
-	resp := struct {
-		BalanceSummary FuturesBalanceSummary `json:"balance_summary"`
-	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseBalanceSummary
-	return &resp.BalanceSummary, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
-}
-
-// ListFuturesPositions returns a list of all open positions in CFM futures products
-func (c *CoinbasePro) ListFuturesPositions(ctx context.Context) ([]FuturesPosition, error) {
-	resp := struct {
-		Positions []FuturesPosition `json:"positions"`
-	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions
-	return resp.Positions, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
-}
-
-// GetFuturesPositionByID returns information on a single open position in CFM futures products
-func (c *CoinbasePro) GetFuturesPositionByID(ctx context.Context, productID string) (*FuturesPosition, error) {
-	if productID == "" {
-		return nil, errProductIDEmpty
-	}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbasePositions + "/" + productID
-	var resp *FuturesPosition
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
-}
-
-// ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following business day, requests submitted after are processed in 2 business days. Only one sweep request can be pending at a time. Funds transferred depend on the excess available in the futures account. An amount of 0 will sweep all available excess funds
-func (c *CoinbasePro) ScheduleFuturesSweep(ctx context.Context, amount float64) (bool, error) {
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps + "/" + coinbaseSchedule
-	var req map[string]any
-	if amount != 0 {
-		req = map[string]any{"usd_amount": strconv.FormatFloat(amount, 'f', -1, 64)}
-	}
-	resp := struct {
-		Success bool `json:"success"`
-	}{}
-	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
-}
-
-// ListFuturesSweeps returns information on pending and/or processing requests to sweep funds
-func (c *CoinbasePro) ListFuturesSweeps(ctx context.Context) ([]SweepData, error) {
-	resp := struct {
-		Sweeps []SweepData `json:"sweeps"`
-	}{}
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
-	return resp.Sweeps, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
-}
-
-// CancelPendingFuturesSweep cancels a pending sweep request
-func (c *CoinbasePro) CancelPendingFuturesSweep(ctx context.Context) (bool, error) {
-	path := coinbaseV3 + coinbaseCFM + "/" + coinbaseSweeps
-	resp := struct {
-		Success bool `json:"success"`
-	}{}
-	return resp.Success, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, true, &resp)
-}
-
 // AllocatePortfolio allocates funds to a position in your perpetuals portfolio
 func (c *CoinbasePro) AllocatePortfolio(ctx context.Context, portfolioID, productID, cur string, amount float64) error {
 	if portfolioID == "" {
@@ -691,7 +826,7 @@ func (c *CoinbasePro) AllocatePortfolio(ctx context.Context, portfolioID, produc
 	if cur == "" {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	if amount == 0 {
+	if amount <= 0 {
 		return order.ErrAmountIsInvalid
 	}
 	req := map[string]any{
@@ -737,71 +872,6 @@ func (c *CoinbasePro) GetPerpetualsPositionByID(ctx context.Context, portfolioID
 	path := coinbaseV3 + coinbaseIntx + "/" + coinbasePositions + "/" + portfolioID + "/" + productID
 	var resp *OnePerpPosResponse
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp)
-}
-
-// GetTransactionSummary returns a summary of transactions with fee tiers, total volume, and fees
-func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, userNativeCurrency, productType, contractExpiryType string) (*TransactionSummary, error) {
-	var params Params
-	params.Values = url.Values{}
-	err := params.encodeDateRange(startDate, endDate, startDateString, endDateString)
-	if err != nil {
-		return nil, err
-	}
-	if contractExpiryType != "" {
-		params.Values.Set("contract_expiry_type", contractExpiryType)
-	}
-	if productType != "" {
-		params.Values.Set("product_type", productType)
-	}
-	if userNativeCurrency != "" {
-		params.Values.Set("user_native_currency", userNativeCurrency)
-	}
-	var resp TransactionSummary
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseTransactionSummary, params.Values, nil, true, &resp)
-}
-
-// CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
-func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userIncentiveID, codeVal string, amount float64) (*ConvertResponse, error) {
-	if from == "" || to == "" {
-		return nil, errAccountIDEmpty
-	}
-	if amount == 0 {
-		return nil, order.ErrAmountIsInvalid
-	}
-	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseQuote
-	tIM := map[string]any{
-		"user_incentive_id": userIncentiveID,
-		"code_val":          codeVal,
-	}
-	req := map[string]any{
-		"from_account":             from,
-		"to_account":               to,
-		"amount":                   strconv.FormatFloat(amount, 'f', -1, 64),
-		"trade_incentive_metadata": tIM,
-	}
-	resp := struct {
-		Trade ConvertResponse `json:"trade"`
-	}{}
-	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
-}
-
-// GetConvertTradeByID returns information on a conversion between two currencies
-func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to string) (*ConvertResponse, error) {
-	if tradeID == "" {
-		return nil, errTransactionIDEmpty
-	}
-	if from == "" || to == "" {
-		return nil, errAccountIDEmpty
-	}
-	path := coinbaseV3 + coinbaseConvert + "/" + coinbaseTrade + "/" + tradeID
-	req := map[string]any{
-		"from_account": from,
-		"to_account":   to,
-	}
-	resp := struct {
-		Trade ConvertResponse `json:"trade"`
-	}{}
-	return &resp.Trade, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, req, true, &resp)
 }
 
 // GetV3Time returns the current server time, calling V3 of the API
@@ -941,7 +1011,7 @@ func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, cur,
 	if to == "" {
 		return nil, errToEmpty
 	}
-	if amount == 0 {
+	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	if cur == "" {
@@ -1001,7 +1071,7 @@ func (c *CoinbasePro) FiatTransfer(ctx context.Context, walletID, cur, paymentMe
 	if walletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	if amount == 0 {
+	if amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	if cur == "" {
@@ -1467,9 +1537,9 @@ func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilde
 			return 0, err
 		}
 		if feeBuilder.IsMaker {
-			fee = fees.FeeTier.MakerFeeRate
+			fee = fees.FeeTier.MakerFeeRate.Float64()
 		} else {
-			fee = fees.FeeTier.TakerFeeRate
+			fee = fees.FeeTier.TakerFeeRate.Float64()
 		}
 	case feeBuilder.IsMaker && isStablePair(feeBuilder.Pair) && (feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
 		fee = StablePairMakerFee
@@ -1548,16 +1618,28 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 	return nil
 }
 
+// marketIOCImplementation creates a MarketMarketIOC struct based on the provided base and quote amounts
+func marketIOCImplementation(baseAmount, quoteAmount float64) *MarketMarketIOC {
+	if baseAmount != 0 {
+		return &MarketMarketIOC{BaseSize: types.Number(baseAmount)}
+	}
+	if quoteAmount != 0 {
+		return &MarketMarketIOC{QuoteSize: types.Number(quoteAmount)}
+	}
+	return nil
+}
+
 // createOrderConfig populates the OrderConfiguration struct
 func createOrderConfig(orderType, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
-	case order.Market.String(), order.ImmediateOrCancel.String():
-		if baseAmount != 0 {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(baseAmount)}
-		}
-		if quoteAmount != 0 {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(quoteAmount)}
+	case order.Market.String():
+		orderConfig.MarketMarketIOC = marketIOCImplementation(baseAmount, quoteAmount)
+	case order.ImmediateOrCancel.String():
+		if limitPrice != 0 {
+			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
+		} else {
+			orderConfig.MarketMarketIOC = marketIOCImplementation(baseAmount, quoteAmount)
 		}
 	case order.Limit.String():
 		if endTime.IsZero() {

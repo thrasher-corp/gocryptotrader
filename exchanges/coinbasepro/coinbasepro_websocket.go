@@ -127,14 +127,14 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					LastUpdated:  inc.Timestamp,
 					AssetType:    asset.Spot,
 					ExchangeName: c.Name,
-					High:         wsTicker[i].Tickers[j].High24H,
-					Low:          wsTicker[i].Tickers[j].Low24H,
-					Last:         wsTicker[i].Tickers[j].Price,
-					Volume:       wsTicker[i].Tickers[j].Volume24H,
-					Bid:          wsTicker[i].Tickers[j].BestBid,
-					BidSize:      wsTicker[i].Tickers[j].BestBidQuantity,
-					Ask:          wsTicker[i].Tickers[j].BestAsk,
-					AskSize:      wsTicker[i].Tickers[j].BestAskQuantity,
+					High:         wsTicker[i].Tickers[j].High24H.Float64(),
+					Low:          wsTicker[i].Tickers[j].Low24H.Float64(),
+					Last:         wsTicker[i].Tickers[j].Price.Float64(),
+					Volume:       wsTicker[i].Tickers[j].Volume24H.Float64(),
+					Bid:          wsTicker[i].Tickers[j].BestBid.Float64(),
+					BidSize:      wsTicker[i].Tickers[j].BestBidQuantity.Float64(),
+					Ask:          wsTicker[i].Tickers[j].BestAsk.Float64(),
+					AskSize:      wsTicker[i].Tickers[j].BestAskQuantity.Float64(),
 				}
 				var errs error
 				for k := range tickAlias {
@@ -165,11 +165,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					AssetType:  asset.Spot,
 					Exchange:   c.Name,
 					StartTime:  wsCandles[i].Candles[j].Start.Time(),
-					OpenPrice:  wsCandles[i].Candles[j].Open,
-					ClosePrice: wsCandles[i].Candles[j].Close,
-					HighPrice:  wsCandles[i].Candles[j].High,
-					LowPrice:   wsCandles[i].Candles[j].Low,
-					Volume:     wsCandles[i].Candles[j].Volume,
+					OpenPrice:  wsCandles[i].Candles[j].Open.Float64(),
+					ClosePrice: wsCandles[i].Candles[j].Close.Float64(),
+					HighPrice:  wsCandles[i].Candles[j].High.Float64(),
+					LowPrice:   wsCandles[i].Candles[j].Low.Float64(),
+					Volume:     wsCandles[i].Candles[j].Volume.Float64(),
 				})
 			}
 		}
@@ -188,8 +188,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					CurrencyPair: wsTrades[i].Trades[j].ProductID,
 					AssetType:    asset.Spot,
 					Side:         wsTrades[i].Trades[j].Side,
-					Price:        wsTrades[i].Trades[j].Price,
-					Amount:       wsTrades[i].Trades[j].Size,
+					Price:        wsTrades[i].Trades[j].Price.Float64(),
+					Amount:       wsTrades[i].Trades[j].Size.Float64(),
 					Timestamp:    wsTrades[i].Trades[j].Time,
 				})
 			}
@@ -268,11 +268,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					}
 				}
 				sliToSend = append(sliToSend, order.Detail{
-					Price:             price,
+					Price:             price.Float64(),
 					ClientOrderID:     wsUser[i].Orders[j].ClientOrderID,
-					ExecutedAmount:    wsUser[i].Orders[j].CumulativeQuantity,
-					RemainingAmount:   wsUser[i].Orders[j].LeavesQuantity,
-					Amount:            wsUser[i].Orders[j].CumulativeQuantity + wsUser[i].Orders[j].LeavesQuantity,
+					ExecutedAmount:    wsUser[i].Orders[j].CumulativeQuantity.Float64(),
+					RemainingAmount:   wsUser[i].Orders[j].LeavesQuantity.Float64(),
+					Amount:            wsUser[i].Orders[j].CumulativeQuantity.Float64() + wsUser[i].Orders[j].LeavesQuantity.Float64(),
 					OrderID:           wsUser[i].Orders[j].OrderID,
 					Side:              oSide,
 					Type:              oType,
@@ -280,10 +280,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					Pair:              wsUser[i].Orders[j].ProductID,
 					AssetType:         asset,
 					Status:            oStatus,
-					TriggerPrice:      wsUser[i].Orders[j].StopPrice,
+					TriggerPrice:      wsUser[i].Orders[j].StopPrice.Float64(),
 					ImmediateOrCancel: ioc,
 					FillOrKill:        fok,
-					Fee:               wsUser[i].Orders[j].TotalFees,
+					Fee:               wsUser[i].Orders[j].TotalFees.Float64(),
 					Date:              wsUser[i].Orders[j].CreationTime,
 					CloseTime:         wsUser[i].Orders[j].EndTime,
 					Exchange:          c.Name,
@@ -310,8 +310,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 					Pair:       wsUser[i].Positions.PerpetualFuturesPositions[j].ProductID,
 					Side:       oSide,
 					MarginType: mType,
-					Amount:     wsUser[i].Positions.PerpetualFuturesPositions[j].NetSize,
-					Leverage:   wsUser[i].Positions.PerpetualFuturesPositions[j].Leverage,
+					Amount:     wsUser[i].Positions.PerpetualFuturesPositions[j].NetSize.Float64(),
+					Leverage:   wsUser[i].Positions.PerpetualFuturesPositions[j].Leverage.Float64(),
 					AssetType:  asset.Futures,
 					Exchange:   c.Name,
 				})
@@ -328,8 +328,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 				sliToSend = append(sliToSend, order.Detail{
 					Pair:           wsUser[i].Positions.ExpiringFuturesPositions[j].ProductID,
 					Side:           oSide,
-					ContractAmount: wsUser[i].Positions.ExpiringFuturesPositions[j].NumberOfContracts,
-					Price:          wsUser[i].Positions.ExpiringFuturesPositions[j].EntryPrice,
+					ContractAmount: wsUser[i].Positions.ExpiringFuturesPositions[j].NumberOfContracts.Float64(),
+					Price:          wsUser[i].Positions.ExpiringFuturesPositions[j].EntryPrice.Float64(),
 				})
 			}
 		}
@@ -455,8 +455,8 @@ func (c *CoinbasePro) manageSubs(ctx context.Context, op string, subs subscripti
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
 func (c *CoinbasePro) GetWSJWT(ctx context.Context) (string, error) {
 	c.jwtStruct.m.RLock()
-	if c.jwtStruct.jwtExpire.After(time.Now()) {
-		retStr := c.jwtStruct.jwt
+	if c.jwtStruct.expiresAt.After(time.Now()) {
+		retStr := c.jwtStruct.token
 		c.jwtStruct.m.RUnlock()
 		return retStr, nil
 	}
@@ -464,8 +464,8 @@ func (c *CoinbasePro) GetWSJWT(ctx context.Context) (string, error) {
 	c.jwtStruct.m.Lock()
 	defer c.jwtStruct.m.Unlock()
 	var err error
-	c.jwtStruct.jwt, c.jwtStruct.jwtExpire, err = c.GetJWT(ctx, "")
-	return c.jwtStruct.jwt, err
+	c.jwtStruct.token, c.jwtStruct.expiresAt, err = c.GetJWT(ctx, "")
+	return c.jwtStruct.token, err
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays of bids and asks
@@ -473,7 +473,7 @@ func processBidAskArray(data *WebsocketOrderbookDataHolder, snapshot bool) (bids
 	bids = make(orderbook.Tranches, 0, len(data.Changes))
 	asks = make(orderbook.Tranches, 0, len(data.Changes))
 	for i := range data.Changes {
-		change := orderbook.Tranche{Price: data.Changes[i].PriceLevel, Amount: data.Changes[i].NewQuantity}
+		change := orderbook.Tranche{Price: data.Changes[i].PriceLevel.Float64(), Amount: data.Changes[i].NewQuantity.Float64()}
 		switch data.Changes[i].Side {
 		case "bid":
 			bids = append(bids, change)

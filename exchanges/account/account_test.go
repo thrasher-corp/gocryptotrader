@@ -415,7 +415,7 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
 	err := s.Update("", nil, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	err = s.Update("test", nil, nil)
 	assert.ErrorIs(t, err, errCredentialsAreNil)

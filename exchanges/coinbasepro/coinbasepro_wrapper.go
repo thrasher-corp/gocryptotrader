@@ -257,10 +257,10 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		currencies := accountCurrencies[profileID]
 		accountCurrencies[profileID] = append(currencies, account.Balance{
 			Currency:               currency.NewCode(accountBalance[i].Currency),
-			Total:                  accountBalance[i].AvailableBalance.Value,
-			Hold:                   accountBalance[i].Hold.Value,
-			Free:                   accountBalance[i].AvailableBalance.Value - accountBalance[i].Hold.Value,
-			AvailableWithoutBorrow: accountBalance[i].AvailableBalance.Value,
+			Total:                  accountBalance[i].AvailableBalance.Value.Float64(),
+			Hold:                   accountBalance[i].Hold.Value.Float64(),
+			Free:                   accountBalance[i].AvailableBalance.Value.Float64() - accountBalance[i].Hold.Value.Float64(),
+			AvailableWithoutBorrow: accountBalance[i].AvailableBalance.Value.Float64(),
 		})
 	}
 	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
@@ -336,15 +336,15 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	book.Bids = make(orderbook.Tranches, len(orderbookNew.Pricebook.Bids))
 	for x := range orderbookNew.Pricebook.Bids {
 		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Pricebook.Bids[x].Size,
-			Price:  orderbookNew.Pricebook.Bids[x].Price,
+			Amount: orderbookNew.Pricebook.Bids[x].Size.Float64(),
+			Price:  orderbookNew.Pricebook.Bids[x].Price.Float64(),
 		}
 	}
 	book.Asks = make(orderbook.Tranches, len(orderbookNew.Pricebook.Asks))
 	for x := range orderbookNew.Pricebook.Asks {
 		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Pricebook.Asks[x].Size,
-			Price:  orderbookNew.Pricebook.Asks[x].Price,
+			Amount: orderbookNew.Pricebook.Asks[x].Size.Float64(),
+			Price:  orderbookNew.Pricebook.Asks[x].Price.Float64(),
 		}
 	}
 	aliases := c.pairAliases.GetAlias(p)
@@ -527,11 +527,11 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 	}
 	if s.RetrieveFees {
 		time.Sleep(s.RetrieveFeeDelay)
-		feeResp, err := c.GetOrderByID(ctx, resp.SuccessResponse.OrderID, s.ClientOrderID, "")
+		feeResp, err := c.GetOrderByID(ctx, resp.SuccessResponse.OrderID, s.ClientOrderID, currency.Code{})
 		if err != nil {
 			return nil, err
 		}
-		subResp.Fee = feeResp.TotalFees
+		subResp.Fee = feeResp.TotalFees.Float64()
 	}
 	return subResp, nil
 }
@@ -623,18 +623,18 @@ func (c *CoinbasePro) CancelAllOrders(context.Context, *order.Cancel) (order.Can
 
 // GetOrderInfo returns order information based on order ID
 func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetItem asset.Item) (*order.Detail, error) {
-	genOrderDetail, err := c.GetOrderByID(ctx, orderID, "", "")
+	genOrderDetail, err := c.GetOrderByID(ctx, orderID, "", currency.Code{})
 	if err != nil {
 		return nil, err
 	}
 	response := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
-	fillData, err := c.ListFills(ctx, orderID, "", "", time.Time{}, time.Now(), manyFills)
+	fillData, err := c.ListFills(ctx, []string{orderID}, nil, nil, "", "", time.Time{}, time.Now(), manyFills)
 	if err != nil {
 		return nil, err
 	}
 	cursor := fillData.Cursor
 	for cursor != "" {
-		tempFillData, err := c.ListFills(ctx, orderID, "", cursor, time.Time{}, time.Now(), manyFills)
+		tempFillData, err := c.ListFills(ctx, []string{orderID}, nil, nil, cursor, "", time.Time{}, time.Now(), manyFills)
 		if err != nil {
 			return nil, err
 		}
@@ -651,14 +651,14 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 	}
 	for i := range fillData.Fills {
 		response.Trades[i] = order.TradeHistory{
-			Price:     fillData.Fills[i].Price,
-			Amount:    fillData.Fills[i].Size,
-			Fee:       fillData.Fills[i].Commission,
+			Price:     fillData.Fills[i].Price.Float64(),
+			Amount:    fillData.Fills[i].Size.Float64(),
+			Fee:       fillData.Fills[i].Commission.Float64(),
 			Exchange:  c.GetName(),
 			TID:       fillData.Fills[i].TradeID,
 			Side:      orderSide,
 			Timestamp: fillData.Fills[i].TradeTime,
-			Total:     fillData.Fills[i].Price * fillData.Fills[i].Size,
+			Total:     fillData.Fills[i].Price.Float64() * fillData.Fills[i].Size.Float64(),
 		}
 	}
 	return response, nil
@@ -774,12 +774,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 	}
 	var respOrders []GetOrderResponse
 	ordStatus := []string{"OPEN"}
-	pairIDs := req.Pairs.Strings()
-	if len(pairIDs) == 1 {
-		respOrders, err = c.iterativeGetAllOrders(ctx, pairIDs[0], req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime)
-	} else {
-		respOrders, err = c.iterativeGetAllOrders(ctx, "", req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime)
-	}
+	respOrders, err = c.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), ordStatus, 1000, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -788,7 +783,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 		orderRec := c.getOrderRespToOrderDetail(&respOrders[i], respOrders[i].ProductID, asset.Spot)
 		orders[i] = *orderRec
 	}
-	if len(pairIDs) > 1 {
+	if len(req.Pairs) > 1 {
 		order.FilterOrdersByPairs(&orders, req.Pairs)
 	}
 	return req.Filter(c.Name, orders), nil
@@ -800,21 +795,19 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 	if err != nil {
 		return nil, err
 	}
-	var p string
-	if len(req.Pairs) == 1 {
-		req.Pairs[0], err = c.FormatExchangeCurrency(req.Pairs[0], req.AssetType)
+	for i := range req.Pairs {
+		req.Pairs[i], err = c.FormatExchangeCurrency(req.Pairs[i], req.AssetType)
 		if err != nil {
 			return nil, err
 		}
-		p = req.Pairs[0].String()
 	}
 	var ord []GetOrderResponse
-	interOrd, err := c.iterativeGetAllOrders(ctx, p, req.Type.String(), req.Side.String(), req.AssetType.Upper(), closedStatuses, manyOrds, req.StartTime, req.EndTime)
+	interOrd, err := c.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), closedStatuses, manyOrds, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
 	ord = append(ord, interOrd...)
-	interOrd, err = c.iterativeGetAllOrders(ctx, p, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, manyOrds, req.StartTime, req.EndTime)
+	interOrd, err = c.iterativeGetAllOrders(ctx, req.Pairs, req.Type.String(), req.Side.String(), req.AssetType.Upper(), openStatus, manyOrds, req.StartTime, req.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -1040,8 +1033,8 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 			TransferID:   accHistory[i].ID,
 			Timestamp:    accHistory[i].PayoutAt,
 			Currency:     accHistory[i].Amount.Currency,
-			Amount:       accHistory[i].Amount.Amount,
-			Fee:          accHistory[i].Fee.Amount,
+			Amount:       accHistory[i].Amount.Amount.Float64(),
+			Fee:          accHistory[i].Fee.Amount.Float64(),
 			TransferType: accHistory[i].TransferType.String(),
 		}
 	}
@@ -1053,7 +1046,7 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 			Description:  cryptoHistory[i].Details.Title + cryptoHistory[i].Details.Subtitle,
 			Timestamp:    cryptoHistory[i].CreatedAt,
 			Currency:     cryptoHistory[i].Amount.Currency,
-			Amount:       cryptoHistory[i].Amount.Amount,
+			Amount:       cryptoHistory[i].Amount.Amount.Float64(),
 			CryptoChain:  cryptoHistory[i].Network.Name,
 		}
 		if cryptoHistory[i].Type == "receive" {
@@ -1069,7 +1062,7 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 }
 
 // iterativeGetAllOrders is a helper function used in GetActiveOrders and GetOrderHistory to repeatedly call GetAllOrders until all orders have been retrieved
-func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orderType, orderSide, productType string, orderStatus []string, limit int32, startDate, endDate time.Time) ([]GetOrderResponse, error) {
+func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productIDs currency.Pairs, orderType, orderSide, productType string, orderStatus []string, limit int32, startDate, endDate time.Time) ([]GetOrderResponse, error) {
 	hasNext := true
 	var resp []GetOrderResponse
 	var cursor string
@@ -1083,7 +1076,7 @@ func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orde
 		productType = "FUTURE"
 	}
 	for hasNext {
-		interResp, err := c.ListOrders(ctx, productID, "", orderType, orderSide, cursor, productType, "", "", "", orderStatus, nil, limit, startDate, endDate)
+		interResp, err := c.ListOrders(ctx, nil, orderStatus, nil, []string{orderType}, nil, productIDs, productType, orderSide, "", "", "", cursor, "", limit, startDate, endDate, currency.Code{})
 		if err != nil {
 			return nil, err
 		}
@@ -1156,7 +1149,7 @@ func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse
 	}
 	var remainingAmount float64
 	if !genOrderDetail.SizeInQuote {
-		remainingAmount = amount - genOrderDetail.FilledSize
+		remainingAmount = amount - genOrderDetail.FilledSize.Float64()
 	}
 	var orderSide order.Side
 	switch genOrderDetail.Side {
@@ -1194,12 +1187,12 @@ func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse
 		Price:                price,
 		Amount:               amount,
 		TriggerPrice:         triggerPrice,
-		AverageExecutedPrice: genOrderDetail.AverageFilledPrice,
+		AverageExecutedPrice: genOrderDetail.AverageFilledPrice.Float64(),
 		QuoteAmount:          quoteAmount,
-		ExecutedAmount:       genOrderDetail.FilledSize,
+		ExecutedAmount:       genOrderDetail.FilledSize.Float64(),
 		RemainingAmount:      remainingAmount,
-		Cost:                 genOrderDetail.TotalValueAfterFees,
-		Fee:                  genOrderDetail.TotalFees,
+		Cost:                 genOrderDetail.TotalValueAfterFees.Float64(),
+		Fee:                  genOrderDetail.TotalFees.Float64(),
 		Exchange:             c.GetName(),
 		OrderID:              genOrderDetail.OrderID,
 		ClientOrderID:        genOrderDetail.ClientOID,
@@ -1248,7 +1241,7 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 	}
 	var last float64
 	if len(ticks.Trades) != 0 {
-		last = ticks.Trades[0].Price
+		last = ticks.Trades[0].Price.Float64()
 	}
 	newTick.Last = last
 	newTick.Bid = ticks.BestBid.Float64()
@@ -1273,11 +1266,11 @@ func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity
 	for x := range history {
 		timeSeries[x] = kline.Candle{
 			Time:   history[x].Start.Time(),
-			Low:    history[x].Low,
-			High:   history[x].High,
-			Open:   history[x].Open,
-			Close:  history[x].Close,
-			Volume: history[x].Volume,
+			Low:    history[x].Low.Float64(),
+			High:   history[x].High.Float64(),
+			Open:   history[x].Open.Float64(),
+			Close:  history[x].Close.Float64(),
+			Volume: history[x].Volume.Float64(),
 		}
 	}
 	return timeSeries, nil

@@ -13,9 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-type jwtStruct struct {
-	jwt       string
-	jwtExpire time.Time
+type jwtManager struct {
+	token     string
+	expiresAt time.Time
 	m         sync.RWMutex
 }
 
@@ -27,7 +27,7 @@ type pairAliases struct {
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
-	jwtStruct   jwtStruct
+	jwtStruct   jwtManager
 	pairAliases pairAliases
 }
 
@@ -39,8 +39,8 @@ type FiatTransferType bool
 
 // ValueWithCurrency is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse, ErrorMetadata, SubscriptionInfo, FuturesBalanceSummary, ListFuturesSweepsResponse, PerpetualsPortfolioSummary, PerpPositionDetail, FeeStruct, AmScale, and ConvertResponse
 type ValueWithCurrency struct {
-	Value    float64 `json:"value,string"`
-	Currency string  `json:"currency"`
+	Value    types.Number `json:"value"`
+	Currency string       `json:"currency"`
 }
 
 // Account holds details for a trading account, returned by GetAccountByID and used as a sub-struct in the type AllAccountsResponse
@@ -69,15 +69,37 @@ type AllAccountsResponse struct {
 	Size     uint8     `json:"size"`
 }
 
+// PermissionsResponse holds information on the permissions of a user, returned by GetPermissions
+type PermissionsResponse struct {
+	CanView       bool   `json:"can_view"`
+	CanTrade      bool   `json:"can_trade"`
+	CanTransfer   bool   `json:"can_transfer"`
+	PortfolioUUID string `json:"portfolio_uuid"`
+	PortfolioType string `json:"portfolio_type"`
+}
+
 // Params is used within functions to make the setting of parameters easier
 type Params struct {
 	url.Values
 }
 
+// MarginWindow is a sub-struct used in the type CurrentMarginWindow
+type MarginWindow struct {
+	MarginWindowType string    `json:"margin_window_type"`
+	EndTime          time.Time `json:"end_time"`
+}
+
+// CurrentMarginWindow holds information on the current margin window, returned by GetCurrentMarginWindow
+type CurrentMarginWindow struct {
+	MarginWindow                                MarginWindow `json:"margin_window"`
+	IsIntradayMarginKillswitchEnabled           bool         `json:"is_intraday_margin_killswitch_enabled"`
+	IsIntradayMarginEnrollmentKillswitchEnabled bool         `json:"is_intraday_margin_enrollment_killswitch_enabled"`
+}
+
 // PriceSize is a sub-struct used in the type ProductBook
 type PriceSize struct {
-	Price float64 `json:"price,string"`
-	Size  float64 `json:"size,string"`
+	Price types.Number `json:"price"`
+	Size  types.Number `json:"size"`
 }
 
 // ProductBook holds bid and ask prices for a particular product, returned by GetBestBidAsk and used in ProductBookResp
@@ -90,11 +112,11 @@ type ProductBook struct {
 
 // ProductBookResp holds a ProductBook struct, and associated information, returned by GetProductBookV3
 type ProductBookResp struct {
-	Pricebook      ProductBook `json:"pricebook"`
-	Last           float64     `json:"last,string"`
-	MidMarket      float64     `json:"mid_market,string"`
-	SpreadBPs      float64     `json:"spread_bps,string"`
-	SpreadAbsolute float64     `json:"spread_absolute,string"`
+	Pricebook      ProductBook  `json:"pricebook"`
+	Last           types.Number `json:"last"`
+	MidMarket      types.Number `json:"mid_market"`
+	SpreadBPs      types.Number `json:"spread_bps"`
+	SpreadAbsolute types.Number `json:"spread_absolute"`
 }
 
 // FCMTradingSessionDetails is a sub-struct used in the type Product
@@ -183,20 +205,20 @@ type AllProducts struct {
 
 // Klines holds historic trade information, returned by GetHistoricKlines
 type Klines struct {
-	Start  types.Time `json:"start"`
-	Low    float64    `json:"low,string"`
-	High   float64    `json:"high,string"`
-	Open   float64    `json:"open,string"`
-	Close  float64    `json:"close,string"`
-	Volume float64    `json:"volume,string"`
+	Start  types.Time   `json:"start"`
+	Low    types.Number `json:"low"`
+	High   types.Number `json:"high"`
+	Open   types.Number `json:"open"`
+	Close  types.Number `json:"close"`
+	Volume types.Number `json:"volume"`
 }
 
 // Trades is a sub-struct used in the type Ticker
 type Trades struct {
 	TradeID   string        `json:"trade_id"`
 	ProductID currency.Pair `json:"product_id"`
-	Price     float64       `json:"price,string"`
-	Size      float64       `json:"size,string"`
+	Price     types.Number  `json:"price"`
+	Size      types.Number  `json:"size"`
 	Time      time.Time     `json:"time"`
 	Side      string        `json:"side"`
 	Bid       types.Number  `json:"bid"`
@@ -214,14 +236,26 @@ type Ticker struct {
 type MarketMarketIOC struct {
 	QuoteSize types.Number `json:"quote_size,omitempty"`
 	BaseSize  types.Number `json:"base_size,omitempty"`
+	// The following fields might not be used on input. If they aren't, make these bools pointers, and use omitempty
+	RFQEnabled  bool `json:"rfq_enabled"`
+	RFQDisabled bool `json:"rfq_disabled"`
+	ReduceOnly  bool `json:"reduce_only"`
+}
+
+// QuoteBaseLimit is a sub-struct used in the type OrderConfiguration
+type QuoteBaseLimit struct {
+	QuoteSize  types.Number `json:"quote_size,omitempty"`
+	BaseSize   types.Number `json:"base_size,omitempty"`
+	LimitPrice types.Number `json:"limit_price"`
 }
 
 // LimitLimitGTC is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTC struct {
-	BaseSize   types.Number `json:"base_size,omitempty"`
-	QuoteSize  types.Number `json:"quote_size,omitempty"`
-	LimitPrice types.Number `json:"limit_price"`
-	PostOnly   bool         `json:"post_only"`
+	BaseSize    types.Number `json:"base_size,omitempty"`
+	QuoteSize   types.Number `json:"quote_size,omitempty"`
+	LimitPrice  types.Number `json:"limit_price"`
+	PostOnly    bool         `json:"post_only"`
+	RFQDisabled bool         `json:"rfq_disabled"`
 }
 
 // LimitLimitGTD is a sub-struct used in the type OrderConfiguration
@@ -231,6 +265,19 @@ type LimitLimitGTD struct {
 	LimitPrice types.Number `json:"limit_price"`
 	EndTime    time.Time    `json:"end_time"`
 	PostOnly   bool         `json:"post_only"`
+	ReduceOnly bool         `json:"reduce_only"`
+}
+
+// TWAPLimitGTD is a sub-struct used in the type OrderConfiguration
+type TWAPLimitGTD struct {
+	QuoteSize      types.Number `json:"quote_size,omitempty"`
+	BaseSize       types.Number `json:"base_size,omitempty"`
+	StartTime      time.Time    `json:"start_time"`
+	EndTime        time.Time    `json:"end_time"`
+	LimitPrice     types.Number `json:"limit_price"`
+	NumberBuckets  int64        `json:"number_buckets"`
+	BucketSize     types.Number `json:"bucket_size"`
+	BucketDuration string       `json:"bucket_duration"`
 }
 
 // StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
@@ -252,47 +299,79 @@ type StopLimitStopLimitGTD struct {
 	StopDirection string       `json:"stop_direction"`
 }
 
-// OrderConfiguration is a struct used in the formation of requests in PrepareOrderConfig, and is a sub-struct used in the types PlaceOrderResp and GetOrderResponse
-type OrderConfiguration struct {
-	MarketMarketIOC       *MarketMarketIOC       `json:"market_market_ioc,omitempty"`
-	LimitLimitGTC         *LimitLimitGTC         `json:"limit_limit_gtc,omitempty"`
-	LimitLimitGTD         *LimitLimitGTD         `json:"limit_limit_gtd,omitempty"`
-	StopLimitStopLimitGTC *StopLimitStopLimitGTC `json:"stop_limit_stop_limit_gtc,omitempty"`
-	StopLimitStopLimitGTD *StopLimitStopLimitGTD `json:"stop_limit_stop_limit_gtd,omitempty"`
+// TriggerBracketGTC is a sub-struct used in the type OrderConfiguration
+type TriggerBracketGTC struct {
+	BaseSize         types.Number `json:"base_size,omitempty"`
+	LimitPrice       types.Number `json:"limit_price"`
+	StopTriggerPrice types.Number `json:"stop_trigger_price"`
 }
 
-// SuccessResponse is a sub-struct used in the type PlaceOrderResp
+// TriggerBracketGTD is a sub-struct used in the type OrderConfiguration
+type TriggerBracketGTD struct {
+	BaseSize         types.Number `json:"base_size,omitempty"`
+	LimitPrice       types.Number `json:"limit_price"`
+	StopTriggerPrice types.Number `json:"stop_trigger_price"`
+	EndTime          time.Time    `json:"end_time"`
+}
+
+// OrderConfiguration is a struct used in the formation of requests in PrepareOrderConfig, and is a sub-struct used in the types SuccessFailureConfig and GetOrderResponse
+type OrderConfiguration struct {
+	MarketMarketIOC       *MarketMarketIOC       `json:"market_market_ioc,omitempty"`
+	SORLimitIOC           *QuoteBaseLimit        `json:"sor_limit_ioc,omitempty"`
+	LimitLimitGTC         *LimitLimitGTC         `json:"limit_limit_gtc,omitempty"`
+	LimitLimitGTD         *LimitLimitGTD         `json:"limit_limit_gtd,omitempty"`
+	LimitLimitFOK         *QuoteBaseLimit        `json:"limit_limit_fok,omitempty"`
+	TWAPLimitGTD          *TWAPLimitGTD          `json:"twap_limit_gtd,omitempty"`
+	StopLimitStopLimitGTC *StopLimitStopLimitGTC `json:"stop_limit_stop_limit_gtc,omitempty"`
+	StopLimitStopLimitGTD *StopLimitStopLimitGTD `json:"stop_limit_stop_limit_gtd,omitempty"`
+	TriggerBracketGTC     *TriggerBracketGTC     `json:"trigger_bracket_gtc,omitempty"`
+	TriggerBracketGTD     *TriggerBracketGTD     `json:"trigger_bracket_gtd,omitempty"`
+}
+
+// SuccessResponse is a sub-struct used in the type SuccessFailureConfig
 type SuccessResponse struct {
-	OrderID       string        `json:"order_id"`
-	ProductID     currency.Pair `json:"product_id"`
-	Side          string        `json:"side"`
-	ClientOrderID string        `json:"client_oid"`
+	OrderID         string        `json:"order_id"`
+	ProductID       currency.Pair `json:"product_id"`
+	Side            string        `json:"side"`
+	ClientOrderID   string        `json:"client_order_id"`
+	AttachedOrderID string        `json:"attached_order_id"`
+}
+
+// ErrorResponse is a sub-struct used in the type SuccessFailureConfig
+type ErrorResponse struct {
+	Error                 string `json:"error"`
+	Message               string `json:"message"`
+	ErrorDetails          string `json:"error_details"`
+	PreviewFailureReason  string `json:"preview_failure_reason"`
+	NewOrderFailureReason string `json:"new_order_failure_reason"`
 }
 
 // PlaceOrderInfo is a struct used in the formation of requests in PlaceOrder
 type PlaceOrderInfo struct {
-	ClientOID             string
-	ProductID             string
-	Side                  string
-	StopDirection         string
-	OrderType             string
-	SelfTradePreventionID string
-	MarginType            string
-	RetailPortfolioID     string
-	BaseAmount            float64
-	QuoteAmount           float64
-	LimitPrice            float64
-	StopPrice             float64
-	Leverage              float64
-	PostOnly              bool
-	EndTime               time.Time
+	ClientOID                  string
+	ProductID                  string
+	Side                       string
+	StopDirection              string
+	OrderType                  string
+	SelfTradePreventionID      string
+	MarginType                 string
+	RetailPortfolioID          string
+	PreviewID                  string
+	BaseAmount                 float64
+	QuoteAmount                float64
+	LimitPrice                 float64
+	StopPrice                  float64
+	Leverage                   float64
+	PostOnly                   bool
+	EndTime                    time.Time
+	AttachedOrderConfiguration OrderConfiguration
 }
 
-// PlaceOrderResp contains information on an order, returned by PlaceOrder
-type PlaceOrderResp struct {
+// SuccessFailureConfig contains information on an order, returned by PlaceOrder
+type SuccessFailureConfig struct {
 	Success            bool               `json:"success"`
-	FailureReason      string             `json:"failure_reason"`
 	SuccessResponse    SuccessResponse    `json:"success_response"`
+	ErrorResponse      ErrorResponse      `json:"error_response"`
 	OrderConfiguration OrderConfiguration `json:"order_configuration"`
 }
 
@@ -305,60 +384,65 @@ type OrderCancelDetail struct {
 
 // EditOrderPreviewResp contains information on the effects of editing an order, returned by EditOrderPreview
 type EditOrderPreviewResp struct {
-	Slippage           float64 `json:"slippage,string"`
-	OrderTotal         float64 `json:"order_total,string"`
-	CommissionTotal    float64 `json:"commission_total,string"`
-	QuoteSize          float64 `json:"quote_size,string"`
-	BaseSize           float64 `json:"base_size,string"`
-	BestBid            float64 `json:"best_bid,string"`
-	BestAsk            float64 `json:"best_ask,string"`
-	AverageFilledPrice float64 `json:"average_filled_price,string"`
+	Slippage           types.Number `json:"slippage"`
+	OrderTotal         types.Number `json:"order_total"`
+	CommissionTotal    types.Number `json:"commission_total"`
+	QuoteSize          types.Number `json:"quote_size"`
+	BaseSize           types.Number `json:"base_size"`
+	BestBid            types.Number `json:"best_bid"`
+	BestAsk            types.Number `json:"best_ask"`
+	AverageFilledPrice types.Number `json:"average_filled_price"`
+	OrderMarginTotal   types.Number `json:"order_margin_total"`
 }
 
 // EditHistory is a sub-struct used in the type GetOrderResponse
 type EditHistory struct {
-	Price                  float64   `json:"price,string"`
-	Size                   float64   `json:"size,string"`
-	ReplaceAcceptTimestamp time.Time `json:"replace_accept_timestamp"`
+	Price                  types.Number `json:"price"`
+	Size                   types.Number `json:"size"`
+	ReplaceAcceptTimestamp time.Time    `json:"replace_accept_timestamp"`
 }
 
 // GetOrderResponse contains information on an order, returned by GetOrderByID IterativeGetAllOrders, and used in GetAllOrdersResp
 type GetOrderResponse struct {
-	OrderID               string             `json:"order_id"`
-	ProductID             currency.Pair      `json:"product_id"`
-	UserID                string             `json:"user_id"`
-	OrderConfiguration    OrderConfiguration `json:"order_configuration"`
-	Side                  string             `json:"side"`
-	ClientOID             string             `json:"client_order_id"`
-	Status                string             `json:"status"`
-	TimeInForce           string             `json:"time_in_force"`
-	CreatedTime           time.Time          `json:"created_time"`
-	CompletionPercentage  float64            `json:"completion_percentage,string"`
-	FilledSize            float64            `json:"filled_size,string"`
-	AverageFilledPrice    float64            `json:"average_filled_price,string"`
-	Fee                   types.Number       `json:"fee"`
-	NumberOfFills         int64              `json:"num_fills,string"`
-	FilledValue           float64            `json:"filled_value,string"`
-	PendingCancel         bool               `json:"pending_cancel"`
-	SizeInQuote           bool               `json:"size_in_quote"`
-	TotalFees             float64            `json:"total_fees,string"`
-	SizeInclusiveOfFees   bool               `json:"size_inclusive_of_fees"`
-	TotalValueAfterFees   float64            `json:"total_value_after_fees,string"`
-	TriggerStatus         string             `json:"trigger_status"`
-	OrderType             string             `json:"order_type"`
-	RejectReason          string             `json:"reject_reason"`
-	Settled               bool               `json:"settled"`
-	ProductType           string             `json:"product_type"`
-	RejectMessage         string             `json:"reject_message"`
-	CancelMessage         string             `json:"cancel_message"`
-	OrderPlacementSource  string             `json:"order_placement_source"`
-	OutstandingHoldAmount float64            `json:"outstanding_hold_amount,string"`
-	IsLiquidation         bool               `json:"is_liquidation"`
-	LastFillTime          time.Time          `json:"last_fill_time"`
-	EditHistory           []EditHistory      `json:"edit_history"`
-	Leverage              types.Number       `json:"leverage"`
-	MarginType            string             `json:"margin_type"`
-	RetailPortfolioID     string             `json:"retail_portfolio_id"`
+	OrderID                    string             `json:"order_id"`
+	ProductID                  currency.Pair      `json:"product_id"`
+	UserID                     string             `json:"user_id"`
+	OrderConfiguration         OrderConfiguration `json:"order_configuration"`
+	Side                       string             `json:"side"`
+	ClientOID                  string             `json:"client_order_id"`
+	Status                     string             `json:"status"`
+	TimeInForce                string             `json:"time_in_force"`
+	CreatedTime                time.Time          `json:"created_time"`
+	CompletionPercentage       types.Number       `json:"completion_percentage"`
+	FilledSize                 types.Number       `json:"filled_size"`
+	AverageFilledPrice         types.Number       `json:"average_filled_price"`
+	Fee                        types.Number       `json:"fee"`
+	NumberOfFills              int64              `json:"num_fills,string"`
+	FilledValue                types.Number       `json:"filled_value"`
+	PendingCancel              bool               `json:"pending_cancel"`
+	SizeInQuote                bool               `json:"size_in_quote"`
+	TotalFees                  types.Number       `json:"total_fees"`
+	SizeInclusiveOfFees        bool               `json:"size_inclusive_of_fees"`
+	TotalValueAfterFees        types.Number       `json:"total_value_after_fees"`
+	TriggerStatus              string             `json:"trigger_status"`
+	OrderType                  string             `json:"order_type"`
+	RejectReason               string             `json:"reject_reason"`
+	Settled                    bool               `json:"settled"`
+	ProductType                string             `json:"product_type"`
+	RejectMessage              string             `json:"reject_message"`
+	CancelMessage              string             `json:"cancel_message"`
+	OrderPlacementSource       string             `json:"order_placement_source"`
+	OutstandingHoldAmount      types.Number       `json:"outstanding_hold_amount"`
+	IsLiquidation              bool               `json:"is_liquidation"`
+	LastFillTime               time.Time          `json:"last_fill_time"`
+	EditHistory                []EditHistory      `json:"edit_history"`
+	Leverage                   types.Number       `json:"leverage"`
+	MarginType                 string             `json:"margin_type"`
+	RetailPortfolioID          string             `json:"retail_portfolio_id"`
+	OriginatingOrderID         string             `json:"originating_order_id"`
+	AttachedOrderID            string             `json:"attached_order_id"`
+	AttachedOrderConfiguration OrderConfiguration `json:"attached_order_configuration"`
+	CurrentPendingReplace      json.RawMessage    `json:"current_pending_replace"`
 }
 
 // Fills is a sub-struct used in the type FillResponse
@@ -368,15 +452,17 @@ type Fills struct {
 	OrderID            string        `json:"order_id"`
 	TradeTime          time.Time     `json:"trade_time"`
 	TradeType          string        `json:"trade_type"`
-	Price              float64       `json:"price,string"`
-	Size               float64       `json:"size,string"`
-	Commission         float64       `json:"commission,string"`
+	Price              types.Number  `json:"price"`
+	Size               types.Number  `json:"size"`
+	Commission         types.Number  `json:"commission"`
 	ProductID          currency.Pair `json:"product_id"`
 	SequenceTimestamp  time.Time     `json:"sequence_timestamp"`
 	LiquidityIndicator string        `json:"liquidity_indicator"`
 	SizeInQuote        bool          `json:"size_in_quote"`
 	UserID             string        `json:"user_id"`
 	Side               string        `json:"side"`
+	RetailPortfolioID  string        `json:"retail_portfolio_id"`
+	FillSource         string        `json:"fill_source"`
 }
 
 // FillResponse contains fill information, returned by ListFills
@@ -407,20 +493,20 @@ type PreviewOrderInfo struct {
 
 // PreviewOrderResp contains information on the effects of placing an order, returned by PreviewOrder
 type PreviewOrderResp struct {
-	OrderTotal       float64  `json:"order_total,string"`
-	CommissionTotal  float64  `json:"commission_total,string"`
-	Errs             []string `json:"errs"`
-	Warning          []string `json:"warning"`
-	QuoteSize        float64  `json:"quote_size,string"`
-	BaseSize         float64  `json:"base_size,string"`
-	BestBid          float64  `json:"best_bid,string"`
-	BestAsk          float64  `json:"best_ask,string"`
-	IsMax            bool     `json:"is_max"`
-	OrderMarginTotal float64  `json:"order_margin_total,string"`
-	Leverage         float64  `json:"leverage,string"`
-	LongLeverage     float64  `json:"long_leverage,string"`
-	ShortLeverage    float64  `json:"short_leverage,string"`
-	Slippage         float64  `json:"slippage,string"`
+	OrderTotal       types.Number `json:"order_total"`
+	CommissionTotal  types.Number `json:"commission_total"`
+	Errs             []string     `json:"errs"`
+	Warning          []string     `json:"warning"`
+	QuoteSize        types.Number `json:"quote_size"`
+	BaseSize         types.Number `json:"base_size"`
+	BestBid          types.Number `json:"best_bid"`
+	BestAsk          types.Number `json:"best_ask"`
+	IsMax            bool         `json:"is_max"`
+	OrderMarginTotal types.Number `json:"order_margin_total"`
+	Leverage         types.Number `json:"leverage"`
+	LongLeverage     types.Number `json:"long_leverage"`
+	ShortLeverage    types.Number `json:"short_leverage"`
+	Slippage         types.Number `json:"slippage"`
 }
 
 // SimplePortfolioData is a sub-struct used in the type DetailedPortfolioResponse
@@ -481,37 +567,37 @@ type PerpPositions struct {
 	AssetImageURL         string        `json:"asset_image_url"`
 	VWAP                  NativeAndRaw  `json:"vwap"`
 	PositionSide          string        `json:"position_side"`
-	NetSize               float64       `json:"net_size,string"`
-	BuyOrderSize          float64       `json:"buy_order_size,string"`
-	SellOrderSize         float64       `json:"sell_order_size,string"`
-	IMContribution        float64       `json:"im_contribution,string"`
+	NetSize               types.Number  `json:"net_size"`
+	BuyOrderSize          types.Number  `json:"buy_order_size"`
+	SellOrderSize         types.Number  `json:"sell_order_size"`
+	IMContribution        types.Number  `json:"im_contribution"`
 	UnrealizedPNL         NativeAndRaw  `json:"unrealized_pnl"`
 	MarkPrice             NativeAndRaw  `json:"mark_price"`
 	LiquidationPrice      NativeAndRaw  `json:"liquidation_price"`
-	Leverage              float64       `json:"leverage,string"`
+	Leverage              types.Number  `json:"leverage"`
 	IMNotional            NativeAndRaw  `json:"im_notional"`
 	MMNotional            NativeAndRaw  `json:"mm_notional"`
 	PositionNotional      NativeAndRaw  `json:"position_notional"`
 	MarginType            string        `json:"margin_type"`
-	LiquidationBuffer     float64       `json:"liquidation_buffer,string"`
-	LiquidationPercentage float64       `json:"liquidation_percentage,string"`
+	LiquidationBuffer     types.Number  `json:"liquidation_buffer"`
+	LiquidationPercentage types.Number  `json:"liquidation_percentage"`
 }
 
 // FuturesPositions is a sub-struct used in the type DetailedPortfolioResponse
 type FuturesPositions []struct {
 	ProductID       currency.Pair `json:"product_id"`
-	ContractSize    float64       `json:"contract_size,string"`
+	ContractSize    types.Number  `json:"contract_size"`
 	Side            string        `json:"side"`
-	Amount          float64       `json:"amount,string"`
-	AvgEntryPrice   float64       `json:"avg_entry_price,string"`
-	CurrentPrice    float64       `json:"current_price,string"`
-	UnrealizedPNL   float64       `json:"unrealized_pnl,string"`
+	Amount          types.Number  `json:"amount"`
+	AvgEntryPrice   types.Number  `json:"avg_entry_price"`
+	CurrentPrice    types.Number  `json:"current_price"`
+	UnrealizedPNL   types.Number  `json:"unrealized_pnl"`
 	Expiry          time.Time     `json:"expiry"`
 	UnderlyingAsset string        `json:"underlying_asset"`
 	AssetImgURL     string        `json:"asset_img_url"`
 	ProductName     string        `json:"product_name"`
 	Venue           string        `json:"venue"`
-	NotionalValue   float64       `json:"notional_value,string"`
+	NotionalValue   types.Number  `json:"notional_value"`
 }
 
 // DetailedPortfolioResponse contains a great deal of information on a single portfolio. Returned by GetPortfolioByID
@@ -523,33 +609,45 @@ type DetailedPortfolioResponse struct {
 	FuturesPositions  []FuturesPositions  `json:"futures_positions"`
 }
 
+// MarginWindowMeasurement is a sub-struct used in the type FuturesBalanceSummary
+type MarginWindowMeasurement struct {
+	MarginWindowType   string `json:"margin_window_type"`
+	MarginLevel        string `json:"margin_level"`
+	InitialMargin      string `json:"initial_margin"`
+	MaintenanceMargin  string `json:"maintenance_margin"`
+	LiquidationBuffer  string `json:"liquidation_buffer"`
+	TotalHold          string `json:"total_hold_amount"`
+	FuturesBuyingPower string `json:"futures_buying_power"`
+}
+
 // FuturesBalanceSummary contains information on futures balances, returned by GetFuturesBalanceSummary
 type FuturesBalanceSummary struct {
-	FuturesBuyingPower          ValueWithCurrency `json:"futures_buying_power"`
-	TotalUSDBalance             ValueWithCurrency `json:"total_usd_balance"`
-	CBIUSDBalance               ValueWithCurrency `json:"cbi_usd_balance"`
-	CFMUSDBalance               ValueWithCurrency `json:"cfm_usd_balance"`
-	TotalOpenOrdersHoldAmount   ValueWithCurrency `json:"total_open_orders_hold_amount"`
-	UnrealizedPNL               ValueWithCurrency `json:"unrealized_pnl"`
-	DailyRealizedPNL            ValueWithCurrency `json:"daily_realized_pnl"`
-	InitialMargin               ValueWithCurrency `json:"initial_margin"`
-	AvailableMargin             ValueWithCurrency `json:"available_margin"`
-	LiquidationThreshold        ValueWithCurrency `json:"liquidation_threshold"`
-	LiquidationBufferAmount     ValueWithCurrency `json:"liquidation_buffer_amount"`
-	LiquidationBufferPercentage float64           `json:"liquidation_buffer_percentage,string"`
+	FuturesBuyingPower               ValueWithCurrency       `json:"futures_buying_power"`
+	TotalUSDBalance                  ValueWithCurrency       `json:"total_usd_balance"`
+	CBIUSDBalance                    ValueWithCurrency       `json:"cbi_usd_balance"`
+	CFMUSDBalance                    ValueWithCurrency       `json:"cfm_usd_balance"`
+	TotalOpenOrdersHoldAmount        ValueWithCurrency       `json:"total_open_orders_hold_amount"`
+	UnrealizedPNL                    ValueWithCurrency       `json:"unrealized_pnl"`
+	DailyRealizedPNL                 ValueWithCurrency       `json:"daily_realized_pnl"`
+	InitialMargin                    ValueWithCurrency       `json:"initial_margin"`
+	AvailableMargin                  ValueWithCurrency       `json:"available_margin"`
+	LiquidationThreshold             ValueWithCurrency       `json:"liquidation_threshold"`
+	LiquidationBufferAmount          ValueWithCurrency       `json:"liquidation_buffer_amount"`
+	LiquidationBufferPercentage      types.Number            `json:"liquidation_buffer_percentage"`
+	IntradayMarginWindowMeasurement  MarginWindowMeasurement `json:"intraday_margin_window_measure"`
+	OvernightMarginWindowMeasurement MarginWindowMeasurement `json:"overnight_margin_window_measure"`
 }
 
 // FuturesPosition contains information on a single futures position, returned by GetFuturesPositionByID and ListFuturesPositions
 type FuturesPosition struct {
-	// This may belong in a struct of its own called "position", requiring a bit more abstraction, but for the moment I'll assume it doesn't
 	ProductID         currency.Pair `json:"product_id"`
 	ExpirationTime    time.Time     `json:"expiration_time"`
 	Side              string        `json:"side"`
-	NumberOfContracts float64       `json:"number_of_contracts,string"`
-	CurrentPrice      float64       `json:"current_price,string"`
-	AverageEntryPrice float64       `json:"avg_entry_price,string"`
-	UnrealizedPNL     float64       `json:"unrealized_pnl,string"`
-	DailyRealizedPNL  float64       `json:"daily_realized_pnl,string"`
+	NumberOfContracts types.Number  `json:"number_of_contracts"`
+	CurrentPrice      types.Number  `json:"current_price"`
+	AverageEntryPrice types.Number  `json:"avg_entry_price"`
+	UnrealizedPNL     types.Number  `json:"unrealized_pnl"`
+	DailyRealizedPNL  types.Number  `json:"daily_realized_pnl"`
 }
 
 // SweepData contains information on pending and processing sweep requests, returned by ListFuturesSweeps
@@ -564,19 +662,19 @@ type SweepData struct {
 // PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as a sub-struct in the types PerpPositionDetail, AllPerpPosResponse, and OnePerpPosResponse
 type PerpetualsPortfolioSummary struct {
 	PortfolioUUID              string            `json:"portfolio_uuid"`
-	Collateral                 float64           `json:"collateral,string"`
-	PositionNotional           float64           `json:"position_notional,string"`
-	OpenPositionNotional       float64           `json:"open_position_notional,string"`
-	PendingFees                float64           `json:"pending_fees,string"`
-	Borrow                     float64           `json:"borrow,string"`
-	AccruedInterest            float64           `json:"accrued_interest,string"`
-	RollingDebt                float64           `json:"rolling_debt,string"`
-	PortfolioInitialMargin     float64           `json:"portfolio_initial_margin,string"`
+	Collateral                 types.Number      `json:"collateral"`
+	PositionNotional           types.Number      `json:"position_notional"`
+	OpenPositionNotional       types.Number      `json:"open_position_notional"`
+	PendingFees                types.Number      `json:"pending_fees"`
+	Borrow                     types.Number      `json:"borrow"`
+	AccruedInterest            types.Number      `json:"accrued_interest"`
+	RollingDebt                types.Number      `json:"rolling_debt"`
+	PortfolioInitialMargin     types.Number      `json:"portfolio_initial_margin"`
 	PortfolioIMNotional        ValueWithCurrency `json:"portfolio_im_notional"`
-	PortfolioMaintenanceMargin float64           `json:"portfolio_maintenance_margin,string"`
+	PortfolioMaintenanceMargin types.Number      `json:"portfolio_maintenance_margin"`
 	PortfolioMMNotional        ValueWithCurrency `json:"portfolio_mm_notional"`
-	LiquidationPercentage      float64           `json:"liquidation_percentage,string"`
-	LiquidationBuffer          float64           `json:"liquidation_buffer,string"`
+	LiquidationPercentage      types.Number      `json:"liquidation_percentage"`
+	LiquidationBuffer          types.Number      `json:"liquidation_buffer"`
 	MarginType                 string            `json:"margin_type"`
 	MarginFlags                string            `json:"margin_flags"`
 	LiquidationStatus          string            `json:"liquidation_status"`
@@ -593,20 +691,20 @@ type PerpPositionDetail struct {
 	Symbol                string                     `json:"symbol"`
 	VWAP                  ValueWithCurrency          `json:"vwap"`
 	PositionSide          string                     `json:"position_side"`
-	NetSize               float64                    `json:"net_size,string"`
-	BuyOrderSize          float64                    `json:"buy_order_size,string"`
-	SellOrderSize         float64                    `json:"sell_order_size,string"`
-	IMContribution        float64                    `json:"im_contribution,string"`
+	NetSize               types.Number               `json:"net_size"`
+	BuyOrderSize          types.Number               `json:"buy_order_size"`
+	SellOrderSize         types.Number               `json:"sell_order_size"`
+	IMContribution        types.Number               `json:"im_contribution"`
 	UnrealizedPNL         ValueWithCurrency          `json:"unrealized_pnl"`
 	MarkPrice             ValueWithCurrency          `json:"mark_price"`
 	LiquidationPrice      ValueWithCurrency          `json:"liquidation_price"`
-	Leverage              float64                    `json:"leverage,string"`
+	Leverage              types.Number               `json:"leverage"`
 	IMNotional            ValueWithCurrency          `json:"im_notional"`
 	MMNotional            ValueWithCurrency          `json:"mm_notional"`
 	PositionNotional      ValueWithCurrency          `json:"position_notional"`
 	MarginType            string                     `json:"margin_type"`
-	LiquidationBuffer     float64                    `json:"liquidation_buffer,string"`
-	LiquidationPercentage float64                    `json:"liquidation_percentage,string"`
+	LiquidationBuffer     types.Number               `json:"liquidation_buffer"`
+	LiquidationPercentage types.Number               `json:"liquidation_percentage"`
 	PortfolioSummary      PerpetualsPortfolioSummary `json:"portfolio_summary"`
 }
 
@@ -625,23 +723,25 @@ type OnePerpPosResponse struct {
 // FeeTier is a sub-struct used in the type TransactionSummary
 type FeeTier struct {
 	PricingTier  string       `json:"pricing_tier"`
-	USDFrom      float64      `json:"usd_from,string"`
-	USDTo        float64      `json:"usd_to,string"`
-	TakerFeeRate float64      `json:"taker_fee_rate,string"`
-	MakerFeeRate float64      `json:"maker_fee_rate,string"`
+	USDFrom      types.Number `json:"usd_from"`
+	USDTo        types.Number `json:"usd_to"`
+	TakerFeeRate types.Number `json:"taker_fee_rate"`
+	MakerFeeRate types.Number `json:"maker_fee_rate"`
 	AOPFrom      types.Number `json:"aop_from"`
 	AOPTo        types.Number `json:"aop_to"`
+	PerpsVolFrom types.Number `json:"perps_vol_from"`
+	PerpsVolTo   types.Number `json:"perps_vol_to"`
 }
 
 // MarginRate is a sub-struct used in the type TransactionSummary
 type MarginRate struct {
-	Value float64 `json:"value,string"`
+	Value types.Number `json:"value"`
 }
 
 // GoodsAndServicesTax is a sub-struct used in the type TransactionSummary
 type GoodsAndServicesTax struct {
-	Rate float64 `json:"rate,string"`
-	Type string  `json:"type"`
+	Rate types.Number `json:"rate"`
+	Type string       `json:"type"`
 }
 
 // TransactionSummary contains a summary of transaction fees, volume, and the like. Returned by GetTransactionSummary
@@ -1568,6 +1668,7 @@ type TradeIncentiveInfo struct {
 
 // ConvertResponse contains information on a convert trade, returned by CreateConvertQuote, CommitConvertTrade, and GetConvertTradeByID
 type ConvertResponse struct {
+	// Many of these fields and subfields could, in truth, be types.Number, but documentation lists them as strings, and these endpoints can't be tested with Australian accounts
 	ID                 string             `json:"id"`
 	Status             string             `json:"status"`
 	UserEnteredAmount  ValueWithCurrency  `json:"user_entered_amount"`
@@ -1646,8 +1747,8 @@ type PaginationInp struct {
 
 // AmountWithCurrency is a sub-struct used in ListNotificationsSubData, WalletData, TransactionData, DeposWithdrData, Settlement, EquityReset, and PaymentMethodData
 type AmountWithCurrency struct {
-	Amount   float64 `json:"amount,string"`
-	Currency string  `json:"currency"`
+	Amount   types.Number `json:"amount"`
+	Currency string       `json:"currency"`
 }
 
 // Fees is a sub-struct used in ListNotificationsSubData
@@ -1728,10 +1829,10 @@ type Tiers struct {
 
 // ReferralMoney is a sub-struct, used in UserResponse
 type ReferralMoney struct {
-	Amount            float64 `json:"amount,string"`
-	Currency          string  `json:"currency"`
-	CurrencySymbol    string  `json:"currency_symbol"`
-	ReferralThreshold float64 `json:"referral_threshold,string"`
+	Amount            types.Number `json:"amount"`
+	Currency          string       `json:"currency"`
+	CurrencySymbol    string       `json:"currency_symbol"`
+	ReferralThreshold types.Number `json:"referral_threshold"`
 }
 
 // UserResponse holds information on a user, returned by GetCurrentUser
@@ -1879,10 +1980,10 @@ type GetAllAddrResponse struct {
 
 // AdvancedTradeFill is a sub-struct used in TransactionData
 type AdvancedTradeFill struct {
-	FillPrice  float64       `json:"fill_price,string"`
+	FillPrice  types.Number  `json:"fill_price"`
 	ProductID  currency.Pair `json:"product_id"`
 	OrderID    string        `json:"order_id"`
-	Commission float64       `json:"commission,string"`
+	Commission types.Number  `json:"commission"`
 	OrderSide  string        `json:"order_side"`
 }
 
@@ -1943,9 +2044,9 @@ type ManyDeposWithdrResp struct {
 
 // FiatData holds information on fiat currencies. Returned by GetFiatCurrencies
 type FiatData struct {
-	ID      string  `json:"id"`
-	Name    string  `json:"name"`
-	MinSize float64 `json:"min_size,string"`
+	ID      string       `json:"id"`
+	Name    string       `json:"name"`
+	MinSize types.Number `json:"min_size"`
 }
 
 // CryptoData holds information on cryptocurrencies. Returned by GetCryptocurrencies
@@ -1968,9 +2069,9 @@ type GetExchangeRatesResp struct {
 
 // GetPriceResp holds information on a price. Returned by GetPrice
 type GetPriceResp struct {
-	Amount   float64 `json:"amount,string"`
-	Base     string  `json:"base"`
-	Currency string  `json:"currency"`
+	Amount   types.Number `json:"amount"`
+	Base     string       `json:"base"`
+	Currency string       `json:"currency"`
 }
 
 // ServerTimeV2 holds current requested server time information, returned by GetV2Time
@@ -2004,17 +2105,17 @@ type StandardWebsocketResponse struct {
 type WebsocketTicker struct {
 	Type                     string        `json:"type"`
 	ProductID                currency.Pair `json:"product_id"`
-	Price                    float64       `json:"price,string"`
-	Volume24H                float64       `json:"volume_24_h,string"`
-	Low24H                   float64       `json:"low_24_h,string"`
-	High24H                  float64       `json:"high_24_h,string"`
-	Low52W                   float64       `json:"low_52_w,string"`
-	High52W                  float64       `json:"high_52_w,string"`
-	PricePercentageChange24H float64       `json:"price_percent_chg_24_h,string"`
-	BestBid                  float64       `json:"best_bid,string"`
-	BestBidQuantity          float64       `json:"best_bid_size,string"`
-	BestAsk                  float64       `json:"best_ask,string"`
-	BestAskQuantity          float64       `json:"best_ask_size,string"`
+	Price                    types.Number  `json:"price"`
+	Volume24H                types.Number  `json:"volume_24_h"`
+	Low24H                   types.Number  `json:"low_24_h"`
+	High24H                  types.Number  `json:"high_24_h"`
+	Low52W                   types.Number  `json:"low_52_w"`
+	High52W                  types.Number  `json:"high_52_w"`
+	PricePercentageChange24H types.Number  `json:"price_percent_chg_24_h"`
+	BestBid                  types.Number  `json:"best_bid"`
+	BestBidQuantity          types.Number  `json:"best_bid_size"`
+	BestAsk                  types.Number  `json:"best_ask"`
+	BestAskQuantity          types.Number  `json:"best_ask_size"`
 }
 
 // WebsocketTickerHolder holds a variety of ticker responses, used when wsHandleData processes tickers
@@ -2026,11 +2127,11 @@ type WebsocketTickerHolder struct {
 // WebsocketCandle defines a candle websocket response, used in WebsocketCandleHolder
 type WebsocketCandle struct {
 	Start     types.Time    `json:"start"`
-	Low       float64       `json:"low,string"`
-	High      float64       `json:"high,string"`
-	Open      float64       `json:"open,string"`
-	Close     float64       `json:"close,string"`
-	Volume    float64       `json:"volume,string"`
+	Low       types.Number  `json:"low"`
+	High      types.Number  `json:"high"`
+	Open      types.Number  `json:"open"`
+	Close     types.Number  `json:"close"`
+	Volume    types.Number  `json:"volume"`
 	ProductID currency.Pair `json:"product_id"`
 }
 
@@ -2044,8 +2145,8 @@ type WebsocketCandleHolder struct {
 type WebsocketMarketTrade struct {
 	TradeID   string        `json:"trade_id"`
 	ProductID currency.Pair `json:"product_id"`
-	Price     float64       `json:"price,string"`
-	Size      float64       `json:"size,string"`
+	Price     types.Number  `json:"price"`
+	Size      types.Number  `json:"size"`
 	Side      order.Side    `json:"side"`
 	Time      time.Time     `json:"time"`
 }
@@ -2062,12 +2163,12 @@ type WebsocketProduct struct {
 	ID             currency.Pair `json:"id"`
 	BaseCurrency   string        `json:"base_currency"`
 	QuoteCurrency  string        `json:"quote_currency"`
-	BaseIncrement  float64       `json:"base_increment,string"`
-	QuoteIncrement float64       `json:"quote_increment,string"`
+	BaseIncrement  types.Number  `json:"base_increment"`
+	QuoteIncrement types.Number  `json:"quote_increment"`
 	DisplayName    string        `json:"display_name"`
 	Status         string        `json:"status"`
 	StatusMessage  string        `json:"status_message"`
-	MinMarketFunds float64       `json:"min_market_funds,string"`
+	MinMarketFunds types.Number  `json:"min_market_funds"`
 }
 
 // WebsocketProductHolder holds a variety of product responses, used when wsHandleData processes an update on a product's status
@@ -2078,10 +2179,10 @@ type WebsocketProductHolder struct {
 
 // WebsocketOrderbookData defines a websocket orderbook response, used in WebsocketOrderbookDataHolder
 type WebsocketOrderbookData struct {
-	Side        string    `json:"side"`
-	EventTime   time.Time `json:"event_time"`
-	PriceLevel  float64   `json:"price_level,string"`
-	NewQuantity float64   `json:"new_quantity,string"`
+	Side        string       `json:"side"`
+	EventTime   time.Time    `json:"event_time"`
+	PriceLevel  types.Number `json:"price_level"`
+	NewQuantity types.Number `json:"new_quantity"`
 }
 
 // WebsocketOrderbookDataHolder holds a variety of orderbook responses, used when wsHandleData processes orderbooks, as well as under typical operation of ProcessSnapshot, ProcessUpdate, and processBidAskArray
@@ -2093,20 +2194,20 @@ type WebsocketOrderbookDataHolder struct {
 
 // WebsocketOrderData defines a websocket order response, used in WebsocketOrderDataHolder
 type WebsocketOrderData struct {
-	AveragePrice          float64       `json:"avg_price,string"`
+	AveragePrice          types.Number  `json:"avg_price"`
 	CancelReason          string        `json:"cancel_reason"`
 	ClientOrderID         string        `json:"client_order_id"`
-	CompletionPercentage  float64       `json:"completion_percentage,string"`
+	CompletionPercentage  types.Number  `json:"completion_percentage"`
 	ContractExpiryType    string        `json:"contract_expiry_type"`
-	CumulativeQuantity    float64       `json:"cumulative_quantity,string"`
-	FilledValue           float64       `json:"filled_value,string"`
-	LeavesQuantity        float64       `json:"leaves_quantity,string"`
-	LimitPrice            float64       `json:"limit_price,string"`
+	CumulativeQuantity    types.Number  `json:"cumulative_quantity"`
+	FilledValue           types.Number  `json:"filled_value"`
+	LeavesQuantity        types.Number  `json:"leaves_quantity"`
+	LimitPrice            types.Number  `json:"limit_price"`
 	NumberOfFills         int64         `json:"number_of_fills"`
 	OrderID               string        `json:"order_id"`
 	OrderSide             string        `json:"order_side"`
 	OrderType             string        `json:"order_type"`
-	OutstandingHoldAmount float64       `json:"outstanding_hold_amount,string"`
+	OutstandingHoldAmount types.Number  `json:"outstanding_hold_amount"`
 	PostOnly              bool          `json:"post_only"`
 	ProductID             currency.Pair `json:"product_id"`
 	ProductType           string        `json:"product_type"`
@@ -2114,10 +2215,10 @@ type WebsocketOrderData struct {
 	RetailPortfolioID     string        `json:"retail_portfolio_id"`
 	RiskManagedBy         string        `json:"risk_managed_by"`
 	Status                string        `json:"status"`
-	StopPrice             float64       `json:"stop_price,string"`
+	StopPrice             types.Number  `json:"stop_price"`
 	TimeInForce           string        `json:"time_in_force"`
-	TotalFees             float64       `json:"total_fees,string"`
-	TotalValueAfterFees   float64       `json:"total_value_after_fees,string"`
+	TotalFees             types.Number  `json:"total_fees"`
+	TotalValueAfterFees   types.Number  `json:"total_value_after_fees"`
 	TriggerStatus         string        `json:"trigger_status"`
 	CreationTime          time.Time     `json:"creation_time"`
 	EndTime               time.Time     `json:"end_time"`
@@ -2128,31 +2229,31 @@ type WebsocketOrderData struct {
 type WebsocketPerpData struct {
 	ProductID        currency.Pair `json:"product_id"`
 	PortfolioUUID    string        `json:"portfolio_uuid"`
-	VWAP             float64       `json:"vwap,string"`
-	EntryVWAP        float64       `json:"entry_vwap,string"`
+	VWAP             types.Number  `json:"vwap"`
+	EntryVWAP        types.Number  `json:"entry_vwap"`
 	PositionSide     string        `json:"position_side"`
 	MarginType       string        `json:"margin_type"`
-	NetSize          float64       `json:"net_size,string"`
-	BuyOrderSize     float64       `json:"buy_order_size,string"`
-	SellOrderSize    float64       `json:"sell_order_size,string"`
-	Leverage         float64       `json:"leverage,string"`
-	MarkPrice        float64       `json:"mark_price,string"`
-	LiquidationPrice float64       `json:"liquidation_price,string"`
-	IMNotional       float64       `json:"im_notional,string"`
-	MMNotional       float64       `json:"mm_notional,string"`
-	PositionNotional float64       `json:"position_notional,string"`
-	UnrealizedPNL    float64       `json:"unrealized_pnl,string"`
-	AggregatedPNL    float64       `json:"aggregated_pnl,string"`
+	NetSize          types.Number  `json:"net_size"`
+	BuyOrderSize     types.Number  `json:"buy_order_size"`
+	SellOrderSize    types.Number  `json:"sell_order_size"`
+	Leverage         types.Number  `json:"leverage"`
+	MarkPrice        types.Number  `json:"mark_price"`
+	LiquidationPrice types.Number  `json:"liquidation_price"`
+	IMNotional       types.Number  `json:"im_notional"`
+	MMNotional       types.Number  `json:"mm_notional"`
+	PositionNotional types.Number  `json:"position_notional"`
+	UnrealizedPNL    types.Number  `json:"unrealized_pnl"`
+	AggregatedPNL    types.Number  `json:"aggregated_pnl"`
 }
 
 // WebsocketExpData defines a websocket expiring position response, used in WebsocketPositionStruct
 type WebsocketExpData struct {
 	ProductID         currency.Pair `json:"product_id"`
 	Side              string        `json:"side"`
-	NumberOfContracts float64       `json:"number_of_contracts,string"`
-	RealizedPNL       float64       `json:"realized_pnl,string"`
-	UnrealizedPNL     float64       `json:"unrealized_pnl,string"`
-	EntryPrice        float64       `json:"entry_price,string"`
+	NumberOfContracts types.Number  `json:"number_of_contracts"`
+	RealizedPNL       types.Number  `json:"realized_pnl"`
+	UnrealizedPNL     types.Number  `json:"unrealized_pnl"`
+	EntryPrice        types.Number  `json:"entry_price"`
 }
 
 // WebsocketPositionStruct holds position data, used in WebsocketOrderDataHolder
@@ -2205,7 +2306,7 @@ type CurrencyData struct {
 	MinSize           string              `json:"min_size"`
 	Status            string              `json:"status"`
 	Message           string              `json:"message"`
-	MaxPrecision      float64             `json:"max_precision,string"`
+	MaxPrecision      types.Number        `json:"max_precision"`
 	ConvertibleTo     []string            `json:"convertible_to"`
 	Details           Details             `json:"details"`
 	DefaultNetwork    string              `json:"default_network"`
@@ -2218,10 +2319,10 @@ type PairData struct {
 	ID                     string       `json:"id"`
 	BaseCurrency           string       `json:"base_currency"`
 	QuoteCurrency          string       `json:"quote_currency"`
-	QuoteIncrement         float64      `json:"quote_increment,string"`
-	BaseIncrement          float64      `json:"base_increment,string"`
+	QuoteIncrement         types.Number `json:"quote_increment"`
+	BaseIncrement          types.Number `json:"base_increment"`
 	DisplayName            string       `json:"display_name"`
-	MinMarketFunds         float64      `json:"min_market_funds,string"`
+	MinMarketFunds         types.Number `json:"min_market_funds"`
 	MarginEnabled          bool         `json:"margin_enabled"`
 	PostOnly               bool         `json:"post_only"`
 	LimitOnly              bool         `json:"limit_only"`
@@ -2230,7 +2331,7 @@ type PairData struct {
 	StatusMessage          string       `json:"status_message"`
 	TradingDisabled        bool         `json:"trading_disabled"`
 	FXStablecoin           bool         `json:"fx_stablecoin"`
-	MaxSlippagePercentage  float64      `json:"max_slippage_percentage,string"`
+	MaxSlippagePercentage  types.Number `json:"max_slippage_percentage"`
 	AuctionMode            bool         `json:"auction_mode"`
 	HighBidLimitPercentage types.Number `json:"high_bid_limit_percentage"`
 }
@@ -2244,23 +2345,23 @@ type PairVolumeData struct {
 	MarketTypes            []string     `json:"market_types"`
 	SpotVolume24Hour       types.Number `json:"spot_volume_24hour"`
 	SpotVolume30Day        types.Number `json:"spot_volume_30day"`
-	RFQVolume24Hour        float64      `json:"rfq_volume_24hour,string"`
-	RFQVolume30Day         float64      `json:"rfq_volume_30day,string"`
-	ConversionVolume24Hour float64      `json:"conversion_volume_24hour,string"`
-	ConversionVolume30Day  float64      `json:"conversion_volume_30day,string"`
+	RFQVolume24Hour        types.Number `json:"rfq_volume_24hour"`
+	RFQVolume30Day         types.Number `json:"rfq_volume_30day"`
+	ConversionVolume24Hour types.Number `json:"conversion_volume_24hour"`
+	ConversionVolume30Day  types.Number `json:"conversion_volume_30day"`
 }
 
 // Auction holds information on an ongoing auction, used as a sub-struct in OrderBookResp and OrderBook
 type Auction struct {
-	OpenPrice    float64   `json:"open_price,string"`
-	OpenSize     float64   `json:"open_size,string"`
-	BestBidPrice float64   `json:"best_bid_price,string"`
-	BestBidSize  float64   `json:"best_bid_size,string"`
-	BestAskPrice float64   `json:"best_ask_price,string"`
-	BestAskSize  float64   `json:"best_ask_size,string"`
-	AuctionState string    `json:"auction_state"`
-	CanOpen      string    `json:"can_open"`
-	Time         time.Time `json:"time"`
+	OpenPrice    types.Number `json:"open_price"`
+	OpenSize     types.Number `json:"open_size"`
+	BestBidPrice types.Number `json:"best_bid_price"`
+	BestBidSize  types.Number `json:"best_bid_size"`
+	BestAskPrice types.Number `json:"best_ask_price"`
+	BestAskSize  types.Number `json:"best_ask_size"`
+	AuctionState string       `json:"auction_state"`
+	CanOpen      string       `json:"can_open"`
+	Time         time.Time    `json:"time"`
 }
 
 // OrderBookResp holds information on bids and asks for a particular currency pair, used for unmarshalling in GetProductBookV1
@@ -2293,46 +2394,46 @@ type Candle struct {
 
 // ProductStats holds information on a pair's price and volume, returned by GetProductStats
 type ProductStats struct {
-	Open                    float64 `json:"open,string"`
-	High                    float64 `json:"high,string"`
-	Low                     float64 `json:"low,string"`
-	Last                    float64 `json:"last,string"`
-	Volume                  float64 `json:"volume,string"`
-	Volume30Day             float64 `json:"volume_30day,string"`
-	RFQVolume24Hour         float64 `json:"rfq_volume_24hour,string"`
-	RFQVolume30Day          float64 `json:"rfq_volume_30day,string"`
-	ConversionsVolume24Hour float64 `json:"conversions_volume_24hour,string"`
-	ConversionsVolume30Day  float64 `json:"conversions_volume_30day,string"`
+	Open                    types.Number `json:"open"`
+	High                    types.Number `json:"high"`
+	Low                     types.Number `json:"low"`
+	Last                    types.Number `json:"last"`
+	Volume                  types.Number `json:"volume"`
+	Volume30Day             types.Number `json:"volume_30day"`
+	RFQVolume24Hour         types.Number `json:"rfq_volume_24hour"`
+	RFQVolume30Day          types.Number `json:"rfq_volume_30day"`
+	ConversionsVolume24Hour types.Number `json:"conversions_volume_24hour"`
+	ConversionsVolume30Day  types.Number `json:"conversions_volume_30day"`
 }
 
 // ProductTicker holds information on a pair's price and volume, returned by GetProductTicker
 type ProductTicker struct {
-	Ask               float64   `json:"ask,string"`
-	Bid               float64   `json:"bid,string"`
-	Volume            float64   `json:"volume,string"`
-	TradeID           int32     `json:"trade_id"`
-	Price             float64   `json:"price,string"`
-	Size              float64   `json:"size,string"`
-	Time              time.Time `json:"time"`
-	RFQVolume         float64   `json:"rfq_volume,string"`
-	ConversionsVolume float64   `json:"conversions_volume,string"`
+	Ask               types.Number `json:"ask"`
+	Bid               types.Number `json:"bid"`
+	Volume            types.Number `json:"volume"`
+	TradeID           int32        `json:"trade_id"`
+	Price             types.Number `json:"price"`
+	Size              types.Number `json:"size"`
+	Time              time.Time    `json:"time"`
+	RFQVolume         types.Number `json:"rfq_volume"`
+	ConversionsVolume types.Number `json:"conversions_volume"`
 }
 
 // ProductTrades holds information on a pair's trades, returned by GetProductTrades
 type ProductTrades struct {
-	TradeID int32     `json:"trade_id"`
-	Side    string    `json:"side"`
-	Size    float64   `json:"size,string"`
-	Price   float64   `json:"price,string"`
-	Time    time.Time `json:"time"`
+	TradeID int32        `json:"trade_id"`
+	Side    string       `json:"side"`
+	Size    types.Number `json:"size"`
+	Price   types.Number `json:"price"`
+	Time    time.Time    `json:"time"`
 }
 
 // WrappedAsset holds information on a wrapped asset, used in AllWrappedAssets and returned by GetWrappedAssetDetails
 type WrappedAsset struct {
 	ID                string       `json:"id"`
-	CirculatingSupply float64      `json:"circulating_supply,string"`
-	TotalSupply       float64      `json:"total_supply,string"`
-	ConversionRate    float64      `json:"conversion_rate,string"`
+	CirculatingSupply types.Number `json:"circulating_supply"`
+	TotalSupply       types.Number `json:"total_supply"`
+	ConversionRate    types.Number `json:"conversion_rate"`
 	APY               types.Number `json:"apy"`
 }
 
@@ -2343,7 +2444,7 @@ type AllWrappedAssets struct {
 
 // WrappedAssetConversionRate holds information on a wrapped asset's conversion rate, returned by GetWrappedAssetConversionRate
 type WrappedAssetConversionRate struct {
-	Amount float64 `json:"amount,string"`
+	Amount types.Number `json:"amount"`
 }
 
 // ManyErrors holds information on errors

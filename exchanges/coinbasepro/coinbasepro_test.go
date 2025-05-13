@@ -40,7 +40,8 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	testingInSandbox        = false
+	// Sandbox functionality only works for certain endpoints https://docs.cdp.coinbase.com/coinbase-app/docs/trade/rest-api-sandbox
+	testingInSandbox = false
 )
 
 var (
@@ -162,6 +163,277 @@ func TestListAccounts(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestCreateConvertQuote(t *testing.T) {
+	t.Parallel()
+	_, err := c.CreateConvertQuote(t.Context(), "", "", "", "", 0)
+	assert.ErrorIs(t, err, errAccountIDEmpty)
+	_, err = c.CreateConvertQuote(t.Context(), "meow", "123", "", "", 0)
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	fromAccID, toAccID := convertTestHelper(t)
+	resp, err := c.CreateConvertQuote(t.Context(), fromAccID, toAccID, "", "", 0.01)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestCommitConvertTrade(t *testing.T) {
+	convertTestShared(t, c.CommitConvertTrade)
+}
+
+func TestGetConvertTradeByID(t *testing.T) {
+	convertTestShared(t, c.GetConvertTradeByID)
+}
+
+func TestGetPermissions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetPermissions(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetTransactionSummary(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetTransactionSummary(t.Context(), time.Unix(2, 2), time.Unix(1, 1), "", "", "")
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetTransactionSummary(t.Context(), time.Unix(1, 1), time.Now(), "UNKNOWN_VENUE_TYPE", asset.Spot.Upper(), "UNKNOWN_CONTRACT_EXPIRY_TYPE")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestCancelPendingFuturesSweep(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	curSweeps, err := c.ListFuturesSweeps(t.Context())
+	assert.NoError(t, err)
+	partialSkip := false
+	if len(curSweeps) > 0 {
+		for i := range curSweeps {
+			if curSweeps[i].Status == "PENDING" {
+				partialSkip = true
+			}
+		}
+	}
+	if !partialSkip {
+		_, err = c.ScheduleFuturesSweep(t.Context(), 0.001337)
+		require.NoError(t, err)
+	}
+	_, err = c.CancelPendingFuturesSweep(t.Context())
+	assert.NoError(t, err)
+}
+
+func TestGetCurrentMarginWindow(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetCurrentMarginWindow(t.Context(), "")
+	assert.ErrorIs(t, err, errMarginProfileTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetCurrentMarginWindow(t.Context(), "MARGIN_PROFILE_TYPE_RETAIL_REGULAR")
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetFuturesBalanceSummary(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetFuturesBalanceSummary(t.Context())
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesPositionByID(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetFuturesPositionByID(t.Context(), "")
+	assert.ErrorIs(t, err, errProductIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err = c.GetFuturesPositionByID(t.Context(), "meow")
+	assert.NoError(t, err)
+}
+
+func TestGetIntradayMarginSetting(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetIntradayMarginSetting(t.Context())
+	assert.NoError(t, err)
+}
+
+func TestListFuturesPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.ListFuturesPositions(t.Context())
+	assert.NoError(t, err)
+}
+
+func TestListFuturesSweeps(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.ListFuturesSweeps(t.Context())
+	assert.NoError(t, err)
+}
+
+func TestScheduleFuturesSweep(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	curSweeps, err := c.ListFuturesSweeps(t.Context())
+	assert.NoError(t, err)
+	preCancel := false
+	if len(curSweeps) > 0 {
+		for i := range curSweeps {
+			if curSweeps[i].Status == "PENDING" {
+				preCancel = true
+				break
+			}
+		}
+	}
+	if preCancel {
+		_, err = c.CancelPendingFuturesSweep(t.Context())
+		assert.NoError(t, err)
+	}
+	_, err = c.ScheduleFuturesSweep(t.Context(), 0.001337)
+	assert.NoError(t, err)
+}
+
+func TestSetIntradayMarginSetting(t *testing.T) {
+	t.Parallel()
+	err := c.SetIntradayMarginSetting(t.Context(), "")
+	assert.ErrorIs(t, err, errSettingEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	err = c.SetIntradayMarginSetting(t.Context(), "INTRADAY_MARGIN_SETTING_STANDARD")
+	assert.NoError(t, err)
+}
+
+func TestCancelOrders(t *testing.T) {
+	t.Parallel()
+	var orderSlice []string
+	_, err := c.CancelOrders(t.Context(), orderSlice)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	for i := range 200 {
+		orderSlice = append(orderSlice, strconv.Itoa(i))
+	}
+	_, err = c.CancelOrders(t.Context(), orderSlice)
+	assert.ErrorIs(t, err, errCancelLimitExceeded)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	orderSlice = []string{"1"}
+	resp, err := c.CancelOrders(t.Context(), orderSlice)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestClosePosition(t *testing.T) {
+	t.Parallel()
+	_, err := c.ClosePosition(t.Context(), "", currency.Pair{}, 0)
+	assert.ErrorIs(t, err, errClientOrderIDEmpty)
+	_, err = c.ClosePosition(t.Context(), "meow", currency.Pair{}, 0)
+	assert.ErrorIs(t, err, errProductIDEmpty)
+	_, err = c.ClosePosition(t.Context(), "meow", testPairFiat, 0)
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	resp, err := c.ClosePosition(t.Context(), "1", currency.NewPairWithDelimiter("BIT", "28JUL23-CDE", "-"), testAmount)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestPlaceOrder(t *testing.T) {
+	t.Parallel()
+	ord := &PlaceOrderInfo{}
+	_, err := c.PlaceOrder(t.Context(), ord)
+	assert.ErrorIs(t, err, errClientOrderIDEmpty)
+	ord.ClientOID = "meow"
+	_, err = c.PlaceOrder(t.Context(), ord)
+	assert.ErrorIs(t, err, errProductIDEmpty)
+	ord.ProductID = testPairFiat.String()
+	_, err = c.PlaceOrder(t.Context(), ord)
+	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	ord.BaseAmount = testAmount
+	_, err = c.PlaceOrder(t.Context(), ord)
+	assert.ErrorIs(t, err, errInvalidOrderType)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	id, err := uuid.NewV4()
+	assert.NoError(t, err)
+	ord = &PlaceOrderInfo{
+		ClientOID:  id.String(),
+		ProductID:  testPairStable.String(),
+		Side:       order.Buy.String(),
+		OrderType:  order.Limit.String(),
+		MarginType: "CROSS",
+		BaseAmount: testAmount,
+		LimitPrice: testPrice2,
+		Leverage:   9999,
+		PostOnly:   false,
+		EndTime:    time.Now().Add(time.Hour),
+	}
+	resp, err := c.PlaceOrder(t.Context(), ord)
+	if assert.NoError(t, err) {
+		assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	}
+	id, err = uuid.NewV4()
+	assert.NoError(t, err)
+	ord.ClientOID = id.String()
+	ord.MarginType = "MULTI"
+	resp, err = c.PlaceOrder(t.Context(), ord)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestEditOrder(t *testing.T) {
+	t.Parallel()
+	_, err := c.EditOrder(t.Context(), "", 0, 0)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	_, err = c.EditOrder(t.Context(), "meow", 0, 0)
+	assert.ErrorIs(t, err, errSizeAndPriceZero)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	resp, err := c.EditOrder(t.Context(), "1", testAmount, testPrice2-1)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestEditOrderPreview(t *testing.T) {
+	t.Parallel()
+	_, err := c.EditOrderPreview(t.Context(), "", 0, 0)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	_, err = c.EditOrderPreview(t.Context(), "meow", 0, 0)
+	assert.ErrorIs(t, err, errSizeAndPriceZero)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.EditOrderPreview(t.Context(), "1", testAmount, testPrice2+2)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetOrderByID(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetOrderByID(t.Context(), "", "", currency.Code{})
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	ordID, err := c.ListOrders(t.Context(), nil, nil, nil, nil, nil, nil, "", "", "", "", "", "", "", 10, time.Time{}, time.Time{}, currency.Code{})
+	assert.NoError(t, err)
+	if ordID == nil || len(ordID.Orders) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	resp, err := c.GetOrderByID(t.Context(), ordID.Orders[0].OrderID, ordID.Orders[0].ClientOID, testFiat)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestListFills(t *testing.T) {
+	t.Parallel()
+	_, err := c.ListFills(t.Context(), nil, nil, nil, "", "", time.Unix(2, 2), time.Unix(1, 1), 0)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err = c.ListFills(t.Context(), nil, nil, currency.Pairs{testPairFiat, testPairStable}, "", "TRADE_TIME", time.Time{}, time.Time{}, 0)
+	assert.NoError(t, err)
+	_, err = c.ListFills(t.Context(), []string{"1", "2"}, nil, nil, "", "", time.Time{}, time.Time{}, 0)
+	assert.NoError(t, err)
+	_, err = c.ListFills(t.Context(), nil, []string{"3", "4"}, nil, "", "", time.Time{}, time.Time{}, 0)
+	assert.NoError(t, err)
+}
+
+func TestListOrders(t *testing.T) {
+	t.Parallel()
+	// Test is currently barebones due to being in the middle of refactoring in line with recent API updates
+	_, err := c.ListOrders(t.Context(), nil, nil, nil, nil, nil, nil, "", "", "", "", "", "", "", 0, time.Unix(2, 2), time.Unix(1, 1), currency.Code{})
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err = c.ListOrders(t.Context(), nil, nil, nil, nil, nil, nil, "", "", "", "", "", "", "", 0, time.Time{}, time.Time{}, currency.Code{})
+	assert.NoError(t, err)
+}
+
 func TestGetBestBidAsk(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
@@ -238,134 +510,6 @@ func TestGetTicker(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err = c.GetTicker(t.Context(), testPairFiat.String(), 5, time.Now().Add(-time.Minute*5), time.Now(), true)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestPlaceOrder(t *testing.T) {
-	t.Parallel()
-	ord := &PlaceOrderInfo{}
-	_, err := c.PlaceOrder(t.Context(), ord)
-	assert.ErrorIs(t, err, errClientOrderIDEmpty)
-	ord.ClientOID = "meow"
-	_, err = c.PlaceOrder(t.Context(), ord)
-	assert.ErrorIs(t, err, errProductIDEmpty)
-	ord.ProductID = testPairFiat.String()
-	_, err = c.PlaceOrder(t.Context(), ord)
-	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
-	ord.BaseAmount = testAmount
-	_, err = c.PlaceOrder(t.Context(), ord)
-	assert.ErrorIs(t, err, errInvalidOrderType)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
-	ord = &PlaceOrderInfo{
-		ClientOID:  id.String(),
-		ProductID:  testPairStable.String(),
-		Side:       order.Buy.String(),
-		OrderType:  order.Limit.String(),
-		MarginType: "CROSS",
-		BaseAmount: testAmount,
-		LimitPrice: testPrice2,
-		Leverage:   9999,
-		PostOnly:   false,
-		EndTime:    time.Now().Add(time.Hour),
-	}
-	resp, err := c.PlaceOrder(t.Context(), ord)
-	if assert.NoError(t, err) {
-		assert.NotEmpty(t, resp, errExpectedNonEmpty)
-	}
-	id, err = uuid.NewV4()
-	assert.NoError(t, err)
-	ord.ClientOID = id.String()
-	ord.MarginType = "MULTI"
-	resp, err = c.PlaceOrder(t.Context(), ord)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestCancelOrders(t *testing.T) {
-	t.Parallel()
-	var orderSlice []string
-	_, err := c.CancelOrders(t.Context(), orderSlice)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	orderSlice = append(orderSlice, "1")
-	resp, err := c.CancelOrders(t.Context(), orderSlice)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestEditOrder(t *testing.T) {
-	t.Parallel()
-	_, err := c.EditOrder(t.Context(), "", 0, 0)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	_, err = c.EditOrder(t.Context(), "meow", 0, 0)
-	assert.ErrorIs(t, err, errSizeAndPriceZero)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	resp, err := c.EditOrder(t.Context(), "1", testAmount, testPrice2-1)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestEditOrderPreview(t *testing.T) {
-	t.Parallel()
-	_, err := c.EditOrderPreview(t.Context(), "", 0, 0)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	_, err = c.EditOrderPreview(t.Context(), "meow", 0, 0)
-	assert.ErrorIs(t, err, errSizeAndPriceZero)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.EditOrderPreview(t.Context(), "1", testAmount, testPrice2+2)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestListOrders(t *testing.T) {
-	t.Parallel()
-	assets := []string{testFiat.String()}
-	status := make([]string, 2)
-	_, err := c.ListOrders(t.Context(), "", "", "", "", "", "", "", "", "", status, assets, 0, time.Unix(2, 2), time.Unix(1, 1))
-	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
-	status[0] = "CANCELLED"
-	status[1] = "OPEN"
-	_, err = c.ListOrders(t.Context(), "", "", "", "", "", "", "", "", "", status, assets, 0, time.Time{}, time.Time{})
-	assert.ErrorIs(t, err, errOpenPairWithOtherTypes)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	status = make([]string, 0)
-	assets = make([]string, 1)
-	assets[0] = testCrypto.String()
-	_, err = c.ListOrders(t.Context(), "", testFiat.String(), "LIMIT", "SELL", "", "SPOT", "RETAIL_ADVANCED", "UNKNOWN_CONTRACT_EXPIRY_TYPE", "", status, assets, 10, time.Time{}, time.Time{})
-	assert.NoError(t, err)
-}
-
-func TestListFills(t *testing.T) {
-	t.Parallel()
-	_, err := c.ListFills(t.Context(), "", "", "", time.Unix(2, 2), time.Unix(1, 1), 0)
-	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.ListFills(t.Context(), "", testPairStable.String(), "", time.Unix(1, 1), time.Now(), 5)
-	assert.NoError(t, err)
-	status := []string{"OPEN"}
-	ordID, err := c.ListOrders(t.Context(), "", "", "", "", "", "", "", "", "", status, nil, 3, time.Time{}, time.Time{})
-	assert.NoError(t, err)
-	if ordID == nil || len(ordID.Orders) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	_, err = c.ListFills(t.Context(), ordID.Orders[0].OrderID, "", "", time.Time{}, time.Time{}, 5)
-	assert.NoError(t, err)
-}
-
-func TestGetOrderByID(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetOrderByID(t.Context(), "", "", "")
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	ordID, err := c.ListOrders(t.Context(), "", "", "", "", "", "", "", "", "", nil, nil, 10, time.Time{}, time.Time{})
-	assert.NoError(t, err)
-	if ordID == nil || len(ordID.Orders) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	resp, err := c.GetOrderByID(t.Context(), ordID.Orders[0].OrderID, ordID.Orders[0].ClientOID, testFiat.String())
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -447,7 +591,7 @@ func TestDeletePortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	err = c.DeletePortfolio(t.Context(), "insert portfolio ID here")
-	// The new JWT-based keys don't have permissions to delete portfolios they aren't assigned to, causing this to fail
+	// The new JWT-based keys only have permissions to delete portfolios they're assigned to, causing this to fail
 	assert.NoError(t, err)
 }
 
@@ -459,37 +603,7 @@ func TestEditPortfolio(t *testing.T) {
 	assert.ErrorIs(t, err, errNameEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err = c.EditPortfolio(t.Context(), "insert portfolio ID here", "GCT Test Portfolio Edited")
-	// The new JWT-based keys don't have permissions to edit portfolios they aren't assigned to, causing this to fail
-	assert.NoError(t, err)
-}
-
-func TestGetFuturesBalanceSummary(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetFuturesBalanceSummary(t.Context())
-	assert.NoError(t, err)
-}
-
-func TestListFuturesPositions(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.ListFuturesPositions(t.Context())
-	assert.NoError(t, err)
-}
-
-func TestGetFuturesPositionByID(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetFuturesPositionByID(t.Context(), "")
-	assert.ErrorIs(t, err, errProductIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.GetFuturesPositionByID(t.Context(), "meow")
-	assert.NoError(t, err)
-}
-
-func TestListFuturesSweeps(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.ListFuturesSweeps(t.Context())
+	// The new JWT-based keys only have permissions to edit portfolios they're assigned to, causing this to fail
 	assert.NoError(t, err)
 }
 
@@ -537,37 +651,6 @@ func TestGetPerpetualsPositionByID(t *testing.T) {
 	pID := getINTXPortfolio(t)
 	_, err = c.GetPerpetualsPositionByID(t.Context(), pID, testPairFiat.String())
 	assert.NoError(t, err)
-}
-
-func TestGetTransactionSummary(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetTransactionSummary(t.Context(), time.Unix(2, 2), time.Unix(1, 1), "", "", "")
-	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetTransactionSummary(t.Context(), time.Unix(1, 1), time.Now(), testFiat.String(), asset.Spot.Upper(), "UNKNOWN_CONTRACT_EXPIRY_TYPE")
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestCreateConvertQuote(t *testing.T) {
-	t.Parallel()
-	_, err := c.CreateConvertQuote(t.Context(), "", "", "", "", 0)
-	assert.ErrorIs(t, err, errAccountIDEmpty)
-	_, err = c.CreateConvertQuote(t.Context(), "meow", "123", "", "", 0)
-	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	fromAccID, toAccID := convertTestHelper(t)
-	resp, err := c.CreateConvertQuote(t.Context(), fromAccID, toAccID, "", "", 0.01)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestCommitConvertTrade(t *testing.T) {
-	convertTestShared(t, c.CommitConvertTrade)
-}
-
-func TestGetConvertTradeByID(t *testing.T) {
-	convertTestShared(t, c.GetConvertTradeByID)
 }
 
 func TestGetV3Time(t *testing.T) {
@@ -1193,7 +1276,7 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	ordID, err := c.ListOrders(t.Context(), testPairStable.String(), "", "", "", "", asset.Spot.Upper(), "", "", "", nil, nil, 2, time.Time{}, time.Now())
+	ordID, err := c.ListOrders(t.Context(), nil, nil, nil, nil, nil, currency.Pairs{testPairStable}, asset.Spot.Upper(), "", "", "", "", "", "", 2, time.Time{}, time.Now(), currency.Code{})
 	require.NoError(t, err)
 	if ordID == nil || len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
@@ -1457,46 +1540,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
-}
-
-func TestScheduleFuturesSweep(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	curSweeps, err := c.ListFuturesSweeps(t.Context())
-	assert.NoError(t, err)
-	preCancel := false
-	if len(curSweeps) > 0 {
-		for i := range curSweeps {
-			if curSweeps[i].Status == "PENDING" {
-				preCancel = true
-			}
-		}
-	}
-	if preCancel {
-		_, err = c.CancelPendingFuturesSweep(t.Context())
-		assert.NoError(t, err)
-	}
-	_, err = c.ScheduleFuturesSweep(t.Context(), 0.001337)
-	assert.NoError(t, err)
-}
-
-func TestCancelPendingFuturesSweep(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	curSweeps, err := c.ListFuturesSweeps(t.Context())
-	assert.NoError(t, err)
-	partialSkip := false
-	if len(curSweeps) > 0 {
-		for i := range curSweeps {
-			if curSweeps[i].Status == "PENDING" {
-				partialSkip = true
-			}
-		}
-	}
-	if !partialSkip {
-		_, err = c.ScheduleFuturesSweep(t.Context(), 0.001337)
-		require.NoError(t, err)
-	}
-	_, err = c.CancelPendingFuturesSweep(t.Context())
-	assert.NoError(t, err)
 }
 
 // TestWsAuth dials websocket, sends login request.
