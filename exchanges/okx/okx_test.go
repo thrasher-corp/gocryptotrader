@@ -438,7 +438,7 @@ func TestGetDeliveryHistory(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
 	_, err = ok.GetDeliveryHistory(contextGenerate(), instTypeFutures, "BTC-USDT", "", time.Time{}, time.Time{}, 345)
-	require.ErrorIs(t, err, errLimitValueExceedsMaxOf100)
+	require.ErrorIs(t, err, errExceedLimit)
 
 	result, err := ok.GetDeliveryHistory(contextGenerate(), instTypeFutures, "BTC-USDT", "", time.Time{}, time.Time{}, 3)
 	require.NoError(t, err)
@@ -560,7 +560,7 @@ func TestGetPositionTiers(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	_, err = ok.GetPositionTiers(contextGenerate(), instTypeFutures, "", "BTC-USDT", "", "", "", currency.ETH)
-	require.ErrorIs(t, err, errInvalidTradeMode)
+	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
 	_, err = ok.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
@@ -643,7 +643,7 @@ func TestCurrencyUnitConvert(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = ok.CurrencyUnitConvert(contextGenerate(), "BTC-USD-SWAP", 0, 3500, 1, currency.EMPTYCODE, false)
-	require.ErrorIs(t, err, errMissingQuantity)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	result, err := ok.CurrencyUnitConvert(contextGenerate(), perpetualSwapTP.String(), 1, 3500, 1, currency.EMPTYCODE, false)
 	require.NoError(t, err)
@@ -1162,7 +1162,7 @@ func TestPlaceTWAPOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPriceLimit)
 
 	_, err = ok.PlaceTWAPOrder(contextGenerate(), &AlgoOrderParams{SizeLimit: 2, OrderType: "twap", LimitPrice: 1234.5})
-	require.ErrorIs(t, err, errMissingIntervalValue)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -1590,7 +1590,7 @@ func TestCreateQuote(t *testing.T) {
 
 	arg := &CreateQuoteParams{}
 	_, err = ok.CreateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, errMissingRFQID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.RFQID = "123456789"
 	_, err = ok.CreateQuote(contextGenerate(), arg)
@@ -1613,7 +1613,7 @@ func TestCreateQuote(t *testing.T) {
 	subArg.SizeOfQuoteLeg = 2
 	arg.Legs = []QuoteLeg{subArg}
 	_, err = ok.CreateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, errMissingLegsQuotePrice)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
 	subArg.Price = 1234
 	arg.Legs = []QuoteLeg{subArg}
@@ -2578,7 +2578,7 @@ func TestManualBorrowOrRepay(t *testing.T) {
 	_, err := ok.ManualBorrowOrRepay(contextGenerate(), currency.EMPTYCODE, "borrow", 1)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "", 1)
-	require.ErrorIs(t, err, errLendingSideRequired)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = ok.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "borrow", 0)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -2989,7 +2989,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 
 	arg.TakeProfitTriggerPrice = 1234.5
 	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.AlgoID = "560472804207104000"
 	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
@@ -3018,7 +3018,7 @@ func TestStopGridAlgoOrder(t *testing.T) {
 
 	arg.StopType = 20
 	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.AlgoID = "algo_id"
 	_, err = ok.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
@@ -3063,7 +3063,7 @@ func TestGetGridAlgoOrderHistory(t *testing.T) {
 func TestGetGridAlgoOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetGridAlgoOrderDetails(contextGenerate(), "grid", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderDetails(contextGenerate(), "grid", "7878")
@@ -3076,7 +3076,7 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	_, err := ok.GetGridAlgoSubOrders(contextGenerate(), "", "", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingAlgoOrderType)
 	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingSubOrderType)
 
@@ -3096,7 +3096,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "", "")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "448965992920907776")
@@ -3107,7 +3107,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 func TestSpotGridWithdrawProfit(t *testing.T) {
 	t.Parallel()
 	_, err := ok.SpotGridWithdrawProfit(contextGenerate(), "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.SpotGridWithdrawProfit(contextGenerate(), "1234")
@@ -3121,7 +3121,7 @@ func TestComputeMarginBalance(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidMarginTypeAdjust)
 
 	_, err = ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{AdjustMarginBalanceType: "other"})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
@@ -3140,7 +3140,7 @@ func TestAdjustMarginBalance(t *testing.T) {
 
 	arg.Amount = 12345
 	_, err = ok.AdjustMarginBalance(contextGenerate(), arg)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.AlgoID = "1234"
 	_, err = ok.AdjustMarginBalance(contextGenerate(), arg)
@@ -3197,7 +3197,7 @@ func TestPurchase(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = ok.Purchase(contextGenerate(), &PurchaseRequestParam{Term: 2})
-	require.ErrorIs(t, err, errMissingRequiredParameter)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.Purchase(contextGenerate(), &PurchaseRequestParam{ProductID: "1234", Term: 2, InvestData: []PurchaseInvestDataItem{{Amount: 1}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.Purchase(contextGenerate(), &PurchaseRequestParam{ProductID: "1234", Term: 2, InvestData: []PurchaseInvestDataItem{{Currency: currency.USDT}}})
@@ -5198,7 +5198,7 @@ func TestMassCancelOrder(t *testing.T) {
 	_, err = ok.CancelAllMMPOrders(contextGenerate(), "OPTION", "", 2000)
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 	_, err = ok.CancelAllMMPOrders(contextGenerate(), "OPTION", "BTC-USD", -1)
-	require.ErrorIs(t, err, errMissingIntervalValue)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CancelAllMMPOrders(contextGenerate(), "OPTION", "BTC-USD", 2000)
@@ -5305,7 +5305,7 @@ func TestClosePositionForContractID(t *testing.T) {
 	_, err := ok.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 	_, err = ok.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
@@ -5325,7 +5325,7 @@ func TestCancelClosePositionOrderForContractGrid(t *testing.T) {
 	_, err := ok.CancelClosePositionOrderForContractGrid(contextGenerate(), &CancelClosePositionOrder{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.CancelClosePositionOrderForContractGrid(contextGenerate(), &CancelClosePositionOrder{OrderID: "570627699870375936"})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.CancelClosePositionOrderForContractGrid(contextGenerate(), &CancelClosePositionOrder{AlgoID: "448965992920907776"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -5427,7 +5427,7 @@ func TestSignalBotTrading(t *testing.T) {
 	_, err := ok.GetSignalBotOrderDetail(contextGenerate(), "", "623833708424069120")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetSignalBotOrderDetail(contextGenerate(), "contract", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.GetSignalBotOrderDetail(contextGenerate(), "contract", "623833708424069120")
@@ -5440,7 +5440,7 @@ func TestGetSignalOrderPositions(t *testing.T) {
 	_, err := ok.GetSignalOrderPositions(contextGenerate(), "", "623833708424069120")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetSignalOrderPositions(contextGenerate(), "contract", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalOrderPositions(contextGenerate(), "contract", "623833708424069120")
@@ -5451,7 +5451,7 @@ func TestGetSignalOrderPositions(t *testing.T) {
 func TestGetSignalBotSubOrders(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetSignalBotSubOrders(contextGenerate(), "", "contract", "filled", "", "", "", time.Time{}, time.Time{}, 0)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.GetSignalBotSubOrders(contextGenerate(), "623833708424069120", "", "filled", "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = ok.GetSignalBotSubOrders(contextGenerate(), "623833708424069120", "contract", "", "", "", "", time.Time{}, time.Time{}, 0)
@@ -5466,7 +5466,7 @@ func TestGetSignalBotSubOrders(t *testing.T) {
 func TestGetSignalBotEventHistory(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetSignalBotEventHistory(contextGenerate(), "", time.Time{}, time.Now(), 50)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetSignalBotEventHistory(contextGenerate(), "12345", time.Time{}, time.Now(), 50)
@@ -5536,7 +5536,7 @@ func TestAmendRecurringBuyOrder(t *testing.T) {
 	_, err := ok.AmendRecurringBuyOrder(contextGenerate(), &AmendRecurringOrderParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.AmendRecurringBuyOrder(contextGenerate(), &AmendRecurringOrderParam{StrategyName: "stg1"})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.AmendRecurringBuyOrder(contextGenerate(), &AmendRecurringOrderParam{AlgoID: "448965992920907776"})
 	require.ErrorIs(t, err, errStrategyNameRequired)
 
@@ -5554,7 +5554,7 @@ func TestStopRecurringBuyOrder(t *testing.T) {
 	_, err := ok.StopRecurringBuyOrder(contextGenerate(), []StopRecurringBuyOrder{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.StopRecurringBuyOrder(contextGenerate(), []StopRecurringBuyOrder{{}})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.StopRecurringBuyOrder(contextGenerate(), []StopRecurringBuyOrder{{AlgoID: "1232323434234"}})
@@ -5581,7 +5581,7 @@ func TestGetRecurringBuyOrderHistory(t *testing.T) {
 func TestGetRecurringOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetRecurringOrderDetails(contextGenerate(), "", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetRecurringOrderDetails(contextGenerate(), "560473220642766848", "")
@@ -5592,7 +5592,7 @@ func TestGetRecurringOrderDetails(t *testing.T) {
 func TestGetRecurringSubOrders(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetRecurringSubOrders(contextGenerate(), "", "123422", time.Time{}, time.Now(), 0)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetRecurringSubOrders(contextGenerate(), "560473220642766848", "123422", time.Time{}, time.Now(), 0)
@@ -6173,7 +6173,7 @@ func TestWsPlaceSpreadOrder(t *testing.T) {
 func TestGetInviteesDetail(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetInviteesDetail(contextGenerate(), "")
-	require.ErrorIs(t, err, errUserIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	result, err := ok.GetInviteesDetail(contextGenerate(), "1234")
@@ -6394,28 +6394,32 @@ func TestGetAccountInstruments(t *testing.T) {
 
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	orderTypesToStringMap := map[order.Type]struct {
+	type OrderTypeWithTIF struct {
+		OrderType order.Type
+		TIF       order.TimeInForce
+	}
+	orderTypesToStringMap := map[OrderTypeWithTIF]struct {
 		Expected string
 		Error    error
 	}{
-		order.Market:                           {Expected: orderMarket},
-		order.Limit:                            {Expected: orderLimit},
-		order.PostOnly:                         {Expected: orderPostOnly},
-		order.FillOrKill:                       {Expected: orderFOK},
-		order.ImmediateOrCancel:                {Expected: orderIOC},
-		order.OptimalLimitIOC:                  {Expected: orderOptimalLimitIOC},
-		order.MarketMakerProtection:            {Expected: "mmp"},
-		order.MarketMakerProtectionAndPostOnly: {Expected: "mmp_and_post_only"},
-		order.Liquidation:                      {Error: order.ErrUnsupportedOrderType},
-		order.OCO:                              {Expected: "oco"},
-		order.TrailingStop:                     {Expected: "move_order_stop"},
-		order.Chase:                            {Expected: "chase"},
-		order.TWAP:                             {Expected: "twap"},
-		order.ConditionalStop:                  {Expected: "conditional"},
-		order.Trigger:                          {Expected: "trigger"},
+		{OrderType: order.Market, TIF: order.UnknownTIF}:                           {Expected: orderMarket},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:                            {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                              {Expected: orderPostOnly},
+		{OrderType: order.Limit, TIF: order.FillOrKill}:                            {Expected: orderFOK},
+		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:                     {Expected: orderIOC},
+		{OrderType: order.OptimalLimitIOC, TIF: order.UnknownTIF}:                  {Expected: orderOptimalLimitIOC},
+		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}:            {Expected: "mmp"},
+		{OrderType: order.MarketMakerProtectionAndPostOnly, TIF: order.UnknownTIF}: {Expected: "mmp_and_post_only"},
+		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:                      {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.OCO, TIF: order.UnknownTIF}:                              {Expected: "oco"},
+		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:                     {Expected: "move_order_stop"},
+		{OrderType: order.Chase, TIF: order.UnknownTIF}:                            {Expected: "chase"},
+		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                             {Expected: "twap"},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:                  {Expected: "conditional"},
+		{OrderType: order.Trigger, TIF: order.UnknownTIF}:                          {Expected: "trigger"},
 	}
-	for oType, val := range orderTypesToStringMap {
-		orderTypeString, err := orderTypeString(oType)
+	for tc, val := range orderTypesToStringMap {
+		orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
 		require.ErrorIs(t, err, val.Error)
 		assert.Equal(t, val.Expected, orderTypeString)
 	}
@@ -6466,8 +6470,7 @@ func TestGetAnnouncements(t *testing.T) {
 func TestGetAnnouncementTypes(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetAnnouncementTypes(contextGenerate())
-	require.NoError(t, err)
-	// No tests of contents of resp because currently in US based github actions announcement-types returns empty
+	assert.NoError(t, err)
 }
 
 func TestGetDepositOrderDetail(t *testing.T) {
@@ -6522,7 +6525,7 @@ func TestCancelWithdrawalOrder(t *testing.T) {
 func TestCreateWithdrawalOrder(t *testing.T) {
 	t.Parallel()
 	_, err := ok.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
-	require.ErrorIs(t, err, errIDNotSet)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = ok.CreateWithdrawalOrder(contextGenerate(), currency.EMPTYCODE, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 0)
@@ -6530,7 +6533,7 @@ func TestCreateWithdrawalOrder(t *testing.T) {
 	_, err = ok.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "", "194a6975e98246538faeb0fab0d502df", 1000)
 	require.ErrorIs(t, err, errPaymentMethodRequired)
 	_, err = ok.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "", 1000)
-	require.ErrorIs(t, err, errIDNotSet)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
@@ -6680,29 +6683,32 @@ func TestWsProcessSpreadTradesJSON(t *testing.T) {
 
 func TestOrderTypeFromString(t *testing.T) {
 	t.Parallel()
+
 	orderTypeStrings := map[string]struct {
 		OType order.Type
+		TIF   order.TimeInForce
 		Error error
 	}{
 		"market":            {OType: order.Market},
 		"LIMIT":             {OType: order.Limit},
 		"limit":             {OType: order.Limit},
-		"post_only":         {OType: order.PostOnly},
-		"fok":               {OType: order.FillOrKill},
-		"ioc":               {OType: order.ImmediateOrCancel},
-		"optimal_limit_ioc": {OType: order.OptimalLimitIOC},
+		"post_only":         {OType: order.Limit, TIF: order.PostOnly},
+		"fok":               {OType: order.Limit, TIF: order.FillOrKill},
+		"ioc":               {OType: order.Limit, TIF: order.ImmediateOrCancel},
+		"optimal_limit_ioc": {OType: order.OptimalLimitIOC, TIF: order.ImmediateOrCancel},
 		"mmp":               {OType: order.MarketMakerProtection},
-		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly},
+		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly, TIF: order.PostOnly},
 		"trigger":           {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 		"chase":             {OType: order.Chase},
 		"move_order_stop":   {OType: order.TrailingStop},
 		"twap":              {OType: order.TWAP},
 		"abcd":              {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 	}
-	for a := range orderTypeStrings {
-		oType, err := orderTypeFromString(a)
-		assert.ErrorIs(t, err, orderTypeStrings[a].Error)
-		assert.Equal(t, oType, orderTypeStrings[a].OType)
+	for s, exp := range orderTypeStrings {
+		oType, tif, err := orderTypeFromString(s)
+		require.ErrorIs(t, err, exp.Error)
+		assert.Equal(t, exp.OType, oType)
+		assert.Equal(t, exp.TIF.String(), tif.String(), s)
 	}
 }
 
