@@ -1102,25 +1102,24 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	update := orderbook.Update{
-		Pair:       pair,
-		UpdateTime: data.Timestamp.Time(),
-	}
-	var err error
-	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
+	asks, err := ok.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	update.Bids, err = ok.AppendWsOrderbookItems(data.Bids)
+	bids, err := ok.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
-		ob := update
-		ob.Asset = assets[i]
-		err = ok.Websocket.Orderbook.Update(&ob)
-		if err != nil {
+		if err := ok.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:             pair,
+			Asset:            assets[i],
+			UpdateTime:       data.Timestamp.Time(),
+			GenerateChecksum: generateOrderbookChecksum,
+			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
+			Asks:             asks,
+			Bids:             bids,
+		}); err != nil {
 			return err
 		}
 	}
@@ -1136,12 +1135,12 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tran
 	return items, nil
 }
 
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
+// generateOrderbookChecksum alternates over the first 25 bid and ask
 // entries of a merged orderbook. The checksum is made up of the price and the
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
+func generateOrderbookChecksum(orderbookData *orderbook.Base) uint32 {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1156,10 +1155,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
-		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
-	}
-	return nil
+	return crc32.ChecksumIEEE([]byte(checksumStr))
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.

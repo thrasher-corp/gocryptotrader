@@ -165,13 +165,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&orderbook.Update{
-				UpdateTime: ob.Timestamp,
-				UpdateID:   ob.SnapshotID,
-				Asset:      asset.Spot,
-				Bids:       orderbook.Tranches(ob.Bids),
-				Asks:       orderbook.Tranches(ob.Asks),
-				Pair:       ob.Currency,
-				Checksum:   ob.Checksum,
+				UpdateTime:                 ob.Timestamp,
+				UpdateID:                   ob.SnapshotID,
+				Asset:                      asset.Spot,
+				Bids:                       orderbook.Tranches(ob.Bids),
+				Asks:                       orderbook.Tranches(ob.Asks),
+				Pair:                       ob.Currency,
+				ExpectedChecksum:           ob.Checksum,
+				GenerateChecksum:           generateChecksum,
+				SkipOutOfOrderLastUpdateID: true,
 			})
 		}
 		if err != nil {
@@ -467,20 +469,9 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	return b.Subscribe(sub)
 }
 
-// checksum provides assurance on current in memory liquidity
-func checksum(ob *orderbook.Base, checksum uint32) error {
-	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
-	if check != checksum {
-		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
-			ob.Exchange,
-			ob.Pair,
-			ob.Asset,
-			ob.LastUpdateID,
-			checksum,
-			check,
-			errChecksumFailure)
-	}
-	return nil
+// generateChecksum provides assurance on current in memory liquidity
+func generateChecksum(ob *orderbook.Base) uint32 {
+	return crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 }
 
 // concatOrderbookLiquidity concatenates price and amounts together for checksum processing

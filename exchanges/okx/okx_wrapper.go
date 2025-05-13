@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -218,10 +217,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:                  ok.generateSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{
-			Checksum: ok.CalculateUpdateOrderbookChecksum,
-		},
-		RateLimitDefinitions: ok.Requester.GetRateLimiterDefinitions(),
+		RateLimitDefinitions:                   ok.Requester.GetRateLimiterDefinitions(),
 	}); err != nil {
 		return err
 	}

@@ -60,7 +60,7 @@ func (b *Bithumb) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 
 	err = b.applyBufferUpdate(wsdp.List[0].Symbol)
 	if err != nil {
-		b.flushAndCleanup(wsdp.List[0].Symbol)
+		b.invalidateAndCleanupOrderbook(wsdp.List[0].Symbol)
 	}
 	return false, err
 }
@@ -155,26 +155,19 @@ func (b *Bithumb) processJob(p currency.Pair) error {
 	// new update to initiate this.
 	err = b.applyBufferUpdate(p)
 	if err != nil {
-		b.flushAndCleanup(p)
+		b.invalidateAndCleanupOrderbook(p)
 		return err
 	}
 	return nil
 }
 
-// flushAndCleanup flushes orderbook and clean local cache
-func (b *Bithumb) flushAndCleanup(p currency.Pair) {
-	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			b.Name,
-			errClean)
+// invalidateAndCleanupOrderbook invalidates orderbook and cleans local cache
+func (b *Bithumb) invalidateAndCleanupOrderbook(p currency.Pair) {
+	if err := b.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s invalidate orderbook websocket error: %v", b.Name, err)
 	}
-	errClean = b.obm.cleanup(p)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			b.Name,
-			errClean)
+	if err := b.obm.cleanup(p); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v", b.Name, err)
 	}
 }
 

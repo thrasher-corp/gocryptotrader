@@ -3908,14 +3908,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
+func TestGenerateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
 	var orderbookBase orderbook.Base
 	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
 	require.NoError(t, err)
-
-	err = ok.CalculateUpdateOrderbookChecksum(&orderbookBase, 2832680552)
-	assert.NoError(t, err)
+	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
 }
 
 func TestOrderPushData(t *testing.T) {

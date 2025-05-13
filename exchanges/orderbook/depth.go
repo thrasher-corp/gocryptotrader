@@ -92,46 +92,37 @@ func (d *Depth) Retrieve() (*Base, error) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated, updatePushedAt time.Time, updateByREST bool) error {
+func (d *Depth) LoadSnapshot(incoming *Base) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if lastUpdated.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
+	if incoming.LastUpdated.IsZero() {
+		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
 	}
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
-	d.updatePushedAt = updatePushedAt
+	d.lastUpdateID = incoming.LastUpdateID
+	d.lastUpdated = incoming.LastUpdated
+	d.updatePushedAt = incoming.UpdatePushedAt
 	d.insertedAt = time.Now()
-	d.restSnapshot = updateByREST
-	d.bidTranches.load(bids)
-	d.askTranches.load(asks)
+	d.restSnapshot = incoming.RestSnapshot
+	d.bidTranches.load(incoming.Bids)
+	d.askTranches.load(incoming.Asks)
 	d.validationError = nil
 	d.Alert()
 	return nil
 }
 
-// invalidate flushes all values back to zero so as to not allow strategy
-// traversal on compromised data. NOTE: This requires locking.
+// invalidate flushes all values back to zero so as to not allow strategy traversal on compromised data.
+// NOTE: This requires locking.
 func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
 	d.bidTranches.load(nil)
 	d.askTranches.load(nil)
-	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]",
-		d.exchange,
-		d.pair,
-		d.asset,
-		common.AppendError(ErrOrderbookInvalid, withReason))
+	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]", d.exchange, d.pair, d.asset, common.AppendError(ErrOrderbookInvalid, withReason))
 	d.Alert()
 	return d.validationError
 }
 
-// Invalidate flushes all values back to zero so as to not allow strategy
-// traversal on compromised data.
+// Invalidate flushes all values back to zero so as to not allow strategy traversal on compromised data.
 func (d *Depth) Invalidate(withReason error) error {
 	d.m.Lock()
 	defer d.m.Unlock()
@@ -143,138 +134,6 @@ func (d *Depth) IsValid() bool {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	return d.validationError == nil
-}
-
-// UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
-// will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		d.bidTranches.updateInsertByPrice(update.Bids, d.options.maxDepth)
-	}
-	if len(update.Asks) != 0 {
-		d.askTranches.updateInsertByPrice(update.Asks, d.options.maxDepth)
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// UpdateBidAskByID amends details by ID
-func (d *Depth) UpdateBidAskByID(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.updateByID(update.Bids)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.updateByID(update.Asks)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// DeleteBidAskByID deletes a price level by ID
-func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.deleteByID(update.Bids, bypassErr)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.deleteByID(update.Asks, bypassErr)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// InsertBidAskByID inserts new updates
-func (d *Depth) InsertBidAskByID(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.insertUpdates(update.Bids)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.insertUpdates(update.Asks)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// UpdateInsertByID updates or inserts by ID at current price level.
-func (d *Depth) UpdateInsertByID(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.updateInsertByID(update.Bids)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.updateInsertByID(update.Asks)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
 }
 
 // AssignOptions assigns the initial options for the depth instance

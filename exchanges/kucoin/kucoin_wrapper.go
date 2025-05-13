@@ -204,7 +204,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
-				UpdateIDProgression:   true,
 			},
 			TradeFeed: ku.Features.Enabled.TradeFeed,
 		})

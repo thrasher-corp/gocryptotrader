@@ -534,12 +534,13 @@ func (ku *Kucoin) processFuturesOrderbookSnapshot(respData []byte, instrument st
 		return err
 	}
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
-		UpdateID:   resp.Sequence,
-		UpdateTime: resp.Timestamp.Time(),
-		Asset:      asset.Futures,
-		Bids:       resp.Bids,
-		Asks:       resp.Asks,
-		Pair:       cp,
+		UpdateID:                   resp.Sequence,
+		UpdateTime:                 resp.Timestamp.Time(),
+		Asset:                      asset.Futures,
+		Bids:                       resp.Bids,
+		Asks:                       resp.Asks,
+		Pair:                       cp,
+		SkipOutOfOrderLastUpdateID: true,
 	})
 }
 
@@ -899,9 +900,7 @@ func (ku *Kucoin) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bo
 		return false, err
 	}
 
-	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Symbol,
-		enabledPairs,
-		format)
+	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Symbol, enabledPairs, format)
 	if err != nil {
 		return false, err
 	}
@@ -916,7 +915,7 @@ func (ku *Kucoin) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bo
 
 	err = ku.applyBufferUpdate(currencyPair, assetType)
 	if err != nil {
-		ku.FlushAndCleanup(currencyPair, assetType)
+		ku.invalidateAndCleanupOrderbook(currencyPair, assetType)
 	}
 
 	return false, err
@@ -1157,12 +1156,13 @@ func (ku *Kucoin) processUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 	}
 
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
-		Pair:       cp,
-		UpdateID:   ws.SequenceEnd,
-		UpdateTime: ws.TimeMS.Time(),
-		Asset:      a,
+		Bids:                       updateBid,
+		Asks:                       updateAsk,
+		Pair:                       cp,
+		UpdateID:                   ws.SequenceEnd,
+		UpdateTime:                 ws.TimeMS.Time(),
+		Asset:                      a,
+		SkipOutOfOrderLastUpdateID: true,
 	})
 }
 
@@ -1314,26 +1314,19 @@ func (ku *Kucoin) processJob(p currency.Pair, assetType asset.Item) error {
 	// new update to initiate this.
 	err = ku.applyBufferUpdate(p, assetType)
 	if err != nil {
-		ku.FlushAndCleanup(p, assetType)
+		ku.invalidateAndCleanupOrderbook(p, assetType)
 		return err
 	}
 	return nil
 }
 
-// FlushAndCleanup flushes orderbook and clean local cache
-func (ku *Kucoin) FlushAndCleanup(p currency.Pair, assetType asset.Item) {
-	errClean := ku.Websocket.Orderbook.FlushOrderbook(p, assetType)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			ku.Name,
-			errClean)
+// invalidateAndCleanupOrderbook invalidates orderbook and cleans local cache
+func (ku *Kucoin) invalidateAndCleanupOrderbook(p currency.Pair, assetType asset.Item) {
+	if err := ku.Websocket.Orderbook.InvalidateOrderbook(p, assetType); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s invalidate websocket error: %v", ku.Name, err)
 	}
-	errClean = ku.obm.Cleanup(p, assetType)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			ku.Name,
-			errClean)
+	if err := ku.obm.Cleanup(p, assetType); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v", ku.Name, err)
 	}
 }
 
