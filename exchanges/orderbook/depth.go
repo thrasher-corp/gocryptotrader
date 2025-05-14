@@ -96,7 +96,7 @@ func (d *Depth) LoadSnapshot(incoming *Base) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if incoming.LastUpdated.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("validation error: %s %s %s - %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
 	}
 	d.lastUpdateID = incoming.LastUpdateID
 	d.lastUpdated = incoming.LastUpdated
