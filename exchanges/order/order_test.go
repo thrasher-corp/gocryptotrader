@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -310,42 +309,22 @@ func TestInferCostsAndTimes(t *testing.T) {
 	t.Parallel()
 	var detail Detail
 	detail.InferCostsAndTimes()
-	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
-		t.Errorf(
-			"Order detail amounts not equals. Expected 0, received %f",
-			detail.Amount-(detail.ExecutedAmount+detail.RemainingAmount),
-		)
-	}
+	assert.Equal(t, detail.Amount, detail.ExecutedAmount+detail.RemainingAmount)
 
 	detail.CloseTime = time.Now()
 	detail.InferCostsAndTimes()
-	if detail.LastUpdated != detail.CloseTime {
-		t.Errorf(
-			"Order last updated not equals close time. Expected %s, received %s",
-			detail.CloseTime,
-			detail.LastUpdated,
-		)
-	}
+	assert.Equal(t, detail.CloseTime, detail.LastUpdated, "Order last updated not equals close time")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.InferCostsAndTimes()
-	if detail.AverageExecutedPrice != 0 {
-		t.Errorf(
-			"Unexpected AverageExecutedPrice. Expected 0, received %f",
-			detail.AverageExecutedPrice,
-		)
-	}
+	assert.Zero(t, detail.AverageExecutedPrice, "Unexpected AverageExecutedPrice")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.InferCostsAndTimes()
-	if detail.Cost != 0 {
-		t.Errorf(
-			"Unexpected Cost. Expected 0, received %f",
-			detail.Cost,
-		)
-	}
+	assert.Zero(t, detail.Cost, "Unexpected cost value: got %v, expected 0", detail.Cost)
+
 	detail.ExecutedAmount = 0
 
 	detail.Amount = 1
@@ -358,7 +337,7 @@ func TestInferCostsAndTimes(t *testing.T) {
 	detail.ExecutedAmount = 1
 	detail.Price = 2
 	detail.InferCostsAndTimes()
-	assert.Equal(t, 2., detail.AverageExecutedPrice)
+	assert.Equal(t, 2.0, detail.AverageExecutedPrice)
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
 	detail.InferCostsAndTimes()
@@ -380,13 +359,13 @@ func TestFilterOrdersByType(t *testing.T) {
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	FilterOrdersByType(&orders, Limit)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	FilterOrdersByType(&orders, Stop)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 1, "Orders should be filtered correctly")
 }
 
 var filterOrdersByTypeBenchmark = &[]Detail{
@@ -426,13 +405,13 @@ func TestFilterOrdersBySide(t *testing.T) {
 	}
 
 	FilterOrdersBySide(&orders, AnySide)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	FilterOrdersBySide(&orders, Buy)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	FilterOrdersBySide(&orders, Sell)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+	assert.Len(t, orders, 1, "Orders should be filtered correctly")
 }
 
 var filterOrdersBySideBenchmark = &[]Detail{
@@ -475,25 +454,25 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 
 	err := FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %d, received %d", 3, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %d, received %d", 3, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %d, received %d", 2, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	require.NoError(t, err)
-	assert.Emptyf(t, orders, "Orders failed to be filtered. Expected 0, received %d", len(orders))
+	assert.Empty(t, orders, "Orders should be filtered correctly")
 
 	orders = append(orders, Detail{})
 	// test for event no timestamp is set on an order, best to include it
 	err = FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %d, received %d", 1, len(orders))
+	assert.Len(t, orders, 1, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(300, 0), time.Unix(50, 0))
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
@@ -545,30 +524,30 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		currency.NewPair(currency.DOGE, currency.RUB),
 	}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 4, "Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
+	assert.Len(t, orders, 4, "Orders should be filtered correctly")
 
 	currencies = []currency.Pair{
 		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.EUR),
 	}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	currencies = []currency.Pair{currency.NewBTCUSD()}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	currencies = []currency.Pair{currency.NewPair(currency.USD, currency.BTC)}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Reverse Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Reverse Orders should be filtered correctly")
 
 	currencies = []currency.Pair{}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	currencies = append(currencies, currency.EMPTYPAIR)
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 }
 
 var filterOrdersByPairsBenchmark = &[]Detail{
@@ -609,10 +588,10 @@ func TestSortOrdersByPrice(t *testing.T) {
 	}
 
 	SortOrdersByPrice(&orders, false)
-	assert.Equalf(t, float64(0), orders[0].Price, "Expected: '%v', received: '%v'", 0, orders[0].Price)
+	assert.Zero(t, orders[0].Price, "Price should be correct")
 
 	SortOrdersByPrice(&orders, true)
-	assert.Equalf(t, float64(100), orders[0].Price, "Expected: '%v', received: '%v'", 100, orders[0].Price)
+	assert.Equal(t, 100.0, orders[0].Price, "Price should be correct")
 }
 
 func TestSortOrdersByDate(t *testing.T) {
@@ -685,10 +664,10 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 	}
 
 	SortOrdersBySide(&orders, false)
-	assert.Truef(t, strings.EqualFold(orders[0].Side.String(), Buy.String()), "Expected: '%v', received: '%v'", Buy, orders[0].Side)
+	assert.Equal(t, Buy.String(), orders[0].Side.String())
 
 	SortOrdersBySide(&orders, true)
-	assert.Truef(t, strings.EqualFold(orders[0].Side.String(), Sell.String()), "Expected: '%v', received: '%v'", Sell, orders[0].Side)
+	assert.Equal(t, Sell.String(), orders[0].Side.String())
 }
 
 func TestSortOrdersByOrderType(t *testing.T) {
@@ -705,7 +684,7 @@ func TestSortOrdersByOrderType(t *testing.T) {
 	}
 
 	SortOrdersByType(&orders, false)
-	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), Limit.String()), "Expected: '%v', received: '%v'", Limit, orders[0].Type)
+	assert.Equal(t, Limit.String(), orders[0].Type.String())
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -1089,7 +1068,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	cancelMe.Pair = currency.NewBTCUSDT()
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
-	assert.Falsef(t, err == nil || err.Error() != ErrAssetNotSet.Error(), "received '%v' expected '%v'", err, ErrAssetNotSet)
+	assert.ErrorIs(t, err, ErrAssetNotSet)
 
 	cancelMe.AssetType = asset.Spot
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
@@ -1537,16 +1516,15 @@ func TestDeriveCancel(t *testing.T) {
 	}
 	cancel, err := o.DeriveCancel()
 	require.NoError(t, err)
-
-	assert.False(t, cancel.Exchange != "wow" ||
-		cancel.OrderID != "wow1" ||
-		cancel.AccountID != "wow2" ||
-		cancel.ClientID != "wow3" ||
-		cancel.ClientOrderID != "wow4" ||
-		cancel.Type != Market ||
-		cancel.Side != Long ||
-		!cancel.Pair.Equal(pair) ||
-		cancel.AssetType != asset.Futures)
+	assert.Equal(t, "wow", cancel.Exchange)
+	assert.Equal(t, "wow1", cancel.OrderID)
+	assert.Equal(t, "wow2", cancel.AccountID)
+	assert.Equal(t, "wow3", cancel.ClientID)
+	assert.Equal(t, "wow4", cancel.ClientOrderID)
+	assert.Equal(t, Market, cancel.Type)
+	assert.Equal(t, Long, cancel.Side)
+	assert.Equal(t, pair, cancel.Pair)
+	assert.Equal(t, asset.Futures, cancel.AssetType)
 }
 
 func TestGetOrdersRequest_Filter(t *testing.T) {
