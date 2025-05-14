@@ -78,7 +78,7 @@ func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 }
 
 // WSCancelMultipleOrder cancels multiple orders
-func (ok *Okx) WSCancelMultipleOrder(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
+func (ok *Okx) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
