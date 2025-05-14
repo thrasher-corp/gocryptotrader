@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -93,8 +93,8 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.UpdateAccountInfo(t.Context(), a)
-		assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+		_, err := e.UpdateAccountBalances(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 	}
 }
 
@@ -2051,7 +2051,7 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	if err := e.WsHandleSpotData(ctx, []byte(wsBalancesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket balances push data error: %v", e.Name, err)
 	}
@@ -2070,7 +2070,7 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	if err := e.WsHandleSpotData(ctx, []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket cross margin balance push data error: %v", e.Name, err)
 	}
@@ -2092,7 +2092,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
-			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
+			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
 		}
 		return e.WsHandleFuturesData(ctx, m, asset.CoinMarginedFutures)
 	})
@@ -2259,7 +2259,7 @@ const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "u
 
 func TestOptionsBalancePushData(t *testing.T) {
 	t.Parallel()
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
 	if err := e.WsHandleOptionsData(ctx, []byte(optionsBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket options balance push data error: %v", e.Name, err)
 	}

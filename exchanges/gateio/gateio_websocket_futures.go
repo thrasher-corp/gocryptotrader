@@ -11,8 +11,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -205,7 +205,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Co
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
@@ -649,29 +649,22 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 	if err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	changes := make([]account.Change, len(resp.Result))
-	for x, bal := range resp.Result {
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp.Result {
 		info := strings.Split(bal.Text, currency.UnderscoreDelimiter)
 		if len(info) != 2 {
 			return errors.New("malformed text")
 		}
-		changes[x] = account.Change{
-			AssetType: assetType,
-			Account:   bal.User,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(info[0]),
-				Total:     bal.Balance,
-				Free:      bal.Balance,
-				UpdatedAt: bal.Time.Time(),
-			},
-		}
+		a := accounts.NewSubAccount(assetType, bal.User)
+		a.Balances.Set(info[0], accounts.Balance{
+			Total:     bal.Balance,
+			Free:      bal.Balance,
+			UpdatedAt: bal.Time.Time(),
+		})
+		subAccts = subAccts.Merge(a)
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	e.Websocket.DataHandler <- subAccts
+	return e.Accounts.Save(ctx, subAccts, false)
 }
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error {

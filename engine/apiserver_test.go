@@ -162,19 +162,6 @@ func TestGetAllActiveTickers(t *testing.T) {
 	assert.NotNil(t, resp)
 }
 
-func TestGetAllActiveAccounts(t *testing.T) {
-	t.Parallel()
-	man := NewExchangeManager()
-	bs, err := man.NewExchangeByName("Bitstamp")
-	require.NoError(t, err, "NewExchangeByName must not error")
-	bs.SetDefaults()
-	err = man.Add(bs)
-	require.NoError(t, err)
-
-	resp := getAllActiveAccounts(man)
-	assert.NotNil(t, resp)
-}
-
 func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
 	t.Helper()
 	w := httptest.NewRecorder()

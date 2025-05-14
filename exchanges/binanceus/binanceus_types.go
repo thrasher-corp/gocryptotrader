@@ -348,7 +348,7 @@ type AssetDistributionHistories struct {
 	Total uint64         `json:"total"`
 }
 
-// SubAccount  holds a single sub account instance in a Binance US account.
+// SubAccount  holds a single sub account instance in a Binance US accounts.
 // including the email and related information related to it.
 type SubAccount struct {
 	Email      string     `json:"email"`

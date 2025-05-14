@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -236,46 +236,26 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Yobit exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = e.Name
-	accountBalance, err := e.GetAccountInformation(ctx)
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := e.GetAccountInformation(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	currencies := make([]account.Balance, 0, len(accountBalance.FundsInclOrders))
-	for x, y := range accountBalance.FundsInclOrders {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.Currency = currency.NewCode(x)
-		exchangeCurrency.Total = y
-		for z, w := range accountBalance.Funds {
-			if z == x {
-				exchangeCurrency.Hold = y - w
-				exchangeCurrency.Free = w
-			}
-		}
-
-		currencies = append(currencies, exchangeCurrency)
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for curr, bal := range resp.FundsInclOrders {
+		subAccts[0].Balances.Set(curr, accounts.Balance{
+			Total: bal,
+			Hold:  bal, // FundsInclOrders balance - Funds balance
+		})
 	}
-
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
+	for curr, bal := range resp.Funds {
+		subAccts[0].Balances.Add(curr, accounts.Balance{
+			Free: bal,
+			Hold: -bal, // FundsInclOrders balance - Funds balance
+		})
 	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -648,10 +628,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

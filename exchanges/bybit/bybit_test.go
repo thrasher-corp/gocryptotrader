@@ -2867,7 +2867,7 @@ func TestGetBrokerEarning(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2875,35 +2875,39 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 	e := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	r, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountInfo must not error")
-	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
+	subAccts, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	require.NotEmpty(t, subAccts, "UpdateAccountBalances must return account info")
 
 	if mockTests {
-		require.Len(t, r.Accounts, 1, "Accounts must have 1 item")
-		require.Len(t, r.Accounts[0].Currencies, 3, "Accounts currencies must have 3 currency items")
+		require.Len(t, subAccts, 1, "Accounts must have 1 item")
+		subAcct := subAccts[0]
+		require.Len(t, subAccts[0].Balances, 3, "Accounts currencies must have 3 currency items")
 
-		for x := range r.Accounts[0].Currencies {
-			switch x {
-			case 0:
-				assert.Equal(t, currency.USDC, r.Accounts[0].Currencies[x].Currency, "Currency should be USDC")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Total, "Total amount should match")
-				assert.Equal(t, -30723.63021638, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
-				assert.Equal(t, 30723.630216383714, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Free, "Free amount should match")
-			case 1:
-				assert.Equal(t, currency.AVAX, r.Accounts[0].Currencies[x].Currency, "Currency should be AVAX")
-				assert.Equal(t, 2473.9, r.Accounts[0].Currencies[x].Total, "Total amount should match")
-				assert.Equal(t, 1468.10808813, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
-				assert.Equal(t, 1005.79191187, r.Accounts[0].Currencies[x].Free, "Free amount should match")
-			case 2:
-				assert.Equal(t, currency.USDT, r.Accounts[0].Currencies[x].Currency, "Currency should be USDT")
-				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Total, "Total amount should match")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Borrowed, "Borrowed amount should match")
-				assert.Equal(t, 0.0, r.Accounts[0].Currencies[x].Hold, "Hold amount should match")
-				assert.Equal(t, 935.1415, r.Accounts[0].Currencies[x].Free, "Free amount should match")
-			}
+		for _, curr := range []currency.Code{currency.USDC, currency.AVAX, currency.USDT} {
+			t.Run(curr.String(), func(t *testing.T) {
+				t.Parallel()
+				require.Contains(t, subAcct.Balances, curr, "Balances must contain currency")
+				bal := subAcct.Balances[curr]
+				assert.Equal(t, curr, bal.Currency, "Balance Currency should be set")
+				switch curr {
+				case currency.USDC:
+					assert.Equal(t, -30723.63021638, bal.Total, "Total amount should match")
+					assert.Equal(t, -30723.63021638, bal.Hold, "Hold amount should match")
+					assert.Equal(t, 30723.630216383714, bal.Borrowed, "Borrowed amount should match")
+					assert.Equal(t, 0.0, bal.Free, "Free amount should match")
+				case currency.AVAX:
+					assert.Equal(t, 2473.9, bal.Total, "Total amount should match")
+					assert.Equal(t, 1468.10808813, bal.Hold, "Hold amount should match")
+					assert.Equal(t, 0.0, bal.Borrowed, "Borrowed amount should match")
+					assert.Equal(t, 1005.79191187, bal.Free, "Free amount should match")
+				case currency.USDT:
+					assert.Equal(t, 935.1415, bal.Total, "Total amount should match")
+					assert.Equal(t, 0.0, bal.Borrowed, "Borrowed amount should match")
+					assert.Equal(t, 0.0, bal.Hold, "Hold amount should match")
+					assert.Equal(t, 935.1415, bal.Free, "Free amount should match")
+				}
+			})
 		}
 	}
 }

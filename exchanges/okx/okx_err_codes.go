@@ -92,7 +92,7 @@ var (
 		"59100": errors.New("you have open positions. please cancel all open positions before changing the leverage"),
 		"59101": errors.New("you have pending orders with isolated positions. please cancel all the pending isolated margin orders and adjust the leverage"),
 		"59102": errors.New("leverage exceeds the maximum leverage. please adjust the leverage"),
-		"59103": errors.New("leverage is too low and no sufficient margin in your account. please adjust the leverage"),
+		"59103": errors.New("leverage is too low and no sufficient margin in your accounts. please adjust the leverage"),
 		"59104": errors.New("the leverage is too high. the borrowed position has exceeded the maximum position of this leverage. please adjust the leverage"),
 		"59105": errors.New("leverage can not be less than {0}. please adjust the leverage"),
 		"59106": errors.New("the max available margin corresponding to your order tier please adjust your margin and place a new order"),
