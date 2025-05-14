@@ -2734,13 +2734,12 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			}
 
 			var (
-				isLive                 = result[i].State == "live"
 				underlying             currency.Pair
 				settleCurr             currency.Code
 				contractSettlementType futures.ContractSettlementType
 			)
 
-			if isLive {
+			if result[i].State == "live" {
 				underlying, err = currency.NewPairFromString(result[i].Underlying)
 				if err != nil {
 					return nil, err
