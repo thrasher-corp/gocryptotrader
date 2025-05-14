@@ -407,11 +407,8 @@ func TestGetLeaderboard(t *testing.T) {
 func TestGetAccountFees(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	if err != nil {
-		t.Error("GetAccountInfo error", err)
-	}
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	assert.NoError(t, err)
 }
 
 func TestGetWithdrawalFee(t *testing.T) {

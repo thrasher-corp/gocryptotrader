@@ -223,35 +223,32 @@ func (e *Exchange) GetLoanOrders(ctx context.Context, ccy string) (LoanOrders, e
 }
 
 // GetBalances returns balances for your account.
-func (e *Exchange) GetBalances(ctx context.Context) (Balance, error) {
+func (e *Exchange) GetBalances(ctx context.Context) (map[currency.Code]float64, error) {
 	var result any
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
-		return Balance{}, err
+		return nil, err
 	}
 
 	data, ok := result.(map[string]any)
 	if !ok {
-		return Balance{}, common.GetTypeAssertError("map[string]any", result, "balance result")
+		return nil, common.GetTypeAssertError("map[string]any", result, "balance result")
 	}
 
-	balance := Balance{
-		Currency: make(map[string]float64),
-	}
+	bals := make(map[currency.Code]float64, len(data))
 
 	for x, y := range data {
 		bal, ok := y.(string)
 		if !ok {
-			return Balance{}, common.GetTypeAssertError("string", y, "balance amount")
+			return nil, common.GetTypeAssertError("string", y, "balance amount")
 		}
 
 		var err error
-		balance.Currency[x], err = strconv.ParseFloat(bal, 64)
-		if err != nil {
-			return Balance{}, err
+		if bals[currency.NewCode(x)], err = strconv.ParseFloat(bal, 64); err != nil {
+			return nil, err
 		}
 	}
 
-	return balance, nil
+	return bals, nil
 }
 
 // GetCompleteBalances returns complete balances from your account.
