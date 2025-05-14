@@ -35,13 +35,13 @@ func TestWSPlaceOrder(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-func TestWSPlaceMultipleOrder(t *testing.T) {
+func TestWSPlaceMultipleOrders(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WSPlaceMultipleOrder(t.Context(), nil)
+	_, err := ok.WSPlaceMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = ok.WSPlaceMultipleOrder(t.Context(), []PlaceOrderRequestParam{{}})
+	_, err = ok.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -56,7 +56,7 @@ func TestWSPlaceMultipleOrder(t *testing.T) {
 		Currency:     "USDT",
 	}
 
-	got, err := ok.WSPlaceMultipleOrder(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
+	got, err := ok.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -80,21 +80,21 @@ func TestWSCancelOrder(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-func TestWSCancleMultipleOrder(t *testing.T) {
+func TestWSCancelMultipleOrders(t *testing.T) {
 	t.Parallel()
 
-	_, err := ok.WSCancelMultipleOrder(t.Context(), nil)
+	_, err := ok.WSCancelMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = ok.WSCancelMultipleOrder(t.Context(), []CancelOrderRequestParam{{}})
+	_, err = ok.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WSCancelMultipleOrder(t.Context(), []CancelOrderRequestParam{{InstrumentID: btcusdt}})
+	_, err = ok.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: btcusdt}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	got, err := ok.WSCancelMultipleOrder(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: btcusdt, OrderID: "2341184920998715392"}})
+	got, err := ok.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: btcusdt, OrderID: "2341184920998715392"}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -208,12 +208,12 @@ func TestWSAmendSpreadOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestWsCancelSpreadOrder(t *testing.T) {
+func TestWSCancelSpreadOrder(t *testing.T) {
 	t.Parallel()
-	_, err := ok.WsCancelSpreadOrder(t.Context(), "", "")
+	_, err := ok.WSCancelSpreadOrder(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.WsCancelSpreadOrder(request.WithVerbose(t.Context()), "1234", "")
+	result, err := ok.WSCancelSpreadOrder(request.WithVerbose(t.Context()), "1234", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -1213,7 +1213,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	var err error
 	if ord.AssetType == asset.Spread {
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = ok.WsCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+			_, err = ok.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		} else {
 			_, err = ok.CancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		}
@@ -1240,8 +1240,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		} else {
 			_, err = ok.CancelSingleOrder(ctx, &req)
 		}
-	case order.Trigger, order.OCO, order.ConditionalStop,
-		order.TWAP, order.TrailingStop, order.Chase:
+	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response *AlgoOrder
 		response, err = ok.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
 			{
@@ -1252,10 +1251,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		if err != nil {
 			return err
 		}
-		if response.StatusCode != 0 {
-			return getStatusError(response.StatusCode, response.StatusMessage)
-		}
-		return nil
+		return getStatusError(response.StatusCode, response.StatusMessage)
 	default:
 		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
 	}
@@ -1313,7 +1309,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 	if len(cancelOrderParams) > 0 {
 		var canceledOrders []*OrderData
 		if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			canceledOrders, err = ok.WSCancelMultipleOrder(ctx, cancelOrderParams)
+			canceledOrders, err = ok.WSCancelMultipleOrders(ctx, cancelOrderParams)
 		} else {
 			canceledOrders, err = ok.CancelMultipleOrders(ctx, cancelOrderParams)
 		}
@@ -1431,14 +1427,14 @@ ordersLoop:
 		var response []*OrderData
 		if len(remaining) > 20 {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = ok.WSCancelMultipleOrder(ctx, remaining[:20])
+				response, err = ok.WSCancelMultipleOrders(ctx, remaining[:20])
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining[:20])
 			}
 			remaining = remaining[20:]
 		} else {
 			if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				response, err = ok.WSCancelMultipleOrder(ctx, remaining)
+				response, err = ok.WSCancelMultipleOrders(ctx, remaining)
 			} else {
 				response, err = ok.CancelMultipleOrders(ctx, remaining)
 			}

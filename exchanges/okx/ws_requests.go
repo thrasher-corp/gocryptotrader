@@ -37,7 +37,7 @@ func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 	return singleItem(resp)
 }
 
-// WSPlaceMultipleOrder submits multiple orders
+// WSPlaceMultipleOrders submits multiple orders
 func (ok *Okx) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
@@ -77,7 +77,7 @@ func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 	return singleItem(resp)
 }
 
-// WSCancelMultipleOrder cancels multiple orders
+// WSCancelMultipleOrders cancels multiple orders
 func (ok *Okx) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
@@ -220,7 +220,7 @@ func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 	return singleItem(resp)
 }
 
-// WsCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
+// WSCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
 func (ok *Okx) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
