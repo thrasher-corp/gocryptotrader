@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -349,42 +349,21 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// BTSE exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var a account.Holdings
-	balance, err := e.GetWalletInformation(ctx)
+// UpdateAccountBalances retrieves balances for all enabled currencies for the BTSE exchange
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	balances, err := e.GetWalletInformation(ctx)
 	if err != nil {
-		return a, err
+		return nil, err
 	}
-
-	currencies := make([]account.Balance, len(balance))
-	for b := range balance {
-		currencies[b] = account.Balance{
-			Currency: currency.NewCode(balance[b].Currency),
-			Total:    balance[b].Total,
-			Hold:     balance[b].Total - balance[b].Available,
-			Free:     balance[b].Available,
-		}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range balances {
+		subAccts[0].Balances.Set(balances[i].Currency, accounts.Balance{
+			Total: balances[i].Total,
+			Hold:  balances[i].Total - balances[i].Available,
+			Free:  balances[i].Available,
+		})
 	}
-	a.Exchange = e.Name
-	a.Accounts = []account.SubAccount{
-		{
-			AssetType:  assetType,
-			Currencies: currencies,
-		},
-	}
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&a, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return a, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -876,10 +855,9 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	return e.GetFee(ctx, feeBuilder)
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

@@ -20,9 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -264,8 +265,7 @@ func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
-// GetExchangeBankAccounts returns banking details associated with an
-// exchange for funding purposes
+// GetExchangeBankAccounts returns banking details associated with an exchange for funding purposes
 func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
@@ -600,8 +600,11 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
 
-	if b.accounts == nil {
-		b.accounts = account.GetService()
+	if b.Accounts == nil {
+		var err error
+		if b.Accounts, err = accounts.GetStore().GetExchangeAccounts(b); err != nil {
+			return err
+		}
 	}
 
 	b.ValidateOrderbook = !exch.Orderbook.VerificationBypass
@@ -1915,14 +1918,24 @@ func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetCachedAccountInfo retrieves balances for all enabled currencies
-// NOTE: UpdateAccountInfo method must be called first to update the account info map
-func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// GetCachedSubAccounts retrieves all cached SubAccounts, filtered by credentials and asset
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedSubAccounts(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	return account.GetHoldings(b.Name, creds, assetType)
+	return b.Accounts.SubAccounts(creds, assetType)
+}
+
+// GetCachedCurrencyBalances retrieves cached balances for all SubAccounts grouped by currency
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedCurrencyBalances(ctx context.Context, assetType asset.Item) (accounts.CurrencyBalances, error) {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return b.Accounts.CurrencyBalances(creds, assetType)
 }
 
 // GetOrderExecutionLimits returns a limit based on the exchange, asset and pair from storage
@@ -1970,4 +1983,9 @@ func (b *Base) MessageID() string {
 // It is not universally unique but should be unique and sequential within each *Base instance
 func (b *Base) MessageSequence() int64 {
 	return b.messageSequence.IncrementAndGet()
+}
+
+// SubscribeAccountBalances returns a pipe to stream account holding updates
+func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
+	return b.Accounts.Subscribe()
 }

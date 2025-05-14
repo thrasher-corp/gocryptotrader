@@ -12,11 +12,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Public errors
 var (
-	// ErrNotRunning defines an error when the dispatcher is not running
-	ErrNotRunning = errors.New("dispatcher not running")
+	ErrNotRunning               = errors.New("dispatcher not running")
+	ErrDispatcherAlreadyRunning = errors.New("dispatcher already running")
+)
 
-	errDispatcherAlreadyRunning          = errors.New("dispatcher already running")
+var (
 	errDispatchShutdown                  = errors.New("dispatcher did not shutdown properly, routines failed to close")
 	errDispatcherUUIDNotFoundInRouteList = errors.New("dispatcher uuid not found in route list")
 	errTypeAssertionFailure              = errors.New("type assertion failure")
@@ -82,7 +84,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	}
 
 	if d.running {
-		return errDispatcherAlreadyRunning
+		return ErrDispatcherAlreadyRunning
 	}
 
 	d.running = true

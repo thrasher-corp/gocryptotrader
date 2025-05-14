@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
@@ -537,45 +536,6 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 	}
 
 	return pairs
-}
-
-// GetCollatedExchangeAccountInfoByCoin collates individual exchange account
-// information and turns it into a map string of exchange.AccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[currency.Code]account.Balance {
-	result := make(map[currency.Code]account.Balance)
-	for x := range accounts {
-		for y := range accounts[x].Accounts {
-			for z := range accounts[x].Accounts[y].Currencies {
-				currencyName := accounts[x].Accounts[y].Currencies[z].Currency
-				total := accounts[x].Accounts[y].Currencies[z].Total
-				onHold := accounts[x].Accounts[y].Currencies[z].Hold
-				avail := accounts[x].Accounts[y].Currencies[z].AvailableWithoutBorrow
-				free := accounts[x].Accounts[y].Currencies[z].Free
-				borrowed := accounts[x].Accounts[y].Currencies[z].Borrowed
-
-				info, ok := result[currencyName]
-				if !ok {
-					accountInfo := account.Balance{
-						Currency:               currencyName,
-						Total:                  total,
-						Hold:                   onHold,
-						Free:                   free,
-						AvailableWithoutBorrow: avail,
-						Borrowed:               borrowed,
-					}
-					result[currencyName] = accountInfo
-				} else {
-					info.Hold += onHold
-					info.Total += total
-					info.Free += free
-					info.AvailableWithoutBorrow += avail
-					info.Borrowed += borrowed
-					result[currencyName] = info
-				}
-			}
-		}
-	}
-	return result
 }
 
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest

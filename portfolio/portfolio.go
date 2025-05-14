@@ -141,8 +141,7 @@ func (b *Base) ExchangeExists(exchangeName string) bool {
 	})
 }
 
-// AddressExists checks to see if there is an address associated with the
-// portfolio base
+// AddressExists checks to see if there is an address associated with the portfolio base
 func (b *Base) AddressExists(address string) bool {
 	b.mtx.RLock()
 	defer b.mtx.RUnlock()

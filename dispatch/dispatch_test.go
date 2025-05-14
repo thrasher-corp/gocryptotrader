@@ -59,7 +59,7 @@ func TestStartStop(t *testing.T) {
 	assert.True(t, d.isRunning(), "IsRunning should return true")
 
 	err = d.start(0, 0)
-	assert.ErrorIs(t, err, errDispatcherAlreadyRunning, "start should error correctly")
+	assert.ErrorIs(t, err, ErrDispatcherAlreadyRunning, "start should error correctly")
 
 	// Add route option
 	id, err := d.getNewID(uuid.NewV4)
