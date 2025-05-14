@@ -46,11 +46,11 @@ type CurrencyAmount struct {
 	Currency currency.Code `json:"currency"`
 }
 
-// Account holds details for a trading account, returned by GetAccountByID and used as a sub-struct in the type AllAccountsResponse
+// Account holds details for a trading account
 type Account struct {
 	UUID              string         `json:"uuid"`
 	Name              string         `json:"name"`
-	Currency          string         `json:"currency"`
+	Currency          currency.Code  `json:"currency"`
 	AvailableBalance  CurrencyAmount `json:"available_balance"`
 	Default           bool           `json:"default"`
 	Active            bool           `json:"active"`
@@ -66,10 +66,10 @@ type Account struct {
 
 // AllAccountsResponse holds many Account structs, as well as pagination information, returned by ListAccounts
 type AllAccountsResponse struct {
-	Accounts []Account `json:"accounts"`
-	HasNext  bool      `json:"has_next"`
-	Cursor   Integer   `json:"cursor"`
-	Size     uint8     `json:"size"`
+	Accounts []*Account `json:"accounts"`
+	HasNext  bool       `json:"has_next"`
+	Cursor   Integer    `json:"cursor"`
+	Size     uint8      `json:"size"`
 }
 
 // PermissionsResponse holds information on the permissions of a user, returned by GetPermissions
