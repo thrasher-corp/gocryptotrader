@@ -5904,7 +5904,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			err = request.ErrAuthRequestFailed
 		}
 		if resp.Msg != "" {
-			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: `%s`", resp.Code.Int64(), resp.Msg))
+			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Msg))
 		}
 		if mErr, ok := ErrorCodes[resp.Code.String()]; ok {
 			return common.AppendError(err, mErr)
