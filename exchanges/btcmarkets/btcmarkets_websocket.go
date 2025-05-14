@@ -27,14 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
-)
-
-var (
-	errTypeAssertionFailure = errors.New("type assertion failure")
-	errChecksumFailure      = errors.New("crc32 checksum failure")
-)
+const btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
@@ -101,7 +94,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 	for x := range resp {
 		sPrice, ok := resp[x][0].(string)
 		if !ok {
-			return fmt.Errorf("price string %w", errTypeAssertionFailure)
+			return common.GetTypeAssertError("string", resp[x][0], "price")
 		}
 		var price float64
 		price, err = strconv.ParseFloat(sPrice, 64)
@@ -111,7 +104,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 
 		sAmount, ok := resp[x][1].(string)
 		if !ok {
-			return fmt.Errorf("amount string %w", errTypeAssertionFailure)
+			return common.GetTypeAssertError("string", resp[x][1], "amount")
 		}
 
 		var amount float64
@@ -122,7 +115,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 
 		count, ok := resp[x][2].(float64)
 		if !ok {
-			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
+			return common.GetTypeAssertError("float64", resp[x][2], "count")
 		}
 
 		(*w)[x] = orderbook.Tranche{

@@ -369,7 +369,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			UpdateTime:                 time.Now(),
 			SkipOutOfOrderLastUpdateID: true,
 			ExpectedChecksum:           1337,
-			GenerateChecksum:           func(snapshot *orderbook.Base) uint32 { return 1337 },
+			GenerateChecksum:           func(*orderbook.Base) uint32 { return 1337 },
 		})
 		require.NoError(t, err)
 	}
@@ -486,7 +486,7 @@ func TestFlushBuffer(t *testing.T) {
 	*holder.buffer = append(*holder.buffer, orderbook.Update{})
 
 	obl.FlushBuffer()
-	assert.Len(t, *holder.buffer, 0)
+	assert.Empty(t, *holder.buffer, 0)
 	assert.Equal(t, 10, cap(*holder.buffer))
 }
 

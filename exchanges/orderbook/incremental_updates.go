@@ -14,10 +14,14 @@ import (
 type Action uint8
 
 const (
-	Amend        Action = iota + 1 // Amend applies amount adjustment by ID
-	Delete                         // Delete removes price level from book by ID
-	Insert                         // Insert adds price level to book
-	UpdateInsert                   // UpdateInsert on conflict applies amount adjustment or appends new amount to book
+	// Amend applies amount adjustment by ID
+	Amend Action = iota + 1
+	// Delete removes price level from book by ID
+	Delete
+	// Insert adds price level to book
+	Insert
+	// UpdateInsert on conflict applies amount adjustment or appends new amount to book
+	UpdateInsert
 )
 
 // Public error vars
@@ -60,7 +64,7 @@ type Update struct {
 	SkipOutOfOrderLastUpdateID bool
 }
 
-// ProcessUpdates applies updates to the orderbook depth, on error it will invalidate the orderbook and return the
+// ProcessUpdate applies updates to the orderbook depth, on error it will invalidate the orderbook and return the
 // error, this is to ensure the orderbook is always in a valid state.
 func (d *Depth) ProcessUpdate(u *Update) error {
 	if len(u.Bids) == 0 && len(u.Asks) == 0 && !u.AllowEmpty {

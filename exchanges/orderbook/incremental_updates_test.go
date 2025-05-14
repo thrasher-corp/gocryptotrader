@@ -37,7 +37,7 @@ func newAsks(idOffset, length int) Tranches {
 func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
+	require.NoError(t, d.LoadSnapshot(newSnapshot(69)))
 	assert.ErrorIs(t, d.ProcessUpdate(&Update{}), ErrEmptyUpdate)
 	assert.ErrorIs(t, d.ProcessUpdate(&Update{AllowEmpty: true}), ErrEmptyUpdate, "excercise validation error return from last ProcessUpdate call which invalidates the orderbook")
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
