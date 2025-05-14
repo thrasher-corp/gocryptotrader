@@ -339,7 +339,7 @@ func (g *Gateio) WsHandleOptionsData(ctx context.Context, respRaw []byte) error 
 	case optionsPositionCloseChannel:
 		return g.processPositionCloseData(respRaw)
 	case optionsBalancesChannel:
-		return g.processBalancePushData(respRaw, asset.Options)
+		return g.processBalancePushData(ctx, respRaw, asset.Options)
 	case optionsPositionsChannel:
 		return g.processOptionsPositionPushData(respRaw)
 	default:
