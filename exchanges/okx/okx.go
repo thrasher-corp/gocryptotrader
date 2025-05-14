@@ -5927,5 +5927,5 @@ func getStatusError(statusCode int64, statusMessage string) error {
 	if statusCode == 0 {
 		return nil
 	}
-	return fmt.Errorf("status code: `%d` status message: `%s`", statusCode, statusMessage)
+	return fmt.Errorf("status code: `%d` status message: %q", statusCode, statusMessage)
 }
