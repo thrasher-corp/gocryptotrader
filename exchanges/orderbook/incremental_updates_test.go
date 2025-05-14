@@ -39,7 +39,7 @@ func TestProcessUpdate(t *testing.T) {
 	d := NewDepth(id)
 	require.NoError(t, d.LoadSnapshot(newSnapshot(69)))
 	assert.ErrorIs(t, d.ProcessUpdate(&Update{}), ErrEmptyUpdate)
-	assert.ErrorIs(t, d.ProcessUpdate(&Update{AllowEmpty: true}), ErrEmptyUpdate, "excercise validation error return from last ProcessUpdate call which invalidates the orderbook")
+	assert.ErrorIs(t, d.ProcessUpdate(&Update{AllowEmpty: true}), ErrEmptyUpdate, "exercise validation error return from last ProcessUpdate call which invalidates the orderbook")
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	assert.NoError(t, d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 69420, ID: 69420}}, SkipOutOfOrderLastUpdateID: true}))
 	ob, err := d.Retrieve()
