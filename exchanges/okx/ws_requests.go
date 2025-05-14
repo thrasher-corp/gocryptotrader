@@ -38,7 +38,7 @@ func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 }
 
 // WSPlaceMultipleOrder submits multiple orders
-func (ok *Okx) WSPlaceMultipleOrder(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
+func (ok *Okx) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
