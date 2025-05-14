@@ -418,12 +418,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	assert.Emptyf(t, resp.Status, "%v orders failed to cancel", len(resp.Status))
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountInfo must not error")
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err)
 }
 
 func TestModifyOrder(t *testing.T) {

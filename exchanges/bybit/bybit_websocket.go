@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -315,26 +315,21 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-	var changes []account.Change
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
-			changes = append(changes, account.Change{
-				AssetType: asset.Spot,
-				Balance: &account.Balance{
-					Currency:  result.Data[x].Coin[y].Coin,
-					Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
-					Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
-					UpdatedAt: result.CreationTime.Time(),
-				},
+			subAccts[0].Balances.Set(result.Data[x].Coin[y].Coin, accounts.Balance{
+				Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
+				Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
+				UpdatedAt: result.CreationTime.Time(),
 			})
 		}
 	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
+	return nil
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
