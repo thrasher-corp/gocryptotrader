@@ -221,7 +221,7 @@ func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 }
 
 // WsCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
-func (ok *Okx) WsCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
+func (ok *Okx) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
