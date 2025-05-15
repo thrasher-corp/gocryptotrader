@@ -569,19 +569,21 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 	return nil
 }
 
-func (cr *Cryptodotcom) processUserBalance(resp *WsResult) error {
-	var data []UserBalance
-	err := json.Unmarshal(resp.Data, &data)
+func (cr *Cryptodotcom) processUserBalance(wsResult *WsResult) error {
+	var resp *UserBalance
+	err := json.Unmarshal(wsResult.Data, &resp)
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(data))
-	for x := range data {
+	accountChanges := make([]account.Change, len(resp.Data))
+	for x := range resp.Data {
 		accountChanges[x] = account.Change{
-			Exchange: cr.Name,
-			Currency: currency.NewCode(data[x].Currency),
-			Asset:    asset.Spot,
-			Amount:   data[x].Balance,
+			Balance: &account.Balance{
+				Currency: currency.NewCode(resp.Data[x].InstrumentName),
+				Total:    resp.Data[x].TotalCashBalance.Float64(),
+				Hold:     resp.Data[x].TotalCashBalance.Float64() - resp.Data[x].TotalAvailableBalance.Float64(),
+				Free:     resp.Data[x].TotalAvailableBalance.Float64(),
+			},
 		}
 	}
 	cr.Websocket.DataHandler <- accountChanges

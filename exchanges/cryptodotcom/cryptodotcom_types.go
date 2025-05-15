@@ -695,15 +695,6 @@ type UserTrade struct {
 	OrderID        string     `json:"order_id"`
 }
 
-// UserBalance represents a user balance information.
-type UserBalance struct {
-	Currency  string  `json:"currency"`
-	Balance   float64 `json:"balance"`
-	Available float64 `json:"available"`
-	Order     float64 `json:"order"`
-	Stake     int64   `json:"stake"`
-}
-
 // WsOrderbook represents an orderbook websocket push data.
 type WsOrderbook struct {
 	Asks                [][3]types.Number `json:"asks"`
@@ -1092,4 +1083,37 @@ type InsuranceFundBalanceDetail struct {
 		Timestamp types.Time   `json:"t"`
 	} `json:"data"`
 	Currency string `json:"instrument_name"`
+}
+
+// UserBalance holds balance update detail for user
+type UserBalance struct {
+	Subscription string              `json:"subscription"`
+	Channel      string              `json:"channel"`
+	Data         []UserBalanceDetail `json:"data"`
+}
+
+// UserBalanceDetail holds user balance detail specific to an instrument/currency
+type UserBalanceDetail struct {
+	TotalAvailableBalance     types.Number `json:"total_available_balance"`
+	TotalMarginBalance        types.Number `json:"total_margin_balance"`
+	TotalInitialMargin        types.Number `json:"total_initial_margin"`
+	TotalMaintenanceMargin    types.Number `json:"total_maintenance_margin"`
+	TotalPositionCost         types.Number `json:"total_position_cost"`
+	TotalCashBalance          types.Number `json:"total_cash_balance"`
+	TotalCollateralValue      types.Number `json:"total_collateral_value"`
+	TotalSessionUnrealizedPnl types.Number `json:"total_session_unrealized_pnl"`
+	InstrumentName            string       `json:"instrument_name"`
+	TotalSessionRealizedPnl   types.Number `json:"total_session_realized_pnl"`
+	IsLiquidating             bool         `json:"is_liquidating"`
+	TotalEffectiveLeverage    types.Number `json:"total_effective_leverage"`
+	PositionLimit             types.Number `json:"position_limit"`
+	UsedPositionLimit         types.Number `json:"used_position_limit"`
+	PositionBalances          []struct {
+		InstrumentName       string       `json:"instrument_name"`
+		Quantity             types.Number `json:"quantity"`
+		MarketValue          types.Number `json:"market_value"`
+		CollateralAmount     types.Number `json:"collateral_amount"`
+		CollateralWeight     types.Number `json:"collateral_weight"`
+		MaxWithdrawalBalance types.Number `json:"max_withdrawal_balance"`
+	} `json:"position_balances"`
 }
