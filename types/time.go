@@ -58,20 +58,20 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		s += twoPadding
 	}
 
-	standard, err := strconv.ParseInt(s, 10, 64)
+	unixTS, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return err
 	}
 
 	switch len(s) {
 	case 10:
-		*t = Time(time.Unix(standard, 0))
+		*t = Time(time.Unix(unixTS, 0))
 	case 13:
-		*t = Time(time.UnixMilli(standard))
+		*t = Time(time.UnixMilli(unixTS))
 	case 16:
-		*t = Time(time.UnixMicro(standard))
+		*t = Time(time.UnixMicro(unixTS))
 	case 19:
-		*t = Time(time.Unix(0, standard))
+		*t = Time(time.Unix(0, unixTS))
 	default:
 		return fmt.Errorf("cannot unmarshal %s into Time", string(data))
 	}
