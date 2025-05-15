@@ -48,14 +48,14 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("%w for `%v`", strconv.ErrSyntax, string(data))
 		}
 		s = s[:target] + s[target+1:]
+	}
 
-		// When decimal point is present, the length of the string must be 13, 16, or 19.
-		switch len(s) {
-		case 12, 15, 18:
-			s += onePadding
-		case 11, 14, 17:
-			s += twoPadding
-		}
+	// The length of the string must be 13, 16, or 19.
+	switch len(s) {
+	case 12, 15, 18:
+		s += onePadding
+	case 11, 14, 17:
+		s += twoPadding
 	}
 
 	standard, err := strconv.ParseInt(s, 10, 64)
