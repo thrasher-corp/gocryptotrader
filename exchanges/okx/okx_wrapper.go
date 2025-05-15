@@ -63,6 +63,11 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	// TODO: Disabled until spread/business websocket is implemented
+	if err := ok.DisableAssetWebsocketSupport(asset.Spread); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset websocket support: %s", ok.Name, asset.Spread.String(), err)
+	}
+
 	// Fill out the capabilities/features that the exchange supports
 	ok.Features = exchange.Features{
 		CurrencyTranslations: currency.NewTranslations(map[currency.Code]currency.Code{

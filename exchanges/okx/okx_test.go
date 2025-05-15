@@ -3873,7 +3873,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		require.NoErrorf(t, err, "GetEnabledPairs for asset %s must not error", a)
 		require.NotEmptyf(t, pairs, "GetEnabledPairs for asset %s must not return empty pairs", a)
 		result, err := ok.GetHistoricCandles(contextGenerate(), pairs[0], a, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
-		if a == asset.Spread || a == asset.Options && err != nil { // Options and spread candles sometimes returns no data
+		if (a == asset.Spread || a == asset.Options) && err != nil { // Options and spread candles sometimes returns no data
 			continue
 		}
 		require.NoErrorf(t, err, "GetHistoricCandles for asset %s and pair %s must not error", a, pairs[0])
@@ -6028,7 +6028,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	var pairs currency.Pairs
 	for _, s := range ok.Features.Subscriptions {
 		for _, a := range ok.GetAssetTypes(true) {
-			if s.Asset != asset.All && s.Asset != a {
+			if a == asset.Spread || (s.Asset != asset.All && s.Asset != a) {
 				continue
 			}
 			pairs, err = ok.GetEnabledPairs(a)
