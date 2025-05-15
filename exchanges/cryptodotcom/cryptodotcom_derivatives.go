@@ -3,7 +3,9 @@ package cryptodotcom
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,4 +95,26 @@ func (cr *Cryptodotcom) GetFuturesOrderList(ctx context.Context, contingencyType
 	params["instrument_name"] = symbol
 	var resp *OrdersDetail
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/get-order-list", params, &resp)
+}
+
+// GetInsurance fetches balance of Insurance Fund for a particular currency.
+func (cr *Cryptodotcom) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*InsuranceFundBalanceDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("instrument_name", symbol)
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp *InsuranceFundBalanceDetail
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), request.Auth, &resp)
 }

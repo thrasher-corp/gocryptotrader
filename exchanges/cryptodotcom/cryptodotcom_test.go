@@ -1294,8 +1294,18 @@ func TestGetFuturesOrderList(t *testing.T) {
 	_, err = cr.GetFuturesOrderList(t.Context(), "OCO", "6498090546073120100", "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
-	// result, err := cr.GetFuturesOrderList(t.Context(), "OCO", "6498090546073120100", "BTCUSD-PERP")
-	// require.NoError(t, err)
-	// assert.NotNil(t, result)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.GetFuturesOrderList(t.Context(), "OCO", "6498090546073120100", "BTCUSD-PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetInsurance(t *testing.T) {
+	t.Parallel()
+	_, err := cr.GetInsurance(t.Context(), "", 0, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := cr.GetInsurance(t.Context(), "BTCUSD-PERP", 10, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

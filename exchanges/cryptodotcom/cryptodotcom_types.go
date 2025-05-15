@@ -1084,3 +1084,12 @@ type OrderDetail struct {
 	CreateTimeNs       types.Time   `json:"create_time_ns"`
 	UpdateTime         types.Time   `json:"update_time"`
 }
+
+// InsuranceFundBalanceDetail holds insurance fund balance for a particular currency pair
+type InsuranceFundBalanceDetail struct {
+	Data []struct {
+		Value     types.Number `json:"v"`
+		Timestamp types.Time   `json:"t"`
+	} `json:"data"`
+	Currency string `json:"instrument_name"`
+}

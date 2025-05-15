@@ -36,16 +36,23 @@ const (
 
 const (
 	// private subscription channels
-	userOrderCnl   = "user.order" // user.order.{instrument_name}
-	userTradeCnl   = "user.trade" // user.trade.{instrument_name}
-	userBalanceCnl = "user.balance"
+	userOrderCnl       = "user.order" // user.order.{instrument_name}
+	userTradeCnl       = "user.trade" // user.trade.{instrument_name}
+	userBalanceCnl     = "user.balance"
+	positionBalanceCnl = "user.position_balance"
+	accountRiskCnl     = "user.account_risk"
+	userPositionsCnl   = "user.positions"
 
 	// public subscription channels
-	instrumentOrderbookCnl = "book"        // book.{instrument_name}
+	instrumentOrderbookCnl = "book"        // book.{instrument_name} or book.{instrument_name}.{depth}user.position_balance
 	tickerCnl              = "ticker"      // ticker.{instrument_name}
 	tradeCnl               = "trade"       // trade.{instrument_name}
 	candlestickCnl         = "candlestick" // candlestick.{time_frame}.{instrument_name}
 	otcBooksCnl            = "otc_book"    // otc_book.{instrument_name}
+	fundingCnl             = "funding"     // funding.{instrument_name}
+	settlementCnl          = "settlement"
+	markCnl                = "mark"
+	indexCnl               = "index"
 )
 
 var defaultSubscriptions = []string{
@@ -246,21 +253,30 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() (subscription.List, error
 		switch channels[x] {
 		case instrumentOrderbookCnl,
 			tickerCnl,
-			userOrderCnl,
-			userTradeCnl,
 			tradeCnl,
-			otcBooksCnl:
+			otcBooksCnl,
+			fundingCnl,
+			settlementCnl,
+			markCnl,
+			indexCnl:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[x],
 				Pairs:   enabledPairs,
 			})
-		case candlestickCnl:
+		case positionBalanceCnl,
+			accountRiskCnl,
+			userPositionsCnl,
+			userOrderCnl,
+			userTradeCnl,
+			userBalanceCnl:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[x],
-				Pairs:   enabledPairs,
-				Params: map[string]interface{}{
-					"interval": "5m",
-				},
+			})
+		case candlestickCnl:
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel:  channels[x],
+				Pairs:    enabledPairs,
+				Interval: kline.FiveMin,
 			})
 		default:
 			continue
@@ -297,25 +313,32 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription subscript
 			Nonce:  timestamp.UnixMilli(),
 		}
 		switch subscription[x].Channel {
-		case userOrderCnl,
-			userTradeCnl,
-			instrumentOrderbookCnl,
+		case instrumentOrderbookCnl,
 			tickerCnl,
 			tradeCnl,
-			otcBooksCnl:
+			otcBooksCnl,
+			fundingCnl,
+			settlementCnl,
+			markCnl,
+			indexCnl:
 			for p := range subscription[x].Pairs {
 				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Pairs[p].String()}}
 			}
+		case positionBalanceCnl,
+			accountRiskCnl,
+			userPositionsCnl,
+			userOrderCnl,
+			userTradeCnl,
+			userBalanceCnl:
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		case candlestickCnl:
-			interval, okay := subscription[x].Params["interval"].(string)
-			if !okay {
-				return nil, kline.ErrInvalidInterval
+			interval, err := intervalToString(subscription[x].Interval)
+			if err != nil {
+				return nil, err
 			}
 			for p := range subscription[x].Pairs {
 				subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Pairs[p].String()}}
 			}
-		case userBalanceCnl:
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		}
 		switch subscription[x].Channel {
 		case userOrderCnl, userTradeCnl, userBalanceCnl:
