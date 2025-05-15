@@ -3325,9 +3325,19 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	result, err := ok.UpdateTicker(contextGenerate(), mainPair, asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+
+	_, err := ok.UpdateTicker(contextGenerate(), currency.Pair{}, asset.Binary)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	testexch.UpdatePairsOnce(t, ok)
+	for _, a := range ok.GetAssetTypes(false) {
+		p, err := ok.GetAvailablePairs(a)
+		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", a)
+		require.NotEmptyf(t, p, "GetAvailablePairs for asset %s must not return empty pairs", a)
+		result, err := ok.UpdateTicker(contextGenerate(), p[0], a)
+		require.NoErrorf(t, err, "UpdateTicker for asset %s and pair %s must not error", a, p[0])
+		assert.NotNilf(t, result, "UpdateTicker for asset %s and pair %s should not return nil", a, p[0])
+	}
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -3848,14 +3858,27 @@ func TestValidateAPICredentials(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+
+	_, err := ok.GetHistoricCandles(contextGenerate(), currency.Pair{}, asset.Binary, kline.OneDay, time.Now(), time.Now())
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	startTime := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.AddDate(0, 0, 100)
-	_, err := ok.GetHistoricCandles(contextGenerate(), mainPair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
+	_, err = ok.GetHistoricCandles(contextGenerate(), mainPair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
 	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 
-	result, err := ok.GetHistoricCandles(contextGenerate(), mainPair, asset.Spot, kline.OneDay, startTime, endTime)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	testexch.UpdatePairsOnce(t, ok)
+	for _, a := range ok.GetAssetTypes(false) {
+		pairs, err := ok.GetEnabledPairs(a)
+		require.NoErrorf(t, err, "GetEnabledPairs for asset %s must not error", a)
+		require.NotEmptyf(t, pairs, "GetEnabledPairs for asset %s must not return empty pairs", a)
+		result, err := ok.GetHistoricCandles(contextGenerate(), pairs[0], a, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
+		if a == asset.Spread || a == asset.Options && err != nil { // Options and spread candles sometimes returns no data
+			continue
+		}
+		require.NoErrorf(t, err, "GetHistoricCandles for asset %s and pair %s must not error", a, pairs[0])
+		assert.NotNilf(t, result, "GetHistoricCandles for asset %s and pair %s should not return nil", a, pairs[0])
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -4014,6 +4037,9 @@ func TestPushDataDynamic(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
+	_, err := ok.GetHistoricTrades(contextGenerate(), mainPair, asset.Spread, time.Now(), time.Now())
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := ok.GetHistoricTrades(contextGenerate(), mainPair, asset.Spot, time.Now().Add(-time.Minute*4), time.Now().Add(-time.Minute*2))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5478,6 +5504,26 @@ func TestGetPublicSpreadTrades(t *testing.T) {
 	result, err := ok.GetPublicSpreadTrades(contextGenerate(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetSpreadCandlesticks(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetSpreadCandlesticks(contextGenerate(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetSpreadCandlesticks(contextGenerate(), spreadPair.String(), kline.FiveMin, time.Now().AddDate(0, 0, -1), time.Now(), 10)
+	require.NoError(t, err, "GetSpreadCandlesticks must not error")
+	assert.NotEmpty(t, result, "GetSpreadCandlesticks should not return an empty result")
+}
+
+func TestGetSpreadCandlesticksHistory(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetSpreadCandlesticksHistory(contextGenerate(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, errMissingInstrumentID)
+
+	result, err := ok.GetSpreadCandlesticksHistory(contextGenerate(), spreadPair.String(), kline.FiveMin, time.Now().AddDate(0, 0, -1), time.Now(), 10)
+	require.NoError(t, err, "GetSpreadCandlesticksHistory must not error")
+	assert.NotEmpty(t, result, "GetSpreadCandlesticksHistory should not return an empty result")
 }
 
 func TestGetOptionsTickBands(t *testing.T) {

@@ -3092,14 +3092,18 @@ type SpreadOrderbook struct {
 
 // SpreadTicker represents a ticker instance
 type SpreadTicker struct {
-	SpreadID  string       `json:"sprdId"`
-	Last      types.Number `json:"last"`
-	LastSize  types.Number `json:"lastSz"`
-	AskPrice  types.Number `json:"askPx"`
-	AskSize   types.Number `json:"askSz"`
-	BidPrice  types.Number `json:"bidPx"`
-	BidSize   types.Number `json:"bidSz"`
-	Timestamp types.Time   `json:"ts"`
+	SpreadID     string       `json:"sprdId"`
+	Last         types.Number `json:"last"`
+	LastSize     types.Number `json:"lastSz"`
+	AskPrice     types.Number `json:"askPx"`
+	AskSize      types.Number `json:"askSz"`
+	BidPrice     types.Number `json:"bidPx"`
+	BidSize      types.Number `json:"bidSz"`
+	Open24Hour   types.Number `json:"open24h"`
+	High24Hour   types.Number `json:"high24h"`
+	Low24Hour    types.Number `json:"low24h"`
+	Volume24Hour types.Number `json:"vol24h"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // SpreadPublicTradeItem represents publicly available trade order instance
@@ -3110,6 +3114,22 @@ type SpreadPublicTradeItem struct {
 	Price     types.Number `json:"px"`
 	TradeID   string       `json:"tradeId"`
 	Timestamp types.Time   `json:"ts"`
+}
+
+// SpreadCandlestick represents a candlestick instance
+type SpreadCandlestick struct {
+	Timestamp types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
+	Volume    types.Number
+	Confirm   types.Number
+}
+
+// UnmarshalJSON unmarshals the JSON data into a SpreadCandlestick struct
+func (s *SpreadCandlestick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&s.Timestamp, &s.Open, &s.High, &s.Low, &s.Close, &s.Volume, &s.Confirm})
 }
 
 // UnitConvertResponse unit convert response

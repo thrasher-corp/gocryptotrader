@@ -4841,6 +4841,54 @@ func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]Sp
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadPublicTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/public-trades", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
+// GetSpreadCandlesticks retrieves candlestick charts for a given spread instrument
+func (ok *Okx) GetSpreadCandlesticks(ctx context.Context, spreadID string, interval kline.Interval, before, after time.Time, limit uint64) ([]SpreadCandlestick, error) {
+	if spreadID == "" {
+		return nil, fmt.Errorf("%w, spread ID is required", errMissingInstrumentID)
+	}
+	params := url.Values{}
+	params.Set("sprdId", spreadID)
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	bar := IntervalFromString(interval, true)
+	if bar != "" {
+		params.Set("bar", bar)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []SpreadCandlestick
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadCandlesticksEPL, http.MethodGet, common.EncodeURLValues("market/sprd-candles", params), nil, &resp, request.UnauthenticatedRequest)
+}
+
+// GetSpreadCandlesticksHistory retrieves candlestick chart history for a given spread instrument for a period of up to 3 months
+func (ok *Okx) GetSpreadCandlesticksHistory(ctx context.Context, spreadID string, interval kline.Interval, before, after time.Time, limit uint64) ([]SpreadCandlestick, error) {
+	if spreadID == "" {
+		return nil, fmt.Errorf("%w, spread ID is required", errMissingInstrumentID)
+	}
+	params := url.Values{}
+	params.Set("sprdId", spreadID)
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	bar := IntervalFromString(interval, true)
+	if bar != "" {
+		params.Set("bar", bar)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []SpreadCandlestick
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadCandlesticksHistoryEPL, http.MethodGet, common.EncodeURLValues("market/sprd-history-candles", params), nil, &resp, request.UnauthenticatedRequest)
+}
+
 // CancelAllSpreadOrdersAfterCountdown cancel all pending orders after the countdown timeout. Only applicable to spread trading
 func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutDuration int64) (*SpreadOrderCancellationResponse, error) {
 	if (timeoutDuration != 0) && (timeoutDuration < 10 || timeoutDuration > 120) {
