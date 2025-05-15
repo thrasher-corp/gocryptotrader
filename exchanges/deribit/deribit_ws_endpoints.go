@@ -838,24 +838,6 @@ func (d *Deribit) WSRetrieveAnnouncements(startTime time.Time, count int64) ([]A
 	return resp, d.SendWSRequest(nonMatchingEPL, getAnnouncements, input, &resp, false)
 }
 
-// WSRetrievePublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
-func (d *Deribit) WSRetrievePublicPortfolioMargins(ccy currency.Code, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	input := &struct {
-		Currency           currency.Code      `json:"currency"`
-		SimulatedPositions map[string]float64 `json:"simulated_positions"`
-	}{
-		Currency: ccy,
-	}
-	if len(simulatedPositions) != 0 {
-		input.SimulatedPositions = simulatedPositions
-	}
-	var resp *PortfolioMargin
-	return resp, d.SendWSRequest(nonMatchingEPL, getPublicPortfolioMargins, input, &resp, false)
-}
-
 // WSChangeAPIKeyName changes the name of the api key requested through the websocket connection.
 func (d *Deribit) WSChangeAPIKeyName(id int64, name string) (*APIKeyData, error) {
 	if id <= 0 {
@@ -1056,26 +1038,6 @@ func (d *Deribit) WSRetrieveEmailLanguage() (string, error) {
 func (d *Deribit) WSRetrieveNewAnnouncements() ([]Announcement, error) {
 	var resp []Announcement
 	return resp, d.SendWSRequest(nonMatchingEPL, getNewAnnouncements, nil, &resp, true)
-}
-
-// WSRetrievePrivatePortfolioMargins alculates portfolio margin info for simulated position or current position of the user through the websocket connection. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) WSRetrievePrivatePortfolioMargins(ccy currency.Code, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	input := &struct {
-		Currency           currency.Code      `json:"currency"`
-		AccountPositions   bool               `json:"acc_positions,omitempty"`
-		SimulatedPositions map[string]float64 `json:"simulated_positions,omitempty"`
-	}{
-		Currency:         ccy,
-		AccountPositions: accPositions,
-	}
-	if len(simulatedPositions) != 0 {
-		input.SimulatedPositions = simulatedPositions
-	}
-	var resp *PortfolioMargin
-	return resp, d.SendWSRequest(portfolioMarginEPL, getPrivatePortfolioMargins, input, &resp, true)
 }
 
 // WSRetrievePosition retrieves the data of all positions in the requested instrument name through the websocket connection.
