@@ -309,7 +309,7 @@ func TestInferCostsAndTimes(t *testing.T) {
 	t.Parallel()
 	var detail Detail
 	detail.InferCostsAndTimes()
-	assert.Equal(t, detail.Amount, detail.ExecutedAmount+detail.RemainingAmount)
+	assert.Zero(t, detail.Amount, "InferCostsAndTimes on empty details should set correct Amount")
 
 	detail.CloseTime = time.Now()
 	detail.InferCostsAndTimes()
@@ -318,12 +318,12 @@ func TestInferCostsAndTimes(t *testing.T) {
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.AverageExecutedPrice, "Unexpected AverageExecutedPrice")
+	assert.Zero(t, detail.AverageExecutedPrice, "InferCostsAndTimes should set AverageExecutedPrice correctly")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.InferCostsAndTimes()
-	assert.Zero(t, detail.Cost, "Unexpected cost value: got %v, expected 0", detail.Cost)
+	assert.Zero(t, detail.Cost, "InferCostsAndTimes should set Cost correctly")
 
 	detail.ExecutedAmount = 0
 
@@ -1516,7 +1516,7 @@ func TestDeriveCancel(t *testing.T) {
 	}
 	cancel, err := o.DeriveCancel()
 	require.NoError(t, err)
-	assert.Equal(t, "wow", cancel.Exchange)
+	assert.Equal(t, "wow", cancel.Exchange, "DeriveCancel should set Exchange correctly")
 	assert.Equal(t, "wow1", cancel.OrderID)
 	assert.Equal(t, "wow2", cancel.AccountID)
 	assert.Equal(t, "wow3", cancel.ClientID)
