@@ -1517,14 +1517,14 @@ func TestDeriveCancel(t *testing.T) {
 	cancel, err := o.DeriveCancel()
 	require.NoError(t, err)
 	assert.Equal(t, "wow", cancel.Exchange, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, "wow1", cancel.OrderID)
-	assert.Equal(t, "wow2", cancel.AccountID)
-	assert.Equal(t, "wow3", cancel.ClientID)
-	assert.Equal(t, "wow4", cancel.ClientOrderID)
-	assert.Equal(t, Market, cancel.Type)
-	assert.Equal(t, Long, cancel.Side)
-	assert.Equal(t, pair, cancel.Pair)
-	assert.Equal(t, asset.Futures, cancel.AssetType)
+	assert.Equal(t, "wow1", cancel.OrderID, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, "wow2", cancel.AccountID, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, "wow3", cancel.ClientID, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, "wow4", cancel.ClientOrderID, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, Market, cancel.Type, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, Long, cancel.Side, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, pair, cancel.Pair, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, asset.Futures, cancel.AssetType, "DeriveCancel should set Exchange correctly")
 }
 
 func TestGetOrdersRequest_Filter(t *testing.T) {
