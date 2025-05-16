@@ -1517,14 +1517,14 @@ func TestDeriveCancel(t *testing.T) {
 	cancel, err := o.DeriveCancel()
 	require.NoError(t, err)
 	assert.Equal(t, "wow", cancel.Exchange, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, "wow1", cancel.OrderID, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, "wow2", cancel.AccountID, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, "wow3", cancel.ClientID, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, "wow4", cancel.ClientOrderID, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, Market, cancel.Type, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, Long, cancel.Side, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, pair, cancel.Pair, "DeriveCancel should set Exchange correctly")
-	assert.Equal(t, asset.Futures, cancel.AssetType, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, "wow1", cancel.OrderID, "DeriveCancel should set OrderID correctly")
+	assert.Equal(t, "wow2", cancel.AccountID, "DeriveCancel should set AccountID correctly")
+	assert.Equal(t, "wow3", cancel.ClientID, "DeriveCancel should set ClientID correctly")
+	assert.Equal(t, "wow4", cancel.ClientOrderID, "DeriveCancel should set ClientOrderID correctly")
+	assert.Equal(t, Market, cancel.Type, "DeriveCancel should set Type correctly")
+	assert.Equal(t, Long, cancel.Side, "DeriveCancel should set Side correctly")
+	assert.Equal(t, pair, cancel.Pair, "DeriveCancel should set Pair correctly")
+	assert.Equal(t, asset.Futures, cancel.AssetType, "DeriveCancel should set AssetType correctly")
 }
 
 func TestGetOrdersRequest_Filter(t *testing.T) {
