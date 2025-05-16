@@ -4854,8 +4854,7 @@ func (ok *Okx) GetSpreadCandlesticks(ctx context.Context, spreadID string, inter
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	bar := IntervalFromString(interval, true)
-	if bar != "" {
+	if bar := IntervalFromString(interval, true); bar != "" {
 		params.Set("bar", bar)
 	}
 	if limit > 0 {
@@ -4878,8 +4877,7 @@ func (ok *Okx) GetSpreadCandlesticksHistory(ctx context.Context, spreadID string
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	bar := IntervalFromString(interval, true)
-	if bar != "" {
+	if bar := IntervalFromString(interval, true); bar != "" {
 		params.Set("bar", bar)
 	}
 	if limit > 0 {

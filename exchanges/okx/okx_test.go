@@ -51,6 +51,7 @@ var (
 
 	leadTraderUniqueID string
 	loadLeadTraderOnce sync.Once
+	errSyncLeadTrader  error
 
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
@@ -81,8 +82,6 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 		t.Skip("Testnet does not support lead trader API")
 	}
 
-	var errSync error
-
 	loadLeadTraderOnce.Do(func() {
 		result, err := ok.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
@@ -91,22 +90,22 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 			Limit:          10,
 		})
 		if err != nil {
-			errSync = fmt.Errorf("GetLeadTradersRanks failed: %s", err)
+			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %s", err)
 			return
 		}
 		if len(result) == 0 {
-			errSync = errors.New("no lead trader found")
+			errSyncLeadTrader = errors.New("no lead trader found")
 			return
 		}
 		if len(result[0].Ranks) == 0 {
-			errSync = errors.New("could not load lead traders ranks")
+			errSyncLeadTrader = errors.New("could not load lead traders ranks")
 			return
 		}
 
 		leadTraderUniqueID = result[0].Ranks[0].UniqueCode
 	})
 
-	return errSync
+	return errSyncLeadTrader
 }
 
 // contextGenerate sends an optional value to allow test requests
@@ -1121,7 +1120,8 @@ func TestPlaceIcebergOrder(t *testing.T) {
 		InstrumentID:      mainPair.String(),
 		OrderType:         "iceberg",
 		Side:              order.Buy.Lower(),
-		TradeMode:         "isolated", Size: 6,
+		TradeMode:         "isolated",
+		Size:              6,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5813,7 +5813,7 @@ func TestGetAccountInstruments(t *testing.T) {
 
 	uly := p[0].Base.String()
 	idx := strings.Index(p[0].Quote.String(), "-")
-	require.NotEqual(t, -1, idx, "Index should return a positive value")
+	require.NotEqual(t, -1, idx, "strings.Index must find a hyphen")
 	uly += "-" + p[0].Quote.String()[:idx]
 
 	result, err = ok.GetAccountInstruments(contextGenerate(), asset.Options, uly, "", p[0].String())
