@@ -1815,6 +1815,13 @@ func TestUpdateTickers(t *testing.T) {
 	}
 }
 
+var expiryWindows = map[string]uint{
+	"CW": 14,
+	"NW": 21,
+	"CQ": 190,
+	"NQ": 282,
+}
+
 func TestPairFromContractExpiryCode(t *testing.T) {
 	t.Parallel()
 
@@ -1845,19 +1852,15 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 		h.futureContractCodesMutex.RUnlock()
 		require.True(t, ok, "%s type must be in contractExpiryNames", cType)
 		assert.Equal(t, cachedContract, p.Quote, "pair Quote should match contractExpiryNames")
-		d, err := time.ParseInLocation("060102", p.Quote.String(), tz)
+		exp, err := time.ParseInLocation("060102", p.Quote.String(), tz)
 		require.NoError(t, err, "currency code must be a parsable date")
-		require.Falsef(t, d.Before(today), "%s expiry must be today or after", cType)
-		switch cType {
-		case "CW":
-			require.Truef(t, d.Before(today.AddDate(0, 0, 14)), "Current week expiry must be within 14 days; Got: `%s`", d)
-		case "NW":
-			require.Truef(t, d.Before(today.AddDate(0, 0, 21)), "Next Week expiry must be within 21 days; Got: `%s`", d)
-		case "CQ":
-			require.Truef(t, d.Before(today.AddDate(0, 6, 7)), "Current Quarter expiry must be within 6 months and 7 days; Got: `%s`", d)
-		case "NQ":
-			require.Truef(t, d.Before(today.AddDate(0, 9, 7)), "Next Quarter expiry must be within 9 months and 7 days; Got: `%s`", d)
-		}
+		require.Falsef(t, exp.Before(today), "%s expiry must be today or after; Got: `%s`", cType, exp)
+		diff := uint(exp.Sub(today).Hours() / 24)
+		require.LessOrEqual(t, diff, expiryWindows[cType], "%s expiry must be within expected update window; Today: `%s`, Expiry: `%s`",
+			cType,
+			today.Format(time.DateOnly),
+			exp.Format(time.DateOnly),
+		)
 	}
 }
 
