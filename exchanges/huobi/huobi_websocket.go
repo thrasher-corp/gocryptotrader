@@ -327,7 +327,7 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 		}
 	}
 
-	var newOrderBook orderbook.Base
+	var newOrderBook orderbook.Snapshot
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = s.Pairs[0]

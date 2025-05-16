@@ -33,14 +33,14 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 	p := currency.NewBTCUSD()
 
-	b := Base{
+	s := Snapshot{
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: "SubscribeToExchangeOrderbooks",
 		Bids:     []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
-	require.NoError(t, b.Process(), "process must not error")
+	require.NoError(t, s.Process(), "process must not error")
 
 	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
 	assert.NoError(t, err, "SubscribeToExchangeOrderbooks should not error")
@@ -48,88 +48,88 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 func TestVerify(t *testing.T) {
 	t.Parallel()
-	b := Base{
+	s := Snapshot{
 		Exchange:        "TestExchange",
 		Asset:           asset.Spot,
 		Pair:            currency.NewBTCUSD(),
 		VerifyOrderbook: true,
 	}
 
-	err := b.Verify()
+	err := s.Verify()
 	if err != nil {
 		t.Fatalf("expecting %v error but received %v", nil, err)
 	}
 
-	b.Asks = []Tranche{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
-	err = b.Verify()
+	s.Asks = []Tranche{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	err = s.Verify()
 	if !errors.Is(err, errIDDuplication) {
 		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
-	err = b.Verify()
+	s.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	err = s.Verify()
 	if !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
-	b.IsFundingRate = true
-	err = b.Verify()
+	s.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	s.IsFundingRate = true
+	err = s.Verify()
 	if !errors.Is(err, errPeriodUnset) {
 		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
 	}
-	b.IsFundingRate = false
+	s.IsFundingRate = false
 
-	err = b.Verify()
+	err = s.Verify()
 	if !errors.Is(err, errPriceOutOfOrder) {
 		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
-	err = b.Verify()
+	s.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	err = s.Verify()
 	if !errors.Is(err, errAmountInvalid) {
 		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
-	err = b.Verify()
+	s.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	err = s.Verify()
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
 
-	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
-	err = b.Verify()
+	s.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
+	err = s.Verify()
 	if !errors.Is(err, errIDDuplication) {
 		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
-	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
-	err = b.Verify()
+	s.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	err = s.Verify()
 	if !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Bids = []Tranche{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
-	b.IsFundingRate = true
-	err = b.Verify()
+	s.Bids = []Tranche{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	s.IsFundingRate = true
+	err = s.Verify()
 	if !errors.Is(err, errPeriodUnset) {
 		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
 	}
-	b.IsFundingRate = false
+	s.IsFundingRate = false
 
-	err = b.Verify()
+	err = s.Verify()
 	if !errors.Is(err, errPriceOutOfOrder) {
 		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
-	err = b.Verify()
+	s.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	err = s.Verify()
 	if !errors.Is(err, errAmountInvalid) {
 		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
-	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
-	err = b.Verify()
+	s.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	err = s.Verify()
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
@@ -141,7 +141,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := Base{
+	base := Snapshot{
 		Pair:        curr,
 		Bids:        []Tranche{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
@@ -159,7 +159,7 @@ func TestCalculateTotalAsks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := Base{
+	base := Snapshot{
 		Pair: curr,
 		Asks: []Tranche{{Price: 100, Amount: 10}},
 	}
@@ -176,7 +176,7 @@ func TestGetOrderbook(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 
-	base := &Base{
+	base := &Snapshot{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -217,7 +217,7 @@ func TestGetDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 
-	base := &Base{
+	base := &Snapshot{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -257,7 +257,7 @@ func TestBaseGetDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "UST")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 
-	base := &Base{
+	base := &Snapshot{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -296,7 +296,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := &Base{
+	base := &Snapshot{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -334,7 +334,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := Base{
+	base := Snapshot{
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "ProcessOrderbook",
@@ -469,7 +469,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 			asks := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
 			bids := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
-			base := &Base{
+			base := &Snapshot{
 				Pair:     newPairs,
 				Asks:     asks,
 				Bids:     bids,
@@ -534,29 +534,29 @@ func deployUnorderedSlice() Tranches {
 }
 
 func TestSorting(t *testing.T) {
-	var b Base
-	b.VerifyOrderbook = true
+	var s Snapshot
+	s.VerifyOrderbook = true
 
-	b.Asks = deployUnorderedSlice()
-	err := b.Verify()
+	s.Asks = deployUnorderedSlice()
+	err := s.Verify()
 	if !errors.Is(err, errPriceOutOfOrder) {
 		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Asks.SortAsks()
-	err = b.Verify()
+	s.Asks.SortAsks()
+	err = s.Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.Bids = deployUnorderedSlice()
-	err = b.Verify()
+	s.Bids = deployUnorderedSlice()
+	err = s.Verify()
 	if !errors.Is(err, errPriceOutOfOrder) {
 		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Bids.SortBids()
-	err = b.Verify()
+	s.Bids.SortBids()
+	err = s.Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -571,22 +571,22 @@ func deploySliceOrdered() Tranches {
 }
 
 func TestReverse(t *testing.T) {
-	b := Base{
+	s := Snapshot{
 		VerifyOrderbook: true,
 	}
 
-	b.Bids = deploySliceOrdered()
-	require.Len(t, b.Bids, 1000)
-	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
+	s.Bids = deploySliceOrdered()
+	require.Len(t, s.Bids, 1000)
+	assert.ErrorIs(t, s.Verify(), errPriceOutOfOrder)
 
-	b.Bids.Reverse()
-	assert.NoError(t, b.Verify())
+	s.Bids.Reverse()
+	assert.NoError(t, s.Verify())
 
-	b.Asks = slices.Clone(b.Bids)
-	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
+	s.Asks = slices.Clone(s.Bids)
+	assert.ErrorIs(t, s.Verify(), errPriceOutOfOrder)
 
-	b.Asks.Reverse()
-	assert.NoError(t, b.Verify())
+	s.Asks.Reverse()
+	assert.NoError(t, s.Verify())
 }
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op

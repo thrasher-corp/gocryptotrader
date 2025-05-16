@@ -175,14 +175,14 @@ func (a *Alphapoint) UpdateTicker(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := a.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	orderBook := new(orderbook.Base)
+	orderBook := new(orderbook.Snapshot)
 	orderbookNew, err := a.GetOrderbook(ctx, p.String())
 	if err != nil {
 		return orderBook, err

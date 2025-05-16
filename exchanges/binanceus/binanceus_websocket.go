@@ -836,7 +836,7 @@ func (bi *Binanceus) SeedLocalCache(ctx context.Context, p currency.Pair) error 
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	newOrderBook := orderbook.Base{
+	newOrderBook := orderbook.Snapshot{
 		Pair:            p,
 		Asset:           asset.Spot,
 		Exchange:        bi.Name,
@@ -1017,7 +1017,7 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Snapshot) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -1051,7 +1051,7 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (bool, error) {
+func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Snapshot) (bool, error) {
 	if updt.LastUpdateID <= recent.LastUpdateID {
 		// Drop any event where u is <= lastUpdateId in the snapshot.
 		return false, nil

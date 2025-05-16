@@ -514,7 +514,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		}
 	}
 
-	var newOrderBook orderbook.Base
+	var newOrderBook orderbook.Snapshot
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.VerifyOrderbook = c.CanVerifyOrderbook

@@ -288,7 +288,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		return err
 	}
 
-	base := orderbook.Base{
+	base := orderbook.Snapshot{
 		Pair: pair,
 		Bids: make(orderbook.Tranches, len(snapshot.Bids)),
 		Asks: make(orderbook.Tranches, len(snapshot.Asks)),

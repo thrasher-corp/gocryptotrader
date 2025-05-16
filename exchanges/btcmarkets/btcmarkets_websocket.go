@@ -153,7 +153,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		if ob.Snapshot {
-			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
 				Pair:            ob.Currency,
 				Bids:            orderbook.Tranches(ob.Bids),
 				Asks:            orderbook.Tranches(ob.Asks),
@@ -468,7 +468,7 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 }
 
 // checksum provides assurance on current in memory liquidity
-func checksum(ob *orderbook.Base, checksum uint32) error {
+func checksum(ob *orderbook.Snapshot, checksum uint32) error {
 	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 	if check != checksum {
 		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",

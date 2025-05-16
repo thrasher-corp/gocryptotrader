@@ -1528,7 +1528,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	if len(books) == 0 {
 		return errors.New("no orderbooks submitted")
 	}
-	var book orderbook.Base
+	var book orderbook.Snapshot
 	book.Bids = make(orderbook.Tranches, 0, len(books))
 	book.Asks = make(orderbook.Tranches, 0, len(books))
 	for i := range books {
@@ -2082,7 +2082,7 @@ func makeRequestInterface(channelName string, data any) []any {
 	return []any{0, channelName, nil, data}
 }
 
-func validateCRC32(book *orderbook.Base, token uint32) error {
+func validateCRC32(book *orderbook.Snapshot, token uint32) error {
 	// Order ID's need to be sub-sorted in ascending order, this needs to be
 	// done on the main book to ensure that we do not cut price levels out below
 	reOrderByID(book.Bids)

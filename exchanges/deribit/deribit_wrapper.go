@@ -288,7 +288,7 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
 	p, err := d.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Snapshot{
 		Exchange:        d.Name,
 		Pair:            p,
 		Asset:           assetType,

@@ -9,8 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-func testSetup() Base {
-	return Base{
+func testSetup() Snapshot {
+	return Snapshot{
 		Exchange: "a",
 		Pair:     currency.NewBTCUSD(),
 		Asks: []Tranche{
@@ -203,7 +203,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
 	}
 
-	_, err = (&Base{}).SimulateOrder(1337, true)
+	_, err = (&Snapshot{}).SimulateOrder(1337, true)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -350,12 +350,12 @@ func TestSimulateOrder(t *testing.T) {
 
 	// Invalid
 
-	_, err = (&Base{}).SimulateOrder(-1, false)
-	if !errors.Is(err, errBaseAmountInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBaseAmountInvalid)
+	_, err = (&Snapshot{}).SimulateOrder(-1, false)
+	if !errors.Is(err, errSnapshotAmountInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errSnapshotAmountInvalid)
 	}
 
-	_, err = (&Base{}).SimulateOrder(2, false)
+	_, err = (&Snapshot{}).SimulateOrder(2, false)
 	if !errors.Is(err, errNoLiquidity) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
 	}
@@ -500,7 +500,7 @@ func TestSimulateOrder(t *testing.T) {
 }
 
 func TestGetAveragePrice(t *testing.T) {
-	var b Base
+	var b Snapshot
 	b.Exchange = "Binance"
 	cp, err := currency.NewPairFromString("ETH-USDT")
 	if err != nil {
@@ -512,7 +512,7 @@ func TestGetAveragePrice(t *testing.T) {
 	if errors.Is(errNotEnoughLiquidity, err) {
 		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
 	}
-	b = Base{}
+	b = Snapshot{}
 	b.Pair = cp
 	b.Asks = []Tranche{
 		{Amount: 5, Price: 1},

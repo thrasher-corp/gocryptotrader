@@ -866,7 +866,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestChecksum(t *testing.T) {
-	b := &orderbook.Base{
+	b := &orderbook.Snapshot{
 		Asks: []orderbook.Tranche{
 			{Price: 0.3965, Amount: 44149.815},
 			{Price: 0.3967, Amount: 16000.0},

@@ -728,7 +728,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 		return nil
 	}
 	if resp.Type == "snapshot" {
-		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
 			Pair:           cp,
 			Exchange:       by.Name,
 			Asset:          assetType,

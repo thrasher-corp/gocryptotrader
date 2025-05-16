@@ -697,7 +697,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 
 		switch orderbookData.Type {
 		case "snapshot":
-			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
 				LastUpdated:     orderbookData.Timestamp.Time(),
@@ -765,7 +765,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
 			Asks:         asks,
 			Bids:         bids,
 			Pair:         cp,

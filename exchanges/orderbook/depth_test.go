@@ -437,7 +437,7 @@ func TestAssignOptions(t *testing.T) {
 	d := Depth{}
 	cp := currency.NewPair(currency.LINK, currency.BTC)
 	tn := time.Now()
-	d.AssignOptions(&Base{
+	d.AssignOptions(&Snapshot{
 		Exchange:         "test",
 		Pair:             cp,
 		Asset:            asset.Spot,

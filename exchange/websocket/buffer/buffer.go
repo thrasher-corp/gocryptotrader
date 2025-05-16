@@ -271,7 +271,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *orderbook.Update) error {
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
-func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
+func (w *Orderbook) LoadSnapshot(book *orderbook.Snapshot) error {
 	// Checks if book can deploy to depth
 	err := book.Verify()
 	if err != nil {
@@ -307,8 +307,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	return nil
 }
 
-// GetOrderbook returns an orderbook copy as orderbook.Base
-func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+// GetOrderbook returns an orderbook copy as orderbook.Snapshot
+func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Snapshot, error) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]

@@ -211,25 +211,25 @@ func TestPrintOrderbookSummary(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 	atomic.StoreInt32(&m.started, 1)
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Snapshot{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
 
 	m.fiatDisplayCurrency = currency.USD
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Snapshot{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
 
 	m.fiatDisplayCurrency = currency.JPY
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Snapshot{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
 
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Snapshot{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", common.ErrNotYetImplemented)
 
-	m.PrintOrderbookSummary(&orderbook.Base{
+	m.PrintOrderbookSummary(&orderbook.Snapshot{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", errors.New("test"))
 

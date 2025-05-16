@@ -374,7 +374,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]any{GetCachedTickerResponse}),
 			})
 
-			var updateOrderbookResponse *orderbook.Base
+			var updateOrderbookResponse *orderbook.Snapshot
 			updateOrderbookResponse, err = e.UpdateOrderbook(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
@@ -388,7 +388,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]any{updateOrderbookResponse}),
 			})
 
-			var GetCachedOrderbookResponse *orderbook.Base
+			var GetCachedOrderbookResponse *orderbook.Snapshot
 			GetCachedOrderbookResponse, err = e.GetCachedOrderbook(p, assetTypes[i])
 			msg = ""
 			if err != nil {

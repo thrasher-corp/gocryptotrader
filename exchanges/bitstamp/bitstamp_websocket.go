@@ -301,7 +301,7 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 		return errors.New("no orderbook data")
 	}
 
-	obUpdate := &orderbook.Base{
+	obUpdate := &orderbook.Snapshot{
 		Bids:            make(orderbook.Tranches, len(update.Bids)),
 		Asks:            make(orderbook.Tranches, len(update.Asks)),
 		Pair:            p,
@@ -353,7 +353,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			return err
 		}
 
-		newOrderBook := &orderbook.Base{
+		newOrderBook := &orderbook.Snapshot{
 			Pair:            p[x],
 			Asset:           asset.Spot,
 			Exchange:        b.Name,

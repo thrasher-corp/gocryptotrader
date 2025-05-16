@@ -197,14 +197,14 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := l.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Snapshot{
 		Exchange:        l.Name,
 		Pair:            p,
 		Asset:           assetType,

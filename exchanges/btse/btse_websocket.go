@@ -289,7 +289,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		newOB := orderbook.Base{
+		newOB := orderbook.Snapshot{
 			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
 			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
 		}

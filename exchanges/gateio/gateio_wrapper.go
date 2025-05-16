@@ -648,7 +648,7 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Snapshot, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -682,7 +682,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Snapshot{
 		Exchange:        g.Name,
 		Asset:           a,
 		VerifyOrderbook: g.CanVerifyOrderbook,

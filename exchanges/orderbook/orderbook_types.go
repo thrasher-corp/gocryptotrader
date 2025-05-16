@@ -79,8 +79,8 @@ type Tranche struct {
 	OrderCount        int64
 }
 
-// Base holds the fields for the orderbook base
-type Base struct {
+// Snapshot holds the fields for the orderbook snapshot
+type Snapshot struct {
 	Bids Tranches
 	Asks Tranches
 

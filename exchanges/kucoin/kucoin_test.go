@@ -2028,7 +2028,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	var result *orderbook.Base
+	var result *orderbook.Snapshot
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.UpdateOrderbook(t.Context(), tp, assetType)

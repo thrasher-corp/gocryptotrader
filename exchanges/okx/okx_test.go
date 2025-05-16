@@ -3934,7 +3934,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
-	var orderbookBase orderbook.Base
+	var orderbookBase orderbook.Snapshot
 	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
 	require.NoError(t, err)
 

@@ -261,14 +261,14 @@ func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
 	if c.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := h.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Snapshot{
 		Exchange:        h.Name,
 		Pair:            c,
 		Asset:           assetType,

@@ -250,8 +250,8 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(ctx context.Context, assetT
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+	book := &orderbook.Snapshot{
 		Exchange: {{.Variable}}.Name, 
 		Pair: pair, 
 		Asset: assetType,

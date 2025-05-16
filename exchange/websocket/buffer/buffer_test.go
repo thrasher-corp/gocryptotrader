@@ -41,7 +41,7 @@ func createSnapshot(pair currency.Pair, bookVerifiy ...bool) (holder *Orderbook,
 	asks = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 	bids = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 
-	book := &orderbook.Base{
+	book := &orderbook.Snapshot{
 		Exchange:         exchangeName,
 		Asks:             asks,
 		Bids:             bids,
@@ -436,7 +436,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	assert.Equal(t, 1000., itemArray[0][0].Price)
 
-	holder.checksum = func(*orderbook.Base, uint32) error { return errors.New("testerino") }
+	holder.checksum = func(*orderbook.Snapshot, uint32) error { return errors.New("testerino") }
 
 	// this update invalidates the book
 	err = holder.Update(&orderbook.Update{
@@ -454,7 +454,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	holder, _, _, err = createSnapshot(cp)
 	require.NoError(t, err)
 
-	holder.checksum = func(*orderbook.Base, uint32) error { return nil }
+	holder.checksum = func(*orderbook.Snapshot, uint32) error { return nil }
 	holder.updateIDProgression = true
 
 	for i := range itemArray {
@@ -530,7 +530,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	var obl Orderbook
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 	obl.dataHandler = make(chan any, 1)
-	var snapShot1 orderbook.Base
+	var snapShot1 orderbook.Snapshot
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
 	snapShot1.Exchange = "test"
@@ -548,7 +548,7 @@ func TestLoadSnapshot(t *testing.T) {
 	var obl Orderbook
 	obl.dataHandler = make(chan any, 100)
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
-	var snapShot1 orderbook.Base
+	var snapShot1 orderbook.Snapshot
 	snapShot1.Exchange = "SnapshotWithOverride"
 	asks := []orderbook.Tranche{{Price: 4000, Amount: 1, ID: 8}}
 	bids := []orderbook.Tranche{{Price: 4000, Amount: 1, ID: 9}}
@@ -583,7 +583,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	var holder Orderbook
 	holder.dataHandler = make(chan any, 100)
 	holder.ob = make(map[key.PairAsset]*orderbookHolder)
-	var snapShot1 orderbook.Base
+	var snapShot1 orderbook.Snapshot
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
 	asks := []orderbook.Tranche{
 		{Price: 6000, Amount: 1, ID: 1},
@@ -620,7 +620,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot1.LastUpdated = time.Now()
 	require.NoError(t, holder.LoadSnapshot(&snapShot1))
 
-	var snapShot2 orderbook.Base
+	var snapShot2 orderbook.Snapshot
 	snapShot2.Exchange = "WSORDERBOOKTEST2"
 	asks = []orderbook.Tranche{
 		{Price: 51, Amount: 1, ID: 1},
@@ -661,7 +661,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.LastUpdated = time.Now()
 	require.NoError(t, holder.LoadSnapshot(&snapShot2))
 
-	var snapShot3 orderbook.Base
+	var snapShot3 orderbook.Snapshot
 	snapShot3.Exchange = "WSORDERBOOKTEST3"
 	asks = []orderbook.Tranche{
 		{Price: 511, Amount: 1, ID: 1},
@@ -966,7 +966,7 @@ func TestFlushOrderbook(t *testing.T) {
 	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, make(chan any, 2))
 	require.NoError(t, err)
 
-	var snapShot1 orderbook.Base
+	var snapShot1 orderbook.Snapshot
 	snapShot1.Exchange = "Snapshooooot"
 	asks := []orderbook.Tranche{{Price: 4000, Amount: 1, ID: 8}}
 	bids := []orderbook.Tranche{{Price: 4000, Amount: 1, ID: 9}}
