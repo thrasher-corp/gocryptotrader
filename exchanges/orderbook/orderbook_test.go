@@ -698,3 +698,24 @@ func TestCheckAlignment(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
+
+// 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
+// 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
+func BenchmarkProcess(b *testing.B) {
+	c, err := currency.NewPairFromStrings("BTC", "USD")
+	require.NoError(b, err)
+
+	base := &Base{
+		Pair:     c,
+		Asks:     make(Tranches, 100),
+		Bids:     make(Tranches, 100),
+		Exchange: "BenchmarkStoreLoadOrderbook",
+		Asset:    asset.Spot,
+	}
+
+	for b.Loop() {
+		if err = base.Process(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
