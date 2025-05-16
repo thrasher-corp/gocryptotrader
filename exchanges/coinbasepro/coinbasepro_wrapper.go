@@ -300,14 +300,14 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Snapshot{
 		Exchange:        c.Name,
 		Pair:            p,
 		Asset:           assetType,

@@ -815,7 +815,7 @@ const (
 )
 
 // PrintOrderbookSummary outputs orderbook results
-func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol string, err error) {
+func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Snapshot, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}

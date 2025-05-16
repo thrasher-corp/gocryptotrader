@@ -14,7 +14,7 @@ import (
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
-func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+func Get(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
 	return service.Retrieve(exchange, p, a)
 }
 
@@ -42,7 +42,7 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 }
 
 // Update stores orderbook data
-func (s *Service) Update(b *Base) error {
+func (s *Service) Update(b *Snapshot) error {
 	name := strings.ToLower(b.Exchange)
 	mapKey := key.PairAsset{
 		Base:  b.Pair.Base.Item,
@@ -144,7 +144,7 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 
 // Retrieve gets orderbook depth data from the stored tranches and returns the
 // base equivalent copy
-func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -170,13 +170,13 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 }
 
 // GetDepth returns the concrete book allowing the caller to stream orderbook changes
-func (b *Base) GetDepth() (*Depth, error) {
+func (b *Snapshot) GetDepth() (*Depth, error) {
 	return service.GetDepth(b.Exchange, b.Pair, b.Asset)
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
+func (b *Snapshot) TotalBidsAmount() (amountCollated, total float64) {
 	for x := range b.Bids {
 		amountCollated += b.Bids[x].Amount
 		total += b.Bids[x].Amount * b.Bids[x].Price
@@ -186,7 +186,7 @@ func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
 
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
+func (b *Snapshot) TotalAsksAmount() (amountCollated, total float64) {
 	for y := range b.Asks {
 		amountCollated += b.Asks[y].Amount
 		total += b.Asks[y].Amount * b.Asks[y].Price
@@ -198,7 +198,7 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 // set and will reject any book with incorrect values.
 // Bids should always go from a high price to a low price and
 // Asks should always go from a low price to a higher price
-func (b *Base) Verify() error {
+func (b *Snapshot) Verify() error {
 	if !b.VerifyOrderbook {
 		return nil
 	}
@@ -290,7 +290,7 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
-func (b *Base) Process() error {
+func (b *Snapshot) Process() error {
 	if b.Exchange == "" {
 		return errExchangeNameUnset
 	}

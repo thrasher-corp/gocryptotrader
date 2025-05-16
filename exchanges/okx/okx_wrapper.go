@@ -497,7 +497,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -517,7 +517,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, err
 		}
 		for y := range spreadOrderbook {
-			book := &orderbook.Base{
+			book := &orderbook.Snapshot{
 				Exchange:        ok.Name,
 				Pair:            pair,
 				Asset:           assetType,
@@ -566,7 +566,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		instrumentID = pairFormat.Format(pair)
-		book := &orderbook.Base{
+		book := &orderbook.Snapshot{
 			Exchange:        ok.Name,
 			Pair:            pair,
 			Asset:           assetType,
