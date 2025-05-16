@@ -72,7 +72,7 @@ func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
 	for b.Loop() {
 		if err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime); err != nil {
-			b.Fatal(err) 
+			b.Fatal(err)
 		}
 	}
 }
