@@ -665,34 +665,55 @@ type WsResult struct {
 
 // UserOrder represents a user orderbook object.
 type UserOrder struct {
-	Status                     string     `json:"status"`
-	Side                       string     `json:"side"`
-	Price                      float64    `json:"price"`
-	Quantity                   float64    `json:"quantity"`
-	OrderID                    string     `json:"order_id"`
-	ClientOrderID              string     `json:"client_oid"`
-	CreateTime                 types.Time `json:"create_time"`
-	UpdateTime                 types.Time `json:"update_time"`
-	Type                       string     `json:"type"`
-	InstrumentName             string     `json:"instrument_name"`
-	CumulativeExecutedQuantity float64    `json:"cumulative_quantity"`
-	CumulativeExecutedValue    float64    `json:"cumulative_value"`
-	AvgPrice                   float64    `json:"avg_price"`
-	FeeCurrency                string     `json:"fee_currency"`
-	TimeInForce                string     `json:"time_in_force"`
+	Status                     string       `json:"status"`
+	Side                       string       `json:"side"`
+	Price                      types.Number `json:"price"`
+	Quantity                   types.Number `json:"quantity"`
+	OrderID                    string       `json:"order_id"`
+	ClientOrderID              string       `json:"client_oid"`
+	CreateTime                 types.Time   `json:"create_time"`
+	UpdateTime                 types.Time   `json:"update_time"`
+	Type                       string       `json:"type"`
+	InstrumentName             string       `json:"instrument_name"`
+	CumulativeExecutedQuantity types.Number `json:"cumulative_quantity"`
+	CumulativeExecutedValue    types.Number `json:"cumulative_value"`
+	AvgPrice                   types.Number `json:"avg_price"`
+	FeeCurrency                string       `json:"fee_currency"`
+	TimeInForce                string       `json:"time_in_force"`
+	AccountID                  string       `json:"account_id"`
+	OrderType                  string       `json:"order_type"`
+	ExecInst                   []string     `json:"exec_inst"`
+	LimitPrice                 types.Number `json:"limit_price"`
+	OrderValue                 types.Number `json:"order_value"`
+	MakerFeeRate               types.Number `json:"maker_fee_rate"`
+	TakerFeeRate               types.Number `json:"taker_fee_rate"`
+	CumulativeFee              types.Number `json:"cumulative_fee"`
+	UpdateUserID               string       `json:"update_user_id"`
+	OrderDate                  string       `json:"order_date"`
+	FeeInstrumentName          string       `json:"fee_instrument_name"`
+	CreateTimeNs               types.Time   `json:"create_time_ns"`
 }
 
 // UserTrade represents a user trade instance.
 type UserTrade struct {
-	Side           string     `json:"side"`
-	InstrumentName string     `json:"instrument_name"`
-	Fee            float64    `json:"fee"`
-	TradeID        string     `json:"trade_id"`
-	CreateTime     types.Time `json:"create_time"`
-	TradedPrice    float64    `json:"traded_price"`
-	TradedQuantity float64    `json:"traded_quantity"`
-	FeeCurrency    string     `json:"fee_currency"`
-	OrderID        string     `json:"order_id"`
+	TradeID           string       `json:"trade_id"`
+	OrderID           string       `json:"order_id"`
+	Side              string       `json:"side"`
+	InstrumentName    string       `json:"instrument_name"`
+	Fee               types.Number `json:"fee"`
+	CreateTime        types.Time   `json:"create_time"`
+	TradedPrice       types.Number `json:"traded_price"`
+	TradedQuantity    types.Number `json:"traded_quantity"`
+	FeeCurrency       string       `json:"fee_currency"`
+	AccountID         string       `json:"account_id"`
+	EventDate         string       `json:"event_date"`
+	JournalType       string       `json:"journal_type"`
+	Fees              string       `json:"fees"`
+	TradeMatchID      string       `json:"trade_match_id"`
+	ClientOrderID     string       `json:"client_oid"`
+	TakerSide         string       `json:"taker_side"`
+	FeeInstrumentName string       `json:"fee_instrument_name"`
+	CreateTimeNs      types.Time   `json:"create_time_ns"`
 }
 
 // WsOrderbook represents an orderbook websocket push data.
@@ -999,15 +1020,34 @@ type UsersPositions struct {
 
 // UserPosition holds a brief of user's position information
 type UserPosition struct {
-	AccountID         string       `json:"account_id"`
-	Quantity          types.Number `json:"quantity"`
-	Cost              string       `json:"cost"`
-	OpenPositionPnl   types.Number `json:"open_position_pnl"`
-	OpenPosCost       types.Number `json:"open_pos_cost"`
-	SessionPnl        types.Number `json:"session_pnl"`
-	UpdateTimestampMs types.Time   `json:"update_timestamp_ms"`
-	InstrumentName    string       `json:"instrument_name"`
-	InstrumentType    string       `json:"type"`
+	InstrumentType       string       `json:"type"`
+	AccountID            string       `json:"account_id"`
+	Quantity             types.Number `json:"quantity"`
+	Cost                 types.Number `json:"cost"`
+	OpenPositionPnl      types.Number `json:"open_position_pnl"`
+	OpenPosCost          types.Number `json:"open_pos_cost"`
+	SessionPnl           types.Number `json:"session_pnl"`
+	UpdateTimestampMs    types.Time   `json:"update_timestamp_ms"`
+	InstrumentName       string       `json:"instrument_name"`
+	LiquidationPrice     types.Number `json:"liquidation_price"`
+	SessionUnrealizedPnl types.Number `json:"session_unrealized_pnl"`
+	PosInitialMargin     types.Number `json:"pos_initial_margin"`
+	PosMaintenanceMargin types.Number `json:"pos_maintenance_margin"`
+	MarketValue          types.Number `json:"market_value"`
+	MarkPrice            types.Number `json:"mark_price"`
+	TargetLeverage       types.Number `json:"target_leverage"`
+}
+
+// WsUserPositionBalance holds user's asset and position balance details.
+type WsUserPositionBalance struct {
+	Balances  []UserAssetBalance `json:"balances"`
+	Positions []UserPosition     `json:"positions"`
+}
+
+// UserAssetBalance holds user asset balance detail.
+type UserAssetBalance struct {
+	CurrencyName string       `json:"instrument_name"`
+	Quantity     types.Number `json:"quantity"`
 }
 
 // InstrumentTrades holds list of executed trades of an instrument
@@ -1116,4 +1156,11 @@ type UserBalanceDetail struct {
 		CollateralWeight     types.Number `json:"collateral_weight"`
 		MaxWithdrawalBalance types.Number `json:"max_withdrawal_balance"`
 	} `json:"position_balances"`
+}
+
+// WsUserPositionDetail holds user's position detail through the websocket stream.
+type WsUserPositionDetail struct {
+	Subscription string         `json:"subscription"`
+	Channel      string         `json:"channel"`
+	Data         []UserPosition `json:"data"`
 }

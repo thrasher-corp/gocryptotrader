@@ -367,13 +367,13 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 	if resp.Method == "subscribe" {
 		switch {
 		case strings.HasPrefix(resp.Result.Channel, userOrderCnl):
-			return cr.processUserOrderbook(resp.Result)
+			return cr.processUserOrders(resp.Result)
 		case strings.HasPrefix(resp.Result.Channel, userTradeCnl):
 			if !cr.IsFillsFeedEnabled() {
 				return nil
 			}
 			return cr.processUserTrade(resp.Result)
-		case strings.HasPrefix(resp.Result.Channel, userBalanceCnl):
+		case resp.Result.Channel == userBalanceCnl:
 			return cr.processUserBalance(resp.Result)
 		case strings.HasPrefix(resp.Result.Channel, instrumentOrderbookCnl):
 			return cr.processOrderbook(resp.Result)
@@ -385,6 +385,10 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 			return cr.processCandlestick(resp.Result)
 		case resp.Result.Channel == otcBooksCnl:
 			return cr.processOTCOrderbook(resp.Result)
+		case resp.Result.Channel == positionBalanceCnl:
+		case resp.Result.Channel == accountRiskCnl:
+		case resp.Result.Channel == userPositionsCnl:
+			return cr.processUserPosition(resp.Result)
 		default:
 			if resp.Code == 0 {
 				return nil
@@ -394,6 +398,39 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 	if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
 		return fmt.Errorf("could not match incoming message with signature: %d, and data: %s", resp.ID, string(respRaw))
 	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processUserPosition(resp *WsResult) error {
+	var data *WsUserPositionDetail
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	orders := make([]order.Detail, len(data.Data))
+	for x := range data.Data {
+		cp, err := currency.NewPairFromString(data.Data[x].InstrumentName)
+		if err != nil {
+			return err
+		}
+		var assetType asset.Item
+		if data.Data[x].InstrumentType == "PERPETUAL_SWAP" {
+			assetType = asset.Futures
+		}
+		orders[x] = order.Detail{
+			Leverage:    data.Data[x].TargetLeverage.Float64(),
+			Price:       data.Data[x].MarkPrice.Float64(),
+			Amount:      data.Data[x].Quantity.Float64(),
+			Cost:        data.Data[x].Cost.Float64(),
+			Exchange:    cr.Name,
+			OrderID:     data.Data[x].AccountID,
+			AccountID:   data.Data[x].AccountID,
+			AssetType:   assetType,
+			LastUpdated: data.Data[x].UpdateTimestampMs.Time(),
+			Pair:        cp,
+		}
+	}
+	cr.Websocket.DataHandler <- orders
 	return nil
 }
 
@@ -618,14 +655,14 @@ func (cr *Cryptodotcom) processUserTrade(resp *WsResult) error {
 			Side:         oSide,
 			OrderID:      data[x].OrderID,
 			TradeID:      data[x].TradeID,
-			Price:        data[x].TradedPrice,
-			Amount:       data[x].TradedQuantity,
+			Price:        data[x].TradedPrice.Float64(),
+			Amount:       data[x].TradedQuantity.Float64(),
 		}
 	}
 	return cr.Websocket.Fills.Update(fills...)
 }
 
-func (cr *Cryptodotcom) processUserOrderbook(resp *WsResult) error {
+func (cr *Cryptodotcom) processUserOrders(resp *WsResult) error {
 	var data []UserOrder
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -649,24 +686,29 @@ func (cr *Cryptodotcom) processUserOrderbook(resp *WsResult) error {
 		if err != nil {
 			return err
 		}
+		tif, err := order.StringToTimeInForce(data[x].TimeInForce)
+		if err != nil {
+			return err
+		}
 		ordersDetails[x] = order.Detail{
-			Price:                data[x].Price,
-			Amount:               data[x].Quantity,
-			AverageExecutedPrice: data[x].AvgPrice,
-			ExecutedAmount:       data[x].CumulativeExecutedQuantity,
-			RemainingAmount:      data[x].Quantity - data[x].CumulativeExecutedQuantity,
-			Cost:                 data[x].CumulativeExecutedValue,
-			CostAsset:            cp.Quote,
+			Amount:               data[x].Quantity.Float64(),
+			AverageExecutedPrice: data[x].AvgPrice.Float64(),
+			RemainingAmount:      data[x].Quantity.Float64() - data[x].CumulativeExecutedQuantity.Float64(),
+			ExecutedAmount:       data[x].CumulativeExecutedQuantity.Float64(),
+			Cost:                 data[x].CumulativeExecutedValue.Float64(),
 			FeeAsset:             currency.NewCode(data[x].FeeCurrency),
-			Exchange:             cr.Name,
-			OrderID:              data[x].OrderID,
-			ClientOrderID:        data[x].ClientOrderID,
 			LastUpdated:          data[x].UpdateTime.Time(),
 			Date:                 data[x].CreateTime.Time(),
+			Price:                data[x].Price.Float64(),
+			ClientOrderID:        data[x].ClientOrderID,
+			OrderID:              data[x].OrderID,
+			AssetType:            asset.Spot,
+			CostAsset:            cp.Quote,
+			Exchange:             cr.Name,
 			Side:                 oSide,
 			Type:                 oType,
-			AssetType:            asset.Spot,
 			Status:               status,
+			TimeInForce:          tif,
 			Pair:                 cp,
 		}
 	}
