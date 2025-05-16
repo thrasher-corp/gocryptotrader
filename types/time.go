@@ -50,7 +50,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		s = s[:target] + s[target+1:]
 	}
 
-	// The length of the string must be 13, 16, or 19.
+	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 	switch len(s) {
 	case 12, 15, 18:
 		s += onePadding
