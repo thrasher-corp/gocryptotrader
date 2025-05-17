@@ -782,7 +782,7 @@ func TestNewOrderTest(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
 	_, err := bi.NewOrderTest(t.Context(), req)
 	if err != nil {
@@ -810,7 +810,7 @@ func TestNewOrder(t *testing.T) {
 		TradeType:   BinanceRequestParamsOrderLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: BinanceRequestParamsTimeGTC,
+		TimeInForce: order.GoodTillCancel.String(),
 	}
 	if _, err := bi.NewOrder(t.Context(), req); err != nil && !strings.Contains(err.Error(), "Account has insufficient balance for requested action") {
 		t.Error("Binanceus NewOrder() error", err)
@@ -1584,14 +1584,14 @@ func TestWebsocketAggTrade(t *testing.T) {
 			"stream":"btcusdt@aggTrade", 
 			"data": {
 				"e": "aggTrade",  
-				"E": 123456789,   
-				"s": "BNBBTC",    
+				"E": 1672515782136,   
+				"s": "BNBBTC",
 				"a": 12345,       
 				"p": "0.001",     
 				"q": "100",   
 				"f": 100,     
 				"l": 105,   
-				"T": 123456785,
+				"T": 1672515782136,
 				"m": true,
 				"M": true         
 			}

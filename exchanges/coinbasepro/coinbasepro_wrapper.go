@@ -430,9 +430,9 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fPair.String(),
 			"")
 	case order.Limit:
-		timeInForce := CoinbaseRequestParamsTimeGTC
-		if s.ImmediateOrCancel {
-			timeInForce = CoinbaseRequestParamsTimeIOC
+		timeInForce := order.GoodTillCancel.String()
+		if s.TimeInForce == order.ImmediateOrCancel {
+			timeInForce = order.ImmediateOrCancel.String()
 		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
@@ -788,7 +788,7 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 	timeSeries := make([]kline.Candle, len(history))
 	for x := range history {
 		timeSeries[x] = kline.Candle{
-			Time:   history[x].Time,
+			Time:   history[x].Time.Time(),
 			Low:    history[x].Low,
 			High:   history[x].High,
 			Open:   history[x].Open,
@@ -820,7 +820,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 
 		for i := range history {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   history[i].Time,
+				Time:   history[i].Time.Time(),
 				Low:    history[i].Low,
 				High:   history[i].High,
 				Open:   history[i].Open,
