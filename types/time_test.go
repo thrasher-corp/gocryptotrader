@@ -66,7 +66,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.ErrorIs(t, json.Unmarshal([]byte(`"1606292218213.45.8"`), &testTime), strconv.ErrSyntax)
 }
 
-// 5697680	       203.8 ns/op	     168 B/op	       2 allocs/op (current)
+// 6152384	       195.5 ns/op	     168 B/op	       2 allocs/op (current)
 // 5030734	       240.1 ns/op	     168 B/op	       2 allocs/op (previous)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time

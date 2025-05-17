@@ -17,31 +17,16 @@ type Time time.Time
 func (t *Time) UnmarshalJSON(data []byte) error {
 	s := string(data)
 
-	switch s {
-	case "null", "0", `""`, `"0"`:
-		*t = Time(time.Time{})
-		return nil
-	}
-
 	if s[0] == '"' {
 		s = s[1 : len(s)-1]
 	}
 
-	badSyntax := false
-	target := strings.IndexFunc(s, func(r rune) bool {
-		if r == '.' {
-			return true
-		}
-		// types.Time may only parse numbers. The below check ensures an error is thrown. time.Time should be used to
-		// parse RFC3339 strings instead.
-		badSyntax = r < '0' || r > '9'
-		return badSyntax
-	})
+	switch s {
+	case "null", "0", ``:
+		return nil
+	}
 
-	if target != -1 {
-		if badSyntax {
-			return fmt.Errorf("%w for `%v`", strconv.ErrSyntax, string(data))
-		}
+	if target := strings.Index(s, `.`); target != -1 {
 		s = s[:target] + s[target+1:]
 	}
 
@@ -55,7 +40,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 
 	unixTS, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w, expecting unix timestamp", err)
 	}
 
 	switch len(s) {
