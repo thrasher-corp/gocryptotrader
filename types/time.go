@@ -7,11 +7,6 @@ import (
 	"time"
 )
 
-const (
-	onePadding = "0"
-	twoPadding = "00"
-)
-
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
 // MarshalJSON serializes the time to JSON using RFC 3339 format.
 // Note: Not all exchanges may support RFC 3339 for outbound requests, so ensure compatibility with each exchange's time
@@ -53,9 +48,9 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 	switch len(s) {
 	case 12, 15, 18:
-		s += onePadding
+		s += "0"
 	case 11, 14, 17:
-		s += twoPadding
+		s += "00"
 	}
 
 	unixTS, err := strconv.ParseInt(s, 10, 64)
