@@ -73,7 +73,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	case 19:
 		*t = Time(time.Unix(0, unixTS))
 	default:
-		return fmt.Errorf("cannot unmarshal %s into Time", string(data))
+		return fmt.Errorf("cannot unmarshal %s into Time", data)
 	}
 	return nil
 }
