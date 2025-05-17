@@ -98,7 +98,7 @@ func (cr *Cryptodotcom) GetFuturesOrderList(ctx context.Context, contingencyType
 }
 
 // GetInsurance fetches balance of Insurance Fund for a particular currency.
-func (cr *Cryptodotcom) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*InsuranceFundBalanceDetail, error) {
+func (cr *Cryptodotcom) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*ValueAndTimestamp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -115,6 +115,6 @@ func (cr *Cryptodotcom) GetInsurance(ctx context.Context, symbol string, count i
 		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp *InsuranceFundBalanceDetail
+	var resp *ValueAndTimestamp
 	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), request.Auth, &resp)
 }

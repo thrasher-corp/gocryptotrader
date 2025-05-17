@@ -3,6 +3,7 @@ package cryptodotcom
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -94,7 +95,7 @@ type TickerItem struct {
 	PriceChange24H       SafeNumber `json:"c"` // 24-hour price change, null if there weren't any trades
 	BestBidPrice         SafeNumber `json:"b"` // The current best bid price, null if there aren't any bids
 	BestAskPrice         SafeNumber `json:"k"` // The current best ask price, null if there aren't any asks
-	TradeTimestamp       types.Time `json:"t"`
+	TradeTimestamp       time.Time  `json:"t"`
 
 	// Added for websocket push data.
 	BestBidSize SafeNumber `json:"bs"`
@@ -1116,20 +1117,10 @@ type OrderDetail struct {
 	UpdateTime         types.Time   `json:"update_time"`
 }
 
-// InsuranceFundBalanceDetail holds insurance fund balance for a particular currency pair
-type InsuranceFundBalanceDetail struct {
-	Data []struct {
-		Value     types.Number `json:"v"`
-		Timestamp types.Time   `json:"t"`
-	} `json:"data"`
-	Currency string `json:"instrument_name"`
-}
-
-// UserBalance holds balance update detail for user
-type UserBalance struct {
-	Subscription string              `json:"subscription"`
-	Channel      string              `json:"channel"`
-	Data         []UserBalanceDetail `json:"data"`
+// ValueAndTimestamp holds value, and timestamp information
+type ValueAndTimestamp struct {
+	Value     types.Number `json:"v"`
+	Timestamp types.Time   `json:"t"`
 }
 
 // UserBalanceDetail holds user balance detail specific to an instrument/currency
@@ -1158,9 +1149,36 @@ type UserBalanceDetail struct {
 	} `json:"position_balances"`
 }
 
-// WsUserPositionDetail holds user's position detail through the websocket stream.
-type WsUserPositionDetail struct {
-	Subscription string         `json:"subscription"`
-	Channel      string         `json:"channel"`
-	Data         []UserPosition `json:"data"`
+// UserAccountRisk holds position and balance snapshot for the user on a regular basis
+type UserAccountRisk struct {
+	Currency                  string               `json:"instrument_name"`
+	TotalAvailableBalance     types.Number         `json:"total_available_balance"`
+	TotalCashBalance          types.Number         `json:"total_cash_balance"`
+	TotalInitialMargin        types.Number         `json:"total_initial_margin"`
+	TotalMaintenanceMargin    types.Number         `json:"total_maintenance_margin"`
+	TotalPositionCost         types.Number         `json:"total_position_cost"`
+	TotalSessionUnrealizedPnl types.Number         `json:"total_session_unrealized_pnl"`
+	TotalMarginBalance        types.Number         `json:"total_margin_balance"`
+	TotalSessionRealizedPnl   types.Number         `json:"total_session_realized_pnl"`
+	TotalEffectiveLeverage    types.Number         `json:"total_effective_leverage"`
+	PositionLimit             types.Number         `json:"position_limit"`
+	UsedPositionLimit         types.Number         `json:"used_position_limit"`
+	IsLiquidating             bool                 `json:"is_liquidating"`
+	TotalBorrow               string               `json:"total_borrow"`
+	MarginScore               types.Number         `json:"margin_score"`
+	Balances                  []AccountRiskBalance `json:"balances"`
+	Positions                 []UserPosition       `json:"positions"`
+	TotalCollateralValue      types.Number         `json:"total_collateral_value"`
+}
+
+// AccountRiskBalance holds user's account risk balance detail.
+type AccountRiskBalance struct {
+	Currency             string       `json:"instrument_name"`
+	Quantity             types.Number `json:"quantity"`
+	ReservedQty          types.Number `json:"reserved_qty"`
+	MarketValue          types.Number `json:"market_value"`
+	CollateralAmount     types.Number `json:"collateral_amount"`
+	CollateralWeight     types.Number `json:"collateral_weight"`
+	MaxWithdrawalBalance types.Number `json:"max_withdrawal_balance"`
+	HourlyInterestRate   types.Number `json:"hourly_interest_rate"`
 }

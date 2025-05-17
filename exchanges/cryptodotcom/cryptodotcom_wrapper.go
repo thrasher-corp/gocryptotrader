@@ -289,7 +289,7 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 		Ask:          tick.Data[0].BestAskPrice.Float64(),
 		Last:         tick.Data[0].LatestTradePrice.Float64(),
 		Volume:       tick.Data[0].TradedVolume.Float64(),
-		LastUpdated:  tick.Data[0].TradeTimestamp.Time(),
+		LastUpdated:  tick.Data[0].TradeTimestamp,
 		AssetType:    assetType,
 		ExchangeName: cr.Name,
 		Pair:         p,

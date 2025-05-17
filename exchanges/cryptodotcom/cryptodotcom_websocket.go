@@ -365,31 +365,39 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 		resp.Result = &WsResult{}
 	}
 	if resp.Method == "subscribe" {
-		switch {
-		case strings.HasPrefix(resp.Result.Channel, userOrderCnl):
-			return cr.processUserOrders(resp.Result)
-		case strings.HasPrefix(resp.Result.Channel, userTradeCnl):
-			if !cr.IsFillsFeedEnabled() {
-				return nil
-			}
-			return cr.processUserTrade(resp.Result)
-		case resp.Result.Channel == userBalanceCnl:
+		switch resp.Result.Channel {
+		case userBalanceCnl:
 			return cr.processUserBalance(resp.Result)
-		case strings.HasPrefix(resp.Result.Channel, instrumentOrderbookCnl):
+		case instrumentOrderbookCnl:
 			return cr.processOrderbook(resp.Result)
-		case strings.HasPrefix(resp.Result.Channel, tickerCnl):
+		case tickerCnl:
 			return cr.processTicker(resp.Result)
-		case strings.HasPrefix(resp.Result.Channel, tradeCnl):
+		case tradeCnl:
 			return cr.processTrades(resp.Result)
-		case strings.HasPrefix(resp.Result.Channel, candlestickCnl):
+		case candlestickCnl:
 			return cr.processCandlestick(resp.Result)
-		case resp.Result.Channel == otcBooksCnl:
+		case otcBooksCnl:
 			return cr.processOTCOrderbook(resp.Result)
-		case resp.Result.Channel == positionBalanceCnl:
-		case resp.Result.Channel == accountRiskCnl:
-		case resp.Result.Channel == userPositionsCnl:
+		case positionBalanceCnl:
+			return cr.processPositionBalance(resp.Result)
+		case accountRiskCnl:
+			return cr.processAccountRisk(resp.Result)
+		case userPositionsCnl:
 			return cr.processUserPosition(resp.Result)
+		case fundingCnl:
+			return cr.processFundingRate(resp.Result)
+		case settlementCnl, markCnl, indexCnl:
+			cr.Websocket.DataHandler <- resp
+			return nil
 		default:
+			if strings.HasPrefix(resp.Result.Channel, userOrderCnl) {
+				return cr.processUserOrders(resp.Result)
+			} else if strings.HasPrefix(resp.Result.Channel, userTradeCnl) {
+				if !cr.IsFillsFeedEnabled() {
+					return nil
+				}
+				return cr.processUserTrade(resp.Result)
+			}
 			if resp.Code == 0 {
 				return nil
 			}
@@ -401,32 +409,138 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 	return nil
 }
 
-func (cr *Cryptodotcom) processUserPosition(resp *WsResult) error {
-	var data *WsUserPositionDetail
+func (cr *Cryptodotcom) processFundingRate(resp *WsResult) error {
+	var data []ValueAndTimestamp
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
 		return err
 	}
-	orders := make([]order.Detail, len(data.Data))
-	for x := range data.Data {
-		cp, err := currency.NewPairFromString(data.Data[x].InstrumentName)
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	for d := range data {
+		cr.Websocket.DataHandler <- websocket.FundingData{
+			Timestamp:    data[d].Timestamp.Time(),
+			CurrencyPair: cp,
+			AssetType:    asset.PerpetualSwap,
+			Exchange:     cr.Name,
+			Rate:         data[d].Value.Float64(),
+		}
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processAccountRisk(resp *WsResult) error {
+	var data []UserAccountRisk
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	for x := range data {
+		changes := make([]account.Change, len(data[x].Balances))
+		for b := range data[x].Balances {
+			changes[b] = account.Change{
+				AssetType: asset.PerpetualSwap,
+				Balance: &account.Balance{
+					Currency: currency.NewCode(data[x].Balances[b].Currency),
+					Total:    data[x].Balances[b].Quantity.Float64(),
+					Hold:     data[x].Balances[b].ReservedQty.Float64(),
+					Free:     data[x].Balances[b].Quantity.Float64() - data[x].Balances[b].ReservedQty.Float64(),
+				},
+			}
+		}
+		positions := make([]order.Detail, len(data[x].Positions))
+		for p := range data[x].Positions {
+			cp, err := currency.NewPairFromString(data[x].Positions[p].InstrumentName)
+			if err != nil {
+				return err
+			}
+			positions[p] = order.Detail{
+				Leverage:       data[x].Positions[p].TargetLeverage.Float64(),
+				Price:          data[x].Positions[p].MarkPrice.Float64(),
+				Amount:         data[x].Positions[p].Quantity.Float64(),
+				ContractAmount: data[x].Positions[p].Quantity.Float64(),
+				Cost:           data[x].Positions[p].Cost.Float64(),
+				Exchange:       cr.Name,
+				AccountID:      data[x].Positions[p].AccountID,
+				AssetType:      asset.PerpetualSwap,
+				LastUpdated:    data[x].Positions[p].UpdateTimestampMs.Time(),
+				Pair:           cp,
+			}
+		}
+		cr.Websocket.DataHandler <- positions
+		cr.Websocket.DataHandler <- changes
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processPositionBalance(resp *WsResult) error {
+	var data *WsUserPositionBalance
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	positions := make([]order.Detail, len(data.Positions))
+	for p := range data.Positions {
+		cp, err := currency.NewPairFromString(data.Positions[p].InstrumentName)
+		if err != nil {
+			return err
+		}
+		positions[p] = order.Detail{
+			Leverage:       data.Positions[p].TargetLeverage.Float64(),
+			Price:          data.Positions[p].MarkPrice.Float64(),
+			Amount:         data.Positions[p].Quantity.Float64(),
+			ContractAmount: data.Positions[p].Quantity.Float64(),
+			Cost:           data.Positions[p].Cost.Float64(),
+			Exchange:       cr.Name,
+			AccountID:      data.Positions[p].AccountID,
+			AssetType:      asset.PerpetualSwap,
+			LastUpdated:    data.Positions[p].UpdateTimestampMs.Time(),
+			Pair:           cp,
+		}
+	}
+	cr.Websocket.DataHandler <- positions
+	changes := make([]account.Change, len(data.Balances))
+	for b := range data.Balances {
+		changes[b] = account.Change{
+			AssetType: asset.PerpetualSwap,
+			Balance: &account.Balance{
+				Currency: currency.NewCode(data.Balances[b].CurrencyName),
+				Total:    data.Balances[b].Quantity.Float64(),
+			},
+		}
+	}
+	cr.Websocket.DataHandler <- changes
+	return nil
+}
+
+func (cr *Cryptodotcom) processUserPosition(resp *WsResult) error {
+	var data []UserPosition
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	orders := make([]order.Detail, len(data))
+	for x := range data {
+		cp, err := currency.NewPairFromString(data[x].InstrumentName)
 		if err != nil {
 			return err
 		}
 		var assetType asset.Item
-		if data.Data[x].InstrumentType == "PERPETUAL_SWAP" {
+		if data[x].InstrumentType == "PERPETUAL_SWAP" {
 			assetType = asset.Futures
 		}
 		orders[x] = order.Detail{
-			Leverage:    data.Data[x].TargetLeverage.Float64(),
-			Price:       data.Data[x].MarkPrice.Float64(),
-			Amount:      data.Data[x].Quantity.Float64(),
-			Cost:        data.Data[x].Cost.Float64(),
+			Leverage:    data[x].TargetLeverage.Float64(),
+			Price:       data[x].MarkPrice.Float64(),
+			Amount:      data[x].Quantity.Float64(),
+			Cost:        data[x].Cost.Float64(),
 			Exchange:    cr.Name,
-			OrderID:     data.Data[x].AccountID,
-			AccountID:   data.Data[x].AccountID,
+			OrderID:     data[x].AccountID,
+			AccountID:   data[x].AccountID,
 			AssetType:   assetType,
-			LastUpdated: data.Data[x].UpdateTimestampMs.Time(),
+			LastUpdated: data[x].UpdateTimestampMs.Time(),
 			Pair:        cp,
 		}
 	}
@@ -607,19 +721,19 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 }
 
 func (cr *Cryptodotcom) processUserBalance(wsResult *WsResult) error {
-	var resp *UserBalance
+	var resp []UserBalanceDetail
 	err := json.Unmarshal(wsResult.Data, &resp)
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp.Data))
-	for x := range resp.Data {
+	accountChanges := make([]account.Change, len(resp))
+	for x := range resp {
 		accountChanges[x] = account.Change{
 			Balance: &account.Balance{
-				Currency: currency.NewCode(resp.Data[x].InstrumentName),
-				Total:    resp.Data[x].TotalCashBalance.Float64(),
-				Hold:     resp.Data[x].TotalCashBalance.Float64() - resp.Data[x].TotalAvailableBalance.Float64(),
-				Free:     resp.Data[x].TotalAvailableBalance.Float64(),
+				Currency: currency.NewCode(resp[x].InstrumentName),
+				Total:    resp[x].TotalCashBalance.Float64(),
+				Hold:     resp[x].TotalCashBalance.Float64() - resp[x].TotalAvailableBalance.Float64(),
+				Free:     resp[x].TotalAvailableBalance.Float64(),
 			},
 		}
 	}
@@ -686,9 +800,12 @@ func (cr *Cryptodotcom) processUserOrders(resp *WsResult) error {
 		if err != nil {
 			return err
 		}
-		tif, err := order.StringToTimeInForce(data[x].TimeInForce)
-		if err != nil {
-			return err
+		var tif order.TimeInForce
+		switch data[x].TimeInForce {
+		case "POST_ONLY":
+			tif = order.PostOnly
+		case "GOOD_TILL_CANCEL":
+			tif = order.GoodTillCancel
 		}
 		ordersDetails[x] = order.Detail{
 			Amount:               data[x].Quantity.Float64(),
