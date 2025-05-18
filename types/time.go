@@ -22,7 +22,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	}
 
 	switch s {
-	case "null", "0", ``:
+	case "null", "0", "":
 		return nil
 	}
 
