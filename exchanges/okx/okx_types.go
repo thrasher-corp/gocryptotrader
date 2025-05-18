@@ -4755,7 +4755,7 @@ type CopyTradingLeadTrader struct {
 type LeadTraderRanksRequest struct {
 	InstrumentType           string  // Instrument type e.g 'SWAP'. The default value is 'SWAP'
 	SortType                 string  // Overview, the default value. pnl: profit and loss, aum: assets under management, win_ratio: win ratio,pnl_ratio: pnl ratio, current_copy_trader_pnl: current copy trader pnl
-	State                    uint64  // 0: All lead traders, the default, including vacancy and non-vacancy. 1: lead traders who have vacancy
+	State                    bool    // False: All lead traders, the default, including vacancy and non-vacancy. True: lead traders who have vacancy
 	MinLeadDays              uint64  // 1: 7 days. 2: 30 days. 3: 90 days. 4: 180 days
 	MinAssets                float64 // Minimum assets in USDT
 	MaxAssets                float64 // Maximum assets in USDT

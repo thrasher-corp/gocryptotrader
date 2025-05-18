@@ -86,7 +86,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 		result, err := ok.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
 			SortType:       "pnl_ratio",
-			State:          1,
+			State:          true,
 			Limit:          10,
 		})
 		if err != nil {

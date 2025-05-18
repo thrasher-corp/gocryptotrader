@@ -596,7 +596,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getSpreadOrderbookEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadTickerEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getSpreadPublicTradesEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadCandlesticksEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadCandlesticksEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
 		getSpreadCandlesticksHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		cancelAllSpreadOrdersAfterEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 

@@ -3858,8 +3858,8 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequ
 	if req.SortType != "" {
 		params.Set("sortType", req.SortType)
 	}
-	if req.State != 0 {
-		params.Set("state", strconv.FormatUint(req.State, 10))
+	if req.State {
+		params.Set("state", "1")
 	}
 	if req.MinLeadDays != 0 {
 		params.Set("minLeadDays", strconv.FormatUint(req.MinLeadDays, 10))
