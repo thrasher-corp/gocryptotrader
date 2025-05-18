@@ -40,7 +40,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 
 	unixTS, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return fmt.Errorf("%w, expecting unix timestamp", err)
+		return fmt.Errorf("error parsing unix timestamp: %w", err)
 	}
 
 	switch len(s) {
