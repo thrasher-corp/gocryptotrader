@@ -26,7 +26,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	if target := strings.Index(s, `.`); target != -1 {
+	if target := strings.Index(s, "."); target != -1 {
 		s = s[:target] + s[target+1:]
 	}
 
