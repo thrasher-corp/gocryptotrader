@@ -80,7 +80,6 @@ func TestGetRiskParameters(t *testing.T) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	cr.Verbose = true
 	result, err := cr.GetInstruments(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -691,7 +690,11 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	result, err := cr.FetchTicker(context.Background(), tradablePair, asset.Spot)
+	cp, err := currency.NewPairFromString("BTCUSD-PERP")
+	require.NoError(t, err)
+	cp.Delimiter = currency.DashDelimiter
+
+	result, err := cr.FetchTicker(context.Background(), cp, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

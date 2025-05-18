@@ -538,6 +538,7 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 	if err != nil {
 		return nil, err
 	}
+	println("Trades Length: ", len(trades.Data), "\n\n\n")
 	resp := make([]trade.Data, len(trades.Data))
 	for x := range trades.Data {
 		var side order.Side
@@ -553,7 +554,7 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 			Side:         side,
 			Price:        trades.Data[x].TradePrice.Float64(),
 			Amount:       trades.Data[x].TradeQuantity.Float64(),
-			Timestamp:    trades.Data[x].DataTime.Time(),
+			Timestamp:    trades.Data[x].TradeTimestamp.Time(),
 		}
 	}
 	if cr.IsSaveTradeDataEnabled() {

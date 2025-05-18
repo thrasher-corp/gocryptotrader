@@ -109,13 +109,14 @@ type TradesResponse struct {
 
 // TradeItem represents a public trade item.
 type TradeItem struct {
-	Side           string     `json:"s"`
-	TradePrice     SafeNumber `json:"p"`
-	TradeQuantity  SafeNumber `json:"q"`
-	TradeTimestamp types.Time `json:"t"`
-	TradeID        string     `json:"d"`
-	InstrumentName string     `json:"i"`
-	DataTime       types.Time `json:"dataTime"`
+	Side             string     `json:"s"`
+	TradePrice       SafeNumber `json:"p"`
+	TradeQuantity    SafeNumber `json:"q"`
+	TradeTimestamp   types.Time `json:"t"`
+	TradeID          string     `json:"d"`
+	InstrumentName   string     `json:"i"`
+	TradeTimestampNs types.Time `json:"tn"`
+	TradeMatchID     string     `json:"m"`
 }
 
 // CancelOnDisconnectScope represents a scope of cancellation.
