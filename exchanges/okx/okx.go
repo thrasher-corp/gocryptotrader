@@ -3845,11 +3845,7 @@ func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/lead-traders-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetLeadTradersRanks retrieve lead trader ranks.
-// Instrument type: SWAP, the default value
-// Sort type"overview": overview, the default value "pnl": profit and loss "aum": assets under management "win_ratio": win ratio "pnl_ratio": pnl ratio "current_copy_trader_pnl": current copy trader pnl
-// Lead trader state: "0": All lead traders, the default, including vacancy and non-vacancy "1": lead traders who have vacancy
-// Minimum lead days '1': 7 days '2': 30 days '3': 90 days '4': 180 days
+// GetLeadTradersRanks retrieves lead trader ranks
 func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequest) ([]LeadTradersRank, error) {
 	params := url.Values{}
 	if req.InstrumentType != "" {
@@ -3858,7 +3854,7 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequ
 	if req.SortType != "" {
 		params.Set("sortType", req.SortType)
 	}
-	if req.State {
+	if req.HasVacancy {
 		params.Set("state", "1")
 	}
 	if req.MinLeadDays != 0 {
