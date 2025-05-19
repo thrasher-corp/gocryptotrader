@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 func TestWSPlaceOrder(t *testing.T) {
@@ -20,8 +21,10 @@ func TestWSPlaceOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
+	testexch.SetupWs(t, ok)
+
 	out := &PlaceOrderRequestParam{
-		InstrumentID: btcusdt,
+		InstrumentID: mainPair.String(),
 		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
 		Side:         "Buy",
 		OrderType:    "post_only",
@@ -46,8 +49,10 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
+	testexch.SetupWs(t, ok)
+
 	out := PlaceOrderRequestParam{
-		InstrumentID: btcusdt,
+		InstrumentID: mainPair.String(),
 		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
 		Side:         "Buy",
 		OrderType:    "post_only",
@@ -70,12 +75,14 @@ func TestWSCancelOrder(t *testing.T) {
 	_, err = ok.WSCancelOrder(t.Context(), &CancelOrderRequestParam{})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: btcusdt})
+	_, err = ok.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String()})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	got, err := ok.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: btcusdt, OrderID: "2341161427393388544"})
+	testexch.SetupWs(t, ok)
+
+	got, err := ok.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "2341161427393388544"})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -89,12 +96,14 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	_, err = ok.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	_, err = ok.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: btcusdt}})
+	_, err = ok.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String()}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	got, err := ok.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: btcusdt, OrderID: "2341184920998715392"}})
+	testexch.SetupWs(t, ok)
+
+	got, err := ok.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "2341184920998715392"}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -109,7 +118,7 @@ func TestWSAmendOrder(t *testing.T) {
 	_, err = ok.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	out.InstrumentID = btcusdt
+	out.InstrumentID = mainPair.String()
 	_, err = ok.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -118,6 +127,8 @@ func TestWSAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+
+	testexch.SetupWs(t, ok)
 
 	out.NewPrice = 21000
 	got, err := ok.WSAmendOrder(request.WithVerbose(t.Context()), out)
@@ -135,7 +146,7 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	_, err = ok.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
-	out.InstrumentID = btcusdt
+	out.InstrumentID = mainPair.String()
 	_, err = ok.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -144,6 +155,7 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidNewSizeOrPriceInformation)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	testexch.SetupWs(t, ok)
 	out.NewPrice = 20000
 
 	got, err := ok.WSAmendMultipleOrders(request.WithVerbose(t.Context()), []AmendOrderRequestParams{out})
@@ -163,10 +175,11 @@ func TestWSMassCancelOrders(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	testexch.SetupWs(t, ok)
 	err = ok.WSMassCancelOrders(request.WithVerbose(t.Context()), []CancelMassReqParam{
 		{
 			InstrumentType:   "OPTION",
-			InstrumentFamily: "BTC-USD",
+			InstrumentFamily: optionsPair.String(),
 		},
 	})
 	require.NoError(t, err)
@@ -178,8 +191,9 @@ func TestWSPlaceSpreadOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	testexch.SetupWs(t, ok)
 	result, err := ok.WSPlaceSpreadOrder(request.WithVerbose(t.Context()), &SpreadOrderParam{
-		SpreadID:      "BTC-USDT_BTC-USDT-SWAP",
+		SpreadID:      spreadPair.String(),
 		ClientOrderID: "b15",
 		Side:          order.Buy.Lower(),
 		OrderType:     "limit",
@@ -200,6 +214,7 @@ func TestWSAmendSpreadOrder(t *testing.T) {
 	require.ErrorIs(t, err, errSizeOrPriceIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	testexch.SetupWs(t, ok)
 	result, err := ok.WSAmendSpreadOrder(request.WithVerbose(t.Context()), &AmendSpreadOrderParam{
 		OrderID: "2510789768709120",
 		NewSize: 2,
@@ -213,6 +228,7 @@ func TestWSCancelSpreadOrder(t *testing.T) {
 	_, err := ok.WSCancelSpreadOrder(t.Context(), "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	testexch.SetupWs(t, ok)
 	result, err := ok.WSCancelSpreadOrder(request.WithVerbose(t.Context()), "1234", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -221,7 +237,8 @@ func TestWSCancelSpreadOrder(t *testing.T) {
 func TestWSCancelAllSpreadOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	err := ok.WSCancelAllSpreadOrders(request.WithVerbose(t.Context()), "BTC-USDT_BTC-USDT-SWAP")
+	testexch.SetupWs(t, ok)
+	err := ok.WSCancelAllSpreadOrders(request.WithVerbose(t.Context()), spreadPair.String())
 	require.NoError(t, err)
 }
 
