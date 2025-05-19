@@ -3,7 +3,6 @@ package cryptodotcom
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -95,7 +94,7 @@ type TickerItem struct {
 	PriceChange24H       SafeNumber `json:"c"` // 24-hour price change, null if there weren't any trades
 	BestBidPrice         SafeNumber `json:"b"` // The current best bid price, null if there aren't any bids
 	BestAskPrice         SafeNumber `json:"k"` // The current best ask price, null if there aren't any asks
-	TradeTimestamp       time.Time  `json:"t"`
+	TradeTimestamp       types.Time `json:"t"`
 
 	// Added for websocket push data.
 	BestBidSize SafeNumber `json:"bs"`

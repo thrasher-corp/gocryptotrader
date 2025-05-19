@@ -108,7 +108,7 @@ func (cr *Cryptodotcom) GetTickers(ctx context.Context, symbol string) (*Tickers
 		params.Set("instrument_name", symbol)
 	}
 	var resp *TickersResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-ticker", params), publicTickerRate, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("public/get-tickers", params), publicTickerRate, &resp)
 }
 
 // GetTrades fetches the public trades for a particular instrument.
@@ -1094,6 +1094,7 @@ func translateDepositStatus(status string) string {
 }
 
 // -------------------------------   Account Balance and Position endpoints ---------------------------------
+
 // GetUserBalance returns the user's wallet balance.
 func (cr *Cryptodotcom) GetUserBalance(ctx context.Context) (*UserAccountBalanceDetail, error) {
 	var resp *UserAccountBalanceDetail

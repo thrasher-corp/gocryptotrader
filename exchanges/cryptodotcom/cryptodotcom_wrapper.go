@@ -36,7 +36,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 	cr.API.CredentialsValidator.RequiresKey = true
 	cr.API.CredentialsValidator.RequiresSecret = true
 
-	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.OTC, asset.PerpetualSwap} {
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap} {
 		ps := currency.PairStore{
 			AssetEnabled:  true,
 			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
@@ -196,9 +196,9 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	// if !cr.SupportsAsset(a) {
-	// 	return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
-	// }
+	if !cr.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
+	}
 	switch a {
 	case asset.Spot, asset.Margin:
 		instruments, err := cr.GetInstruments(ctx)
@@ -207,7 +207,6 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 		}
 		pairs := currency.Pairs{}
 		for x := range instruments.Instruments {
-			println("instruments.Instruments[x].Symbol: ", instruments.Instruments[x].Symbol)
 			if instruments.Instruments[x].InstrumentType != "CCY_PAIR" {
 				continue
 			}
@@ -229,25 +228,6 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 				continue
 			}
 			pair, err := currency.NewPairFromString(instruments.Instruments[x].Symbol)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
-		return pairs, nil
-	case asset.OTC:
-		// This endpoint call requires authentication.
-		instruments, err := cr.GetOTCInstruments(ctx)
-		if err != nil {
-			return nil, err
-		}
-		var pair currency.Pair
-		pairs := make(currency.Pairs, 0, len(instruments.InstrumentList))
-		for x := range instruments.InstrumentList {
-			if !instruments.InstrumentList[x].Tradable {
-				continue
-			}
-			pair, err = currency.NewPairFromString(instruments.InstrumentList[x].InstrumentName)
 			if err != nil {
 				return nil, err
 			}
@@ -299,7 +279,7 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 		Ask:          tick.Data[0].BestAskPrice.Float64(),
 		Last:         tick.Data[0].LatestTradePrice.Float64(),
 		Volume:       tick.Data[0].TradedVolume.Float64(),
-		LastUpdated:  tick.Data[0].TradeTimestamp,
+		LastUpdated:  tick.Data[0].TradeTimestamp.Time(),
 		AssetType:    assetType,
 		ExchangeName: cr.Name,
 		Pair:         p,
@@ -548,7 +528,6 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 	if err != nil {
 		return nil, err
 	}
-	println("Trades Length: ", len(trades.Data), "\n\n\n")
 	resp := make([]trade.Data, len(trades.Data))
 	for x := range trades.Data {
 		var side order.Side
@@ -890,80 +869,154 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	var orders *PersonalOrdersResponse
-	var err error
-	if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orders, err = cr.WsRetrivePersonalOpenOrders("", 0, 0)
-	} else {
-		orders, err = cr.GetPersonalOpenOrders(ctx, "", 0, 0)
-	}
-	if err != nil {
-		return nil, err
-	}
+
 	pairFormat, err := cr.GetPairFormat(getOrdersRequest.AssetType, false)
 	if err != nil {
 		return nil, err
 	}
-	resp := []order.Detail{}
-	for x := range orders.OrderList {
-		cp, err := currency.NewPairFromString(orders.OrderList[x].InstrumentName)
+	switch getOrdersRequest.AssetType {
+	case asset.Margin, asset.Spot:
+		var orders *PersonalOrdersResponse
+		var err error
+		if cr.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			orders, err = cr.WsRetrivePersonalOpenOrders("", 0, 0)
+		} else {
+			orders, err = cr.GetPersonalOpenOrders(ctx, "", 0, 0)
+		}
 		if err != nil {
 			return nil, err
 		}
-		if len(orders.OrderList) != 0 {
-			found := false
-			for b := range getOrdersRequest.Pairs {
-				if cp.Equal(getOrdersRequest.Pairs[b].Format(pairFormat)) {
-					found = true
+		resp := []order.Detail{}
+		for x := range orders.OrderList {
+			cp, err := currency.NewPairFromString(orders.OrderList[x].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+			if len(orders.OrderList) != 0 {
+				found := false
+				for b := range getOrdersRequest.Pairs {
+					if cp.Equal(getOrdersRequest.Pairs[b].Format(pairFormat)) {
+						found = true
+					}
+				}
+				if !found {
+					continue
 				}
 			}
-			if !found {
+			orderType, err := StringToOrderType(orders.OrderList[x].Type)
+			if err != nil {
+				return nil, err
+			}
+			side, err := order.StringToOrderSide(orders.OrderList[x].Side)
+			if err != nil {
+				return nil, err
+			}
+			status, err := order.StringToOrderStatus(orders.OrderList[x].Status)
+			if err != nil {
+				return nil, err
+			}
+			var tif order.TimeInForce
+			switch orders.OrderList[x].TimeInForce {
+			case "GOOD_TILL_CANCEL":
+				tif = order.GoodTillCancel
+			case "IMMEDIATE_OR_CANCEL":
+				tif = order.ImmediateOrCancel
+			case "FILL_OR_KILL":
+				tif = order.FillOrKill
+			default:
+				tif |= order.PostOnly
+			}
+			resp = append(resp, order.Detail{
+				Price:                orders.OrderList[x].Price,
+				AverageExecutedPrice: orders.OrderList[x].AvgPrice,
+				Amount:               orders.OrderList[x].CumulativeQuantity,
+				ExecutedAmount:       orders.OrderList[x].Quantity,
+				RemainingAmount:      orders.OrderList[x].CumulativeQuantity - orders.OrderList[x].Quantity,
+				Exchange:             cr.Name,
+				OrderID:              orders.OrderList[x].OrderID,
+				ClientOrderID:        orders.OrderList[x].ClientOid,
+				Status:               status,
+				Side:                 side,
+				Type:                 orderType,
+				AssetType:            getOrdersRequest.AssetType,
+				Date:                 orders.OrderList[x].CreateTime.Time(),
+				LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
+				Pair:                 cp,
+				TimeInForce:          tif,
+			})
+		}
+		return getOrdersRequest.Filter(cr.Name, resp), nil
+	case asset.PerpetualSwap:
+		var contingencyType string
+		if getOrdersRequest.Type == order.OCO {
+			contingencyType = "OCO"
+		}
+		var symbol string
+		if len(getOrdersRequest.Pairs) == 1 {
+			symbol = pairFormat.Format(getOrdersRequest.Pairs[0])
+		}
+		result, err := cr.GetFuturesOrderList(ctx, contingencyType, "", symbol)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]order.Detail, 0, len(result.Data))
+		for d := range result.Data {
+			if len(getOrdersRequest.Pairs) == 1 && result.Data[d].InstrumentName != symbol {
 				continue
 			}
+			cp, err := currency.NewPairFromString(result.Data[d].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+			if len(getOrdersRequest.Pairs) > 0 {
+				found := false
+				for p := range getOrdersRequest.Pairs {
+					if getOrdersRequest.Pairs[p].Equal(cp) {
+						found = true
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			tif, err := order.StringToTimeInForce(result.Data[d].TimeInForce)
+			if err != nil {
+				return nil, err
+			}
+			oType, err := StringToOrderType(result.Data[d].OrderType)
+			if err != nil {
+				return nil, err
+			}
+			oSide, err := order.StringToOrderSide(result.Data[d].Side)
+			if err != nil {
+				return nil, err
+			}
+			oStatus, err := order.StringToOrderStatus(result.Data[d].Status)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, order.Detail{
+				TimeInForce:          tif,
+				Price:                result.Data[d].Price.Float64(),
+				Amount:               result.Data[d].Quantity.Float64(),
+				ContractAmount:       result.Data[d].CumulativeValue.Float64(),
+				AverageExecutedPrice: result.Data[d].AvgPrice.Float64(),
+				Exchange:             cr.Name,
+				OrderID:              result.Data[d].OrderID,
+				ClientOrderID:        result.Data[d].ClientOrderID,
+				AccountID:            result.Data[d].AccountID,
+				Type:                 oType,
+				Side:                 oSide,
+				Status:               oStatus,
+				AssetType:            asset.PerpetualSwap,
+				LastUpdated:          result.Data[d].UpdateTime.Time(),
+				Pair:                 cp,
+			})
 		}
-		orderType, err := StringToOrderType(orders.OrderList[x].Type)
-		if err != nil {
-			return nil, err
-		}
-		side, err := order.StringToOrderSide(orders.OrderList[x].Side)
-		if err != nil {
-			return nil, err
-		}
-		status, err := order.StringToOrderStatus(orders.OrderList[x].Status)
-		if err != nil {
-			return nil, err
-		}
-		var tif order.TimeInForce
-		switch orders.OrderList[x].TimeInForce {
-		case "GOOD_TILL_CANCEL":
-			tif = order.GoodTillCancel
-		case "IMMEDIATE_OR_CANCEL":
-			tif = order.ImmediateOrCancel
-		case "FILL_OR_KILL":
-			tif = order.FillOrKill
-		default:
-			tif |= order.PostOnly
-		}
-		resp = append(resp, order.Detail{
-			Price:                orders.OrderList[x].Price,
-			AverageExecutedPrice: orders.OrderList[x].AvgPrice,
-			Amount:               orders.OrderList[x].CumulativeQuantity,
-			ExecutedAmount:       orders.OrderList[x].Quantity,
-			RemainingAmount:      orders.OrderList[x].CumulativeQuantity - orders.OrderList[x].Quantity,
-			Exchange:             cr.Name,
-			OrderID:              orders.OrderList[x].OrderID,
-			ClientOrderID:        orders.OrderList[x].ClientOid,
-			Status:               status,
-			Side:                 side,
-			Type:                 orderType,
-			AssetType:            getOrdersRequest.AssetType,
-			Date:                 orders.OrderList[x].CreateTime.Time(),
-			LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
-			Pair:                 cp,
-			TimeInForce:          tif,
-		})
+		return getOrdersRequest.Filter(cr.Name, resp), nil
+	default:
+		return nil, fmt.Errorf("%w; asset type: %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
-	return getOrdersRequest.Filter(cr.Name, resp), nil
 }
 
 // GetOrderHistory retrieves account order information
