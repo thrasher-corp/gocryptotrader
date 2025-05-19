@@ -30,9 +30,8 @@ func TestIsValid(t *testing.T) {
 		GoodTillCancel | PostOnly:          true,
 		UnknownTIF:                         true,
 	}
-	var tif TimeInForce
-	for tif = range timeInForceValidityMap {
-		assert.Equalf(t, timeInForceValidityMap[tif], tif.IsValid(), "got %v, expected %v for %v with id %d", tif.IsValid(), timeInForceValidityMap[tif], tif, tif)
+	for tif, value := range timeInForceValidityMap {
+		assert.Equal(t, value, tif.IsValid())
 	}
 }
 

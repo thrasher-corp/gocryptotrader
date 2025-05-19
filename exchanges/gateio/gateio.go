@@ -175,13 +175,13 @@ var validTimesInForces = []struct {
 	{gtcTIF, order.GoodTillCancel}, {iocTIF, order.ImmediateOrCancel}, {pocTIF, order.PostOnly}, {fokTIF, order.FillOrKill},
 }
 
-func timeInForceFromString(tif string) order.TimeInForce {
+func timeInForceFromString(tif string) (order.TimeInForce, error) {
 	for a := range validTimesInForces {
 		if validTimesInForces[a].String == tif {
-			return validTimesInForces[a].TimeInForce
+			return validTimesInForces[a].TimeInForce, nil
 		}
 	}
-	return order.UnknownTIF
+	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 }
 
 // Gateio is the overarching type across this package
@@ -845,7 +845,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, errNilArgument
 	}
 	if arg.Put.TimeInForce != gtcTIF && arg.Put.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: `%s` only 'gct' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
+		return nil, fmt.Errorf("%w: %q only 'gct' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
 	}
 	if arg.Market.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
@@ -2310,14 +2310,14 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	if tif := timeInForceFromString(arg.TimeInForce); tif == order.UnknownTIF {
-		return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
+	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+		return nil, err
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
 	}
 	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
-		return nil, fmt.Errorf("%w: `%s`; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
+		return nil, fmt.Errorf("%w: %q; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2399,15 +2399,14 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 		if args[x].Size == 0 {
 			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
-		args[x].TimeInForce = strings.ToLower(args[x].TimeInForce)
-		if tif := timeInForceFromString(args[x].TimeInForce); tif == order.UnknownTIF {
-			return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
+		if _, err := timeInForceFromString(args[x].TimeInForce); err != nil {
+			return nil, err
 		}
 		if args[x].Price == "" {
 			return nil, errInvalidPrice
 		}
 		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
-			return nil, fmt.Errorf("%w: `%s`; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
+			return nil, fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
 			return nil, errInvalidTextValue
@@ -2561,7 +2560,7 @@ func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle cu
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: `%s`; only 'gtc' and 'ioc' are allowed", order.ErrInvalidTimeInForce, arg.Initial.TimeInForce)
+		return nil, fmt.Errorf("%w: %q; only 'gtc' and 'ioc' are allowed", order.ErrInvalidTimeInForce, arg.Initial.TimeInForce)
 	}
 	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
 		return nil, errors.New("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
@@ -2884,9 +2883,8 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
-	if tif := timeInForceFromString(arg.TimeInForce); tif == order.UnknownTIF {
-		return nil, fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
+	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+		return nil, err
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
@@ -3086,7 +3084,7 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle curr
 	}
 	if arg.Initial.TimeInForce != "" &&
 		arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: `%s`; only 'gtc' and 'ioc' are allowed", order.ErrUnsupportedTimeInForce, arg.Initial.TimeInForce)
+		return nil, fmt.Errorf("%w: %q; only 'gtc' and 'ioc' are allowed", order.ErrUnsupportedTimeInForce, arg.Initial.TimeInForce)
 	}
 	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
 		return nil, errors.New("strategy type must be 0 or 1, 0: by price, and 1: by price gap")

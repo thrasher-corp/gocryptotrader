@@ -1315,6 +1315,10 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if fOrder.OrderPrice > 0 {
 			oType = order.Limit
 		}
+		tif, err := timeInForceFromString(fOrder.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		return &order.Detail{
 			Amount:               amount,
 			ExecutedAmount:       amount - remaining,
@@ -1330,7 +1334,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:                 pair,
 			AssetType:            a,
 			Type:                 oType,
-			TimeInForce:          timeInForceFromString(fOrder.TimeInForce),
+			TimeInForce:          tif,
 			Side:                 side,
 		}, nil
 	case asset.Options:
@@ -1517,6 +1521,10 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				continue
 			}
 			side, amount, remaining := getSideAndAmountFromSize(futuresOrders[i].Size, futuresOrders[i].RemainingAmount)
+			tif, err := timeInForceFromString(futuresOrders[i].TimeInForce)
+			if err != nil {
+				return nil, err
+			}
 			orders = append(orders, order.Detail{
 				Status:               order.Open,
 				Amount:               amount,
@@ -1535,7 +1543,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Type:                 order.Limit,
 				SettlementCurrency:   settle,
 				ReduceOnly:           futuresOrders[i].IsReduceOnly,
-				TimeInForce:          timeInForceFromString(futuresOrders[i].TimeInForce),
+				TimeInForce:          tif,
 				AverageExecutedPrice: futuresOrders[i].FillPrice.Float64(),
 			})
 		}
