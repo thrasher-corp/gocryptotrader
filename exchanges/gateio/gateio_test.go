@@ -1816,13 +1816,14 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	for _, a := range g.GetAssetTypes(false) {
 		_, err := g.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:  g.Name,
-			Pair:      getPair(t, a),
-			Side:      order.Buy,
-			Type:      order.Limit,
-			Price:     1,
-			Amount:    1,
-			AssetType: a,
+			Exchange:    g.Name,
+			Pair:        getPair(t, a),
+			Side:        order.Buy,
+			Type:        order.Limit,
+			Price:       1,
+			Amount:      1,
+			AssetType:   a,
+			TimeInForce: order.GoodTillCancel,
 		})
 		assert.NoErrorf(t, err, "SubmitOrder should not error for %s", a)
 	}
@@ -3295,4 +3296,15 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 	pairMap[a] = enabledPairs
 
 	return enabledPairs
+}
+
+func BenchmarkTimeInForceFromString(b *testing.B) {
+	for b.Loop() {
+		for _, tifString := range []string{gtcTIF, iocTIF, pocTIF, fokTIF} {
+			_, err := timeInForceFromString(tifString)
+			if err != nil {
+				b.Fatal(tifString)
+			}
+		}
+	}
 }

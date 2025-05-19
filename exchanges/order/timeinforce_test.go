@@ -1,6 +1,7 @@
 package order
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,11 +24,14 @@ func TestIsValid(t *testing.T) {
 		FillOrKill | PostOnly:              false,
 		ImmediateOrCancel | GoodTillCancel: false,
 		ImmediateOrCancel | PostOnly:       false,
+		GoodTillTime | PostOnly:            true,
+		GoodTillDay | PostOnly:             true,
+		GoodTillCrossing | PostOnly:        true,
+		GoodTillCancel | PostOnly:          true,
 		UnknownTIF:                         true,
 	}
-	var tif TimeInForce
-	for tif = range timeInForceValidityMap {
-		assert.Equalf(t, timeInForceValidityMap[tif], tif.IsValid(), "got %v, expected %v for %v with id %d", tif.IsValid(), timeInForceValidityMap[tif], tif, tif)
+	for tif, value := range timeInForceValidityMap {
+		assert.Equal(t, value, tif.IsValid())
 	}
 }
 
@@ -88,10 +92,11 @@ func TestString(t *testing.T) {
 		GoodTillTime | PostOnly:        "GTT,POSTONLY",
 		GoodTillDay | PostOnly:         "GTD,POSTONLY",
 		FillOrKill | ImmediateOrCancel: "IOC,FOK",
+		TimeInForce(1):                 "UNKNOWN",
 	}
 	for x := range valMap {
-		result := x.String()
-		assert.Equalf(t, valMap[x], result, "expected %v, got %v", x, result)
+		assert.Equal(t, valMap[x], x.String())
+		assert.Equal(t, strings.ToLower(valMap[x]), x.Lower())
 	}
 }
 
@@ -108,6 +113,13 @@ func TestUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(data), &target)
 	require.NoError(t, err)
 	require.Equal(t, targets, target.TIFs)
+
+	data = `{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	target = &struct {
+		TIFs []TimeInForce `json:"tifs"`
+	}{}
+	err = json.Unmarshal([]byte(data), &target)
+	require.ErrorIs(t, err, ErrInvalidTimeInForce)
 }
 
 func TestMarshalJSON(t *testing.T) {

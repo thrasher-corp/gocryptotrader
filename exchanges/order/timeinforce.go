@@ -13,7 +13,7 @@ var (
 )
 
 // TimeInForce enforces a standard for time-in-force values across the code base.
-type TimeInForce uint16
+type TimeInForce uint8
 
 // TimeInForce types
 const (
@@ -29,6 +29,17 @@ const (
 	supportedTimeInForceFlag = GoodTillCancel | GoodTillDay | GoodTillTime | GoodTillCrossing | FillOrKill | ImmediateOrCancel | PostOnly
 )
 
+// time-in-force string representations
+const (
+	gtcStr      = "GTC"
+	gtdStr      = "GTD"
+	gttStr      = "GTT"
+	gtxStr      = "GTX"
+	fokStr      = "FOK"
+	iocStr      = "IOC"
+	postonlyStr = "POSTONLY"
+)
+
 // Is checks to see if the enum contains the flag
 func (t TimeInForce) Is(in TimeInForce) bool {
 	return in != 0 && t&in == in
@@ -39,19 +50,19 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	var result TimeInForce
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
-	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", ImmediateOrCancel.String():
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", iocStr:
 		result = ImmediateOrCancel
-	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GoodTillCancel.String():
+	case "GOODTILLCANCEL", "GOODTILCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", gtcStr:
 		result = GoodTillCancel
-	case "GOODTILLDAY", GoodTillDay.String(), "GOOD_TIL_DAY", "GOOD_TILL_DAY":
+	case "GOODTILLDAY", "GOOD_TIL_DAY", "GOOD_TILL_DAY", gtdStr:
 		result = GoodTillDay
-	case "GOODTILLTIME", "GOOD_TIL_TIME", GoodTillTime.String():
+	case "GOODTILLTIME", "GOOD_TIL_TIME", gttStr:
 		result = GoodTillTime
-	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", GoodTillCrossing.String(), "GOOD_TILL_CROSSING":
+	case "GOODTILLCROSSING", "GOOD_TIL_CROSSING", "GOOD TIL CROSSING", "GOOD_TILL_CROSSING", gtxStr:
 		result = GoodTillCrossing
-	case "FILLORKILL", "FILL_OR_KILL", FillOrKill.String():
+	case "FILLORKILL", "FILL_OR_KILL", fokStr:
 		result = FillOrKill
-	case PostOnly.String(), "POC", "POST_ONLY", "PENDINGORCANCEL":
+	case "POC", "POST_ONLY", "PENDINGORCANCEL", postonlyStr:
 		result = PostOnly
 	}
 	if result == UnknownTIF && timeInForce != "" {
@@ -75,30 +86,30 @@ func (t TimeInForce) IsValid() bool {
 
 // String implements the stringer interface.
 func (t TimeInForce) String() string {
-	var tifStrings []string
-	if t.Is(ImmediateOrCancel) {
-		tifStrings = append(tifStrings, "IOC")
-	}
-	if t.Is(GoodTillCancel) {
-		tifStrings = append(tifStrings, "GTC")
-	}
-	if t.Is(GoodTillDay) {
-		tifStrings = append(tifStrings, "GTD")
-	}
-	if t.Is(GoodTillTime) {
-		tifStrings = append(tifStrings, "GTT")
-	}
-	if t.Is(GoodTillCrossing) {
-		tifStrings = append(tifStrings, "GTX")
-	}
-	if t.Is(FillOrKill) {
-		tifStrings = append(tifStrings, "FOK")
-	}
-	if t.Is(PostOnly) {
-		tifStrings = append(tifStrings, "POSTONLY")
-	}
 	if t == UnknownTIF {
 		return ""
+	}
+	var tifStrings []string
+	if t.Is(ImmediateOrCancel) {
+		tifStrings = append(tifStrings, iocStr)
+	}
+	if t.Is(GoodTillCancel) {
+		tifStrings = append(tifStrings, gtcStr)
+	}
+	if t.Is(GoodTillDay) {
+		tifStrings = append(tifStrings, gtdStr)
+	}
+	if t.Is(GoodTillTime) {
+		tifStrings = append(tifStrings, gttStr)
+	}
+	if t.Is(GoodTillCrossing) {
+		tifStrings = append(tifStrings, gtxStr)
+	}
+	if t.Is(FillOrKill) {
+		tifStrings = append(tifStrings, fokStr)
+	}
+	if t.Is(PostOnly) {
+		tifStrings = append(tifStrings, postonlyStr)
 	}
 	if len(tifStrings) == 0 {
 		return "UNKNOWN"
