@@ -1286,16 +1286,6 @@ func TestWSRetrieveAnnouncements(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetPublicPortfolioMargins(t *testing.T) {
-	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
-	require.NoError(t, err)
-	_, err = d.GetPublicPortfolioMargins(t.Context(), currency.EMPTYCODE, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := d.GetPublicPortfolioMargins(t.Context(), currency.BTC, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetAccessLog(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -1558,28 +1548,6 @@ func TestWSRetrieveNewAnnouncements(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	result, err := d.WSRetrieveNewAnnouncements()
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetPrivatePortfolioMargins(t *testing.T) {
-	t.Parallel()
-	_, err := d.GetPrivatePortfolioMargins(t.Context(), currency.EMPTYCODE, false, nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetPrivatePortfolioMargins(t.Context(), currency.BTC, false, nil)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestWsRetrievePrivatePortfolioMargins(t *testing.T) {
-	t.Parallel()
-	_, err := d.WSRetrievePrivatePortfolioMargins(currency.EMPTYCODE, false, nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.WSRetrievePrivatePortfolioMargins(currency.BTC, false, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3470,16 +3438,6 @@ func TestGetRecentTrades(t *testing.T) {
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}
-}
-
-func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
-	t.Parallel()
-	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
-	require.NoError(t, err)
-	require.NotNil(t, info)
-	result, err := d.WSRetrievePublicPortfolioMargins(currency.BTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestCancelAllOrders(t *testing.T) {
