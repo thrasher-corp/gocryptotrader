@@ -175,13 +175,13 @@ var validTimesInForces = []struct {
 	{gtcTIF, order.GoodTillCancel}, {iocTIF, order.ImmediateOrCancel}, {pocTIF, order.PostOnly}, {fokTIF, order.FillOrKill},
 }
 
-func timeInForceFromString(tif string) order.TimeInForce {
+func timeInForceFromString(tif string) (order.TimeInForce, error) {
 	for a := range validTimesInForces {
 		if validTimesInForces[a].String == tif {
-			return validTimesInForces[a].TimeInForce
+			return validTimesInForces[a].TimeInForce, nil
 		}
 	}
-	return order.UnknownTIF
+	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 }
 
 // Gateio is the overarching type across this package
@@ -2310,9 +2310,8 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
-	if tif := timeInForceFromString(arg.TimeInForce); tif == order.UnknownTIF {
-		return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
+	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+		return nil, err
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
@@ -2400,9 +2399,8 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 		if args[x].Size == 0 {
 			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
-		args[x].TimeInForce = strings.ToLower(args[x].TimeInForce)
-		if tif := timeInForceFromString(args[x].TimeInForce); tif == order.UnknownTIF {
-			return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
+		if _, err := timeInForceFromString(args[x].TimeInForce); err != nil {
+			return nil, err
 		}
 		if args[x].Price == "" {
 			return nil, errInvalidPrice
@@ -2885,9 +2883,8 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	arg.TimeInForce = strings.ToLower(arg.TimeInForce)
-	if tif := timeInForceFromString(arg.TimeInForce); tif == order.UnknownTIF {
-		return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
+	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+		return nil, err
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
