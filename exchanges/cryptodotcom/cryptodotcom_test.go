@@ -677,7 +677,8 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	result, err := cr.UpdateTicker(context.Background(), tradablePair, asset.Spot)
+	cr.Verbose = true
+	result, err := cr.UpdateTicker(context.Background(), tradablePair, asset.PerpetualSwap)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -692,8 +693,8 @@ func TestFetchTicker(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTCUSD-PERP")
 	require.NoError(t, err)
-	cp.Delimiter = currency.DashDelimiter
 
+	cp.Delimiter = currency.DashDelimiter
 	result, err := cr.FetchTicker(context.Background(), cp, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1032,6 +1033,18 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	pairs, err := cr.FetchTradablePairs(context.Background(), asset.Spot)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, pairs)
+
+	for a := range pairs {
+		println(pairs[a].String())
+	}
+
+	pairs, err = cr.FetchTradablePairs(context.Background(), asset.Futures)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, pairs)
+
+	for a := range pairs {
+		println(pairs[a].String())
+	}
 
 	for y := range pairs {
 		lim, err := cr.GetOrderExecutionLimits(asset.Spot, pairs[y])

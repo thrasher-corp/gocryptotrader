@@ -36,11 +36,19 @@ func (cr *Cryptodotcom) SetDefaults() {
 	cr.API.CredentialsValidator.RequiresKey = true
 	cr.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin, asset.OTC, asset.PerpetualSwap)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.OTC, asset.PerpetualSwap} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		}
+		if a == asset.PerpetualSwap {
+			ps.RequestFormat.Delimiter = currency.DashDelimiter
+			ps.ConfigFormat.Delimiter = currency.DashDelimiter
+		}
+		if err := cr.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", cr.Name, a, err)
+		}
 	}
 	// Fill out the capabilities/features that the exchange supports
 	cr.Features = exchange.Features{
@@ -111,6 +119,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 			},
 		},
 	}
+	var err error
 	cr.Requester, err = request.New(cr.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()),
@@ -187,9 +196,9 @@ func (cr *Cryptodotcom) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !cr.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
-	}
+	// if !cr.SupportsAsset(a) {
+	// 	return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
+	// }
 	switch a {
 	case asset.Spot, asset.Margin:
 		instruments, err := cr.GetInstruments(ctx)
@@ -198,6 +207,7 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 		}
 		pairs := currency.Pairs{}
 		for x := range instruments.Instruments {
+			println("instruments.Instruments[x].Symbol: ", instruments.Instruments[x].Symbol)
 			if instruments.Instruments[x].InstrumentType != "CCY_PAIR" {
 				continue
 			}
