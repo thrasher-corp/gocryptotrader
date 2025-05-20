@@ -9,6 +9,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
+func TestTimeInForceIs(t *testing.T) {
+	t.Parallel()
+	tifValuesMap := map[TimeInForce][]TimeInForce{
+		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
+		GoodTillCancel:              {GoodTillCancel},
+		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
+		GoodTillDay:                 {GoodTillDay},
+		GoodTillTime:                {GoodTillTime},
+		GoodTillTime | PostOnly:     {GoodTillTime, PostOnly},
+		ImmediateOrCancel:           {ImmediateOrCancel},
+		FillOrKill:                  {FillOrKill},
+		PostOnly:                    {PostOnly},
+		GoodTillCrossing:            {GoodTillCrossing},
+	}
+	for tif := range tifValuesMap {
+		for _, v := range tifValuesMap[tif] {
+			require.True(t, tif.Is(v))
+		}
+	}
+}
+
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	timeInForceValidityMap := map[TimeInForce]bool{

@@ -3308,3 +3308,38 @@ func BenchmarkTimeInForceFromString(b *testing.B) {
 		}
 	}
 }
+
+func TestTimeInForceFromString(t *testing.T) {
+	t.Parallel()
+	_, err := timeInForceFromString("abcdef")
+	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+
+	for k, v := range map[string]order.TimeInForce{gtcTIF: order.GoodTillCancel, iocTIF: order.ImmediateOrCancel, pocTIF: order.PostOnly, fokTIF: order.FillOrKill} {
+		tif, err := timeInForceFromString(k)
+		assert.NoError(t, err)
+		assert.Equal(t, v, tif)
+	}
+}
+
+func TestGetTypeFromTimeInForce(t *testing.T) {
+	t.Parallel()
+	typeResp := getTypeFromTimeInForce("gtc", 0)
+	assert.Equal(t, order.Limit, typeResp)
+
+	typeResp = getTypeFromTimeInForce("ioc", 0)
+	assert.Equal(t, order.Market, typeResp, "should be market order")
+
+	typeResp = getTypeFromTimeInForce("poc", 123)
+	assert.Equal(t, order.Limit, typeResp, "should be limit order")
+
+	typeResp = getTypeFromTimeInForce("fok", 0)
+	assert.Equal(t, order.Market, typeResp, "should be market order")
+}
+
+func TestTimeInForceString(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, timeInForceString(order.UnknownTIF))
+	for _, valid := range validTimesInForces {
+		assert.Equal(t, valid.String, timeInForceString(valid.TimeInForce))
+	}
+}

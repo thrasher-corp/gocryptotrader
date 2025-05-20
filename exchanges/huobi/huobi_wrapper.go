@@ -999,11 +999,30 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			oDirection = "SELL"
 		}
 		var oType string
-		switch {
-		case s.Type == order.Limit:
+		switch s.Type {
+		case order.Market:
+			// https://huobiapi.github.io/docs/dm/v1/en/#order-and-trade
+			// At present, Huobi Futures does not support market price when placing an order.
+			// To increase the probability of a transaction, users can choose to place an order based on BBO price (opponent),
+			// optimal 5 (optimal_5), optimal 10 (optimal_10), optimal 20 (optimal_20), among which the success probability of
+			// optimal 20 is the largest, while the slippage always is the largest as well.
+			//
+			// It is important to note that the above methods will not guarantee the order to be filled in 100%.
+			// The system will obtain the optimal N price at that moment and place the order.
+			oType = "optimal_20"
+			switch {
+			case s.TimeInForce.Is(order.ImmediateOrCancel):
+				oType = "optimal_20_ioc"
+			case s.TimeInForce.Is(order.FillOrKill):
+				oType = "optimal_20_fok"
+			}
+		case order.Limit:
 			oType = "limit"
-		case s.TimeInForce.Is(order.PostOnly):
-			oType = "post_only"
+			if s.TimeInForce.Is(order.PostOnly) {
+				oType = "post_only"
+			}
+		default:
+			oType = "opponent"
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1042,16 +1061,19 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			// It is important to note that the above methods will not guarantee the order to be filled in 100%.
 			// The system will obtain the optimal N price at that moment and place the order.
 			oType = "optimal_20"
-			if s.TimeInForce.Is(order.ImmediateOrCancel) {
+			switch {
+			case s.TimeInForce.Is(order.ImmediateOrCancel):
 				oType = "optimal_20_ioc"
+			case s.TimeInForce.Is(order.FillOrKill):
+				oType = "optimal_20_fok"
 			}
 		case order.Limit:
-			if s.Type == order.Limit {
-				oType = "limit"
-			}
+			oType = "limit"
 			if s.TimeInForce.Is(order.PostOnly) {
 				oType = "post_only"
 			}
+		default:
+			oType = "opponent"
 		}
 		offset := "open"
 		if s.ReduceOnly {
