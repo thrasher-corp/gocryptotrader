@@ -930,7 +930,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		}
 		return s.DeriveSubmitResponse(placeSpreadOrderResponse.OrderID)
 	}
-	orderTypeString, err := orderTypeString(s.Type)
+	orderTypeString, err := orderTypeString(s.Type, s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -1160,8 +1160,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	switch action.Type {
-	case order.UnknownType, order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
-		order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
 			NewQuantity:   action.Amount,
@@ -1265,8 +1264,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
-		order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
 		req := CancelOrderRequestParam{
 			InstrumentID:  instrumentID,
 			OrderID:       ord.OrderID,
@@ -1319,8 +1317,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		switch ord.Type {
-		case order.UnknownType, order.Market, order.Limit, order.PostOnly, order.FillOrKill, order.ImmediateOrCancel,
-			order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+		case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
@@ -1413,7 +1410,7 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 	}
 	var oType string
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
-		oType, err = orderTypeString(orderCancellation.Type)
+		oType, err = orderTypeString(orderCancellation.Type, orderCancellation.TimeInForce)
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
@@ -1566,7 +1563,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return nil, err
 	}
-	orderType, err := orderTypeFromString(orderDetail.OrderType)
+	orderType, tif, err := orderTypeFromString(orderDetail.OrderType)
 	if err != nil {
 		return nil, err
 	}
@@ -1586,6 +1583,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		ExecutedAmount: orderDetail.RebateAmount.Float64(),
 		Date:           orderDetail.CreationTime.Time(),
 		LastUpdated:    orderDetail.UpdateTime.Time(),
+		TimeInForce:    tif,
 	}, nil
 }
 
@@ -1731,7 +1729,7 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
 	var orderType string
 	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = orderTypeString(req.Type)
+		orderType, err = orderTypeString(req.Type, req.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
@@ -1775,13 +1773,11 @@ allOrders:
 					continue
 				}
 			}
-			var orderStatus order.Status
-			orderStatus, err = order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
+			orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
 			if err != nil {
 				return nil, err
 			}
-			var oType order.Type
-			oType, err = orderTypeFromString(orderList[i].OrderType)
+			oType, tif, err := orderTypeFromString(orderList[i].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1802,6 +1798,7 @@ allOrders:
 				AssetType:       req.AssetType,
 				Date:            orderList[i].CreationTime.Time(),
 				LastUpdated:     orderList[i].UpdateTime.Time(),
+				TimeInForce:     tif,
 			})
 		}
 		if len(orderList) < 100 {
@@ -1829,7 +1826,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := orderTypeString(req.Type)
+		oType, err := orderTypeString(req.Type, req.TimeInForce)
 		if err != nil {
 			return nil, err
 		}
@@ -1915,17 +1912,14 @@ allOrders:
 				if !req.Pairs[j].Equal(pair) {
 					continue
 				}
-				var orderStatus order.Status
-				orderStatus, err = order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
+				orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 				}
 				if orderStatus == order.Active {
 					continue
 				}
-				orderSide := orderList[i].Side
-				var oType order.Type
-				oType, err = orderTypeFromString(orderList[i].OrderType)
+				oType, tif, err := orderTypeFromString(orderList[i].OrderType)
 				if err != nil {
 					return nil, err
 				}
@@ -1951,7 +1945,7 @@ allOrders:
 					OrderID:              orderList[i].OrderID,
 					ClientOrderID:        orderList[i].ClientOrderID,
 					Type:                 oType,
-					Side:                 orderSide,
+					Side:                 orderList[i].Side,
 					Status:               orderStatus,
 					AssetType:            req.AssetType,
 					Date:                 orderList[i].CreationTime.Time(),
@@ -1959,6 +1953,7 @@ allOrders:
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
 					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
+					TimeInForce:          tif,
 				})
 			}
 		}
@@ -2663,14 +2658,11 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			if fPair.String() != positions[j].InstrumentID {
 				continue
 			}
-			var orderStatus order.Status
-			orderStatus, err = order.StringToOrderStatus(strings.ToUpper(positions[j].State))
+			orderStatus, err := order.StringToOrderStatus(strings.ToUpper(positions[j].State))
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
 			}
-			orderSide := positions[j].Side
-			var oType order.Type
-			oType, err = orderTypeFromString(positions[j].OrderType)
+			oType, tif, err := orderTypeFromString(positions[j].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -2701,7 +2693,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 				OrderID:              positions[j].OrderID,
 				ClientOrderID:        positions[j].ClientOrderID,
 				Type:                 oType,
-				Side:                 orderSide,
+				Side:                 positions[j].Side,
 				Status:               orderStatus,
 				AssetType:            req.Asset,
 				Date:                 positions[j].CreationTime.Time(),
@@ -2709,6 +2701,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
 				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
+				TimeInForce:          tif,
 			})
 		}
 	}
