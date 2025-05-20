@@ -1925,8 +1925,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	updatePairsOnce(t, h)
 	for _, a := range h.GetAssetTypes(false) {
 		pairs, err := h.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := h.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
 			require.ErrorIs(t, err, common.ErrNotYetImplemented)

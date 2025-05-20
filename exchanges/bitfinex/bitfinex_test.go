@@ -212,8 +212,8 @@ func TestGetPlatformStatus(t *testing.T) {
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
 	ticks, err := b.GetTickerBatch(t.Context())
-	require.NoError(t, err, "GetTickerBatch should not error")
-	require.NotEmpty(t, ticks, "GetTickerBatch should return some ticks")
+	require.NoError(t, err, "GetTickerBatch must not error")
+	require.NotEmpty(t, ticks, "GetTickerBatch must return some ticks")
 	require.Contains(t, ticks, "tBTCUSD", "Ticker batch must contain tBTCUSD")
 	checkTradeTick(t, ticks["tBTCUSD"])
 	require.Contains(t, ticks, "fUSD", "Ticker batch must contain fUSD")
@@ -223,7 +223,7 @@ func TestGetTickerBatch(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	tick, err := b.GetTicker(t.Context(), "tBTCUSD")
-	require.NoError(t, err, "GetTicker should not error")
+	require.NoError(t, err, "GetTicker must not error")
 	checkTradeTick(t, tick)
 }
 
@@ -239,7 +239,7 @@ func TestTickerFromResp(t *testing.T) {
 	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should error correctly")
 
 	tick, err := tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10})
-	require.NoError(t, err, "tickerFromResp should error correctly")
+	require.NoError(t, err, "tickerFromResp must error correctly")
 	assert.Equal(t, 1.1, tick.Bid, "Tick Bid should be correct")
 	assert.Equal(t, 2.2, tick.BidSize, "Tick BidSize should be correct")
 	assert.Equal(t, 3.3, tick.Ask, "Tick Ask should be correct")
@@ -268,7 +268,7 @@ func TestTickerFromFundingResp(t *testing.T) {
 	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should error correctly")
 
 	tick, err := tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15})
-	require.NoError(t, err, "tickerFromFundingResp should error correctly")
+	require.NoError(t, err, "tickerFromFundingResp must error correctly")
 	assert.Equal(t, 1.1, tick.FlashReturnRate, "Tick FlashReturnRate should be correct")
 	assert.Equal(t, 2.2, tick.Bid, "Tick Bid should be correct")
 	assert.Equal(t, int64(3), tick.BidPeriod, "Tick BidPeriod should be correct")
@@ -288,7 +288,7 @@ func TestTickerFromFundingResp(t *testing.T) {
 func TestGetTickerFunding(t *testing.T) {
 	t.Parallel()
 	tick, err := b.GetTicker(t.Context(), "fUSD")
-	require.NoError(t, err, "GetTicker should not error")
+	require.NoError(t, err, "GetTicker must not error")
 	checkFundingTick(t, tick)
 }
 
@@ -537,13 +537,13 @@ func TestUpdateTickers(t *testing.T) {
 
 	for _, a := range b.GetAssetTypes(true) {
 		avail, err := b.GetAvailablePairs(a)
-		require.NoError(t, err, "GetAvailablePairs should not error")
+		require.NoError(t, err, "GetAvailablePairs must not error")
 
 		err = b.CurrencyPairs.StorePairs(a, avail, true)
-		require.NoError(t, err, "StorePairs should not error")
+		require.NoError(t, err, "StorePairs must not error")
 
 		err = b.UpdateTickers(t.Context(), a)
-		require.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+		require.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers must only error about locked markets")
 
 		// Bitfinex leaves delisted pairs in Available info/conf endpoints
 		// We want to assert that most pairs are valid, so we'll check that no more than 5% are erroring
@@ -557,7 +557,7 @@ func TestUpdateTickers(t *testing.T) {
 				okay++
 			}
 		}
-		if !assert.Greater(t, okay/float64(len(avail))*100.0, acceptableThreshold, "At least %.f%% of %s tickers should not error", acceptableThreshold, a) {
+		if !assert.Greaterf(t, okay/float64(len(avail))*100.0, acceptableThreshold, "At least %.f%% of %s tickers should not error", acceptableThreshold, a) {
 			assert.NoError(t, errs, "Collection of all the ticker errors")
 		}
 	}
@@ -1108,7 +1108,7 @@ func TestWSAuth(t *testing.T) {
 		t.Skip("Authentecated API support not enabled")
 	}
 	testexch.SetupWs(t, b)
-	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be turned on")
+	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must be turned on")
 
 	var resp map[string]any
 	catcher := func() (ok bool) {
@@ -1135,7 +1135,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := b.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
+	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
 	for _, baseSub := range b.Features.Subscriptions {
 		for _, a := range b.GetAssetTypes(true) {
@@ -1180,7 +1180,7 @@ func TestWSSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(b), "TestInstance must not error")
 	testexch.SetupWs(t, b)
 	err := b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.NoError(t, err, "Subrcribe should not error")
+	require.NoError(t, err, "Subrcribe must not error")
 	catcher := func() (ok bool) {
 		i := <-b.Websocket.ToRoutine
 		_, ok = i.(*ticker.Price)
@@ -1189,11 +1189,11 @@ func TestWSSubscribe(t *testing.T) {
 	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
 
 	subs, err := b.GetSubscriptions()
-	require.NoError(t, err, "GetSubscriptions should not error")
-	require.Len(t, subs, 1, "We should only have 1 subscription; subID subscription should have been Removed by subscribeToChan")
+	require.NoError(t, err, "GetSubscriptions must not error")
+	require.Len(t, subs, 1, "We must only have 1 subscription; subID subscription must have been Removed by subscribeToChan")
 
 	err = b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription should error correctly")
+	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
 
 	assert.EventuallyWithT(t, func(t *assert.CollectT) {
 		i := <-b.Websocket.ToRoutine
@@ -1203,8 +1203,8 @@ func TestWSSubscribe(t *testing.T) {
 	}, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "error response should go to ToRoutine")
 
 	subs, err = b.GetSubscriptions()
-	require.NoError(t, err, "GetSubscriptions should not error")
-	require.Len(t, subs, 1, "We should only have one subscription after an error attempt")
+	require.NoError(t, err, "GetSubscriptions must not error")
+	require.Len(t, subs, 1, "We must only have one subscription after an error attempt")
 
 	err = b.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribing should not error")
@@ -2030,8 +2030,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

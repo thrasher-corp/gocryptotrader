@@ -1686,11 +1686,11 @@ func TestGetWalletBalance(t *testing.T) {
 	}
 
 	r, err := b.GetWalletBalance(t.Context(), "UNIFIED", "")
-	require.NoError(t, err, "GetWalletBalance should not error")
-	require.NotNil(t, r, "GetWalletBalance should return a result")
+	require.NoError(t, err, "GetWalletBalance must not error")
+	require.NotNil(t, r, "GetWalletBalance must return a result")
 
 	if mockTests {
-		require.Len(t, r.List, 1, "GetWalletBalance should return a single list result")
+		require.Len(t, r.List, 1, "GetWalletBalance must return a single list result")
 		assert.Equal(t, types.Number(0.1997), r.List[0].AccountIMRate, "AccountIMRate should match")
 		assert.Equal(t, types.Number(0.4996), r.List[0].AccountLTV, "AccountLTV should match")
 		assert.Equal(t, types.Number(0.0399), r.List[0].AccountMMRate, "AccountMMRate should match")
@@ -1702,7 +1702,7 @@ func TestGetWalletBalance(t *testing.T) {
 		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalMarginBalance, "TotalMarginBalance should match")
 		assert.Equal(t, types.Number(0.0), r.List[0].TotalPerpUPL, "TotalPerpUPL should match")
 		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalWalletBalance, "TotalWalletBalance should match")
-		require.Len(t, r.List[0].Coin, 3, "GetWalletBalance should return 3 coins")
+		require.Len(t, r.List[0].Coin, 3, "GetWalletBalance must return 3 coins")
 
 		for x := range r.List[0].Coin {
 			switch x {
@@ -3015,12 +3015,12 @@ func TestUpdateAccountInfo(t *testing.T) {
 	}
 
 	r, err := b.UpdateAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountInfo should not error")
-	require.NotEmpty(t, r, "UpdateAccountInfo should return account info")
+	require.NoError(t, err, "UpdateAccountInfo must not error")
+	require.NotEmpty(t, r, "UpdateAccountInfo must return account info")
 
 	if mockTests {
-		require.Len(t, r.Accounts, 1, "Accounts should have 1 item")
-		require.Len(t, r.Accounts[0].Currencies, 3, "Accounts currencies should have 3 currency items")
+		require.Len(t, r.Accounts, 1, "Accounts must have 1 item")
+		require.Len(t, r.Accounts[0].Currencies, 3, "Accounts currencies must have 3 currency items")
 
 		for x := range r.Accounts[0].Currencies {
 			switch x {
@@ -3732,8 +3732,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

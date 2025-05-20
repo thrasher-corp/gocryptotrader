@@ -104,7 +104,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	b := exch.GetBase()
 
 	assets := b.CurrencyPairs.GetAssetTypes(false)
-	require.NotEmpty(t, assets, "exchange %s must have assets", name)
+	require.NotEmptyf(t, assets, "exchange %s must have assets", name)
 	for _, a := range assets {
 		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "exchange %s SetAssetEnabled must not error for %s", name, a)
 	}

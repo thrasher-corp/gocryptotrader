@@ -703,9 +703,7 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	var timestamp float64
 	timestamp, err = strconv.ParseFloat(o.Timestamp, 64)
 	if err != nil {
-		log.Warnf(log.ExchangeSys,
-			"%s Unable to convert timestamp '%s', leaving blank",
-			b.Name, o.Timestamp)
+		log.Warnf(log.ExchangeSys, "%s Unable to convert timestamp %q, leaving blank", b.Name, o.Timestamp)
 	}
 
 	var pair currency.Pair

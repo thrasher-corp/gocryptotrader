@@ -836,7 +836,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
-		return nil, fmt.Errorf("invalid price trigger condition or rule '%s' but expected '>=' or '<='", arg.Trigger.Rule)
+		return nil, fmt.Errorf("invalid price trigger condition or rule %q but expected '>=' or '<='", arg.Trigger.Rule)
 	}
 	if arg.Trigger.Expiration <= 0 {
 		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")

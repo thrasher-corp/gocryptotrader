@@ -548,7 +548,7 @@ func TestEnableDisableRateLimit(t *testing.T) {
 	err = sendIt() // this should block until a token is refilled
 	require.NoError(t, err, "sendIt must not error")
 	elapsed := time.Since(start)
-	assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
+	assert.GreaterOrEqualf(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
 }
 
 func TestSetHTTPClient(t *testing.T) {

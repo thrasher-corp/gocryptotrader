@@ -4146,10 +4146,10 @@ func TestStartRPCRESTProxy(t *testing.T) {
 
 	certFile := filepath.Join(tempDirTLS, "cert.pem")
 	caCert, err := os.ReadFile(certFile)
-	require.NoError(t, err, "ReadFile should not error")
+	require.NoError(t, err, "ReadFile must not error")
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(caCert)
-	require.True(t, ok, "AppendCertsFromPEM should return true")
+	require.True(t, ok, "AppendCertsFromPEM must return true")
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}}
 
 	for _, creds := range []struct {
@@ -4166,23 +4166,23 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			t.Parallel()
 
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
-			require.NoError(t, err, "NewRequestWithContext should not error")
+			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
 			resp, err := client.Do(req)
-			require.NoError(t, err, "Do should not error")
+			require.NoError(t, err, "Do must not error")
 			defer resp.Body.Close()
 
 			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
 				var info gctrpc.GetInfoResponse
 				err = json.NewDecoder(resp.Body).Decode(&info)
-				require.NoError(t, err, "Decode should not error")
+				require.NoError(t, err, "Decode must not error")
 
 				uptimeDuration, err := time.ParseDuration(info.Uptime)
-				require.NoError(t, err, "ParseDuration should not error")
+				require.NoError(t, err, "ParseDuration must not error")
 				assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
 			} else {
 				respBody, err := io.ReadAll(resp.Body)
-				require.NoError(t, err, "ReadAll should not error")
+				require.NoError(t, err, "ReadAll must not error")
 				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "HTTP status code should be 401")
 				assert.Equal(t, "Access denied\n", string(respBody), "Response body should be 'Access denied\n'")
 			}
@@ -4225,7 +4225,7 @@ func TestRPCProxyAuthClient(t *testing.T) {
 			t.Parallel()
 
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
-			require.NoError(t, err, "NewRequestWithContext should not error")
+			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)

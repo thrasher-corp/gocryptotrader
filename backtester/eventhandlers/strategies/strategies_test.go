@@ -94,7 +94,7 @@ func TestCreateNewStrategy(t *testing.T) {
 	// nil Handler
 	var h Handler = (*customStrategy)(nil)
 	_, err = createNewStrategy("custom-strategy", false, h)
-	assert.ErrorContains(t, err, "must be a non-nil pointer")
+	assert.ErrorContains(t, err, "be a non-nil pointer")
 
 	// valid
 	h = new(dollarcostaverage.Strategy)

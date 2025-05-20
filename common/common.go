@@ -318,8 +318,9 @@ func EncodeURLValues(urlPath string, values url.Values) string {
 	return u
 }
 
-// ExtractHost returns the hostname out of a string
-func ExtractHost(address string) string {
+// ExtractHostOrDefault extracts the hostname from an address string.
+// If the host is empty, it defaults to "localhost".
+func ExtractHostOrDefault(address string) string {
 	host, _, _ := net.SplitHostPort(address)
 	if host == "" {
 		return "localhost"

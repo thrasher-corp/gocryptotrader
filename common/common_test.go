@@ -227,29 +227,12 @@ func TestEncodeURLValues(t *testing.T) {
 	}
 }
 
-func TestExtractHost(t *testing.T) {
+func TestExtractHostOrDefault(t *testing.T) {
 	t.Parallel()
-	address := "localhost:1337"
-	addresstwo := ":1337"
-	expectedOutput := "localhost"
-	actualResult := ExtractHost(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	actualResultTwo := ExtractHost(addresstwo)
-	if expectedOutput != actualResultTwo {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
 
-	address = "192.168.1.100:1337"
-	expectedOutput = "192.168.1.100"
-	actualResult = ExtractHost(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
+	assert.Equal(t, "localhost", ExtractHostOrDefault("localhost:1337"))
+	assert.Equal(t, "localhost", ExtractHostOrDefault(":1337"))
+	assert.Equal(t, "192.168.1.100", ExtractHostOrDefault("192.168.1.100:1337"))
 }
 
 func TestExtractPort(t *testing.T) {
@@ -280,11 +263,7 @@ func TestGetURIPath(t *testing.T) {
 		"http://www.google.com/accounts?!@#$%;^^":       "",
 	}
 	for testInput, expectedOutput := range testTable {
-		actualOutput := GetURIPath(testInput)
-		if actualOutput != expectedOutput {
-			t.Errorf("Expected '%s'. Actual '%s'.",
-				expectedOutput, actualOutput)
-		}
+		assert.Equal(t, expectedOutput, GetURIPath(testInput))
 	}
 }
 
@@ -683,7 +662,7 @@ func TestBatch(t *testing.T) {
 	assert.Len(t, b[3], 1)
 
 	b[0][0] = 42
-	assert.Equal(t, 1, s[0], "Changing the batches must not change the source")
+	assert.Equal(t, 1, s[0], "Changing the batches should not change the source")
 
 	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
 	done := make(chan any, 1)
@@ -692,7 +671,7 @@ func TestBatch(t *testing.T) {
 
 	for _, i := range []int{-1, 0, 50} {
 		b = Batch(s, i)
-		require.Lenf(t, b, 1, "A batch size of %v should produce a single batch", i)
+		require.Lenf(t, b, 1, "A batch size of %v must produce a single batch", i)
 		assert.Lenf(t, b[0], len(s), "A batch size of %v should produce a single batch", i)
 	}
 }
@@ -742,5 +721,5 @@ func TestNilGuard(t *testing.T) {
 	assert.ErrorIs(t, NilGuard(nil), ErrNilPointer, "Unusual input of an untyped nil should still error correctly")
 
 	err = NilGuard()
-	require.NoError(t, err, "NilGuard with no arguments should not panic")
+	require.NoError(t, err, "NilGuard with no arguments must not error")
 }

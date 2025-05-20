@@ -1447,7 +1447,7 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, err
 	}
 	if !isPerpetual {
-		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
+		return nil, fmt.Errorf("%w %q", futures.ErrNotPerpetualFuture, r.Pair)
 	}
 	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {

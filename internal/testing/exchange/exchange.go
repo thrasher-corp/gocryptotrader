@@ -100,10 +100,10 @@ func MockWsInstance[T any, PT interface {
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
-	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
+	require.NoError(tb, err, "Endpoints.SetRunning must not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
 		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
-		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
+		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)
 	}
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
@@ -112,7 +112,7 @@ func MockWsInstance[T any, PT interface {
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = b.Websocket.Connect()
-	require.NoError(tb, err, "Connect should not error")
+	require.NoError(tb, err, "Connect must not error")
 
 	return e
 }
@@ -138,7 +138,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	tb.Helper()
 
 	fixture, err := os.Open(fixturePath)
-	require.NoError(tb, err, "Opening fixture '%s' must not error", fixturePath)
+	require.NoErrorf(tb, err, "Opening fixture %q must not error", fixturePath)
 	defer func() {
 		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
 	}()
