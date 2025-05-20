@@ -330,13 +330,11 @@ func getIntervalString(interval kline.Interval) (string, error) {
 	case kline.OneMonth:
 		return "30d", nil
 	case kline.TenMilliseconds, kline.TwentyMilliseconds, kline.HundredMilliseconds, kline.TwoHundredAndFiftyMilliseconds,
-		kline.TenSecond, kline.ThirtySecond,
-		kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin,
+		kline.TenSecond, kline.ThirtySecond, kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin,
 		kline.OneHour, kline.TwoHour, kline.FourHour, kline.EightHour, kline.TwelveHour:
-
 		return interval.Short(), nil
 	default:
-		return "", fmt.Errorf("'%s': %w", interval.String(), kline.ErrUnsupportedInterval)
+		return "", fmt.Errorf("%q: %w", interval.String(), kline.ErrUnsupportedInterval)
 	}
 }
 

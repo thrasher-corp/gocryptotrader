@@ -768,7 +768,7 @@ func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
 				continue
 			}
 			if existingChanName != n {
-				return fmt.Errorf("%w for `%s %s` between `%s` and `%s`, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, existingChanName, n)
+				return fmt.Errorf("%w for %q %q between %q and %q, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, existingChanName, n)
 			}
 		}
 	}
@@ -837,13 +837,13 @@ func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (strin
 		return "", nil
 	case len(intervals) == 0:
 		if s.Interval != 0 {
-			return "", fmt.Errorf("%w for %s: `%s`; interval not supported for channel", subscription.ErrInvalidInterval, cName, s.Interval)
+			return "", fmt.Errorf("%w for %s: %q; interval not supported for channel", subscription.ErrInvalidInterval, cName, s.Interval)
 		}
 		return "", nil
 	case !slices.Contains(intervals, s.Interval):
-		return "", fmt.Errorf("%w for %s: `%s`; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
+		return "", fmt.Errorf("%w for %s: %q; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
 	case cName == futuresOrderbookUpdateChannel && s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
-		return "", fmt.Errorf("%w for `%s`: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
+		return "", fmt.Errorf("%w for %q: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
 	case s.Interval == 0:
 		return "0", nil // Do not move this into getIntervalString, it's only valid for ws subs
 	}

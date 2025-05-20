@@ -105,7 +105,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 	case asset.Spot:
 		sub := g.Websocket.GetSubscription(spotOrderbookUpdateKey)
 		if sub == nil {
-			return fmt.Errorf("no subscription found for %s", spotOrderbookUpdateKey)
+			return fmt.Errorf("no subscription found for %q", spotOrderbookUpdateKey)
 		}
 		// There is no way to set levels when we subscribe for this specific subscription case.
 		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
