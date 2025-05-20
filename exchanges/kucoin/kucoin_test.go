@@ -2189,7 +2189,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.Buy,
 	}
 
-	getOrdersRequest.Type = order.OptimalLimitIOC
+	getOrdersRequest.Type = order.OptimalLimit
 	_, err = ku.GetActiveOrders(t.Context(), &getOrdersRequest)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
@@ -4440,5 +4440,26 @@ func TestChannelName(t *testing.T) {
 		{asset.Spot, subscription.TickerChannel, marketTickerChannel},
 	} {
 		assert.Equal(t, tt.exp, channelName(&subscription.Subscription{Channel: tt.ch}, tt.a))
+	}
+}
+
+func TestStringToTimeInForce(t *testing.T) {
+	t.Parallel()
+	tifMap := []struct {
+		String      string
+		PostOnly    bool
+		TimeInForce order.TimeInForce
+	}{
+		{"GTC", false, order.GoodTillCancel},
+		{"GTC", true, order.GoodTillCancel | order.PostOnly},
+		{"GTT", false, order.GoodTillTime},
+		{"GTT", true, order.GoodTillTime | order.PostOnly},
+		{"IOC", false, order.ImmediateOrCancel},
+		{"ioC", false, order.ImmediateOrCancel},
+		{"Fok", false, order.FillOrKill},
+	}
+	for a := range tifMap {
+		result := StringToTimeInForce(tifMap[a].String, tifMap[a].PostOnly)
+		assert.Equal(t, tifMap[a].TimeInForce, result)
 	}
 }

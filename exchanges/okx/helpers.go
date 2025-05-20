@@ -9,52 +9,71 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// orderTypeFromString returns order.Type instance from string
-func orderTypeFromString(orderType string) (order.Type, error) {
+// orderTypeFromString returns the order Type and TimeInForce for okx order type strings
+func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error) {
 	orderType = strings.ToLower(orderType)
 	switch orderType {
 	case orderMarket:
-		return order.Market, nil
+		return order.Market, order.UnknownTIF, nil
 	case orderLimit:
-		return order.Limit, nil
+		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
-		return order.PostOnly, nil
+		return order.Limit, order.PostOnly, nil
 	case orderFOK:
-		return order.FillOrKill, nil
+		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
-		return order.ImmediateOrCancel, nil
+		return order.Limit, order.ImmediateOrCancel, nil
 	case orderOptimalLimitIOC:
-		return order.OptimalLimitIOC, nil
+		return order.OptimalLimit, order.ImmediateOrCancel, nil
 	case "mmp":
-		return order.MarketMakerProtection, nil
+		return order.MarketMakerProtection, order.UnknownTIF, nil
 	case "mmp_and_post_only":
-		return order.MarketMakerProtectionAndPostOnly, nil
+		return order.MarketMakerProtection, order.PostOnly, nil
 	case "twap":
-		return order.TWAP, nil
+		return order.TWAP, order.UnknownTIF, nil
 	case "move_order_stop":
-		return order.TrailingStop, nil
+		return order.TrailingStop, 0, nil
 	case "chase":
-		return order.Chase, nil
+		return order.Chase, order.UnknownTIF, nil
 	default:
-		return order.UnknownType, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
 // orderTypeString returns a string representation of order.Type instance
-func orderTypeString(orderType order.Type) (string, error) {
+func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
-	case order.ImmediateOrCancel:
-		return "ioc", nil
-	case order.Market, order.Limit, order.Trigger,
-		order.PostOnly, order.FillOrKill, order.OptimalLimitIOC,
-		order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly,
-		order.Chase, order.TWAP, order.OCO:
+	case order.MarketMakerProtection:
+		if tif == order.PostOnly {
+			return "mmp_and_post_only", nil
+		}
+		return "mmp", nil
+	case order.OptimalLimit:
+		return "optimal_limit_ioc", nil
+	case order.Limit:
+		if tif == order.ImmediateOrCancel {
+			return orderIOC, nil
+		}
+		return orderType.Lower(), nil
+	case order.Market,
+		order.Trigger,
+		order.Chase,
+		order.TWAP,
+		order.OCO:
 		return orderType.Lower(), nil
 	case order.ConditionalStop:
 		return "conditional", nil
 	case order.TrailingStop:
 		return "move_order_stop", nil
 	default:
+		switch tif {
+		case order.PostOnly:
+			return orderPostOnly, nil
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
 		return "", fmt.Errorf("%w: `%v`", order.ErrUnsupportedOrderType, orderType)
 	}
 }
