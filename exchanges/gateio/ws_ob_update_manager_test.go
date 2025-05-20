@@ -91,7 +91,7 @@ func TestLoadCache(t *testing.T) {
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
 	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
 	assert.NotNil(t, cache)
-	assert.Len(t, m.m, 1)
+	assert.Len(t, m.lookup, 1)
 
 	// Test cache is reused
 	cache2 := m.LoadCache(pair, asset.USDTMarginedFutures)
@@ -183,9 +183,7 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 
-	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 	pair := currency.NewBTCUSDT()
-	cache := m.LoadCache(pair, asset.USDTMarginedFutures)
 
 	update := &orderbook.Update{
 		Pair:       pair,
@@ -194,14 +192,14 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 
-	err := cache.applyOrderbookUpdate(g, update)
+	err := applyOrderbookUpdate(g, update)
 	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
 
 	update.Asset = asset.Spot
-	err = cache.applyOrderbookUpdate(g, update)
+	err = applyOrderbookUpdate(g, update)
 	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
 
 	update.Pair = currency.NewPair(currency.BABY, currency.BABYDOGE)
-	err = cache.applyOrderbookUpdate(g, update)
+	err = applyOrderbookUpdate(g, update)
 	require.NoError(t, err)
 }

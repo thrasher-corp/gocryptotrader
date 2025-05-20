@@ -20,7 +20,7 @@ const defaultWSSnapshotSyncDelay = 2 * time.Second
 var errOrderbookSnapshotOutdated = errors.New("orderbook snapshot is outdated")
 
 type wsOBUpdateManager struct {
-	m                 map[key.PairAsset]*updateCache
+	lookup            map[key.PairAsset]*updateCache
 	snapshotSyncDelay time.Duration
 	mtx               sync.RWMutex
 }
@@ -37,7 +37,7 @@ type pendingUpdate struct {
 }
 
 func newWsOBUpdateManager(snapshotSyncDelay time.Duration) *wsOBUpdateManager {
-	return &wsOBUpdateManager{m: make(map[key.PairAsset]*updateCache), snapshotSyncDelay: snapshotSyncDelay}
+	return &wsOBUpdateManager{lookup: make(map[key.PairAsset]*updateCache), snapshotSyncDelay: snapshotSyncDelay}
 }
 
 // ProcessUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
@@ -57,7 +57,7 @@ func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, firstU
 	}
 
 	if lastUpdateID+1 >= firstUpdateID {
-		return cache.applyOrderbookUpdate(g, update)
+		return applyOrderbookUpdate(g, update)
 	}
 
 	// Orderbook is behind notifications, flush store to prevent trading on stale data
@@ -85,15 +85,13 @@ func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, firstU
 // LoadCache loads the cache for the given pair and asset. If the cache does not exist, it creates a new one.
 func (m *wsOBUpdateManager) LoadCache(p currency.Pair, a asset.Item) *updateCache {
 	m.mtx.RLock()
-	cache, ok := m.m[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	cache, ok := m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	m.mtx.RUnlock()
 	if !ok {
-		m.mtx.RUnlock()
 		m.mtx.Lock()
 		cache = &updateCache{}
-		m.m[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
+		m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
 		m.mtx.Unlock()
-	} else {
-		m.mtx.RUnlock()
 	}
 	return cache
 }
@@ -124,7 +122,7 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 
 	c.mtx.Lock() // lock here to prevent ws handle data interference with REST request above
 	defer func() {
-		c.updates = c.updates[:0]
+		c.updates = nil
 		c.updating = false
 		c.mtx.Unlock()
 	}()
@@ -139,11 +137,11 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, g *Gateio, pair currenc
 		}
 	} else {
 		// Spot, Margin, and Cross Margin books are all classified as spot
-		for _, a := range standardMarginAssetTypes {
-			if enabled, _ := g.IsPairEnabled(pair, a); !enabled {
+		for i := range standardMarginAssetTypes {
+			if enabled, _ := g.IsPairEnabled(pair, standardMarginAssetTypes[i]); !enabled {
 				continue
 			}
-			book.Asset = a
+			book.Asset = standardMarginAssetTypes[i]
 			if err := g.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 				return err
 			}
@@ -166,7 +164,7 @@ func (c *updateCache) applyPendingUpdates(g *Gateio, a asset.Item) error {
 		if data.update.UpdateID < nextID {
 			continue // skip updates that are behind the current orderbook
 		}
-		if err := c.applyOrderbookUpdate(g, data.update); err != nil {
+		if err := applyOrderbookUpdate(g, data.update); err != nil {
 			return err
 		}
 	}
@@ -174,16 +172,16 @@ func (c *updateCache) applyPendingUpdates(g *Gateio, a asset.Item) error {
 }
 
 // applyOrderbookUpdate applies an orderbook update to the orderbook
-func (c *updateCache) applyOrderbookUpdate(g *Gateio, update *orderbook.Update) error {
+func applyOrderbookUpdate(g *Gateio, update *orderbook.Update) error {
 	if update.Asset != asset.Spot {
 		return g.Websocket.Orderbook.Update(update)
 	}
 
-	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.IsPairEnabled(update.Pair, a); !enabled {
+	for i := range standardMarginAssetTypes {
+		if enabled, _ := g.IsPairEnabled(update.Pair, standardMarginAssetTypes[i]); !enabled {
 			continue
 		}
-		update.Asset = a
+		update.Asset = standardMarginAssetTypes[i]
 		if err := g.Websocket.Orderbook.Update(update); err != nil {
 			return err
 		}

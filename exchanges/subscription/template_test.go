@@ -32,10 +32,12 @@ func TestExpandTemplates(t *testing.T) {
 		{Channel: "single-channel", Authenticated: true},
 	}
 
-	_, err := l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, Fail: true})
+	_, err := l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, GenerateBadSubscription: true})
 	require.ErrorIs(t, err, errValidateSubscriptionsTestError)
 	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e})
 	require.NoError(t, err)
+	_, err = l.ExpandTemplates(&mockExWithSubValidator{mockEx: e, FailGetSubscriptions: true})
+	require.ErrorIs(t, err, ErrNotFound)
 
 	got, err := l.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")

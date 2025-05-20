@@ -18,7 +18,8 @@ import (
 var errValidateSubscriptionsTestError = errors.New("validate subscriptions test error")
 
 type mockExWithSubValidator struct {
-	Fail bool
+	GenerateBadSubscription bool
+	FailGetSubscriptions    bool
 	*mockEx
 }
 
@@ -32,8 +33,11 @@ func (m *mockExWithSubValidator) ValidateSubscriptions(in List) error {
 }
 
 func (m *mockExWithSubValidator) GetSubscriptions() (List, error) {
-	if m.Fail {
+	if m.GenerateBadSubscription {
 		return List{{Channel: "fail-channel"}}, nil
+	}
+	if m.FailGetSubscriptions {
+		return nil, ErrNotFound
 	}
 	return nil, nil
 }
