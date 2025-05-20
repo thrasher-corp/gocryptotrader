@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -15,7 +16,6 @@ var (
 	// ErrNotRunning defines an error when the dispatcher is not running
 	ErrNotRunning = errors.New("dispatcher not running")
 
-	errDispatcherNotInitialized          = errors.New("dispatcher not initialised")
 	errDispatcherAlreadyRunning          = errors.New("dispatcher already running")
 	errDispatchShutdown                  = errors.New("dispatcher did not shutdown properly, routines failed to close")
 	errDispatcherUUIDNotFoundInRouteList = errors.New("dispatcher uuid not found in route list")
@@ -71,8 +71,8 @@ func IsRunning() bool {
 // start compares atomic running value, sets defaults, overrides with
 // configuration, then spawns workers
 func (d *Dispatcher) start(workers, channelCapacity int) error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return err
 	}
 
 	d.m.Lock()
@@ -85,15 +85,11 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 	d.running = true
 
 	if workers < 1 {
-		log.Warnf(log.DispatchMgr,
-			"workers cannot be zero, using default value %d\n",
-			DefaultMaxWorkers)
+		log.Warnf(log.DispatchMgr, "Dispatcher workers cannot be zero, using default value %d\n", DefaultMaxWorkers)
 		workers = DefaultMaxWorkers
 	}
 	if channelCapacity < 1 {
-		log.Warnf(log.DispatchMgr,
-			"jobs limit cannot be zero, using default values %d\n",
-			DefaultJobsLimit)
+		log.Warnf(log.DispatchMgr, "Dispatcher jobs limit cannot be zero, using default values %d\n", DefaultJobsLimit)
 		channelCapacity = DefaultJobsLimit
 	}
 	d.jobs = make(chan job, channelCapacity)
@@ -109,8 +105,8 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 
 // stop stops the service and shuts down all worker routines
 func (d *Dispatcher) stop() error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return err
 	}
 
 	d.m.Lock()
@@ -203,16 +199,12 @@ func (d *Dispatcher) relayer() {
 
 // publish relays data to the subscribed subsystems
 func (d *Dispatcher) publish(id uuid.UUID, data any) error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d, data); err != nil {
+		return err
 	}
 
 	if id.IsNil() {
 		return errIDNotSet
-	}
-
-	if data == nil {
-		return errNoData
 	}
 
 	d.m.RLock()
@@ -226,18 +218,15 @@ func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	case d.jobs <- job{data, id}: // Push job into job channel.
 		return nil
 	default:
-		return fmt.Errorf(limitMessage,
-			errDispatcherJobsAtLimit,
-			len(d.jobs),
-			d.maxWorkers)
+		return fmt.Errorf(limitMessage, errDispatcherJobsAtLimit, len(d.jobs), d.maxWorkers)
 	}
 }
 
 // Subscribe subscribes a system and returns a communication chan, this does not
 // ensure initial push.
 func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
-	if d == nil {
-		return nil, errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return nil, err
 	}
 
 	if id.IsNil() {
@@ -270,8 +259,8 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 
 // Unsubscribe unsubs a routine from the dispatcher
 func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
-	if d == nil {
-		return errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return err
 	}
 
 	if id.IsNil() {
@@ -323,8 +312,8 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 
 // GetNewID returns a new ID
 func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error) {
-	if d == nil {
-		return uuid.Nil, errDispatcherNotInitialized
+	if err := common.NilGuard(d); err != nil {
+		return uuid.Nil, err
 	}
 
 	if genFn == nil {
