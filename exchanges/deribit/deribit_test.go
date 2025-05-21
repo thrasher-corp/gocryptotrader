@@ -4158,3 +4158,28 @@ func TestFormatChannelPair(t *testing.T) {
 	pair.Delimiter = "-"
 	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
 }
+
+var timeInForceList = []struct {
+	String   string
+	PostOnly bool
+	TIF      order.TimeInForce
+	Error    error
+}{
+	{"good_til_cancelled", false, order.GoodTillCancel, nil},
+	{"good_til_cancelled", true, order.GoodTillCancel | order.PostOnly, nil},
+	{"good_til_day", false, order.GoodTillDay, nil},
+	{"good_til_day", true, order.GoodTillDay | order.PostOnly, nil},
+	{"fill_or_kill", false, order.FillOrKill, nil},
+	{"immediate_or_cancel", false, order.ImmediateOrCancel, nil},
+	{"abcd", false, order.UnknownTIF, order.ErrInvalidTimeInForce},
+	{"", false, order.UnknownTIF, nil},
+}
+
+func TestTimeInForceFromString(t *testing.T) {
+	t.Parallel()
+	for i := range timeInForceList {
+		result, err := timeInForceFromString(timeInForceList[i].String, timeInForceList[i].PostOnly)
+		assert.Equalf(t, timeInForceList[i].TIF, result, "expected  %s, got %s", timeInForceList[i].TIF.String(), result.String())
+		require.ErrorIs(t, err, timeInForceList[i].Error)
+	}
+}
