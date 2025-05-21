@@ -3315,6 +3315,7 @@ func TestTimeInForceFromString(t *testing.T) {
 
 	for k, v := range map[string]order.TimeInForce{gtcTIF: order.GoodTillCancel, iocTIF: order.ImmediateOrCancel, pocTIF: order.PostOnly, fokTIF: order.FillOrKill} {
 		t.Run(k, func(t *testing.T) {
+			t.Parallel()
 			tif, err := timeInForceFromString(k)
 			require.NoError(t, err)
 			assert.Equal(t, v, tif)
