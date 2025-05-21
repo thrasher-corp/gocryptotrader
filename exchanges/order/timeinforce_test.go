@@ -23,9 +23,9 @@ func TestTimeInForceIs(t *testing.T) {
 		PostOnly:                    {PostOnly},
 		GoodTillCrossing:            {GoodTillCrossing},
 	}
-	for tif := range tifValuesMap {
-		for _, v := range tifValuesMap[tif] {
-			require.True(t, tif.Is(v))
+	for tif, exps := range tifValuesMap {
+		for _, v := range exps {
+			require.Truef(t, tif.Is(v), "%s should be %s", tif, v)
 		}
 	}
 }

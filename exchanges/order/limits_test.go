@@ -290,7 +290,7 @@ func TestConformToAmount(t *testing.T) {
 
 	tt = MinMaxLevel{}
 	val := tt.ConformToAmount(1)
-	assert.Equal(t, 1.0, val) // If there is no step amount set this should not change the inputted amount
+	assert.Equal(t, 1.0, val, "ConformToAmount should return the same value with no step amount set")
 
 	tt.AmountStepIncrementSize = 0.001
 	val = tt.ConformToAmount(1.001)

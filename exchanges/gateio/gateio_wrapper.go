@@ -2365,9 +2365,9 @@ func timeInForceString(tif order.TimeInForce) string {
 	case tif.Is(order.PostOnly):
 		return "poc"
 	case tif.Is(order.ImmediateOrCancel):
-		return order.ImmediateOrCancel.Lower()
+		return iocTIF
 	case tif.Is(order.FillOrKill):
-		return order.FillOrKill.Lower()
+		return fokTIF
 	default:
 		return tif.Lower()
 	}

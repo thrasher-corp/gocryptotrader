@@ -167,8 +167,8 @@ var (
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 )
 
-// validTimesInForces holds a list of supported time-in-force values and corresponding string representations.
-var validTimesInForces = []struct {
+// validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
+var validTimesInForce = []struct {
 	String      string
 	TimeInForce order.TimeInForce
 }{
@@ -176,9 +176,9 @@ var validTimesInForces = []struct {
 }
 
 func timeInForceFromString(tif string) (order.TimeInForce, error) {
-	for a := range validTimesInForces {
-		if validTimesInForces[a].String == tif {
-			return validTimesInForces[a].TimeInForce, nil
+	for a := range validTimesInForce {
+		if validTimesInForce[a].String == tif {
+			return validTimesInForce[a].TimeInForce, nil
 		}
 	}
 	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)

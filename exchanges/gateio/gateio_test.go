@@ -3301,8 +3301,7 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 func BenchmarkTimeInForceFromString(b *testing.B) {
 	for b.Loop() {
 		for _, tifString := range []string{gtcTIF, iocTIF, pocTIF, fokTIF} {
-			_, err := timeInForceFromString(tifString)
-			if err != nil {
+			if _, err := timeInForceFromString(tifString); err != nil {
 				b.Fatal(tifString)
 			}
 		}
@@ -3315,9 +3314,11 @@ func TestTimeInForceFromString(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
 	for k, v := range map[string]order.TimeInForce{gtcTIF: order.GoodTillCancel, iocTIF: order.ImmediateOrCancel, pocTIF: order.PostOnly, fokTIF: order.FillOrKill} {
-		tif, err := timeInForceFromString(k)
-		assert.NoError(t, err)
-		assert.Equal(t, v, tif)
+		t.Run(k, func(t *testing.T) {
+			tif, err := timeInForceFromString(k)
+			require.NoError(t, err)
+			assert.Equal(t, v, tif)
+		})
 	}
 }
 
@@ -3339,7 +3340,7 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 func TestTimeInForceString(t *testing.T) {
 	t.Parallel()
 	assert.Empty(t, timeInForceString(order.UnknownTIF))
-	for _, valid := range validTimesInForces {
+	for _, valid := range validTimesInForce {
 		assert.Equal(t, valid.String, timeInForceString(valid.TimeInForce))
 	}
 }
