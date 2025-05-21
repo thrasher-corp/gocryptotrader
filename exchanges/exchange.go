@@ -1146,13 +1146,13 @@ func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 	var errs error
 	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		errs = common.AppendError(errs, err)
-	}
-
-	ok, err := b.CurrencyPairs.IsPairEnabled(pair, a)
-	if err != nil {
-		errs = common.AppendError(errs, err)
-	} else if !ok {
-		errs = common.AppendError(errs, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
+	} else {
+		ok, err := b.CurrencyPairs.IsPairEnabled(pair, a)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		} else if !ok {
+			errs = common.AppendError(errs, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
+		}
 	}
 
 	if !b.klineIntervalEnabled(interval) {
