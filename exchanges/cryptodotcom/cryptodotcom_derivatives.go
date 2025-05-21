@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -33,7 +32,7 @@ func (cr *Cryptodotcom) ChangeAccountLeverage(ctx context.Context, accountID str
 	params := make(map[string]any)
 	params["account_id"] = accountID
 	params["leverage"] = leverage
-	return cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/change-account-leverage", params, nil)
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountLeverageRate, "private/change-account-leverage", params, nil)
 }
 
 // GetAllExecutableTradesForInstrument returns all executable trades for a particular instrument
@@ -54,7 +53,7 @@ func (cr *Cryptodotcom) GetAllExecutableTradesForInstrument(ctx context.Context,
 		params["limit"] = limit
 	}
 	var resp *InstrumentTrades
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/get-trades", params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, getAllExecutableTradesRate, "private/get-trades", params, &resp)
 }
 
 // ClosePosition cancels position for a particular instrument/pair (asynchronous).
@@ -74,7 +73,7 @@ func (cr *Cryptodotcom) ClosePosition(ctx context.Context, symbol, orderType str
 	params["type"] = orderType
 	params["price"] = price
 	var resp *OrderIDsDetail
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/close-position", params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, closePositionRate, "private/close-position", params, &resp)
 }
 
 // GetFuturesOrderList gets the details of an outstanding (not executed) contingency order on Exchange.
@@ -94,7 +93,7 @@ func (cr *Cryptodotcom) GetFuturesOrderList(ctx context.Context, contingencyType
 	params["list_id"] = listID
 	params["instrument_name"] = symbol
 	var resp *OrdersDetail
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, request.Auth, "private/get-order-list", params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresOrderListRate, "private/get-order-list", params, &resp)
 }
 
 // GetInsurance fetches balance of Insurance Fund for a particular currency.
@@ -116,5 +115,5 @@ func (cr *Cryptodotcom) GetInsurance(ctx context.Context, symbol string, count i
 		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *ValueAndTimestamp
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), request.Auth, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), getInsuranceRate, &resp)
 }

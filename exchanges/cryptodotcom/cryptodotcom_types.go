@@ -1182,3 +1182,13 @@ type AccountRiskBalance struct {
 	MaxWithdrawalBalance types.Number `json:"max_withdrawal_balance"`
 	HourlyInterestRate   types.Number `json:"hourly_interest_rate"`
 }
+
+// ExpiredSettlementPrice holds expired settlement price detail of instruments
+type ExpiredSettlementPrice struct {
+	Data []struct {
+		Symbol     string       `json:"i"`
+		ExpiryTime types.Time   `json:"x"`
+		Value      types.Number `json:"v"`
+		Timestamp  types.Time   `json:"t"`
+	} `json:"data"`
+}

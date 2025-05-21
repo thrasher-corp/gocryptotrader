@@ -312,10 +312,10 @@ func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item)
 			Bid:          tick.Data[y].BestBidPrice.Float64(),
 			Ask:          tick.Data[y].BestAskPrice.Float64(),
 			Volume:       tick.Data[y].TradedVolume.Float64(),
-			Pair:         cp,
-			ExchangeName: cr.Name,
-			AssetType:    assetType,
 			QuoteVolume:  tick.Data[y].TradedVolumeInUSD24H.Float64(),
+			AssetType:    assetType,
+			ExchangeName: cr.Name,
+			Pair:         cp,
 		})
 		if err != nil {
 			return err
@@ -792,20 +792,20 @@ func (cr *Cryptodotcom) GetOrderInfo(ctx context.Context, orderID string, pair c
 		tif |= order.PostOnly
 	}
 	return &order.Detail{
-		Amount:         orderDetail.Quantity.Float64(),
-		Exchange:       cr.Name,
-		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientOrderID,
-		Side:           side,
-		Type:           orderType,
-		Pair:           pair,
+		ExecutedAmount: orderDetail.CumulativeQuantity.Float64() - orderDetail.Quantity.Float64(),
 		Cost:           orderDetail.CumulativeValue.Float64(),
+		Date:           orderDetail.CreateTime.Time(),
+		LastUpdated:    orderDetail.UpdateTime.Time(),
+		Amount:         orderDetail.Quantity.Float64(),
+		ClientOrderID:  orderDetail.ClientOrderID,
+		OrderID:        orderDetail.OrderID,
+		Type:           orderType,
+		Exchange:       cr.Name,
+		Side:           side,
+		Pair:           pair,
 		AssetType:      assetType,
 		Status:         status,
 		Price:          orderDetail.Price.Float64(),
-		ExecutedAmount: orderDetail.CumulativeQuantity.Float64() - orderDetail.Quantity.Float64(),
-		Date:           orderDetail.CreateTime.Time(),
-		LastUpdated:    orderDetail.UpdateTime.Time(),
 		TimeInForce:    tif,
 	}, err
 }
@@ -915,17 +915,6 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 			if err != nil {
 				return nil, err
 			}
-			var tif order.TimeInForce
-			switch orders.OrderList[x].TimeInForce {
-			case "GOOD_TILL_CANCEL":
-				tif = order.GoodTillCancel
-			case "IMMEDIATE_OR_CANCEL":
-				tif = order.ImmediateOrCancel
-			case "FILL_OR_KILL":
-				tif = order.FillOrKill
-			default:
-				tif |= order.PostOnly
-			}
 			resp = append(resp, order.Detail{
 				Price:                orders.OrderList[x].Price,
 				AverageExecutedPrice: orders.OrderList[x].AvgPrice,
@@ -942,7 +931,7 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				Date:                 orders.OrderList[x].CreateTime.Time(),
 				LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
 				Pair:                 cp,
-				TimeInForce:          tif,
+				TimeInForce:          timeInForceFromString(orders.OrderList[x].TimeInForce, false),
 			})
 		}
 		return getOrdersRequest.Filter(cr.Name, resp), nil
@@ -979,10 +968,6 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 					continue
 				}
 			}
-			tif, err := order.StringToTimeInForce(result.Data[d].TimeInForce)
-			if err != nil {
-				return nil, err
-			}
 			oType, err := StringToOrderType(result.Data[d].OrderType)
 			if err != nil {
 				return nil, err
@@ -996,7 +981,7 @@ func (cr *Cryptodotcom) GetActiveOrders(ctx context.Context, getOrdersRequest *o
 				return nil, err
 			}
 			resp = append(resp, order.Detail{
-				TimeInForce:          tif,
+				TimeInForce:          timeInForceFromString(result.Data[d].TimeInForce, false),
 				Price:                result.Data[d].Price.Float64(),
 				Amount:               result.Data[d].Quantity.Float64(),
 				ContractAmount:       result.Data[d].CumulativeValue.Float64(),
@@ -1083,9 +1068,26 @@ func (cr *Cryptodotcom) GetOrderHistory(ctx context.Context, getOrdersRequest *o
 			Date:                 orders.OrderList[x].CreateTime.Time(),
 			LastUpdated:          orders.OrderList[x].UpdateTime.Time(),
 			Pair:                 cp,
+			TimeInForce:          timeInForceFromString(orders.OrderList[x].TimeInForce, false),
 		})
 	}
 	return getOrdersRequest.Filter(cr.Name, resp), nil
+}
+
+func timeInForceFromString(timeInForce string, postOnly bool) order.TimeInForce {
+	var tif order.TimeInForce
+	switch timeInForce {
+	case "GOOD_TILL_CANCEL":
+		tif = order.GoodTillCancel
+	case "IMMEDIATE_OR_CANCEL":
+		tif = order.ImmediateOrCancel
+	case "FILL_OR_KILL":
+		tif = order.FillOrKill
+	}
+	if postOnly {
+		tif |= order.PostOnly
+	}
+	return tif
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

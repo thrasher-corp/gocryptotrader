@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -145,7 +146,7 @@ func (cr *Cryptodotcom) GetValuations(ctx context.Context, symbol, valuationType
 		params.Set("end_ts", strconv.FormatInt(endTimestamp.UnixMilli(), 10))
 	}
 	var resp *InstrumentValuation
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-valuations", params), request.UnAuth, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("public/get-valuations", params), getValuationsRate, &resp)
 }
 
 // Private endpoints
@@ -349,7 +350,7 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
 			return nil, errInstrumentNameOrOrderIDRequired
 		}
-		result := make(map[string]interface{})
+		result := make(map[string]any)
 		if args[x].InstrumentName != "" {
 			result["instrument_name"] = args[x].InstrumentName
 		}
@@ -687,15 +688,21 @@ func intervalToString(interval kline.Interval) (string, error) {
 	return intervalString, nil
 }
 
-var intervalStringMap = map[string]kline.Interval{"1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "1h": kline.OneHour, "4h": kline.FourHour, "6h": kline.SixHour, "12h": kline.TwelveHour, "1D": kline.OneDay, "7D": kline.SevenDay, "14D": kline.TwoWeek, "1M": kline.OneMonth}
+var intervalStringList = []struct {
+	String   string
+	Interval kline.Interval
+}{
+	{"1m", kline.OneMin}, {"5m", kline.FiveMin}, {"15m", kline.FifteenMin}, {"30m", kline.ThirtyMin}, {"1h", kline.OneHour}, {"4h", kline.FourHour}, {"6h", kline.SixHour}, {"12h", kline.TwelveHour}, {"1D", kline.OneDay}, {"7D", kline.SevenDay}, {"14D", kline.TwoWeek}, {"1M", kline.OneMonth},
+}
 
 // stringToInterval converts a string representation to kline.Interval instance.
 func stringToInterval(interval string) (kline.Interval, error) {
-	klineInterval, okay := intervalStringMap[interval]
-	if !okay {
-		return 0, fmt.Errorf("%w %s", kline.ErrInvalidInterval, interval)
+	for i := range intervalStringList {
+		if intervalStringList[i].String == interval {
+			return intervalStringList[i].Interval, nil
+		}
 	}
-	return klineInterval, nil
+	return 0, fmt.Errorf("%w %s", kline.ErrUnsupportedInterval, interval)
 }
 
 // -------- Staking Endpoints ------------------------------------------------------------------------
@@ -884,7 +891,7 @@ func (cr *Cryptodotcom) StakingConversionRate(ctx context.Context, symbol string
 }
 
 // SendHTTPRequest send requests for un-authenticated market endpoints.
-func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := cr.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -916,7 +923,7 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request to the server
-func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, arg map[string]interface{}, resp interface{}) error {
+func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, epl request.EndpointLimit, path string, arg map[string]any, resp any) error {
 	creds, err := cr.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -989,7 +996,7 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 	return nil
 }
 
-func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
+func (cr *Cryptodotcom) getParamString(params map[string]any) string {
 	paramString := ""
 	keys := cr.sortParams(params)
 	for x := range keys {
@@ -1003,11 +1010,11 @@ func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
 			paramString += keys[x] + strconv.FormatInt(value, 10)
 		case float64:
 			paramString += keys[x] + strconv.FormatFloat(value, 'f', -1, 64)
-		case map[string]interface{}:
+		case map[string]any:
 			paramString += keys[x] + cr.getParamString(value)
 		case string:
 			paramString += keys[x] + value
-		case []map[string]interface{}:
+		case []map[string]any:
 			for y := range value {
 				paramString += cr.getParamString(value[y])
 			}
@@ -1016,7 +1023,7 @@ func (cr *Cryptodotcom) getParamString(params map[string]interface{}) string {
 	return paramString
 }
 
-func (cr *Cryptodotcom) sortParams(params map[string]interface{}) []string {
+func (cr *Cryptodotcom) sortParams(params map[string]any) []string {
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		keys = append(keys, k)
@@ -1130,5 +1137,24 @@ func (cr *Cryptodotcom) GetPositions(ctx context.Context, instrumentName string)
 		params["instrument_name"] = instrumentName
 	}
 	var resp *UsersPositions
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, request.Auth, "private/get-positions", params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, getPositionsRate, "private/get-positions", params, &resp)
+}
+
+// GetExpiredSettlementPrice fetches settlement price of expired instruments.
+func (cr *Cryptodotcom) GetExpiredSettlementPrice(ctx context.Context, instrumentype asset.Item, page int) (*ExpiredSettlementPrice, error) {
+	if instrumentype == asset.Empty {
+		return nil, asset.ErrInvalidAsset
+	}
+	params := url.Values{}
+	switch instrumentype {
+	case asset.Futures:
+		params.Set("instrument_type", "FUTURE")
+	default:
+		params.Set("instrument_type", strings.ToUpper(instrumentype.String()))
+	}
+	if page > 0 {
+		params.Set("page", strconv.Itoa(page))
+	}
+	var resp *ExpiredSettlementPrice
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-expired-settlement-price", params), expiredSettlementPriceRate, &resp)
 }
