@@ -1499,7 +1499,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 	}
 }
 
-func TestBase_ValidateKline(t *testing.T) {
+func TestVerifyKlineParameters(t *testing.T) {
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
 	}
@@ -1529,15 +1529,11 @@ func TestBase_ValidateKline(t *testing.T) {
 		},
 	}
 
-	assert.ErrorIs(t, b.ValidateKline(availablePairs[0], asset.Index, kline.OneYear), currency.ErrAssetNotFound)
-	assert.ErrorIs(t, b.ValidateKline(currency.EMPTYPAIR, asset.Spot, kline.OneMin), currency.ErrCurrencyPairEmpty)
-
-	err := b.ValidateKline(availablePairs[1], asset.Spot, kline.OneYear)
-	assert.ErrorIs(t, err, currency.ErrPairNotFound, "ValidateKline should error correctly with non-enabled pair")
-	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "ValidateKline should error correctly with invalid interval")
-
-	err = b.ValidateKline(availablePairs[0], asset.Spot, kline.OneMin)
-	assert.NoError(t, err, "ValidateKline should not error")
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Index, kline.OneYear), currency.ErrAssetNotFound)
+	assert.ErrorIs(t, b.verifyKlineParameters(currency.EMPTYPAIR, asset.Spot, kline.OneMin), currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), currency.ErrPairNotEnabled)
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
+	assert.NoError(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneMin), "verifyKlineParameters should not error")
 }
 
 func TestCheckTransientError(t *testing.T) {
