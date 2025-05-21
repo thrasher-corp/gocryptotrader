@@ -1300,10 +1300,6 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
-		oType := order.Market
-		if fOrder.OrderPrice > 0 {
-			oType = order.Limit
-		}
 		tif, err := timeInForceFromString(fOrder.TimeInForce)
 		if err != nil {
 			return nil, err
@@ -1322,7 +1318,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			LastUpdated:          fOrder.FinishTime.Time(),
 			Pair:                 pair,
 			AssetType:            a,
-			Type:                 oType,
+			Type:                 getTypeFromTimeInForce(fOrder.TimeInForce, fOrder.OrderPrice.Float64()),
 			TimeInForce:          tif,
 			Side:                 side,
 		}, nil
