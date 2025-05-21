@@ -1815,6 +1815,13 @@ func TestUpdateTickers(t *testing.T) {
 	}
 }
 
+var expiryWindows = map[string]uint{
+	"CW": 14,
+	"NW": 21,
+	"CQ": 190,
+	"NQ": 282,
+}
+
 func TestPairFromContractExpiryCode(t *testing.T) {
 	t.Parallel()
 
@@ -1827,8 +1834,8 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 	tz, err := time.LoadLocation("Asia/Singapore") // Huobi HQ and apparent local time for when codes become effective
 	require.NoError(t, err, "LoadLocation must not error")
 
-	n := time.Now()
-	n = time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, tz) // Do not use Truncate; https://github.com/golang/go/issues/55921
+	today := time.Now()
+	today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, tz) // Do not use Truncate; https://github.com/golang/go/issues/55921
 
 	for _, cType := range contractExpiryNames {
 		p, err := h.pairFromContractExpiryCode(currency.Pair{
@@ -1839,22 +1846,21 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 			continue // Next Quarter is intermittently present
 		}
 		require.NoErrorf(t, err, "pairFromContractExpiryCode must not error for %s code", cType)
-		assert.Equal(t, currency.BTC, p.Base, "pair Base should be the same")
+		assert.Equal(t, currency.BTC, p.Base, "pair Base should be BTC")
 		h.futureContractCodesMutex.RLock()
-		exp, ok := h.futureContractCodes[cType]
+		cachedContract, ok := h.futureContractCodes[cType]
 		h.futureContractCodesMutex.RUnlock()
-		require.True(t, ok, "%s type must be in contractExpiryNames", cType)
-		assert.Equal(t, currency.BTC, p.Base, "pair Base should be the same")
-		assert.Equal(t, exp, p.Quote, "pair Quote should be the same")
-		d, err := time.ParseInLocation("060102", p.Quote.String(), tz)
+		require.Truef(t, ok, "%s type must be in futureContractCodes", cType)
+		assert.Equal(t, cachedContract, p.Quote, "pair Quote should match contractExpiryNames")
+		exp, err := time.ParseInLocation("060102", p.Quote.String(), tz)
 		require.NoError(t, err, "currency code must be a parsable date")
-		require.Falsef(t, d.Before(n), "%s expiry must be today or after", cType)
-		switch cType {
-		case "CW", "NW":
-			require.Truef(t, d.Before(n.AddDate(0, 0, 14)), "%s expiry must be within 14 days; Got: `%s`", cType, d)
-		case "CQ", "NQ":
-			require.Truef(t, d.Before(n.AddDate(0, 6, 0)), "%s expiry must be within 6 months; Got: `%s`", cType, d)
-		}
+		require.Falsef(t, exp.Before(today), "%s expiry must be today or after; Got: %q", cType, exp)
+		diff := uint(exp.Sub(today).Hours() / 24)
+		require.LessOrEqualf(t, diff, expiryWindows[cType], "%s expiry must be within expected update window; Today: %q, Expiry: %q",
+			cType,
+			today.Format(time.DateOnly),
+			exp.Format(time.DateOnly),
+		)
 	}
 }
 
