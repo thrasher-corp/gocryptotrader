@@ -4342,7 +4342,7 @@ func TestSetCollateralMode(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetPositionSummary(t *testing.T) {
+func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	pp, err := ok.CurrencyPairs.GetPairs(asset.PerpetualSwap, true)

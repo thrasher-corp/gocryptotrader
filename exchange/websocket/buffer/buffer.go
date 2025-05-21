@@ -15,6 +15,11 @@ import (
 
 const packageError = "websocket orderbook buffer error: %w"
 
+// Public errors exported by this package
+var (
+	ErrDepthNotFound = errors.New("orderbook depth not found")
+)
+
 var (
 	errExchangeConfigNil            = errors.New("exchange config is nil")
 	errBufferConfigNil              = errors.New("buffer config is nil")
@@ -22,7 +27,6 @@ var (
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errUpdateIsNil                  = errors.New("update is nil")
 	errUpdateNoTargets              = errors.New("update bid/ask targets cannot be nil")
-	errDepthNotFound                = errors.New("orderbook depth not found")
 	errRESTOverwrite                = errors.New("orderbook has been overwritten by REST protocol")
 	errInvalidAction                = errors.New("invalid action")
 	errAmendFailure                 = errors.New("orderbook amend update failure")
@@ -87,7 +91,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	book, ok := w.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
-			errDepthNotFound,
+			ErrDepthNotFound,
 			w.exchangeName,
 			u.Pair,
 			u.Asset)
@@ -313,7 +317,7 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 	defer w.mtx.Unlock()
 	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, errDepthNotFound)
+		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, ErrDepthNotFound)
 	}
 	return book.ob.Retrieve()
 }
@@ -336,7 +340,7 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 			w.exchangeName,
 			p,
 			a,
-			errDepthNotFound)
+			ErrDepthNotFound)
 	}
 	// error not needed in this return
 	_ = book.ob.Invalidate(errOrderbookFlushed)
