@@ -168,6 +168,7 @@ var (
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
+// slice iteration outperforms map with this few elements
 var validTimesInForce = []struct {
 	String      string
 	TimeInForce order.TimeInForce
