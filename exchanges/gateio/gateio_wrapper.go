@@ -2360,6 +2360,9 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	}
 }
 
+// timeInForceString returns the most relevant time-in-force exchange string for a TimeInForce
+// Any TIF value that is combined with POC, IOC or FOK will just return that
+// Otherwise the lowercase representation is returned
 func timeInForceString(tif order.TimeInForce) string {
 	switch {
 	case tif.Is(order.PostOnly):
