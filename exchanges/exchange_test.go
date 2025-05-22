@@ -2260,7 +2260,7 @@ func TestGetKlineRequest(t *testing.T) {
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
 	b.Features.Enabled.Kline.GlobalResultLimit = 1439
 	_, err = b.GetKlineRequest(p, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
-	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineRequest should error correctly")
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  true,
