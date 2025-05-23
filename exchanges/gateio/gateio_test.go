@@ -3414,6 +3414,7 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 	assert.Equal(t, "20ms", i)
 
 	for s, exp := range map[*subscription.Subscription]error{
+		{Asset: asset.Binary, Channel: "unhandle_random_ticker", Interval: kline.OneYear}:                            nil,
 		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
 		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                                        nil,
 		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                                   subscription.ErrInvalidInterval,
@@ -3449,7 +3450,6 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 			if exp != nil {
 				require.ErrorIs(t, err, exp)
 			} else {
-				require.NoError(t, err)
 				switch {
 				case strings.HasSuffix(s.Channel, "_ticker"):
 					assert.Empty(t, i)
@@ -3469,6 +3469,7 @@ func TestChannelLevels(t *testing.T) {
 	t.Parallel()
 
 	for s, exp := range map[*subscription.Subscription]error{
+		{Channel: "unhandled_random_ticker", Asset: asset.Binary}:                           nil,
 		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot}:                            nil,
 		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Levels: 1}:                 subscription.ErrInvalidLevel,
 		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot}:                            nil,
