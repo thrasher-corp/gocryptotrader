@@ -706,12 +706,9 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		var timeInForce string
-		switch {
-		case s.TimeInForce.Is(order.GoodTillDay):
-			timeInForce = "GTD"
-		case s.TimeInForce.Is(order.ImmediateOrCancel):
-			timeInForce = "IOC"
+		timeInForce, err := timeInForceString(s.TimeInForce)
+		if err != nil {
+			return nil, err
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
