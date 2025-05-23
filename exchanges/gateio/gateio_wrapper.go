@@ -177,6 +177,7 @@ func (g *Gateio) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	g.wsOBUpdateMgr = newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 }
 
 // Setup sets user configuration
@@ -649,6 +650,11 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	return g.UpdateOrderbookWithLimit(ctx, p, a, 0)
+}
+
+// UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
+func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Base, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -664,18 +670,18 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		if a != asset.Spot && !available {
 			return nil, fmt.Errorf("%v instrument %v does not have orderbook data", a, p)
 		}
-		o, err = g.GetOrderbook(ctx, p.String(), "", 0, true)
+		o, err = g.GetOrderbook(ctx, p.String(), "", limit, true)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		var settle currency.Code
 		settle, err = getSettlementCurrency(p, a)
 		if err != nil {
 			return nil, err
 		}
-		o, err = g.GetFuturesOrderbook(ctx, settle, p.String(), "", 0, true)
+		o, err = g.GetFuturesOrderbook(ctx, settle, p.String(), "", limit, true)
 	case asset.DeliveryFutures:
-		o, err = g.GetDeliveryOrderbook(ctx, currency.USDT, "", p, 0, true)
+		o, err = g.GetDeliveryOrderbook(ctx, currency.USDT, "", p, limit, true)
 	case asset.Options:
-		o, err = g.GetOptionsOrderbook(ctx, p, "", 0, true)
+		o, err = g.GetOptionsOrderbook(ctx, p, "", limit, true)
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -972,17 +978,6 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		var timeInForce string
-		switch {
-		case s.TimeInForce.Is(order.PostOnly):
-			timeInForce = "poc"
-		case s.TimeInForce.Is(order.ImmediateOrCancel):
-			timeInForce = order.ImmediateOrCancel.Lower()
-		case s.TimeInForce.Is(order.FillOrKill):
-			timeInForce = order.FillOrKill.Lower()
-		case s.TimeInForce.Is(order.GoodTillCancel):
-			timeInForce = order.GoodTillCancel.Lower()
-		}
 		settle, err := getSettlementCurrency(s.Pair, s.AssetType)
 		if err != nil {
 			return nil, err
@@ -993,7 +988,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: timeInForce,
+			TimeInForce: timeInForceString(s.TimeInForce),
 			Text:        s.ClientOrderID,
 		}
 		var o *Order
@@ -1311,10 +1306,6 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		}
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
-		oType := order.Market
-		if fOrder.OrderPrice > 0 {
-			oType = order.Limit
-		}
 		tif, err := timeInForceFromString(fOrder.TimeInForce)
 		if err != nil {
 			return nil, err
@@ -1333,7 +1324,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			LastUpdated:          fOrder.FinishTime.Time(),
 			Pair:                 pair,
 			AssetType:            a,
-			Type:                 oType,
+			Type:                 getTypeFromTimeInForce(fOrder.TimeInForce, fOrder.OrderPrice.Float64()),
 			TimeInForce:          tif,
 			Side:                 side,
 		}, nil
@@ -2267,6 +2258,21 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
+// getTypeFromTimeInForce returns the order type and if the order is post only
+func getTypeFromTimeInForce(tif string, price float64) (orderType order.Type) {
+	switch tif {
+	case iocTIF, fokTIF:
+		return order.Market
+	case pocTIF, gtcTIF:
+		return order.Limit
+	default:
+		if price == 0 {
+			return order.Market
+		}
+		return order.Limit
+	}
+}
+
 // getSideAndAmountFromSize returns the order side, amount and remaining amounts
 func getSideAndAmountFromSize(size, left float64) (side order.Side, amount, remaining float64) {
 	if size < 0 {
@@ -2343,24 +2349,12 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 			return nil, err
 		}
 
-		var timeInForce string
-		switch {
-		case s.TimeInForce.Is(order.PostOnly):
-			timeInForce = "poc"
-		case s.TimeInForce.Is(order.ImmediateOrCancel):
-			timeInForce = order.ImmediateOrCancel.Lower()
-		case s.TimeInForce.Is(order.FillOrKill):
-			timeInForce = order.FillOrKill.Lower()
-		case s.TimeInForce.Is(order.GoodTillCancel):
-			timeInForce = order.GoodTillCancel.Lower()
-		}
-
 		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
 			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
 			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: timeInForce,
+			TimeInForce: timeInForceString(s.TimeInForce),
 			Text:        s.ClientOrderID,
 		})
 		if err != nil {
@@ -2369,6 +2363,24 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		return g.deriveFuturesWebsocketOrderResponse(resp)
 	default:
 		return nil, common.ErrNotYetImplemented
+	}
+}
+
+// timeInForceString returns the most relevant time-in-force exchange string for a TimeInForce
+// Any TIF value that is combined with POC, IOC or FOK will just return that
+// Otherwise the lowercase representation is returned
+func timeInForceString(tif order.TimeInForce) string {
+	switch {
+	case tif.Is(order.PostOnly):
+		return "poc"
+	case tif.Is(order.ImmediateOrCancel):
+		return iocTIF
+	case tif.Is(order.FillOrKill):
+		return fokTIF
+	case tif.Is(order.GoodTillCancel):
+		return gtcTIF
+	default:
+		return tif.Lower()
 	}
 }
 

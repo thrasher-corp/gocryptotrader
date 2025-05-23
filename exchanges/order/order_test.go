@@ -685,6 +685,9 @@ func TestSortOrdersByOrderType(t *testing.T) {
 
 	SortOrdersByType(&orders, false)
 	assert.Equal(t, Limit.String(), orders[0].Type.String())
+
+	SortOrdersByType(&orders, true)
+	assert.Equal(t, TrailingStop.String(), orders[0].Type.String())
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -895,7 +898,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
-	assert.NotEqual(t, UnknownTIF, od.TimeInForce)
+	require.NotEqual(t, UnknownTIF, od.TimeInForce)
 	assert.True(t, od.TimeInForce.Is(GoodTillTime))
 	assert.True(t, od.TimeInForce.Is(PostOnly))
 	assert.Equal(t, 1.0, od.Price)
@@ -911,27 +914,6 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Equal(t, od.LastUpdated, updated)
 	assert.Equal(t, "BTCUSD", od.Pair.String())
 	assert.Nil(t, od.Trades)
-}
-
-func TestTimeInForceIs(t *testing.T) {
-	t.Parallel()
-	tifValuesMap := map[TimeInForce][]TimeInForce{
-		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
-		GoodTillCancel:              {GoodTillCancel},
-		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
-		GoodTillDay:                 {GoodTillDay},
-		GoodTillTime:                {GoodTillTime},
-		GoodTillTime | PostOnly:     {GoodTillTime, PostOnly},
-		ImmediateOrCancel:           {ImmediateOrCancel},
-		FillOrKill:                  {FillOrKill},
-		PostOnly:                    {PostOnly},
-		GoodTillCrossing:            {GoodTillCrossing},
-	}
-	for tif := range tifValuesMap {
-		for _, v := range tifValuesMap[tif] {
-			require.True(t, tif.Is(v))
-		}
-	}
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
@@ -1523,7 +1505,7 @@ func TestDeriveCancel(t *testing.T) {
 	assert.Equal(t, "wow4", cancel.ClientOrderID, "DeriveCancel should set ClientOrderID correctly")
 	assert.Equal(t, Market, cancel.Type, "DeriveCancel should set Type correctly")
 	assert.Equal(t, Long, cancel.Side, "DeriveCancel should set Side correctly")
-	assert.Equal(t, pair, cancel.Pair, "DeriveCancel should set Pair correctly")
+	assert.True(t, pair.Equal(cancel.Pair), "DeriveCancel should set Pair correctly")
 	assert.Equal(t, asset.Futures, cancel.AssetType, "DeriveCancel should set AssetType correctly")
 }
 
