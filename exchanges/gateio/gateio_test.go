@@ -3451,6 +3451,8 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 				require.ErrorIs(t, err, exp)
 			} else {
 				switch {
+				case s.Channel == "unknown_channel":
+					assert.Empty(t, i, "orderbookChannelInterval should return empty for unknown channels")
 				case strings.HasSuffix(s.Channel, "_ticker"):
 					assert.Empty(t, i)
 				case s.Interval == 0:
