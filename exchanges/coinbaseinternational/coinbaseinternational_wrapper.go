@@ -43,7 +43,7 @@ func (co *CoinbaseInternational) SetDefaults() {
 	err := co.SetGlobalPairsManager(
 		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		asset.Spot, asset.Futures)
+		asset.Spot, asset.PerpetualContract)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -173,7 +173,7 @@ func (co *CoinbaseInternational) FetchTradablePairs(ctx context.Context, a asset
 	for x := range instruments {
 		if a == asset.Spot && instruments[x].Type != "SPOT" {
 			continue
-		} else if a == asset.Futures && instruments[x].Type != "PERP" {
+		} else if a == asset.PerpetualContract && instruments[x].Type != "PERP" {
 			continue
 		}
 		instruments[x].TradingState = strings.ToUpper(instruments[x].TradingState)

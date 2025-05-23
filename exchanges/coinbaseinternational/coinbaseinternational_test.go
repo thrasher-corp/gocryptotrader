@@ -2,6 +2,7 @@ package coinbaseinternational
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -33,9 +34,8 @@ const (
 )
 
 var (
-	co      = &CoinbaseInternational{}
-	btcPerp = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.PERP}
-	spotTP  = currency.NewPairWithDelimiter("BTC", "USDC", currency.DashDelimiter)
+	co                  = &CoinbaseInternational{}
+	spotTP, perpetualTP currency.Pair
 )
 
 func TestMain(m *testing.M) {
@@ -53,10 +53,34 @@ func TestMain(m *testing.M) {
 	}
 
 	co.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := co.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := co.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
+}
+
+func (co *CoinbaseInternational) populateTradablePairs() error {
+	err := co.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err := co.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		return fmt.Errorf("%w: no enabled currency pair found", currency.ErrCurrencyPairsEmpty)
+	}
+	spotTP = tradablePairs[0]
+	tradablePairs, err = co.GetEnabledPairs(asset.PerpetualContract)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		return fmt.Errorf("%w: no enabled currency pair found", currency.ErrCurrencyPairsEmpty)
+	}
+	perpetualTP = tradablePairs[0]
+	return nil
 }
 
 func TestListAssets(t *testing.T) {
@@ -81,7 +105,6 @@ func TestGetSupportedNetworksPerAsset(t *testing.T) {
 	_, err := co.GetSupportedNetworksPerAsset(t.Context(), currency.EMPTYCODE, "", "")
 	require.ErrorIs(t, err, errAssetIdentifierRequired)
 
-	co.Verbose = true
 	result, err := co.GetSupportedNetworksPerAsset(t.Context(), currency.USDC, "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -517,11 +540,11 @@ func TestGetPortfolioInstrumentPosition(t *testing.T) {
 	t.Parallel()
 	_, err := co.GetPortfolioInstrumentPosition(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = co.GetPortfolioInstrumentPosition(t.Context(), "", "", btcPerp)
+	_, err = co.GetPortfolioInstrumentPosition(t.Context(), "", "", perpetualTP)
 	require.ErrorIs(t, err, errMissingPortfolioID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
-	result, err := co.GetPortfolioInstrumentPosition(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", btcPerp)
+	result, err := co.GetPortfolioInstrumentPosition(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", perpetualTP)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -669,15 +692,15 @@ func TestWithdrawToCounterpartyID(t *testing.T) {
 
 func TestGetCounterpartyWithdrawalLimit(t *testing.T) {
 	t.Parallel()
-	_, err := co.GetCounterpartyWithdrawalLimit(context.Background(), "", "291efb0f-2396-4d41-ad03-db3b2311cb2c")
+	_, err := co.GetCounterpartyWithdrawalLimit(t.Context(), "", "291efb0f-2396-4d41-ad03-db3b2311cb2c")
 	require.ErrorIs(t, err, errMissingPortfolioID)
 
-	_, err = co.GetCounterpartyWithdrawalLimit(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
+	_, err = co.GetCounterpartyWithdrawalLimit(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	require.ErrorIs(t, err, errAssetIdentifierRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
-	result, err := co.GetCounterpartyWithdrawalLimit(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "291efb0f-2396-4d41-ad03-db3b2311cb2c")
-	require.ErrorIs(t, err, nil)
+	result, err := co.GetCounterpartyWithdrawalLimit(t.Context(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "291efb0f-2396-4d41-ad03-db3b2311cb2c")
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -767,7 +790,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.FetchTradablePairs(t.Context(), asset.Futures)
+	result, err = co.FetchTradablePairs(t.Context(), asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -780,7 +803,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	result, err := co.UpdateTicker(t.Context(), btcPerp, asset.Spot)
+	result, err := co.UpdateTicker(t.Context(), perpetualTP, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -790,7 +813,7 @@ func TestUpdateTickers(t *testing.T) {
 	err := co.UpdateTickers(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	err = co.UpdateTickers(t.Context(), asset.Futures)
+	err = co.UpdateTickers(t.Context(), asset.PerpetualContract)
 	assert.NoError(t, err)
 
 	err = co.UpdateTickers(t.Context(), asset.Spot)
@@ -823,7 +846,7 @@ func TestFetchOrderBook(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.FetchOrderbook(t.Context(), btcPerp, asset.Futures)
+	result, err = co.FetchOrderbook(t.Context(), perpetualTP, asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -837,7 +860,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.UpdateOrderbook(t.Context(), btcPerp, asset.Futures)
+	result, err = co.UpdateOrderbook(t.Context(), perpetualTP, asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -852,7 +875,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.UpdateAccountInfo(t.Context(), asset.Futures)
+	result, err = co.UpdateAccountInfo(t.Context(), asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -867,7 +890,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.FetchAccountInfo(t.Context(), asset.Futures)
+	result, err = co.FetchAccountInfo(t.Context(), asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -890,7 +913,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Futures)
+	result, err = co.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -903,7 +926,7 @@ func TestGetFeeByType(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	result, err := co.GetFeeByType(t.Context(), &exchange.FeeBuilder{
 		IsMaker: true,
-		Pair:    btcPerp,
+		Pair:    perpetualTP,
 		FeeType: exchange.CryptocurrencyTradeFee,
 	})
 	require.NoError(t, err)
@@ -911,7 +934,7 @@ func TestGetFeeByType(t *testing.T) {
 
 	result, err = co.GetFeeByType(t.Context(), &exchange.FeeBuilder{
 		IsMaker: true,
-		Pair:    btcPerp,
+		Pair:    perpetualTP,
 		FeeType: exchange.CryptocurrencyWithdrawalFee,
 	})
 	require.NoError(t, err)
@@ -930,7 +953,7 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	result, err := co.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:      co.Name,
-		Pair:          btcPerp,
+		Pair:          perpetualTP,
 		Side:          order.Buy,
 		Type:          order.Limit,
 		Price:         0.0001,
@@ -952,8 +975,8 @@ func TestModifyOrder(t *testing.T) {
 		Price:     10000,
 		Amount:    10,
 		Side:      order.Sell,
-		Pair:      btcPerp,
-		AssetType: asset.CoinMarginedFutures,
+		Pair:      perpetualTP,
+		AssetType: asset.PerpetualContract,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -964,8 +987,8 @@ func TestCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	err := co.CancelOrder(t.Context(), &order.Cancel{
 		Exchange:  "CoinbaseInternational",
-		AssetType: asset.Spot,
-		Pair:      btcPerp,
+		AssetType: asset.PerpetualContract,
+		Pair:      perpetualTP,
 		OrderID:   "1234",
 		AccountID: "Someones SubAccount",
 	})
@@ -981,8 +1004,8 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err := co.CancelAllOrders(t.Context(), &order.Cancel{
 		Exchange:  "CoinbaseInternational",
 		AssetType: asset.Spot,
-		AccountID: "Sub-account Samuael",
-		Pair:      btcPerp,
+		AccountID: "Sam",
+		Pair:      spotTP,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -991,7 +1014,7 @@ func TestCancelAllOrders(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
-	result, err := co.GetOrderInfo(t.Context(), "12234", btcPerp, asset.Spot)
+	result, err := co.GetOrderInfo(t.Context(), "12234", spotTP, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1041,14 +1064,14 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	_, err := co.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = co.GetCurrencyTradeURL(t.Context(), asset.Futures, currency.NewPair(currency.BTC, currency.USDC))
+	_, err = co.GetCurrencyTradeURL(t.Context(), asset.PerpetualContract, perpetualTP)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	pairs, err := co.CurrencyPairs.GetPairs(asset.Spot, false)
 	require.NoError(t, err)
 	require.NotEmpty(t, pairs)
 
-	resp, err := co.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.NewPair(currency.BTC, currency.USDC))
+	resp, err := co.GetCurrencyTradeURL(t.Context(), asset.Spot, spotTP)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -1063,12 +1086,9 @@ func TestGetFeeRateTiers(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC-PERP")
-	require.NoError(t, err)
-
 	result, err := co.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Pair:  cp,
-		Asset: asset.Futures,
+		Pair:  perpetualTP,
+		Asset: asset.PerpetualContract,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1082,7 +1102,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = co.GetFuturesContractDetails(t.Context(), asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	result, err := co.GetFuturesContractDetails(t.Context(), asset.Futures)
+	result, err := co.GetFuturesContractDetails(t.Context(), asset.PerpetualContract)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotEmpty(t, result)
@@ -1092,29 +1112,28 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Hour * 24 * 3)
 	end := time.Now().Add(-time.Hour * 1)
-	_, err := co.GetHistoricCandlesExtended(t.Context(), btcPerp, asset.Options, kline.FifteenMin, startTime, end)
-	require.ErrorIs(t, err, asset.ErrNotEnabled)
+	_, err := co.GetHistoricCandlesExtended(t.Context(), perpetualTP, asset.Options, kline.FifteenMin, startTime, end)
+	require.ErrorIs(t, err, currency.ErrAssetNotFound)
 
-	result, err := co.GetHistoricCandlesExtended(t.Context(), currency.NewPair(currency.BTC, currency.USDC), asset.Spot, kline.OneMin, startTime, end)
+	result, err := co.GetHistoricCandlesExtended(t.Context(), spotTP, asset.Spot, kline.OneMin, startTime, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.GetHistoricCandlesExtended(t.Context(), btcPerp, asset.Futures, kline.OneMin, startTime, end)
+	result, err = co.GetHistoricCandlesExtended(t.Context(), perpetualTP, asset.PerpetualContract, kline.OneMin, startTime, end)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	_, err := co.GetHistoricCandles(t.Context(), btcPerp, asset.Options, kline.FifteenMin, time.Time{}, time.Time{})
-	require.ErrorIs(t, err, asset.ErrNotEnabled)
+	_, err := co.GetHistoricCandles(t.Context(), perpetualTP, asset.Options, kline.FifteenMin, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, currency.ErrAssetNotFound)
 
-	co.Verbose = true
-	result, err := co.GetHistoricCandles(t.Context(), currency.NewPair(currency.BTC, currency.USDC), asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
+	result, err := co.GetHistoricCandles(t.Context(), spotTP, asset.Spot, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = co.GetHistoricCandles(t.Context(), btcPerp, asset.Futures, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
+	result, err = co.GetHistoricCandles(t.Context(), perpetualTP, asset.PerpetualContract, kline.OneMin, time.Now().Add(-time.Hour*5), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

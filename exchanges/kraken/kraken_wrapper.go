@@ -686,15 +686,6 @@ func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 	return nil, common.ErrFunctionNotSupported
 }
 
-func timeInForceString(tif order.TimeInForce) (string, error) {
-	switch {
-	case tif.Is(order.GoodTillCancel), tif.Is(order.GoodTillDay), tif.Is(order.ImmediateOrCancel):
-		return tif.String(), nil
-	default:
-		return "", fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, tif.String())
-	}
-}
-
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(k.GetTradingRequirements())
