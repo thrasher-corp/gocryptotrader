@@ -3414,7 +3414,7 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 	assert.Equal(t, "20ms", i)
 
 	for s, exp := range map[*subscription.Subscription]error{
-		{Asset: asset.Binary, Channel: "unhandle_random_ticker", Interval: kline.OneYear}:                            nil,
+   	{Asset: asset.Binary, Channel: "unknown_channel", Interval: kline.OneYear}:                            nil,
 		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
 		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                                        nil,
 		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                                   subscription.ErrInvalidInterval,
