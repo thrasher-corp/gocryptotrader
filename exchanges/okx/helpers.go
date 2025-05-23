@@ -32,7 +32,7 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	case "twap":
 		return order.TWAP, order.UnknownTIF, nil
 	case "move_order_stop":
-		return order.TrailingStop, 0, nil
+		return order.TrailingStop, order.UnknownTIF, nil
 	case "chase":
 		return order.Chase, order.UnknownTIF, nil
 	default:
@@ -51,7 +51,8 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		return orderIOC, nil
 	}
 	switch orderType {
-	case order.Market, order.Limit,
+	case order.Market,
+		order.Limit,
 		order.Trigger,
 		order.OptimalLimitIOC,
 		order.MarketMakerProtection,
