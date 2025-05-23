@@ -244,7 +244,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, classificationError.Err)
 	}
 
-	err = m.websocketDataHandler(exchName, &orderbook.Base{
+	err = m.websocketDataHandler(exchName, &orderbook.Snapshot{
 		Exchange: "Bitstamp",
 		Pair:     currency.NewBTCUSD(),
 	})

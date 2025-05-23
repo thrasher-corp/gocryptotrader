@@ -313,7 +313,7 @@ func getAllActiveOrderbooks(m iExchangeManager) []EnabledExchangeOrderbooks {
 
 	orderbookData := make([]EnabledExchangeOrderbooks, 0, len(exchanges))
 	for _, e := range exchanges {
-		var orderbooks []orderbook.Base
+		var orderbooks []orderbook.Snapshot
 		for _, a := range e.GetAssetTypes(true) {
 			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {

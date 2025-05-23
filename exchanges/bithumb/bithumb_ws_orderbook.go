@@ -351,7 +351,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Snapshot) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -382,7 +382,7 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func (u *update) validate(updt *WsOrderbooks, recent *orderbook.Base) bool {
+func (u *update) validate(updt *WsOrderbooks, recent *orderbook.Snapshot) bool {
 	return updt.DateTime.Time().After(recent.LastUpdated)
 }
 
@@ -425,7 +425,7 @@ func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
-	var newOrderBook orderbook.Base
+	var newOrderBook orderbook.Snapshot
 	newOrderBook.Bids = make(orderbook.Tranches, len(o.Data.Bids))
 	for i := range o.Data.Bids {
 		newOrderBook.Bids[i] = orderbook.Tranche{

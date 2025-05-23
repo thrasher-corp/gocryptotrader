@@ -18,7 +18,7 @@ var (
 	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
 	errInvalidImpactSlippage           = errors.New("invalid slippage amount, its value must be greater than zero")
 	errInvalidSlippageCannotExceed100  = errors.New("invalid slippage amount, its value cannot exceed 100%")
-	errBaseAmountInvalid               = errors.New("invalid base amount")
+	errSnapshotAmountInvalid           = errors.New("invalid snapshot amount")
 	errInvalidReferencePrice           = errors.New("invalid reference price")
 	errQuoteAmountInvalid              = errors.New("quote amount invalid")
 	errInvalidCost                     = errors.New("invalid cost amount")
@@ -304,7 +304,7 @@ func (ts Tranches) getMovementByQuotation(quote, refPrice float64, swap bool) (*
 // to bid or ask.
 func (ts Tranches) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
 	if base <= 0 {
-		return nil, errBaseAmountInvalid
+		return nil, errSnapshotAmountInvalid
 	}
 
 	if refPrice <= 0 {

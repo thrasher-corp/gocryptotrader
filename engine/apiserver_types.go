@@ -128,8 +128,8 @@ type AllEnabledExchangeOrderbooks struct {
 // EnabledExchangeOrderbooks is a sub type for singular exchanges and respective
 // orderbooks
 type EnabledExchangeOrderbooks struct {
-	ExchangeName   string           `json:"exchangeName"`
-	ExchangeValues []orderbook.Base `json:"exchangeValues"`
+	ExchangeName   string               `json:"exchangeName"`
+	ExchangeValues []orderbook.Snapshot `json:"exchangeValues"`
 }
 
 // AllEnabledExchangeCurrencies holds the enabled exchange currencies
