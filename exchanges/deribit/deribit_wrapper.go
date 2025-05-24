@@ -585,7 +585,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return nil, err
 	}
 	timeInForce := ""
-	if s.ImmediateOrCancel {
+	if s.TimeInForce.Is(order.ImmediateOrCancel) {
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData
@@ -597,7 +597,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		Amount:       s.Amount,
 		Price:        s.Price,
 		TriggerPrice: s.TriggerPrice,
-		PostOnly:     s.PostOnly,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
 		ReduceOnly:   s.ReduceOnly,
 	}
 	switch {
@@ -649,7 +649,7 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	var err error
 	reqParam := &OrderBuyAndSellParams{
 		TriggerPrice: action.TriggerPrice,
-		PostOnly:     action.PostOnly,
+		PostOnly:     action.TimeInForce.Is(order.PostOnly),
 		Amount:       action.Amount,
 		OrderID:      action.OrderID,
 		Price:        action.Price,
@@ -773,10 +773,15 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 			return nil, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
 		}
 	}
+	var tif order.TimeInForce
+	tif, err = timeInForceFromString(orderInfo.TimeInForce, orderInfo.PostOnly)
+	if err != nil {
+		return nil, err
+	}
 	return &order.Detail{
 		AssetType:       assetType,
 		Exchange:        d.Name,
-		PostOnly:        orderInfo.PostOnly,
+		TimeInForce:     tif,
 		Price:           orderInfo.Price,
 		Amount:          orderInfo.Amount,
 		ExecutedAmount:  orderInfo.FilledAmount,
@@ -894,10 +899,15 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if ordersData[y].OrderState != "open" {
 				continue
 			}
+
+			var tif order.TimeInForce
+			tif, err = timeInForceFromString(ordersData[y].TimeInForce, ordersData[y].PostOnly)
+			if err != nil {
+				return nil, err
+			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
-				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,
 				Amount:          ordersData[y].Amount,
 				ExecutedAmount:  ordersData[y].FilledAmount,
@@ -909,6 +919,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
+				TimeInForce:     tif,
 			})
 		}
 	}
@@ -963,10 +974,15 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
 				}
 			}
+
+			var tif order.TimeInForce
+			tif, err = timeInForceFromString(ordersData[y].TimeInForce, ordersData[y].PostOnly)
+			if err != nil {
+				return nil, err
+			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
-				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,
 				Amount:          ordersData[y].Amount,
 				ExecutedAmount:  ordersData[y].FilledAmount,
@@ -978,6 +994,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
+				TimeInForce:     tif,
 			})
 		}
 	}
@@ -1554,4 +1571,15 @@ func (d *Deribit) formatPairString(assetType asset.Item, pair currency.Pair) str
 		return d.optionPairToString(pair)
 	}
 	return pair.String()
+}
+
+func timeInForceFromString(timeInForceString string, postOnly bool) (order.TimeInForce, error) {
+	tif, err := order.StringToTimeInForce(timeInForceString)
+	if err != nil {
+		return order.UnknownTIF, err
+	}
+	if postOnly {
+		tif |= order.PostOnly
+	}
+	return tif, nil
 }

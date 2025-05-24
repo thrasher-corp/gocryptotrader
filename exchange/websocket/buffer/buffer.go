@@ -161,6 +161,23 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 	return holder.ob.Retrieve()
 }
 
+// LastUpdateID returns the last update ID of the orderbook
+func (w *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
+	if p.IsEmpty() {
+		return 0, currency.ErrCurrencyPairEmpty
+	}
+	if !a.IsValid() {
+		return 0, asset.ErrInvalidAsset
+	}
+	w.m.RLock()
+	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	w.m.RUnlock()
+	if !ok {
+		return 0, fmt.Errorf("%s %w: %s.%s", w.exchangeName, orderbook.ErrDepthNotFound, a, p)
+	}
+	return book.ob.LastUpdateID()
+}
+
 // FlushBuffer flushes individual orderbook buffers while keeping the orderbook lookups intact and ready for new updates
 // when a connection is re-established.
 func (w *Orderbook) FlushBuffer() {

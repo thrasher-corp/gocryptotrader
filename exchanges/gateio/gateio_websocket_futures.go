@@ -45,12 +45,13 @@ const (
 	futuresReduceRiskLimitsChannel  = "futures.reduce_risk_limits"
 	futuresPositionsChannel         = "futures.positions"
 	futuresAutoOrdersChannel        = "futures.autoorders"
+
+	futuresOrderbookUpdateLimit uint64 = 20
 )
 
 var defaultFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
-	futuresOrderbookChannel,
 	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
@@ -85,6 +86,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
+// TODO: Update to use the new subscription template system
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
@@ -110,8 +112,9 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			case futuresOrderbookUpdateChannel:
-				params["frequency"] = kline.ThousandMilliseconds
-				params["level"] = "100"
+				// This is the fastest frequency available for futures orderbook updates 20 levels every 20ms
+				params["frequency"] = kline.TwentyMilliseconds
+				params["level"] = strconv.FormatUint(futuresOrderbookUpdateLimit, 10)
 			}
 			fPair, err := g.FormatExchangeCurrency(pairs[j], a)
 			if err != nil {
@@ -163,7 +166,7 @@ func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asse
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, a)
+		return g.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
@@ -247,7 +250,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Conn
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
 			var frequencyString string
-			frequencyString, err = g.GetIntervalString(frequency)
+			frequencyString, err = getIntervalString(frequency)
 			if err != nil {
 				return nil, err
 			}
@@ -270,7 +273,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Conn
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if okay {
 				var intervalString string
-				intervalString, err = g.GetIntervalString(interval)
+				intervalString, err = getIntervalString(interval)
 				if err != nil {
 					return nil, err
 				}
@@ -403,50 +406,32 @@ func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
 	var data WsFuturesAndOptionsOrderbookUpdate
-	err := json.Unmarshal(incoming, &data)
-	if err != nil {
+	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()]) ||
-		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()]) {
-		orderbooks, err := g.UpdateOrderbook(context.Background(), data.ContractName, assetType)
-		if err != nil {
-			return err
-		}
-		if orderbooks.LastUpdateID < data.FirstUpdatedID || orderbooks.LastUpdateID > data.LastUpdatedID {
-			return nil
-		}
-		err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
-		if err != nil {
-			return err
-		}
-		if assetType == asset.Options {
-			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
-		} else {
-			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
-		}
-	}
-	updates := orderbook.Update{
-		UpdateTime: data.Timestamp.Time(),
-		Pair:       data.ContractName,
-		Asset:      assetType,
-	}
-	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
-		updates.Asks[x].Amount = data.Asks[x].Size
-		updates.Asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Amount = data.Asks[x].Size
 	}
-	updates.Bids = make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
-		updates.Bids[x].Amount = data.Bids[x].Size
-		updates.Bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Amount = data.Bids[x].Size
 	}
-	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
-		return errors.New("malformed orderbook data")
-	}
-	return g.Websocket.Orderbook.Update(&updates)
+
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
+		UpdateID:       data.LastUpdatedID,
+		UpdateTime:     data.Timestamp.Time(),
+		UpdatePushedAt: pushTime,
+		Pair:           data.ContractName,
+		Asset:          a,
+		Asks:           asks,
+		Bids:           bids,
+		AllowEmpty:     true,
+	})
 }
 
 func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {

@@ -48,6 +48,7 @@ func createSnapshot(pair currency.Pair, bookVerifiy ...bool) (holder *Orderbook,
 		PriceDuplication: true,
 		LastUpdated:      time.Now(),
 		VerifyOrderbook:  len(bookVerifiy) > 0 && bookVerifiy[0],
+		LastUpdateID:     69420,
 	}
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
@@ -364,7 +365,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		err = holder.Update(&orderbook.Update{
 			Asks:                       asks,
 			Pair:                       cp,
-			UpdateID:                   int64(i) + 1,
+			UpdateID:                   int64(i) + 1 + 69420,
 			Asset:                      asset.Spot,
 			UpdateTime:                 time.Now(),
 			SkipOutOfOrderLastUpdateID: true,
@@ -386,7 +387,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	require.NoError(t, err)
-	assert.Equal(t, int64(len(itemArray)), ob.LastUpdateID)
+	assert.Equal(t, int64(len(itemArray)+69420), ob.LastUpdateID)
 }
 
 // TestRunUpdateWithoutSnapshot logic test
@@ -639,6 +640,12 @@ func TestGetOrderbook(t *testing.T) {
 	holder, _, _, err := createSnapshot(cp)
 	require.NoError(t, err)
 
+	_, err = holder.GetOrderbook(currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = holder.GetOrderbook(cp, 0)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
+
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	require.NoError(t, err)
 
@@ -659,6 +666,28 @@ func TestGetOrderbook(t *testing.T) {
 	assert.Equal(t, b.LastUpdateID, ob.LastUpdateID, "last update ID mismatch")
 	assert.Equal(t, b.PriceDuplication, ob.PriceDuplication, "price duplication mismatch")
 	assert.Equal(t, b.Pair, ob.Pair, "pair mismatch")
+}
+
+func TestLastUpdateID(t *testing.T) {
+	t.Parallel()
+	cp, err := getExclusivePair()
+	require.NoError(t, err)
+
+	holder, _, _, err := createSnapshot(cp)
+	require.NoError(t, err)
+
+	_, err = holder.LastUpdateID(currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = holder.LastUpdateID(cp, 0)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	_, err = holder.LastUpdateID(cp, asset.FutureCombo)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+
+	ob, err := holder.LastUpdateID(cp, asset.Spot)
+	require.NoError(t, err)
+	require.Equal(t, int64(69420), ob)
 }
 
 func TestSetup(t *testing.T) {

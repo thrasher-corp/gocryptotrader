@@ -196,27 +196,27 @@ func TestGetTradeByID(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:  b.Name,
-		Price:     100,
-		Amount:    1,
-		Type:      order.TrailingStop,
-		AssetType: asset.Spot,
-		Side:      order.Bid,
-		Pair:      currency.NewPair(currency.BTC, currency.AUD),
-		PostOnly:  true,
+		Exchange:    b.Name,
+		Price:       100,
+		Amount:      1,
+		Type:        order.TrailingStop,
+		AssetType:   asset.Spot,
+		Side:        order.Bid,
+		Pair:        currency.NewPair(currency.BTC, currency.AUD),
+		TimeInForce: order.PostOnly,
 	})
 	if !errors.Is(err, order.ErrTypeIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
 	}
 	_, err = b.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:  b.Name,
-		Price:     100,
-		Amount:    1,
-		Type:      order.Limit,
-		AssetType: asset.Spot,
-		Side:      order.AnySide,
-		Pair:      currency.NewPair(currency.BTC, currency.AUD),
-		PostOnly:  true,
+		Exchange:    b.Name,
+		Price:       100,
+		Amount:      1,
+		Type:        order.Limit,
+		AssetType:   asset.Spot,
+		Side:        order.AnySide,
+		Pair:        currency.NewPair(currency.BTC, currency.AUD),
+		TimeInForce: order.PostOnly,
 	})
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
@@ -225,14 +225,14 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err = b.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:  b.Name,
-		Price:     100,
-		Amount:    1,
-		Type:      order.Limit,
-		AssetType: asset.Spot,
-		Side:      order.Bid,
-		Pair:      currency.NewPair(currency.BTC, currency.AUD),
-		PostOnly:  true,
+		Exchange:    b.Name,
+		Price:       100,
+		Amount:      1,
+		Type:        order.Limit,
+		AssetType:   asset.Spot,
+		Side:        order.Bid,
+		Pair:        currency.NewPair(currency.BTC, currency.AUD),
+		TimeInForce: order.PostOnly,
 	})
 	if err != nil {
 		t.Error(err)
@@ -983,19 +983,13 @@ func TestFormatOrderSide(t *testing.T) {
 func TestGetTimeInForce(t *testing.T) {
 	t.Parallel()
 	f := b.getTimeInForce(&order.Submit{})
-	if f != "" {
-		t.Fatal("unexpected value")
-	}
+	require.Empty(t, f)
 
-	f = b.getTimeInForce(&order.Submit{ImmediateOrCancel: true})
-	if f != immediateOrCancel {
-		t.Fatalf("received: '%v' but expected: '%v'", f, immediateOrCancel)
-	}
+	f = b.getTimeInForce(&order.Submit{TimeInForce: order.ImmediateOrCancel})
+	require.Equal(t, "IOC", f)
 
-	f = b.getTimeInForce(&order.Submit{FillOrKill: true})
-	if f != fillOrKill {
-		t.Fatalf("received: '%v' but expected: '%v'", f, fillOrKill)
-	}
+	f = b.getTimeInForce(&order.Submit{TimeInForce: order.FillOrKill})
+	assert.Equal(t, "FOK", f)
 }
 
 func TestReplaceOrder(t *testing.T) {
