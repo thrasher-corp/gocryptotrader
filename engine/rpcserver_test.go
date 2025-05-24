@@ -3357,18 +3357,15 @@ func TestGetOrderbookMovement(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("binance")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-metal")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -3418,9 +3415,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 	}
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.METAL), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
@@ -3434,10 +3429,8 @@ func TestGetOrderbookMovement(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	require.NoError(t, err)
 
 	_, err = s.GetOrderbookMovement(t.Context(), req)
 	if err.Error() != "quote amount invalid" {
@@ -3470,18 +3463,15 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("binance")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-meme")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -3531,9 +3521,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	}
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MEME), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
@@ -3547,10 +3535,8 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	require.NoError(t, err)
 
 	nominal, err := s.GetOrderbookAmountByNominal(t.Context(), req)
 	if !errors.Is(err, nil) {
@@ -3576,18 +3562,15 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("binance")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	b := exch.GetBase()
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-mad")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -3637,9 +3620,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	}
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MAD), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
@@ -3653,10 +3634,8 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	require.NoError(t, err)
 
 	req.ImpactPercentage = 9.090909090909092
 	impact, err := s.GetOrderbookAmountByImpact(t.Context(), req)

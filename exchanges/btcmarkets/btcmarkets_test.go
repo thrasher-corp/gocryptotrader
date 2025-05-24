@@ -867,26 +867,11 @@ func TestGetHistoricTrades(t *testing.T) {
 
 func TestChecksum(t *testing.T) {
 	b := &orderbook.Base{
-		Asks: []orderbook.Tranche{
-			{Price: 0.3965, Amount: 44149.815},
-			{Price: 0.3967, Amount: 16000.0},
-		},
-		Bids: []orderbook.Tranche{
-			{Price: 0.396, Amount: 51.0},
-			{Price: 0.396, Amount: 25.0},
-			{Price: 0.3958, Amount: 18570.0},
-		},
+		Asks: []orderbook.Tranche{{Price: 0.3965, Amount: 44149.815}, {Price: 0.3967, Amount: 16000.0}},
+		Bids: []orderbook.Tranche{{Price: 0.396, Amount: 51.0}, {Price: 0.396, Amount: 25.0}, {Price: 0.3958, Amount: 18570.0}},
 	}
 
-	expecting := uint32(3802968298)
-	err := checksum(b, expecting)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = checksum(b, uint32(1223123))
-	if !errors.Is(err, errChecksumFailure) {
-		t.Errorf("received '%v', expected '%v'", err, errChecksumFailure)
-	}
+	require.Equal(t, uint32(3802968298), generateChecksum(b))
 }
 
 func TestTrim(t *testing.T) {
