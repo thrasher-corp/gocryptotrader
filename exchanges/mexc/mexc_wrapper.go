@@ -1096,6 +1096,10 @@ func (me *MEXC) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withd
 
 // GetActiveOrders retrieves any orders that are active/open
 func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	pairFormat, err := me.GetPairFormat(getOrdersRequest.AssetType, true)
+	if err != nil {
+		return nil, err
+	}
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
 		if len(getOrdersRequest.Pairs) == 0 {
@@ -1103,7 +1107,7 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 		}
 		var details order.FilteredOrders
 		for p := range getOrdersRequest.Pairs {
-			result, err := me.GetOpenOrders(ctx, getOrdersRequest.Pairs[p].String())
+			result, err := me.GetOpenOrders(ctx, pairFormat.Format(getOrdersRequest.Pairs[p]))
 			if err != nil {
 				return nil, err
 			}
@@ -1154,7 +1158,7 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 		}
 		var details order.FilteredOrders
 		for p := range getOrdersRequest.Pairs {
-			result, err := me.GetUserCurrentPendingOrder(ctx, getOrdersRequest.Pairs[p].String(), 0, 0)
+			result, err := me.GetUserCurrentPendingOrder(ctx, pairFormat.Format(getOrdersRequest.Pairs[p]), 0, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -1229,11 +1233,15 @@ func (me *MEXC) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	pairFormat, err := me.GetPairFormat(getOrdersRequest.AssetType, true)
+	if err != nil {
+		return nil, err
+	}
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
 		var symbolString string
 		if len(getOrdersRequest.Pairs) == 1 {
-			symbolString = getOrdersRequest.Pairs[0].String()
+			symbolString = pairFormat.Format(getOrdersRequest.Pairs[0])
 		}
 		result, err := me.GetAllOrders(ctx, symbolString, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
 		if err != nil {
@@ -1283,7 +1291,7 @@ func (me *MEXC) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 	case asset.Futures:
 		var symbolString string
 		if len(getOrdersRequest.Pairs) == 1 {
-			symbolString = getOrdersRequest.Pairs[0].String()
+			symbolString = pairFormat.Format(getOrdersRequest.Pairs[0])
 		}
 		result, err := me.GetAllUserHistoricalOrders(ctx, symbolString, "", "", getOrdersRequest.Side.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 		if err != nil {
