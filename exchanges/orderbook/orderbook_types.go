@@ -38,23 +38,23 @@ var (
 	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
-var service = Service{
-	books: make(map[string]Exchange),
-	Mux:   dispatch.GetNewMux(nil),
+var s = store{
+	orderbooks:  make(map[key.ExchangePairAsset]bookWithExchangeID),
+	exchangeIDs: make(map[string]uuid.UUID),
+	signalMux:   dispatch.GetNewMux(nil),
 }
 
-// Service provides a store for difference exchange orderbooks
-type Service struct {
-	books map[string]Exchange
-	*dispatch.Mux
-	mu sync.Mutex
+type bookWithExchangeID struct {
+	ExchangeID uuid.UUID
+	Depth      *Depth
 }
 
-// Exchange defines a holder for the exchange specific depth items with a
-// specific ID associated with that exchange
-type Exchange struct {
-	m  map[key.PairAsset]*Depth
-	ID uuid.UUID
+// store provides a centralised store for orderbooks
+type store struct {
+	orderbooks  map[key.ExchangePairAsset]bookWithExchangeID
+	exchangeIDs map[string]uuid.UUID
+	signalMux   *dispatch.Mux
+	m           sync.RWMutex
 }
 
 // Tranche defines a segmented portions of an order or options book
