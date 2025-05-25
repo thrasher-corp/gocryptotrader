@@ -2456,7 +2456,7 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	}
 }
 
-// StringToTimeInForce returns an order.TimeInForder instance from string
+// StringToTimeInForce returns an order.TimeInForce instance from string
 func StringToTimeInForce(tif string, postOnly bool) order.TimeInForce {
 	tif = strings.ToUpper(tif)
 	var out order.TimeInForce

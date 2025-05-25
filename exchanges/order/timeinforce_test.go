@@ -9,6 +9,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
+func TestTimeInForceIs(t *testing.T) {
+	t.Parallel()
+	tifValuesMap := map[TimeInForce][]TimeInForce{
+		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
+		GoodTillCancel:              {GoodTillCancel},
+		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
+		GoodTillDay:                 {GoodTillDay},
+		GoodTillTime:                {GoodTillTime},
+		GoodTillTime | PostOnly:     {GoodTillTime, PostOnly},
+		ImmediateOrCancel:           {ImmediateOrCancel},
+		FillOrKill:                  {FillOrKill},
+		PostOnly:                    {PostOnly},
+		GoodTillCrossing:            {GoodTillCrossing},
+	}
+	for tif, exps := range tifValuesMap {
+		for _, v := range exps {
+			require.Truef(t, tif.Is(v), "%s should be %s", tif, v)
+		}
+	}
+}
+
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	timeInForceValidityMap := map[TimeInForce]bool{
@@ -30,9 +51,8 @@ func TestIsValid(t *testing.T) {
 		GoodTillCancel | PostOnly:          true,
 		UnknownTIF:                         true,
 	}
-	var tif TimeInForce
-	for tif = range timeInForceValidityMap {
-		assert.Equalf(t, timeInForceValidityMap[tif], tif.IsValid(), "got %v, expected %v for %v with id %d", tif.IsValid(), timeInForceValidityMap[tif], tif, tif)
+	for tif, value := range timeInForceValidityMap {
+		assert.Equal(t, value, tif.IsValid())
 	}
 }
 
