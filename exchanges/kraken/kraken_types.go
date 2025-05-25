@@ -685,16 +685,6 @@ type OrderVars struct {
 	Fee       float64
 }
 
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// RequestParamsTimeGTC GTC
-	RequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-	// RequestParamsTimeIOC IOC
-	RequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
-
 type genericRESTResponse struct {
 	Error  errorResponse `json:"error"`
 	Result any           `json:"result"`
