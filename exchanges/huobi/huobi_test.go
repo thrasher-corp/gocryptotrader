@@ -1463,7 +1463,7 @@ func TestWSOrderUpdate(t *testing.T) {
 	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", h.wsHandleData)
 	close(h.Websocket.DataHandler)
 	require.Equal(t, 1, len(errs), "Must receive the correct number of errors back")
-	require.ErrorContains(t, errs[0].Err, "error with order `test1`: invalid.client.order.id (NT) (2002)")
+	require.ErrorContains(t, errs[0].Err, "error with order \"test1\": invalid.client.order.id (NT) (2002)")
 	require.Len(t, h.Websocket.DataHandler, 4, "Must see correct number of records")
 	exp := []*order.Detail{
 		{
