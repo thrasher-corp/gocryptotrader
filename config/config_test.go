@@ -1998,7 +1998,7 @@ func TestMigrateConfig(t *testing.T) {
 			} else {
 				require.NoError(t, err, "migrateConfig must not error")
 				require.Equal(t, tt.want, got, "migrateConfig must return the correct file")
-				require.Truef(t, file.Exists(got), "migrateConfig return file `%s` must exist", got)
+				require.Truef(t, file.Exists(got), "migrateConfig return file %q must exist", got)
 			}
 		})
 	}

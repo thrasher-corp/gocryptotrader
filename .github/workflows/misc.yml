@@ -8,20 +8,20 @@ jobs:
     - uses: actions/checkout@v4
     - name: Check for currency.NewPair(BTC, USD) used instead of currency.NewBTCUSD
       run: |
-        grep -r -n -E --color=always "currency.NewPair\(currency.BTC, currency.USDT?\)" * || exit 0
+        grep -r -n --color=always -E "currency.NewPair\(currency.BTC, currency.USDT?\)" * || exit 0
         echo "::error::Replace currency.NewPair(BTC, USD*) with currency.NewBTCUSD*()"
         exit 1
 
     - name: Check for missing postfix `f` format func variant for testify assertions
       run: |
-        grep -r -P --include="*.go" -n --color=always '(assert|require)\.[A-Za-z_]\w*?(?<!f)\((?:(?!fmt\.Sprintf).)*%.*' || exit 0
+        grep -r -n -P --include="*.go" --color=always '(assert|require)\.[A-Za-z_]\w*?(?<!f)\((?:(?!fmt\.Sprintf).)*%.*' || exit 0
         echo "::error::Replace func with the `…f` func variant (e.g. Equalf, Errorf)"
         exit 1
 
-    - name: Check for quoted %s usage in format strings
+    - name: Check for quoted and backticked %s usage in format specifier strings
       run: |
-        grep -r --include='*.go' -n -F --color=always "'%s'" . || exit 0
-        echo "::error::Replace quoted '%s' format specifier with %q"
+        grep -r -n --include='*.go' --color=always -E "[\`']%s[\`']" . || exit 0
+        echo "::error::Replace '%s' or `%s` format specifier with %q"
         exit 1
 
     - name: Check for testify `require… "should"` and `assert… "must"` message consistency
@@ -29,10 +29,10 @@ jobs:
         exit_code=0
     
         echo "Checking for 'should' in require messages..."
-        grep -RIn --include="*.go" --color=always -E 'require\.[A-Za-z0-9_]+.*"[^"]*should[^"]*"' . && exit_code=1 || true
+        grep -r -n --include="*.go" --color=always -E 'require\.[A-Za-z0-9_]+.*"[^"]*should[^"]*"' . && exit_code=1 || true
  
         echo "Checking for 'must' in assert messages..."
-        grep -RIn --include="*.go" --color=always -E 'assert\.[A-Za-z0-9_]+.*"[^"]*must[^"]*"' . && exit_code=1 || true
+        grep -r -n --include="*.go" --color=always -E 'assert\.[A-Za-z0-9_]+.*"[^"]*must[^"]*"' . && exit_code=1 || true
 
         if [ $exit_code -eq 1 ]; then
           echo "::error::Replace \"should\" in require messages and \"must\" in assert messages"

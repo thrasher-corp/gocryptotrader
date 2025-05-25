@@ -40,7 +40,7 @@ func Setup(e exchange.IBotExchange) error {
 	eName := e.GetName()
 	exchConf, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
-		return fmt.Errorf("GetExchangeConfig(`%s`) error: %w", eName, err)
+		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
 	e.SetDefaults()
 	b := e.GetBase()

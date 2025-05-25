@@ -502,7 +502,7 @@ func TestErrors(t *testing.T) {
 	assert.NotErrorIs(t, ExcludeError(err, e5), e5, "e4 should be excluded")
 
 	// Formatting retention
-	err = AppendError(e1, fmt.Errorf("%w: Run out of `%s`: %w", e3, "sausages", e5))
+	err = AppendError(e1, fmt.Errorf("%w: Run out of %q: %w", e3, "sausages", e5))
 	assert.ErrorIs(t, err, e1, "Should be an e1")
 	assert.ErrorIs(t, err, e3, "Should be an e3")
 	assert.ErrorIs(t, err, e5, "Should be an e5")
