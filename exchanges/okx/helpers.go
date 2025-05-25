@@ -51,9 +51,6 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	case order.OptimalLimit:
 		return "optimal_limit_ioc", nil
 	case order.Limit:
-		if tif == order.ImmediateOrCancel {
-			return orderIOC, nil
-		}
 		return orderType.Lower(), nil
 	case order.Market,
 		order.Trigger,
@@ -160,15 +157,15 @@ func assetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 func assetTypeString(assetType asset.Item) (string, error) {
 	switch assetType {
 	case asset.Spot:
-		return "SPOT", nil
+		return instTypeSpot, nil
 	case asset.Margin:
-		return "MARGIN", nil
+		return instTypeMargin, nil
 	case asset.Futures:
-		return "FUTURES", nil
+		return instTypeFutures, nil
 	case asset.Options:
-		return "OPTION", nil
+		return instTypeOption, nil
 	case asset.PerpetualSwap:
-		return "SWAP", nil
+		return instTypeSwap, nil
 	default:
 		return "", asset.ErrNotSupported
 	}
