@@ -4117,7 +4117,7 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 	}
 	for x := range pairs {
 		result := getValidatedCurrencyCode(x)
-		require.Equal(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
+		require.Equalf(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
 	}
 }
 
@@ -4129,8 +4129,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	for _, a := range d.GetAssetTypes(false) {
 		var pairs currency.Pairs
 		pairs, err = d.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		var resp string
 		resp, err = d.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)

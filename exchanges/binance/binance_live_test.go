@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 			exchange.RestSpot:         testnetSpotURL,
 		} {
 			if err := b.API.Endpoints.SetRunning(k.String(), v); err != nil {
-				log.Fatalf("Testnet `%s` URL error with `%s`: %s", k, v, err)
+				log.Fatalf("Testnet %q URL error with %q: %s", k, v, err)
 			}
 		}
 	}

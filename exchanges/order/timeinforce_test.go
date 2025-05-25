@@ -25,7 +25,7 @@ func TestTimeInForceIs(t *testing.T) {
 	}
 	for tif, exps := range tifValuesMap {
 		for _, v := range exps {
-			require.Truef(t, tif.Is(v), "%s should be %s", tif, v)
+			assert.Truef(t, tif.Is(v), "%s should be %s", tif, v)
 		}
 	}
 }

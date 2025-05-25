@@ -462,7 +462,7 @@ func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderP
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "conditional" {
-		return nil, fmt.Errorf("%w for TPSL: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
+		return nil, fmt.Errorf("%w for TPSL: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.StopLossTriggerPrice <= 0 {
 		return nil, order.ErrPriceBelowMin
@@ -496,7 +496,7 @@ func (ok *Okx) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) 
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "trigger" {
-		return nil, fmt.Errorf("%w for Trigger: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
+		return nil, fmt.Errorf("%w for Trigger: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.TriggerPrice <= 0 {
 		return nil, fmt.Errorf("%w, trigger price must be greater than 0", order.ErrPriceBelowMin)
@@ -1808,7 +1808,7 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*Set
 	switch arg.AssetType {
 	case asset.Futures, asset.PerpetualSwap:
 		if arg.PositionSide == "" && arg.MarginMode == "isolated" {
-			return nil, fmt.Errorf("%w: `%s`", order.ErrSideIsInvalid, arg.PositionSide)
+			return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)

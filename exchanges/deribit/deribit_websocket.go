@@ -855,7 +855,7 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 	}
 
 	for key := range subAck {
-		err = common.AppendError(err, fmt.Errorf("unexpected channel `%s` in result", key))
+		err = common.AppendError(err, fmt.Errorf("unexpected channel %q in result", key))
 	}
 
 	return err

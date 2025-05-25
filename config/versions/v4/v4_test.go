@@ -59,8 +59,8 @@ func TestUpgradeExchange(t *testing.T) {
 	in = []byte(`{"name":"Cracken","currencyPairs":{"assetTypes":["spot"],"pairs":{"margin":{"assetEnabled":{}}}}}`)
 	_, err = new(v4.Version).UpgradeExchange(t.Context(), in)
 	require.ErrorIs(t, err, jsonparser.UnknownValueTypeError)
-	require.ErrorContains(t, err, "`margin`")
-	require.ErrorContains(t, err, "`object`")
+	require.ErrorContains(t, err, "\"margin\"")
+	require.ErrorContains(t, err, "\"object\"")
 }
 
 func TestDowngradeExchange(t *testing.T) {

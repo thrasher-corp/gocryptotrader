@@ -5145,7 +5145,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		}
 		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
-		return nil, fmt.Errorf("%w '%s'", errInvalidStrategy, r.AlgorithmType)
+		return nil, fmt.Errorf("%w %q", errInvalidStrategy, r.AlgorithmType)
 	}
 
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil

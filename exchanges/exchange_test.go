@@ -726,7 +726,7 @@ func TestGetPairs(t *testing.T) {
 		c, err := b.GetAvailablePairs(asset.Spot)
 		require.NoError(t, err, "GetAvailablePairs must not error")
 		require.Len(t, c, 1, "Must have one enabled pair")
-		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetAvailablePairs format must use config format")
+		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetAvailablePairs format should use config format")
 
 		require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error for enabled pairs")
 		require.NoError(t, b.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
@@ -734,7 +734,7 @@ func TestGetPairs(t *testing.T) {
 		c, err = b.GetEnabledPairs(asset.Spot)
 		require.NoError(t, err, "GetEnabledPairs must not error")
 		require.Len(t, c, 1, "Must have one enabled pair")
-		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetEnabledPairs format must use config format")
+		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetEnabledPairs format should use config format")
 	}
 }
 
@@ -1460,8 +1460,8 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, asset.Spot, asset.Binary)
 	require.NoError(t, err, "SetGlobalPairsManager must not error")
 
-	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager must support Binary")
-	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager must support Spot")
+	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager should support Binary")
+	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager should support Spot")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")

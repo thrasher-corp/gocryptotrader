@@ -558,7 +558,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 		if tt.Result != order.UnknownStatus {
 			assert.NoErrorf(t, err, "stringToOrderStatus should not error for %s", tt.Case)
 		}
-		assert.Equal(t, tt.Result, result, "stringToOrderStatus should return correct value for %s", tt.Case)
+		assert.Equalf(t, tt.Result, result, "stringToOrderStatus should return correct value for %s", tt.Case)
 	}
 }
 
@@ -602,11 +602,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		for _, p := range pairs {
 			limits, err := b.GetOrderExecutionLimits(a, p)
 			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, p)
-			assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s %s", a, p)
-			assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s %s", a, p)
-			assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s %s", a, p)
-			assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s %s", a, p)
-			assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s %s", a, p)
+			assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s %s", a, p)
+			assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s %s", a, p)
+			assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s %s", a, p)
+			assert.Positivef(t, limits.MinPrice, "MinPrice should be positive for %s %s", a, p)
+			assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s %s", a, p)
 		}
 	}
 }
@@ -759,8 +759,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -827,5 +827,5 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 
 	_, err = subscription.List{{Channel: subscription.OrderbookChannel}}.ExpandTemplates(b)
-	assert.ErrorContains(t, err, "Channel not supported", "Sub template must error on unsupported channels")
+	assert.ErrorContains(t, err, "Channel not supported", "Sub template should error on unsupported channels")
 }

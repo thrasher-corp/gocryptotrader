@@ -297,7 +297,7 @@ func TestGetOrderStatus(t *testing.T) {
 				}
 			case mockTests:
 				if tt.errExpected {
-					t.Errorf("Mock get order status expect an error '%s', get no error", tt.errMsgExpected)
+					t.Errorf("Mock get order status expect an error %q, get no error", tt.errMsgExpected)
 				}
 			}
 		})
@@ -1141,8 +1141,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, p)
 	for _, a := range p.GetAssetTypes(false) {
 		pairs, err := p.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := p.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

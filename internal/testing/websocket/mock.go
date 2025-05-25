@@ -28,7 +28,7 @@ func CurryWsMockUpgrader(tb testing.TB, wsHandler WsMockFunc) http.HandlerFunc {
 func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHandler WsMockFunc) {
 	tb.Helper()
 	c, err := upgrader.Upgrade(w, r, nil)
-	require.NoError(tb, err, "Upgrade connection should not error")
+	require.NoError(tb, err, "Upgrade connection must not error")
 	defer c.Close()
 	for {
 		_, p, err := c.ReadMessage()

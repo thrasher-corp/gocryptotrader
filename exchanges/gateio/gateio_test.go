@@ -132,7 +132,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	for _, a := range g.GetAssetTypes(false) {
 		_, err := g.UpdateTicker(t.Context(), getPair(t, a), a)
-		assert.NoError(t, err, "UpdateTicker should not error for %s", a)
+		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
 	}
 }
 
@@ -2799,8 +2799,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	for _, a := range g.GetAssetTypes(false) {
 		pairs, err := g.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := g.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a == asset.Options {
 			require.ErrorIs(t, err, asset.ErrNotSupported)

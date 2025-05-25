@@ -105,7 +105,7 @@ func TestGetAccountInformation(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err = b.GetAccountInformation(t.Context(), testPair.Base.String(), testPair.Quote.String())
-	require.NoError(t, err, "GetAccountInformation should not error")
+	assert.NoError(t, err, "GetAccountInformation should not error")
 }
 
 func TestGetAccountBalance(t *testing.T) {
@@ -400,7 +400,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	resp, err := b.CancelAllOrders(t.Context(), orderCancellation)
 	require.NoError(t, err, "CancelAllOrders must not error")
 
-	assert.Empty(t, resp.Status, "%v orders failed to cancel", len(resp.Status))
+	assert.Emptyf(t, resp.Status, "%v orders failed to cancel", len(resp.Status))
 }
 
 func TestGetAccountInfo(t *testing.T) {
@@ -539,10 +539,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
 	err = limit.Conforms(46241000, 0.00001, order.Limit)
-	assert.ErrorIs(t, err, order.ErrAmountBelowMin, "expected error: %v, but got: %v", order.ErrAmountBelowMin, err)
+	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	err = limit.Conforms(46241000, 0.0001, order.Limit)
-	assert.NoError(t, err, "expected no error, but got: %v", err)
+	assert.NoError(t, err, "Conforms should not error")
 }
 
 func TestGetAmountMinimum(t *testing.T) {
@@ -588,7 +588,7 @@ func TestGetAmountMinimum(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			minAmount := getAmountMinimum(tt.unitprice)
-			assert.Equal(t, tt.expected, minAmount, "minAmount should be correct for %s", tt.unitprice)
+			assert.Equalf(t, tt.expected, minAmount, "minAmount should be correct for %s", tt.unitprice)
 		})
 	}
 }
@@ -624,7 +624,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	_, err := b.GetWithdrawalsHistory(t.Context(), testPair.Base, asset.Spot)
-	require.NoError(t, err, "TestGetWithdrawalsHistory must not error")
+	require.NoError(t, err, "GetWithdrawalsHistory must not error")
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -648,8 +648,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

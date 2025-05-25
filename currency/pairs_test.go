@@ -212,8 +212,8 @@ func TestRemove(t *testing.T) {
 	err := compare.ContainsAll(oldPairs, true)
 	assert.NoError(t, err, "Remove should not affect the original pairs")
 
-	require.Len(t, newPairs, 1, "Remove should remove a pair")
-	require.Equal(t, oldPairs[2], newPairs[0], "Remove should leave the final pair")
+	require.Len(t, newPairs, 1, "Remove must remove a pair")
+	require.Equal(t, oldPairs[2], newPairs[0], "Remove must leave the final pair")
 
 	newPairs = newPairs.Remove(oldPairs[0])
 	assert.Len(t, newPairs, 1, "Remove should have no effect on non-included pairs")

@@ -946,7 +946,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 		}
 		if !e.Features.Supports.RESTCapabilities.AutoPairUpdates &&
 			!e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-			lastUpdated := convert.UnixTimestampToTime(e.CurrencyPairs.LastUpdated)
+			lastUpdated := time.Unix(e.CurrencyPairs.LastUpdated, 0)
 			lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 			if lastUpdated.Unix() <= time.Now().Unix() {
 				log.Warnf(log.ConfigMgr,
@@ -1424,7 +1424,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 		return configFile, nil
 	}
 	if file.Exists(target) {
-		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configFile)
+		log.Warnf(log.ConfigMgr, "Config file already found in %q; not overwriting, defaulting to %s", target, configFile)
 		return configFile, nil
 	}
 
@@ -1588,7 +1588,7 @@ func (c *Config) CheckRemoteControlConfig() {
 
 	if c.Webserver != nil {
 		port := common.ExtractPort(c.Webserver.ListenAddress)
-		host := common.ExtractHost(c.Webserver.ListenAddress)
+		host := common.ExtractHostOrDefault(c.Webserver.ListenAddress)
 
 		c.RemoteControl = RemoteControlConfig{
 			Username: c.Webserver.AdminUsername,

@@ -1108,7 +1108,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	modifyOrder.ClientOrderID = "1337"
 	require.NoError(t, modifyOrder.Validate())
-	require.Error(t, modifyOrder.Validate(validate.Check(func() error { return errors.New("this should error") })))
+	require.Error(t, modifyOrder.Validate(validate.Check(func() error { return errors.New("this must error") })))
 	require.NoError(t, modifyOrder.Validate(validate.Check(func() error { return nil })))
 }
 
@@ -1357,7 +1357,7 @@ func TestDetail_Copy(t *testing.T) {
 	}
 	for i := range d {
 		r := d[i].Copy()
-		assert.True(t, reflect.DeepEqual(d[i], r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
+		assert.Truef(t, reflect.DeepEqual(d[i], r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)
 		if len(d[i].Trades) > 0 {
 			assert.NotSamef(t, &d[i].Trades[0], &r.Trades[0], "[%d]Trades point to the same data elements", i)
 		}

@@ -72,7 +72,7 @@ func TestGetCurrentServerTime(t *testing.T) {
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := k.GetServerTime(t.Context(), asset.Spot)
-	require.NoError(t, err, "GetServerTime should not error")
+	require.NoError(t, err, "GetServerTime must not error")
 	assert.WithinRange(t, st, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 }
 
@@ -1016,7 +1016,7 @@ func TestWsResubscribe(t *testing.T) {
 	require.NoError(t, err, "Subscribe must not error")
 	subs := k.Websocket.GetSubscriptions()
 	require.Len(t, subs, 1, "Should add 1 Subscription")
-	require.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription should be subscribed state")
+	require.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription must be in a subscribed state")
 
 	require.Eventually(t, func() bool {
 		b, e2 := k.Websocket.Orderbook.GetOrderbook(spotTestPair, asset.Spot)
@@ -1049,10 +1049,10 @@ func TestWsOrderbookSub(t *testing.T) {
 		Pairs:   currency.Pairs{spotTestPair},
 		Levels:  25,
 	}})
-	require.NoError(t, err, "Simple subscription should not error")
+	require.NoError(t, err, "Simple subscription must not error")
 
 	subs := k.Websocket.GetSubscriptions()
-	require.Equal(t, 1, len(subs), "Should have 1 subscription channel")
+	require.Equal(t, 1, len(subs), "Must have 1 subscription channel")
 
 	err = k.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribe should not error")
@@ -1081,7 +1081,7 @@ func TestWsCandlesSub(t *testing.T) {
 		Pairs:    currency.Pairs{spotTestPair},
 		Interval: kline.OneHour,
 	}})
-	require.NoError(t, err, "Simple subscription should not error")
+	require.NoError(t, err, "Simple subscription must not error")
 
 	subs := k.Websocket.GetSubscriptions()
 	require.Equal(t, 1, len(subs), "Should add 1 Subscription")
@@ -1139,7 +1139,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		s.Pairs = pairs
 	}
 	subs, err := k.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
+	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 
 	k.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -1148,7 +1148,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}...)
 	subs, err = k.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
+	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
 
@@ -1486,7 +1486,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	for x := range websocketXDGUSDOrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
-		require.NoError(t, err, "wsHandleData should not error")
+		require.NoError(t, err, "wsHandleData must not error")
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
@@ -1496,14 +1496,14 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		// in the orderbook.Tranche struct.
 		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
 		if x != len(websocketLUNAEUROrderbookUpdates)-1 {
-			require.NoError(t, err, "wsHandleData should not error")
+			require.NoError(t, err, "wsHandleData must not error")
 		}
 	}
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
-		require.NoError(t, err, "wsHandleData should not error")
+		require.NoError(t, err, "wsHandleData must not error")
 	}
 }
 
@@ -1625,7 +1625,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
 		resp, err := k.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a != asset.Spot && a != asset.Futures {
 			assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1694,16 +1694,16 @@ func TestErrorResponse(t *testing.T) {
 			}
 			err := json.Unmarshal([]byte(tt.jsonStr), &g)
 			if tt.expectError {
-				require.ErrorContains(t, err, tt.errorMsg, "Unmarshal should error")
+				require.ErrorContains(t, err, tt.errorMsg, "Unmarshal must error")
 			} else {
 				require.NoError(t, err)
 				if tt.errorMsg != "" {
-					assert.ErrorContains(t, g.Error.Errors(), tt.errorMsg, "Errors should contain %s", tt.errorMsg)
+					assert.ErrorContainsf(t, g.Error.Errors(), tt.errorMsg, "Errors should contain %s", tt.errorMsg)
 				} else {
 					assert.NoError(t, g.Error.Errors(), "Errors should not error")
 				}
 				if tt.warningMsg != "" {
-					assert.Contains(t, g.Error.Warnings(), tt.warningMsg, "Warnings should contain %s", tt.warningMsg)
+					assert.Containsf(t, g.Error.Warnings(), tt.warningMsg, "Warnings should contain %s", tt.warningMsg)
 				} else {
 					assert.Empty(t, g.Error.Warnings(), "Warnings should be empty")
 				}

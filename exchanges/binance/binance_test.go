@@ -1083,7 +1083,7 @@ func TestGetExchangeInfo(t *testing.T) {
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	if mockTests {
 		exp := time.Date(2024, 5, 10, 6, 8, 1, int(707*time.Millisecond), time.UTC)
-		assert.True(t, info.ServerTime.Time().Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.Time().UTC())
+		assert.Truef(t, info.ServerTime.Time().Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.Time().UTC())
 	} else {
 		assert.WithinRange(t, info.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 	}
@@ -1984,8 +1984,8 @@ func TestSubscribe(t *testing.T) {
 		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 			tb.Helper()
 			var req WsPayload
-			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
-			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
+			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
 			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
 		}
 		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
@@ -1993,9 +1993,9 @@ func TestSubscribe(t *testing.T) {
 		testexch.SetupWs(t, b)
 	}
 	err = b.Subscribe(channels)
-	require.NoError(t, err, "Subscribe should not error")
+	require.NoError(t, err, "Subscribe must not error")
 	err = b.Unsubscribe(channels)
-	require.NoError(t, err, "Unsubscribe should not error")
+	require.NoError(t, err, "Unsubscribe must not error")
 }
 
 func TestSubscribeBadResp(t *testing.T) {
@@ -2007,7 +2007,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		tb.Helper()
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
-		require.NoError(tb, err, "Unmarshal should not error")
+		require.NoError(tb, err, "Unmarshal must not error")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
@@ -2445,7 +2445,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	subs, err := b.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
+	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
 
@@ -2780,38 +2780,38 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		pairs, err := b.FetchTradablePairs(t.Context(), a)
-		require.NoErrorf(t, err, "FetchTradablePairs should not error for %s", a)
-		require.NotEmptyf(t, pairs, "Should get some pairs for %s", a)
+		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+		require.NotEmptyf(t, pairs, "Must get some pairs for %s", a)
 		tests[a] = pairs[0]
 	}
 
 	for _, a := range b.GetAssetTypes(false) {
 		err := b.UpdateOrderExecutionLimits(t.Context(), a)
-		require.NoError(t, err, "UpdateOrderExecutionLimits should not error")
+		require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 
 		p := tests[a]
 		limits, err := b.GetOrderExecutionLimits(a, p)
-		require.NoErrorf(t, err, "GetOrderExecutionLimits should not error for %s pair %s", a, p)
-		assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaxPrice, "MaxPrice must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", a, p)
+		require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s pair %s", a, p)
+		assert.Positivef(t, limits.MinPrice, "MinPrice should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MaxPrice, "MaxPrice should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MarketMaxQty, "MarketMaxQty should be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders should be positive for %s pair %s", a, p)
 		switch a {
 		case asset.Spot, asset.Margin:
-			assert.Positivef(t, limits.MaxIcebergParts, "MaxIcebergParts must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MaxIcebergParts, "MaxIcebergParts should be positive for %s pair %s", a, p)
 		case asset.USDTMarginedFutures:
-			assert.Positivef(t, limits.MinNotional, "MinNotional must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MinNotional, "MinNotional should be positive for %s pair %s", a, p)
 			fallthrough
 		case asset.CoinMarginedFutures:
-			assert.Positivef(t, limits.MultiplierUp, "MultiplierUp must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MultiplierDown, "MultiplierDown must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MarketMinQty, "MarketMinQty must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MarketStepIncrementSize, "MarketStepIncrementSize must be positive for %s pair %s", a, p)
-			assert.Positivef(t, limits.MaxAlgoOrders, "MaxAlgoOrders must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MultiplierUp, "MultiplierUp should be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MultiplierDown, "MultiplierDown should be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MarketMinQty, "MarketMinQty should be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MarketStepIncrementSize, "MarketStepIncrementSize should be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MaxAlgoOrders, "MaxAlgoOrders should be positive for %s pair %s", a, p)
 		}
 	}
 }
@@ -3470,8 +3470,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

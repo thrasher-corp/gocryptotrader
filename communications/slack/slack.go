@@ -314,7 +314,7 @@ func (s *Slack) handleErrorResponse(data WebsocketResponse) error {
 		s.Connected = false
 		return s.NewConnection()
 	}
-	return fmt.Errorf("unknown error '%s'", data.Error.Msg)
+	return fmt.Errorf("unknown error %q", data.Error.Msg)
 }
 
 func (s *Slack) handleHelloResponse() {

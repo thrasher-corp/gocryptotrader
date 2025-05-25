@@ -76,7 +76,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if !s.AssetType.IsValid() {
-		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
+		return fmt.Errorf("%q %w", s.AssetType, asset.ErrNotSupported)
 	}
 
 	if !IsValidOrderSubmissionSide(s.Side) {
@@ -1076,7 +1076,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("'%s' %w", side, ErrSideIsInvalid)
+		return UnknownSide, fmt.Errorf("%q %w", side, ErrSideIsInvalid)
 	}
 }
 
@@ -1193,7 +1193,7 @@ func StringToOrderStatus(status string) (Status, error) {
 	case STP.String(), "STP":
 		return STP, nil
 	default:
-		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
+		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
 }
 

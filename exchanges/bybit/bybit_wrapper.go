@@ -63,13 +63,13 @@ func (by *Bybit) SetDefaults() {
 	for _, n := range assetPairFmts {
 		ps := currency.PairStore{AssetEnabled: true, RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
 		if err := by.SetAssetPairStore(n.asset, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", by.Name, n.asset, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", by.Name, n.asset, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
 		if err := by.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", by.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", by.Name, a, err)
 		}
 	}
 

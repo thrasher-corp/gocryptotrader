@@ -111,37 +111,6 @@ func TestTimeFromUnixTimestampDecimal(t *testing.T) {
 	}
 }
 
-func TestUnixTimestampToTime(t *testing.T) {
-	t.Parallel()
-	testTime := int64(1489439831)
-	tm := time.Unix(testTime, 0)
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult := UnixTimestampToTime(testTime)
-	if tm.String() != actualResult.String() {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-}
-
-func TestUnixTimestampStrToTime(t *testing.T) {
-	t.Parallel()
-	testTime := "1489439831"
-	incorrectTime := "DINGDONG"
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult, err := UnixTimestampStrToTime(testTime)
-	if err != nil {
-		t.Error(err)
-	}
-	if actualResult.UTC().String() != expectedOutput {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	_, err = UnixTimestampStrToTime(incorrectTime)
-	if err == nil {
-		t.Error("should throw an error")
-	}
-}
-
 func TestBoolPtr(t *testing.T) {
 	y := BoolPtr(true)
 	if !*y {

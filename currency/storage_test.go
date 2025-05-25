@@ -83,7 +83,7 @@ func TestRunUpdater(t *testing.T) {
 		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers")
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: "sudo shazam!"}}
 		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
-		assert.NoError(t, err, "%s should not error on Setup with a bad apikey", n)
+		assert.NoErrorf(t, err, "%s should not error on Setup with a bad apikey", n)
 		assert.NotNil(t, newStorage.fiatExchangeMarkets, "Forex should be enabled now we have a provider with a key")
 		err = newStorage.Shutdown()
 		assert.NoError(t, err, "Shutdown should not error")
