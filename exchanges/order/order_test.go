@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -310,42 +309,22 @@ func TestInferCostsAndTimes(t *testing.T) {
 	t.Parallel()
 	var detail Detail
 	detail.InferCostsAndTimes()
-	if detail.Amount != detail.ExecutedAmount+detail.RemainingAmount {
-		t.Errorf(
-			"Order detail amounts not equals. Expected 0, received %f",
-			detail.Amount-(detail.ExecutedAmount+detail.RemainingAmount),
-		)
-	}
+	assert.Zero(t, detail.Amount, "InferCostsAndTimes on empty details should set correct Amount")
 
 	detail.CloseTime = time.Now()
 	detail.InferCostsAndTimes()
-	if detail.LastUpdated != detail.CloseTime {
-		t.Errorf(
-			"Order last updated not equals close time. Expected %s, received %s",
-			detail.CloseTime,
-			detail.LastUpdated,
-		)
-	}
+	assert.Equal(t, detail.CloseTime, detail.LastUpdated, "Order last updated not equals close time")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.InferCostsAndTimes()
-	if detail.AverageExecutedPrice != 0 {
-		t.Errorf(
-			"Unexpected AverageExecutedPrice. Expected 0, received %f",
-			detail.AverageExecutedPrice,
-		)
-	}
+	assert.Zero(t, detail.AverageExecutedPrice, "InferCostsAndTimes should set AverageExecutedPrice correctly")
 
 	detail.Amount = 1
 	detail.ExecutedAmount = 1
 	detail.InferCostsAndTimes()
-	if detail.Cost != 0 {
-		t.Errorf(
-			"Unexpected Cost. Expected 0, received %f",
-			detail.Cost,
-		)
-	}
+	assert.Zero(t, detail.Cost, "InferCostsAndTimes should set Cost correctly")
+
 	detail.ExecutedAmount = 0
 
 	detail.Amount = 1
@@ -358,7 +337,7 @@ func TestInferCostsAndTimes(t *testing.T) {
 	detail.ExecutedAmount = 1
 	detail.Price = 2
 	detail.InferCostsAndTimes()
-	assert.Equal(t, 2., detail.AverageExecutedPrice)
+	assert.Equal(t, 2.0, detail.AverageExecutedPrice)
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, Cost: 3, Price: 0}
 	detail.InferCostsAndTimes()
@@ -366,7 +345,7 @@ func TestInferCostsAndTimes(t *testing.T) {
 
 	detail = Detail{Amount: 1, ExecutedAmount: 2, AverageExecutedPrice: 3}
 	detail.InferCostsAndTimes()
-	assert.Equal(t, 6., detail.Cost)
+	assert.Equal(t, 6.0, detail.Cost)
 }
 
 func TestFilterOrdersByType(t *testing.T) {
@@ -380,13 +359,13 @@ func TestFilterOrdersByType(t *testing.T) {
 	}
 
 	FilterOrdersByType(&orders, AnyType)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	FilterOrdersByType(&orders, Limit)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	FilterOrdersByType(&orders, Stop)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 1, "Orders should be filtered correctly")
 }
 
 var filterOrdersByTypeBenchmark = &[]Detail{
@@ -426,13 +405,13 @@ func TestFilterOrdersBySide(t *testing.T) {
 	}
 
 	FilterOrdersBySide(&orders, AnySide)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	FilterOrdersBySide(&orders, Buy)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	FilterOrdersBySide(&orders, Sell)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %v, received %v", 0, len(orders))
+	assert.Len(t, orders, 1, "Orders should be filtered correctly")
 }
 
 var filterOrdersBySideBenchmark = &[]Detail{
@@ -475,25 +454,25 @@ func TestFilterOrdersByTimeRange(t *testing.T) {
 
 	err := FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %d, received %d", 3, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(100, 0), time.Unix(111, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %d, received %d", 3, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(101, 0), time.Unix(111, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %d, received %d", 2, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	require.NoError(t, err)
-	assert.Emptyf(t, orders, "Orders failed to be filtered. Expected 0, received %d", len(orders))
+	assert.Empty(t, orders, "Orders should be filtered correctly")
 
 	orders = append(orders, Detail{})
 	// test for event no timestamp is set on an order, best to include it
 	err = FilterOrdersByTimeRange(&orders, time.Unix(200, 0), time.Unix(300, 0))
 	require.NoError(t, err)
-	assert.Lenf(t, orders, 1, "Orders failed to be filtered. Expected %d, received %d", 1, len(orders))
+	assert.Len(t, orders, 1, "Orders should be filtered correctly")
 
 	err = FilterOrdersByTimeRange(&orders, time.Unix(300, 0), time.Unix(50, 0))
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
@@ -545,30 +524,30 @@ func TestFilterOrdersByPairs(t *testing.T) {
 		currency.NewPair(currency.DOGE, currency.RUB),
 	}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 4, "Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
+	assert.Len(t, orders, 4, "Orders should be filtered correctly")
 
 	currencies = []currency.Pair{
 		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.EUR),
 	}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 3, "Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
+	assert.Len(t, orders, 3, "Orders should be filtered correctly")
 
 	currencies = []currency.Pair{currency.NewBTCUSD()}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	currencies = []currency.Pair{currency.NewPair(currency.USD, currency.BTC)}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Reverse Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Reverse Orders should be filtered correctly")
 
 	currencies = []currency.Pair{}
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
 	currencies = append(currencies, currency.EMPTYPAIR)
 	FilterOrdersByPairs(&orders, currencies)
-	assert.Lenf(t, orders, 2, "Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
+	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 }
 
 var filterOrdersByPairsBenchmark = &[]Detail{
@@ -609,10 +588,10 @@ func TestSortOrdersByPrice(t *testing.T) {
 	}
 
 	SortOrdersByPrice(&orders, false)
-	assert.Equalf(t, float64(0), orders[0].Price, "Expected: '%v', received: '%v'", 0, orders[0].Price)
+	assert.Zero(t, orders[0].Price, "Price should be correct")
 
 	SortOrdersByPrice(&orders, true)
-	assert.Equalf(t, float64(100), orders[0].Price, "Expected: '%v', received: '%v'", 100, orders[0].Price)
+	assert.Equal(t, 100.0, orders[0].Price, "Price should be correct")
 }
 
 func TestSortOrdersByDate(t *testing.T) {
@@ -685,10 +664,10 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 	}
 
 	SortOrdersBySide(&orders, false)
-	assert.Truef(t, strings.EqualFold(orders[0].Side.String(), Buy.String()), "Expected: '%v', received: '%v'", Buy, orders[0].Side)
+	assert.Equal(t, Buy.String(), orders[0].Side.String())
 
 	SortOrdersBySide(&orders, true)
-	assert.Truef(t, strings.EqualFold(orders[0].Side.String(), Sell.String()), "Expected: '%v', received: '%v'", Sell, orders[0].Side)
+	assert.Equal(t, Sell.String(), orders[0].Side.String())
 }
 
 func TestSortOrdersByOrderType(t *testing.T) {
@@ -705,7 +684,10 @@ func TestSortOrdersByOrderType(t *testing.T) {
 	}
 
 	SortOrdersByType(&orders, false)
-	assert.Truef(t, strings.EqualFold(orders[0].Type.String(), Limit.String()), "Expected: '%v', received: '%v'", Limit, orders[0].Type)
+	assert.Equal(t, Limit.String(), orders[0].Type.String())
+
+	SortOrdersByType(&orders, true)
+	assert.Equal(t, TrailingStop.String(), orders[0].Type.String())
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -914,13 +896,13 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
-	assert.NotEqual(t, UnknownTIF, od.TimeInForce)
+	require.NotEqual(t, UnknownTIF, od.TimeInForce)
 	assert.True(t, od.TimeInForce.Is(GoodTillTime))
 	assert.True(t, od.TimeInForce.Is(PostOnly))
-	assert.Equal(t, 1., od.Price)
-	assert.Equal(t, 1., od.Amount)
-	assert.Equal(t, 1., od.TriggerPrice)
-	assert.Equal(t, 1., od.RemainingAmount)
+	assert.Equal(t, 1.0, od.Price)
+	assert.Equal(t, 1.0, od.Amount)
+	assert.Equal(t, 1.0, od.TriggerPrice)
+	assert.Equal(t, 1.0, od.RemainingAmount)
 	assert.Empty(t, od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, Type(1), od.Type)
@@ -930,27 +912,6 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	assert.Equal(t, od.LastUpdated, updated)
 	assert.Equal(t, "BTCUSD", od.Pair.String())
 	assert.Nil(t, od.Trades)
-}
-
-func TestTimeInForceIs(t *testing.T) {
-	t.Parallel()
-	tifValuesMap := map[TimeInForce][]TimeInForce{
-		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
-		GoodTillCancel:              {GoodTillCancel},
-		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
-		GoodTillDay:                 {GoodTillDay},
-		GoodTillTime:                {GoodTillTime},
-		GoodTillTime | PostOnly:     {GoodTillTime, PostOnly},
-		ImmediateOrCancel:           {ImmediateOrCancel},
-		FillOrKill:                  {FillOrKill},
-		PostOnly:                    {PostOnly},
-		GoodTillCrossing:            {GoodTillCrossing},
-	}
-	for tif := range tifValuesMap {
-		for _, v := range tifValuesMap[tif] {
-			require.True(t, tif.Is(v))
-		}
-	}
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
@@ -1008,16 +969,16 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.True(t, od.TimeInForce.Is(GoodTillCancel))
 	assert.True(t, od.TimeInForce.Is(PostOnly))
 	require.True(t, od.HiddenOrder)
-	assert.Equal(t, 1., od.Leverage)
-	assert.Equal(t, 1., od.Price)
-	assert.Equal(t, 1., od.Amount)
-	assert.Equal(t, 1., od.LimitPriceLower)
-	assert.Equal(t, 1., od.LimitPriceUpper)
-	assert.Equal(t, 1., od.TriggerPrice)
-	assert.Equal(t, 1., od.QuoteAmount)
-	assert.Equal(t, 1., od.ExecutedAmount)
-	assert.Equal(t, 1., od.RemainingAmount)
-	assert.Equal(t, 1., od.Fee)
+	assert.Equal(t, 1.0, od.Leverage)
+	assert.Equal(t, 1.0, od.Price)
+	assert.Equal(t, 1.0, od.Amount)
+	assert.Equal(t, 1.0, od.LimitPriceLower)
+	assert.Equal(t, 1.0, od.LimitPriceUpper)
+	assert.Equal(t, 1.0, od.TriggerPrice)
+	assert.Equal(t, 1.0, od.QuoteAmount)
+	assert.Equal(t, 1.0, od.ExecutedAmount)
+	assert.Equal(t, 1.0, od.RemainingAmount)
+	assert.Equal(t, 1.0, od.Fee)
 	assert.Equal(t, "test", od.Exchange, "Should not be able to update exchange via modify")
 	assert.Equal(t, "1", od.OrderID)
 	assert.Equal(t, "1", od.ClientID)
@@ -1046,14 +1007,14 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, leet, od.Trades[0].Exchange, "Should not be able to update exchange from update")
-	assert.Equal(t, 1337., od.Trades[0].Price)
-	assert.Equal(t, 1337., od.Trades[0].Fee)
+	assert.Equal(t, 1337.0, od.Trades[0].Price)
+	assert.Equal(t, 1337.0, od.Trades[0].Fee)
 	assert.True(t, od.Trades[0].IsMaker)
 	assert.Equal(t, updated, od.Trades[0].Timestamp)
 	assert.Equal(t, leet, od.Trades[0].Description)
 	assert.Equal(t, UnknownSide, od.Trades[0].Side)
 	assert.Equal(t, UnknownType, od.Trades[0].Type)
-	assert.Equal(t, 1337., od.Trades[0].Amount)
+	assert.Equal(t, 1337.0, od.Trades[0].Amount)
 
 	id, err = uuid.NewV4()
 	require.NoError(t, err)
@@ -1087,7 +1048,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	cancelMe.Pair = currency.NewBTCUSDT()
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
-	assert.Falsef(t, err == nil || err.Error() != ErrAssetNotSet.Error(), "received '%v' expected '%v'", err, ErrAssetNotSet)
+	assert.ErrorIs(t, err, ErrAssetNotSet)
 
 	cancelMe.AssetType = asset.Spot
 	err = cancelMe.Validate(cancelMe.PairAssetRequired())
@@ -1535,16 +1496,15 @@ func TestDeriveCancel(t *testing.T) {
 	}
 	cancel, err := o.DeriveCancel()
 	require.NoError(t, err)
-
-	assert.False(t, cancel.Exchange != "wow" ||
-		cancel.OrderID != "wow1" ||
-		cancel.AccountID != "wow2" ||
-		cancel.ClientID != "wow3" ||
-		cancel.ClientOrderID != "wow4" ||
-		cancel.Type != Market ||
-		cancel.Side != Long ||
-		!cancel.Pair.Equal(pair) ||
-		cancel.AssetType != asset.Futures)
+	assert.Equal(t, "wow", cancel.Exchange, "DeriveCancel should set Exchange correctly")
+	assert.Equal(t, "wow1", cancel.OrderID, "DeriveCancel should set OrderID correctly")
+	assert.Equal(t, "wow2", cancel.AccountID, "DeriveCancel should set AccountID correctly")
+	assert.Equal(t, "wow3", cancel.ClientID, "DeriveCancel should set ClientID correctly")
+	assert.Equal(t, "wow4", cancel.ClientOrderID, "DeriveCancel should set ClientOrderID correctly")
+	assert.Equal(t, Market, cancel.Type, "DeriveCancel should set Type correctly")
+	assert.Equal(t, Long, cancel.Side, "DeriveCancel should set Side correctly")
+	assert.True(t, pair.Equal(cancel.Pair), "DeriveCancel should set Pair correctly")
+	assert.Equal(t, asset.Futures, cancel.AssetType, "DeriveCancel should set AssetType correctly")
 }
 
 func TestGetOrdersRequest_Filter(t *testing.T) {
