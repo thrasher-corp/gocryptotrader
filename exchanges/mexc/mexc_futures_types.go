@@ -25,13 +25,6 @@ type WsFuturesLoginResponse struct {
 	ID      int64  `json:"id"`
 }
 
-// WsFuturesReq holds a futures request payload.
-type WsFuturesReq struct {
-	Method string              `json:"method"`
-	GZip   bool                `json:"gzip,omitempty"`
-	Param  *FWebsocketReqParam `json:"param,omitempty"`
-}
-
 // FWebsocketReqParam holds the param detail or futures websocket subscription request
 type FWebsocketReqParam struct {
 	Symbol   string `json:"symbol,omitempty"`

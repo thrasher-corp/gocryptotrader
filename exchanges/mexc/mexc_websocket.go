@@ -30,22 +30,21 @@ import (
 const (
 	wsURL = "wss://wbs-api.mexc.com/ws"
 
-	chnlBookTiker        = "public.aggre.bookTicker.v3.api.pb"
-	chnlAggregateDepthV3 = "public.aggre.depth.v3.api.pb"
-	chnlDealsV3          = "public.deals.v3.api.pb"
-	chnlIncreaseDepthV3  = "public.increase.depth.v3.api.pb"
-	chnlAggreDealsV3     = "public.aggre.deals.v3.api.pb"
-	chnlKlineV3          = "public.kline.v3.api.pb"
-	chnlLimitDepthV3     = "public.limit.depth.v3.api.pb"
-	chnlBookTickerBatch  = "public.bookTicker.batch.v3.api.pb"
-	chnlAccountV3        = "private.account.v3.api.pb"
-	chnlPrivateDealsV3   = "private.deals.v3.api.pb"
-	chnlPrivateOrdersAPI = "private.orders.v3.api.pb"
-
+	chnlBookTiker            = "public.aggre.bookTicker.v3.api.pb"
+	chnlAggregateDepthV3     = "public.aggre.depth.v3.api.pb"
+	chnlAggreDealsV3         = "public.aggre.deals.v3.api.pb"
+	chnlKlineV3              = "public.kline.v3.api.pb"
+	chnlLimitDepthV3         = "public.limit.depth.v3.api.pb"
+	chnlBookTickerBatch      = "public.bookTicker.batch.v3.api.pb"
+	chnlAccountV3            = "private.account.v3.api.pb"
+	chnlPrivateDealsV3       = "private.deals.v3.api.pb"
+	chnlPrivateOrdersAPI     = "private.orders.v3.api.pb"
 	chnlIncreaseDepthBatchV3 = "public.increase.depth.batch.v3.api.pb"
 )
 
-var defacultChannels = []string{chnlBookTiker, chnlAggregateDepthV3, chnlDealsV3, chnlIncreaseDepthV3}
+var defacultChannels = []string{
+	chnlBookTiker, chnlKlineV3,
+	chnlAggreDealsV3, chnlAggregateDepthV3}
 
 // WsConnect initiates a websocket connection
 func (me *MEXC) WsConnect() error {
@@ -98,34 +97,34 @@ func (me *MEXC) wsReadData(ws websocket.Connection) {
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (me *MEXC) generateSubscriptions() (subscription.List, error) {
-	subscriptions := subscription.List{}
-	assets := []asset.Item{asset.Spot, asset.Futures}
-	for _, a := range assets {
-		enabledPair, err := me.GetEnabledPairs(a)
-		if err != nil {
-			return nil, err
+	enabledPairs, err := me.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	formatter, err := me.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	subscriptions := make(subscription.List, len(defacultChannels))
+	for c := range defacultChannels {
+		subscriptions[c] = &subscription.Subscription{
+			Channel: defacultChannels[c],
+			Pairs:   enabledPairs.Format(formatter),
+			Asset:   asset.Spot,
 		}
-		for c := range defacultChannels {
-			item := &subscription.Subscription{
-				Channel: defacultChannels[c],
-				Pairs:   enabledPair,
-				Asset:   a,
-			}
-			switch defacultChannels[c] {
-			case chnlBookTiker,
-				chnlAggregateDepthV3,
-				chnlAggreDealsV3:
-				item.Interval = kline.HundredMilliseconds
-			case chnlKlineV3:
-				item.Interval = kline.FifteenMin
-			case chnlLimitDepthV3:
-				item.Levels = 5
-			case chnlAccountV3,
-				chnlPrivateDealsV3,
-				chnlPrivateOrdersAPI:
-				item.Pairs = []currency.Pair{}
-			}
-			subscriptions = append(subscriptions, item)
+		switch defacultChannels[c] {
+		case chnlBookTiker,
+			chnlAggregateDepthV3,
+			chnlAggreDealsV3:
+			subscriptions[c].Interval = kline.HundredMilliseconds
+		case chnlKlineV3:
+			subscriptions[c].Interval = kline.FifteenMin
+		case chnlLimitDepthV3:
+			subscriptions[c].Levels = 5
+		case chnlAccountV3,
+			chnlPrivateDealsV3,
+			chnlPrivateOrdersAPI:
+			subscriptions[c].Pairs = []currency.Pair{}
 		}
 	}
 	return subscriptions, nil
@@ -219,7 +218,7 @@ func (me *MEXC) handleSubscription(method string, subs subscription.List) error 
 			if err != nil {
 				return err
 			}
-		case chnlIncreaseDepthV3, chnlDealsV3, chnlIncreaseDepthBatchV3, chnlBookTickerBatch:
+		case chnlIncreaseDepthBatchV3, chnlBookTickerBatch:
 			payloads[s].ID = me.Websocket.Conn.GenerateMessageID(false)
 			payloads[s].Method = method
 			payloads[s].Params = make([]string, len(subs[s].Pairs))
@@ -261,17 +260,13 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 	switch dataSplit[1] {
 	case chnlBookTiker:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicBookTicker{},
+			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicAggreBookTicker{},
 		}
 		err := proto.Unmarshal(respRaw, result)
 		if err != nil {
 			return err
 		}
-		body := result.GetPublicBookTicker()
-		cp, err := currency.NewPairFromString(dataSplit[2])
-		if err != nil {
-			return err
-		}
+		body := result.GetPublicAggreBookTicker()
 		ask := orderbook.Tranche{}
 		ask.Price, err = strconv.ParseFloat(body.AskPrice, 64)
 		if err != nil {
@@ -287,6 +282,10 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		bid.Amount, err = strconv.ParseFloat(body.BidQuantity, 64)
+		if err != nil {
+			return err
+		}
+		cp, err := currency.NewPairFromString(dataSplit[2])
 		if err != nil {
 			return err
 		}
@@ -337,89 +336,6 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			Bids:        bids,
 			Pair:        cp,
 			LastUpdated: time.Now(),
-		})
-	case chnlDealsV3:
-		result := mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicDeals{},
-		}
-		err := proto.Unmarshal(respRaw, &result)
-		if err != nil {
-			return err
-		}
-		body := result.GetPublicDeals()
-		cp, err := currency.NewPairFromString(dataSplit[2])
-		if err != nil {
-			return err
-		}
-		tradesDetail := make([]trade.Data, len(body.Deals))
-		for t := range body.Deals {
-			price, err := strconv.ParseFloat(body.Deals[t].Price, 64)
-			if err != nil {
-				return err
-			}
-			quantity, err := strconv.ParseFloat(body.Deals[t].Quantity, 64)
-			if err != nil {
-				return err
-			}
-			tradesDetail[t] = trade.Data{
-				Exchange:     me.Name,
-				CurrencyPair: cp,
-				AssetType:    asset.Spot,
-				Price:        price,
-				Amount:       quantity,
-				Timestamp:    body.Deals[t].Time.Time(),
-				Side: func() order.Side {
-					if body.Deals[t].TradeType == 1 {
-						return order.Buy
-					}
-					return order.Sell
-				}(),
-			}
-		}
-		me.Websocket.DataHandler <- tradesDetail
-		return nil
-	case chnlIncreaseDepthV3:
-		result := mexc_proto_types.PushDataV3ApiWrapper{
-			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicIncreaseDepths{},
-		}
-		err := proto.Unmarshal(respRaw, &result)
-		if err != nil {
-			return err
-		}
-		body := result.GetPublicIncreaseDepths()
-		cp, err := currency.NewPairFromString(dataSplit[2])
-		if err != nil {
-			return err
-		}
-		asks := make(orderbook.Tranches, len(body.Asks))
-		for a := range body.Asks {
-			asks[a].Price, err = strconv.ParseFloat(body.Asks[a].Price, 64)
-			if err != nil {
-				return err
-			}
-			asks[a].Amount, err = strconv.ParseFloat(body.Asks[a].Quantity, 64)
-			if err != nil {
-				return err
-			}
-		}
-		bids := make(orderbook.Tranches, len(body.Bids))
-		for b := range body.Bids {
-			bids[b].Price, err = strconv.ParseFloat(body.Bids[b].Price, 64)
-			if err != nil {
-				return err
-			}
-			bids[b].Amount, err = strconv.ParseFloat(body.Bids[b].Quantity, 64)
-			if err != nil {
-				return err
-			}
-		}
-		return me.Websocket.Orderbook.Update(&orderbook.Update{
-			Asset: asset.Spot,
-			Bids:  bids,
-			Asks:  asks,
-			Pair:  cp,
-
-			UpdateTime: time.Now(),
 		})
 	case chnlAggreDealsV3:
 		result := mexc_proto_types.PushDataV3ApiWrapper{

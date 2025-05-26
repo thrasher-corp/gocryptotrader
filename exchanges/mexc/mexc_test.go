@@ -60,6 +60,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	setupWs()
 	os.Exit(m.Run())
 }
 
@@ -1777,12 +1778,15 @@ func TestWsFuturesConnect(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
+func setupWs() {
 	if !me.Websocket.IsEnabled() {
-		err := me.Websocket.Enable()
-		require.NoError(t, err)
+		return
+	}
+	if !sharedtestvalues.AreAPICredentialsSet(me) {
+		me.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	err := me.WsConnect()
-	assert.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

@@ -107,7 +107,7 @@ func (me *MEXC) wsAuth() error {
 		return err
 	}
 	param.Signature = crypto.HexEncodeToString(hmac)
-	data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.Auth, "rs.login", &WsFuturesReq{
+	data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.Auth, "rs.login", &WsSubscriptionPayload{
 		Param:  param,
 		Method: cnlLogin,
 	})
@@ -187,7 +187,7 @@ func (me *MEXC) handleSubscriptionFuturesPayload(subscriptionItems subscription.
 					}
 					params[p].Interval = intervalString
 				}
-				err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
+				err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
 					Method: method + "." + subscriptionItems[x].Channel,
 					Param:  &params[p],
 				})
@@ -196,7 +196,7 @@ func (me *MEXC) handleSubscriptionFuturesPayload(subscriptionItems subscription.
 				}
 			}
 		default:
-			err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsFuturesReq{
+			err := me.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, &WsSubscriptionPayload{
 				Method: method + "." + subscriptionItems[x].Channel,
 			})
 			if err != nil {

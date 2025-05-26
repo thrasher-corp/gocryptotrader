@@ -166,7 +166,7 @@ func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 			if result.Symbols[i].Status.Int64() != 1 {
 				continue
 			}
-			pair, err := currency.NewPairFromString(result.Symbols[i].Symbol)
+			pair, err := currency.NewPairFromStrings(result.Symbols[i].BaseAsset, result.Symbols[i].QuoteAsset)
 			if err != nil {
 				return nil, err
 			}
@@ -766,7 +766,7 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 	}
 	switch s.AssetType {
 	case asset.Spot:
-		result, err := me.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.Lower(), orderTypeString, s.Amount, 0, s.Price)
+		result, err := me.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, 0, s.Price)
 		if err != nil {
 			return nil, err
 		}
