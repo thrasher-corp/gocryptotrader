@@ -65,20 +65,13 @@ func TestHasDataAtTime(t *testing.T) {
 		Base: &data.Base{},
 	}
 	has, err := d.HasDataAtTime(time.Now())
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
-	if has {
-		t.Error("expected false")
-	}
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.False(t, has)
 
 	d.RangeHolder = &gctkline.IntervalRangeHolder{}
 	has, err = d.HasDataAtTime(time.Now())
-	assert.NoError(t, err)
-
-	if has {
-		t.Error("expected false")
-	}
+	require.NoError(t, err)
+	assert.False(t, has)
 
 	d.Item = &gctkline.Item{
 		Exchange: exch,
@@ -96,45 +89,32 @@ func TestHasDataAtTime(t *testing.T) {
 			},
 		},
 	}
-	if err = d.Load(); err != nil {
-		t.Error(err)
-	}
-
+	require.NoError(t, d.Load(), "Load must not error")
 	has, err = d.HasDataAtTime(dStart)
-	assert.NoError(t, err)
-
-	if has {
-		t.Error("expected false")
-	}
+	require.NoError(t, err)
+	assert.False(t, has)
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	d.RangeHolder = ranger
 	err = d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	has, err = d.HasDataAtTime(dStart)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	assert.True(t, has)
 
-	if !has {
-		t.Error("expected true")
-	}
 	err = d.SetLive(true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	has, err = d.HasDataAtTime(time.Time{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	assert.False(t, has)
 
-	if has {
-		t.Error("expected false")
-	}
 	has, err = d.HasDataAtTime(dStart)
-	assert.NoError(t, err)
-
-	if !has {
-		t.Error("expected true")
-	}
+	require.NoError(t, err)
+	assert.True(t, has)
 }
 
 func TestAppend(t *testing.T) {
@@ -204,11 +184,9 @@ func TestStreamOpen(t *testing.T) {
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamOpen()
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	assert.Empty(t, bad, "StreamOpen should return an empty slice when no data is set")
 
-	if len(bad) > 0 {
-		t.Error("expected no stream")
-	}
 	err = d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
@@ -225,10 +203,10 @@ func TestStreamOpen(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = d.Next()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	open, err := d.StreamOpen()
 	require.NoError(t, err)
@@ -271,11 +249,8 @@ func TestStreamVolume(t *testing.T) {
 	assert.NoError(t, err)
 
 	vol, err := d.StreamVol()
-	assert.NoError(t, err)
-
-	if len(vol) == 0 {
-		t.Error("expected volume")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, vol, "SteamVol should return a non-empty slice")
 }
 
 func TestStreamClose(t *testing.T) {
@@ -315,11 +290,8 @@ func TestStreamClose(t *testing.T) {
 	assert.NoError(t, err)
 
 	cl, err := d.StreamClose()
-	assert.NoError(t, err)
-
-	if len(cl) == 0 {
-		t.Error("expected close")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, cl, "StreamClose should return a non-empty slice")
 }
 
 func TestStreamHigh(t *testing.T) {
