@@ -198,7 +198,7 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if !l.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
 
 	fPair, err := l.FormatExchangeCurrency(p, assetType)
@@ -221,16 +221,12 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	}
 
 	for i := range d.Data.Asks {
-		book.Asks[i] = orderbook.Tranche{
-			Price:  d.Data.Asks[i][0].Float64(),
-			Amount: d.Data.Asks[i][1].Float64(),
-		}
+		book.Asks[i].Price = d.Data.Asks[i][0].Float64()
+		book.Asks[i].Amount = d.Data.Asks[i][1].Float64()
 	}
 	for i := range d.Data.Bids {
-		book.Bids[i] = orderbook.Tranche{
-			Price:  d.Data.Bids[i][0].Float64(),
-			Amount: d.Data.Bids[i][1].Float64(),
-		}
+		book.Bids[i].Price = d.Data.Bids[i][0].Float64()
+		book.Bids[i].Amount = d.Data.Bids[i][1].Float64()
 	}
 
 	if err := book.Process(); err != nil {
