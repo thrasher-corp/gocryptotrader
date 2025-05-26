@@ -111,11 +111,11 @@ func (m *apiServerManager) StopWebsocketServer() error {
 func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
 	var routes []Route
-	if common.ExtractPort(m.websocketListenAddress) == 80 {
+	if common.ExtractPortOrDefault(m.websocketListenAddress) == 80 {
 		m.websocketListenAddress = common.ExtractHostOrDefault(m.websocketListenAddress)
 	} else {
 		m.websocketListenAddress = common.ExtractHostOrDefault(m.websocketListenAddress) + ":" +
-			strconv.Itoa(common.ExtractPort(m.websocketListenAddress))
+			strconv.Itoa(common.ExtractPortOrDefault(m.websocketListenAddress))
 	}
 
 	if isREST {
@@ -136,7 +136,7 @@ func (m *apiServerManager) newRouter(isREST bool) *mux.Router {
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof/\n",
 				common.ExtractHostOrDefault(m.websocketListenAddress),
-				common.ExtractPort(m.websocketListenAddress),
+				common.ExtractPortOrDefault(m.websocketListenAddress),
 			)
 			router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 		}
@@ -169,7 +169,7 @@ func (m *apiServerManager) StartRESTServer() error {
 	log.Debugf(log.RESTSys,
 		"Deprecated RPC handler support enabled. Listen URL: http://%s:%d\n",
 		common.ExtractHostOrDefault(m.restListenAddress),
-		common.ExtractPort(m.restListenAddress),
+		common.ExtractPortOrDefault(m.restListenAddress),
 	)
 	m.restRouter = m.newRouter(true)
 	if m.restHTTPServer == nil {
@@ -410,7 +410,7 @@ func (m *apiServerManager) StartWebsocketServer() error {
 	log.Debugf(log.APIServerMgr,
 		"Websocket RPC support enabled. Listen URL: ws://%s:%d/ws\n",
 		common.ExtractHostOrDefault(m.websocketListenAddress),
-		common.ExtractPort(m.websocketListenAddress),
+		common.ExtractPortOrDefault(m.websocketListenAddress),
 	)
 	m.websocketRouter = m.newRouter(false)
 	if m.websocketHTTPServer == nil {

@@ -227,23 +227,11 @@ func TestExtractHostOrDefault(t *testing.T) {
 	assert.Equal(t, "192.168.1.100", ExtractHostOrDefault("192.168.1.100:1337"))
 }
 
-func TestExtractPort(t *testing.T) {
+func TestExtractPortOrDefault(t *testing.T) {
 	t.Parallel()
-	address := "localhost:1337"
-	expectedOutput := 1337
-	actualResult := ExtractPort(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
-	}
 
-	address = "localhost"
-	expectedOutput = 80
-	actualResult = ExtractPort(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
-	}
+	assert.Equal(t, 1337, ExtractPortOrDefault("localhost:1337"))
+	assert.Equal(t, 80, ExtractPortOrDefault("localhost"))
 }
 
 func TestGetURIPath(t *testing.T) {

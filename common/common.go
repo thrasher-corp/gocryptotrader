@@ -328,8 +328,9 @@ func ExtractHostOrDefault(address string) string {
 	return host
 }
 
-// ExtractPort returns the port name out of a string
-func ExtractPort(host string) int {
+// ExtractPortOrDefault returns the port from an address string.
+// If the port is empty, it defaults to 80.
+func ExtractPortOrDefault(host string) int {
 	_, port, _ := net.SplitHostPort(host)
 	if port == "" {
 		return 80

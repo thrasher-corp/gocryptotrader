@@ -1587,7 +1587,7 @@ func (c *Config) CheckRemoteControlConfig() {
 	defer m.Unlock()
 
 	if c.Webserver != nil {
-		port := common.ExtractPort(c.Webserver.ListenAddress)
+		port := common.ExtractPortOrDefault(c.Webserver.ListenAddress)
 		host := common.ExtractHostOrDefault(c.Webserver.ListenAddress)
 
 		c.RemoteControl = RemoteControlConfig{
