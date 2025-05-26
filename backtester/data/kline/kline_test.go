@@ -250,7 +250,7 @@ func TestStreamVolume(t *testing.T) {
 
 	vol, err := d.StreamVol()
 	require.NoError(t, err)
-	assert.NotEmpty(t, vol, "SteamVol should return a non-empty slice")
+	assert.NotEmpty(t, vol, "StreamVol should return a non-empty slice")
 }
 
 func TestStreamClose(t *testing.T) {
