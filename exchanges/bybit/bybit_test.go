@@ -3458,17 +3458,13 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.CoinMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.USDCMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestFetchTradablePairs(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -105,9 +106,7 @@ func TestSetGlobalLogConfig(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigNil)
 	}
 	err = SetGlobalLogConfig(testConfigEnabled)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetLogPath(t *testing.T) {
@@ -118,9 +117,7 @@ func TestSetLogPath(t *testing.T) {
 	}
 
 	err = SetLogPath(tempDir)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if path := GetLogPath(); path != tempDir {
 		t.Fatalf("received: '%v' but expected: '%v'", path, tempDir)
@@ -155,9 +152,8 @@ func TestAddWriter(t *testing.T) {
 	}
 
 	mw, err := multiWriter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	err = mw.add(io.Discard)
 	if err != nil {
 		t.Fatal(err)
@@ -248,9 +244,8 @@ func TestGetWriters(t *testing.T) {
 	}
 	fileLoggingConfiguredCorrectly = true
 	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	mu.Unlock()
 
 	outputWriters = "stdout|stderr|noobs"
@@ -589,9 +584,7 @@ func TestNewSubLogger(t *testing.T) {
 	}
 
 	sl, err := NewSubLogger("TESTERINOS")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	Debugln(sl, "testerinos")
 
@@ -620,21 +613,15 @@ func TestRotateWrite(t *testing.T) {
 	// test write
 	payload = make([]byte, 1*megabyte-1)
 	_, err = empty.Write(payload)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	// test rotate
 	payload = make([]byte, 1*megabyte)
 	_, err = empty.Write(payload)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = empty.Close()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestOpenNew(t *testing.T) {
@@ -647,14 +634,10 @@ func TestOpenNew(t *testing.T) {
 
 	empty.FileName = "wow.txt"
 	err = empty.openNew()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = empty.Close()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 type testBuffer struct {

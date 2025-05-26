@@ -85,27 +85,21 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 
 	st, err := b.GetServerTime(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")
 	}
 
 	st, err = b.GetServerTime(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")
 	}
 
 	st, err = b.GetServerTime(t.Context(), asset.CoinMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")
@@ -2951,28 +2945,20 @@ func TestSetAssetsMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	is, err := b.GetAssetsMode(t.Context())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = b.SetAssetsMode(t.Context(), !is)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = b.SetAssetsMode(t.Context(), is)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAssetsMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAssetsMode(t.Context())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCollateralMode(t *testing.T) {
@@ -2987,9 +2973,7 @@ func TestGetCollateralMode(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 	_, err = b.GetCollateralMode(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetCollateralMode(t *testing.T) {
@@ -3004,9 +2988,8 @@ func TestSetCollateralMode(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 	err = b.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.MultiMode)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = b.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.PortfolioMode)
 	if !errors.Is(err, order.ErrCollateralInvalid) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
@@ -3107,18 +3090,14 @@ func TestSetMarginType(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	err := b.SetMarginType(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Isolated)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	p, err := currency.NewPairFromString("BTCUSD_PERP")
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = b.SetMarginType(t.Context(), asset.CoinMarginedFutures, p, margin.Isolated)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	err = b.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated)
 	if !errors.Is(err, asset.ErrNotSupported) {
@@ -3418,13 +3397,10 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.CoinMarginedFutures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetFundingRateInfo(t *testing.T) {

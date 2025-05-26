@@ -35,31 +35,26 @@ func TestLoadStrategyByName(t *testing.T) {
 	}
 
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.Name() != dollarcostaverage.Name {
 		t.Error("expected dca")
 	}
 	resp, err = LoadStrategyByName(dollarcostaverage.Name, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !resp.UsingSimultaneousProcessing() {
 		t.Error("expected true")
 	}
 
 	resp, err = LoadStrategyByName(rsi.Name, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.Name() != rsi.Name {
 		t.Error("expected rsi")
 	}
 	_, err = LoadStrategyByName(rsi.Name, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddStrategy(t *testing.T) {
@@ -74,9 +69,7 @@ func TestAddStrategy(t *testing.T) {
 	}
 
 	err = AddStrategy(new(customStrategy))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateNewStrategy(t *testing.T) {

@@ -1702,9 +1702,7 @@ func TestFixCasing(t *testing.T) {
 	}
 
 	_, err = b.fixCasing(currency.NewPair(currency.BTC, currency.EMPTYCODE), asset.MarginFunding)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	_, err = b.fixCasing(currency.EMPTYPAIR, asset.MarginFunding)
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
@@ -1938,9 +1936,7 @@ func TestGetSiteListConfigData(t *testing.T) {
 	}
 
 	pairs, err := b.GetSiteListConfigData(t.Context(), bitfinexSecuritiesPairs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(pairs) == 0 {
 		t.Fatal("expected pairs")
@@ -1951,9 +1947,8 @@ func TestGetSiteInfoConfigData(t *testing.T) {
 	t.Parallel()
 	for _, assetType := range []asset.Item{asset.Spot, asset.Futures} {
 		pairs, err := b.GetSiteInfoConfigData(t.Context(), assetType)
-		if !errors.Is(err, nil) {
-			t.Errorf("Error from GetSiteInfoConfigData for %s type received: %v, expected: %v", assetType, err, nil)
-		}
+		assert.NoError(t, err)
+
 		if len(pairs) == 0 {
 			t.Errorf("GetSiteInfoConfigData returned no pairs for %s", assetType)
 		}

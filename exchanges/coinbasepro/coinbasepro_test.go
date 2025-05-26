@@ -1,7 +1,6 @@
 package coinbasepro
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"testing"
@@ -120,9 +119,7 @@ func TestGetCurrentServerTime(t *testing.T) {
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := c.GetServerTime(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")

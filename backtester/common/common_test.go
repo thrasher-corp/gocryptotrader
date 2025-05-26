@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -233,14 +234,11 @@ func TestGenerateFileName(t *testing.T) {
 	}
 
 	_, err = GenerateFileName("hello", "moto")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	name, err := GenerateFileName("......HELL0.  +  _", "moto.")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if name != "hell0_.moto" {
 		t.Errorf("received '%v' expected '%v'", name, "hell0_.moto")
 	}
@@ -249,9 +247,7 @@ func TestGenerateFileName(t *testing.T) {
 func TestRegisterBacktesterSubLoggers(t *testing.T) {
 	t.Parallel()
 	err := RegisterBacktesterSubLoggers()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = RegisterBacktesterSubLoggers()
 	if !errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {

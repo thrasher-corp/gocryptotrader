@@ -53,9 +53,7 @@ func TestSendHTTPRequest(t *testing.T) {
 	}
 
 	err = SetHTTPUserAgent("GCTbot/1337.69 (+http://www.lol.com/)")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	_, err = SendHTTPRequest(t.Context(),
 		methodDelete, "https://www.google.com", headers,
@@ -88,9 +86,7 @@ func TestSetHTTPClientWithTimeout(t *testing.T) {
 	}
 
 	err = SetHTTPClientWithTimeout(time.Second * 15)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPUserAgent(t *testing.T) {
@@ -101,9 +97,7 @@ func TestSetHTTPUserAgent(t *testing.T) {
 	}
 
 	err = SetHTTPUserAgent("testy test")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPClient(t *testing.T) {
@@ -114,9 +108,7 @@ func TestSetHTTPClient(t *testing.T) {
 	}
 
 	err = SetHTTPClient(new(http.Client))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestIsEnabled(t *testing.T) {
@@ -552,9 +544,7 @@ func TestParseStartEndDate(t *testing.T) {
 	}
 
 	err = StartEndTimeCheck(pt, et)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAssertError(t *testing.T) {

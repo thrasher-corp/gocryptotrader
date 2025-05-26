@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -49,9 +50,7 @@ func TestLoad(t *testing.T) {
 		},
 	}
 	err = d.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestHasDataAtTime(t *testing.T) {
@@ -74,9 +73,8 @@ func TestHasDataAtTime(t *testing.T) {
 
 	d.RangeHolder = &gctkline.IntervalRangeHolder{}
 	has, err = d.HasDataAtTime(time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if has {
 		t.Error("expected false")
 	}
@@ -102,44 +100,37 @@ func TestHasDataAtTime(t *testing.T) {
 	}
 
 	has, err = d.HasDataAtTime(dStart)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if has {
 		t.Error("expected false")
 	}
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	d.RangeHolder = ranger
 	err = d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	has, err = d.HasDataAtTime(dStart)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !has {
 		t.Error("expected true")
 	}
 	err = d.SetLive(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	has, err = d.HasDataAtTime(time.Time{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if has {
 		t.Error("expected false")
 	}
 	has, err = d.HasDataAtTime(dStart)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !has {
 		t.Error("expected true")
 	}
@@ -192,14 +183,10 @@ func TestAppend(t *testing.T) {
 	item.Asset = a
 
 	err = d.AppendResults(&item)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.AppendResults(&item)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.AppendResults(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -216,9 +203,8 @@ func TestStreamOpen(t *testing.T) {
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamOpen()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -238,17 +224,14 @@ func TestStreamOpen(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	open, err := d.StreamOpen()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(open) == 0 {
 		t.Error("expected open")
 	}
@@ -263,9 +246,8 @@ func TestStreamVolume(t *testing.T) {
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamVol()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -285,17 +267,14 @@ func TestStreamVolume(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	vol, err := d.StreamVol()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(vol) == 0 {
 		t.Error("expected volume")
 	}
@@ -310,9 +289,8 @@ func TestStreamClose(t *testing.T) {
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamClose()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -333,17 +311,14 @@ func TestStreamClose(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	cl, err := d.StreamClose()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(cl) == 0 {
 		t.Error("expected close")
 	}
@@ -358,9 +333,8 @@ func TestStreamHigh(t *testing.T) {
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamHigh()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -381,17 +355,14 @@ func TestStreamHigh(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	high, err := d.StreamHigh()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(high) == 0 {
 		t.Error("expected high")
 	}
@@ -407,9 +378,8 @@ func TestStreamLow(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	bad, err := d.StreamLow()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -430,18 +400,14 @@ func TestStreamLow(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	low, err := d.StreamLow()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(low) == 0 {
 		t.Error("expected low")
 	}

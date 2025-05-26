@@ -61,9 +61,7 @@ func TestPairsFromString(t *testing.T) {
 	}
 
 	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC", ",")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected := []string{
 		"ALGO-AUD", "BAT-AUD", "BCH-AUD", "BSV-AUD", "BTC-AUD",
@@ -280,14 +278,10 @@ func TestContainsAll(t *testing.T) {
 	}
 
 	err = pairs.ContainsAll(Pairs{NewBTCUSD()}, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false)
 	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
@@ -300,14 +294,10 @@ func TestContainsAll(t *testing.T) {
 	}
 
 	err = pairs.ContainsAll(pairs, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = pairs.ContainsAll(pairs, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	duplication := Pairs{
 		NewBTCUSD(),
@@ -347,9 +337,7 @@ func TestDeriveFrom(t *testing.T) {
 	}
 
 	got, err := testCases.DeriveFrom("USDCUSD")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if got.Upper().String() != "USDCUSD" {
 		t.Fatalf("received: '%v' but expected: '%v'", got.Upper().String(), "USDCUSD")
@@ -447,18 +435,15 @@ func TestGetMatch(t *testing.T) {
 
 	expected := NewBTCUSD()
 	match, err := pairs.GetMatch(expected)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !match.Equal(expected) {
 		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
 
 	match, err = pairs.GetMatch(NewPair(USD, BTC))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if !match.Equal(expected) {
 		t.Fatalf("received: '%v' but expected '%v'", match, expected)
 	}
@@ -679,9 +664,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	formatted, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected := "btcusd,ltcusd,linkusdt,usdnzd,ltcusdt,ltcdai,usdtxrp"
 
@@ -690,9 +673,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	formatted, err = formatted.ValidateAndConform(PairFormat{Delimiter: DashDelimiter, Uppercase: true}, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
 
@@ -705,9 +686,7 @@ func TestValidateAndConform(t *testing.T) {
 		Uppercase: false,
 	},
 		true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	expected = "BTC-USD,LTC-USD,LINK-USDT,USD-NZD,LTC-USDT,LTC-DAI,USDT-XRP"
 
@@ -777,18 +756,14 @@ func TestGetPairsByQuote(t *testing.T) {
 	}
 
 	got, err := available.GetPairsByQuote(USD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 2 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 2)
 	}
 
 	got, err = available.GetPairsByQuote(BTC)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 0 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 0)
@@ -818,18 +793,14 @@ func TestGetPairsByBase(t *testing.T) {
 	}
 
 	got, err := available.GetPairsByBase(USD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 1 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 1)
 	}
 
 	got, err = available.GetPairsByBase(LTC)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(got) != 3 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)

@@ -2011,9 +2011,7 @@ func TestExchangeConfigValidate(t *testing.T) {
 	}
 
 	err = (&Exchange{}).Validate()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetDefaultSyncManagerConfig(t *testing.T) {

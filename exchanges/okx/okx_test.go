@@ -4333,7 +4333,7 @@ func TestGetCollateralMode(t *testing.T) {
 	assert.NotNil(t, result)
 
 	_, err = ok.GetCollateralMode(contextGenerate(), asset.Futures)
-	assert.True(t, errors.Is(err, nil) || errors.Is(err, asset.ErrNotSupported))
+	assert.True(t, err == nil || errors.Is(err, asset.ErrNotSupported))
 }
 
 func TestSetCollateralMode(t *testing.T) {

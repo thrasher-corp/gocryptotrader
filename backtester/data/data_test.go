@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -34,9 +36,8 @@ func TestSetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if d.data == nil {
 		t.Error("expected not nil")
 	}
@@ -54,17 +55,14 @@ func TestGetAllData(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	result, err := d.GetAllData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(result) != 2 {
 		t.Error("expected 2")
 	}
@@ -74,14 +72,11 @@ func TestGetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, &fakeHandler{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.GetDataForCurrency(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
@@ -101,26 +96,21 @@ func TestGetDataForCurrency(t *testing.T) {
 		AssetType:    a,
 		CurrencyPair: p,
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestReset(t *testing.T) {
 	t.Parallel()
 	d := &HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if d.data == nil {
 		t.Error("expected a map")
 	}
@@ -135,9 +125,8 @@ func TestBaseReset(t *testing.T) {
 	t.Parallel()
 	b := &Base{offset: 1}
 	err := b.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if b.offset != 0 {
 		t.Errorf("received '%v' expected '%v'", b.offset, 0)
 	}
@@ -152,9 +141,8 @@ func TestGetStream(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	resp, err := b.GetStream()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 0)
 	}
@@ -173,9 +161,8 @@ func TestGetStream(t *testing.T) {
 		},
 	}
 	resp, err = b.GetStream()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 2)
 	}
@@ -191,17 +178,15 @@ func TestOffset(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	o, err := b.Offset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if o != 0 {
 		t.Errorf("received '%v' expected '%v'", o, 0)
 	}
 	b.offset = 1337
 	o, err = b.Offset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if o != 1337 {
 		t.Errorf("received '%v' expected '%v'", o, 1337)
 	}
@@ -217,9 +202,8 @@ func TestSetStream(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	err := b.SetStream(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(b.stream) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
 	}
@@ -244,9 +228,7 @@ func TestSetStream(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if len(b.stream) != 2 {
 		t.Fatalf("received '%v' expected '%v'", len(b.stream), 2)
@@ -309,13 +291,11 @@ func TestNext(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp != b.stream[0] {
 		t.Errorf("received '%v' expected '%v'", resp, b.stream[0])
 	}
@@ -323,9 +303,8 @@ func TestNext(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", b.offset, 1)
 	}
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err = b.Next()
 	if !errors.Is(err, ErrEndOfData) {
 		t.Errorf("received '%v' expected '%v'", err, ErrEndOfData)
@@ -365,25 +344,21 @@ func TestHistory(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := b.History()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 0)
 	}
 
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err = b.History()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 1)
 	}
@@ -419,36 +394,30 @@ func TestLatest(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := b.Latest()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp != b.stream[0] {
 		t.Errorf("received '%v' expected '%v'", resp, b.stream[0])
 	}
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err = b.Latest()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp != b.stream[0] {
 		t.Errorf("received '%v' expected '%v'", resp, b.stream[0])
 	}
 
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err = b.Latest()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp != b.stream[1] {
 		t.Errorf("received '%v' expected '%v'", resp, b.stream[1])
 	}
@@ -484,13 +453,11 @@ func TestList(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	list, err := b.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(list) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(list), 2)
 	}
@@ -526,24 +493,21 @@ func TestIsLastEvent(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	b.latest = b.stream[0]
 	b.offset = b.stream[0].GetOffset()
 	isLastEvent, err := b.IsLastEvent()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if isLastEvent {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 
 	b.isLiveData = true
 	isLastEvent, err = b.IsLastEvent()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if isLastEvent {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
@@ -559,17 +523,15 @@ func TestIsLive(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	isLive, err := b.IsLive()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if isLive {
 		t.Error("expected false")
 	}
 	b.isLiveData = true
 	isLive, err = b.IsLive()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !isLive {
 		t.Error("expected true")
 	}
@@ -585,17 +547,15 @@ func TestSetLive(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	err := b.SetLive(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !b.isLiveData {
 		t.Error("expected true")
 	}
 
 	err = b.SetLive(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if b.isLiveData {
 		t.Error("expected false")
 	}
@@ -632,17 +592,15 @@ func TestAppendStream(t *testing.T) {
 
 	e.Time = tt
 	err = b.AppendStream(e, e)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.stream) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 1)
 	}
 
 	err = b.AppendStream(e)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.stream) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 1)
 	}
@@ -655,9 +613,8 @@ func TestAppendStream(t *testing.T) {
 			Time:         time.Now(),
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.stream) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 2)
 	}
@@ -713,9 +670,8 @@ func TestFirst(t *testing.T) {
 	}
 
 	first, err := e.First()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if first.GetOffset() != id1 {
 		t.Errorf("received '%v' expected '%v'", first.GetOffset(), id1)
 	}
@@ -733,9 +689,8 @@ func TestLast(t *testing.T) {
 	}
 
 	last, err := e.Last()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if last.GetOffset() != id3 {
 		t.Errorf("received '%v' expected '%v'", last.GetOffset(), id1)
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -85,9 +86,7 @@ func TestLoadDataCandles(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
 	if err != nil {
@@ -115,14 +114,10 @@ func TestLoadDataCandles(t *testing.T) {
 		},
 	}
 	_, err = gctkline.StoreInDatabase(data, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataCandle, p, a, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if err = conn.SQL.Close(); err != nil {
 		t.Error(err)
@@ -160,9 +155,7 @@ func TestLoadDataTrades(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
 	if err != nil {
@@ -183,14 +176,10 @@ func TestLoadDataTrades(t *testing.T) {
 		Side:      gctorder.Buy.String(),
 		Timestamp: dInsert,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if err = conn.SQL.Close(); err != nil {
 		t.Error(err)
