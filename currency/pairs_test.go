@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"errors"
 	"slices"
 	"testing"
 
@@ -52,13 +51,10 @@ func TestPairsString(t *testing.T) {
 
 func TestPairsFromString(t *testing.T) {
 	t.Parallel()
-	if _, err := NewPairsFromString("", ""); !errors.Is(err, errNoDelimiter) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoDelimiter)
-	}
-
-	if _, err := NewPairsFromString("", ","); !errors.Is(err, errCannotCreatePair) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotCreatePair)
-	}
+	_, err := NewPairsFromString("", "")
+	assert.ErrorIs(t, err, errNoDelimiter)
+	_, err = NewPairsFromString("", ",")
+	assert.ErrorIs(t, err, errCannotCreatePair)
 
 	pairs, err := NewPairsFromString("ALGO-AUD,BAT-AUD,BCH-AUD,BSV-AUD,BTC-AUD,COMP-AUD,ENJ-AUD,ETC-AUD,ETH-AUD,ETH-BTC,GNT-AUD,LINK-AUD,LTC-AUD,LTC-BTC,MCAU-AUD,OMG-AUD,POWR-AUD,UNI-AUD,USDT-AUD,XLM-AUD,XRP-AUD,XRP-BTC", ",")
 	require.NoError(t, err)
@@ -70,12 +66,7 @@ func TestPairsFromString(t *testing.T) {
 		"UNI-AUD", "USDT-AUD", "XLM-AUD", "XRP-AUD", "XRP-BTC",
 	}
 
-	returned := pairs.Strings()
-	for x := range returned {
-		if returned[x] != expected[x] {
-			t.Fatalf("received: '%v' but expected: '%v'", returned[x], expected[x])
-		}
-	}
+	assert.Equal(t, expected, pairs.Strings(), "NewPairsFromString should return the correct pairs")
 }
 
 func TestPairsJoin(t *testing.T) {
@@ -273,9 +264,7 @@ func TestContainsAll(t *testing.T) {
 	}
 
 	err := pairs.ContainsAll(nil, true)
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 
 	err = pairs.ContainsAll(Pairs{NewBTCUSD()}, true)
 	require.NoError(t, err)
@@ -284,14 +273,10 @@ func TestContainsAll(t *testing.T) {
 	require.NoError(t, err)
 
 	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false)
-	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
-	}
+	require.ErrorIs(t, err, ErrPairNotContainedInAvailablePairs)
 
 	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true)
-	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
-	}
+	require.ErrorIs(t, err, ErrPairNotContainedInAvailablePairs)
 
 	err = pairs.ContainsAll(pairs, true)
 	require.NoError(t, err)
@@ -307,17 +292,14 @@ func TestContainsAll(t *testing.T) {
 	}
 
 	err = pairs.ContainsAll(duplication, false)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
-	}
+	require.ErrorIs(t, err, ErrPairDuplication)
 }
 
 func TestDeriveFrom(t *testing.T) {
 	t.Parallel()
 	_, err := Pairs{}.DeriveFrom("")
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
+
 	testCases := Pairs{
 		NewBTCUSDT(),
 		NewPair(USDC, USDT),
@@ -327,14 +309,10 @@ func TestDeriveFrom(t *testing.T) {
 	}
 
 	_, err = testCases.DeriveFrom("")
-	if !errors.Is(err, errSymbolEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSymbolEmpty)
-	}
+	require.ErrorIs(t, err, errSymbolEmpty)
 
 	_, err = testCases.DeriveFrom("btcUSD")
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, ErrPairNotFound)
 
 	got, err := testCases.DeriveFrom("USDCUSD")
 	require.NoError(t, err)
@@ -429,9 +407,7 @@ func TestGetMatch(t *testing.T) {
 	}
 
 	_, err := pairs.GetMatch(NewPair(BTC, WABI))
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, ErrPairNotFound)
 
 	expected := NewBTCUSD()
 	match, err := pairs.GetMatch(expected)
@@ -628,9 +604,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	_, err := conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairEmpty)
 
 	duplication, err := NewPairFromString("linkusdt")
 	if err != nil {
@@ -649,9 +623,7 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	_, err = conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
-	}
+	require.ErrorIs(t, err, ErrPairDuplication)
 
 	conformMe = Pairs{
 		NewBTCUSD(),
@@ -737,9 +709,8 @@ func TestGetPairsByQuote(t *testing.T) {
 	t.Parallel()
 
 	var available Pairs
-	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	_, err := available.GetPairsByQuote(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 
 	available = Pairs{
 		NewBTCUSD(),
@@ -751,9 +722,8 @@ func TestGetPairsByQuote(t *testing.T) {
 		NewPair(DAI, XRP),
 	}
 
-	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
-	}
+	_, err = available.GetPairsByQuote(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyCodeEmpty)
 
 	got, err := available.GetPairsByQuote(USD)
 	require.NoError(t, err)
@@ -774,9 +744,8 @@ func TestGetPairsByBase(t *testing.T) {
 	t.Parallel()
 
 	var available Pairs
-	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	_, err := available.GetPairsByBase(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 
 	available = Pairs{
 		NewBTCUSD(),
@@ -788,9 +757,8 @@ func TestGetPairsByBase(t *testing.T) {
 		NewPair(DAI, XRP),
 	}
 
-	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
-	}
+	_, err = available.GetPairsByBase(EMPTYCODE)
+	require.ErrorIs(t, err, ErrCurrencyCodeEmpty)
 
 	got, err := available.GetPairsByBase(USD)
 	require.NoError(t, err)

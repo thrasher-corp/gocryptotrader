@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -120,9 +121,7 @@ func TestExchangeOrderbook(t *testing.T) {
 	}
 
 	_, err = gct.ExchangeOrderbook()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangeTicker(t *testing.T) {
@@ -138,9 +137,7 @@ func TestExchangeTicker(t *testing.T) {
 	}
 
 	_, err = gct.ExchangeTicker()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangeExchanges(t *testing.T) {
@@ -161,9 +158,7 @@ func TestExchangeExchanges(t *testing.T) {
 	}
 
 	_, err = gct.ExchangeExchanges()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangePairs(t *testing.T) {
@@ -179,9 +174,7 @@ func TestExchangePairs(t *testing.T) {
 	}
 
 	_, err = gct.ExchangePairs()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangeAccountInfo(t *testing.T) {

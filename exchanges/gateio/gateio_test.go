@@ -321,15 +321,13 @@ func TestAmendSpotOrder(t *testing.T) {
 	_, err := g.AmendSpotOrder(t.Context(), "", getPair(t, asset.Spot), false, &PriceAndAmount{
 		Price: 1000,
 	})
-	if !errors.Is(err, errInvalidOrderID) {
-		t.Errorf("expecting %v, but found %v", errInvalidOrderID, err)
-	}
+	assert.ErrorIs(t, err, errInvalidOrderID)
+
 	_, err = g.AmendSpotOrder(t.Context(), "123", currency.EMPTYPAIR, false, &PriceAndAmount{
 		Price: 1000,
 	})
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("expecting %v, but found %v", currency.ErrCurrencyPairEmpty, err)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err = g.AmendSpotOrder(t.Context(), "123", getPair(t, asset.Spot), false, &PriceAndAmount{
 		Price: 1000,
@@ -494,13 +492,13 @@ func TestRetriveOneSingleLoanDetail(t *testing.T) {
 
 func TestModifyALoan(t *testing.T) {
 	t.Parallel()
-	if _, err := g.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
+	_, err := g.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:  currency.BTC,
 		Side:      "borrow",
 		AutoRenew: false,
-	}); !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Errorf("%s ModifyALoan() error %v", g.Name, err)
-	}
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	if _, err := g.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:     currency.BTC,
@@ -2544,14 +2542,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 
 	err := g.UpdateOrderExecutionLimits(t.Context(), 1336)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received %v, expected %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Options)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received %v, expected %v", err, common.ErrNotYetImplemented)
-	}
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 
 	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	if err != nil {

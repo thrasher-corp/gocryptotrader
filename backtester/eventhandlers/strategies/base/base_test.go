@@ -1,7 +1,6 @@
 package base
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -22,14 +21,11 @@ func TestGetBase(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.GetBaseData(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	_, err = s.GetBaseData(datakline.NewDataFromKline())
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	tt := time.Now()
 	exch := "binance"
 	a := asset.Spot
@@ -80,7 +76,5 @@ func TestCloseAllPositions(t *testing.T) {
 	t.Parallel()
 	s := &Strategy{}
 	_, err := s.CloseAllPositions(nil, nil)
-	if !errors.Is(err, gctcommon.ErrFunctionNotSupported) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrFunctionNotSupported)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrFunctionNotSupported)
 }

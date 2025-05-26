@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -75,18 +74,14 @@ func TestGetDataForCurrency(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = d.GetDataForCurrency(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	_, err = d.GetDataForCurrency(&fakeEvent{Base: &event.Base{
 		Exchange:     "lol",
 		AssetType:    asset.USDTMarginedFutures,
 		CurrencyPair: currency.NewPair(currency.EMB, currency.DOGE),
 	}})
-	if !errors.Is(err, ErrHandlerNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, ErrHandlerNotFound)
-	}
+	assert.ErrorIs(t, err, ErrHandlerNotFound)
 
 	_, err = d.GetDataForCurrency(&fakeEvent{Base: &event.Base{
 		Exchange:     exch,
@@ -211,26 +206,18 @@ func TestSetStream(t *testing.T) {
 		},
 	}
 	err = b.SetStream([]Event{misMatchEvent})
-	if !errors.Is(err, ErrInvalidEventSupplied) {
-		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidEventSupplied)
-	}
+	require.ErrorIs(t, err, ErrInvalidEventSupplied)
 
 	misMatchEvent.Time = time.Now()
 	err = b.SetStream([]Event{misMatchEvent})
-	if !errors.Is(err, errMisMatchedEvent) {
-		t.Fatalf("received '%v' expected '%v'", err, errMisMatchedEvent)
-	}
+	require.ErrorIs(t, err, errMisMatchedEvent)
 
 	err = b.SetStream([]Event{nil})
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Fatalf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	b = nil
 	err = b.SetStream(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestNext(t *testing.T) {
@@ -464,9 +451,7 @@ func TestIsLive(t *testing.T) {
 
 	b = nil
 	_, err = b.IsLive()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestSetLive(t *testing.T) {
@@ -488,9 +473,7 @@ func TestSetLive(t *testing.T) {
 
 	b = nil
 	err = b.SetLive(false)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestAppendStream(t *testing.T) {
@@ -500,9 +483,8 @@ func TestAppendStream(t *testing.T) {
 		Base: &event.Base{},
 	}
 	err := b.AppendStream(e)
-	if !errors.Is(err, ErrInvalidEventSupplied) {
-		t.Errorf("received '%v' expected '%v'", err, ErrInvalidEventSupplied)
-	}
+	assert.ErrorIs(t, err, ErrInvalidEventSupplied)
+
 	if len(b.stream) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
 	}
@@ -512,9 +494,7 @@ func TestAppendStream(t *testing.T) {
 	e.AssetType = asset.Spot
 	e.CurrencyPair = cp
 	err = b.AppendStream(e)
-	if !errors.Is(err, ErrInvalidEventSupplied) {
-		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidEventSupplied)
-	}
+	require.ErrorIs(t, err, ErrInvalidEventSupplied)
 
 	e.Time = tt
 	err = b.AppendStream(e, e)
@@ -554,34 +534,29 @@ func TestAppendStream(t *testing.T) {
 		},
 	}
 	err = b.AppendStream(misMatchEvent)
-	if !errors.Is(err, errMisMatchedEvent) {
-		t.Fatalf("received '%v' expected '%v'", err, errMisMatchedEvent)
-	}
+	require.ErrorIs(t, err, errMisMatchedEvent)
+
 	if len(b.stream) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 2)
 	}
 
 	err = b.AppendStream(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Fatalf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	if len(b.stream) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 2)
 	}
 
 	err = b.AppendStream()
-	if !errors.Is(err, errNothingToAdd) {
-		t.Fatalf("received '%v' expected '%v'", err, errNothingToAdd)
-	}
+	require.ErrorIs(t, err, errNothingToAdd)
+
 	if len(b.stream) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 2)
 	}
 
 	b = nil
 	err = b.AppendStream()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestFirst(t *testing.T) {

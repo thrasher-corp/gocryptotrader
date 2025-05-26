@@ -1,7 +1,6 @@
 package statistics
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -50,9 +49,7 @@ func TestReset(t *testing.T) {
 
 	s = nil
 	err = s.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestAddDataEventForTime(t *testing.T) {
@@ -63,9 +60,8 @@ func TestAddDataEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -103,13 +99,11 @@ func TestAddSignalEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&signal.Signal{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&signal.Signal{
@@ -148,13 +142,11 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&order.Order{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 
@@ -194,13 +186,11 @@ func TestAddFillEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&fill.Fill{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&fill.Fill{
@@ -245,14 +235,11 @@ func TestAddHoldingsForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.AddHoldingsForTime(&holdings.Holding{})
-	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
-	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
 
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
@@ -302,24 +289,19 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	s := Statistic{}
 
 	err := s.AddComplianceSnapshotForTime(nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.AddComplianceSnapshotForTime(nil, &fill.Fill{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{})
-	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{Base: b})
-	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
+
 	b.Exchange = exch
 	b.Time = tt
 	b.Interval = gctkline.OneDay
@@ -483,9 +465,8 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewBTCUSDT()
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -540,9 +521,7 @@ func TestCalculateTheResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
 	err := s.CalculateAllResults()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
 	tt2 := time.Now().Add(-gctkline.OneDay.Duration() * 6)
@@ -551,9 +530,8 @@ func TestCalculateTheResults(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	p2 := currency.NewPair(currency.XRP, currency.DOGE)
 	err = s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -741,13 +719,10 @@ func TestCalculateTheResults(t *testing.T) {
 
 	s.FundManager = funds
 	err = s.CalculateAllResults()
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
+
 	err = s.CalculateAllResults()
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
 
 	funds, err = funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
@@ -760,9 +735,7 @@ func TestCalculateTheResults(t *testing.T) {
 
 	s.FundManager = funds
 	err = s.CalculateAllResults()
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
 
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{Timestamp: tt2}, signal4)
 	assert.NoError(t, err)
@@ -847,9 +820,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	})
 
 	_, err := CalculateBiggestEventDrawdown(nil)
-	if !errors.Is(err, errReceivedNoData) {
-		t.Errorf("received %v expected %v", err, errReceivedNoData)
-	}
+	assert.ErrorIs(t, err, errReceivedNoData)
 
 	resp, err := CalculateBiggestEventDrawdown(events)
 	assert.NoError(t, err)
@@ -872,37 +843,27 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 		},
 	}
 	_, err = CalculateBiggestEventDrawdown(bogusEvent)
-	if !errors.Is(err, gctcommon.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, gctcommon.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 }
 
 func TestCalculateBiggestValueAtTimeDrawdown(t *testing.T) {
 	var interval gctkline.Interval
 	_, err := CalculateBiggestValueAtTimeDrawdown(nil, interval)
-	if !errors.Is(err, errReceivedNoData) {
-		t.Errorf("received %v expected %v", err, errReceivedNoData)
-	}
+	assert.ErrorIs(t, err, errReceivedNoData)
 
 	_, err = CalculateBiggestValueAtTimeDrawdown(nil, interval)
-	if !errors.Is(err, errReceivedNoData) {
-		t.Errorf("received %v expected %v", err, errReceivedNoData)
-	}
+	assert.ErrorIs(t, err, errReceivedNoData)
 }
 
 func TestAddPNLForTime(t *testing.T) {
 	t.Parallel()
 	s := &Statistic{}
 	err := s.AddPNLForTime(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	sum := &portfolio.PNLSummary{}
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("received %v expected %v", err, errExchangeAssetPairStatsUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
 	exch := testExchange
@@ -926,17 +887,13 @@ func TestAddPNLForTime(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("received %v expected %v", err, errCurrencyStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
 
 	sum.Exchange = exch
 	sum.Asset = a
 	sum.Pair = p
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, errNoDataAtOffset) {
-		t.Errorf("received %v expected %v", err, errNoDataAtOffset)
-	}
+	assert.ErrorIs(t, err, errNoDataAtOffset)
 
 	sum.Offset = 1
 	err = s.AddPNLForTime(sum)

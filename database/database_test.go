@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,33 +17,25 @@ func TestSetConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = inst.SetConfig(nil)
-	if !errors.Is(err, ErrNilConfig) {
-		t.Errorf("received %v, expected %v", err, ErrNilConfig)
-	}
+	assert.ErrorIs(t, err, ErrNilConfig)
 
 	inst = nil
 	err = inst.SetConfig(&Config{})
-	if !errors.Is(err, ErrNilInstance) {
-		t.Errorf("received %v, expected %v", err, ErrNilInstance)
-	}
+	assert.ErrorIs(t, err, ErrNilInstance)
 }
 
 func TestSetSQLiteConnection(t *testing.T) {
 	t.Parallel()
 	inst := &Instance{}
 	err := inst.SetSQLiteConnection(nil)
-	if !errors.Is(err, errNilSQL) {
-		t.Errorf("received %v, expected %v", err, errNilSQL)
-	}
+	assert.ErrorIs(t, err, errNilSQL)
 
 	err = inst.SetSQLiteConnection(&sql.DB{})
 	assert.NoError(t, err)
 
 	inst = nil
 	err = inst.SetSQLiteConnection(nil)
-	if !errors.Is(err, ErrNilInstance) {
-		t.Errorf("received %v, expected %v", err, ErrNilInstance)
-	}
+	assert.ErrorIs(t, err, ErrNilInstance)
 }
 
 func TestSetPostgresConnection(t *testing.T) {
@@ -142,19 +133,16 @@ func TestPing(t *testing.T) {
 
 	inst.SQL = nil
 	err = inst.Ping()
-	if !errors.Is(err, errNilSQL) {
-		t.Errorf("received %v, expected %v", err, errNilSQL)
-	}
+	assert.ErrorIs(t, err, errNilSQL)
+
 	inst.SetConnected(false)
 	err = inst.Ping()
-	if !errors.Is(err, ErrDatabaseNotConnected) {
-		t.Errorf("received %v, expected %v", err, ErrDatabaseNotConnected)
-	}
+	assert.ErrorIs(t, err, ErrDatabaseNotConnected)
+
 	inst = nil
 	err = inst.Ping()
-	if !errors.Is(err, ErrNilInstance) {
-		t.Errorf("received %v, expected %v", err, ErrNilInstance)
-	}
+	assert.ErrorIs(t, err, ErrNilInstance)
+
 	err = con.Close()
 	assert.NoError(t, err)
 
@@ -166,9 +154,7 @@ func TestGetSQL(t *testing.T) {
 	t.Parallel()
 	inst := &Instance{}
 	_, err := inst.GetSQL()
-	if !errors.Is(err, errNilSQL) {
-		t.Errorf("received %v, expected %v", err, errNilSQL)
-	}
+	assert.ErrorIs(t, err, errNilSQL)
 
 	databaseFullLocation := filepath.Join(DB.DataPath, "TestGetSQL")
 	con, err := sql.Open("sqlite3", databaseFullLocation)
@@ -182,7 +168,5 @@ func TestGetSQL(t *testing.T) {
 
 	inst = nil
 	_, err = inst.GetSQL()
-	if !errors.Is(err, ErrNilInstance) {
-		t.Errorf("received %v, expected %v", err, ErrNilInstance)
-	}
+	assert.ErrorIs(t, err, ErrNilInstance)
 }

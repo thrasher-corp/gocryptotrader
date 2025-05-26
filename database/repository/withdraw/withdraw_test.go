@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -182,9 +183,7 @@ func withdrawHelper(t *testing.T) {
 	if len(v) > 0 {
 		_, err = GetEventByUUID(v[0].ID.String())
 		if err != nil {
-			if !errors.Is(err, common.ErrNoResults) {
-				t.Error(err)
-			}
+			assert.ErrorIs(t, err, common.ErrNoResults)
 		}
 	}
 

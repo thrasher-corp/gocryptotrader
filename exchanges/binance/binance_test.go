@@ -80,9 +80,7 @@ func TestUServerTime(t *testing.T) {
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetServerTime(t.Context(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	st, err := b.GetServerTime(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -2308,9 +2306,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err = b.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -2544,14 +2540,10 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	}
 
 	err = limit.Conforms(0.000001, 0.1, order.Limit)
-	if !errors.Is(err, order.ErrAmountBelowMin) {
-		t.Fatalf("expected %v, but received %v", order.ErrAmountBelowMin, err)
-	}
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	err = limit.Conforms(0.01, 1, order.Limit)
-	if !errors.Is(err, order.ErrPriceBelowMin) {
-		t.Fatalf("expected %v, but received %v", order.ErrPriceBelowMin, err)
-	}
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 }
 
 func TestWsOrderExecutionReport(t *testing.T) {
@@ -2821,9 +2813,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
-	if !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	_, err = b.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
@@ -2832,9 +2822,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		EndDate:         e,
 		PaymentCurrency: currency.DOGE,
 	})
-	if !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	r := &fundingrate.HistoricalRatesRequest{
 		Asset:     asset.USDTMarginedFutures,
@@ -2869,9 +2857,8 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Pair:                 cp,
 		IncludePredictedRate: true,
 	})
-	if !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
 	err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
 	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Fatal(err)
@@ -2965,13 +2952,11 @@ func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.GetCollateralMode(t.Context(), asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	_, err = b.GetCollateralMode(t.Context(), asset.CoinMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	_, err = b.GetCollateralMode(t.Context(), asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 }
@@ -2980,20 +2965,16 @@ func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.SetCollateralMode(t.Context(), asset.Spot, collateral.SingleMode)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	err = b.SetCollateralMode(t.Context(), asset.CoinMarginedFutures, collateral.SingleMode)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	err = b.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.MultiMode)
 	assert.NoError(t, err)
 
 	err = b.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.PortfolioMode)
-	if !errors.Is(err, order.ErrCollateralInvalid) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
-	}
+	assert.ErrorIs(t, err, order.ErrCollateralInvalid)
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -3052,9 +3033,7 @@ func TestGetPositionSummary(t *testing.T) {
 		Pair:           p,
 		UnderlyingPair: bb,
 	})
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -3100,9 +3079,7 @@ func TestSetMarginType(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = b.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetLeverage(t *testing.T) {
@@ -3122,9 +3099,7 @@ func TestGetLeverage(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = b.GetLeverage(t.Context(), asset.Spot, currency.NewBTCUSDT(), 0, order.UnknownSide)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestSetLeverage(t *testing.T) {
@@ -3144,9 +3119,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Error(err)
 	}
 	err = b.SetLeverage(t.Context(), asset.Spot, p, margin.Multi, 5, order.UnknownSide)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetCryptoLoansIncomeHistory(t *testing.T) {
@@ -3159,18 +3132,14 @@ func TestGetCryptoLoansIncomeHistory(t *testing.T) {
 
 func TestCryptoLoanBorrow(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanBorrow(t.Context(), currency.EMPTYCODE, 1000, currency.BTC, 1, 7); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.CryptoLoanBorrow(t.Context(), currency.USDT, 1000, currency.EMPTYCODE, 1, 7); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.CryptoLoanBorrow(t.Context(), currency.USDT, 0, currency.BTC, 1, 0); !errors.Is(err, errLoanTermMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanTermMustBeSet)
-	}
-	if _, err := b.CryptoLoanBorrow(t.Context(), currency.USDT, 0, currency.BTC, 0, 7); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
-	}
+	_, err := b.CryptoLoanBorrow(t.Context(), currency.EMPTYCODE, 1000, currency.BTC, 1, 7)
+	assert.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.CryptoLoanBorrow(t.Context(), currency.USDT, 1000, currency.EMPTYCODE, 1, 7)
+	assert.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.CryptoLoanBorrow(t.Context(), currency.USDT, 0, currency.BTC, 1, 0)
+	assert.ErrorIs(t, err, errLoanTermMustBeSet)
+	_, err = b.CryptoLoanBorrow(t.Context(), currency.USDT, 0, currency.BTC, 0, 7)
+	assert.ErrorIs(t, err, errEitherLoanOrCollateralAmountsMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.CryptoLoanBorrow(t.Context(), currency.USDT, 1000, currency.BTC, 1, 7); err != nil {
@@ -3196,12 +3165,10 @@ func TestCryptoLoanOngoingOrders(t *testing.T) {
 
 func TestCryptoLoanRepay(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanRepay(t.Context(), 0, 1000, 1, false); !errors.Is(err, errOrderIDMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errOrderIDMustBeSet)
-	}
-	if _, err := b.CryptoLoanRepay(t.Context(), 42069, 0, 1, false); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.CryptoLoanRepay(t.Context(), 0, 1000, 1, false)
+	assert.ErrorIs(t, err, errOrderIDMustBeSet)
+	_, err = b.CryptoLoanRepay(t.Context(), 42069, 0, 1, false)
+	assert.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.CryptoLoanRepay(t.Context(), 42069, 1000, 1, false); err != nil {
@@ -3219,12 +3186,10 @@ func TestCryptoLoanRepaymentHistory(t *testing.T) {
 
 func TestCryptoLoanAdjustLTV(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanAdjustLTV(t.Context(), 0, true, 1); !errors.Is(err, errOrderIDMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errOrderIDMustBeSet)
-	}
-	if _, err := b.CryptoLoanAdjustLTV(t.Context(), 42069, true, 0); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.CryptoLoanAdjustLTV(t.Context(), 0, true, 1)
+	assert.ErrorIs(t, err, errOrderIDMustBeSet)
+	_, err = b.CryptoLoanAdjustLTV(t.Context(), 42069, true, 0)
+	assert.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.CryptoLoanAdjustLTV(t.Context(), 42069, true, 1); err != nil {
@@ -3258,15 +3223,12 @@ func TestCryptoLoanCollateralAssetsData(t *testing.T) {
 
 func TestCryptoLoanCheckCollateralRepayRate(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.EMPTYCODE, currency.BNB, 69); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.EMPTYCODE, 69); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.BNB, 0); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.EMPTYCODE, currency.BNB, 69)
+	assert.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.EMPTYCODE, 69)
+	assert.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.BNB, 0)
+	assert.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if _, err := b.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.BNB, 69); err != nil {
@@ -3288,15 +3250,12 @@ func TestCryptoLoanCustomiseMarginCall(t *testing.T) {
 
 func TestFlexibleLoanBorrow(t *testing.T) {
 	t.Parallel()
-	if _, err := b.FlexibleLoanBorrow(t.Context(), currency.EMPTYCODE, currency.USDC, 1, 0); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.EMPTYCODE, 1, 0); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.USDC, 0, 0); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
-	}
+	_, err := b.FlexibleLoanBorrow(t.Context(), currency.EMPTYCODE, currency.USDC, 1, 0)
+	assert.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.EMPTYCODE, 1, 0)
+	assert.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.USDC, 0, 0)
+	assert.ErrorIs(t, err, errEitherLoanOrCollateralAmountsMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.USDC, 1, 0); err != nil {
@@ -3322,16 +3281,12 @@ func TestFlexibleLoanBorrowHistory(t *testing.T) {
 
 func TestFlexibleLoanRepay(t *testing.T) {
 	t.Parallel()
-
-	if _, err := b.FlexibleLoanRepay(t.Context(), currency.EMPTYCODE, currency.BTC, 1, false, false); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanRepay(t.Context(), currency.USDT, currency.EMPTYCODE, 1, false, false); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanRepay(t.Context(), currency.USDT, currency.BTC, 0, false, false); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.FlexibleLoanRepay(t.Context(), currency.EMPTYCODE, currency.BTC, 1, false, false)
+	assert.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.FlexibleLoanRepay(t.Context(), currency.USDT, currency.EMPTYCODE, 1, false, false)
+	assert.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.FlexibleLoanRepay(t.Context(), currency.USDT, currency.BTC, 0, false, false)
+	assert.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.FlexibleLoanRepay(t.Context(), currency.ATOM, currency.USDC, 1, false, false); err != nil {
@@ -3349,12 +3304,10 @@ func TestFlexibleLoanRepayHistory(t *testing.T) {
 
 func TestFlexibleLoanAdjustLTV(t *testing.T) {
 	t.Parallel()
-	if _, err := b.FlexibleLoanAdjustLTV(t.Context(), currency.EMPTYCODE, currency.BTC, 1, true); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanAdjustLTV(t.Context(), currency.USDT, currency.EMPTYCODE, 1, true); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
+	_, err := b.FlexibleLoanAdjustLTV(t.Context(), currency.EMPTYCODE, currency.BTC, 1, true)
+	assert.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.FlexibleLoanAdjustLTV(t.Context(), currency.USDT, currency.EMPTYCODE, 1, true)
+	assert.ErrorIs(t, err, errCollateralCoinMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if _, err := b.FlexibleLoanAdjustLTV(t.Context(), currency.USDT, currency.BTC, 1, true); err != nil {
@@ -3389,13 +3342,11 @@ func TestFlexibleCollateralAssetsData(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFuturesContractDetails(t.Context(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	_, err = b.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 

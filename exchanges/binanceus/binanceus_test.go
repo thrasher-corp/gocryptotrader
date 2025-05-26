@@ -390,9 +390,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	endTime := time.Date(2021, 2, 15, 0, 0, 0, 0, time.UTC)
 
 	_, err := bi.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.Interval(time.Hour*5), startTime, endTime)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 
 	_, err = bi.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneDay, startTime, endTime)
 	if err != nil {

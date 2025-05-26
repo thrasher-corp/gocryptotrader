@@ -135,9 +135,7 @@ func TestSortinoRatio(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = SortinoRatio(nil, rfr, avg)
-	if !errors.Is(err, errZeroValue) {
-		t.Errorf("expected: %v, received %v", errZeroValue, err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
 
 	var r float64
 	r, err = SortinoRatio(figures, rfr, avg)
@@ -233,17 +231,14 @@ func TestInformationRatio(t *testing.T) {
 	}
 
 	_, err = InformationRatio(figures, []float64{1}, avg, avgComparison)
-	if !errors.Is(err, errInformationBadLength) {
-		t.Errorf("expected: %v, received %v", errInformationBadLength, err)
-	}
+	assert.ErrorIs(t, err, errInformationBadLength)
 }
 
 func TestCalmarRatio(t *testing.T) {
 	t.Parallel()
 	_, err := CalmarRatio(0, 0, 0, 0)
-	if !errors.Is(err, errCalmarHighest) {
-		t.Errorf("expected: %v, received %v", errCalmarHighest, err)
-	}
+	assert.ErrorIs(t, err, errCalmarHighest)
+
 	var ratio float64
 	ratio, err = CalmarRatio(50000, 15000, 0.2, 0.1)
 	if err != nil {
@@ -261,17 +256,14 @@ func TestCAGR(t *testing.T) {
 		0,
 		0,
 		0)
-	if !errors.Is(err, errCAGRNoIntervals) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCAGRNoIntervals)
+
 	_, err = CompoundAnnualGrowthRate(
 		0,
 		0,
 		0,
 		1)
-	if !errors.Is(err, errCAGRZeroOpenValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCAGRZeroOpenValue)
 
 	var cagr float64
 	cagr, err = CompoundAnnualGrowthRate(
@@ -313,9 +305,8 @@ func TestCAGR(t *testing.T) {
 func TestCalculateSharpeRatio(t *testing.T) {
 	t.Parallel()
 	result, err := SharpeRatio(nil, 0, 0)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
+
 	if result != 0 {
 		t.Error("expected 0")
 	}
@@ -394,9 +385,8 @@ func TestGeometricAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := GeometricMean(nil)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
+
 	var mean float64
 	mean, err = GeometricMean(values)
 	if err != nil {
@@ -417,9 +407,8 @@ func TestGeometricAverage(t *testing.T) {
 
 	values = []float64{-1, 12, 13, 19, 10}
 	mean, err = GeometricMean(values)
-	if !errors.Is(err, errGeometricNegative) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errGeometricNegative)
+
 	if mean != 0 {
 		t.Errorf("expected %v, received %v", 0, mean)
 	}
@@ -429,9 +418,7 @@ func TestFinancialGeometricAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := FinancialGeometricMean(nil)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
 
 	var mean float64
 	mean, err = FinancialGeometricMean(values)
@@ -462,18 +449,15 @@ func TestFinancialGeometricAverage(t *testing.T) {
 
 	values = []float64{-2, 12, 13, 19, 10}
 	_, err = FinancialGeometricMean(values)
-	if !errors.Is(err, errNegativeValueOutOfRange) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errNegativeValueOutOfRange)
 }
 
 func TestArithmeticAverage(t *testing.T) {
 	t.Parallel()
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8}
 	_, err := ArithmeticMean(nil)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
+
 	var avg float64
 	avg, err = ArithmeticMean(values)
 	if err != nil {
@@ -504,9 +488,7 @@ func TestDecimalSortinoRatio(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = DecimalSortinoRatio(nil, rfr, avg)
-	if !errors.Is(err, errZeroValue) {
-		t.Errorf("expected: %v, received %v", errZeroValue, err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
 
 	var r decimal.Decimal
 	r, err = DecimalSortinoRatio(figures, rfr, avg)
@@ -633,17 +615,14 @@ func TestDecimalInformationRatio(t *testing.T) {
 	}
 
 	_, err = DecimalInformationRatio(figures, []decimal.Decimal{decimal.NewFromInt(1)}, avg, avgComparison)
-	if !errors.Is(err, errInformationBadLength) {
-		t.Errorf("expected: %v, received %v", errInformationBadLength, err)
-	}
+	assert.ErrorIs(t, err, errInformationBadLength)
 }
 
 func TestDecimalCalmarRatio(t *testing.T) {
 	t.Parallel()
 	_, err := DecimalCalmarRatio(decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, errCalmarHighest) {
-		t.Errorf("expected: %v, received %v", errCalmarHighest, err)
-	}
+	assert.ErrorIs(t, err, errCalmarHighest)
+
 	var ratio decimal.Decimal
 	ratio, err = DecimalCalmarRatio(
 		decimal.NewFromInt(50000),
@@ -661,9 +640,8 @@ func TestDecimalCalmarRatio(t *testing.T) {
 func TestDecimalCalculateSharpeRatio(t *testing.T) {
 	t.Parallel()
 	result, err := DecimalSharpeRatio(nil, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
+
 	if !result.IsZero() {
 		t.Error("expected 0")
 	}
@@ -758,9 +736,8 @@ func TestDecimalGeometricAverage(t *testing.T) {
 		decimal.NewFromInt(8),
 	}
 	_, err := DecimalGeometricMean(nil)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
+
 	var mean decimal.Decimal
 	mean, err = DecimalGeometricMean(values)
 	if err != nil {
@@ -793,9 +770,8 @@ func TestDecimalGeometricAverage(t *testing.T) {
 		decimal.NewFromInt(10),
 	}
 	mean, err = DecimalGeometricMean(values)
-	if !errors.Is(err, errGeometricNegative) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errGeometricNegative)
+
 	if !mean.IsZero() {
 		t.Errorf("expected %v, received %v", 0, mean)
 	}
@@ -814,9 +790,7 @@ func TestDecimalFinancialGeometricAverage(t *testing.T) {
 		decimal.NewFromInt(8),
 	}
 	_, err := DecimalFinancialGeometricMean(nil)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
 
 	var mean decimal.Decimal
 	mean, err = DecimalFinancialGeometricMean(values)
@@ -865,9 +839,7 @@ func TestDecimalFinancialGeometricAverage(t *testing.T) {
 		decimal.NewFromInt(10),
 	}
 	_, err = DecimalFinancialGeometricMean(values)
-	if !errors.Is(err, errNegativeValueOutOfRange) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errNegativeValueOutOfRange)
 }
 
 func TestDecimalArithmeticAverage(t *testing.T) {
@@ -883,9 +855,8 @@ func TestDecimalArithmeticAverage(t *testing.T) {
 		decimal.NewFromInt(8),
 	}
 	_, err := DecimalArithmeticMean(nil)
-	if !errors.Is(err, errZeroValue) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errZeroValue)
+
 	var avg decimal.Decimal
 	avg, err = DecimalArithmeticMean(values)
 	if err != nil {

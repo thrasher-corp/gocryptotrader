@@ -31,9 +31,7 @@ func TestWhaleBomb(t *testing.T) {
 	b := testSetup()
 
 	_, err := b.WhaleBomb(-1, true)
-	if !errors.Is(err, errPriceTargetInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceTargetInvalid)
-	}
+	require.ErrorIs(t, err, errPriceTargetInvalid)
 
 	result, err := b.WhaleBomb(7001, true) // <- This price should not be wiped out on the book.
 	require.NoError(t, err)
@@ -100,14 +98,10 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	_, err = b.WhaleBomb(6000, true)
-	if !errors.Is(err, errCannotShiftPrice) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotShiftPrice)
-	}
+	require.ErrorIs(t, err, errCannotShiftPrice)
 
 	_, err = b.WhaleBomb(-1, false)
-	if !errors.Is(err, errPriceTargetInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceTargetInvalid)
-	}
+	require.ErrorIs(t, err, errPriceTargetInvalid)
 
 	result, err = b.WhaleBomb(6998, false) // <- This price should not be wiped out on the book.
 	require.NoError(t, err)
@@ -174,9 +168,7 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	_, err = b.WhaleBomb(7500, false)
-	if !errors.Is(err, errCannotShiftPrice) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotShiftPrice)
-	}
+	require.ErrorIs(t, err, errCannotShiftPrice)
 }
 
 func TestSimulateOrder(t *testing.T) {
@@ -185,14 +177,10 @@ func TestSimulateOrder(t *testing.T) {
 
 	// Invalid
 	_, err := b.SimulateOrder(-8000, true)
-	if !errors.Is(err, errQuoteAmountInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
-	}
+	require.ErrorIs(t, err, errQuoteAmountInvalid)
 
 	_, err = (&Base{}).SimulateOrder(1337, true)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
 	result, err := b.SimulateOrder(21002, true)
@@ -327,14 +315,10 @@ func TestSimulateOrder(t *testing.T) {
 	// Invalid
 
 	_, err = (&Base{}).SimulateOrder(-1, false)
-	if !errors.Is(err, errBaseAmountInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBaseAmountInvalid)
-	}
+	require.ErrorIs(t, err, errBaseAmountInvalid)
 
 	_, err = (&Base{}).SimulateOrder(2, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
 	result, err = b.SimulateOrder(3, false)
@@ -487,9 +471,8 @@ func TestGetAveragePrice(t *testing.T) {
 		{Amount: 5, Price: 4},
 	}
 	_, err = b.GetAveragePrice(true, -2)
-	if !errors.Is(err, errAmountInvalid) {
-		t.Errorf("expected: %v, received %v", errAmountInvalid, err)
-	}
+	assert.ErrorIs(t, err, errAmountInvalid)
+
 	avgPrice, err := b.GetAveragePrice(true, 15)
 	if err != nil {
 		t.Error(err)
@@ -505,9 +488,7 @@ func TestGetAveragePrice(t *testing.T) {
 		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice*1000)/1000)
 	}
 	_, err = b.GetAveragePrice(true, 25)
-	if !errors.Is(err, errNotEnoughLiquidity) {
-		t.Errorf("expected: %v, received %v", errNotEnoughLiquidity, err)
-	}
+	assert.ErrorIs(t, err, errNotEnoughLiquidity)
 }
 
 func TestFindNominalAmount(t *testing.T) {
