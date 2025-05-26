@@ -670,11 +670,8 @@ func TestFirst(t *testing.T) {
 	}
 
 	first, err := e.First()
-	assert.NoError(t, err)
-
-	if first.GetOffset() != id1 {
-		t.Errorf("received '%v' expected '%v'", first.GetOffset(), id1)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, id1, first.GetOffset())
 }
 
 func TestLast(t *testing.T) {
@@ -689,11 +686,8 @@ func TestLast(t *testing.T) {
 	}
 
 	last, err := e.Last()
-	assert.NoError(t, err)
-
-	if last.GetOffset() != id3 {
-		t.Errorf("received '%v' expected '%v'", last.GetOffset(), id1)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, id3, last.GetOffset())
 }
 
 // methods that satisfy the common.Event interface

@@ -56,7 +56,7 @@ var leet = decimal.NewFromInt(1337)
 func TestSetupFromConfig(t *testing.T) {
 	t.Parallel()
 	bt, err := NewBacktester()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = bt.SetupFromConfig(nil, "", "", false)
 	if !errors.Is(err, errNilConfig) {
@@ -534,7 +534,7 @@ func TestStop(t *testing.T) {
 		Reports:   &fakeReport{},
 	}
 	err := bt.Stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tt := bt.MetaData.DateEnded
 
@@ -600,7 +600,7 @@ func TestFullCycleMulti(t *testing.T) {
 	}
 
 	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	bt.DataHolder = data.NewHandlerHolder()
 	k := &kline.DataFromKline{

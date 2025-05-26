@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -86,12 +87,10 @@ func TestLoadDataCandles(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -155,7 +154,7 @@ func TestLoadDataTrades(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
 	if err != nil {
@@ -176,7 +175,7 @@ func TestLoadDataTrades(t *testing.T) {
 		Side:      gctorder.Buy.String(),
 		Timestamp: dInsert,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a, false)
 	assert.NoError(t, err)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -230,11 +231,8 @@ func TestStreamOpen(t *testing.T) {
 	assert.NoError(t, err)
 
 	open, err := d.StreamOpen()
-	assert.NoError(t, err)
-
-	if len(open) == 0 {
-		t.Error("expected open")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, open, "open should not be empty")
 }
 
 func TestStreamVolume(t *testing.T) {
