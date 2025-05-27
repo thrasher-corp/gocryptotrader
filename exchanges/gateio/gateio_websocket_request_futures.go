@@ -31,11 +31,11 @@ func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, 
 	if len(resps) != 1 {
 		return nil, common.ErrInvalidResponse
 	}
-	return &resps[0], err
+	return resps[0], err
 }
 
 // WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
-func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]*WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -64,12 +64,12 @@ func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item,
 	}
 
 	if len(orders) == 1 {
-		var singleResponse WebsocketFuturesOrderResponse
+		var singleResponse *WebsocketFuturesOrderResponse
 		err := g.SendWebsocketRequest(ctx, perpetualSubmitOrderEPL, "futures.order_place", a, orders[0], &singleResponse, 2)
-		return []WebsocketFuturesOrderResponse{singleResponse}, err
+		return []*WebsocketFuturesOrderResponse{singleResponse}, err
 	}
 
-	var resp []WebsocketFuturesOrderResponse
+	var resp []*WebsocketFuturesOrderResponse
 	return resp, g.SendWebsocketRequest(ctx, perpetualSubmitBatchOrdersEPL, "futures.order_batch_place", a, orders, &resp, 2)
 }
 

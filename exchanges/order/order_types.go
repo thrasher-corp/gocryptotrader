@@ -133,6 +133,10 @@ type SubmitResponse struct {
 	BorrowSize  float64
 	LoanApplyID string
 	MarginType  margin.Type
+
+	// MultiOrderError is used to indicate an error that occurred when submitting multiple orders, used to determine
+	// rollback point(s) in orders submissions.
+	MultiOrderError error
 }
 
 // TrackingMode defines how the stop price follows the market price.

@@ -1938,3 +1938,8 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// WebsocketSubmitOrders submits multiple orders (batch) via the websocket connection
+func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	return nil, common.ErrFunctionNotSupported
+}

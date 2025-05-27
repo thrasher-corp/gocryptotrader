@@ -2337,26 +2337,17 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 		if err != nil {
 			return nil, err
 		}
-
 		resp, err := g.WebsocketSpotSubmitOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
 		return g.deriveSpotWebsocketOrderResponse(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		amountWithDirection, err := getFutureOrderSize(s)
+		req, err := getFuturesOrderRequest(s)
 		if err != nil {
 			return nil, err
 		}
-
-		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, &ContractOrderCreateParams{
-			Contract:    s.Pair,
-			Size:        amountWithDirection,
-			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
-			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: timeInForceString(s.TimeInForce),
-			Text:        s.ClientOrderID,
-		})
+		resp, err := g.WebsocketFuturesSubmitOrder(ctx, s.AssetType, req)
 		if err != nil {
 			return nil, err
 		}
@@ -2364,6 +2355,22 @@ func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	default:
 		return nil, common.ErrNotYetImplemented
 	}
+}
+
+func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error) {
+	amountWithDirection, err := getFutureOrderSize(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContractOrderCreateParams{
+		Contract:    s.Pair,
+		Size:        amountWithDirection,
+		Price:       strconv.FormatFloat(s.Price, 'f', -1, 64),
+		ReduceOnly:  s.ReduceOnly,
+		TimeInForce: timeInForceString(s.TimeInForce),
+		Text:        s.ClientOrderID,
+	}, nil
 }
 
 // timeInForceString returns the most relevant time-in-force exchange string for a TimeInForce
@@ -2398,8 +2405,17 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 		return nil, common.ErrNoResponse
 	}
 
-	out := make([]*order.SubmitResponse, 0, len(responses))
-	for _, resp := range responses {
+	out := make([]*order.SubmitResponse, len(responses))
+	for i, resp := range responses {
+		if resp.Label != "" { // Only present in a multi order response
+			out[i] = &order.SubmitResponse{
+				Exchange:        g.Name,
+				ClientOrderID:   resp.Text,
+				MultiOrderError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
+			}
+			continue
+		}
+
 		side, err := order.StringToOrderSide(resp.Side)
 		if err != nil {
 			return nil, err
@@ -2431,7 +2447,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, &order.SubmitResponse{
+		out[i] = &order.SubmitResponse{
 			Exchange:             g.Name,
 			OrderID:              resp.ID,
 			AssetType:            resp.Account,
@@ -2451,7 +2467,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 			Purchased:            purchased,
 			Fee:                  resp.Fee.Float64(),
 			FeeAsset:             resp.FeeCurrency,
-		})
+		}
 	}
 	return out, nil
 }
@@ -2572,4 +2588,49 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 		return currency.BTC, nil
 	}
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+}
+
+// WebsocketSubmitOrders submits multiple orders to the exchange through the websocket
+func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error) {
+	var a asset.Item
+	for x := range orders {
+		if err = orders[x].Validate(g.GetTradingRequirements()); err != nil {
+			return nil, err
+		}
+
+		if a == asset.Empty {
+			a = orders[x].AssetType
+			continue
+		}
+
+		if a != orders[x].AssetType {
+			return nil, fmt.Errorf("%w %v", errSingleAssetRequired, a)
+		}
+	}
+
+	if !g.CurrencyPairs.IsAssetSupported(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	switch a {
+	case asset.Spot:
+		reqs := make([]*CreateOrderRequest, len(orders))
+		for x := range orders {
+			reqs[x], err = g.getSpotOrderRequest(orders[x])
+			if err != nil {
+				return nil, err
+			}
+		}
+		got, err := g.WebsocketSpotSubmitOrders(ctx, reqs...)
+		if err != nil {
+			return nil, err
+		}
+		resps, err := g.deriveSpotWebsocketOrderResponses(got)
+		if err != nil {
+			return nil, err
+		}
+		return resps, nil
+	default:
+		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+	}
 }
