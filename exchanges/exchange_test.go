@@ -3024,6 +3024,6 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
-	_, err := (&Base{}).WebsocketSubmitOrders(context.Background(), nil)
+	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }

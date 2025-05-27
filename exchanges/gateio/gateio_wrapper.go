@@ -2591,10 +2591,10 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 }
 
 // WebsocketSubmitOrders submits multiple orders to the exchange through the websocket
-func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error) {
+func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	var a asset.Item
 	for x := range orders {
-		if err = orders[x].Validate(g.GetTradingRequirements()); err != nil {
+		if err := orders[x].Validate(g.GetTradingRequirements()); err != nil {
 			return nil, err
 		}
 
@@ -2616,6 +2616,7 @@ func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Subm
 	case asset.Spot:
 		reqs := make([]*CreateOrderRequest, len(orders))
 		for x := range orders {
+			var err error
 			reqs[x], err = g.getSpotOrderRequest(orders[x])
 			if err != nil {
 				return nil, err
