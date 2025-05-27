@@ -91,13 +91,25 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 			{{ end }}
 			{{ if .WS }}
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching: true,
-				OrderbookFetching: true,
+				TickerFetching: 		true,
+				OrderbookFetching:      true,
+				// KlineFetching:          true,
+				// TradeFetching:          true,
+				// Subscribe:              true,
+				// Unsubscribe:            true,
+				// GetOrders:              true,
+				// AccountInfo:            true,
+				// AuthenticatedEndpoints: true,
 			},
 			{{ end }}
 			WithdrawPermissions: exchange.AutoWithdrawCrypto | 
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				// Intervals:  true,
+			},
+			Subscriptions: subscription.List{},
 		},
+
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			// Kline: kline.ExchangeCapabilitiesEnabled{
@@ -117,7 +129,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 	// NOTE: SET THE URLs HERE
 	{{.Variable}}.API.Endpoints = {{.Variable}}.NewEndpoints()
-	{{.Variable}}.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = {{.Variable}}.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
@@ -152,7 +164,6 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	}
 
 	// If websocket is supported, please fill out the following
-
 	err = {{.Variable}}.Websocket.Setup(
 		&websocket.ManagerSetup{
 			ExchangeConfig:  exch,
@@ -484,6 +495,11 @@ func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(ctx context.Context, p
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetLeverage gets the account's initial leverage for the asset type and pair
+func ({{.Variable}} *{{.CapitalName}}) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
+	return -1, common.ErrNotYetImplemented
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
