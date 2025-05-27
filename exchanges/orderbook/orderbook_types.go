@@ -45,7 +45,7 @@ var s = store{
 }
 
 type book struct {
-	ExchangeID uuid.UUID
+	RouterID uuid.UUID
 	Depth      *Depth
 }
 
