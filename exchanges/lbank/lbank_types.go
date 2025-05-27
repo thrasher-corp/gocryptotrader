@@ -48,7 +48,7 @@ type TradeResponse struct {
 type KlineResponse struct {
 	TimeStamp     time.Time `json:"timestamp"`
 	OpenPrice     float64   `json:"openprice"`
-	HigestPrice   float64   `json:"highestprice"`
+	HighestPrice  float64   `json:"highestprice"`
 	LowestPrice   float64   `json:"lowestprice"`
 	ClosePrice    float64   `json:"closeprice"`
 	TradingVolume float64   `json:"tradingvolume"`

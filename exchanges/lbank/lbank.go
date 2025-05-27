@@ -154,7 +154,7 @@ func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType string, t
 		k[x] = KlineResponse{
 			TimeStamp:     time.Unix(int64(klineTemp[x][0]), 0).UTC(),
 			OpenPrice:     klineTemp[x][1],
-			HigestPrice:   klineTemp[x][2],
+			HighestPrice:  klineTemp[x][2],
 			LowestPrice:   klineTemp[x][3],
 			ClosePrice:    klineTemp[x][4],
 			TradingVolume: klineTemp[x][5],

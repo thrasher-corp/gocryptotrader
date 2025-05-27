@@ -103,7 +103,9 @@ func TestGetKlines(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := l.UpdateOrderbook(t.Context(), testPair, asset.Options)
+	_, err := l.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = l.UpdateOrderbook(t.Context(), testPair, asset.Options)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = l.UpdateOrderbook(t.Context(), testPair, asset.Spot)
 	assert.NoError(t, err, "UpdateOrderbook should not error")
@@ -230,16 +232,14 @@ func TestLoadPrivKey(t *testing.T) {
 	require.NoError(t, err)
 	der := x509.MarshalPKCS1PrivateKey(key)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	err = l2.loadPrivKey(ctx)
-	require.ErrorIs(t, err, errUnableToParsePrivateKey)
+	require.ErrorIs(t, l2.loadPrivKey(ctx), errUnableToParsePrivateKey)
 
 	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(ecdsaKey)
 	require.NoError(t, err)
 	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
-	err = l2.loadPrivKey(ctx)
-	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
+	require.ErrorIs(t, l2.loadPrivKey(ctx), common.ErrTypeAssertFailure)
 
 	key, err = rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -282,8 +282,7 @@ func TestSign(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	err = l.loadPrivKey(t.Context())
-	require.NoError(t, err, "loadPrivKey must not error")
+	require.NoError(t, l.loadPrivKey(t.Context()), "loadPrivKey must not error")
 
 	_, err = l.sign("hello123")
 	assert.NoError(t, err, "sign should not error")
@@ -383,7 +382,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
+	_, err := l.GetHistoricCandles(t.Context(), currency.EMPTYPAIR, asset.Spot, kline.OneMin, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = l.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.OneMin, time.Now().Add(-24*time.Hour), time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
 }
 
@@ -393,7 +394,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name     string
@@ -442,7 +443,11 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err := l.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().AddDate(69, 0, 0), time.Now())
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	_, err = l.GetHistoricTrades(t.Context(), currency.EMPTYPAIR, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = l.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	assert.NoError(t, err, "GetHistoricTrades should not error")
 }
 

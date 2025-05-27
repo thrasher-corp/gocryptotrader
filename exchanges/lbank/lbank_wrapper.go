@@ -836,7 +836,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		timeSeries[x] = kline.Candle{
 			Time:   data[x].TimeStamp,
 			Open:   data[x].OpenPrice,
-			High:   data[x].HigestPrice,
+			High:   data[x].HighestPrice,
 			Low:    data[x].LowestPrice,
 			Close:  data[x].ClosePrice,
 			Volume: data[x].TradingVolume,
@@ -871,7 +871,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			timeSeries = append(timeSeries, kline.Candle{
 				Time:   data[i].TimeStamp,
 				Open:   data[i].OpenPrice,
-				High:   data[i].HigestPrice,
+				High:   data[i].HighestPrice,
 				Low:    data[i].LowestPrice,
 				Close:  data[i].ClosePrice,
 				Volume: data[i].TradingVolume,
