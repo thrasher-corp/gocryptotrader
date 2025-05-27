@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -62,14 +63,20 @@ const (
 	lbankTimestamp               = "timestamp.do"
 )
 
+var (
+	errPEMBlockIsNil           = errors.New("pem block is nil")
+	errUnableToParsePrivateKey = errors.New("unable to parse private key")
+	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
+)
+
 // GetTicker returns a ticker for the specified symbol
 // symbol: eth_btc
 func (l *Lbank) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
-	var t TickerResponse
+	var t *TickerResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankTicker, params.Encode())
-	return &t, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
+	return t, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
 }
 
 // GetTimestamp returns a timestamp
@@ -505,25 +512,25 @@ func (l *Lbank) loadPrivKey(ctx context.Context) error {
 
 	block, _ := pem.Decode([]byte(key))
 	if block == nil {
-		return errors.New("pem block is nil")
+		return errPEMBlockIsNil
 	}
 
 	p, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return fmt.Errorf("unable to decode priv key: %s", err)
+		return fmt.Errorf("%w: %s", errUnableToParsePrivateKey, err)
 	}
 
 	var ok bool
 	l.privateKey, ok = p.(*rsa.PrivateKey)
 	if !ok {
-		return errors.New("unable to parse RSA private key")
+		return common.GetTypeAssertError("*rsa.PrivateKey", p)
 	}
 	return nil
 }
 
 func (l *Lbank) sign(data string) (string, error) {
 	if l.privateKey == nil {
-		return "", errors.New("private key not loaded")
+		return "", errPrivateKeyNotLoaded
 	}
 	md5hash, err := gctcrypto.GetMD5([]byte(data))
 	if err != nil {

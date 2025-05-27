@@ -188,7 +188,7 @@ type WithdrawConfigResponse struct {
 	Chain               string        `json:"chain"`
 	AssetCode           currency.Code `json:"assetCode"`
 	Minimum             float64       `json:"min,string"`
-	TransferAmountScale int64         `json:"transferAmountScale,string"`
+	TransferAmountScale int64         `json:"transferAmtScale,string"`
 	CanWithdraw         bool          `json:"canWithDraw"`
 	Fee                 float64       `json:"fee"`
 	MinimumTransfer     float64       `json:"minTransfer,string"`

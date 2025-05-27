@@ -1,13 +1,24 @@
 package lbank
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -92,7 +103,9 @@ func TestGetKlines(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := l.UpdateOrderbook(t.Context(), testPair, asset.Spot)
+	_, err := l.UpdateOrderbook(t.Context(), testPair, asset.Options)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	_, err = l.UpdateOrderbook(t.Context(), testPair, asset.Spot)
 	assert.NoError(t, err, "UpdateOrderbook should not error")
 }
 
@@ -206,20 +219,71 @@ func TestGetWithdrawRecords(t *testing.T) {
 func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 
+	l2 := new(Lbank)
+	l2.SetDefaults()
+	require.ErrorIs(t, l2.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
+
 	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "errortest"})
-	assert.Error(t, l.loadPrivKey(ctx), "loadPrivKey should error when key is invalid")
+	assert.ErrorIs(t, l2.loadPrivKey(ctx), errPEMBlockIsNil)
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der := x509.MarshalPKCS1PrivateKey(key)
+	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
+	err = l2.loadPrivKey(ctx)
+	require.ErrorIs(t, err, errUnableToParsePrivateKey)
+
+	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	der, err = x509.MarshalPKCS8PrivateKey(ecdsaKey)
+	require.NoError(t, err)
+	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
+	err = l2.loadPrivKey(ctx)
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
+
+	key, err = rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der, err = x509.MarshalPKCS8PrivateKey(key)
+	require.NoError(t, err)
+	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
+	assert.NoError(t, l2.loadPrivKey(ctx), "loadPrivKey should not error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	assert.NoError(t, l.loadPrivKey(t.Context()), "LoadPrivKey should not error")
+	assert.NoError(t, l.loadPrivKey(t.Context()), "loadPrivKey should not error")
 }
 
 func TestSign(t *testing.T) {
 	t.Parallel()
+
+	l2 := new(Lbank)
+	l2.SetDefaults()
+	_, err := l2.sign("hello123")
+	require.ErrorIs(t, err, errPrivateKeyNotLoaded)
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err, "GenerateKey must not error")
+	l2.privateKey = key
+
+	targetMessage := "hello123"
+	msg, err := l2.sign(targetMessage)
+	require.NoError(t, err, "sign must not error")
+
+	md5hash, err := gctcrypto.GetMD5([]byte(targetMessage))
+	require.NoError(t, err)
+	m := strings.ToUpper(hex.EncodeToString(md5hash))
+	shaHash, err := gctcrypto.GetSHA256([]byte(m))
+	require.NoError(t, err)
+
+	sigBytes, err := base64.StdEncoding.DecodeString(msg)
+	require.NoError(t, err)
+	err = rsa.VerifyPKCS1v15(&l2.privateKey.PublicKey, crypto.SHA256, shaHash, sigBytes)
+	require.NoError(t, err)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	err := l.loadPrivKey(t.Context())
-	require.NoError(t, err, "LoadPrivKey must not error")
+	err = l.loadPrivKey(t.Context())
+	require.NoError(t, err, "loadPrivKey must not error")
 
 	_, err = l.sign("hello123")
 	assert.NoError(t, err, "sign should not error")
@@ -325,9 +389,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	startTime := time.Now().Add(-time.Minute * 2)
-	end := time.Now()
-	_, err := l.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneMin, startTime, end)
+	_, err := l.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*2), time.Now())
 	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
