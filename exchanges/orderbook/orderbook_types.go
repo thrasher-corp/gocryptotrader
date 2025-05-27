@@ -52,7 +52,7 @@ type book struct {
 // store provides a centralised store for orderbooks
 type store struct {
 	orderbooks  map[key.ExchangePairAsset]bookWithExchangeID
-	exchangeIDs map[string]uuid.UUID
+	exchangeRouters map[string]uuid.UUID
 	signalMux   *dispatch.Mux
 	m           sync.RWMutex
 }
