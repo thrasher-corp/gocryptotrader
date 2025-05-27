@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -155,129 +154,40 @@ func TestDurationToWord(t *testing.T) {
 		name     string
 		interval Interval
 	}{
-		{
-			"raw",
-			Raw,
-		},
-		{
-			"hundredmillisec",
-			HundredMilliseconds,
-		},
-		{
-			"thousandmillisec",
-			ThousandMilliseconds,
-		},
-		{
-			"tensec",
-			TenSecond,
-		},
-		{
-			"FifteenSecond",
-			FifteenSecond,
-		},
-		{
-			"OneMin",
-			OneMin,
-		},
-		{
-			"ThreeMin",
-			ThreeMin,
-		},
-		{
-			"FiveMin",
-			FiveMin,
-		},
-		{
-			"TenMin",
-			TenMin,
-		},
-		{
-			"FifteenMin",
-			FifteenMin,
-		},
-		{
-			"ThirtyMin",
-			ThirtyMin,
-		},
-		{
-			"OneHour",
-			OneHour,
-		},
-		{
-			"TwoHour",
-			TwoHour,
-		},
-		{
-			"FourHour",
-			FourHour,
-		},
-		{
-			"SixHour",
-			SixHour,
-		},
-		{
-			"EightHour",
-			OneHour * 8,
-		},
-		{
-			"TwelveHour",
-			TwelveHour,
-		},
-		{
-			"OneDay",
-			OneDay,
-		},
-		{
-			"ThreeDay",
-			ThreeDay,
-		},
-		{
-			"FiveDay",
-			FiveDay,
-		},
-		{
-			"FifteenDay",
-			FifteenDay,
-		},
-		{
-			"OneWeek",
-			OneWeek,
-		},
-		{
-			"TwoWeek",
-			TwoWeek,
-		},
-		{
-			"OneMonth",
-			OneMonth,
-		},
-		{
-			"ThreeMonth",
-			ThreeMonth,
-		},
-		{
-			"SixMonth",
-			SixMonth,
-		},
-		{
-			"OneYear",
-			OneYear,
-		},
-		{
-			"notfound",
-			Interval(time.Hour * 1337),
-		},
+		{"raw", Raw},
+		{"tenmillisec", TenMilliseconds},
+		{"twentymillisec", TwentyMilliseconds},
+		{"hundredmillisec", HundredMilliseconds},
+		{"twohundredfiftymillisec", TwoHundredAndFiftyMilliseconds},
+		{"thousandmillisec", ThousandMilliseconds},
+		{"tensec", TenSecond},
+		{"fifteensecond", FifteenSecond},
+		{"onemin", OneMin},
+		{"threemin", ThreeMin},
+		{"fivemin", FiveMin},
+		{"tenmin", TenMin},
+		{"fifteenmin", FifteenMin},
+		{"thirtymin", ThirtyMin},
+		{"onehour", OneHour},
+		{"twohour", TwoHour},
+		{"fourhour", FourHour},
+		{"sixhour", SixHour},
+		{"eighthour", OneHour * 8},
+		{"twelvehour", TwelveHour},
+		{"oneday", OneDay},
+		{"threeday", ThreeDay},
+		{"fiveday", FiveDay},
+		{"fifteenday", FifteenDay},
+		{"oneweek", OneWeek},
+		{"twoweek", TwoWeek},
+		{"onemonth", OneMonth},
+		{"threemonth", ThreeMonth},
+		{"sixmonth", SixMonth},
+		{"oneyear", OneYear},
+		{"notfound", Interval(time.Hour * 1337)},
 	}
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			t.Helper()
-			v := durationToWord(test.interval)
-			if !strings.EqualFold(v, test.name) {
-				t.Fatalf("%v: received %v expected %v", test.name, v, test.name)
-			}
-		})
+	for _, tc := range testCases {
+		require.Equal(t, tc.name, durationToWord(tc.interval))
 	}
 }
 

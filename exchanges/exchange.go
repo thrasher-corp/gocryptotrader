@@ -1140,21 +1140,23 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// ValidateKline confirms that the requested pair, asset & interval are
-// supported and/or enabled by the requested exchange.
-func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	var err error
-	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
-	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		err = common.AppendError(err, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
+// verifyKlineParameters verifies whether the pair, asset and interval are enabled on the exchange
+func (b *Base) verifyKlineParameters(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return err
+	}
+
+	if ok, err := b.IsPairEnabled(pair, a); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("%w: %v", currency.ErrPairNotEnabled, pair)
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		err = common.AppendError(err, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval))
+		return fmt.Errorf("%w: %v", kline.ErrInvalidInterval, interval)
 	}
 
-	return err
+	return nil
 }
 
 // AddTradesToBuffer is a helper function that will only
@@ -1495,7 +1497,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, exchangeInterval)
+	err = b.verifyKlineParameters(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1566,7 +1568,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, exchangeInterval)
+	err = b.verifyKlineParameters(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}

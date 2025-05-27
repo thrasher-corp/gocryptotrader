@@ -1126,7 +1126,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		if timeInForce != "" {
 			arg["timeInForce"] = timeInForce
 		}
-		if cancelAfter > 0 && timeInForce == "GTT" {
+		if cancelAfter > 0 && timeInForce == order.GoodTillTime.String() {
 			arg["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
 		}
 		arg["postOnly"] = postOnly

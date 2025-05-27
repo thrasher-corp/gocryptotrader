@@ -1286,16 +1286,6 @@ func TestWSRetrieveAnnouncements(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetPublicPortfolioMargins(t *testing.T) {
-	info, err := d.GetInstrument(t.Context(), "BTC-PERPETUAL")
-	require.NoError(t, err)
-	_, err = d.GetPublicPortfolioMargins(t.Context(), currency.EMPTYCODE, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := d.GetPublicPortfolioMargins(t.Context(), currency.BTC, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetAccessLog(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -1558,28 +1548,6 @@ func TestWSRetrieveNewAnnouncements(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	result, err := d.WSRetrieveNewAnnouncements()
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetPrivatePortfolioMargins(t *testing.T) {
-	t.Parallel()
-	_, err := d.GetPrivatePortfolioMargins(t.Context(), currency.EMPTYCODE, false, nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.GetPrivatePortfolioMargins(t.Context(), currency.BTC, false, nil)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestWsRetrievePrivatePortfolioMargins(t *testing.T) {
-	t.Parallel()
-	_, err := d.WSRetrievePrivatePortfolioMargins(currency.EMPTYCODE, false, nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	result, err := d.WSRetrievePrivatePortfolioMargins(currency.BTC, false, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3472,16 +3440,6 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
-	t.Parallel()
-	info, err := d.GetInstrument(t.Context(), btcPerpInstrument)
-	require.NoError(t, err)
-	require.NotNil(t, info)
-	result, err := d.WSRetrievePublicPortfolioMargins(currency.BTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
@@ -4199,4 +4157,29 @@ func TestFormatChannelPair(t *testing.T) {
 	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
 	pair.Delimiter = "-"
 	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
+}
+
+var timeInForceList = []struct {
+	String   string
+	PostOnly bool
+	TIF      order.TimeInForce
+	Error    error
+}{
+	{"good_til_cancelled", false, order.GoodTillCancel, nil},
+	{"good_til_cancelled", true, order.GoodTillCancel | order.PostOnly, nil},
+	{"good_til_day", false, order.GoodTillDay, nil},
+	{"good_til_day", true, order.GoodTillDay | order.PostOnly, nil},
+	{"fill_or_kill", false, order.FillOrKill, nil},
+	{"immediate_or_cancel", false, order.ImmediateOrCancel, nil},
+	{"abcd", false, order.UnknownTIF, order.ErrInvalidTimeInForce},
+	{"", false, order.UnknownTIF, nil},
+}
+
+func TestTimeInForceFromString(t *testing.T) {
+	t.Parallel()
+	for i := range timeInForceList {
+		result, err := timeInForceFromString(timeInForceList[i].String, timeInForceList[i].PostOnly)
+		assert.Equalf(t, timeInForceList[i].TIF, result, "expected  %s, got %s", timeInForceList[i].TIF.String(), result.String())
+		require.ErrorIs(t, err, timeInForceList[i].Error)
+	}
 }
