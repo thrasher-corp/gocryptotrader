@@ -44,7 +44,7 @@ var s = store{
 	signalMux:   dispatch.GetNewMux(nil),
 }
 
-type bookWithExchangeID struct {
+type book struct {
 	ExchangeID uuid.UUID
 	Depth      *Depth
 }
