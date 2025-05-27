@@ -517,7 +517,7 @@ func (l *Lbank) loadPrivKey(ctx context.Context) error {
 
 	p, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return fmt.Errorf("%w: %s", errUnableToParsePrivateKey, err)
+		return fmt.Errorf("%w: %w", errUnableToParsePrivateKey, err)
 	}
 
 	var ok bool
