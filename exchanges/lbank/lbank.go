@@ -118,6 +118,7 @@ func (l *Lbank) GetMarketDepths(ctx context.Context, symbol string, size uint64)
 }
 
 // GetTrades returns an array of available trades regarding a particular exchange
+// The time parameter is optional, if provided it will return trades after the given time
 func (l *Lbank) GetTrades(ctx context.Context, symbol string, limit uint64, tm time.Time) ([]TradeResponse, error) {
 	var g []TradeResponse
 	params := url.Values{}
@@ -186,7 +187,7 @@ func (l *Lbank) CreateOrder(ctx context.Context, pair, side string, amount, pric
 		return resp, order.ErrSideIsInvalid
 	}
 	if amount <= 0 {
-		return resp, order.ErrAmountIsInvalid
+		return resp, order.ErrAmountBelowMin
 	}
 	if price <= 0 {
 		return resp, order.ErrPriceBelowMin

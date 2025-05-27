@@ -125,7 +125,7 @@ func TestCreateOrder(t *testing.T) {
 	_, err := l.CreateOrder(t.Context(), testPair.String(), "what", 1231, 12314)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = l.CreateOrder(t.Context(), testPair.String(), order.Buy.String(), 0, 0)
-	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 	_, err = l.CreateOrder(t.Context(), testPair.String(), order.Sell.String(), 1231, 0)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
