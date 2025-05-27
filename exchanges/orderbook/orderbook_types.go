@@ -39,22 +39,22 @@ var (
 )
 
 var s = store{
-	orderbooks:  make(map[key.ExchangePairAsset]bookWithExchangeID),
-	exchangeIDs: make(map[string]uuid.UUID),
-	signalMux:   dispatch.GetNewMux(nil),
+	orderbooks:      make(map[key.ExchangePairAsset]book),
+	exchangeRouters: make(map[string]uuid.UUID),
+	signalMux:       dispatch.GetNewMux(nil),
 }
 
 type book struct {
 	RouterID uuid.UUID
-	Depth      *Depth
+	Depth    *Depth
 }
 
 // store provides a centralised store for orderbooks
 type store struct {
-	orderbooks  map[key.ExchangePairAsset]bookWithExchangeID
+	orderbooks      map[key.ExchangePairAsset]book
 	exchangeRouters map[string]uuid.UUID
-	signalMux   *dispatch.Mux
-	m           sync.RWMutex
+	signalMux       *dispatch.Mux
+	m               sync.RWMutex
 }
 
 // Tranche defines a segmented portions of an order or options book

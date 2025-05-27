@@ -33,7 +33,7 @@ func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error)
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
-	id, ok := s.exchangeIDs[exchange]
+	id, ok := s.exchangeRouters[exchange]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("%w for %s exchange", ErrOrderbookNotFound, exchange)
 	}
@@ -47,7 +47,7 @@ func (s *store) Update(b *Base) error {
 	s.m.RUnlock()
 	if !ok {
 		var err error
-		book, err = s.trackNewBook(b)
+		book, err = s.track(b)
 		if err != nil {
 			return err
 		}
@@ -55,24 +55,24 @@ func (s *store) Update(b *Base) error {
 	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true); err != nil {
 		return err
 	}
-	return s.signalMux.Publish(book.Depth, book.ExchangeID)
+	return s.signalMux.Publish(book.Depth, book.RouterID)
 }
 
-func (s *store) track(b *Base) (bookWithExchangeID, error) {
+func (s *store) track(b *Base) (book, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	id, ok := s.exchangeIDs[b.Exchange]
+	id, ok := s.exchangeRouters[b.Exchange]
 	if !ok {
 		exchangeID, err := s.signalMux.GetID()
 		if err != nil {
-			return bookWithExchangeID{}, err
+			return book{}, err
 		}
 		id = exchangeID
-		s.exchangeIDs[b.Exchange] = id
+		s.exchangeRouters[b.Exchange] = id
 	}
 	depth := NewDepth(id)
 	depth.AssignOptions(b)
-	book := bookWithExchangeID{ExchangeID: id, Depth: depth}
+	book := book{RouterID: id, Depth: depth}
 	s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}] = book
 	return book, nil
 }
@@ -94,7 +94,7 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 	s.m.RUnlock()
 	var err error
 	if !ok {
-		book, err = s.trackNewBook(&Base{Exchange: exchange, Pair: p, Asset: a})
+		book, err = s.track(&Base{Exchange: exchange, Pair: p, Asset: a})
 	}
 	return book.Depth, err
 }
