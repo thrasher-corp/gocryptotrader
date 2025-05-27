@@ -364,7 +364,7 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
+	err = b.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

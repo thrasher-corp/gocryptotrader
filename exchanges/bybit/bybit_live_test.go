@@ -18,17 +18,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	b = new(Bybit)
-	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
-	}
-
-	if apiKey != "" && apiSecret != "" {
-		b.API.AuthenticatedSupport = true
-		b.API.AuthenticatedWebsocketSupport = true
-		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
+	b = testInstance()
 
 	if b.API.AuthenticatedSupport {
 		if _, err := b.FetchAccountType(context.Background()); err != nil {
@@ -39,6 +29,21 @@ func TestMain(m *testing.M) {
 	instantiateTradablePairs()
 
 	os.Exit(m.Run())
+}
+
+func testInstance() *Bybit {
+	b := new(Bybit)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatal(err)
+	}
+
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.API.AuthenticatedWebsocketSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	}
+	return b
 }
 
 func instantiateTradablePairs() {

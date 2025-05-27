@@ -367,7 +367,7 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
+	err = p.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

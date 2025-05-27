@@ -364,7 +364,7 @@ func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) erro
 		}
 	}
 	by.Websocket.DataHandler <- changes
-	return account.ProcessChange(by.Name, changes, creds)
+	return by.Accounts.Update(changes, creds)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.

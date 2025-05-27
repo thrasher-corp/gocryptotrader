@@ -670,7 +670,7 @@ func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetT
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {

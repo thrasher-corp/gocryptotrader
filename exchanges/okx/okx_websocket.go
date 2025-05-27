@@ -1491,7 +1491,7 @@ func (ok *Okx) wsProcessBalanceAndPosition(data []byte) error {
 		// TODO: Handle position data
 	}
 	ok.Websocket.DataHandler <- changes
-	return account.ProcessChange(ok.Name, changes, creds)
+	return ok.Accounts.Update(changes, creds)
 }
 
 // wsProcessPushData processes push data coming through the websocket channel

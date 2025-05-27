@@ -339,7 +339,7 @@ func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&info, creds)
+	err = b.Accounts.Save(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

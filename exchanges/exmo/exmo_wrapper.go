@@ -338,7 +338,7 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
+	err = e.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

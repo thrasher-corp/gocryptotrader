@@ -580,7 +580,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	if err := k.Accounts.Save(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil

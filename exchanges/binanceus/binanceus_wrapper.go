@@ -384,7 +384,7 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	if err != nil {
 		return info, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	if err := bi.Accounts.Save(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil

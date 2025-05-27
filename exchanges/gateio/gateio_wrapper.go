@@ -799,7 +799,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 	}
 	creds, err := g.GetCredentials(ctx)
 	if err == nil {
-		err = account.Process(&info, creds)
+		err = g.Accounts.Save(&info, creds)
 	}
 	return info, err
 }

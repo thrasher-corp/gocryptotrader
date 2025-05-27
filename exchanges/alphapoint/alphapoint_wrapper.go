@@ -130,7 +130,7 @@ func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		return account.Holdings{}, err
 	}
 
-	err = account.Process(&response, creds)
+	err = a.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

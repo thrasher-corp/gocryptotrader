@@ -338,7 +338,7 @@ func (b *BTCMarkets) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&resp, creds)
+	err = b.Accounts.Save(&resp, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

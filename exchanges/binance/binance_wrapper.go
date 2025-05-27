@@ -672,7 +672,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	if err := b.Accounts.Save(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil

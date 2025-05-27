@@ -243,7 +243,7 @@ func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
+	err = g.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

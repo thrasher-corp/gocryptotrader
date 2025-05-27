@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -261,8 +262,7 @@ func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
-// GetExchangeBankAccounts returns banking details associated with an
-// exchange for funding purposes
+// GetExchangeBankAccounts returns banking details associated with an exchange for funding purposes
 func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
@@ -595,6 +595,13 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	if exch.Orderbook.VerificationBypass {
 		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
+	}
+
+	if b.Accounts == nil {
+		var err error
+		if b.Accounts, err = account.GetStore().GetExchangeAccounts(b.Name); err != nil {
+			return err
+		}
 	}
 
 	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
@@ -1924,17 +1931,22 @@ func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetCachedAccountInfo retrieves balances for all enabled currencies
-// NOTE: UpdateAccountInfo method must be called first to update the account info map
+// GetCachedAccountInfo retrieves cached balances for all enabled currencies
+// NOTE: Accounts.Save method should be called first to populate the local cache store
 func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	return account.GetHoldings(b.Name, creds, assetType)
+	return b.Accounts.GetHoldings(creds, assetType)
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// SubscribeAccountHoldings returns a pipe to stream account holding updates
+func (b *Base) SubscribeAccountHoldings() (dispatch.Pipe, error) {
+	return b.Accounts.Subscribe()
 }

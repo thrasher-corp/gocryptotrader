@@ -669,7 +669,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	if err != nil {
 		return info, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	if err := ok.Accounts.Save(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 	return info, nil

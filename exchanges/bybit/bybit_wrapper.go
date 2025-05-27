@@ -538,7 +538,6 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var info account.Holdings
 	var acc account.SubAccount
 	var accountType string
-	info.Exchange = by.Name
 	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return info, err
@@ -586,14 +585,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
+	if err == nil {
+		err = by.Accounts.Save(&info, creds)
 	}
-	err = account.Process(&info, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return info, err
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

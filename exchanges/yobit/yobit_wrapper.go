@@ -270,7 +270,7 @@ func (y *Yobit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
+	err = y.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

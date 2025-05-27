@@ -805,7 +805,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	if err := h.Accounts.Save(&info, creds); err != nil {
 		return info, err
 	}
 	return info, nil

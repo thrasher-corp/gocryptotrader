@@ -375,7 +375,7 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 		},
 	}
 	ku.Websocket.DataHandler <- changes
-	return account.ProcessChange(ku.Name, changes, creds)
+	return ku.Accounts.Update(changes, creds)
 }
 
 // processFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
@@ -709,7 +709,7 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 		},
 	}
 	ku.Websocket.DataHandler <- changes
-	return account.ProcessChange(ku.Name, changes, creds)
+	return ku.Accounts.Update(changes, creds)
 }
 
 // processOrderChangeEvent processes order update events.

@@ -248,7 +248,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&response, creds)
+	err = c.Accounts.Save(&response, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

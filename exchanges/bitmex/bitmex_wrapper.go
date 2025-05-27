@@ -486,7 +486,7 @@ func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := account.Process(&info, creds); err != nil {
+	if err := b.Accounts.Save(&info, creds); err != nil {
 		return account.Holdings{}, err
 	}
 

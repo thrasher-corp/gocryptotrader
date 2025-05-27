@@ -18,16 +18,7 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	b = new(Bybit)
-	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
-	}
-
-	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
-
-	if err := testexch.MockHTTPInstance(b); err != nil {
-		log.Fatal(err)
-	}
+	b = testInstance()
 
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatalf("Bybit unable to UpdateTradablePairs: %s", err)
@@ -56,4 +47,19 @@ func TestMain(m *testing.M) {
 	setEnabledPair(asset.Options, optionsTradablePair)
 
 	os.Exit(m.Run())
+}
+
+func testInstance() *Bybit {
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	if err := testexch.Setup(b); err != nil {
+		log.Fatal(err)
+	}
+
+	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
+
+	if err := testexch.MockHTTPInstance(b); err != nil {
+		log.Fatal(err)
+	}
+
+	return b
 }

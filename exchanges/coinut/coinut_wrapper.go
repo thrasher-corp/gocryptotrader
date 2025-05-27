@@ -286,7 +286,7 @@ func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&info, creds)
+	err = c.Accounts.Save(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}
