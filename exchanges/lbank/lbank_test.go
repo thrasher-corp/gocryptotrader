@@ -121,11 +121,11 @@ func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 
 	_, err := l.CreateOrder(t.Context(), testPair.String(), "what", 1231, 12314)
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = l.CreateOrder(t.Context(), testPair.String(), order.Buy.String(), 0, 0)
-	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 	_, err = l.CreateOrder(t.Context(), testPair.String(), order.Sell.String(), 1231, 0)
-	assert.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l, canManipulateRealOrders)
 
