@@ -58,7 +58,7 @@ func (s *store) Update(b *Base) error {
 	return s.signalMux.Publish(book.Depth, book.ExchangeID)
 }
 
-func (s *store) trackNewBook(b *Base) (bookWithExchangeID, error) {
+func (s *store) track(b *Base) (bookWithExchangeID, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	id, ok := s.exchangeIDs[b.Exchange]
