@@ -111,7 +111,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	{{.Variable}}.Requester, err = request.New({{.Variable}}.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-		if err != nil {
+	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -121,6 +121,9 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	{{.Variable}}.Websocket = websocket.NewManager()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -205,68 +208,68 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(ctx context.Context, 
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-			tick, err := ti.GetTickers()
-			if err != nil {
-				return err
-			}
-		    for y := range tick {
-		        cp, err := currency.NewPairFromString(tick[y].Symbol)
-		        if err != nil {
-		            return err
-		        }
-		        err = ticker.ProcessTicker(&ticker.Price{
-		            Last:         tick[y].LastPrice,
-		            High:         tick[y].HighPrice,
-		            Low:          tick[y].LowPrice,
-		            Bid:          tick[y].BidPrice,
-		            Ask:          tick[y].AskPrice,
-		            Volume:       tick[y].Volume,
-		            QuoteVolume:  tick[y].QuoteVolume,
-		            Open:         tick[y].OpenPrice,
-		            Close:        tick[y].PrevClosePrice,
-		            Pair:         cp,
-		            ExchangeName: b.Name,
-		            AssetType:    assetType,
-		        })
-		        if err != nil {
-		            return err
-		        }
-		    }
+	tick, err := ti.GetTickers()
+	if err != nil {
+		return err
+	}
+	for y := range tick {
+		cp, err := currency.NewPairFromString(tick[y].Symbol)
+		if err != nil {
+			return err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[y].LastPrice,
+			High:         tick[y].HighPrice,
+			Low:          tick[y].LowPrice,
+			Bid:          tick[y].BidPrice,
+			Ask:          tick[y].AskPrice,
+			Volume:       tick[y].Volume,
+			QuoteVolume:  tick[y].QuoteVolume,
+			Open:         tick[y].OpenPrice,
+			Close:        tick[y].PrevClosePrice,
+			Pair:         cp,
+			ExchangeName: b.Name,
+			AssetType:    assetType,
+		})
+		if err != nil {
+			return err
+		}
+	}
 	*/
 	return ticker.GetTicker({{.Variable}}.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-		// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+    // NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
 	tick, err := {{.Variable}}.GetTickers()
 	if err != nil {
 		return err
 	}
-    for y := range tick {
-        cp, err := currency.NewPairFromString(tick[y].Symbol)
-        if err != nil {
-            return err
-        }
-        err = ticker.ProcessTicker(&ticker.Price{
-            Last:         tick[y].LastPrice,
-            High:         tick[y].HighPrice,
-            Low:          tick[y].LowPrice,
-            Bid:          tick[y].BidPrice,
-            Ask:          tick[y].AskPrice,
-            Volume:       tick[y].Volume,
-            QuoteVolume:  tick[y].QuoteVolume,
-            Open:         tick[y].OpenPrice,
-            Close:        tick[y].PrevClosePrice,
-            Pair:         cp,
-            ExchangeName: b.Name,
-            AssetType:    assetType,
-        })
-        if err != nil {
-            return err
-        }
-    }
+	for y := range tick {
+		cp, err := currency.NewPairFromString(tick[y].Symbol)
+		if err != nil {
+			return err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[y].LastPrice,
+			High:         tick[y].HighPrice,
+			Low:          tick[y].LowPrice,
+			Bid:          tick[y].BidPrice,
+			Ask:          tick[y].AskPrice,
+			Volume:       tick[y].Volume,
+			QuoteVolume:  tick[y].QuoteVolume,
+			Open:         tick[y].OpenPrice,
+			Close:        tick[y].PrevClosePrice,
+			Pair:         cp,
+			ExchangeName: b.Name,
+			AssetType:    assetType,
+		})
+		if err != nil {
+			return err
+		}
+	}
 	*/
     return common.ErrNotYetImplemented
 }
@@ -319,7 +322,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo(ctx context.Context, as
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func ({{.Variable}} *{{.CapitalName}}) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrNotYetImplemented
