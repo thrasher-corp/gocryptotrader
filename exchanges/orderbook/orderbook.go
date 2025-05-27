@@ -72,9 +72,9 @@ func (s *store) track(b *Base) (book, error) {
 	}
 	depth := NewDepth(id)
 	depth.AssignOptions(b)
-	book := book{RouterID: id, Depth: depth}
-	s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}] = book
-	return book, nil
+	ob := book{RouterID: id, Depth: depth}
+	s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}] = ob
+	return ob, nil
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
@@ -90,24 +90,24 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 	}
 
 	s.m.RLock()
-	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	var err error
 	if !ok {
-		book, err = s.track(&Base{Exchange: exchange, Pair: p, Asset: a})
+		ob, err = s.track(&Base{Exchange: exchange, Pair: p, Asset: a})
 	}
-	return book.Depth, err
+	return ob.Depth, err
 }
 
 // GetDepth returns the actual depth struct for potential subsystems and strategies to interact with
 func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	s.m.RLock()
-	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
 	}
-	return book.Depth, nil
+	return ob.Depth, nil
 }
 
 // Retrieve gets orderbook depth data from the stored tranches and returns the
@@ -120,12 +120,12 @@ func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base,
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	s.m.RLock()
-	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	s.m.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
 	}
-	return book.Depth.Retrieve()
+	return ob.Depth.Retrieve()
 }
 
 // GetDepth returns the concrete book allowing the caller to stream orderbook changes
