@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -22,9 +23,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -53,7 +54,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	}
 
 	// If assets require multiple differences in formatting for request and 
-	// configuration, another exchange method can be be used e.g. futures 
+	// configuration, another exchange method can be used e.g. futures 
 	// contracts require a dash as a delimiter rather than an underscore. You 
 	// can use this example below:
 
@@ -107,7 +108,6 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				// Intervals:  true,
 			},
-			Subscriptions: subscription.List{},
 		},
 
 		Enabled: exchange.FeaturesEnabled{
@@ -119,6 +119,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 			// 	GlobalResultLimit: 2000,
 			// }
 		},
+		Subscriptions: subscription.List{},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	{{.Variable}}.Requester, err = request.New({{.Variable}}.Name,

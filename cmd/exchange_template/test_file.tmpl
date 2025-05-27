@@ -16,7 +16,7 @@ const (
 	canManipulateRealOrders   = false
 )
 
-var {{.Variable}} = &{{.CapitalName}}{}
+var {{.Variable}} *{{.CapitalName}}
 
 func TestMain(m *testing.M) {
 	{{.Variable}} = new({{.CapitalName}})

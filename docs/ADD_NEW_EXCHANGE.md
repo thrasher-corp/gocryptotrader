@@ -313,6 +313,9 @@ This will generate a readme file for the exchange which can be found in the new 
 
 4. TestMain in exchanges must avoid API calls to keep test footprint as minimal as possible unless there's a good case as to why it was done
 
+5. Excessive exchange API method params should use structs
+
+6. Test deduplication should be the default approach for exchanges, image provided as an example diff
 
 ### Create functions supported by the exchange:
 
