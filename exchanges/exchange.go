@@ -1429,7 +1429,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 	case edgeCase3URL:
 		return EdgeCase3, nil
 	default:
-		return Invalid, fmt.Errorf("%w '%s'", errEndpointStringNotFound, ep)
+		return Invalid, fmt.Errorf("%w %q", errEndpointStringNotFound, ep)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var ask = Tranches{
@@ -326,9 +327,7 @@ func TestUpdateByID(t *testing.T) {
 	err = a.updateByID(Tranches{ // Simulate Bitmex updating
 		{Price: 0, Amount: 1337, ID: 3},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("expecting %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if got := a.retrieve(2); len(got) != 2 || got[1].Price == 0 {
 		t.Fatal("price should not be replaced with zero")
@@ -1830,18 +1829,14 @@ func TestGetHeadPrice(t *testing.T) {
 	}
 
 	val, err := depth.bidTranches.getHeadPriceNoLock()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if val != 1336 {
 		t.Fatal("unexpected value")
 	}
 
 	val, err = depth.askTranches.getHeadPriceNoLock()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if val != 1337 {
 		t.Fatal("unexpected value", val)

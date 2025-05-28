@@ -53,12 +53,12 @@ func (k *Kraken) SetDefaults() {
 			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
 		}
 		if err := k.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", k.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", k.Name, a, err)
 		}
 	}
 
 	if err := k.DisableAssetWebsocketSupport(asset.Futures); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", k.Name, asset.Futures, err)
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", k.Name, asset.Futures, err)
 	}
 
 	k.Features = exchange.Features{

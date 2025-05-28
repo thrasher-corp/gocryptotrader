@@ -803,7 +803,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
 		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)

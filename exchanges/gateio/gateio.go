@@ -837,7 +837,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
-		return nil, fmt.Errorf("invalid price trigger condition or rule '%s' but expected '>=' or '<='", arg.Trigger.Rule)
+		return nil, fmt.Errorf("invalid price trigger condition or rule %q but expected '>=' or '<='", arg.Trigger.Rule)
 	}
 	if arg.Trigger.Expiration <= 0 {
 		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")
@@ -1194,7 +1194,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	switch arg.SubAccountType {
 	case "", "spot", "futures", "delivery":
 	default:
-		return fmt.Errorf("%w `%s` for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
+		return fmt.Errorf("%w %q for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }

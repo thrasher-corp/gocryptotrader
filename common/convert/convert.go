@@ -64,20 +64,6 @@ func TimeFromUnixTimestampDecimal(input float64) time.Time {
 	return time.Unix(int64(i), int64(f*(1e9))).UTC()
 }
 
-// UnixTimestampToTime returns time.time
-func UnixTimestampToTime(timeint64 int64) time.Time {
-	return time.Unix(timeint64, 0)
-}
-
-// UnixTimestampStrToTime returns a time.time and an error
-func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
-	i, err := strconv.ParseInt(timeStr, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(i, 0), nil
-}
-
 // BoolPtr takes in boolean condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
 	b := condition

@@ -726,7 +726,7 @@ func TestGetPairs(t *testing.T) {
 		c, err := b.GetAvailablePairs(asset.Spot)
 		require.NoError(t, err, "GetAvailablePairs must not error")
 		require.Len(t, c, 1, "Must have one enabled pair")
-		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetAvailablePairs format must use config format")
+		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetAvailablePairs format should use config format")
 
 		require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error for enabled pairs")
 		require.NoError(t, b.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
@@ -734,7 +734,7 @@ func TestGetPairs(t *testing.T) {
 		c, err = b.GetEnabledPairs(asset.Spot)
 		require.NoError(t, err, "GetEnabledPairs must not error")
 		require.Len(t, c, 1, "Must have one enabled pair")
-		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetEnabledPairs format must use config format")
+		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetEnabledPairs format should use config format")
 	}
 }
 
@@ -1083,9 +1083,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	pairs = currency.Pairs{
 		currency.NewPair(currency.WABI, currency.USD),
@@ -1094,9 +1092,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	uacEnabledPairs, err := UAC.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -1117,9 +1113,7 @@ func TestUpdatePairs(t *testing.T) {
 
 	// This should be matched and formatted to `link-usd`
 	unintentionalInput, err := currency.NewPairFromString("linkusd")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	pairs = currency.Pairs{
 		currency.NewPair(currency.WABI, currency.USD),
@@ -1130,9 +1124,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	pairs = currency.Pairs{
 		currency.NewPair(currency.WABI, currency.USD),
@@ -1143,9 +1135,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	uacEnabledPairs, err = UAC.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -1460,8 +1450,8 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, asset.Spot, asset.Binary)
 	require.NoError(t, err, "SetGlobalPairsManager must not error")
 
-	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager must support Binary")
-	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager must support Spot")
+	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager should support Binary")
+	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager should support Spot")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
@@ -1568,9 +1558,7 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 	}
 
 	err = b.DisableRateLimiter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = b.DisableRateLimiter()
 	if !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
@@ -1578,9 +1566,7 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 	}
 
 	err = b.EnableRateLimiter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = b.EnableRateLimiter()
 	if !errors.Is(err, request.ErrRateLimiterAlreadyEnabled) {
@@ -1905,14 +1891,10 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 			Delimiter: currency.DashDelimiter,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = b.DisableAssetWebsocketSupport(asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is not turned off, unexpected response")
@@ -2142,9 +2124,8 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if a != asset.Spot {
 		t.Fatal("unexpected value", a)
 	}
@@ -2153,9 +2134,8 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	p, a, err = b.GetPairAndAssetTypeRequestFormatted("BTC_USDT")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if a != asset.PerpetualContract {
 		t.Fatal("unexpected value", a)
 	}
@@ -2450,17 +2430,15 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		},
 	}
 	err = b.EnsureOnePairEnabled()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
 
 	err = b.EnsureOnePairEnabled()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
@@ -2485,9 +2463,7 @@ func TestGetStandardConfig(t *testing.T) {
 	b.Features.Supports.Websocket = true
 
 	cfg, err := b.GetStandardConfig()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if cfg.Name != "test" {
 		t.Fatalf("received: '%v' but expected: '%v'", cfg.Name, "test")
@@ -2528,18 +2504,14 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	}
 
 	whatIGot, err := b.MatchSymbolWithAvailablePairs("btcusdT", asset.Spot, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
 	whatIGot, err = b.MatchSymbolWithAvailablePairs("btc-usdT", asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
@@ -2566,9 +2538,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	whatIGot, enabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !enabled {
 		t.Fatal("expected true")
@@ -2579,9 +2549,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-usdT", asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
@@ -2592,9 +2560,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-AUD", asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(availButNoEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
@@ -2620,27 +2586,21 @@ func TestIsPairEnabled(t *testing.T) {
 	}
 
 	enabled, err := b.IsPairEnabled(currency.NewPair(currency.AAA, currency.CYC), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if enabled {
 		t.Fatal("expected false")
 	}
 
 	enabled, err = b.IsPairEnabled(availButNoEnabled, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if enabled {
 		t.Fatal("expected false")
 	}
 
 	enabled, err = b.IsPairEnabled(whatIWant, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !enabled {
 		t.Fatal("expected true")

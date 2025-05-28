@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 )
@@ -157,9 +158,7 @@ func TestGetDepositAddressByExchangeAndCurrency(t *testing.T) {
 		t.Error("unexpected values")
 	}
 	_, err = m.GetDepositAddressByExchangeAndCurrency(bitStamp, "", currency.BTC)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetDepositAddressesByExchange(t *testing.T) {
@@ -185,7 +184,5 @@ func TestGetDepositAddressesByExchange(t *testing.T) {
 	}
 
 	_, err = m.GetDepositAddressesByExchange(bitStamp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }

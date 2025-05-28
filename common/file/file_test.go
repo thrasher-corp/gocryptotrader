@@ -265,7 +265,7 @@ func TestWriterNoPermissionFails(t *testing.T) {
 
 	tempDir := t.TempDir()
 	err := os.Chmod(tempDir, 0o555)
-	require.NoError(t, err, "Chmod should not fail to set read-only permissions")
+	require.NoError(t, err, "Chmod must not fail to set read-only permissions")
 	_, err = Writer(filepath.Join(tempDir, "path", "to", "somefile"))
 	assert.Error(t, err, "Writer should fail with no write permissions")
 }

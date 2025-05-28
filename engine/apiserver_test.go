@@ -43,18 +43,15 @@ func TestSetupAPIServerManager(t *testing.T) {
 
 	wd, _ := os.Getwd()
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStartRESTServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StartRESTServer()
 	if !errors.Is(err, errServerDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
@@ -70,18 +67,15 @@ func TestStartWebsocketServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StartWebsocketServer()
 	if !errors.Is(err, errServerDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
 	}
 	m.remoteConfig.WebsocketRPC.Enabled = true
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStopRESTServer(t *testing.T) {
@@ -93,9 +87,7 @@ func TestStopRESTServer(t *testing.T) {
 			ListenAddress: "localhost:9051",
 		},
 	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.StopRESTServer()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -103,22 +95,17 @@ func TestStopRESTServer(t *testing.T) {
 	}
 
 	err = m.StartRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// do it again to ensure things have reset appropriately and no errors occur starting
 	err = m.StartRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestWebsocketStop(t *testing.T) {
@@ -130,9 +117,7 @@ func TestWebsocketStop(t *testing.T) {
 			ListenAddress: "localhost:9052",
 		},
 	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.StopWebsocketServer()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -140,22 +125,17 @@ func TestWebsocketStop(t *testing.T) {
 	}
 
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// do it again to ensure things have reset appropriately and no errors occur starting
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestIsRESTServerRunning(t *testing.T) {
@@ -198,9 +178,8 @@ func TestGetAllActiveOrderbooks(t *testing.T) {
 	}
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveOrderbooks(man)
 	if resp == nil {
 		t.Error("expected not nil")
@@ -216,9 +195,8 @@ func TestGetAllActiveTickers(t *testing.T) {
 	}
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveTickers(man)
 	if resp == nil {
 		t.Error("expected not nil")
@@ -234,9 +212,8 @@ func TestGetAllActiveAccounts(t *testing.T) {
 	}
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveAccounts(man)
 	if resp == nil {
 		t.Error("expected not nil")
