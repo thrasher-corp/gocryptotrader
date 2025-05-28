@@ -156,7 +156,7 @@ type FuturesKline struct {
 
 // UnmarshalJSON parses kline data from a JSON array into FuturesKline fields.
 func (f *FuturesKline) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[6]any{&(f.StartTime), &(f.Open), &(f.High), &(f.Low), &(f.Close), &(f.Volume)})
+	return json.Unmarshal(data, &[6]any{&f.StartTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume})
 }
 
 // FutureOrdersResponse represents a future order response list detail
