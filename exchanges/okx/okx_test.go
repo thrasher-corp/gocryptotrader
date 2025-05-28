@@ -696,7 +696,7 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 		InstrumentType: instTypeOption,
 		Underlying:     optionsPair.String(),
 	})
-	require.Errorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
+	require.NoErrorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
 	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
 	var selectedExpTime time.Time
 	for _, inst := range instruments {
