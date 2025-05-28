@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -80,6 +81,7 @@ func init() {
 
 var (
 	authToken          string
+	authTokenMutex     sync.RWMutex
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -112,6 +114,7 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
+		authTokenMutex.Lock()
 		authToken, err = k.GetWebsocketToken(context.TODO())
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -134,6 +137,7 @@ func (k *Kraken) WsConnect() error {
 				k.startWsPingHandler(k.Websocket.AuthConn)
 			}
 		}
+		authTokenMutex.Unlock()
 	}
 
 	k.startWsPingHandler(k.Websocket.Conn)
@@ -1091,7 +1095,9 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 
 	conn := k.Websocket.Conn
 	if s.Authenticated {
+		authTokenMutex.RLock()
 		r.Subscription.Token = authToken
+		authTokenMutex.RUnlock()
 		conn = k.Websocket.AuthConn
 	}
 
@@ -1305,7 +1311,9 @@ func (k *Kraken) wsAddOrder(req *WsAddOrderRequest) (string, error) {
 	}
 	req.RequestID = k.Websocket.AuthConn.GenerateMessageID(false)
 	req.Event = krakenWsAddOrder
+	authTokenMutex.RLock()
 	req.Token = authToken
+	authTokenMutex.RUnlock()
 	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
 	if err != nil {
 		return "", err
@@ -1343,12 +1351,14 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 // wsCancelOrder cancels an open order
 func (k *Kraken) wsCancelOrder(orderID string) error {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
+	authTokenMutex.RLock()
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
 		Token:          authToken,
 		TransactionIDs: []string{orderID},
 		RequestID:      id,
 	}
+	authTokenMutex.RUnlock()
 
 	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
 	if err != nil {
@@ -1374,11 +1384,13 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
+	authTokenMutex.RLock()
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
 		Token:     authToken,
 		RequestID: id,
 	}
+	authTokenMutex.RUnlock()
 
 	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, id, req)
 	if err != nil {
