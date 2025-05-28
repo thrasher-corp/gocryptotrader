@@ -2411,7 +2411,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 			out[i] = &order.SubmitResponse{
 				Exchange:        g.Name,
 				ClientOrderID:   resp.Text,
-				MultiOrderError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
+				SubmissionError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
 			}
 			continue
 		}

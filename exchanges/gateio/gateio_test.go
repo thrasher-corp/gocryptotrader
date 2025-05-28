@@ -3084,7 +3084,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 				{
 					Exchange:        g.Name,
 					ClientOrderID:   "t-742",
-					MultiOrderError: order.ErrUnableToPlaceOrder,
+					SubmissionError: order.ErrUnableToPlaceOrder,
 				},
 			},
 		},
@@ -3105,8 +3105,8 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 
 			require.Len(t, got, len(tc.expected))
 			for i := range got {
-				if tc.expected[i].MultiOrderError != nil {
-					assert.ErrorIs(t, got[i].MultiOrderError, tc.expected[i].MultiOrderError)
+				if tc.expected[i].SubmissionError != nil {
+					assert.ErrorIs(t, got[i].SubmissionError, tc.expected[i].SubmissionError)
 					assert.Equal(t, tc.expected[i].Exchange, got[i].Exchange)
 					assert.Equal(t, tc.expected[i].ClientOrderID, got[i].ClientOrderID)
 					continue
