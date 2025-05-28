@@ -1436,10 +1436,14 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 	resp, err := k.GetWebsocketToken(ctx)
-	if resp != "" {
-		authToken = resp
+	if err != nil {
+		return err
 	}
-	return err
+
+	k.wsAuthMu.Lock()
+	k.wsAuthToken = resp
+	k.wsAuthMu.Unlock()
+	return nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
