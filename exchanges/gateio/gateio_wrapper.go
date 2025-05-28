@@ -2407,7 +2407,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 
 	out := make([]*order.SubmitResponse, len(responses))
 	for i, resp := range responses {
-		if resp.Label != "" { // Only present in a multi order response
+		if resp.Label != "" { // batch only, denotes error type in string format
 			out[i] = &order.SubmitResponse{
 				Exchange:        g.Name,
 				ClientOrderID:   resp.Text,
