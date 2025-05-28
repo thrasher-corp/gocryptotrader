@@ -85,8 +85,8 @@ func main() {
 	}
 
 	listenAddr := cfg.RemoteControl.WebsocketRPC.ListenAddress
-	wsHost := fmt.Sprintf("ws://%s/ws", net.JoinHostPort(common.ExtractHost(listenAddr),
-		strconv.Itoa(common.ExtractPort(listenAddr))))
+	wsHost := fmt.Sprintf("ws://%s/ws", net.JoinHostPort(common.ExtractHostOrDefault(listenAddr),
+		strconv.Itoa(common.ExtractPortOrDefault(listenAddr))))
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
 	var dialer gws.Dialer
