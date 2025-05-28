@@ -5443,7 +5443,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.
 		return nil, errMissingExpiryTimeParameter
 	}
 	params := url.Values{}
-	params.Set("expTime", expTime.Format("20060102"))
+	params.Set("expTime", expTime.UTC().Format("20060102"))
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}

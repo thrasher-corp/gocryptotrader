@@ -692,9 +692,24 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	_, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Time{}, kline.OneDay)
 	require.ErrorIs(t, err, errMissingExpiryTimeParameter)
 
-	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Now(), kline.OneDay)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	instruments, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+		InstrumentType: instTypeOption,
+		Underlying:     optionsPair.String(),
+	})
+	require.Errorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
+	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
+	var selectedExpTime time.Time
+	for _, inst := range instruments {
+		if inst.ExpTime.Time().IsZero() {
+			continue
+		}
+		selectedExpTime = inst.ExpTime.Time()
+		break
+	}
+	require.NotZero(t, selectedExpTime, "selectedExpTime must not be zero")
+	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, selectedExpTime, kline.OneDay)
+	require.NoErrorf(t, err, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s must not error", selectedExpTime, currency.BTC)
+	assert.NotNilf(t, result, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s should return a non-nil result", selectedExpTime, currency.BTC)
 }
 
 func TestGetTakerFlow(t *testing.T) {
