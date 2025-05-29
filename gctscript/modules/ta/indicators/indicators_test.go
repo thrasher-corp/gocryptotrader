@@ -115,7 +115,7 @@ func TestRsi(t *testing.T) {
 
 	validator.IsTestExecution.Store(true)
 	ret, err := rsi(ohlcvData, &objects.Int{Value: 14})
-	require.NoError(t, err, "rsi should not throw an error")
+	require.NoError(t, err, "rsi must not throw an error")
 	assert.NotNil(t, ret)
 
 	validator.IsTestExecution.Store(false)

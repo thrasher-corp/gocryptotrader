@@ -3,6 +3,8 @@ package currency
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetDefaultExchangeRates(t *testing.T) {
@@ -143,18 +145,14 @@ func TestGetForeignExchangeRate(t *testing.T) {
 	}
 
 	one, err := GetForeignExchangeRate(NewPair(USD, USD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if one != 1 {
 		t.Fatal("unexpected value")
 	}
 
 	rate, err := GetForeignExchangeRate(NewPair(AUD, USD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if rate <= 0 {
 		t.Fatal("unexpected value")

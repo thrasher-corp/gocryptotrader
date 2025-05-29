@@ -694,9 +694,7 @@ func TestCheckAlignment(t *testing.T) {
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"
 	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 // 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)

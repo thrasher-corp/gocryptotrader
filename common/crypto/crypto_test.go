@@ -2,86 +2,56 @@ package crypto
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHexEncodeToString(t *testing.T) {
 	t.Parallel()
-	originalInput := []byte("string")
-	expectedOutput := "737472696e67"
-	actualResult := HexEncodeToString(originalInput)
-	if actualResult != expectedOutput {
-		t.Errorf("Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
-	}
+	assert.Equal(t, "737472696e67", HexEncodeToString([]byte("string")))
 }
 
 func TestBase64Decode(t *testing.T) {
 	t.Parallel()
-	originalInput := "aGVsbG8="
-	expectedOutput := []byte("hello")
-	actualResult, err := Base64Decode(originalInput)
-	if !bytes.Equal(actualResult, expectedOutput) {
-		t.Errorf("Expected '%s'. Actual '%s'. Error: %s",
-			expectedOutput, actualResult, err)
-	}
+
+	r, err := Base64Decode("aGVsbG8=")
+	require.NoError(t, err, "Base64Decode must not error")
+	assert.Equal(t, []byte("hello"), r, "Base64Decode should return the correct byte slice")
 
 	_, err = Base64Decode("-")
-	if err == nil {
-		t.Error("Bad base64 string failed returned nil error")
-	}
+	assert.Error(t, err, "Base64Decode should error on invalid input")
 }
 
 func TestBase64Encode(t *testing.T) {
 	t.Parallel()
-	originalInput := []byte("hello")
-	actualResult := Base64Encode(originalInput)
-	if expectedOutput := "aGVsbG8="; actualResult != expectedOutput {
-		t.Errorf("Expected '%s'. Actual '%s'",
-			expectedOutput, actualResult)
-	}
+
+	assert.Equal(t, "aGVsbG8=", Base64Encode([]byte("hello")),
+		"Base64Encode should return the correct base64 string")
 }
 
 func TestGetRandomSalt(t *testing.T) {
 	t.Parallel()
 
 	_, err := GetRandomSalt(nil, -1)
-	if err == nil {
-		t.Fatal("Expected err on negative salt length")
-	}
+	assert.ErrorContains(t, err, "salt length is too small", "Expected error on negative salt length")
 
 	salt, err := GetRandomSalt(nil, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(salt) != 10 {
-		t.Fatal("Expected salt of len=10")
-	}
+	require.NoError(t, err, "GetRandomSalt must not error")
+	assert.Len(t, salt, 10, "GetRandomSalt should return a salt of the specified length")
 
 	salt, err = GetRandomSalt([]byte("RAWR"), 12)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(salt) != 16 {
-		t.Fatal("Expected salt of len=16")
-	}
+	require.NoError(t, err, "GetRandomSalt must not error")
+	assert.Len(t, salt, 16, "GetRandomSalt should return a salt of the specified length plus input length")
 }
 
 func TestGetMD5(t *testing.T) {
 	t.Parallel()
-	originalString := []byte("I am testing the MD5 function in common!")
-	expectedOutput := []byte("18fddf4a41ba90a7352765e62e7a8744")
-	actualOutput, err := GetMD5(originalString)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actualStr := HexEncodeToString(actualOutput)
-	if !bytes.Equal(expectedOutput, []byte(actualStr)) {
-		t.Errorf("Expected '%s'. Actual '%s'",
-			expectedOutput, []byte(actualStr))
-	}
+	r, err := GetMD5([]byte("I am testing the MD5 function in common!"))
+	require.NoError(t, err, "GetMD5 must not error")
+	assert.Equal(t, "18fddf4a41ba90a7352765e62e7a8744", hex.EncodeToString(r), "GetMD5 result should match the expected output")
 }
 
 func TestGetSHA512(t *testing.T) {
@@ -188,18 +158,5 @@ func TestGetHMAC(t *testing.T) {
 		t.Errorf("Common GetHMAC error: Expected '%x'. Actual '%x'",
 			expectedmd5, md5,
 		)
-	}
-}
-
-func TestSha1Tohex(t *testing.T) {
-	t.Parallel()
-	expectedResult := "fcfbfcd7d31d994ef660f6972399ab5d7a890149"
-	actualResult, err := Sha1ToHex("Testing Sha1ToHex")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if actualResult != expectedResult {
-		t.Errorf("Expected '%s'. Actual '%s'",
-			expectedResult, actualResult)
 	}
 }
