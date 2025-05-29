@@ -1,9 +1,9 @@
 package telegram
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -47,48 +47,24 @@ func TestPushEvent(t *testing.T) {
 	t.Parallel()
 	var T Telegram
 	err := T.PushEvent(base.Event{})
-	if !errors.Is(err, ErrNotConnected) {
-		t.Errorf("expected %s, got %s", ErrNotConnected, err)
-	}
+	assert.ErrorIs(t, err, ErrNotConnected)
 
 	T.Connected = true
 	T.AuthorisedClients = map[string]int64{"sender": 0}
 	err = T.PushEvent(base.Event{})
-	if err != nil {
-		t.Errorf("expected nil, got %s", err)
-	}
+	assert.NoError(t, err, "PushEvent should not error")
 
 	T.AuthorisedClients = map[string]int64{"sender": 1337}
 	err = T.PushEvent(base.Event{})
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram PushEvent() error, expected 'Not found' got '%s'",
-			err)
-	}
+	assert.ErrorContains(t, err, testErrNotFound)
 }
 
 func TestHandleMessages(t *testing.T) {
 	t.Parallel()
 	var T Telegram
-	chatID := int64(1337)
-	err := T.HandleMessages(cmdHelp, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
-	err = T.HandleMessages(cmdStart, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
-	err = T.HandleMessages(cmdStatus, chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
-	}
-	err = T.HandleMessages("Not a command", chatID)
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram HandleMessages() error, expected 'Not found' got '%s'",
-			err)
+	for _, c := range []string{cmdHelp, cmdStart, cmdStatus, "Not a command"} {
+		assert.ErrorContainsf(t, T.HandleMessages(c, 1337), testErrNotFound,
+			"HandleMessages with command %q should error correctly", c)
 	}
 }
 
@@ -111,11 +87,8 @@ func TestTestConnection(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	t.Parallel()
 	var T Telegram
-	err := T.SendMessage("Test message", int64(1337))
-	if err.Error() != testErrNotFound {
-		t.Errorf("telegram SendMessage() error, expected 'Not found' got '%s'",
-			err)
-	}
+	err := T.SendMessage("Test message", 1337)
+	assert.ErrorContains(t, err, testErrNotFound, "SendMessage should error correctly")
 }
 
 func TestSendHTTPRequest(t *testing.T) {

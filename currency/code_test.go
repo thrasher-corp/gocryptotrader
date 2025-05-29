@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -640,11 +641,7 @@ func TestItemString(t *testing.T) {
 		AssocChain: "Silly",
 	}
 
-	if expected := "HWORLD"; newItem.String() != expected {
-		t.Errorf("Currency String() error expected '%s' but received '%s'",
-			expected,
-			&newItem)
-	}
+	assert.Equal(t, "HWORLD", newItem.String())
 }
 
 // 28848025	        40.84 ns/op	       8 B/op	       1 allocs/op // Current

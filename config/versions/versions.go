@@ -187,12 +187,12 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			}
 			exchNew, err := method(patch, ctx, exchOrig)
 			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w for `%s`: %w", errModifyingExchange, name, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w for %q: %w", errModifyingExchange, name, err))
 				continue
 			}
 			if !bytes.Equal(exchNew, exchOrig) {
 				if j, err = jsonparser.Set(j, exchNew, "exchanges", "["+strconv.Itoa(i)+"]"); err != nil {
-					errs = common.AppendError(errs, fmt.Errorf("%w `%s`/exchanges[%d]: %w: %w", errModifyingExchange, name, i, common.ErrSettingField, err))
+					errs = common.AppendError(errs, fmt.Errorf("%w %q/exchanges[%d]: %w: %w", errModifyingExchange, name, i, common.ErrSettingField, err))
 				}
 			}
 		}

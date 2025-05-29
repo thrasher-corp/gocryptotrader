@@ -55,7 +55,7 @@ func (ku *Kucoin) SetDefaults() {
 			ps.ConfigFormat.Delimiter = currency.UnderscoreDelimiter
 		}
 		if err := ku.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", ku.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", ku.Name, a, err)
 		}
 	}
 

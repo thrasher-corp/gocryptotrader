@@ -140,9 +140,7 @@ func TestGetCurrentServerTime(t *testing.T) {
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := b.GetServerTime(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")
@@ -909,45 +907,35 @@ func TestFormatOrderType(t *testing.T) {
 	}
 
 	r, err := b.formatOrderType(order.Limit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if r != limit {
 		t.Fatal("unexpected value")
 	}
 
 	r, err = b.formatOrderType(order.Market)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if r != market {
 		t.Fatal("unexpected value")
 	}
 
 	r, err = b.formatOrderType(order.StopLimit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if r != stopLimit {
 		t.Fatal("unexpected value")
 	}
 
 	r, err = b.formatOrderType(order.Stop)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if r != stop {
 		t.Fatal("unexpected value")
 	}
 
 	r, err = b.formatOrderType(order.TakeProfit)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if r != takeProfit {
 		t.Fatal("unexpected value")
@@ -962,18 +950,14 @@ func TestFormatOrderSide(t *testing.T) {
 	}
 
 	f, err := b.formatOrderSide(order.Bid)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if f != bidSide {
 		t.Fatal("unexpected value")
 	}
 
 	f, err = b.formatOrderSide(order.Ask)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if f != askSide {
 		t.Fatal("unexpected value")
@@ -1012,9 +996,7 @@ func TestReplaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	_, err = b.ReplaceOrder(t.Context(), "8207096301", "bruh", 100000, 0.001)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestWrapperModifyOrder(t *testing.T) {
@@ -1034,9 +1016,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 		OrderID:       "8207123461",
 		ClientOrderID: "bruh3",
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if mo == nil {
 		t.Fatal("expected data return")
@@ -1051,14 +1031,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	lim, err := b.ExecutionLimits.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if lim == (order.MinMaxLevel{}) {
 		t.Fatal("expected value return")
@@ -1076,9 +1052,7 @@ func TestConvertToKlineCandle(t *testing.T) {
 	data := [6]string{time.RFC3339[:len(time.RFC3339)-5], "1.0", "2", "3", "4", "5"}
 
 	candle, err := convertToKlineCandle(&data)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if candle.Time.IsZero() {
 		t.Fatal("time unset")
@@ -1134,8 +1108,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

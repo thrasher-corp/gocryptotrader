@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -54,18 +55,15 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	float14 := float64(14)
 	mappalopalous := make(map[string]any)
 	mappalopalous[openShortDistancePercentageString] = float14
 	mappalopalous[closeShortDistancePercentageString] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
@@ -132,13 +130,11 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &datakline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
@@ -165,22 +161,18 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d2.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da2 := &datakline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d2,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = sortSignals([]data.Handler{da, da2})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateSignals(t *testing.T) {
@@ -361,14 +353,10 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	signals := []data.Handler{
 		d,
@@ -409,31 +397,26 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = d2.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	signals = []data.Handler{
 		d,
 		d2,
 	}
 	resp, err := s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 2 {
 		t.Errorf("received '%v' expected '%v", len(resp), 2)
 	}
 
 	f.hasBeenLiquidated = true
 	resp, err = s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 2 {
 		t.Fatalf("received '%v' expected '%v", len(resp), 2)
 	}
@@ -446,9 +429,8 @@ func TestCloseAllPositions(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.CloseAllPositions(nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	leet := decimal.NewFromInt(1337)
 	cp := currency.NewBTCUSD()
 	h := []holdings.Holding{
@@ -511,9 +493,8 @@ func TestCloseAllPositions(t *testing.T) {
 		},
 	}
 	positionsToClose, err := s.CloseAllPositions(h, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(positionsToClose) != 2 {
 		t.Errorf("received '%v' expected '%v", len(positionsToClose), 2)
 	}

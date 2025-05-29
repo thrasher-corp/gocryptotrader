@@ -48,9 +48,8 @@ func TestGetCredentials(t *testing.T) {
 		Secret: "aGVsbG8gd29ybGQ=",
 	})
 	creds, err := b.GetCredentials(ctx)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	if creds.Secret != expectedBase64DecodedOutput {
 		t.Fatalf("received: %v but expected: %v", creds.Secret, expectedBase64DecodedOutput)
 	}
@@ -71,9 +70,7 @@ func TestGetCredentials(t *testing.T) {
 
 	ctx = account.DeployCredentialsToContext(t.Context(), fullCred)
 	creds, err = b.GetCredentials(ctx)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if creds.Key != "superkey" &&
 		creds.Secret != "supersecret" &&
@@ -105,9 +102,7 @@ func TestGetCredentials(t *testing.T) {
 
 	ctx = context.WithValue(t.Context(), account.ContextSubAccountFlag, "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if overridedSA.Key != "hello" &&
 		overridedSA.Secret != "sir" &&
@@ -117,9 +112,7 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	notOverrided, err := b.GetCredentials(t.Context())
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if notOverrided.Key != "hello" &&
 		notOverrided.Secret != "sir" &&
