@@ -101,7 +101,7 @@ func TestSubscriptionClone(t *testing.T) {
 	}
 	a.EnsureKeyed()
 	b := a.Clone()
-	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
+	assert.IsType(t, new(Subscription), b, "Clone should return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone should return a new Subscription")
 	assert.Nil(t, b.Key, "Clone should have a nil key")
 	b.Pairs[0].Delimiter = "🐳"
@@ -111,7 +111,7 @@ func TestSubscriptionClone(t *testing.T) {
 	assert.NotEqual(t, params, b.Params, "Params should be cloned")
 	assert.Equal(t, params, a.Params, "Original Params should be left alone")
 	a.m.Lock()
-	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
+	assert.True(t, b.m.TryLock(), "Clone should use a different Mutex")
 }
 
 // TestSetKey exercises SetKey

@@ -164,15 +164,13 @@ func TestGetExchangeByName(t *testing.T) {
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	exch.SetEnabled(true)
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
@@ -201,15 +199,13 @@ func TestUnloadExchange(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	exch.SetEnabled(true)
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	e := &Engine{
 		ExchangeManager: em,
 		Config:          &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
@@ -327,9 +323,7 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.RegisterWebsocketDataHandler(func(_ string, _ any) error { return nil }, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetDefaultWebsocketDataHandler(t *testing.T) {
@@ -342,9 +336,7 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.SetDefaultWebsocketDataHandler()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSettingsPrint(t *testing.T) {
