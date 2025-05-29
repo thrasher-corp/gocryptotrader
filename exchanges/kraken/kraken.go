@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,6 +38,8 @@ const (
 // Kraken is the overarching type across the kraken package
 type Kraken struct {
 	exchange.Base
+	wsAuthToken string
+	wsAuthMu    sync.RWMutex
 }
 
 // GetCurrentServerTime returns current server time

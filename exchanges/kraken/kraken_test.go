@@ -1741,3 +1741,10 @@ func TestEnforceStandardChannelNames(t *testing.T) {
 		assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "Private channel names should not be allowed for %s", n)
 	}
 }
+
+func TestWebsocketAuthToken(t *testing.T) {
+	t.Parallel()
+	k := new(Kraken)
+	k.wsAuthToken = "meep" // k is a local instance, so we can set this lock free
+	assert.Equal(t, "meep", k.websocketAuthToken())
+}

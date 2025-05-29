@@ -79,7 +79,6 @@ func init() {
 }
 
 var (
-	authToken          string
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -112,7 +111,9 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
-		authToken, err = k.GetWebsocketToken(context.TODO())
+		k.wsAuthMu.Lock()
+		k.wsAuthToken, err = k.GetWebsocketToken(context.TODO())
+		k.wsAuthMu.Unlock()
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -1091,7 +1092,7 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 
 	conn := k.Websocket.Conn
 	if s.Authenticated {
-		r.Subscription.Token = authToken
+		r.Subscription.Token = k.websocketAuthToken()
 		conn = k.Websocket.AuthConn
 	}
 
@@ -1305,7 +1306,7 @@ func (k *Kraken) wsAddOrder(req *WsAddOrderRequest) (string, error) {
 	}
 	req.RequestID = k.Websocket.AuthConn.GenerateMessageID(false)
 	req.Event = krakenWsAddOrder
-	req.Token = authToken
+	req.Token = k.websocketAuthToken()
 	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
 	if err != nil {
 		return "", err
@@ -1345,7 +1346,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
-		Token:          authToken,
+		Token:          k.websocketAuthToken(),
 		TransactionIDs: []string{orderID},
 		RequestID:      id,
 	}
@@ -1376,7 +1377,7 @@ func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
-		Token:     authToken,
+		Token:     k.websocketAuthToken(),
 		RequestID: id,
 	}
 
@@ -1414,3 +1415,10 @@ const subTplText = `
 	{{- channelName $.S }}
 {{- end }}
 `
+
+// websocketAuthToken retrieves the current websocket session's auth token
+func (k *Kraken) websocketAuthToken() string {
+	k.wsAuthMu.RLock()
+	defer k.wsAuthMu.RUnlock()
+	return k.wsAuthToken
+}
