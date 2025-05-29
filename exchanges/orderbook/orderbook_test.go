@@ -709,7 +709,7 @@ func BenchmarkProcess(b *testing.B) {
 		Pair:     c,
 		Asks:     make(Tranches, 100),
 		Bids:     make(Tranches, 100),
-		Exchange: "BenchmarkStoreLoadOrderbook",
+		Exchange: "BenchmarkProcessOrderbook",
 		Asset:    asset.Spot,
 	}
 
