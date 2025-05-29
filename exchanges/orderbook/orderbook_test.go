@@ -706,7 +706,7 @@ func BenchmarkProcess(b *testing.B) {
 	require.NoError(b, err)
 
 	base := &Base{
-		Pair:     c,
+		Pair:     currency.NewBTCUSD(),
 		Asks:     make(Tranches, 100),
 		Bids:     make(Tranches, 100),
 		Exchange: "BenchmarkProcessOrderbook",
