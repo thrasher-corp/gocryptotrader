@@ -29,36 +29,26 @@ func TestPromptForConfigEncryption(t *testing.T) {
 			name:          "input_y",
 			input:         "y\n",
 			expectedBool:  true,
-			expectedError: nil,
 		},
 		{
 			name:          "input_n",
 			input:         "n\n",
-			expectedBool:  false,
-			expectedError: nil,
 		},
 		{
 			name:          "input_yes",
 			input:         "yes\n",
 			expectedBool:  true,
-			expectedError: nil,
 		},
 		{
 			name:          "input_no",
 			input:         "no\n",
-			expectedBool:  false,
-			expectedError: nil,
 		},
 		{
 			name:          "input_invalid",
 			input:         "invalid\n",
-			expectedBool:  false,
-			expectedError: nil,
 		},
 		{
 			name:          "input_empty_eof",
-			input:         "",
-			expectedBool:  false,
 			expectedError: io.EOF,
 		},
 	}
