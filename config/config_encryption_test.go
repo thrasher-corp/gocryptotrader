@@ -19,9 +19,65 @@ import (
 func TestPromptForConfigEncryption(t *testing.T) {
 	t.Parallel()
 
-	confirm, err := promptForConfigEncryption()
-	require.ErrorIs(t, err, io.EOF)
-	require.False(t, confirm)
+	testCases := []struct {
+		name          string
+		input         string
+		expectedBool  bool
+		expectedError error
+	}{
+		{
+			name:          "input_y",
+			input:         "y\n",
+			expectedBool:  true,
+			expectedError: nil,
+		},
+		{
+			name:          "input_n",
+			input:         "n\n",
+			expectedBool:  false,
+			expectedError: nil,
+		},
+		{
+			name:          "input_yes",
+			input:         "yes\n",
+			expectedBool:  true,
+			expectedError: nil,
+		},
+		{
+			name:          "input_no",
+			input:         "no\n",
+			expectedBool:  false,
+			expectedError: nil,
+		},
+		{
+			name:          "input_invalid",
+			input:         "invalid\n",
+			expectedBool:  false,
+			expectedError: nil,
+		},
+		{
+			name:          "input_empty_eof",
+			input:         "",
+			expectedBool:  false,
+			expectedError: io.EOF,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			reader := strings.NewReader(tc.input)
+			confirm, err := promptForConfigEncryption(reader)
+
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.expectedBool, confirm)
+		})
+	}
 }
 
 func TestPromptForConfigKey(t *testing.T) {
