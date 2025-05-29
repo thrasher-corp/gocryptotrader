@@ -2480,7 +2480,19 @@
     },
     "urlEndpoints": null
    },
-   "features": null,
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "websocketAPI": true
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": true,
+     "fillsFeed": false
+    }
+   },
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 0,

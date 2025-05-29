@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -43,8 +44,15 @@ const (
 )
 
 var defacultChannels = []string{
-	chnlBookTiker, chnlKlineV3,
-	chnlAggreDealsV3, chnlAggregateDepthV3}
+	chnlBookTiker,
+	// chnlKlineV3,
+	// chnlAggreDealsV3,
+	// chnlAggregateDepthV3,
+}
+
+// orderbookSnapshotLoadedPairs holds list of symbols and if these instruments snapshot orderbook detail is loaded
+var orderbookSnapshotLoadedPairs = map[string]bool{}
+var syncOrderbookPairsLock sync.Mutex
 
 // WsConnect initiates a websocket connection
 func (me *MEXC) WsConnect() error {
@@ -285,15 +293,32 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(dataSplit[2])
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
+		if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
+			if err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				Exchange:    me.Name,
+				Asset:       asset.Spot,
+				Asks:        []orderbook.Tranche{ask},
+				Bids:        []orderbook.Tranche{bid},
+				Pair:        cp,
+				LastUpdated: time.Now(),
+			}); err != nil {
+				return err
+			}
+			syncOrderbookPairsLock.Lock()
+			orderbookSnapshotLoadedPairs[dataSplit[2]] = true
+			syncOrderbookPairsLock.Unlock()
+			return nil
+		}
 		return me.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:  cp,
-			Asset: asset.Spot,
-			Asks:  []orderbook.Tranche{ask},
-			Bids:  []orderbook.Tranche{bid},
+			Pair:       cp,
+			Asset:      asset.Spot,
+			Asks:       []orderbook.Tranche{ask},
+			Bids:       []orderbook.Tranche{bid},
+			UpdateTime: time.Now(),
 		})
 	case chnlAggregateDepthV3:
 		result := mexc_proto_types.PushDataV3ApiWrapper{
@@ -304,7 +329,11 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		depths := result.GetPublicAggreDepths()
-		cp, err := currency.NewPairFromString(result.Channel)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
+		if err != nil {
+			return err
+		}
+		format, err := me.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -330,12 +359,28 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asset:       asset.Spot,
-			Asks:        asks,
-			Bids:        bids,
-			Pair:        cp,
-			LastUpdated: time.Now(),
+
+		if !orderbookSnapshotLoadedPairs[*result.Symbol] {
+			if err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				Exchange:    me.Name,
+				Asset:       asset.Spot,
+				Asks:        asks,
+				Bids:        bids,
+				Pair:        cp.Format(format),
+				LastUpdated: time.Now(),
+			}); err != nil {
+				return err
+			}
+			syncOrderbookPairsLock.Lock()
+			orderbookSnapshotLoadedPairs[*result.Symbol] = true
+			syncOrderbookPairsLock.Unlock()
+		}
+		return me.Websocket.Orderbook.Update(&orderbook.Update{
+			Asset:      asset.Spot,
+			Asks:       asks,
+			Bids:       bids,
+			Pair:       cp.Format(format),
+			UpdateTime: time.Now(),
 		})
 	case chnlAggreDealsV3:
 		result := mexc_proto_types.PushDataV3ApiWrapper{
@@ -345,7 +390,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(dataSplit[2])
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -390,7 +435,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		body := result.GetPublicSpotKline()
-		cp, err := currency.NewPairFromString(dataSplit[2])
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -400,19 +445,11 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			AssetType: asset.Spot,
 			Interval:  body.Interval,
 		}
-		windowEndUnixMilli, err := strconv.ParseInt(body.WindowEnd, 10, 64)
-		if err != nil {
-			return err
-		}
-		klineData.CloseTime = time.UnixMilli(windowEndUnixMilli)
+		klineData.CloseTime = time.UnixMilli(body.WindowEnd)
 		if klineData.Volume, err = strconv.ParseFloat(body.Amount, 64); err != nil {
 			return err
 		}
-		klineStartTimeUnixMilli, err := strconv.ParseInt(body.WindowStart, 10, 64)
-		if err != nil {
-			return err
-		}
-		klineData.StartTime = time.UnixMilli(klineStartTimeUnixMilli)
+		klineData.StartTime = time.UnixMilli(body.WindowStart)
 		klineData.LowPrice, err = strconv.ParseFloat(body.LowestPrice, 64)
 		if err != nil {
 			return err
@@ -443,7 +480,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(dataSplit[2])
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -471,6 +508,21 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 					return err
 				}
 			}
+			if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
+				err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+					Exchange: me.Name,
+					Pair:     cp,
+					Asks:     asks,
+					Bids:     bids,
+					Asset:    asset.Spot,
+				})
+				if err != nil {
+					return err
+				}
+				syncOrderbookPairsLock.Lock()
+				orderbookSnapshotLoadedPairs[dataSplit[2]] = true
+				syncOrderbookPairsLock.Unlock()
+			}
 			err = me.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       cp,
 				Asks:       asks,
@@ -490,7 +542,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(dataSplit[2])
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -532,7 +584,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(dataSplit[2])
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -598,7 +650,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := currency.NewPairFromString(*result.Symbol)
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -675,7 +727,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		case 5:
 			oStatus = order.PartiallyCancelled
 		}
-		cp, err := currency.NewPairFromString(*result.Symbol)
+		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
 		if err != nil {
 			return err
 		}

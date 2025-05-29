@@ -29,7 +29,7 @@ type PublicSpotKlineV3Api struct {
 	// K线周期(Min1,Min5,Min15,Min30,Min60,Hour4,Hour8,Day1,Week1,Month1)
 	Interval string `protobuf:"bytes,1,opt,name=interval,proto3" json:"interval,omitempty"`
 	// 窗口开始时间戳(秒时间戳)
-	WindowStart string `protobuf:"varint,2,opt,name=windowStart,proto3" json:"windowStart,omitempty"`
+	WindowStart int64 `protobuf:"varint,2,opt,name=windowStart,proto3" json:"windowStart,omitempty"`
 	// 开盘价
 	OpeningPrice string `protobuf:"bytes,3,opt,name=openingPrice,proto3" json:"openingPrice,omitempty"`
 	// 收盘价
@@ -43,7 +43,7 @@ type PublicSpotKlineV3Api struct {
 	// 成交额
 	Amount string `protobuf:"bytes,8,opt,name=amount,proto3" json:"amount,omitempty"`
 	// 窗口结束时间戳(秒时间戳)
-	WindowEnd     string `protobuf:"varint,9,opt,name=windowEnd,proto3" json:"windowEnd,omitempty"`
+	WindowEnd     int64 `protobuf:"varint,9,opt,name=windowEnd,proto3" json:"windowEnd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -85,11 +85,11 @@ func (x *PublicSpotKlineV3Api) GetInterval() string {
 	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetWindowStart() string {
+func (x *PublicSpotKlineV3Api) GetWindowStart() int64 {
 	if x != nil {
 		return x.WindowStart
 	}
-	return ""
+	return 0
 }
 
 func (x *PublicSpotKlineV3Api) GetOpeningPrice() string {
@@ -134,11 +134,11 @@ func (x *PublicSpotKlineV3Api) GetAmount() string {
 	return ""
 }
 
-func (x *PublicSpotKlineV3Api) GetWindowEnd() string {
+func (x *PublicSpotKlineV3Api) GetWindowEnd() int64 {
 	if x != nil {
 		return x.WindowEnd
 	}
-	return ""
+	return 0
 }
 
 var File_PublicSpotKlineV3Api_proto protoreflect.FileDescriptor

@@ -57,6 +57,9 @@ func (me *MEXC) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	if err = me.DisableAssetWebsocketSupport(asset.Futures); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", me.Name, asset.Futures, err)
+	}
 	me.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -64,10 +67,12 @@ func (me *MEXC) SetDefaults() {
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
+				KlineFetching:     true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
+				KlineFetching:     true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -181,7 +186,7 @@ func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 		currencyPairs := make(currency.Pairs, 0, len(result.Data))
 		for i := range result.Data {
 			switch result.Data[i].State {
-			case 3, 4:
+			case 2, 3, 4:
 				continue
 			}
 			pair, err := currency.NewPairFromString(result.Data[i].Symbol)
@@ -387,19 +392,19 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	reqFormat, err := me.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
 	book := &orderbook.Base{
 		Exchange:        me.Name,
 		Pair:            pair,
 		Asset:           assetType,
 		VerifyOrderbook: me.CanVerifyOrderbook,
 	}
-	pFormat, err := me.GetPairFormat(assetType, true)
-	if err != nil {
-		return nil, err
-	}
 	switch assetType {
 	case asset.Spot:
-		result, err := me.GetOrderbook(ctx, pFormat.Format(pair), 1000)
+		result, err := me.GetOrderbook(ctx, reqFormat.Format(pair), 1000)
 		if err != nil {
 			return book, err
 		}
@@ -422,9 +427,8 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 		if err != nil {
 			return book, err
 		}
-		return orderbook.Get(me.Name, pair, assetType)
 	case asset.Futures:
-		result, err := me.GetContractDepthInformation(ctx, pFormat.Format(pair), 1000)
+		result, err := me.GetContractDepthInformation(ctx, reqFormat.Format(pair), 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -446,10 +450,11 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 		if err != nil {
 			return book, err
 		}
-		return orderbook.Get(me.Name, pair, assetType)
 	default:
 		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}
+	return orderbook.Get(me.Name, pair, assetType)
+
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies

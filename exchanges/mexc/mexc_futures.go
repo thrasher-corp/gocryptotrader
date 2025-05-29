@@ -41,7 +41,6 @@ func (me *MEXC) GetContractDepthInformation(ctx context.Context, symbol string, 
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}

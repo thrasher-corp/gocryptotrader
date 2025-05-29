@@ -1457,7 +1457,11 @@ func TestUpdateTicker(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = me.UpdateTicker(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Futures)
+	result, err = me.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.UpdateTicker(t.Context(), futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
