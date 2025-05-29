@@ -702,9 +702,6 @@ func TestCheckAlignment(t *testing.T) {
 // 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
 // 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
 func BenchmarkProcess(b *testing.B) {
-	c, err := currency.NewPairFromStrings("BTC", "USD")
-	require.NoError(b, err)
-
 	base := &Base{
 		Pair:     currency.NewBTCUSD(),
 		Asks:     make(Tranches, 100),
@@ -714,7 +711,7 @@ func BenchmarkProcess(b *testing.B) {
 	}
 
 	for b.Loop() {
-		if err = base.Process(); err != nil {
+		if err := base.Process(); err != nil {
 			b.Fatal(err)
 		}
 	}
