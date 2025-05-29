@@ -58,12 +58,7 @@ func TestPromptForConfigEncryption(t *testing.T) {
 			t.Parallel()
 			reader := strings.NewReader(tc.input)
 			confirm, err := promptForConfigEncryption(reader)
-
-			if tc.expectedError != nil {
-				require.ErrorIs(t, err, tc.expectedError)
-			} else {
-				require.NoError(t, err)
-			}
+			require.ErrorIs(t, err, tc.expectedError)
 			require.Equal(t, tc.expectedBool, confirm)
 		})
 	}
