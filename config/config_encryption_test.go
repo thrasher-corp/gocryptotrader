@@ -26,26 +26,26 @@ func TestPromptForConfigEncryption(t *testing.T) {
 		expectedError error
 	}{
 		{
-			name:          "input_y",
-			input:         "y\n",
-			expectedBool:  true,
+			name:         "input_y",
+			input:        "y\n",
+			expectedBool: true,
 		},
 		{
-			name:          "input_n",
-			input:         "n\n",
+			name:  "input_n",
+			input: "n\n",
 		},
 		{
-			name:          "input_yes",
-			input:         "yes\n",
-			expectedBool:  true,
+			name:         "input_yes",
+			input:        "yes\n",
+			expectedBool: true,
 		},
 		{
-			name:          "input_no",
-			input:         "no\n",
+			name:  "input_no",
+			input: "no\n",
 		},
 		{
-			name:          "input_invalid",
-			input:         "invalid\n",
+			name:  "input_invalid",
+			input: "invalid\n",
 		},
 		{
 			name:          "input_empty_eof",
