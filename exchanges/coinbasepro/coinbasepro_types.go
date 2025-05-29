@@ -61,7 +61,7 @@ type History struct {
 
 // UnmarshalJSON deserilizes kline data from a JSON array into History fields.
 func (h *History) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[6]any{&h.Time, &h.Low, &h.High, &h.Open, &h.Close, &h.Volume})
+	return json.Unmarshal(data, &[]any{&h.Time, &h.Low, &h.High, &h.Open, &h.Close, &h.Volume})
 }
 
 // Stats holds last 24 hr data for coinbasepro

@@ -290,8 +290,7 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	var data []HistoricalVolatilityData
-	return data, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getHistoricalVolatility, params), &data)
+	return data, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.

@@ -150,10 +150,7 @@ var (
 // GetServerTime this endpoint returns the exchange server time.
 func (bi *Binanceus) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	var response ServerTime
-	err := bi.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		serverTime, spotDefaultRate,
-		&response)
+	err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, serverTime, spotDefaultRate, &response)
 	return response.Timestamp.Time(), err
 }
 

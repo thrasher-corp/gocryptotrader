@@ -605,12 +605,18 @@ type Candlestick struct {
 	LowestPrice    types.Number
 	OpenPrice      types.Number
 	BaseCcyAmount  types.Number
-	WindowClosed   string
+	WindowClosed   bool
 }
 
 // UnmarshalJSON parses kline data from a JSON array into Candlestick fields.
 func (c *Candlestick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[8]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &c.WindowClosed})
+	var windowClosed string
+	err := json.Unmarshal(data, &[]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &windowClosed})
+	if err != nil {
+		return err
+	}
+	c.WindowClosed, err = strconv.ParseBool(windowClosed)
+	return err
 }
 
 // CurrencyChain currency chain detail.

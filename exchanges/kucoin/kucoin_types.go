@@ -190,7 +190,7 @@ type Kline struct {
 
 // UnmarshalJSON deserilizes kline data from a JSON array into Kline fields.
 func (k *Kline) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.Close, &k.High, &k.Low, &k.Volume, &k.Amount})
+	return json.Unmarshal(data, &[]any{&k.StartTime, &k.Open, &k.Close, &k.High, &k.Low, &k.Volume, &k.Amount})
 }
 
 // CurrencyBase represents currency code response details

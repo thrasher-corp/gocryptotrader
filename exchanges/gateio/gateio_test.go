@@ -206,7 +206,7 @@ func TestUnmarshalCandlestick(t *testing.T) {
 		LowestPrice:    101336.6,
 		OpenPrice:      101343.8,
 		BaseCcyAmount:  2232.94510000,
-		WindowClosed:   "true",
+		WindowClosed:   true,
 	}, targets[0])
 }
 
