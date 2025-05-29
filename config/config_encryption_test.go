@@ -64,7 +64,6 @@ func TestPromptForConfigEncryption(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			reader := strings.NewReader(tc.input)
