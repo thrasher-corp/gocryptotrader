@@ -1,7 +1,6 @@
 package gct
 
 import (
-	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -42,9 +41,8 @@ var (
 		Value: "",
 	}
 
-	tv            = objects.TrueValue
-	fv            = objects.FalseValue
-	errTestFailed = errors.New("test failed")
+	tv = objects.TrueValue
+	fv = objects.FalseValue
 )
 
 func TestMain(m *testing.M) {
@@ -55,14 +53,7 @@ func TestMain(m *testing.M) {
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeOrderbook(ctx, exch, currencyPair, delimiter, assetType)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = ExchangeOrderbook(exchError, currencyPair, delimiter, assetType)
-	if err != nil && errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderbook()
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
@@ -71,14 +62,7 @@ func TestExchangeOrderbook(t *testing.T) {
 func TestExchangeTicker(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeTicker(ctx, exch, currencyPair, delimiter, assetType)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = ExchangeTicker(exchError, currencyPair, delimiter, assetType)
-	if err != nil && errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeTicker()
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
@@ -110,14 +94,10 @@ func TestExchangePairs(t *testing.T) {
 	t.Parallel()
 
 	_, err := ExchangePairs(exch, tv, assetType)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangePairs(exchError, tv, assetType)
-	if err != nil && errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangePairs()
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
@@ -130,14 +110,10 @@ func TestAccountInfo(t *testing.T) {
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = ExchangeAccountInfo(ctx, exch, assetType)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeAccountInfo(ctx, exchError, assetType)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestExchangeOrderQuery(t *testing.T) {
@@ -147,14 +123,10 @@ func TestExchangeOrderQuery(t *testing.T) {
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = ExchangeOrderQuery(ctx, exch, orderID)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderQuery(ctx, exchError, orderID)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestExchangeOrderCancel(t *testing.T) {
@@ -201,21 +173,15 @@ func TestExchangeOrderSubmit(t *testing.T) {
 
 	_, err = ExchangeOrderSubmit(ctx, exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderSubmit(ctx, exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderSubmit(ctx, objects.TrueValue, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAllModuleNames(t *testing.T) {
@@ -240,9 +206,7 @@ func TestExchangeDepositAddress(t *testing.T) {
 	}
 
 	_, err = ExchangeDepositAddress(exchError, currCode, chain)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestExchangeWithdrawCrypto(t *testing.T) {

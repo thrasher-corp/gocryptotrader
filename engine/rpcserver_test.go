@@ -914,10 +914,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		t.Error("expected error")
 		return
 	}
-	if !errors.Is(err, errInvalidArguments) {
-		t.Error(err)
-		return
-	}
+	require.ErrorIs(t, err, errInvalidArguments)
 	cp := currency.NewBTCUSD()
 	// no data found response
 	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UTC()
@@ -1016,10 +1013,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		t.Error("expected error")
 		return
 	}
-	if !errors.Is(err, errInvalidArguments) {
-		t.Error(err)
-		return
-	}
+	require.ErrorIs(t, err, errInvalidArguments)
 	cp := currency.NewBTCUSD()
 	// no data found response
 	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)

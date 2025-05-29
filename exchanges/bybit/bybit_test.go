@@ -1878,13 +1878,9 @@ func TestGetDeliveryRecord(t *testing.T) {
 		expiryTime = time.UnixMilli(1700216290093)
 	}
 	_, err := b.GetDeliveryRecord(t.Context(), "spot", "", "", expiryTime, 20)
-	if !errors.Is(err, errInvalidCategory) {
-		t.Fatal(err)
-	}
+	assert.ErrorIs(t, err, errInvalidCategory)
 	_, err = b.GetDeliveryRecord(t.Context(), "linear", "", "", expiryTime, 20)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetDeliveryRecord should not error for linear category")
 }
 
 func TestGetUSDCSessionSettlement(t *testing.T) {
@@ -1907,13 +1903,10 @@ func TestGetAssetInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 	_, err := b.GetAssetInfo(t.Context(), "", "BTC")
-	if !errors.Is(err, errMissingAccountType) {
-		t.Fatal(err)
-	}
+	require.ErrorIs(t, err, errMissingAccountType)
+
 	_, err = b.GetAssetInfo(t.Context(), "SPOT", "BTC")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "GetAssetInfo should not error for SPOT account type")
 }
 
 func TestGetAllCoinBalance(t *testing.T) {
@@ -2610,17 +2603,16 @@ func TestGetBorrowableCoinInfo(t *testing.T) {
 
 func TestGetInterestAndQuota(t *testing.T) {
 	t.Parallel()
+	_, err := b.GetInterestAndQuota(t.Context(), currency.EMPTYCODE)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetInterestAndQuota(t.Context(), currency.EMPTYCODE)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = b.GetInterestAndQuota(t.Context(), currency.BTC)
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetLoanAccountInfo(t *testing.T) {
@@ -2630,9 +2622,7 @@ func TestGetLoanAccountInfo(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetLoanAccountInfo(t.Context())
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestBorrow(t *testing.T) {
@@ -2684,9 +2674,7 @@ func TestGetBorrowOrderDetail(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetBorrowOrderDetail(t.Context(), time.Time{}, time.Time{}, currency.BTC, 0, 0)
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetRepaymentOrderDetail(t *testing.T) {
@@ -2696,9 +2684,7 @@ func TestGetRepaymentOrderDetail(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetRepaymentOrderDetail(t.Context(), time.Time{}, time.Time{}, currency.BTC, 0)
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestToggleMarginTradeNormal(t *testing.T) {
@@ -2708,9 +2694,7 @@ func TestToggleMarginTradeNormal(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.ToggleMarginTradeNormal(t.Context(), true)
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetProductInfo(t *testing.T) {
@@ -2736,9 +2720,7 @@ func TestGetInstitutionalLoanOrders(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetInstitutionalLoanOrders(t.Context(), "", time.Time{}, time.Time{}, 0)
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetInstitutionalRepayOrders(t *testing.T) {
@@ -2748,9 +2730,7 @@ func TestGetInstitutionalRepayOrders(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetInstitutionalRepayOrders(t.Context(), time.Time{}, time.Time{}, 0)
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetLTV(t *testing.T) {
@@ -2760,9 +2740,7 @@ func TestGetLTV(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetLTV(t.Context())
-	if err != nil && !errors.Is(err, errEndpointAvailableForNormalAPIKeyHolders) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestBindOrUnbindUID(t *testing.T) {
@@ -3032,9 +3010,7 @@ func TestWsLinearConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsLinearConnect()
-	if err != nil && !errors.Is(err, websocket.ErrWebsocketNotEnabled) {
-		t.Error(err)
-	}
+	assert.True(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil)
 }
 
 func TestWsInverseConnect(t *testing.T) {
@@ -3043,9 +3019,7 @@ func TestWsInverseConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsInverseConnect()
-	if err != nil && !errors.Is(err, websocket.ErrWebsocketNotEnabled) {
-		t.Error(err)
-	}
+	assert.True(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil)
 }
 
 func TestWsOptionsConnect(t *testing.T) {
@@ -3054,9 +3028,7 @@ func TestWsOptionsConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsOptionsConnect()
-	if err != nil && !errors.Is(err, websocket.ErrWebsocketNotEnabled) {
-		t.Error(err)
-	}
+	assert.True(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil)
 }
 
 var pushDataMap = map[string]string{

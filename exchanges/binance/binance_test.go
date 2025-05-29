@@ -2287,25 +2287,17 @@ func TestGetHistoricCandles(t *testing.T) {
 	bAssets := b.GetAssetTypes(false)
 	for i := range bAssets {
 		cps, err := b.GetAvailablePairs(bAssets[i])
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", bAssets[i])
+		require.NotEmptyf(t, cps, "GetAvailablePairs for asset %s must return at least one pair", bAssets[i])
 		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
-		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-			t.Fatal(err)
-		}
+		require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
+			"EnablePair for asset %s and pair %s must not error", bAssets[i], cps[0])
 		_, err = b.GetHistoricCandles(t.Context(), cps[0], bAssets[i], kline.OneDay, startTime, end)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NoErrorf(t, err, "GetHistoricCandles should not error for asset %s and pair %s", bAssets[i], cps[0])
 	}
 
-	pair, err := currency.NewPairFromString("BTC-USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
 	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, err = b.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
+	_, err := b.GetHistoricCandles(t.Context(), currency.NewBTCUSDT(), asset.Spot, kline.Interval(time.Hour*7), startTime, end)
 	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 }
 
@@ -2316,17 +2308,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	bAssets := b.GetAssetTypes(false)
 	for i := range bAssets {
 		cps, err := b.GetAvailablePairs(bAssets[i])
-		if err != nil {
-			t.Error(err)
-		}
+		require.NoErrorf(t, err, "GetAvailablePairs for asset %s must not error", bAssets[i])
+		require.NotEmptyf(t, cps, "GetAvailablePairs for asset %s must return at least one pair", bAssets[i])
 		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
-		if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-			t.Fatal(err)
-		}
+		require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
+			"EnablePair for asset %s and pair %s must not error", bAssets[i], cps[0])
 		_, err = b.GetHistoricCandlesExtended(t.Context(), cps[0], bAssets[i], kline.OneDay, startTime, end)
-		if err != nil {
-			t.Error(err)
-		}
+		assert.NoErrorf(t, err, "GetHistoricCandlesExtended should not error for asset %s and pair %s", bAssets[i], cps[0])
 	}
 }
 
@@ -2860,22 +2848,18 @@ func TestGetLatestFundingRates(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
-	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
-		t.Fatal(err)
-	}
+	require.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
+		"EnablePair for asset %s and pair %s must not error", asset.USDTMarginedFutures, cp)
+
 	_, err = b.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  cp,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetLatestFundingRates should not error for USDTMarginedFutures")
 	_, err = b.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetLatestFundingRates should not error for CoinMarginedFutures")
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

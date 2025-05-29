@@ -1072,9 +1072,8 @@ func TestGetExchangeNames(t *testing.T) {
 
 	for i := range bot.Config.Exchanges {
 		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
-		if err != nil && !errors.Is(err, ErrExchangeAlreadyLoaded) {
-			t.Fatal(err)
-		}
+		require.Truef(t, err == nil || errors.Is(err, ErrExchangeAlreadyLoaded),
+			"%s NewExchangeByName must not error", bot.Config.Exchanges[i].Name)
 		if exch != nil {
 			exch.SetDefaults()
 			err = bot.ExchangeManager.Add(exch)

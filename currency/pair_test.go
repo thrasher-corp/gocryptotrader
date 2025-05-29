@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"errors"
 	"strconv"
 	"testing"
 
@@ -738,9 +737,8 @@ func TestOther(t *testing.T) {
 	if !received.Equal(DAI) {
 		t.Fatal("unexpected value")
 	}
-	if _, err := NewPair(DAI, XRP).Other(BTC); !errors.Is(err, ErrCurrencyCodeEmpty) {
-		t.Fatal("unexpected value")
-	}
+	_, err = NewPair(DAI, XRP).Other(BTC)
+	require.ErrorIs(t, err, ErrCurrencyCodeEmpty)
 }
 
 func TestIsPopulated(t *testing.T) {

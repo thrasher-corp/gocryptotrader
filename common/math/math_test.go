@@ -1,7 +1,6 @@
 package math
 
 import (
-	"errors"
 	"math"
 	"testing"
 
@@ -484,36 +483,21 @@ func TestDecimalSortinoRatio(t *testing.T) {
 		decimal.NewFromFloat(0.23),
 	}
 	avg, err := DecimalArithmeticMean(figures)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	_, err = DecimalSortinoRatio(nil, rfr, avg)
 	assert.ErrorIs(t, err, errZeroValue)
 
-	var r decimal.Decimal
-	r, err = DecimalSortinoRatio(figures, rfr, avg)
-	if err != nil && !errors.Is(err, ErrInexactConversion) {
-		t.Error(err)
-	}
+	r, err := DecimalSortinoRatio(figures, rfr, avg)
+	assert.ErrorIs(t, err, ErrInexactConversion)
 	rf, exact := r.Float64()
-	if !exact && rf != 3.0377875479459906 {
-		t.Errorf("expected 3.0377875479459906, received %v", r)
-	} else if rf != 3.0377875479459907 {
-		t.Errorf("expected 3.0377875479459907, received %v", r)
-	}
+	assert.False(t, exact)
+	assert.Equal(t, 3.0377875479459906, rf)
 
 	avg, err = DecimalFinancialGeometricMean(figures)
-	if err != nil {
-		t.Error(err)
-	}
-
+	require.NoError(t, err)
 	r, err = DecimalSortinoRatio(figures, rfr, avg)
-	if err != nil && !errors.Is(err, ErrInexactConversion) {
-		t.Error(err)
-	}
-	if !r.Equal(decimal.NewFromFloat(2.8712802265603243)) {
-		t.Errorf("expected 2.525203164136098, received %v", r)
-	}
+	assert.ErrorIs(t, err, ErrInexactConversion)
+	assert.True(t, r.Equal(decimal.NewFromFloat(2.8712802265603243)))
 
 	// this follows and matches the example calculation from
 	// https://www.wallstreetmojo.com/sortino-ratio/
@@ -532,16 +516,10 @@ func TestDecimalSortinoRatio(t *testing.T) {
 		decimal.NewFromFloat(0.02),
 	}
 	avg, err = DecimalArithmeticMean(example)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	r, err = DecimalSortinoRatio(example, decimal.NewFromFloat(0.06), avg)
-	if err != nil && !errors.Is(err, ErrInexactConversion) {
-		t.Error(err)
-	}
-	if rr := r.Round(1); !rr.Equal(decimal.NewFromFloat(0.2)) {
-		t.Errorf("expected 0.2, received %v", rr)
-	}
+	assert.ErrorIs(t, err, ErrInexactConversion)
+	assert.True(t, r.Round(1).Equal(decimal.NewFromFloat(0.2)))
 }
 
 func TestDecimalInformationRatio(t *testing.T) {
@@ -575,44 +553,27 @@ func TestDecimalInformationRatio(t *testing.T) {
 		decimal.Zero,
 	}
 	avg, err := DecimalArithmeticMean(figures)
-	if err != nil {
-		t.Error(err)
-	}
-	if !avg.Equal(decimal.NewFromFloat(0.01145)) {
-		t.Error(avg)
-	}
-	var avgComparison decimal.Decimal
-	avgComparison, err = DecimalArithmeticMean(comparisonFigures)
-	if err != nil {
-		t.Error(err)
-	}
-	if !avgComparison.Equal(decimal.NewFromFloat(0.005425)) {
-		t.Error(avgComparison)
-	}
+	require.NoError(t, err)
+	assert.True(t, decimal.NewFromFloat(0.01145).Equal(avg))
+
+	avgComparison, err := DecimalArithmeticMean(comparisonFigures)
+	require.NoError(t, err)
+	assert.True(t, decimal.NewFromFloat(0.005425).Equal(avgComparison))
 
 	eachDiff := make([]decimal.Decimal, len(figures))
 	for i := range figures {
 		eachDiff[i] = figures[i].Sub(comparisonFigures[i])
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(eachDiff)
-	if err != nil && !errors.Is(err, ErrInexactConversion) {
-		t.Error(err)
-	}
-	if !stdDev.Equal(decimal.NewFromFloat(0.028992588851865227)) {
-		t.Error(stdDev)
-	}
+	require.ErrorIs(t, err, ErrInexactConversion)
+	assert.Equal(t, decimal.NewFromFloat(0.028992588851865227), stdDev)
+
 	information := avg.Sub(avgComparison).Div(stdDev)
-	if !information.Equal(decimal.NewFromFloat(0.2078117283966652)) {
-		t.Errorf("expected %v received %v", 0.2078117283966652, information)
-	}
-	var information2 decimal.Decimal
-	information2, err = DecimalInformationRatio(figures, comparisonFigures, avg, avgComparison)
-	if err != nil {
-		t.Error(err)
-	}
-	if !information.Equal(information2) {
-		t.Error(information2)
-	}
+	assert.Equal(t, decimal.NewFromFloat(0.2078117283966652), information)
+
+	information2, err := DecimalInformationRatio(figures, comparisonFigures, avg, avgComparison)
+	require.NoError(t, err)
+	assert.Equal(t, information, information2)
 
 	_, err = DecimalInformationRatio(figures, []decimal.Decimal{decimal.NewFromInt(1)}, avg, avgComparison)
 	assert.ErrorIs(t, err, errInformationBadLength)

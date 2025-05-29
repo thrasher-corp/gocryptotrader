@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"math"
 	"strings"
 	"testing"
@@ -450,43 +449,32 @@ func TestSimulateOrder(t *testing.T) {
 }
 
 func TestGetAveragePrice(t *testing.T) {
-	var b Base
-	b.Exchange = "Binance"
-	cp, err := currency.NewPairFromString("ETH-USDT")
-	if err != nil {
-		t.Error(err)
+	b := Base{
+		Exchange: "Binance",
+		Pair:     currency.NewBTCUSD(),
 	}
-	b.Pair = cp
-	b.Bids = []Tranche{}
-	_, err = b.GetAveragePrice(false, 5)
-	if errors.Is(errNotEnoughLiquidity, err) {
-		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
-	}
-	b = Base{}
-	b.Pair = cp
-	b.Asks = []Tranche{
-		{Amount: 5, Price: 1},
-		{Amount: 5, Price: 2},
-		{Amount: 5, Price: 3},
-		{Amount: 5, Price: 4},
+	_, err := b.GetAveragePrice(false, 5)
+	assert.ErrorIs(t, err, errNotEnoughLiquidity)
+
+	b = Base{
+		Asks: []Tranche{
+			{Amount: 5, Price: 1},
+			{Amount: 5, Price: 2},
+			{Amount: 5, Price: 3},
+			{Amount: 5, Price: 4},
+		},
 	}
 	_, err = b.GetAveragePrice(true, -2)
 	assert.ErrorIs(t, err, errAmountInvalid)
 
 	avgPrice, err := b.GetAveragePrice(true, 15)
-	if err != nil {
-		t.Error(err)
-	}
-	if avgPrice != 2 {
-		t.Errorf("avg price calculation failed: expected 2, received %f", avgPrice)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 2.0, avgPrice)
+
 	avgPrice, err = b.GetAveragePrice(true, 18)
-	if err != nil {
-		t.Error(err)
-	}
-	if math.Round(avgPrice*1000)/1000 != 2.333 {
-		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice*1000)/1000)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 2.333, math.Round(avgPrice*1000)/1000)
+
 	_, err = b.GetAveragePrice(true, 25)
 	assert.ErrorIs(t, err, errNotEnoughLiquidity)
 }
