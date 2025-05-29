@@ -4455,13 +4455,13 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	require.NoError(t, err)
 
 	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
-	got, err := orderbook.Get("okx", required, asset.Spot)
+	got, err := orderbook.Get(ok.Name, required, asset.Spot)
 	require.NoError(t, err)
 
 	require.Len(t, got.Asks, 5)
 	require.Len(t, got.Bids, 5)
 	// Book replicated to margin
-	got, err = orderbook.Get("okx", required, asset.Margin)
+	got, err = orderbook.Get(ok.Name, required, asset.Margin)
 	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
