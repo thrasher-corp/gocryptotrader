@@ -545,7 +545,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	}
 	updateTicker(tick, &tickResp)
 	tick.LastUpdated = resp.PushTimestamp.Time()
-	if err = ticker.ProcessTicker(tick); err != nil {
+	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
 	by.Websocket.DataHandler <- tick
@@ -752,7 +752,6 @@ func hasPotentialDelimiter(a asset.Item) bool {
 func (by *Bybit) submitSubscriptionNonTemplate(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptionsNonTemplate(conn, a, operation, channelsToSubscribe)
 	if err != nil {
-		fmt.Println("meow")
 		return err
 	}
 	for _, payload := range payloads {
@@ -895,7 +894,7 @@ func (by *Bybit) getPairFromCategory(category, symbol string) (currency.Pair, as
 	case "option":
 		assets = append(assets, asset.Options)
 	default:
-		return currency.EMPTYPAIR, 0, fmt.Errorf("category '%s' not supported for incoming symbol '%s'", category, symbol)
+		return currency.EMPTYPAIR, 0, fmt.Errorf("category %q not supported for incoming symbol %q", category, symbol)
 	}
 	for _, a := range assets {
 		cp, err := by.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))
