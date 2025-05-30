@@ -56,11 +56,12 @@ var subscriptionNames = map[string]string{
 
 // WsConnect connects to a websocket feed
 func (b *BTCMarkets) WsConnect() error {
+	ctx := context.TODO()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -69,12 +70,12 @@ func (b *BTCMarkets) WsConnect() error {
 	}
 
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *BTCMarkets) wsReadData() {
+func (b *BTCMarkets) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -82,7 +83,7 @@ func (b *BTCMarkets) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
@@ -134,7 +135,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
+func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var wsResponse WsMessageType
 	err := json.Unmarshal(respRaw, &wsResponse)
 	if err != nil {
@@ -321,7 +322,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		clientID := ""
-		if creds, err := b.GetCredentials(context.TODO()); err != nil {
+		if creds, err := b.GetCredentials(ctx); err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: b.Name,
 				OrderID:  orderID,
@@ -371,13 +372,14 @@ func (b *BTCMarkets) GetSubscriptionTemplate(_ *subscription.Subscription) (*tem
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	baseReq := &WsSubscribe{
 		MessageType: subscribe,
 	}
 
 	var errs error
 	if authed := subs.Private(); len(authed) > 0 {
-		if err := b.signWsReq(baseReq); err != nil {
+		if err := b.signWsReq(ctx, baseReq); err != nil {
 			errs = err
 			for _, s := range authed {
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, s))
@@ -400,7 +402,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 			r.Channels[i] = s.QualifiedChannel
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+		err := b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, batch...)
 		}
@@ -412,8 +414,8 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 	return errs
 }
 
-func (b *BTCMarkets) signWsReq(r *WsSubscribe) error {
-	creds, err := b.GetCredentials(context.TODO())
+func (b *BTCMarkets) signWsReq(ctx context.Context, r *WsSubscribe) error {
+	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -431,6 +433,7 @@ func (b *BTCMarkets) signWsReq(r *WsSubscribe) error {
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
 func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	var errs error
 	for _, s := range subs {
 		req := WsSubscribe{
@@ -440,7 +443,7 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 			MarketIDs:   s.Pairs.Strings(),
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+		err := b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 		if err == nil {
 			err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
 		}

@@ -36,6 +36,7 @@ var defaultSubscriptions = subscription.List{
 
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
+	ctx := context.TODO()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -44,17 +45,15 @@ func (b *Bithumb) WsConnect() error {
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w",
-			b.Name,
-			err)
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %w", b.Name, err)
 	}
 
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(ctx)
 	return nil
 }
 
@@ -183,9 +182,10 @@ func (b *Bithumb) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 
 // Subscribe subscribes to a set of channels
 func (b *Bithumb) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	var errs error
 	for _, s := range subs {
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, json.RawMessage(s.QualifiedChannel))
+		err := b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(s.QualifiedChannel))
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
 		}

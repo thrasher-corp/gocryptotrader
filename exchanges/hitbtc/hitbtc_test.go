@@ -463,7 +463,7 @@ func setupWsAuth(t *testing.T) {
 	}
 
 	var dialer gws.Dialer
-	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := h.Websocket.Conn.DialContext(t.Context(), &dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +488,7 @@ func TestWsCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.wsCancelOrder("ImNotARealOrderID")
+	_, err := h.wsCancelOrder(t.Context(), "ImNotARealOrderID")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,10 +500,7 @@ func TestWsPlaceOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.wsPlaceOrder(currency.NewPair(currency.LTC, currency.BTC),
-		order.Buy.String(),
-		1,
-		1)
+	_, err := h.wsPlaceOrder(t.Context(), currency.NewPair(currency.LTC, currency.BTC), order.Buy.String(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,7 +512,7 @@ func TestWsReplaceOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.wsReplaceOrder("ImNotARealOrderID", 1, 1)
+	_, err := h.wsReplaceOrder(t.Context(), "ImNotARealOrderID", 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +521,7 @@ func TestWsReplaceOrder(t *testing.T) {
 // TestWsGetActiveOrders dials websocket, sends get active orders request.
 func TestWsGetActiveOrders(t *testing.T) {
 	setupWsAuth(t)
-	if _, err := h.wsGetActiveOrders(); err != nil {
+	if _, err := h.wsGetActiveOrders(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -532,7 +529,7 @@ func TestWsGetActiveOrders(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTradingBalance(t *testing.T) {
 	setupWsAuth(t)
-	if _, err := h.wsGetTradingBalance(); err != nil {
+	if _, err := h.wsGetTradingBalance(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -540,7 +537,7 @@ func TestWsGetTradingBalance(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTrades(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetTrades(currency.NewPair(currency.ETH, currency.BTC), 1000, "ASC", "id")
+	_, err := h.wsGetTrades(t.Context(), currency.NewPair(currency.ETH, currency.BTC), 1000, "ASC", "id")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +546,7 @@ func TestWsGetTrades(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetSymbols(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetSymbols(currency.NewPair(currency.ETH, currency.BTC))
+	_, err := h.wsGetSymbols(t.Context(), currency.NewPair(currency.ETH, currency.BTC))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,7 +555,7 @@ func TestWsGetSymbols(t *testing.T) {
 // TestWsGetCurrencies dials websocket, sends get trading balance request.
 func TestWsGetCurrencies(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetCurrencies(currency.BTC)
+	_, err := h.wsGetCurrencies(t.Context(), currency.BTC)
 	if err != nil {
 		t.Fatal(err)
 	}

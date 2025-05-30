@@ -34,7 +34,6 @@ var (
 
 // Connection defines the interface for websocket connections
 type Connection interface {
-	Dial(*gws.Dialer, http.Header) error
 	DialContext(context.Context, *gws.Dialer, http.Header) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
@@ -128,11 +127,6 @@ type connection struct {
 	Traffic                  chan struct{}
 	readMessageErrors        chan error
 	bespokeGenerateMessageID func(highPrecision bool) int64
-}
-
-// Dial sets proxy urls and then connects to the websocket
-func (c *connection) Dial(dialer *gws.Dialer, headers http.Header) error {
-	return c.DialContext(context.Background(), dialer, headers)
 }
 
 // DialContext sets proxy urls and then connects to the websocket
