@@ -82,7 +82,7 @@ func TestHistoryUnmarshalJSON(t *testing.T) {
 	var resp []History
 	err := json.Unmarshal([]byte(data), &resp)
 	require.NoError(t, err)
-	require.NotNil(t, resp)
+	require.Len(t, resp, 3)
 	assert.Equal(t, History{
 		Time:   types.Time(time.Unix(1746649200, 0)),
 		Low:    96269.22,

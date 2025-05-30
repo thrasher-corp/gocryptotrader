@@ -197,7 +197,7 @@ func TestUnmarshalCandlestick(t *testing.T) {
 	var targets []Candlestick
 	err := json.Unmarshal([]byte(data), &targets)
 	require.NoError(t, err)
-	require.NotEmpty(t, targets)
+	require.Len(t, targets, 3)
 	assert.Equal(t, Candlestick{
 		Timestamp:      types.Time(time.Unix(1738108800, 0)),
 		QuoteCcyVolume: 229534412.73508700,

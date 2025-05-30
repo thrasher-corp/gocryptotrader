@@ -247,6 +247,8 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	var resp []MarkPriceHistory
 	err := json.Unmarshal([]byte(`[[1608142381229,0.5165791606037885],[1608142380231,0.5165737855432504],[1608142379227,0.5165768236356326]]`), &resp)
 	require.NoError(t, err)
+	assert.Len(t, resp, 3)
+
 	_, err = d.GetMarkPriceHistory(t.Context(), "", time.Now().Add(-5*time.Minute), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
@@ -464,7 +466,7 @@ func TestUnmarshalToHistoricValatility(t *testing.T) {
 	var targets []HistoricalVolatilityData
 	err := json.Unmarshal([]byte(data), &targets)
 	require.NoError(t, err)
-	require.NotEmpty(t, targets)
+	require.Len(t, targets, 21)
 	assert.Equal(t, HistoricalVolatilityData{
 		Timestamp: types.Time(time.UnixMilli(1746532800000)),
 		Value:     33.926694663144644,
