@@ -51,9 +51,19 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	case order.OptimalLimit:
 		return "optimal_limit_ioc", nil
 	case order.Limit:
+		if tif == order.PostOnly {
+			return orderPostOnly, nil
+		}
 		return orderType.Lower(), nil
-	case order.Market,
-		order.Trigger,
+	case order.Market:
+		switch tif {
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
+		return orderType.Lower(), nil
+	case order.Trigger,
 		order.Chase,
 		order.TWAP,
 		order.OCO:

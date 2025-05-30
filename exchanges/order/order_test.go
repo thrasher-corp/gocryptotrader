@@ -736,6 +736,7 @@ func BenchmarkStringToOrderSide(b *testing.B) {
 }
 
 func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in  string
 		out Type
@@ -783,6 +784,7 @@ func TestStringToOrderType(t *testing.T) {
 	for i := range cases {
 		testData := &cases[i]
 		t.Run(testData.in, func(t *testing.T) {
+			t.Parallel()
 			out, err := StringToOrderType(testData.in)
 			require.ErrorIs(t, err, testData.err)
 			assert.Equal(t, testData.out, out)

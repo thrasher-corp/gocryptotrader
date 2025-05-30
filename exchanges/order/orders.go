@@ -695,6 +695,8 @@ func (t Type) String() string {
 		return "OCO"
 	case OptimalLimit:
 		return "OPTIMAL_LIMIT"
+	case MarketMakerProtection:
+		return "MMP"
 	default:
 		switch {
 		case t == AnyType:
