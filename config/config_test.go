@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1129,9 +1128,7 @@ func TestGetExchangeConfig(t *testing.T) {
 			err.Error())
 	}
 	_, err = cfg.GetExchangeConfig("Testy")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestGetForexProviders(t *testing.T) {
@@ -2006,9 +2003,7 @@ func TestMigrateConfig(t *testing.T) {
 
 func TestExchangeConfigValidate(t *testing.T) {
 	err := (*Exchange)(nil).Validate()
-	if !errors.Is(err, errExchangeConfigIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeConfigIsNil)
 
 	err = (&Exchange{}).Validate()
 	require.NoError(t, err)

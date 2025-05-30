@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"bufio"
-	"errors"
 	"log"
 	"os"
 	"strconv"
@@ -130,9 +129,7 @@ func TestGetPairs(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetPairs(t.Context(), asset.Binary)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	assets := b.GetAssetTypes(false)
 	for x := range assets {
@@ -1697,17 +1694,13 @@ func TestFixCasing(t *testing.T) {
 	}
 
 	_, err = b.fixCasing(currency.NewPair(currency.EMPTYCODE, currency.BTC), asset.MarginFunding)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = b.fixCasing(currency.NewPair(currency.BTC, currency.EMPTYCODE), asset.MarginFunding)
 	require.NoError(t, err)
 
 	_, err = b.fixCasing(currency.EMPTYPAIR, asset.MarginFunding)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
@@ -1931,9 +1924,7 @@ func TestGetSiteListConfigData(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetSiteListConfigData(t.Context(), "")
-	if !errors.Is(err, errSetCannotBeEmpty) {
-		t.Fatalf("received: %v, expected: %v", err, errSetCannotBeEmpty)
-	}
+	require.ErrorIs(t, err, errSetCannotBeEmpty)
 
 	pairs, err := b.GetSiteListConfigData(t.Context(), bitfinexSecuritiesPairs)
 	require.NoError(t, err)

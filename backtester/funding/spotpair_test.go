@@ -1,7 +1,6 @@
 package funding
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -89,24 +88,19 @@ func TestReservePair(t *testing.T) {
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = pairItems.Reserve(elite, gctorder.Buy)
 	assert.NoError(t, err)
 
 	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = pairItems.Reserve(elite, gctorder.Sell)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
+
 	err = pairItems.Reserve(elite, gctorder.DoNothing)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 }
 
 func TestReleasePair(t *testing.T) {
@@ -121,46 +115,34 @@ func TestReleasePair(t *testing.T) {
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
 	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = pairItems.Reserve(elite, gctorder.Buy)
 	assert.NoError(t, err)
 
 	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = pairItems.Reserve(elite, gctorder.Sell)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	err = pairItems.Release(decimal.Zero, decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
 	assert.NoError(t, err)
 
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	err = pairItems.Release(elite, decimal.Zero, gctorder.DoNothing)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
+
 	err = pairItems.Release(decimal.Zero, decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
 }
 
 func TestIncreaseAvailablePair(t *testing.T) {
@@ -175,24 +157,21 @@ func TestIncreaseAvailablePair(t *testing.T) {
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
 	err = pairItems.IncreaseAvailable(decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	if !pairItems.quote.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
 	err = pairItems.IncreaseAvailable(decimal.Zero, gctorder.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	if !pairItems.base.available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.base.available)
 	}
 
 	err = pairItems.IncreaseAvailable(elite.Neg(), gctorder.Sell)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	if !pairItems.quote.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
@@ -204,9 +183,8 @@ func TestIncreaseAvailablePair(t *testing.T) {
 	}
 
 	err = pairItems.IncreaseAvailable(elite, gctorder.DoNothing)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
+
 	if !pairItems.base.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}
@@ -245,9 +223,8 @@ func TestGetPairReader(t *testing.T) {
 	}
 	var expectedError error
 	ip, err := p.GetPairReader()
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v'", err, expectedError)
-	}
+	assert.ErrorIs(t, err, expectedError)
+
 	if ip != p {
 		t.Error("expected the same thing")
 	}
@@ -258,9 +235,8 @@ func TestGetCollateralReader(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	if _, err := p.GetCollateralReader(); !errors.Is(err, ErrNotCollateral) {
-		t.Errorf("received '%v' expected '%v'", err, ErrNotCollateral)
-	}
+	_, err := p.GetCollateralReader()
+	assert.ErrorIs(t, err, ErrNotCollateral)
 }
 
 func TestFundReader(t *testing.T) {
@@ -307,9 +283,8 @@ func TestCollateralReleaser(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	if _, err := p.CollateralReleaser(); !errors.Is(err, ErrNotCollateral) {
-		t.Errorf("received '%v' expected '%v'", err, ErrNotCollateral)
-	}
+	_, err := p.GetCollateralReader()
+	assert.ErrorIs(t, err, ErrNotCollateral)
 }
 
 func TestLiquidate(t *testing.T) {

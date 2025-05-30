@@ -1510,13 +1510,10 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetFuturesContractDetails(t.Context(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
 	_, err = k.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = k.GetFuturesContractDetails(t.Context(), asset.Futures)
 	assert.NoError(t, err, "GetFuturesContractDetails should not error")

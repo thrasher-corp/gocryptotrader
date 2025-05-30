@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -699,27 +698,19 @@ func TestProcessAccountMarginPosition(t *testing.T) {
 
 	margin := []byte(`[1000,"",[["m", 23432933, 28, "-0.06000000"]]]`)
 	err = p.wsHandleData(margin)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	margin = []byte(`[1000,"",[["m", "23432933", 28, "-0.06000000", null]]]`)
 	err = p.wsHandleData(margin)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	margin = []byte(`[1000,"",[["m", 23432933, "28", "-0.06000000", null]]]`)
 	err = p.wsHandleData(margin)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	margin = []byte(`[1000,"",[["m", 23432933, 28, -0.06000000, null]]]`)
 	err = p.wsHandleData(margin)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	margin = []byte(`[1000,"",[["m", 23432933, 28, "-0.06000000", null]]]`)
 	err = p.wsHandleData(margin)
@@ -736,39 +727,27 @@ func TestProcessAccountPendingOrder(t *testing.T) {
 
 	pending := []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000","0"]]]`)
 	err = p.wsHandleData(pending)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	pending = []byte(`[1000,"",[["p","431682155857",127,"1000.00000000","1.00000000","0",null]]]`)
 	err = p.wsHandleData(pending)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	pending = []byte(`[1000,"",[["p",431682155857,"127","1000.00000000","1.00000000","0",null]]]`)
 	err = p.wsHandleData(pending)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	pending = []byte(`[1000,"",[["p",431682155857,127,1000.00000000,"1.00000000","0",null]]]`)
 	err = p.wsHandleData(pending)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	pending = []byte(`[1000,"",[["p",431682155857,127,"1000.00000000",1.00000000,"0",null]]]`)
 	err = p.wsHandleData(pending)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	pending = []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000",0,null]]]`)
 	err = p.wsHandleData(pending)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	pending = []byte(`[1000,"",[["p",431682155857,127,"1000.00000000","1.00000000","0",null]]]`)
 	err = p.wsHandleData(pending)
@@ -787,33 +766,23 @@ func TestProcessAccountPendingOrder(t *testing.T) {
 func TestProcessAccountOrderUpdate(t *testing.T) {
 	orderUpdate := []byte(`[1000,"",[["o",431682155857,"0.00000000","f"]]]`)
 	err := p.wsHandleData(orderUpdate)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	orderUpdate = []byte(`[1000,"",[["o","431682155857","0.00000000","f",null]]]`)
 	err = p.wsHandleData(orderUpdate)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	orderUpdate = []byte(`[1000,"",[["o",431682155857,0.00000000,"f",null]]]`)
 	err = p.wsHandleData(orderUpdate)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.00000000",123,null]]]`)
 	err = p.wsHandleData(orderUpdate)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.00000000","c",null]]]`)
 	err = p.wsHandleData(orderUpdate)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	orderUpdate = []byte(`[1000,"",[["o",431682155857,"0.50000000","c",null,"0.50000000"]]]`)
 	err = p.wsHandleData(orderUpdate)
@@ -848,51 +817,35 @@ func TestProcessAccountOrderLimit(t *testing.T) {
 
 	accountTrade := []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000"]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	accountTrade = []byte(`[1000,"",[["n","127",431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,"431682155857","0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,431682155857,0,"1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0",1000.00000000,"1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000",1.00000000,"2021-04-13 07:19:56","1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000",1234,"1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56",1.00000000,null]]]`)
 	err = p.wsHandleData(accountTrade)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrade = []byte(`[1000,"",[["n",127,431682155857,"0","1000.00000000","1.00000000","2021-04-13 07:19:56","1.00000000",null]]]`)
 	err = p.wsHandleData(accountTrade)
@@ -909,27 +862,19 @@ func TestProcessAccountBalanceUpdate(t *testing.T) {
 
 	balance := []byte(`[1000,"",[["b",243,"e"]]]`)
 	err = p.wsHandleData(balance)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	balance = []byte(`[1000,"",[["b","243","e","-1.00000000"]]]`)
 	err = p.wsHandleData(balance)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	balance = []byte(`[1000,"",[["b",243,1234,"-1.00000000"]]]`)
 	err = p.wsHandleData(balance)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	balance = []byte(`[1000,"",[["b",243,"e",-1.00000000]]]`)
 	err = p.wsHandleData(balance)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	balance = []byte(`[1000,"",[["b",243,"e","-1.00000000"]]]`)
 	err = p.wsHandleData(balance)
@@ -941,45 +886,31 @@ func TestProcessAccountBalanceUpdate(t *testing.T) {
 func TestProcessAccountTrades(t *testing.T) {
 	accountTrades := []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345"]]]`)
 	err := p.wsHandleData(accountTrades)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	accountTrades = []byte(`[1000,"",[["t", "12345", "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
 	err = p.wsHandleData(accountTrades)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrades = []byte(`[1000,"",[["t", 12345, 0.03000000, "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
 	err = p.wsHandleData(accountTrades)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", 0.50000000, "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
 	err = p.wsHandleData(accountTrades)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, 0.00000375, "2018-09-08 05:54:09", "12345", "0.015"]]]`)
 	err = p.wsHandleData(accountTrades)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, 0.0000037, "2018-09-08 05:54:09", "12345", "0.015"]]]`)
 	err = p.wsHandleData(accountTrades)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", 12345, "12345", 0.015]]]`)
 	err = p.wsHandleData(accountTrades)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	accountTrades = []byte(`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345", "0.015"]]]`)
 	err = p.wsHandleData(accountTrades)
@@ -991,15 +922,11 @@ func TestProcessAccountTrades(t *testing.T) {
 func TestProcessAccountKilledOrder(t *testing.T) {
 	kill := []byte(`[1000,"",[["k", 1337]]]`)
 	err := p.wsHandleData(kill)
-	if !errors.Is(err, errNotEnoughData) {
-		t.Fatalf("expected: %v but received: %v", errNotEnoughData, err)
-	}
+	require.ErrorIs(t, err, errNotEnoughData)
 
 	kill = []byte(`[1000,"",[["k", "1337", null]]]`)
 	err = p.wsHandleData(kill)
-	if !errors.Is(err, errTypeAssertionFailure) {
-		t.Fatalf("expected: %v but received: %v", errTypeAssertionFailure, err)
-	}
+	require.ErrorIs(t, err, errTypeAssertionFailure)
 
 	kill = []byte(`[1000,"",[["k", 1337, null]]]`)
 	err = p.wsHandleData(kill)

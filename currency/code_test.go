@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -253,9 +252,7 @@ func TestBaseCode(t *testing.T) {
 		Symbol:   "BTC",
 		ID:       1337,
 	})
-	if !errors.Is(err, errRoleUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errRoleUnset)
-	}
+	require.ErrorIs(t, err, errRoleUnset)
 
 	err = main.UpdateCurrency(&Item{
 		FullName: "Bitcoin",
@@ -331,14 +328,10 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	err = main.LoadItem(nil)
-	if !errors.Is(err, errItemIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsNil)
-	}
+	require.ErrorIs(t, err, errItemIsNil)
 
 	err = main.LoadItem(&Item{})
-	if !errors.Is(err, errItemIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsEmpty)
-	}
+	require.ErrorIs(t, err, errItemIsEmpty)
 
 	err = main.LoadItem(&Item{
 		ID:       0,
