@@ -1463,7 +1463,7 @@ func TestWSOrderUpdate(t *testing.T) {
 	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", h.wsHandleData)
 	close(h.Websocket.DataHandler)
 	require.Equal(t, 1, len(errs), "Must receive the correct number of errors back")
-	require.ErrorContains(t, errs[0].Err, "error with order `test1`: invalid.client.order.id (NT) (2002)")
+	require.ErrorContains(t, errs[0].Err, "error with order \"test1\": invalid.client.order.id (NT) (2002)")
 	require.Len(t, h.Websocket.DataHandler, 4, "Must see correct number of records")
 	exp := []*order.Detail{
 		{
@@ -1925,8 +1925,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	updatePairsOnce(t, h)
 	for _, a := range h.GetAssetTypes(false) {
 		pairs, err := h.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := h.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
 			require.ErrorIs(t, err, common.ErrNotYetImplemented)

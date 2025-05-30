@@ -2050,11 +2050,11 @@ func TestUpdateTickers(t *testing.T) {
 		for _, p := range pairs {
 			tick, err := ticker.GetTicker(ku.Name, p, a)
 			if assert.NoError(t, err) {
-				assert.Positive(t, tick.Last, "%s %s Tick Last should be positive", a, p)
-				assert.NotEmpty(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
-				assert.Equal(t, ku.Name, tick.ExchangeName, "ExchangeName should be correct")
-				assert.Equal(t, a, tick.AssetType, "AssetType should be correct")
-				assert.NotEmpty(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
+				assert.Positivef(t, tick.Last, "%s %s Tick Last should be positive", a, p)
+				assert.NotEmptyf(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
+				assert.Equalf(t, ku.Name, tick.ExchangeName, "ExchangeName should be correct")
+				assert.Equalf(t, a, tick.AssetType, "AssetType should be correct")
+				assert.NotEmptyf(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
 			}
 		}
 	}
@@ -3253,8 +3253,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 		for y := range enabled {
 			lim, err := ku.GetOrderExecutionLimits(assets[x], enabled[y])
-			assert.NoError(t, err, "%v %s %v", err, enabled[y], assets[x])
-			assert.NotEmpty(t, lim, "limit cannot be empty")
+			assert.NoErrorf(t, err, "%v %s %v", err, enabled[y], assets[x])
+			assert.NotEmptyf(t, lim, "limit cannot be empty")
 		}
 	}
 }
@@ -4029,8 +4029,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, ku)
 	for _, a := range ku.GetAssetTypes(false) {
 		pairs, err := ku.CurrencyPairs.GetPairs(a, false)
-		assert.NoError(t, err, "cannot get pairs for %s", a)
-		assert.NotEmpty(t, pairs, "no pairs for %s", a)
+		assert.NoErrorf(t, err, "cannot get pairs for %s", a)
+		assert.NotEmptyf(t, pairs, "no pairs for %s", a)
 
 		resp, err := ku.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		assert.NoError(t, err)
