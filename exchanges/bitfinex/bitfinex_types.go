@@ -504,7 +504,7 @@ type wsTrade struct {
 
 // UnmarshalJSON unmarshals json bytes into a wsTrade
 func (t *wsTrade) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period})
+	return json.Unmarshal(data, &[5]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period})
 }
 
 // Candle holds OHLC data

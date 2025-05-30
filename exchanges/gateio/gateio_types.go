@@ -611,7 +611,7 @@ type Candlestick struct {
 // UnmarshalJSON parses kline data from a JSON array into Candlestick fields.
 func (c *Candlestick) UnmarshalJSON(data []byte) error {
 	var windowClosed string
-	err := json.Unmarshal(data, &[]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &windowClosed})
+	err := json.Unmarshal(data, &[8]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &windowClosed})
 	if err != nil {
 		return err
 	}

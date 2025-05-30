@@ -171,7 +171,7 @@ type HistoricalVolatilityData struct {
 
 // UnmarshalJSON  parses volatility data from a JSON array into HistoricalVolatilityData fields.
 func (h *HistoricalVolatilityData) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&h.Timestamp, &h.Value})
+	return json.Unmarshal(data, &[2]any{&h.Timestamp, &h.Value})
 }
 
 // IndexPrice holds index price for the instruments
@@ -271,7 +271,7 @@ type MarkPriceHistory struct {
 
 // UnmarshalJSON deserialises the JSON info, including the timestamp.
 func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&a.Timestamp, &a.MarkPriceValue})
+	return json.Unmarshal(data, &[2]any{&a.Timestamp, &a.MarkPriceValue})
 }
 
 // Orderbook stores orderbook data

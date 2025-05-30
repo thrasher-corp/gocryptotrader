@@ -229,7 +229,7 @@ type OrderbookItemDetail struct {
 
 // UnmarshalJSON deserializes byte data into OrderbookItemDetail instance
 func (o *OrderbookItemDetail) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&o.DepthPrice, &o.Amount, &o.LiquidationOrders, &o.NumberOfOrders})
+	return json.Unmarshal(data, &[4]any{&o.DepthPrice, &o.Amount, &o.LiquidationOrders, &o.NumberOfOrders})
 }
 
 // CandlestickHistoryItem retrieves historical candlestick charts for the index or mark price from recent years.
@@ -245,7 +245,7 @@ type CandlestickHistoryItem struct {
 // UnmarshalJSON converts the data slice into a CandlestickHistoryItem instance.
 func (c *CandlestickHistoryItem) UnmarshalJSON(data []byte) error {
 	var state string
-	if err := json.Unmarshal(data, &[]any{&c.Timestamp, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &state}); err != nil {
+	if err := json.Unmarshal(data, &[6]any{&c.Timestamp, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &state}); err != nil {
 		return err
 	}
 	if state == "1" {
@@ -269,7 +269,7 @@ type CandleStick struct {
 
 // UnmarshalJSON deserializes slice of data into Candlestick structure
 func (c *CandleStick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume})
+	return json.Unmarshal(data, &[7]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume})
 }
 
 // TradeResponse represents the recent transaction instance
@@ -628,7 +628,7 @@ type TakerVolume struct {
 
 // UnmarshalJSON deserializes a slice of data into TakerVolume
 func (t *TakerVolume) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&t.Timestamp, &t.SellVolume, &t.BuyVolume})
+	return json.Unmarshal(data, &[3]any{&t.Timestamp, &t.SellVolume, &t.BuyVolume})
 }
 
 // MarginLendRatioItem represents margin lend ration information and creation timestamp
@@ -639,7 +639,7 @@ type MarginLendRatioItem struct {
 
 // UnmarshalJSON deserializes a slice of data into MarginLendRatio
 func (m *MarginLendRatioItem) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&m.Timestamp, &m.MarginLendRatio})
+	return json.Unmarshal(data, &[2]any{&m.Timestamp, &m.MarginLendRatio})
 }
 
 // LongShortRatio represents the ratio of users with net long vs net short positions for futures and perpetual swaps
@@ -650,7 +650,7 @@ type LongShortRatio struct {
 
 // UnmarshalJSON deserializes a slice of data into LongShortRatio
 func (l *LongShortRatio) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&l.Timestamp, &l.MarginLendRatio})
+	return json.Unmarshal(data, &[2]any{&l.Timestamp, &l.MarginLendRatio})
 }
 
 // OpenInterestVolume represents open interest and trading volume item for currencies of futures and perpetual swaps
@@ -662,7 +662,7 @@ type OpenInterestVolume struct {
 
 // UnmarshalJSON deserializes json data into OpenInterestVolume struct
 func (p *OpenInterestVolume) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&p.Timestamp, &p.OpenInterest, &p.Volume})
+	return json.Unmarshal(data, &[3]any{&p.Timestamp, &p.OpenInterest, &p.Volume})
 }
 
 // OpenInterestVolumeRatio represents open interest and trading volume ratio for currencies of futures and perpetual swaps
@@ -674,7 +674,7 @@ type OpenInterestVolumeRatio struct {
 
 // UnmarshalJSON deserializes json data into OpenInterestVolumeRatio
 func (o *OpenInterestVolumeRatio) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&o.Timestamp, &o.OpenInterestRatio, &o.VolumeRatio})
+	return json.Unmarshal(data, &[3]any{&o.Timestamp, &o.OpenInterestRatio, &o.VolumeRatio})
 }
 
 // ExpiryOpenInterestAndVolume represents  open interest and trading volume of calls and puts for each upcoming expiration
@@ -690,7 +690,7 @@ type ExpiryOpenInterestAndVolume struct {
 // UnmarshalJSON deserializes slice of data into ExpiryOpenInterestAndVolume structure
 func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
 	var expiryTimeString string
-	err := json.Unmarshal(data, &[]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume})
+	err := json.Unmarshal(data, &[6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume})
 	if err != nil {
 		return err
 	}
@@ -739,7 +739,7 @@ type StrikeOpenInterestAndVolume struct {
 
 // UnmarshalJSON deserializes slice of byte data into StrikeOpenInterestAndVolume
 func (s *StrikeOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&s.Timestamp, &s.Strike, &s.CallOpenInterest, &s.PutOpenInterest, &s.CallVolume, &s.PutVolume})
+	return json.Unmarshal(data, &[6]any{&s.Timestamp, &s.Strike, &s.CallOpenInterest, &s.PutOpenInterest, &s.CallVolume, &s.PutVolume})
 }
 
 // CurrencyTakerFlow holds the taker volume information for a single currency
@@ -755,7 +755,7 @@ type CurrencyTakerFlow struct {
 
 // UnmarshalJSON deserializes a slice of byte data into CurrencyTakerFlow
 func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&c.Timestamp, &c.CallBuyVolume, &c.CallSellVolume, &c.PutBuyVolume, &c.PutSellVolume, &c.CallBlockVolume, &c.PutBlockVolume})
+	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.CallBuyVolume, &c.CallSellVolume, &c.PutBuyVolume, &c.PutSellVolume, &c.CallBlockVolume, &c.PutBlockVolume})
 }
 
 // PlaceOrderRequestParam requesting parameter for placing an order
@@ -3128,7 +3128,7 @@ type SpreadCandlestick struct {
 
 // UnmarshalJSON unmarshals the JSON data into a SpreadCandlestick struct
 func (s *SpreadCandlestick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&s.Timestamp, &s.Open, &s.High, &s.Low, &s.Close, &s.Volume, &s.Confirm})
+	return json.Unmarshal(data, &[7]any{&s.Timestamp, &s.Open, &s.High, &s.Low, &s.Close, &s.Volume, &s.Confirm})
 }
 
 // UnitConvertResponse unit convert response
@@ -4946,7 +4946,7 @@ type ContractTakerVolume struct {
 
 // UnmarshalJSON deserializes a slice data into ContractTakerVolume
 func (c *ContractTakerVolume) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&c.Timestamp, &c.TakerSellVolume, &c.TakerBuyVolume})
+	return json.Unmarshal(data, &[3]any{&c.Timestamp, &c.TakerSellVolume, &c.TakerBuyVolume})
 }
 
 // ContractOpenInterestHistoryItem represents an open interest information for contract
@@ -4959,7 +4959,7 @@ type ContractOpenInterestHistoryItem struct {
 
 // UnmarshalJSON deserializes slice data into ContractOpenInterestHistoryItem instance
 func (c *ContractOpenInterestHistoryItem) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&c.Timestamp, &c.OpenInterestInContract, &c.OpenInterestInCurrency, &c.OpenInterestInUSD})
+	return json.Unmarshal(data, &[4]any{&c.Timestamp, &c.OpenInterestInContract, &c.OpenInterestInCurrency, &c.OpenInterestInUSD})
 }
 
 // TopTraderContractsLongShortRatio represents the timestamp and ratio information of top traders long and short accounts/positions
@@ -4970,7 +4970,7 @@ type TopTraderContractsLongShortRatio struct {
 
 // UnmarshalJSON deserializes slice data into TopTraderContractsLongShortRatio instance
 func (t *TopTraderContractsLongShortRatio) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&t.Timestamp, &t.Ratio})
+	return json.Unmarshal(data, &[2]any{&t.Timestamp, &t.Ratio})
 }
 
 // AccountInstrument represents an account instrument
