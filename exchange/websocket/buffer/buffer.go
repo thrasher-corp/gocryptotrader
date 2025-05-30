@@ -189,6 +189,7 @@ func (w *Orderbook) FlushBuffer() {
 }
 
 // InvalidateOrderbook invalidates the orderbook so no trading can occur on potential corrupted data
+// TODO: Add in reason for invalidation for debugging purposes.
 func (w *Orderbook) InvalidateOrderbook(p currency.Pair, a asset.Item) error {
 	w.m.RLock()
 	holder, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
