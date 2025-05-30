@@ -736,6 +736,7 @@ func BenchmarkStringToOrderSide(b *testing.B) {
 }
 
 func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in  string
 		out Type
@@ -766,14 +767,12 @@ func TestStringToOrderType(t *testing.T) {
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
 		{"mMp", MarketMakerProtection, nil},
-		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
-		{"optimal_limit_IoC", OptimalLimitIOC, nil},
 		{"Stop_market", StopMarket, nil},
 		{"liquidation", Liquidation, nil},
 		{"LiQuidation", Liquidation, nil},
@@ -785,6 +784,7 @@ func TestStringToOrderType(t *testing.T) {
 	for i := range cases {
 		testData := &cases[i]
 		t.Run(testData.in, func(t *testing.T) {
+			t.Parallel()
 			out, err := StringToOrderType(testData.in)
 			require.ErrorIs(t, err, testData.err)
 			assert.Equal(t, testData.out, out)

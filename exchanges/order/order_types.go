@@ -350,28 +350,34 @@ const (
 // Type enforces a standard for order types across the code base
 type Type uint32
 
+// Is checks to see if the enum contains the flag
+func (t Type) Is(in Type) bool {
+	return in != 0 && t&in == in
+}
+
 // Defined package order types
 const (
 	UnknownType Type = 0
 	Limit       Type = 1 << iota
 	Market
 	Stop
-	StopLimit
-	StopMarket
 	TakeProfit
-	TakeProfitMarket
 	TrailingStop
 	IOS
 	AnyType
 	Liquidation
 	Trigger
-	OptimalLimitIOC
-	OCO                              // One-cancels-the-other order
-	ConditionalStop                  // One-way stop order
-	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
-	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
-	TWAP                             // time-weighted average price.
-	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
+	TWAP            // time-weighted average price.
+	Chase           // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	OptimalLimit
+	MarketMakerProtection // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
+
+	// Hybrid order types
+	StopLimit        = Stop | Limit
+	StopMarket       = Stop | Market
+	TakeProfitMarket = TakeProfit | Market
 )
 
 // Side enforces a standard for order sides across the code base

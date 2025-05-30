@@ -667,8 +667,6 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {
-	case AnyType:
-		return "ANY"
 	case Limit:
 		return "LIMIT"
 	case Market:
@@ -677,18 +675,10 @@ func (t Type) String() string {
 		return "STOP"
 	case ConditionalStop:
 		return "CONDITIONAL"
-	case MarketMakerProtection:
-		return "MMP"
-	case MarketMakerProtectionAndPostOnly:
-		return "MMP_AND_POST_ONLY"
 	case TWAP:
 		return "TWAP"
 	case Chase:
 		return "CHASE"
-	case StopLimit:
-		return "STOP LIMIT"
-	case StopMarket:
-		return "STOP MARKET"
 	case TakeProfit:
 		return "TAKE PROFIT"
 	case TakeProfitMarket:
@@ -701,11 +691,21 @@ func (t Type) String() string {
 		return "LIQUIDATION"
 	case Trigger:
 		return "TRIGGER"
-	case OptimalLimitIOC:
-		return "OPTIMAL_LIMIT_IOC"
 	case OCO:
 		return "OCO"
+	case OptimalLimit:
+		return "OPTIMAL_LIMIT"
+	case MarketMakerProtection:
+		return "MMP"
 	default:
+		switch {
+		case t == AnyType:
+			return "ANY"
+		case t.Is(StopLimit):
+			return "STOP LIMIT"
+		case t.Is(StopMarket):
+			return "STOP MARKET"
+		}
 		return "UNKNOWN"
 	}
 }
@@ -1120,16 +1120,14 @@ func StringToOrderType(oType string) (Type, error) {
 		return AnyType, nil
 	case Trigger.String():
 		return Trigger, nil
-	case OptimalLimitIOC.String():
-		return OptimalLimitIOC, nil
+	case OptimalLimit.String():
+		return OptimalLimit, nil
 	case OCO.String():
 		return OCO, nil
 	case ConditionalStop.String():
 		return ConditionalStop, nil
 	case MarketMakerProtection.String():
 		return MarketMakerProtection, nil
-	case MarketMakerProtectionAndPostOnly.String():
-		return MarketMakerProtectionAndPostOnly, nil
 	case TWAP.String():
 		return TWAP, nil
 	case Chase.String():
