@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -41,7 +40,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getOneClickRepayHistory":                        getOneClickRepayHistoryEPL,
 		"oneClickRepayCurrencyList":                      oneClickRepayCurrencyListEPL,
 		"tradeOneClickRepay":                             tradeOneClickRepayEPL,
-		"massCancemMMPOrder":                             massCancemMMPOrderEPL,
+		"massCancelMMPOrder":                             massCancelMMPOrderEPL,
 		"getCounterparties":                              getCounterpartiesEPL,
 		"createRFQ":                                      createRFQEPL,
 		"cancelRFQ":                                      cancelRFQEPL,
@@ -268,14 +267,14 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getUserAffilateRebateInformation":               getUserAffiliateRebateInformationEPL,
 	}
 
-	rl, err := request.New("RateLimit_Static", http.DefaultClient, request.WithLimiter(GetRateLimit()))
+	rl, err := request.New("RateLimit_Static", http.DefaultClient, request.WithLimiter(rateLimits))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			if err := rl.InitiateRateLimit(context.Background(), tt); err != nil {
+			if err := rl.InitiateRateLimit(t.Context(), tt); err != nil {
 				t.Fatalf("error applying rate limit: %v", err)
 			}
 		})

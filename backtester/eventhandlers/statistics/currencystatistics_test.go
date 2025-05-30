@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -28,7 +29,7 @@ func TestCalculateResults(t *testing.T) {
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
@@ -124,9 +125,8 @@ func TestCalculateResults(t *testing.T) {
 
 	cs.Events = append(cs.Events, ev, ev2)
 	err := cs.CalculateResults(decimal.NewFromFloat(0.03))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
 		t.Errorf("expected -33.15 received '%v'", cs.MarketMovement)
 	}
@@ -144,17 +144,13 @@ func TestCalculateResults(t *testing.T) {
 		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	cs.Events[1].DataEvent = &kline.Kline{
 		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestPrintResults(t *testing.T) {
@@ -163,7 +159,7 @@ func TestPrintResults(t *testing.T) {
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	even := &event.Base{
 		Exchange:     exch,
 		Time:         tt1,
@@ -261,9 +257,8 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 		Asset: asset.Spot,
 	}
 	err := c.calculateHighestCommittedFunds()
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+
 	if !c.HighestCommittedFunds.Time.IsZero() {
 		t.Error("expected no time with not committed funds")
 	}
@@ -276,9 +271,8 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Time: tt3, Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: decimal.NewFromInt(11), BaseSize: decimal.NewFromInt(11)}},
 	)
 	err = c.calculateHighestCommittedFunds()
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+
 	if c.HighestCommittedFunds.Time != tt2 {
 		t.Errorf("expected %v, received %v", tt2, c.HighestCommittedFunds.Time)
 	}
@@ -286,9 +280,7 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	c.Asset = asset.Futures
 	c.HighestCommittedFunds = ValueAtTime{}
 	err = c.calculateHighestCommittedFunds()
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	c.Asset = asset.Binary
 	err = c.calculateHighestCommittedFunds()
@@ -310,7 +302,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 
 	e := testExchange
 	a := asset.Futures
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	c.Asset = asset.Futures
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{

@@ -38,18 +38,26 @@ const (
 
 // Public errors
 var (
-	ErrNotFound             = errors.New("subscription not found")
-	ErrNotSinglePair        = errors.New("only single pair subscriptions expected")
-	ErrBatchingNotSupported = errors.New("subscription batching not supported")
-	ErrInStateAlready       = errors.New("subscription already in state")
-	ErrInvalidState         = errors.New("invalid subscription state")
-	ErrDuplicate            = errors.New("duplicate subscription")
-	ErrUseConstChannelName  = errors.New("must use standard channel name constants")
-	ErrNotSupported         = errors.New("subscription channel not supported")
+	ErrNotFound              = errors.New("subscription not found")
+	ErrNotSinglePair         = errors.New("only single pair subscriptions expected")
+	ErrBatchingNotSupported  = errors.New("subscription batching not supported")
+	ErrInStateAlready        = errors.New("subscription already in state")
+	ErrInvalidState          = errors.New("invalid subscription state")
+	ErrDuplicate             = errors.New("duplicate subscription")
+	ErrUseConstChannelName   = errors.New("must use standard channel name constants")
+	ErrNotSupported          = errors.New("subscription channel not supported")
+	ErrExclusiveSubscription = errors.New("exclusive subscription detected")
+	ErrInvalidInterval       = errors.New("invalid interval")
+	ErrInvalidLevel          = errors.New("invalid level")
 )
 
 // State tracks the status of a subscription channel
 type State uint8
+
+// ListValidator validates a list of subscriptions, this is optionally handled through expand templates method
+type ListValidator interface {
+	ValidateSubscriptions(List) error
+}
 
 // Subscription container for streaming subscriptions
 type Subscription struct {

@@ -1359,13 +1359,12 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 
 	err = s.OrderManager.Cancel(ctx,
 		&order.Cancel{
-			Exchange:      r.Exchange,
-			AccountID:     r.AccountId,
-			OrderID:       r.OrderId,
-			Side:          side,
-			WalletAddress: r.WalletAddress,
-			Pair:          p,
-			AssetType:     a,
+			Exchange:  r.Exchange,
+			AccountID: r.AccountId,
+			OrderID:   r.OrderId,
+			Side:      side,
+			Pair:      p,
+			AssetType: a,
 		})
 	if err != nil {
 		return nil, err
@@ -1408,12 +1407,11 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		orderID := orders[x]
 		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
-			AccountID:     r.AccountId,
-			OrderID:       orderID,
-			Side:          side,
-			WalletAddress: r.WalletAddress,
-			Pair:          pair,
-			AssetType:     assetType,
+			AccountID: r.AccountId,
+			OrderID:   orderID,
+			Side:      side,
+			Pair:      pair,
+			AssetType: assetType,
 		}
 	}
 
@@ -5147,7 +5145,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		}
 		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
-		return nil, fmt.Errorf("%w '%s'", errInvalidStrategy, r.AlgorithmType)
+		return nil, fmt.Errorf("%w %q", errInvalidStrategy, r.AlgorithmType)
 	}
 
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil

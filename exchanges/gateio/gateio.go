@@ -29,9 +29,6 @@ const (
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
 	tradeBaseURL                        = "https://www.gate.io/"
-	tradeSpot                           = "trade/"
-	tradeFutures                        = "futures/usdt/"
-	tradeDelivery                       = "futures-delivery/usdt/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -140,7 +137,7 @@ var (
 	errInvalidOrderSize                 = errors.New("invalid order size")
 	errInvalidOrderID                   = errors.New("invalid order id")
 	errInvalidAmount                    = errors.New("invalid amount")
-	errInvalidOrEmptySubaccount         = errors.New("invalid or empty subaccount")
+	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
 	errInvalidPrice                     = errors.New("invalid price")
@@ -155,7 +152,6 @@ var (
 	errInvalidLeverageValue             = errors.New("invalid leverage value")
 	errInvalidRiskLimit                 = errors.New("new position risk limit")
 	errInvalidCountTotalValue           = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
-	errInvalidTimeInForce               = errors.New("invalid time in force value")
 	errInvalidAutoSizeValue             = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
 	errTooManyOrderRequest              = errors.New("too many order creation request")
 	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
@@ -165,15 +161,35 @@ var (
 	errMultipleOrders                   = errors.New("multiple orders passed")
 	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
 	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
-	errCannotParseSettlementCurrency    = errors.New("cannot derive settlement currency")
+	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
 )
+
+// validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
+// slice iteration outperforms map with this few elements
+var validTimesInForce = []struct {
+	String      string
+	TimeInForce order.TimeInForce
+}{
+	{gtcTIF, order.GoodTillCancel}, {iocTIF, order.ImmediateOrCancel}, {pocTIF, order.PostOnly}, {fokTIF, order.FillOrKill},
+}
+
+func timeInForceFromString(tif string) (order.TimeInForce, error) {
+	for a := range validTimesInForce {
+		if validTimesInForce[a].String == tif {
+			return validTimesInForce[a].TimeInForce, nil
+		}
+	}
+	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
+}
 
 // Gateio is the overarching type across this package
 type Gateio struct {
 	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
+	wsOBUpdateMgr *wsOBUpdateManager
 }
 
 // ***************************************** SubAccounts ********************************
@@ -319,43 +335,23 @@ func (g *Gateio) GetTicker(ctx context.Context, currencyPair, timezone string) (
 	return nil, fmt.Errorf("no ticker data found for currency pair %v", currencyPair)
 }
 
-// GetIntervalString returns a string representation of the interval according to the Gateio exchange representation.
-func (g *Gateio) GetIntervalString(interval kline.Interval) (string, error) {
+// getIntervalString returns a string representation of the interval according to the Gateio exchange representation
+func getIntervalString(interval kline.Interval) (string, error) {
 	switch interval {
-	case kline.HundredMilliseconds:
-		return "100ms", nil
 	case kline.ThousandMilliseconds:
 		return "1000ms", nil
-	case kline.TenSecond:
-		return "10s", nil
-	case kline.ThirtySecond:
-		return "30s", nil
-	case kline.OneMin:
-		return "1m", nil
-	case kline.FiveMin:
-		return "5m", nil
-	case kline.FifteenMin:
-		return "15m", nil
-	case kline.ThirtyMin:
-		return "30m", nil
-	case kline.OneHour:
-		return "1h", nil
-	case kline.TwoHour:
-		return "2h", nil
-	case kline.FourHour:
-		return "4h", nil
-	case kline.EightHour:
-		return "8h", nil
-	case kline.TwelveHour:
-		return "12h", nil
 	case kline.OneDay:
 		return "1d", nil
 	case kline.SevenDay:
 		return "7d", nil
 	case kline.OneMonth:
 		return "30d", nil
+	case kline.TenMilliseconds, kline.TwentyMilliseconds, kline.HundredMilliseconds, kline.TwoHundredAndFiftyMilliseconds,
+		kline.TenSecond, kline.ThirtySecond, kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin,
+		kline.OneHour, kline.TwoHour, kline.FourHour, kline.EightHour, kline.TwelveHour:
+		return interval.Short(), nil
 	default:
-		return "", kline.ErrUnsupportedInterval
+		return "", fmt.Errorf("%q: %w", interval.String(), kline.ErrUnsupportedInterval)
 	}
 }
 
@@ -463,7 +459,7 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
-		intervalString, err = g.GetIntervalString(interval)
+		intervalString, err = getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -831,7 +827,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, errNilArgument
 	}
 	if arg.Put.TimeInForce != gtcTIF && arg.Put.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w, only 'gct' and 'ioc' are supported", errInvalidTimeInForce)
+		return nil, fmt.Errorf("%w: %q only 'gct' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
 	}
 	if arg.Market.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
@@ -840,7 +836,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
-		return nil, fmt.Errorf("invalid price trigger condition or rule '%s' but expected '>=' or '<='", arg.Trigger.Rule)
+		return nil, fmt.Errorf("invalid price trigger condition or rule %q but expected '>=' or '<='", arg.Trigger.Rule)
 	}
 	if arg.Trigger.Expiration <= 0 {
 		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")
@@ -1185,7 +1181,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if arg.SubAccount == "" {
-		return errInvalidOrEmptySubaccount
+		return errInvalidSubAccount
 	}
 	arg.Direction = strings.ToLower(arg.Direction)
 	if arg.Direction != "to" && arg.Direction != "from" {
@@ -1194,8 +1190,10 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	if arg.Amount <= 0 {
 		return errInvalidAmount
 	}
-	if arg.SubAccountType != "" && arg.SubAccountType != asset.Spot.String() && arg.SubAccountType != asset.Futures.String() && arg.SubAccountType != asset.CrossMargin.String() {
-		return fmt.Errorf("%v; only %v,%v, and %v are allowed", asset.ErrNotSupported, asset.Spot, asset.Futures, asset.CrossMargin)
+	switch arg.SubAccountType {
+	case "", "spot", "futures", "delivery":
+	default:
+		return fmt.Errorf("%w %q for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }
@@ -1343,6 +1341,28 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 	}
 	var response *UsersAllAccountBalance
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTotalBalanceEPL, http.MethodGet, walletTotalBalance, params, nil, &response)
+}
+
+// ConvertSmallBalances converts small balances of provided currencies into GT.
+// If no currencies are provided, all supported currencies will be converted
+// See [this documentation](https://www.gate.io/help/guide/functional_guidelines/22367) for details and restrictions.
+func (g *Gateio) ConvertSmallBalances(ctx context.Context, currs ...currency.Code) error {
+	currencyList := make([]string, len(currs))
+	for i := range currs {
+		if currs[i].IsEmpty() {
+			return currency.ErrCurrencyCodeEmpty
+		}
+		currencyList[i] = currs[i].Upper().String()
+	}
+
+	payload := struct {
+		Currency []string `json:"currency"`
+		IsAll    bool     `json:"is_all"`
+	}{
+		Currency: currencyList,
+		IsAll:    len(currs) == 0,
+	}
+	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletConvertSmallBalancesEPL, http.MethodPost, "wallet/small_balance", nil, payload, nil)
 }
 
 // ********************************* Margin *******************************************
@@ -1924,7 +1944,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle currency.Cod
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if interval.Duration().Microseconds() != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -1954,7 +1974,7 @@ func (g *Gateio) PremiumIndexKLine(ctx context.Context, settleCurrency currency.
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	intervalString, err := g.GetIntervalString(interval)
+	intervalString, err := getIntervalString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -2020,7 +2040,7 @@ func (g *Gateio) GetFutureStats(ctx context.Context, settle currency.Code, contr
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
 	if int64(interval) != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -2272,14 +2292,14 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
-		return nil, errInvalidTimeInForce
+	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+		return nil, err
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
 	}
 	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
-		return nil, errInvalidTimeInForce
+		return nil, fmt.Errorf("%w: %q; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2361,17 +2381,14 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 		if args[x].Size == 0 {
 			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 		}
-		if args[x].TimeInForce != gtcTIF &&
-			args[x].TimeInForce != iocTIF &&
-			args[x].TimeInForce != pocTIF &&
-			args[x].TimeInForce != fokTIF {
-			return nil, errInvalidTimeInForce
+		if _, err := timeInForceFromString(args[x].TimeInForce); err != nil {
+			return nil, err
 		}
 		if args[x].Price == "" {
 			return nil, errInvalidPrice
 		}
 		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
-			return nil, errInvalidTimeInForce
+			return nil, fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
 			return nil, errInvalidTextValue
@@ -2525,7 +2542,7 @@ func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle cu
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
+		return nil, fmt.Errorf("%w: %q; only 'gtc' and 'ioc' are allowed", order.ErrInvalidTimeInForce, arg.Initial.TimeInForce)
 	}
 	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
 		return nil, errors.New("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
@@ -2699,7 +2716,7 @@ func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle curr
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if int64(interval) != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -2848,8 +2865,8 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
-		return nil, errInvalidTimeInForce
+	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+		return nil, err
 	}
 	if arg.Price == "" {
 		return nil, errInvalidPrice
@@ -3049,7 +3066,7 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle curr
 	}
 	if arg.Initial.TimeInForce != "" &&
 		arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
+		return nil, fmt.Errorf("%w: %q; only 'gtc' and 'ioc' are allowed", order.ErrUnsupportedTimeInForce, arg.Initial.TimeInForce)
 	}
 	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
 		return nil, errors.New("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
@@ -3466,7 +3483,7 @@ func (g *Gateio) GetOptionFuturesCandlesticks(ctx context.Context, contract curr
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	intervalString, err := g.GetIntervalString(interval)
+	intervalString, err := getIntervalString(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -3492,7 +3509,7 @@ func (g *Gateio) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, unde
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if int64(interval) != 0 {
-		intervalString, err := g.GetIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -3674,15 +3691,14 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 	return currency.Pair{Base: currency.NewCode(ccies[0]), Delimiter: currency.UnderscoreDelimiter, Quote: currency.NewCode(ccies[1])}, nil
 }
 
-func getSettlementFromCurrency(currencyPair currency.Pair) (settlement currency.Code, err error) {
-	quote := currencyPair.Quote.Upper().String()
+// GetAccountDetails retrieves account details
+func (g *Gateio) GetAccountDetails(ctx context.Context) (*AccountDetails, error) {
+	var resp *AccountDetails
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
+}
 
-	switch {
-	case strings.HasPrefix(quote, currency.USDT.String()):
-		return currency.USDT, nil
-	case strings.HasPrefix(quote, currency.USD.String()):
-		return currency.BTC, nil
-	default:
-		return currency.EMPTYCODE, fmt.Errorf("%w %v", errCannotParseSettlementCurrency, currencyPair)
-	}
+// GetUserTransactionRateLimitInfo retrieves user transaction rate limit info
+func (g *Gateio) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
+	var resp []UserTransactionRateLimitInfo
+	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }

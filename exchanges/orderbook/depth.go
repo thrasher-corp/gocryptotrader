@@ -41,7 +41,7 @@ type Depth struct {
 	alert.Notice
 
 	mux *dispatch.Mux
-	_ID uuid.UUID
+	id  uuid.UUID
 
 	options
 
@@ -53,12 +53,12 @@ type Depth struct {
 
 // NewDepth returns a new orderbook depth
 func NewDepth(id uuid.UUID) *Depth {
-	return &Depth{_ID: id, mux: service.Mux}
+	return &Depth{id: id, mux: s.signalMux}
 }
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	if err := d.mux.Publish(Outbound(d), d._ID); err != nil {
+	if err := d.mux.Publish(Outbound(d), d.id); err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
 }

@@ -30,15 +30,8 @@ import (
 // Okx is the overarching type across this package
 type Okx struct {
 	exchange.Base
-	WsResponseMultiplexer wsRequestDataChannelsMultiplexer
 
-	// WsRequestSemaphore channel is used to block write operation on the websocket connection to reduce contention; a kind of bounded parallelism.
-	// it is made to hold up to 20 integers so that up to 20 write operations can be called over the websocket connection at a time.
-	// and when the operation is completed the thread releases (consumes) one value from the channel so that the other waiting operation can enter.
-	// ok.WsRequestSemaphore <- 1
-	// defer func() { <-ok.WsRequestSemaphore }()
-	WsRequestSemaphore chan int
-
+	messageIDSeq           common.Counter
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
 }
@@ -58,15 +51,14 @@ const (
 
 // PlaceOrder places an order
 func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
-	err := ok.validatePlaceOrderParams(arg)
-	if err != nil {
+	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
 	var resp *OrderData
-	err = ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, error code: %s error message: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err
 	}
@@ -78,24 +70,22 @@ func (ok *Okx) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequest
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
-	var err error
 	for x := range args {
-		err = ok.validatePlaceOrderParams(&args[x])
-		if err != nil {
+		if err := args[x].Validate(); err != nil {
 			return nil, err
 		}
 	}
 	var resp []OrderData
-	err = ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
 		var errs error
 		for x := range resp {
-			errs = common.AppendError(errs, fmt.Errorf("error code:%s error message: %v", resp[x].StatusCode, resp[x].StatusMessage))
+			errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 		}
-		return nil, errs
+		return nil, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -115,7 +105,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w,  error code: %s and  error message: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err
 	}
@@ -124,7 +114,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg *CancelOrderRequestPar
 
 // CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
 // Request parameters should be passed in the form of an array
-func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]OrderData, error) {
+func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -137,20 +127,19 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	var resp []OrderData
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL,
-		http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
+	var resp []*OrderData
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
 		}
 		var errs error
 		for x := range resp {
-			if resp[x].StatusCode != "0" {
-				errs = common.AppendError(errs, fmt.Errorf("error code:%s message: %v", resp[x].StatusCode, resp[x].StatusMessage))
+			if resp[x].StatusCode != 0 {
+				errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
 			}
 		}
-		return nil, errs
+		return nil, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -473,7 +462,7 @@ func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderP
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "conditional" {
-		return nil, fmt.Errorf("%w for TPSL: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
+		return nil, fmt.Errorf("%w for TPSL: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.StopLossTriggerPrice <= 0 {
 		return nil, order.ErrPriceBelowMin
@@ -507,7 +496,7 @@ func (ok *Okx) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) 
 		return nil, common.ErrEmptyParams
 	}
 	if arg.OrderType != "trigger" {
-		return nil, fmt.Errorf("%w for Trigger: `%s`", order.ErrTypeIsInvalid, arg.OrderType)
+		return nil, fmt.Errorf("%w for Trigger: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.TriggerPrice <= 0 {
 		return nil, fmt.Errorf("%w, trigger price must be greater than 0", order.ErrPriceBelowMin)
@@ -556,7 +545,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w,  error code: %s,  error message: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err
 	}
@@ -1819,7 +1808,7 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (*Set
 	switch arg.AssetType {
 	case asset.Futures, asset.PerpetualSwap:
 		if arg.PositionSide == "" && arg.MarginMode == "isolated" {
-			return nil, fmt.Errorf("%w: `%s`", order.ErrSideIsInvalid, arg.PositionSide)
+			return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
@@ -2981,7 +2970,7 @@ func (ok *Okx) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (*Gri
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
-			return nil, fmt.Errorf("%w, error code: %s error message: %s", err, resp.StatusCode, resp.StatusMessage)
+			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err
 	}
@@ -3003,7 +2992,7 @@ func (ok *Okx) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAmend) 
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage == "" {
-			return nil, fmt.Errorf("%w, error code: %s and error message: %s", err, resp.StatusMessage, resp.StatusCode)
+			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
 		}
 		return nil, err
 	}
@@ -3040,7 +3029,13 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 		if len(resp) == 0 {
 			return nil, err
 		}
-		return nil, fmt.Errorf("error code:%s error message: %v", resp[0].StatusCode, resp[0].StatusMessage)
+		var errs error
+		for x := range resp {
+			if resp[x].StatusMessage != "" {
+				errs = common.AppendError(errs, getStatusError(resp[x].StatusCode, resp[x].StatusMessage))
+			}
+		}
+		return nil, common.AppendError(err, errs)
 	}
 	return resp, nil
 }
@@ -3718,22 +3713,22 @@ func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrument
 }
 
 // SetFirstCopySettings set first copy settings for the certain lead trader. You need to first copy settings after stopping copying
-func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
+func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseResult, error) {
 	err := validateFirstCopySettings(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *ResponseSuccess
+	var resp *ResponseResult
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setFirstCopySettingsEPL, http.MethodPost, "copytrading/first-copy-settings", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendCopySettings amends need to use this endpoint for amending copy settings
-func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
+func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseResult, error) {
 	err := validateFirstCopySettings(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *ResponseSuccess
+	var resp *ResponseResult
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendFirstCopySettingsEPL, http.MethodPost, "copytrading/amend-copy-settings", arg, &resp, request.AuthenticatedRequest)
 }
 
@@ -3757,7 +3752,7 @@ func validateFirstCopySettings(arg *FirstCopySettings) error {
 }
 
 // StopCopying need to use this endpoint for amending copy settings
-func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*ResponseSuccess, error) {
+func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*ResponseResult, error) {
 	if *arg == (StopCopyingParameter{}) {
 		return nil, common.ErrEmptyParams
 	}
@@ -3767,7 +3762,7 @@ func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*Res
 	if arg.SubPositionCloseType == "" {
 		return nil, errSubPositionCloseTypeRequired
 	}
-	var resp *ResponseSuccess
+	var resp *ResponseResult
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopCopyingEPL, http.MethodPost, "copytrading/stop-copy-trading", arg, &resp, request.AuthenticatedRequest)
 }
 
@@ -3850,48 +3845,41 @@ func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/lead-traders-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetLeadTradersRanks retrieve lead trader ranks.
-// Instrument type: SWAP, the default value
-// Sort type"overview": overview, the default value "pnl": profit and loss "aum": assets under management "win_ratio": win ratio "pnl_ratio": pnl ratio "current_copy_trader_pnl": current copy trader pnl
-// Lead trader state: "0": All lead traders, the default, including vacancy and non-vacancy "1": lead traders who have vacancy
-// Minimum lead days '1': 7 days '2': 30 days '3': 90 days '4': 180 days
-func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType, state,
-	minLeadDays, minAssets, maxAssets, minAssetUnderManagement, maxAssetUnderManagement,
-	dataVersion, page string, limit int64,
-) ([]LeadTradersRank, error) {
+// GetLeadTradersRanks retrieves lead trader ranks
+func (ok *Okx) GetLeadTradersRanks(ctx context.Context, req *LeadTraderRanksRequest) ([]LeadTradersRank, error) {
 	params := url.Values{}
-	if instrumentType != "" {
-		params.Set("instType", instrumentType)
+	if req.InstrumentType != "" {
+		params.Set("instType", req.InstrumentType)
 	}
-	if sortType != "" {
-		params.Set("sortType", sortType)
+	if req.SortType != "" {
+		params.Set("sortType", req.SortType)
 	}
-	if state != "" {
-		params.Set("state", state)
+	if req.HasVacancy {
+		params.Set("state", "1")
 	}
-	if minLeadDays != "" {
-		params.Set("minLeadDays", minLeadDays)
+	if req.MinLeadDays != 0 {
+		params.Set("minLeadDays", strconv.FormatUint(req.MinLeadDays, 10))
 	}
-	if minAssets != "" {
-		params.Set("minAssets", minAssets)
+	if req.MinAssets > 0 {
+		params.Set("minAssets", strconv.FormatFloat(req.MinAssets, 'f', -1, 64))
 	}
-	if maxAssets != "" {
-		params.Set("maxAssets", maxAssets)
+	if req.MaxAssets > 0 {
+		params.Set("maxAssets", strconv.FormatFloat(req.MaxAssets, 'f', -1, 64))
 	}
-	if minAssetUnderManagement != "" {
-		params.Set("minAum", minAssetUnderManagement)
+	if req.MinAssetsUnderManagement > 0 {
+		params.Set("minAum", strconv.FormatFloat(req.MinAssetsUnderManagement, 'f', -1, 64))
 	}
-	if maxAssetUnderManagement != "" {
-		params.Set("maxAum", maxAssetUnderManagement)
+	if req.MaxAssetsUnderManagement > 0 {
+		params.Set("maxAum", strconv.FormatFloat(req.MaxAssetsUnderManagement, 'f', -1, 64))
 	}
-	if dataVersion != "" {
-		params.Set("dataVer", dataVersion)
+	if req.DataVersion != 0 {
+		params.Set("dataVer", strconv.FormatUint(req.DataVersion, 10))
 	}
-	if page != "" {
-		params.Set("page", page)
+	if req.Page != 0 {
+		params.Set("page", strconv.FormatUint(req.Page, 10))
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+	if req.Limit != 0 {
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp []LeadTradersRank
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, request.UnauthenticatedRequest)
@@ -4849,6 +4837,52 @@ func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]Sp
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadPublicTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/public-trades", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
+// GetSpreadCandlesticks retrieves candlestick charts for a given spread instrument
+func (ok *Okx) GetSpreadCandlesticks(ctx context.Context, spreadID string, interval kline.Interval, before, after time.Time, limit uint64) ([]SpreadCandlestick, error) {
+	if spreadID == "" {
+		return nil, fmt.Errorf("%w, spread ID is required", errMissingInstrumentID)
+	}
+	params := url.Values{}
+	params.Set("sprdId", spreadID)
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if bar := IntervalFromString(interval, true); bar != "" {
+		params.Set("bar", bar)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []SpreadCandlestick
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadCandlesticksEPL, http.MethodGet, common.EncodeURLValues("market/sprd-candles", params), nil, &resp, request.UnauthenticatedRequest)
+}
+
+// GetSpreadCandlesticksHistory retrieves candlestick chart history for a given spread instrument for a period of up to 3 months
+func (ok *Okx) GetSpreadCandlesticksHistory(ctx context.Context, spreadID string, interval kline.Interval, before, after time.Time, limit uint64) ([]SpreadCandlestick, error) {
+	if spreadID == "" {
+		return nil, fmt.Errorf("%w, spread ID is required", errMissingInstrumentID)
+	}
+	params := url.Values{}
+	params.Set("sprdId", spreadID)
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if bar := IntervalFromString(interval, true); bar != "" {
+		params.Set("bar", bar)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []SpreadCandlestick
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadCandlesticksHistoryEPL, http.MethodGet, common.EncodeURLValues("market/sprd-history-candles", params), nil, &resp, request.UnauthenticatedRequest)
+}
+
 // CancelAllSpreadOrdersAfterCountdown cancel all pending orders after the countdown timeout. Only applicable to spread trading
 func (ok *Okx) CancelAllSpreadOrdersAfterCountdown(ctx context.Context, timeoutDuration int64) (*SpreadOrderCancellationResponse, error) {
 	if (timeoutDuration != 0) && (timeoutDuration < 10 || timeoutDuration > 120) {
@@ -5409,7 +5443,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, ccy currency.
 		return nil, errMissingExpiryTimeParameter
 	}
 	params := url.Values{}
-	params.Set("expTime", expTime.Format("20060102"))
+	params.Set("expTime", expTime.UTC().Format("20060102"))
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
 	}
@@ -5868,7 +5902,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		if _, okay := ctx.Value(testNetVal).(bool); okay {
+		if simulate, okay := ctx.Value(testNetVal).(bool); okay && simulate {
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated == request.AuthenticatedRequest {
@@ -5905,13 +5939,16 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		return err
 	}
 	if err == nil && resp.Code.Int64() != 0 {
+		if authenticated == request.AuthenticatedRequest {
+			err = request.ErrAuthRequestFailed
+		}
 		if resp.Msg != "" {
-			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
+			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Msg))
 		}
-		if err, ok := ErrorCodes[resp.Code.String()]; ok {
-			return err
+		if mErr, ok := ErrorCodes[resp.Code.String()]; ok {
+			return common.AppendError(err, mErr)
 		}
-		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
+		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
 
 	// First see if resp.Data can unmarshal into a slice of result, which is true for most APIs
@@ -5923,4 +5960,11 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 
 	return nil
+}
+
+func getStatusError(statusCode int64, statusMessage string) error {
+	if statusCode == 0 {
+		return nil
+	}
+	return fmt.Errorf("status code: `%d` status message: %q", statusCode, statusMessage)
 }
