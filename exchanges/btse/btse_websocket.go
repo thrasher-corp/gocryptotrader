@@ -130,7 +130,7 @@ func (b *BTSE) wsReadData(ctx context.Context) {
 	}
 }
 
-func (b *BTSE) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (b *BTSE) wsHandleData(_ context.Context, respRaw []byte) error {
 	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)

@@ -99,7 +99,7 @@ func (b *Bitstamp) wsReadData(ctx context.Context) {
 	}
 }
 
-func (b *Bitstamp) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (b *Bitstamp) wsHandleData(_ context.Context, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)

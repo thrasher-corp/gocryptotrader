@@ -205,7 +205,7 @@ func (b *Bitfinex) WsDataHandler(ctx context.Context) {
 	}
 }
 
-func (b *Bitfinex) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (b *Bitfinex) wsHandleData(_ context.Context, respRaw []byte) error {
 	var result any
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
