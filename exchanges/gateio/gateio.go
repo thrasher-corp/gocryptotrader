@@ -187,8 +187,9 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 
 // Gateio is the overarching type across this package
 type Gateio struct {
-	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
+
+	messageIDSeq  common.Counter
 	wsOBUpdateMgr *wsOBUpdateManager
 }
 
