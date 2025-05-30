@@ -210,7 +210,7 @@ func TestSetStream(t *testing.T) {
 
 	misMatchEvent.Time = time.Now()
 	err = b.SetStream([]Event{misMatchEvent})
-	require.ErrorIs(t, err, errMisMatchedEvent)
+	require.ErrorIs(t, err, errMismatchedEvent)
 
 	err = b.SetStream([]Event{nil})
 	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
@@ -534,7 +534,7 @@ func TestAppendStream(t *testing.T) {
 		},
 	}
 	err = b.AppendStream(misMatchEvent)
-	require.ErrorIs(t, err, errMisMatchedEvent)
+	require.ErrorIs(t, err, errMismatchedEvent)
 
 	if len(b.stream) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 2)
