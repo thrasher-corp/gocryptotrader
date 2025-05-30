@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -193,11 +192,11 @@ func TestApplyOrderbookUpdate(t *testing.T) {
 	}
 
 	err := applyOrderbookUpdate(g, update)
-	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 
 	update.Asset = asset.Spot
 	err = applyOrderbookUpdate(g, update)
-	require.ErrorIs(t, err, buffer.ErrDepthNotFound)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 
 	update.Pair = currency.NewPair(currency.BABY, currency.BABYDOGE)
 	err = applyOrderbookUpdate(g, update)

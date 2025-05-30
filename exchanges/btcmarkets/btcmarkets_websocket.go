@@ -27,14 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
-)
-
-var (
-	errTypeAssertionFailure = errors.New("type assertion failure")
-	errChecksumFailure      = errors.New("crc32 checksum failure")
-)
+const btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
@@ -101,7 +94,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 	for x := range resp {
 		sPrice, ok := resp[x][0].(string)
 		if !ok {
-			return fmt.Errorf("price string %w", errTypeAssertionFailure)
+			return common.GetTypeAssertError("string", resp[x][0], "price")
 		}
 		var price float64
 		price, err = strconv.ParseFloat(sPrice, 64)
@@ -111,7 +104,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 
 		sAmount, ok := resp[x][1].(string)
 		if !ok {
-			return fmt.Errorf("amount string %w", errTypeAssertionFailure)
+			return common.GetTypeAssertError("string", resp[x][1], "amount")
 		}
 
 		var amount float64
@@ -122,7 +115,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 
 		count, ok := resp[x][2].(float64)
 		if !ok {
-			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
+			return common.GetTypeAssertError("float64", resp[x][2], "count")
 		}
 
 		(*w)[x] = orderbook.Tranche{
@@ -165,13 +158,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&orderbook.Update{
-				UpdateTime: ob.Timestamp,
-				UpdateID:   ob.SnapshotID,
-				Asset:      asset.Spot,
-				Bids:       orderbook.Tranches(ob.Bids),
-				Asks:       orderbook.Tranches(ob.Asks),
-				Pair:       ob.Currency,
-				Checksum:   ob.Checksum,
+				UpdateTime:                 ob.Timestamp,
+				UpdateID:                   ob.SnapshotID,
+				Asset:                      asset.Spot,
+				Bids:                       orderbook.Tranches(ob.Bids),
+				Asks:                       orderbook.Tranches(ob.Asks),
+				Pair:                       ob.Currency,
+				ExpectedChecksum:           ob.Checksum,
+				GenerateChecksum:           generateChecksum,
+				SkipOutOfOrderLastUpdateID: true,
 			})
 		}
 		if err != nil {
@@ -467,20 +462,9 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	return b.Subscribe(sub)
 }
 
-// checksum provides assurance on current in memory liquidity
-func checksum(ob *orderbook.Base, checksum uint32) error {
-	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
-	if check != checksum {
-		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
-			ob.Exchange,
-			ob.Pair,
-			ob.Asset,
-			ob.LastUpdateID,
-			checksum,
-			check,
-			errChecksumFailure)
-	}
-	return nil
+// generateChecksum provides assurance on current in memory liquidity
+func generateChecksum(ob *orderbook.Base) uint32 {
+	return crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 }
 
 // concatOrderbookLiquidity concatenates price and amounts together for checksum processing
