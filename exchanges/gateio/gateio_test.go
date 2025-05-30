@@ -3513,7 +3513,7 @@ func TestGetUnifiedAccount(t *testing.T) {
 
 func TestGenerateWebsocketMessageID(t *testing.T) {
 	t.Parallel()
-	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
+	require.NotEmpty(t, g.GenerateWebsocketMessageID())
 }
 
 type DummyConnection struct{ websocket.Connection }

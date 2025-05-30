@@ -35,10 +35,10 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error
 
 // InverseSubscribe sends a subscription message to linear public channels.
 func (by *Bybit) InverseSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "subscribe", channelSubscriptions)
+	return by.submitSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
 func (by *Bybit) InverseUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "unsubscribe", channelSubscriptions)
+	return by.submitSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "unsubscribe", channelSubscriptions)
 }

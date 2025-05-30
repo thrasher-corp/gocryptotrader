@@ -87,11 +87,11 @@ type ConnectionSetup struct {
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
 	Handler func(ctx context.Context, incoming []byte) error
-	// BespokeGenerateMessageID is a function that returns a unique message ID.
+	// RequestIDGenerator is a function that returns a unique message ID.
 	// This is useful for when an exchange connection requires a unique or
 	// structured message ID for each message sent.
-	BespokeGenerateMessageID func(highPrecision bool) int64
-	Authenticate             func(ctx context.Context, conn Connection) error
+	RequestIDGenerator func() int64
+	Authenticate       func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
@@ -111,23 +111,23 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
-	Verbose                  bool
-	connected                int32
-	writeControl             sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
-	RateLimit                *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
-	RateLimitDefinitions     request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
-	Reporter                 Reporter
-	ExchangeName             string
-	URL                      string
-	ProxyURL                 string
-	Wg                       *sync.WaitGroup
-	Connection               *gws.Conn
-	shutdown                 chan struct{}
-	Match                    *Match
-	ResponseMaxLimit         time.Duration
-	Traffic                  chan struct{}
-	readMessageErrors        chan error
-	bespokeGenerateMessageID func(highPrecision bool) int64
+	Verbose              bool
+	connected            int32
+	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
+	RateLimit            *request.RateLimiterWithWeight // RateLimit is a rate limiter for the connection itself
+	RateLimitDefinitions request.RateLimitDefinitions   // RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections
+	Reporter             Reporter
+	ExchangeName         string
+	URL                  string
+	ProxyURL             string
+	Wg                   *sync.WaitGroup
+	Connection           *gws.Conn
+	shutdown             chan struct{}
+	Match                *Match
+	ResponseMaxLimit     time.Duration
+	Traffic              chan struct{}
+	readMessageErrors    chan error
+	requestIDGenerator   func() int64
 }
 
 // Dial sets proxy urls and then connects to the websocket
@@ -343,8 +343,8 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 // If a bespoke function is set (by using SetupNewConnection) it will use that,
 // otherwise it will use the defaultGenerateMessageID function.
 func (c *connection) GenerateMessageID(highPrec bool) int64 {
-	if c.bespokeGenerateMessageID != nil {
-		return c.bespokeGenerateMessageID(highPrec)
+	if c.requestIDGenerator != nil {
+		return c.requestIDGenerator()
 	}
 	return c.defaultGenerateMessageID(highPrec)
 }

@@ -305,12 +305,7 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		return err
 	}
 
-	if c == nil || c.ResponseCheckTimeout == 0 &&
-		c.ResponseMaxLimit == 0 &&
-		c.RateLimit == nil &&
-		c.URL == "" &&
-		c.ConnectionLevelReporter == nil &&
-		c.BespokeGenerateMessageID == nil {
+	if c.ResponseCheckTimeout == 0 && c.ResponseMaxLimit == 0 && c.RateLimit == nil && c.URL == "" && c.ConnectionLevelReporter == nil && c.RequestIDGenerator == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
@@ -388,20 +383,20 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		connectionURL = c.URL
 	}
 	return &connection{
-		ExchangeName:             m.exchangeName,
-		URL:                      connectionURL,
-		ProxyURL:                 m.GetProxyAddress(),
-		Verbose:                  m.verbose,
-		ResponseMaxLimit:         c.ResponseMaxLimit,
-		Traffic:                  m.TrafficAlert,
-		readMessageErrors:        m.ReadMessageErrors,
-		shutdown:                 m.ShutdownC,
-		Wg:                       &m.Wg,
-		Match:                    m.Match,
-		RateLimit:                c.RateLimit,
-		Reporter:                 c.ConnectionLevelReporter,
-		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
-		RateLimitDefinitions:     m.rateLimitDefinitions,
+		ExchangeName:         m.exchangeName,
+		URL:                  connectionURL,
+		ProxyURL:             m.GetProxyAddress(),
+		Verbose:              m.verbose,
+		ResponseMaxLimit:     c.ResponseMaxLimit,
+		Traffic:              m.TrafficAlert,
+		readMessageErrors:    m.ReadMessageErrors,
+		shutdown:             m.ShutdownC,
+		Wg:                   &m.Wg,
+		Match:                m.Match,
+		RateLimit:            c.RateLimit,
+		Reporter:             c.ConnectionLevelReporter,
+		requestIDGenerator:   c.RequestIDGenerator,
+		RateLimitDefinitions: m.rateLimitDefinitions,
 	}
 }
 

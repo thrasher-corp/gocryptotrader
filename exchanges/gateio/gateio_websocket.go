@@ -740,7 +740,7 @@ func (g *Gateio) Unsubscribe(ctx context.Context, conn websocket.Connection, sub
 }
 
 // GenerateWebsocketMessageID generates a message ID for the individual connection
-func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
+func (g *Gateio) GenerateWebsocketMessageID() int64 {
 	return g.Counter.IncrementAndGet()
 }
 

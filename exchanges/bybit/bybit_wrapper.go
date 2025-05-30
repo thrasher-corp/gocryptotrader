@@ -235,32 +235,32 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 	// Spot
 	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      spotPublic,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    func() (subscription.List, error) { return by.generateSubscriptions() },
-		Subscriber:               by.Subscribe,
-		Unsubscriber:             by.Unsubscribe,
-		Handler:                  func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
+		URL:                   spotPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) { return by.generateSubscriptions() },
+		Subscriber:            by.Subscribe,
+		Unsubscriber:          by.Unsubscribe,
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
+		RequestIDGenerator:    by.websocketRequestIDGenerator,
 	}); err != nil {
 		return err
 	}
 
 	// Options
 	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      optionPublic,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    by.GenerateOptionsDefaultSubscriptions,
-		Subscriber:               by.OptionSubscribe,
-		Unsubscriber:             by.OptionUnsubscribe,
-		Handler:                  func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
+		URL:                   optionPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.GenerateOptionsDefaultSubscriptions,
+		Subscriber:            by.OptionSubscribe,
+		Unsubscriber:          by.OptionUnsubscribe,
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
+		RequestIDGenerator:    by.websocketRequestIDGenerator,
 	}); err != nil {
 		return err
 	}
@@ -280,8 +280,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		MessageFilter:            asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		RequestIDGenerator: by.websocketRequestIDGenerator,
+		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -301,8 +301,8 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		MessageFilter:            asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		RequestIDGenerator: by.websocketRequestIDGenerator,
+		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -320,30 +320,30 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.CoinMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
+		RequestIDGenerator: by.websocketRequestIDGenerator,
 	}); err != nil {
 		return err
 	}
 
 	// Private
 	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      websocketPrivate,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Authenticated:            true,
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    by.generateAuthSubscriptions,
-		Subscriber:               by.authSubscribe,
-		Unsubscriber:             by.authUnsubscribe,
-		Handler:                  by.wsHandleAuthenticated,
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		Authenticate:             by.WebsocketAuthenticateConnection,
+		URL:                   websocketPrivate,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Authenticated:         true,
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateAuthSubscriptions,
+		Subscriber:            by.authSubscribe,
+		Unsubscriber:          by.authUnsubscribe,
+		Handler:               by.wsHandleAuthenticatedData,
+		RequestIDGenerator:    by.websocketRequestIDGenerator,
+		Authenticate:          by.WebsocketAuthenticateConnection,
 	})
 }
 
-// bespokeWebsocketRequestID generates a unique ID for websocket requests, this is just a simple counter.
-func (by *Bybit) bespokeWebsocketRequestID(bool) int64 {
+// websocketRequestIDGenerator generates a unique ID for websocket requests, this is just a simple counter.
+func (by *Bybit) websocketRequestIDGenerator() int64 {
 	return by.counter.IncrementAndGet()
 }
 

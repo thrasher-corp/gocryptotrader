@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -63,11 +64,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 50},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneHour},
-	// These channels are currently being managed by the `generateAuthSubscriptions` method for the private connection
-	// TODO: Reimplement these channels
-	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyOrdersChannel},
-	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyWalletChannel},
-	// {Enabled: true, Asset: asset.Spot, Authenticated: true, Channel: subscription.MyTradesChannel},
+	// Authenticated channels are currently being managed by the `generateAuthSubscriptions` method for the private connection
+	// TODO: expand subscription template generation to handle authenticated subscriptions across all assets
 }
 
 var subscriptionNames = map[string]string{
@@ -244,7 +242,7 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
-func (by *Bybit) wsHandleAuthenticated(_ context.Context, respRaw []byte) error {
+func (by *Bybit) wsHandleAuthenticatedData(_ context.Context, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -276,8 +274,8 @@ func (by *Bybit) wsHandleAuthenticated(_ context.Context, respRaw []byte) error 
 		return by.wsProcessExecution(&result)
 	case chanOrder:
 		// Below provides a way of matching an order change to a websocket request. There is no batch support for this
-		// so the first element will be used to match the order ID.
-		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderId"); err == nil {
+		// so the first element will be used to match the order link ID.
+		if id, err := jsonparser.GetString(respRaw, "data", "[0]", "orderLinkId"); err == nil {
 			if by.Websocket.Match.IncomingWithData(id, respRaw) {
 				return nil // If the data has been routed, return
 			}
@@ -530,18 +528,20 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 	}
 
 	tick := &ticker.Price{Pair: p, ExchangeName: by.Name, AssetType: assetType}
-	snapshot, err := ticker.GetTicker(by.Name, p, assetType)
-	if err == nil && resp.Type != "snapshot" {
+	if resp.Type != "snapshot" {
+		snapshot, err := by.GetCachedTicker(p, assetType)
+		if err != nil {
+			return err
+		}
 		// ticker updates may be partial, so we need to update the current ticker
 		tick = snapshot
 	}
-
 	updateTicker(tick, &tickResp)
 	tick.LastUpdated = resp.PushTimestamp.Time()
-
-	if err = ticker.ProcessTicker(tick); err == nil {
-		by.Websocket.DataHandler <- tick
+	if err = ticker.ProcessTicker(tick); err != nil {
+		return err
 	}
+	by.Websocket.DataHandler <- tick
 	return err
 }
 
@@ -742,9 +742,10 @@ func hasPotentialDelimiter(a asset.Item) bool {
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (by *Bybit) handleSubscriptionNonTemplate(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
+func (by *Bybit) submitSubscriptionNonTemplate(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptionsNonTemplate(conn, a, operation, channelsToSubscribe)
 	if err != nil {
+		fmt.Println("meow")
 		return err
 	}
 	for _, payload := range payloads {
@@ -800,10 +801,13 @@ func (by *Bybit) handleSubscriptionsNonTemplate(conn websocket.Connection, asset
 		return nil, err
 	}
 	for _, s := range channelsToSubscribe {
-		if len(s.Pairs) != 1 {
+		var pair currency.Pair
+		if len(s.Pairs) > 1 {
 			return nil, subscription.ErrNotSinglePair
 		}
-		pair := s.Pairs[0]
+		if len(s.Pairs) == 1 {
+			pair = s.Pairs[0]
+		}
 		switch s.Channel {
 		case chanOrderbook:
 			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pair.Format(pairFormat).String()))
@@ -855,23 +859,19 @@ func (by *Bybit) generateAuthSubscriptions() (subscription.List, error) {
 	}
 	var subscriptions subscription.List
 	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: channel,
-			Pairs:   currency.Pairs{currency.EMPTYPAIR}, // This is a placeholder, the actual pair is not required for these channels
-			Asset:   asset.All,
-		})
+		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
 	}
 	return subscriptions, nil
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
 func (by *Bybit) authSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
+	return by.submitSubscriptionNonTemplate(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
 func (by *Bybit) authUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscriptionNonTemplate(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
+	return by.submitSubscriptionNonTemplate(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
 
 // getPairFromCategory returns the currency pair and asset type based on the category and symbol. Used with a dedicated
@@ -890,12 +890,15 @@ func (by *Bybit) getPairFromCategory(category, symbol string) (currency.Pair, as
 	default:
 		return currency.EMPTYPAIR, 0, fmt.Errorf("category '%s' not supported for incoming symbol '%s'", category, symbol)
 	}
-	var err error
 	for _, a := range assets {
-		var cp currency.Pair
-		if cp, err = by.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a)); err == nil {
-			return cp, a, nil
+		cp, err := by.MatchSymbolWithAvailablePairs(symbol, a, hasPotentialDelimiter(a))
+		if err != nil {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return currency.EMPTYPAIR, 0, fmt.Errorf("could not match symbol %s with asset %s: %w", symbol, a, err)
+			}
+			continue
 		}
+		return cp, a, nil
 	}
-	return currency.EMPTYPAIR, 0, err
+	return currency.EMPTYPAIR, 0, currency.ErrPairNotFound
 }

@@ -3218,7 +3218,7 @@ func TestPushDataPrivate(t *testing.T) {
 		if strings.Contains(payload, "%s") {
 			payload = fmt.Sprintf(payload, optionsTradablePair.String())
 		}
-		err := b.wsHandleAuthenticated(context.Background(), []byte(payload))
+		err := b.wsHandleAuthenticatedData(context.Background(), []byte(payload))
 		assert.NoError(t, err, "wsHandleData should not error")
 	}
 }
