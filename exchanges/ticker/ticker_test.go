@@ -38,7 +38,7 @@ func TestSubscribeTicker(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	// force error
 	service.mux = nil
@@ -104,7 +104,7 @@ func TestSubscribeToExchangeTickers(t *testing.T) {
 		t.Error("error cannot be nil")
 	}
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	err = ProcessTicker(&Price{
 		Pair:         p,
@@ -279,7 +279,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Pair:         currency.NewBTCUSD(),
 		AssetType:    asset.Margin,
 		Bid:          1337,
 		Ask:          1337,
@@ -288,7 +288,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Pair:         currency.NewBTCUSD(),
 		AssetType:    asset.Margin,
 		Bid:          1338,
 		Ask:          1336,
@@ -299,14 +299,12 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
-		Pair:         currency.NewPair(currency.BTC, currency.USD),
+		Pair:         currency.NewBTCUSD(),
 		AssetType:    asset.MarginFunding,
 		Bid:          1338,
 		Ask:          1336,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v but expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	// now test for processing a pair with a different quote currency
 	newPair, err = currency.NewPairFromStrings("BTC", "AUD")

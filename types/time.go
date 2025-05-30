@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -18,63 +17,43 @@ type Time time.Time
 func (t *Time) UnmarshalJSON(data []byte) error {
 	s := string(data)
 
-	switch s {
-	case "null", "0", `""`, `"0"`:
-		*t = Time(time.Time{})
-		return nil
-	}
-
 	if s[0] == '"' {
 		s = s[1 : len(s)-1]
 	}
 
-	badSyntax := false
-	target := strings.IndexFunc(s, func(r rune) bool {
-		if r == '.' {
-			return true
-		}
-		// types.Time may only parse numbers. The below check ensures an error is thrown. time.Time should be used to
-		// parse RFC3339 strings instead.
-		badSyntax = r < '0' || r > '9'
-		return badSyntax
-	})
+	switch s {
+	case "null", "0", "":
+		return nil
+	}
 
-	if target != -1 {
-		if badSyntax {
-			return fmt.Errorf("%w for `%v`", strconv.ErrSyntax, string(data))
-		}
+	if target := strings.Index(s, "."); target != -1 {
 		s = s[:target] + s[target+1:]
 	}
 
-	standard, err := strconv.ParseInt(s, 10, 64)
+	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
+	switch len(s) {
+	case 12, 15, 18:
+		s += "0"
+	case 11, 14, 17:
+		s += "00"
+	}
+
+	unixTS, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("error parsing unix timestamp: %w", err)
 	}
 
 	switch len(s) {
 	case 10:
-		// Seconds
-		*t = Time(time.Unix(standard, 0))
-	case 11, 12:
-		// Milliseconds: 1726104395.5 && 1726104395.56
-		*t = Time(time.UnixMilli(standard * int64(math.Pow10(13-len(s)))))
+		*t = Time(time.Unix(unixTS, 0))
 	case 13:
-		// Milliseconds
-		*t = Time(time.UnixMilli(standard))
-	case 14:
-		// MicroSeconds: 1726106210903.0
-		*t = Time(time.UnixMicro(standard * 100))
+		*t = Time(time.UnixMilli(unixTS))
 	case 16:
-		// MicroSeconds
-		*t = Time(time.UnixMicro(standard))
-	case 17:
-		// NanoSeconds: 1606292218213.4578
-		*t = Time(time.Unix(0, standard*100))
+		*t = Time(time.UnixMicro(unixTS))
 	case 19:
-		// NanoSeconds
-		*t = Time(time.Unix(0, standard))
+		*t = Time(time.Unix(0, unixTS))
 	default:
-		return fmt.Errorf("cannot unmarshal %s into Time", string(data))
+		return fmt.Errorf("cannot unmarshal %s into Time", data)
 	}
 	return nil
 }

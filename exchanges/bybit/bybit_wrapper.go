@@ -64,7 +64,7 @@ func (by *Bybit) SetDefaults() {
 	for _, n := range assetPairFmts {
 		ps := currency.PairStore{AssetEnabled: true, RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
 		if err := by.SetAssetPairStore(n.asset, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", by.Name, n.asset, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", by.Name, n.asset, err)
 		}
 	}
 
@@ -344,7 +344,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 
 // websocketRequestIDGenerator generates a unique ID for websocket requests, this is just a simple counter.
 func (by *Bybit) websocketRequestIDGenerator() int64 {
-	return by.counter.IncrementAndGet()
+	return by.messageIDSeq.IncrementAndGet()
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

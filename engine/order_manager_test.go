@@ -29,7 +29,7 @@ type omfExchange struct {
 	exchange.IBotExchange
 }
 
-var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+var btcusdPair = currency.NewBTCUSD()
 
 // CancelOrder overrides testExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required
@@ -188,13 +188,11 @@ func TestOrderManagerStart(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
 	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
@@ -209,17 +207,15 @@ func TestOrderManagerIsRunning(t *testing.T) {
 
 	var wg sync.WaitGroup
 	m, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -234,22 +230,18 @@ func TestOrderManagerStop(t *testing.T) {
 
 	var wg sync.WaitGroup
 	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func OrdersSetup(t *testing.T) *OrderManager {
@@ -261,7 +253,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		t.Fatal(err)
 	}
 
-	cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,13 +266,11 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	m.started = 1
 	return m
 }
@@ -420,31 +410,31 @@ func TestStore_modifyOrder(t *testing.T) {
 func TestCancelOrder(t *testing.T) {
 	m := OrdersSetup(t)
 
-	err := m.Cancel(context.Background(), nil)
+	err := m.Cancel(t.Context(), nil)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{})
+	err = m.Cancel(t.Context(), &order.Cancel{})
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		Exchange: testExchange,
 	})
 	if err == nil {
 		t.Error("Expected error due to no order ID")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		OrderID: "ID",
 	})
 	if err == nil {
 		t.Error("Expected error due to no Exchange")
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		OrderID:   "ID",
 		Exchange:  testExchange,
 		AssetType: asset.Binary,
@@ -463,7 +453,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.Cancel(context.Background(), &order.Cancel{
+	err = m.Cancel(t.Context(), &order.Cancel{
 		OrderID:   "Unknown",
 		Exchange:  testExchange,
 		AssetType: asset.Spot,
@@ -479,10 +469,8 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		Pair:      btcusdPair,
 	}
-	err = m.Cancel(context.Background(), cancel)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	err = m.Cancel(t.Context(), cancel)
+	assert.NoError(t, err)
 
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")
@@ -491,13 +479,13 @@ func TestCancelOrder(t *testing.T) {
 
 func TestGetOrderInfo(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.GetOrderInfo(context.Background(), "", "", currency.EMPTYPAIR, asset.Empty)
+	_, err := m.GetOrderInfo(t.Context(), "", "", currency.EMPTYPAIR, asset.Empty)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
 	var result order.Detail
-	result, err = m.GetOrderInfo(context.Background(),
+	result, err = m.GetOrderInfo(t.Context(),
 		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
@@ -506,7 +494,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error("unexpected order returned")
 	}
 
-	result, err = m.GetOrderInfo(context.Background(),
+	result, err = m.GetOrderInfo(t.Context(),
 		testExchange, "1337", currency.EMPTYPAIR, asset.Empty)
 	if err != nil {
 		t.Error(err)
@@ -527,7 +515,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{})
+	m.CancelAllOrders(t.Context(), []exchange.IBotExchange{})
 	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
 	if err != nil {
 		t.Fatal(err)
@@ -541,7 +529,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m.CancelAllOrders(context.Background(), []exchange.IBotExchange{exch})
+	m.CancelAllOrders(t.Context(), []exchange.IBotExchange{exch})
 	checkDeets, err = m.orderStore.getByExchangeAndID(testExchange, "TestCancelAllOrders")
 	if err != nil {
 		t.Fatal(err)
@@ -554,17 +542,17 @@ func TestCancelAllOrders(t *testing.T) {
 
 func TestSubmit(t *testing.T) {
 	m := OrdersSetup(t)
-	_, err := m.Submit(context.Background(), nil)
+	_, err := m.Submit(t.Context(), nil)
 	require.ErrorIs(t, err, errNilOrder)
 
 	o := &order.Submit{Type: order.Market}
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected error from empty exchange")
 	}
 
 	o.Exchange = testExchange
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected error from validation")
 	}
@@ -576,20 +564,20 @@ func TestSubmit(t *testing.T) {
 	o.Side = order.Buy
 	o.Amount = 1
 	o.Price = 1
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order market type is not allowed")
 	}
 	m.cfg.AllowMarketOrders = true
 	m.cfg.LimitAmount = 1
 	o.Amount = 2
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order limit exceeds allowed limit")
 	}
 	m.cfg.LimitAmount = 0
 	m.cfg.AllowedExchanges = []string{"fake"}
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order exchange not found in allowed list")
 	}
@@ -601,13 +589,13 @@ func TestSubmit(t *testing.T) {
 
 	m.cfg.AllowedExchanges = nil
 	m.cfg.AllowedPairs = currency.Pairs{failPair}
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if err == nil {
 		t.Error("Expected fail due to order pair not found in allowed list")
 	}
 
 	m.cfg.AllowedPairs = nil
-	_, err = m.Submit(context.Background(), o)
+	_, err = m.Submit(t.Context(), o)
 	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
 		t.Errorf("received: %v but expected: %v", err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
@@ -616,9 +604,7 @@ func TestSubmit(t *testing.T) {
 		Exchange: testExchange,
 		OrderID:  "FakePassingExchangeOrder",
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o2, err := m.orderStore.getByExchangeAndID(testExchange, "FakePassingExchangeOrder")
 	if err != nil {
@@ -682,7 +668,7 @@ func TestOrderManager_Modify(t *testing.T) {
 			t.Error(err)
 		}
 
-		resp, err := m.Modify(context.Background(), &mod)
+		resp, err := m.Modify(t.Context(), &mod)
 		if expectError {
 			if err == nil {
 				t.Fatal("Expected error")
@@ -762,13 +748,11 @@ func TestProcessOrders(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	m.started = 1
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USD},
@@ -1160,7 +1144,7 @@ func Test_getActiveOrders(t *testing.T) {
 func TestGetFuturesPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	_, err := o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1187,13 +1171,11 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Error("expected 1 position")
 	}
@@ -1208,7 +1190,7 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 func TestClearFuturesPositionsForExchange(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	err := o.ClearFuturesTracking("test", asset.Spot, cp)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1235,17 +1217,14 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 0 {
 		t.Errorf("expected no position, received '%v'", len(resp))
 	}
@@ -1260,7 +1239,7 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	_, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -1287,13 +1266,11 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	unrealised, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 2, time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !unrealised.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("received '%v', expected '%v'", unrealised, 1)
 	}
@@ -1323,9 +1300,8 @@ func TestSubmitFakeOrder(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	o.orderStore.exchangeManager = em
 
 	ord := &order.Submit{}
@@ -1348,9 +1324,7 @@ func TestSubmitFakeOrder(t *testing.T) {
 	o.orderStore.commsManager = &CommunicationManager{}
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrdersSnapshot(t *testing.T) {
@@ -1395,7 +1369,7 @@ func TestUpdateExisting(t *testing.T) {
 	od.Exchange = testExchange
 	od.AssetType = asset.Futures
 	od.OrderID = "123"
-	od.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	od.Pair = currency.NewBTCUSDT()
 	od.Side = order.Buy
 	od.Type = order.Market
 	od.Date = time.Now()
@@ -1405,17 +1379,14 @@ func TestUpdateExisting(t *testing.T) {
 	}
 	s.futuresPositionController = futures.SetupPositionController()
 	err = s.futuresPositionController.TrackNewOrder(od)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.updateExisting(od)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pos, err := s.futuresPositionController.GetPositionsForExchange(testExchange, asset.Futures, od.Pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(pos) != 1 {
 		t.Error("expected 1")
 	}
@@ -1462,9 +1433,8 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
 	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 0
 	_, err = o.GetAllOpenFuturesPositions()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -1490,9 +1460,8 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
 	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 0
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
@@ -1534,18 +1503,16 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, &config.OrderManager{
 		Enabled:                       true,
 		FuturesTrackingSeekDuration:   time.Hour,
 		Verbose:                       true,
 		ActivelyTrackFuturesPositions: true,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 1
 
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
@@ -1568,13 +1535,10 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		Amount:    1337,
 		Exchange:  testExchange,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o = nil
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
@@ -1628,14 +1592,12 @@ func TestProcessFuturesPositions(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	o, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 1
 
 	err = o.processFuturesPositions(fakeExchange, nil)
@@ -1674,15 +1636,11 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	b.Features.Supports.FuturesCapabilities.FundingRates = true
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetByDetail tests orderstore.getByDetail

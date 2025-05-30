@@ -456,7 +456,7 @@ func (m *Manager) connect() error {
 			}
 
 			if missing := m.subscriptions.Missing(subs); len(missing) > 0 {
-				return fmt.Errorf("%v %w `%s`", m.exchangeName, ErrSubscriptionsNotAdded, missing)
+				return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
 			}
 		}
 		return nil
@@ -544,7 +544,7 @@ func (m *Manager) connect() error {
 		}
 
 		if missing := m.connectionManager[i].subscriptions.Missing(subs); len(missing) > 0 {
-			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w `%s`", m.exchangeName, ErrSubscriptionsNotAdded, missing))
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing))
 			continue
 		}
 

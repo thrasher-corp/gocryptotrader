@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"os"
 	"slices"
@@ -165,15 +164,13 @@ func TestGetExchangeByName(t *testing.T) {
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	exch.SetEnabled(true)
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
@@ -202,15 +199,13 @@ func TestUnloadExchange(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	exch.SetEnabled(true)
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	e := &Engine{
 		ExchangeManager: em,
 		Config:          &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
@@ -328,9 +323,7 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.RegisterWebsocketDataHandler(func(_ string, _ any) error { return nil }, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetDefaultWebsocketDataHandler(t *testing.T) {
@@ -343,9 +336,7 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.SetDefaultWebsocketDataHandler()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSettingsPrint(t *testing.T) {
@@ -380,7 +371,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 
-			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+			defaultCfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err, "GetDefaultConfig must not error")
 			require.NotNil(t, defaultCfg)
 			assert.NotEmpty(t, defaultCfg.Name, "Name should not be empty")
@@ -480,7 +471,7 @@ func TestSetupExchanges(t *testing.T) {
 		exchLoader := func(exch exchange.IBotExchange) {
 			exch.SetDefaults()
 			exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
-			cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+			cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err)
 			e.Config.Exchanges = append(e.Config.Exchanges, *cfg)
 		}

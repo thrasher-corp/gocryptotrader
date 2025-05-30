@@ -27,8 +27,6 @@ const (
 	sideBorrow = "borrow"
 )
 
-var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{
@@ -2052,7 +2050,7 @@ type WsCandlesticks struct {
 type WsOrderbookTickerData struct {
 	UpdateTime    types.Time    `json:"t"`
 	UpdateOrderID int64         `json:"u"`
-	CurrencyPair  currency.Pair `json:"s"`
+	Pair          currency.Pair `json:"s"`
 	BestBidPrice  types.Number  `json:"b"`
 	BestBidAmount types.Number  `json:"B"`
 	BestAskPrice  types.Number  `json:"a"`
@@ -2061,12 +2059,12 @@ type WsOrderbookTickerData struct {
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTime              types.Time        `json:"t"`
-	CurrencyPair            currency.Pair     `json:"s"`
-	FirstOrderbookUpdatedID int64             `json:"U"` // First update order book id in this event since last update
-	LastOrderbookUpdatedID  int64             `json:"u"`
-	Bids                    [][2]types.Number `json:"b"`
-	Asks                    [][2]types.Number `json:"a"`
+	UpdateTime    types.Time        `json:"t"`
+	Pair          currency.Pair     `json:"s"`
+	FirstUpdateID int64             `json:"U"` // First update order book id in this event since last update
+	LastUpdateID  int64             `json:"u"`
+	Bids          [][2]types.Number `json:"b"`
+	Asks          [][2]types.Number `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
@@ -2227,14 +2225,14 @@ type WsFuturesAndOptionsOrderbookUpdate struct {
 	ContractName   currency.Pair `json:"s"`
 	FirstUpdatedID int64         `json:"U"`
 	LastUpdatedID  int64         `json:"u"`
-	Bids           []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"b"`
-	Asks []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"a"`
+	Bids           []Tranche     `json:"b"`
+	Asks           []Tranche     `json:"a"`
+}
+
+// Tranche represents a tranche of orderbook data
+type Tranche struct {
+	Price types.Number `json:"p"`
+	Size  float64      `json:"s"`
 }
 
 // WsFuturesOrderbookSnapshot represents a futures orderbook snapshot push data
@@ -2242,14 +2240,8 @@ type WsFuturesOrderbookSnapshot struct {
 	Timestamp   types.Time    `json:"t"`
 	Contract    currency.Pair `json:"contract"`
 	OrderbookID int64         `json:"id"`
-	Asks        []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"asks"`
-	Bids []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"bids"`
+	Asks        []Tranche     `json:"asks"`
+	Bids        []Tranche     `json:"bids"`
 }
 
 // WsFuturesOrderbookUpdateEvent represents futures orderbook push data with the event 'update'
@@ -2689,4 +2681,26 @@ type UnifiedUserAccount struct {
 	SpotHedge                      bool                             `json:"spot_hedge"`
 	UseFunding                     bool                             `json:"use_funding"`
 	RefreshTime                    types.Time                       `json:"refresh_time"`
+}
+
+// AccountDetails represents account detail information
+type AccountDetails struct {
+	IPWhitelist       []string  `json:"ip_whitelist"`
+	CurrencyPairs     []string  `json:"currency_pairs"`
+	UserID            int64     `json:"user_id"`
+	VIPTier           int64     `json:"tier"`
+	VIPTierExpireTime time.Time `json:"tier_expire_time"`
+	Key               struct {
+		Mode int64 `json:"mode"` // mode: 1 - classic account 2 - portfolio margin account
+	} `json:"key"`
+	CopyTradingRole int64 `json:"copy_trading_role"` // User role: 0 - Ordinary user 1 - Order leader 2 - Follower 3 - Order leader and follower
+}
+
+// UserTransactionRateLimitInfo represents user transaction rate limit information
+type UserTransactionRateLimitInfo struct {
+	Type      string       `json:"type"`
+	Tier      types.Number `json:"tier"`
+	Ratio     types.Number `json:"ratio"`
+	MainRatio types.Number `json:"main_ratio"`
+	UpdatedAt types.Time   `json:"updated_at"`
 }

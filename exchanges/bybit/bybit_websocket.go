@@ -306,19 +306,26 @@ func (by *Bybit) wsProcessWalletPushData(resp []byte) error {
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	accounts := []account.Change{}
+	creds, err := by.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
+	var changes []account.Change
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
-			accounts = append(accounts, account.Change{
-				Exchange: by.Name,
-				Currency: currency.NewCode(result.Data[x].Coin[y].Coin),
-				Asset:    asset.Spot,
-				Amount:   result.Data[x].Coin[y].WalletBalance.Float64(),
+			changes = append(changes, account.Change{
+				AssetType: asset.Spot,
+				Balance: &account.Balance{
+					Currency:  result.Data[x].Coin[y].Coin,
+					Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
+					Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
+					UpdatedAt: result.CreationTime.Time(),
+				},
 			})
 		}
 	}
-	by.Websocket.DataHandler <- accounts
-	return nil
+	by.Websocket.DataHandler <- changes
+	return account.ProcessChange(by.Name, changes, creds)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.

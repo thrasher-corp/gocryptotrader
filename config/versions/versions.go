@@ -32,6 +32,7 @@ const UseLatestVersion = math.MaxUint16
 
 var (
 	errVersionIncompatible   = errors.New("version does not implement ConfigVersion or ExchangeVersion")
+	errAlreadyRegistered     = errors.New("version is already registered")
 	errModifyingExchange     = errors.New("error modifying exchange config")
 	errNoVersions            = errors.New("error retrieving latest config version: No config versions are registered")
 	errApplyingVersion       = errors.New("error applying version")
@@ -40,7 +41,6 @@ var (
 	errConfigVersionUnavail  = errors.New("version is higher than the latest available version")
 	errConfigVersionNegative = errors.New("version is negative")
 	errConfigVersionMax      = errors.New("version is above max versions")
-	errUpgrading             = errors.New("error upgrading")
 )
 
 // ConfigVersion is a version that affects the general configuration
@@ -187,12 +187,12 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 			}
 			exchNew, err := method(patch, ctx, exchOrig)
 			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w for `%s`: %w", errModifyingExchange, name, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w for %q: %w", errModifyingExchange, name, err))
 				continue
 			}
 			if !bytes.Equal(exchNew, exchOrig) {
 				if j, err = jsonparser.Set(j, exchNew, "exchanges", "["+strconv.Itoa(i)+"]"); err != nil {
-					errs = common.AppendError(errs, fmt.Errorf("%w `%s`/exchanges[%d]: %w: %w", errModifyingExchange, name, i, common.ErrSettingField, err))
+					errs = common.AppendError(errs, fmt.Errorf("%w %q/exchanges[%d]: %w: %w", errModifyingExchange, name, i, common.ErrSettingField, err))
 				}
 			}
 		}
@@ -211,13 +211,26 @@ func exchangeDeploy(ctx context.Context, patch ExchangeVersion, method func(Exch
 }
 
 // registerVersion takes instances of config versions and adds them to the registry
-func (m *manager) registerVersion(ver int, v any) {
+func (m *manager) registerVersion(ver uint16, v any) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	if ver >= len(m.versions) {
-		m.versions = slices.Grow(m.versions, ver+1)[:ver+1]
+	if int(ver) >= len(m.versions) {
+		m.versions = slices.Grow(m.versions, int(ver+1))[:ver+1]
+	}
+	if m.versions[ver] != nil {
+		panic(fmt.Errorf("%w: %d", errAlreadyRegistered, ver))
 	}
 	m.versions[ver] = v
+}
+
+// Version returns a version registered by init or nil if nothing has been registered with that version number
+func (m *manager) Version(version uint16) any {
+	m.m.RLock()
+	defer m.m.RUnlock()
+	if int(version) < len(m.versions) {
+		return m.versions[version]
+	}
+	return nil
 }
 
 // latest returns the highest version number

@@ -726,7 +726,7 @@ func TestGetPairs(t *testing.T) {
 		c, err := b.GetAvailablePairs(asset.Spot)
 		require.NoError(t, err, "GetAvailablePairs must not error")
 		require.Len(t, c, 1, "Must have one enabled pair")
-		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetAvailablePairs format must use config format")
+		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetAvailablePairs format should use config format")
 
 		require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error for enabled pairs")
 		require.NoError(t, b.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
@@ -734,7 +734,7 @@ func TestGetPairs(t *testing.T) {
 		c, err = b.GetEnabledPairs(asset.Spot)
 		require.NoError(t, err, "GetEnabledPairs must not error")
 		require.Len(t, c, 1, "Must have one enabled pair")
-		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetEnabledPairs format must use config format")
+		assert.Equal(t, "BTC"+d+"USD", c[0].String(), "GetEnabledPairs format should use config format")
 	}
 }
 
@@ -923,7 +923,7 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	pairs := currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 	err := b.SetPairs(pairs, asset.Spot, true)
 	if err != nil {
@@ -1078,14 +1078,12 @@ func TestUpdatePairs(t *testing.T) {
 
 	pairs := currency.Pairs{
 		currency.NewPair(currency.XRP, currency.USD),
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.LTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	pairs = currency.Pairs{
 		currency.NewPair(currency.WABI, currency.USD),
@@ -1094,9 +1092,7 @@ func TestUpdatePairs(t *testing.T) {
 		currency.NewPair(currency.LTC, currency.USDT),
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	uacEnabledPairs, err := UAC.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -1105,7 +1101,7 @@ func TestUpdatePairs(t *testing.T) {
 	if uacEnabledPairs.Contains(currency.NewPair(currency.XRP, currency.USD), true) {
 		t.Fatal("expected currency pair not found")
 	}
-	if uacEnabledPairs.Contains(currency.NewPair(currency.BTC, currency.USD), true) {
+	if uacEnabledPairs.Contains(currency.NewBTCUSD(), true) {
 		t.Fatal("expected currency pair not found")
 	}
 	if uacEnabledPairs.Contains(currency.NewPair(currency.LTC, currency.USD), true) {
@@ -1117,9 +1113,7 @@ func TestUpdatePairs(t *testing.T) {
 
 	// This should be matched and formatted to `link-usd`
 	unintentionalInput, err := currency.NewPairFromString("linkusd")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	pairs = currency.Pairs{
 		currency.NewPair(currency.WABI, currency.USD),
@@ -1130,9 +1124,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	pairs = currency.Pairs{
 		currency.NewPair(currency.WABI, currency.USD),
@@ -1143,9 +1135,7 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	err = UAC.UpdatePairs(pairs, asset.Spot, false, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	uacEnabledPairs, err = UAC.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -1308,7 +1298,7 @@ func TestPrintEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 	}
 
@@ -1332,7 +1322,7 @@ func TestGetBase(t *testing.T) {
 
 func TestGetAssetType(t *testing.T) {
 	var b Base
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 	if _, err := b.GetPairAssetType(p); err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -1340,10 +1330,10 @@ func TestGetAssetType(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: true,
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 		Available: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
 	}
@@ -1378,10 +1368,10 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		AssetEnabled: true,
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 		Available: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USD),
+			currency.NewBTCUSD(),
 		},
 	}
 	p, a, err := b.GetRequestFormattedPairAndAssetType("btc#usd")
@@ -1460,8 +1450,8 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, asset.Spot, asset.Binary)
 	require.NoError(t, err, "SetGlobalPairsManager must not error")
 
-	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager must support Binary")
-	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager must support Spot")
+	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager should support Binary")
+	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager should support Spot")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
@@ -1499,7 +1489,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 	}
 }
 
-func TestBase_ValidateKline(t *testing.T) {
+func TestVerifyKlineParameters(t *testing.T) {
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
 	}
@@ -1529,20 +1519,11 @@ func TestBase_ValidateKline(t *testing.T) {
 		},
 	}
 
-	err := b.ValidateKline(availablePairs[0], asset.Spot, kline.OneMin)
-	if err != nil {
-		t.Fatalf("expected validation to pass received error: %v", err)
-	}
-
-	err = b.ValidateKline(availablePairs[1], asset.Spot, kline.OneYear)
-	if err == nil {
-		t.Fatal("expected validation to fail")
-	}
-
-	err = b.ValidateKline(availablePairs[1], asset.Index, kline.OneYear)
-	if err == nil {
-		t.Fatal("expected validation to fail")
-	}
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Index, kline.OneYear), currency.ErrAssetNotFound)
+	assert.ErrorIs(t, b.verifyKlineParameters(currency.EMPTYPAIR, asset.Spot, kline.OneMin), currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), currency.ErrPairNotEnabled)
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
+	assert.NoError(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneMin), "verifyKlineParameters should not error")
 }
 
 func TestCheckTransientError(t *testing.T) {
@@ -1577,9 +1558,7 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 	}
 
 	err = b.DisableRateLimiter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = b.DisableRateLimiter()
 	if !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
@@ -1587,9 +1566,7 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 	}
 
 	err = b.EnableRateLimiter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = b.EnableRateLimiter()
 	if !errors.Is(err, request.ErrRateLimiterAlreadyEnabled) {
@@ -1664,7 +1641,7 @@ func TestGetSubscriptions(t *testing.T) {
 
 func TestAuthenticateWebsocket(t *testing.T) {
 	b := Base{}
-	if err := b.AuthenticateWebsocket(context.Background()); err == nil {
+	if err := b.AuthenticateWebsocket(t.Context()); err == nil {
 		t.Fatal("error cannot be nil")
 	}
 }
@@ -1914,14 +1891,10 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 			Delimiter: currency.DashDelimiter,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = b.DisableAssetWebsocketSupport(asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected error: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if b.IsAssetWebsocketSupported(asset.Spot) {
 		t.Fatal("error asset is not turned off, unexpected response")
@@ -1983,7 +1956,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetAvailableTransferChains(context.Background(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
+	if _, err := b.GetAvailableTransferChains(t.Context(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
 	}
 }
@@ -1991,7 +1964,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculatePNL(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.CalculatePNL(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -1999,7 +1972,7 @@ func TestCalculatePNL(t *testing.T) {
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.ScaleCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.ScaleCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2007,7 +1980,7 @@ func TestScaleCollateral(t *testing.T) {
 func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculateTotalCollateral(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.CalculateTotalCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2015,7 +1988,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if err := b.UpdateCurrencyStates(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+	if err := b.UpdateCurrencyStates(t.Context(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2059,7 +2032,7 @@ func TestSetFillsFeedStatus(t *testing.T) {
 func TestGetMarginRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetMarginRatesHistory(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetMarginRatesHistory(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2067,7 +2040,7 @@ func TestGetMarginRateHistory(t *testing.T) {
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionSummary(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositionSummary(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2075,7 +2048,7 @@ func TestGetPositionSummary(t *testing.T) {
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionOrders(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetFuturesPositionOrders(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2083,7 +2056,7 @@ func TestGetFuturesPositions(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2091,7 +2064,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2099,7 +2072,7 @@ func TestGetFundingRates(t *testing.T) {
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewPair(currency.BTC, currency.USD)); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSD()); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
@@ -2151,9 +2124,8 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if a != asset.Spot {
 		t.Fatal("unexpected value", a)
 	}
@@ -2162,9 +2134,8 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	p, a, err = b.GetPairAndAssetTypeRequestFormatted("BTC_USDT")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if a != asset.PerpetualContract {
 		t.Fatal("unexpected value", a)
 	}
@@ -2242,272 +2213,154 @@ func TestHasAssetTypeAccountSegregation(t *testing.T) {
 func TestGetKlineRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
-
 	_, err := b.GetKlineRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err = b.GetKlineRequest(pair, asset.Empty, 0, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	p := currency.NewBTCUSDT()
+	_, err = b.GetKlineRequest(p, asset.Empty, 0, time.Time{}, time.Time{}, false)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, kline.ErrInvalidInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
-	}
+	_, err = b.GetKlineRequest(p, asset.Spot, 0, time.Time{}, time.Time{}, false)
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval)
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneDay, Capacity: 1439})
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
-		Enabled:      []currency.Pair{pair},
-		Available:    []currency.Pair{pair},
+		Enabled:      []currency.Pair{p},
+		Available:    []currency.Pair{p},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "CurrencyPairs.Store must not error")
 
-	_, err = b.GetKlineRequest(pair, asset.Spot, 0, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, kline.ErrInvalidInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
-	}
+	_, err = b.GetKlineRequest(p, asset.Spot, 0, time.Time{}, time.Time{}, false)
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval)
 
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, kline.ErrCannotConstructInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
-	}
+	_, err = b.GetKlineRequest(p, asset.Spot, kline.OneMin, time.Time{}, time.Time{}, false)
+	assert.ErrorIs(t, err, kline.ErrCannotConstructInterval)
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
 	b.Features.Enabled.Kline.GlobalResultLimit = 1439
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
-	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineRequest should return Format is Nil")
+	_, err = b.GetKlineRequest(p, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil)
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  true,
-		Enabled:       []currency.Pair{pair},
-		Available:     []currency.Pair{pair},
+		Enabled:       []currency.Pair{p},
+		Available:     []currency.Pair{p},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "CurrencyPairs.Store must not error")
 
 	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end, true)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	_, err = b.GetKlineRequest(p, asset.Spot, kline.OneMin, start, end, true)
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 
-	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneMin, start, end, false)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	_, err = b.GetKlineRequest(p, asset.Spot, kline.OneMin, start, end, false)
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 
-	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
-	if !errors.Is(err, asset.ErrNotEnabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
-	}
+	_, err = b.GetKlineRequest(p, asset.Futures, kline.OneHour, start, end, false)
+	assert.ErrorIs(t, err, currency.ErrAssetNotFound)
 
 	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		AssetEnabled:  true,
-		Enabled:       []currency.Pair{pair},
-		Available:     []currency.Pair{pair},
+		Enabled:       []currency.Pair{p},
+		Available:     []currency.Pair{p},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	_, err = b.GetKlineRequest(pair, asset.Futures, kline.OneHour, start, end, false)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	require.NoError(t, err, "CurrencyPairs.Store must not error")
+
+	_, err = b.GetKlineRequest(p, asset.Futures, kline.OneHour, start, end, false)
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneHour})
-	r, err := b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	r, err := b.GetKlineRequest(p, asset.Spot, kline.OneHour, start, end, false)
+	require.NoError(t, err, "GetKlineRequest must not error")
 
-	if r.Exchange != "klineTest" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "klineTest")
+	exp := &kline.Request{
+		Exchange:         b.Name,
+		Pair:             p,
+		Asset:            asset.Spot,
+		ExchangeInterval: kline.OneHour,
+		ClientRequired:   kline.OneHour,
+		Start:            start,
+		End:              end,
+		RequestFormatted: p,
+		RequestLimit:     1439,
 	}
-
-	if !r.Pair.Equal(pair) {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Pair, pair)
-	}
-
-	if r.Asset != asset.Spot {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
-	}
-
-	if r.ExchangeInterval != kline.OneHour {
-		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, kline.OneHour)
-	}
-
-	if r.ClientRequired != kline.OneHour {
-		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, kline.OneHour)
-	}
-
-	if r.Start != start {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Start, start)
-	}
-
-	if r.End != end {
-		t.Fatalf("received: '%v' but expected: '%v'", r.End, end)
-	}
-
-	if r.RequestFormatted.String() != "BTCUSDT" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
-	}
+	assert.Equal(t, exp, r, "GetKlineRequest should return the expected request result")
 
 	end = time.Now().Truncate(kline.OneHour.Duration()).UTC()
 	start = end.Add(-kline.OneHour.Duration() * 1439)
+	r, err = b.GetKlineRequest(p, asset.Spot, kline.OneHour, start, end, true)
+	require.NoError(t, err, "GetKlineRequest must not error")
 
-	r, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, start, end, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if r.Exchange != "klineTest" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "klineTest")
-	}
-
-	if !r.Pair.Equal(pair) {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Pair, pair)
-	}
-
-	if r.Asset != asset.Spot {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
-	}
-
-	if r.ExchangeInterval != kline.OneHour {
-		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, kline.OneHour)
-	}
-
-	if r.ClientRequired != kline.OneHour {
-		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, kline.OneHour)
-	}
-
-	if r.Start != start {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Start, start)
-	}
-
-	if r.End != end {
-		t.Fatalf("received: '%v' but expected: '%v'", r.End, end)
-	}
-
-	if r.RequestFormatted.String() != "BTCUSDT" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
-	}
+	exp.Start = start
+	exp.End = end
+	assert.Equal(t, exp, r, "GetKlineRequest should return the expected request result")
 }
 
 func TestGetKlineExtendedRequest(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "klineTest"}
 	_, err := b.GetKlineExtendedRequest(currency.EMPTYPAIR, asset.Empty, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair := currency.NewPair(currency.BTC, currency.USDT)
-	_, err = b.GetKlineExtendedRequest(pair, asset.Empty, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	p := currency.NewBTCUSDT()
+	_, err = b.GetKlineExtendedRequest(p, asset.Empty, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, 0, time.Time{}, time.Time{})
-	if !errors.Is(err, kline.ErrInvalidInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrInvalidInterval)
-	}
+	_, err = b.GetKlineExtendedRequest(p, asset.Spot, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval)
 
-	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{})
-	if !errors.Is(err, kline.ErrCannotConstructInterval) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, kline.ErrCannotConstructInterval)
-	}
+	_, err = b.GetKlineExtendedRequest(p, asset.Spot, kline.OneHour, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, kline.ErrCannotConstructInterval)
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
 	b.Features.Enabled.Kline.GlobalResultLimit = 100
 	start := time.Date(2020, 12, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 1)
-	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, asset.ErrNotEnabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
-	}
+	_, err = b.GetKlineExtendedRequest(p, asset.Spot, kline.OneHour, start, end)
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised)
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
-		Enabled:      []currency.Pair{pair},
-		Available:    []currency.Pair{pair},
+		Enabled:      []currency.Pair{p},
+		Available:    []currency.Pair{p},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "CurrencyPairs.Store must not error")
 
-	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
+	_, err = b.GetKlineExtendedRequest(p, asset.Spot, kline.OneHour, start, end)
 	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineExtendedRequest should error correctly")
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  true,
-		Enabled:       []currency.Pair{pair},
-		Available:     []currency.Pair{pair},
+		Enabled:       []currency.Pair{p},
+		Available:     []currency.Pair{p},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err, "CurrencyPairs.Store must not error")
 
 	// The one hour interval is not supported by the exchange. This scenario
 	// demonstrates the conversion from the supported 1 minute candles into
 	// one hour candles
-	r, err := b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	r, err := b.GetKlineExtendedRequest(p, asset.Spot, kline.OneHour, start, end)
+	require.NoError(t, err, "GetKlineExtendedRequest must not error")
 
-	if r.Exchange != "klineTest" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Exchange, "klineTest")
-	}
-
-	if !r.Pair.Equal(pair) {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Pair, pair)
-	}
-
-	if r.Asset != asset.Spot {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Asset, asset.Spot)
-	}
-
-	if r.ExchangeInterval != kline.OneMin {
-		t.Fatalf("received: '%v' but expected: '%v'", r.ExchangeInterval, kline.OneMin)
-	}
-
-	if r.ClientRequired != kline.OneHour {
-		t.Fatalf("received: '%v' but expected: '%v'", r.ClientRequired, kline.OneHour)
-	}
-
-	if r.Request.Start != start {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Request.Start, start)
-	}
-
-	if r.Request.End != end {
-		t.Fatalf("received: '%v' but expected: '%v'", r.Request.End, end)
-	}
-
-	if r.RequestFormatted.String() != "BTCUSDT" {
-		t.Fatalf("received: '%v' but expected: '%v'", r.RequestFormatted.String(), "BTCUSDT")
-	}
-
-	if len(r.RangeHolder.Ranges) != 15 { // 15 request at max 100 candles == 1440 1 min candles.
-		t.Fatalf("received: '%v' but expected: '%v'", len(r.RangeHolder.Ranges), 15)
-	}
+	assert.Equal(t, "klineTest", r.Exchange, "Exchange name should match")
+	assert.Equal(t, p, r.Pair, "Pair should match")
+	assert.Equal(t, asset.Spot, r.Asset, "Asset should match")
+	assert.Equal(t, kline.OneMin, r.ExchangeInterval, "ExchangeInterval should match")
+	assert.Equal(t, kline.OneHour, r.ClientRequired, "ClientRequired should match")
+	assert.Equal(t, start, r.Request.Start, "Request.Start should match")
+	assert.Equal(t, end, r.Request.End, "Request.End should match")
+	assert.Equal(t, "BTCUSDT", r.RequestFormatted.String(), "RequestFormatted should match")
+	assert.Equal(t, 15, len(r.RangeHolder.Ranges), "RangeHolder.Ranges length should match")
 }
 
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetCollateralMode(context.Background(), asset.Spot, collateral.SingleMode)
+	err := b.SetCollateralMode(t.Context(), asset.Spot, collateral.SingleMode)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2516,7 +2369,7 @@ func TestSetCollateralMode(t *testing.T) {
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetCollateralMode(context.Background(), asset.Spot)
+	_, err := b.GetCollateralMode(t.Context(), asset.Spot)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2525,7 +2378,7 @@ func TestGetCollateralMode(t *testing.T) {
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetMarginType(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
+	err := b.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2534,7 +2387,7 @@ func TestSetMarginType(t *testing.T) {
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.ChangePositionMargin(context.Background(), nil)
+	_, err := b.ChangePositionMargin(t.Context(), nil)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2543,7 +2396,7 @@ func TestChangePositionMargin(t *testing.T) {
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	err := b.SetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
+	err := b.SetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2552,7 +2405,7 @@ func TestSetLeverage(t *testing.T) {
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetLeverage(context.Background(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
+	_, err := b.GetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Error(err)
 	}
@@ -2571,23 +2424,21 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 			asset.Spot: {
 				AssetEnabled: true,
 				Available: []currency.Pair{
-					currency.NewPair(currency.BTC, currency.USDT),
+					currency.NewBTCUSDT(),
 				},
 			},
 		},
 	}
 	err = b.EnsureOnePairEnabled()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
 
 	err = b.EnsureOnePairEnabled()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(b.CurrencyPairs.Pairs[asset.Spot].Enabled), 1)
 	}
@@ -2612,9 +2463,7 @@ func TestGetStandardConfig(t *testing.T) {
 	b.Features.Supports.Websocket = true
 
 	cfg, err := b.GetStandardConfig()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if cfg.Name != "test" {
 		t.Fatalf("received: '%v' but expected: '%v'", cfg.Name, "test")
@@ -2640,7 +2489,7 @@ func TestGetStandardConfig(t *testing.T) {
 func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	whatIWant := currency.NewBTCUSDT()
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
 		Available:    []currency.Pair{whatIWant},
@@ -2655,18 +2504,14 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	}
 
 	whatIGot, err := b.MatchSymbolWithAvailablePairs("btcusdT", asset.Spot, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
 	whatIGot, err = b.MatchSymbolWithAvailablePairs("btc-usdT", asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
@@ -2676,7 +2521,7 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 func TestMatchSymbolCheckEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	whatIWant := currency.NewBTCUSDT()
 	availButNoEnabled := currency.NewPair(currency.BTC, currency.AUD)
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
@@ -2693,9 +2538,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	whatIGot, enabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !enabled {
 		t.Fatal("expected true")
@@ -2706,9 +2549,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-usdT", asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
@@ -2719,9 +2560,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-AUD", asset.Spot, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !whatIGot.Equal(availButNoEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
@@ -2735,7 +2574,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 func TestIsPairEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	whatIWant := currency.NewPair(currency.BTC, currency.USDT)
+	whatIWant := currency.NewBTCUSDT()
 	availButNoEnabled := currency.NewPair(currency.BTC, currency.AUD)
 	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled: true,
@@ -2747,27 +2586,21 @@ func TestIsPairEnabled(t *testing.T) {
 	}
 
 	enabled, err := b.IsPairEnabled(currency.NewPair(currency.AAA, currency.CYC), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if enabled {
 		t.Fatal("expected false")
 	}
 
 	enabled, err = b.IsPairEnabled(availButNoEnabled, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if enabled {
 		t.Fatal("expected false")
 	}
 
 	enabled, err = b.IsPairEnabled(whatIWant, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !enabled {
 		t.Fatal("expected true")
@@ -2777,7 +2610,7 @@ func TestIsPairEnabled(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetOpenInterest(context.Background()); !errors.Is(err, common.ErrFunctionNotSupported) {
+	if _, err := b.GetOpenInterest(t.Context()); !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
 	}
 }
@@ -2788,7 +2621,7 @@ func TestGetCachedOpenInterest(t *testing.T) {
 	b.Features.Supports.FuturesCapabilities.OpenInterest = OpenInterestSupport{
 		Supported: true,
 	}
-	_, err := b.GetCachedOpenInterest(context.Background())
+	_, err := b.GetCachedOpenInterest(t.Context())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 	b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker = true
 	b.Name = "test"
@@ -2800,10 +2633,10 @@ func TestGetCachedOpenInterest(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	_, err = b.GetCachedOpenInterest(context.Background())
+	_, err = b.GetCachedOpenInterest(t.Context())
 	assert.NoError(t, err)
 
-	_, err = b.GetCachedOpenInterest(context.Background(), key.PairAsset{
+	_, err = b.GetCachedOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.BONK.Item,
 		Asset: asset.Futures,
@@ -2874,10 +2707,10 @@ func TestGetDefaultConfig(t *testing.T) {
 
 	exch := &FakeBase{}
 
-	_, err := GetDefaultConfig(context.Background(), nil)
+	_, err := GetDefaultConfig(t.Context(), nil)
 	assert.ErrorIs(t, err, errExchangeIsNil)
 
-	c, err := GetDefaultConfig(context.Background(), exch)
+	c, err := GetDefaultConfig(t.Context(), exch)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", c.Name)
@@ -2885,7 +2718,7 @@ func TestGetDefaultConfig(t *testing.T) {
 
 	// Test below demonstrates that the requester is not overwritten so that
 	// SetDefaults is not called twice.
-	c, err = GetDefaultConfig(context.Background(), exch)
+	c, err = GetDefaultConfig(t.Context(), exch)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", c.Name)
@@ -2906,7 +2739,7 @@ func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 func TestGetCachedTicker(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err := b.GetCachedTicker(pair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
@@ -2921,7 +2754,7 @@ func TestGetCachedTicker(t *testing.T) {
 func TestGetCachedOrderbook(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
@@ -2941,7 +2774,7 @@ func TestGetCachedAccountInfo(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	}
-	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{
+	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})
@@ -3116,7 +2949,7 @@ func (f *FakeBase) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.NewBTCUSDT())
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
@@ -3146,6 +2979,6 @@ func TestSetConfigPairFormatFromExchange(t *testing.T) {
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
-	_, err := (&Base{}).WebsocketSubmitOrder(context.Background(), nil)
+	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }

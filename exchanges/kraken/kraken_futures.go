@@ -156,20 +156,21 @@ func (k *Kraken) FuturesEditOrder(ctx context.Context, orderID, clientOrderID st
 }
 
 // FuturesSendOrder sends a futures order
-func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string,
-	ioc bool,
-	size, limitPrice, stopPrice float64,
-) (FuturesSendOrderData, error) {
+func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string, tif order.TimeInForce, size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
-
-	if ioc && orderType != order.Market {
-		orderType = order.ImmediateOrCancel
-	}
-
 	oType, ok := validOrderTypes[orderType]
 	if !ok {
 		return resp, errors.New("invalid orderType")
 	}
+
+	if oType != "mkt" {
+		if tif.Is(order.PostOnly) {
+			oType = "post"
+		} else if tif.Is(order.ImmediateOrCancel) {
+			oType = "ioc"
+		}
+	}
+
 	params := url.Values{}
 	params.Set("orderType", oType)
 	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)

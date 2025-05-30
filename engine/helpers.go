@@ -1015,7 +1015,7 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	case "yobit":
 		return new(yobit.Yobit), nil
 	default:
-		return nil, fmt.Errorf("'%s', %w", name, ErrExchangeNotFound)
+		return nil, fmt.Errorf("%q, %w", name, ErrExchangeNotFound)
 	}
 }
 
