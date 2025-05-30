@@ -181,7 +181,7 @@ func TestKlineUnmarshalJSON(t *testing.T) {
 	var target []Kline
 	err := json.Unmarshal([]byte(data), &target)
 	require.NoError(t, err)
-	require.NotNil(t, target)
+	require.Len(t, target, 12)
 	assert.Equal(t, Kline{
 		StartTime: types.Time(time.Unix(1746645900, 0)),
 		Open:      96248.3,
