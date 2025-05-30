@@ -87,8 +87,9 @@ func (b *Bitmex) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 
+	ctx := context.TODO()
 	var dialer gws.Dialer
-	if err := b.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
+	if err := b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 
@@ -96,7 +97,6 @@ func (b *Bitmex) WsConnect() error {
 	go b.wsReadData()
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		ctx := context.TODO()
 		if err := b.websocketSendAuth(ctx); err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -520,21 +520,23 @@ func (b *Bitmex) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 
 // Subscribe subscribes to a websocket channel
 func (b *Bitmex) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Private(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeOp, l) }, len(subs)),
 	)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Private(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeOp, l) }, len(subs)),
 	)
 }
 
-func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
+func (b *Bitmex) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	req := WebsocketRequest{
 		Command: op,
 	}
@@ -547,7 +549,7 @@ func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
 	if err != nil {
 		return err
 	}
-	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(context.TODO(), request.Unset, string(reqJSON), req, len(subs))
+	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(ctx, request.Unset, string(reqJSON), req, len(subs))
 	for _, resp := range resps {
 		if errMsg, _ := jsonparser.GetString(resp, "error"); errMsg != "" {
 			errs = common.AppendError(errs, errors.New(errMsg))

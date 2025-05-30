@@ -64,7 +64,8 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Co
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 // TODO: Update to use the new subscription template system
 func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
-	_, err := g.GetCredentials(context.Background())
+	ctx := context.TODO()
+	_, err := g.GetCredentials(ctx)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}

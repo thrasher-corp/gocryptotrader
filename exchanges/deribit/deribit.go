@@ -2250,7 +2250,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		Data    json.RawMessage `json:"result"`
 		Error   ErrInfo         `json:"error"`
 	}
-	err = d.SendPayload(context.Background(), epl, func() (*request.Item, error) {
+	err = d.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        method,
 			Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),

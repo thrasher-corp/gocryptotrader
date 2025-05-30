@@ -29,22 +29,23 @@ const (
 
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
+	ctx := context.TODO()
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
 	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	go c.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *CoinbasePro) wsReadData() {
+func (c *CoinbasePro) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -52,14 +53,14 @@ func (c *CoinbasePro) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := c.wsHandleData(resp.Raw)
+		err := c.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
+func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 	msgType := wsMsgType{}
 	err := json.Unmarshal(respRaw, &msgType)
 	if err != nil {
@@ -164,7 +165,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
 		}
 
-		creds, err := c.GetCredentials(context.TODO())
+		creds, err := c.GetCredentials(ctx)
 		if err != nil {
 			c.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: c.Name,
@@ -397,6 +398,7 @@ func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "subscribe",
 		Channels: make([]any, 0, len(subs)),
@@ -414,7 +416,7 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 	}
 	for _, s := range subs {
 		if s.Authenticated && r.Key == "" && c.IsWebsocketAuthenticationSupported() {
-			if err := c.authWsSubscibeReq(r); err != nil {
+			if err := c.authWsSubscibeReq(ctx, r); err != nil {
 				return err
 			}
 		}
@@ -429,15 +431,15 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	err := c.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 	if err == nil {
 		err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, subs...)
 	}
 	return err
 }
 
-func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
-	creds, err := c.GetCredentials(context.TODO())
+func (c *CoinbasePro) authWsSubscibeReq(ctx context.Context, r *WebsocketSubscribe) error {
+	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -455,6 +457,7 @@ func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "unsubscribe",
 		Channels: make([]any, 0, len(subs)),
@@ -465,7 +468,7 @@ func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
 			ProductIDs: s.Pairs.Strings(),
 		})
 	}
-	err := c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, r)
+	err := c.Websocket.Conn.SendJSONMessage(ctx, request.Unset, r)
 	if err == nil {
 		err = c.Websocket.RemoveSubscriptions(c.Websocket.Conn, subs...)
 	}

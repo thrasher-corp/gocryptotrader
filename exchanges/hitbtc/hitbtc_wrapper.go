@@ -439,7 +439,7 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 	status := order.New
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
-		response, err = h.wsPlaceOrder(o.Pair, o.Side.String(), o.Amount, o.Price)
+		response, err = h.wsPlaceOrder(ctx, o.Pair, o.Side.String(), o.Amount, o.Price)
 		if err != nil {
 			return nil, err
 		}

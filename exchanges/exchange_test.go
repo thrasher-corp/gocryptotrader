@@ -2681,7 +2681,7 @@ func TestParallelChanOp(t *testing.T) {
 	b := Base{}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- b.ParallelChanOp(c, func(c subscription.List) error {
+		errC <- b.ParallelChanOp(t.Context(), c, func(ctx context.Context, c subscription.List) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c[0].Channel {

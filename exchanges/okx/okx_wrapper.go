@@ -2129,7 +2129,7 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 
 // getInstrumentsForOptions returns the instruments for options asset type
 func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, error) {
-	underlyings, err := ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+	underlyings, err := ok.GetPublicUnderlyings(ctx, instTypeOption)
 	if err != nil {
 		return nil, err
 	}
@@ -2922,7 +2922,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			switch instType {
 			case instTypeOption:
 				var underlyings []string
-				underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+				underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 				if err != nil {
 					return nil, err
 				}
@@ -2987,7 +2987,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
 		var underlyings []string
-		underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+		underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 		if err != nil {
 			return nil, err
 		}

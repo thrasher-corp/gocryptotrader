@@ -2077,7 +2077,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	t.Parallel()
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{
@@ -2464,7 +2464,7 @@ func TestProcessUpdate(t *testing.T) {
 	t.Parallel()
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(t.Context())
 	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
 	err := json.Unmarshal(websocketDepthUpdate, &depth)

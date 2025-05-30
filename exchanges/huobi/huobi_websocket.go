@@ -75,32 +75,32 @@ var subscriptionNames = map[string]string{
 
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
+	ctx := context.TODO()
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := h.Websocket.Conn.Dial(&gws.Dialer{}, http.Header{}); err != nil {
+	if err := h.Websocket.Conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 
 	h.Websocket.Wg.Add(1)
-	go h.wsReadMsgs(h.Websocket.Conn)
+	go h.wsReadMsgs(ctx, h.Websocket.Conn)
 
 	if h.IsWebsocketAuthenticationSupported() {
-		ctx := context.Background()
 		if err := h.wsAuthConnect(ctx); err != nil {
 			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			return fmt.Errorf("error authenticating websocket: %w", err)
 		}
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		h.Websocket.Wg.Add(1)
-		go h.wsReadMsgs(h.Websocket.AuthConn)
+		go h.wsReadMsgs(ctx, h.Websocket.AuthConn)
 	}
 
 	return nil
 }
 
 // wsReadMsgs reads and processes messages from a websocket connection
-func (h *HUOBI) wsReadMsgs(s websocket.Connection) {
+func (h *HUOBI) wsReadMsgs(ctx context.Context, s websocket.Connection) {
 	defer h.Websocket.Wg.Done()
 	for {
 		msg := s.ReadMessage()
@@ -108,13 +108,13 @@ func (h *HUOBI) wsReadMsgs(s websocket.Connection) {
 			return
 		}
 
-		if err := h.wsHandleData(msg.Raw); err != nil {
+		if err := h.wsHandleData(ctx, msg.Raw); err != nil {
 			h.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (h *HUOBI) wsHandleData(respRaw []byte) error {
+func (h *HUOBI) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if h.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
@@ -122,13 +122,13 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		return h.wsHandleV1ping(int(pingValue))
+		return h.wsHandleV1ping(ctx, int(pingValue))
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
 		switch action {
 		case "ping":
-			return h.wsHandleV2ping(respRaw)
+			return h.wsHandleV2ping(ctx, respRaw)
 		case wsSubOp, wsUnsubOp:
 			return h.wsHandleV2subResp(action, respRaw)
 		}
@@ -154,20 +154,20 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (h *HUOBI) wsHandleV1ping(pingValue int) error {
-	if err := h.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
+func (h *HUOBI) wsHandleV1ping(ctx context.Context, pingValue int) error {
+	if err := h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
 }
 
 // wsHandleV2ping handles v2 style pings, currently only used with private connections
-func (h *HUOBI) wsHandleV2ping(respRaw []byte) error {
+func (h *HUOBI) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
-	if err := h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
+	if err := h.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
 		return fmt.Errorf("error sending auth pong response: %w", err)
 	}
 	return nil
@@ -496,17 +496,19 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(h)
-	return common.AppendError(errs, h.ParallelChanOp(subs, func(l subscription.List) error { return h.manageSubs(wsSubOp, l) }, 1))
+	return common.AppendError(errs, h.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return h.manageSubs(ctx, wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(h)
-	return common.AppendError(errs, h.ParallelChanOp(subs, func(l subscription.List) error { return h.manageSubs(wsUnsubOp, l) }, 1))
+	return common.AppendError(errs, h.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return h.manageSubs(ctx, wsUnsubOp, l) }, 1))
 }
 
-func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
+func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
@@ -531,7 +533,6 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
-	ctx := context.Background()
 	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
 	if err == nil {
 		err = getErrResp(respRaw)
@@ -564,7 +565,7 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string
 }
 
 func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
-	if err := h.Websocket.AuthConn.Dial(&gws.Dialer{}, http.Header{}); err != nil {
+	if err := h.Websocket.AuthConn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
 	if err := h.wsLogin(ctx); err != nil {
@@ -597,7 +598,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 			Timestamp:        ts,
 		},
 	}
-	err = c.SendJSONMessage(context.Background(), request.Unset, req)
+	err = c.SendJSONMessage(ctx, request.Unset, req)
 	if err != nil {
 		return err
 	}

@@ -63,13 +63,14 @@ func TestMain(m *testing.M) {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	getFirstTradablePairOfAssets()
+	ctx := context.Background()
+	getFirstTradablePairOfAssets(ctx)
 	assertToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:    spotTradablePair,
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	ku.setupOrderbookManager()
+	ku.setupOrderbookManager(ctx)
 	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
@@ -2895,8 +2896,8 @@ func TestGetFundingHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func getFirstTradablePairOfAssets() {
-	if err := ku.UpdateTradablePairs(context.Background(), true); err != nil {
+func getFirstTradablePairOfAssets(ctx context.Context) {
+	if err := ku.UpdateTradablePairs(ctx, true); err != nil {
 		log.Fatalf("Kucoin error while updating tradable pairs. %v", err)
 	}
 	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
@@ -2944,7 +2945,7 @@ func TestProcessOrderbook(t *testing.T) {
 	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	err = ku.wsHandleData([]byte(orderbookLevel5PushData))
+	err = ku.wsHandleData(t.Context(), []byte(orderbookLevel5PushData))
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
