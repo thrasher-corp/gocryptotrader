@@ -743,6 +743,36 @@ func (me *MEXC) NewTestOrder(ctx context.Context, symbol, newClientOrderID, side
 	return me.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order/test", quantity, quoteOrderQty, price)
 }
 
+// SpotOrderStringFromOrderTypeAndTimeInForce returns an order type string from order.Type and order.TimeInForce instance.
+func SpotOrderStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
+	switch oType {
+	case order.Limit:
+		if tif == order.PostOnly {
+			return "LIMIT_MAKER", nil
+		}
+		return "LIMIT", nil
+	case order.Market:
+		switch tif {
+		case order.ImmediateOrCancel:
+			return "IMMEDIATE_OR_CANCEL", nil
+		case order.FillOrKill:
+			return "FILL_OR_KILL", nil
+		}
+		return "MARKET", nil
+	default:
+		switch tif {
+		case order.PostOnly:
+			return "LIMIT_MAKER", nil
+		case order.ImmediateOrCancel:
+			return "IMMEDIATE_OR_CANCEL", nil
+		case order.FillOrKill:
+			return "FILL_OR_KILL", nil
+		default:
+			return "", order.ErrTypeIsInvalid
+		}
+	}
+}
+
 // NewOrder creates a new order
 func (me *MEXC) NewOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return me.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order", quantity, quoteOrderQty, price)
@@ -752,6 +782,7 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	println("Side: ", side)
 	if side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
@@ -760,14 +791,14 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	}
 	orderType = strings.ToUpper(orderType)
 	switch orderType {
-	case "LIMIT_ORDER":
+	case "LIMIT", "LIMIT_MAKER":
 		if quantity <= 0 {
 			return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, quantity)
 		}
 		if price <= 0 {
 			return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, price)
 		}
-	case "MARKET_ORDER":
+	case "MARKET", "IMMEDIATE_OR_CANCEL", "FILL_OR_KILL":
 		if quantity <= 0 && quoteOrderQty <= 0 {
 			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
 		}
@@ -778,10 +809,10 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	params.Set("symbol", symbol)
 	params.Set("side", side)
 	params.Set("type", orderType)
-	if quantity != 0 {
+	if quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	}
-	if quoteOrderQty != 0 {
+	if quoteOrderQty > 0 {
 		params.Set("quoteOrderQty", strconv.FormatFloat(quoteOrderQty, 'f', -1, 64))
 	}
 	if price != 0 {
@@ -801,7 +832,7 @@ func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif
 		if tif == order.PostOnly {
 			return "POST_ONLY", nil
 		}
-		return "LIMIT_ORDER", nil
+		return "LIMIT", nil
 	case order.Market:
 		switch tif {
 		case order.ImmediateOrCancel:
@@ -822,18 +853,20 @@ func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif
 			return "FILL_OR_KILL", nil
 		}
 	}
-	return "", order.ErrUnsupportedOrderType
+	return "", fmt.Errorf("%w %w", order.ErrUnsupportedTimeInForce, order.ErrUnsupportedOrderType)
 }
 
 // StringToOrderTypeAndTimeInForce returns an order type from string
 func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order.TimeInForce, error) {
 	switch oType {
-	case "LIMIT_ORDER":
+	case "LIMIT":
 		return order.Limit, order.GoodTillCancel, nil
+	case "MARKET":
+		return order.Market, order.UnknownTIF, nil
+	case "LIMIT_MAKER":
+		return order.Limit, order.PostOnly, nil
 	case "POST_ONLY":
 		return order.Limit, order.PostOnly, nil
-	case "MARKET_ORDER":
-		return order.Market, order.UnknownTIF, nil
 	case "IMMEDIATE_OR_CANCEL":
 		return order.Market, order.ImmediateOrCancel, nil
 	case "FILL_OR_KILL":
@@ -841,7 +874,7 @@ func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order
 	case "STOP_LIMIT":
 		return order.StopLimit, order.UnknownTIF, nil
 	default:
-		return order.AnyType, order.UnknownTIF, order.ErrUnsupportedOrderType
+		return order.UnknownType, order.UnknownTIF, order.ErrUnsupportedOrderType
 	}
 }
 
@@ -893,7 +926,7 @@ func (me *MEXC) CancelTradeOrder(ctx context.Context, symbol, orderID, clientOrd
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if orderID == "" && clientOrderID == "" {
-		return nil, order.ErrClientOrderIDMustBeSet
+		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)

@@ -346,6 +346,64 @@ func TestNewTestOrder(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+var orderTypeAndTimeInForceToOrderTypeString = []struct {
+	OType       order.Type
+	TimeInForce order.TimeInForce
+	String      string
+	Error       error
+}{
+	{order.Limit, order.PostOnly, "LIMIT_MAKER", nil},
+	{order.Limit, order.UnknownTIF, "LIMIT", nil},
+	{order.Market, order.UnknownTIF, "MARKET", nil},
+	{order.UnknownType, order.PostOnly, "LIMIT_MAKER", nil},
+	{order.Market, order.FillOrKill, "FILL_OR_KILL", nil},
+	{order.Market, order.ImmediateOrCancel, "IMMEDIATE_OR_CANCEL", nil},
+	{order.UnknownType, order.FillOrKill, "FILL_OR_KILL", nil},
+	{order.UnknownType, order.ImmediateOrCancel, "IMMEDIATE_OR_CANCEL", nil},
+	{order.UnknownType, order.UnknownTIF, "", order.ErrTypeIsInvalid},
+}
+
+func TestSpotOrderStringFromOrderTypeAndTimeInForce(t *testing.T) {
+	t.Parallel()
+	for x := range orderTypeAndTimeInForceToOrderTypeString {
+		t.Run(orderTypeAndTimeInForceToOrderTypeString[x].String, func(t *testing.T) {
+			t.Parallel()
+			result, err := SpotOrderStringFromOrderTypeAndTimeInForce(orderTypeAndTimeInForceToOrderTypeString[x].OType, orderTypeAndTimeInForceToOrderTypeString[x].TimeInForce)
+			assert.ErrorIs(t, err, orderTypeAndTimeInForceToOrderTypeString[x].Error)
+			assert.Equal(t, orderTypeAndTimeInForceToOrderTypeString[x].String, result)
+		})
+	}
+}
+
+var OrderTypeAndTimeInForceFromOrderTypeString = []struct {
+	String      string
+	Type        order.Type
+	TimeInForce order.TimeInForce
+	Error       error
+}{
+	{"LIMIT", order.Limit, order.GoodTillCancel, nil},
+	{"LIMIT_MAKER", order.Limit, order.PostOnly, nil},
+	{"POST_ONLY", order.Limit, order.PostOnly, nil},
+	{"MARKET", order.Market, order.UnknownTIF, nil},
+	{"IMMEDIATE_OR_CANCEL", order.Market, order.ImmediateOrCancel, nil},
+	{"FILL_OR_KILL", order.Market, order.FillOrKill, nil},
+	{"STOP_LIMIT", order.StopLimit, order.UnknownTIF, nil},
+	{"", order.UnknownType, order.UnknownTIF, order.ErrUnsupportedOrderType},
+}
+
+func TestStringToOrderTypeAndTimeInForce(t *testing.T) {
+	t.Parallel()
+	for x := range OrderTypeAndTimeInForceFromOrderTypeString {
+		t.Run(OrderTypeAndTimeInForceFromOrderTypeString[x].String, func(t *testing.T) {
+			t.Parallel()
+			oType, tif, err := me.StringToOrderTypeAndTimeInForce(OrderTypeAndTimeInForceFromOrderTypeString[x].String)
+			assert.ErrorIs(t, err, OrderTypeAndTimeInForceFromOrderTypeString[x].Error)
+			assert.Equal(t, OrderTypeAndTimeInForceFromOrderTypeString[x].Type, oType)
+			assert.Equal(t, OrderTypeAndTimeInForceFromOrderTypeString[x].TimeInForce, tif)
+		})
+	}
+}
+
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := me.NewOrder(t.Context(), "", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
@@ -354,15 +412,15 @@ func TestNewOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 0, 0, 123456.78)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT", 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 0)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT", 1, 0, 0)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "MARKET_ORDER", 0, 0, 123456.78)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "MARKET", 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
+	result, err := me.NewOrder(t.Context(), spotTradablePair.String(), "123123", "BUY", "LIMIT", 1, 0, 123456.78)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1254,7 +1312,8 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.PlaceFuturesOrder(t.Context(), &PlaceFuturesOrderParams{})
+	arg.MarginType = margin.Multi
+	result, err := me.PlaceFuturesOrder(t.Context(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1793,4 +1852,108 @@ func setupWs() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	_, err := me.SubmitOrder(t.Context(), nil)
+	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+
+	_, err = me.SubmitOrder(t.Context(), &order.Submit{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg := &order.Submit{
+		Pair:      spotTradablePair,
+		AssetType: asset.Options,
+		Type:      order.Liquidation,
+		Side:      order.Long,
+	}
+	_, err = me.SubmitOrder(t.Context(), arg)
+	assert.ErrorIs(t, err, currency.ErrAssetNotFound)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.Pair = spotTradablePair
+	_, err = me.SubmitOrder(t.Context(), arg)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.Pair = spotTradablePair
+	arg.AssetType = asset.Spot
+	_, err = me.SubmitOrder(t.Context(), arg)
+	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	// Spot orders test
+	arg.Type = order.Limit
+	arg.Side = order.Sell
+	_, err = me.SubmitOrder(t.Context(), arg)
+	assert.ErrorIs(t, err, order.ErrAmountBelowMin)
+
+	arg.Amount = .1
+	_, err = me.SubmitOrder(t.Context(), arg)
+	assert.ErrorIs(t, err, order.ErrPriceBelowMin)
+
+	arg.Price = 1234567
+	result, err := me.SubmitOrder(t.Context(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Futures orders test
+	arg.AssetType = asset.Futures
+	arg.Pair = futuresTradablePair
+	arg.Amount = 1
+	arg.TimeInForce = order.ImmediateOrCancel
+	_, err = me.SubmitOrder(t.Context(), arg)
+	assert.ErrorIs(t, err, margin.ErrInvalidMarginType)
+
+	arg.MarginType = margin.Multi
+	result, err = me.SubmitOrder(t.Context(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	err := me.CancelOrder(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	err = me.CancelOrder(t.Context(), &order.Cancel{})
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	err = me.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654"})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = me.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654", AssetType: asset.Spot})
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	err = me.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654", Pair: spotTradablePair, AssetType: asset.Spot})
+	assert.NoError(t, err)
+
+	err = me.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654", Pair: futuresTradablePair, AssetType: asset.Futures})
+	assert.NoError(t, err)
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	_, err := me.CancelAllOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	_, err = me.CancelAllOrders(t.Context(), &order.Cancel{})
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = me.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345"})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = me.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Spot})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
+	result, err := me.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Spot, Pair: spotTradablePair})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = me.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Futures, Pair: futuresTradablePair})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }

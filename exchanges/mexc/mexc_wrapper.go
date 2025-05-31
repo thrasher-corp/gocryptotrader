@@ -757,20 +757,20 @@ func (me *MEXC) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, err
 
 // SubmitOrder submits a new order
 func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(me.GetTradingRequirements())
-	if err != nil {
-		return nil, err
+	if s == nil {
+		return nil, order.ErrSubmissionIsNil
 	}
+	var err error
 	s.Pair, err = me.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
-		return nil, err
-	}
-	orderTypeString, err := me.OrderTypeStringFromOrderTypeAndTimeInForce(s.Type, s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
 	switch s.AssetType {
 	case asset.Spot:
+		orderTypeString, err := me.OrderTypeStringFromOrderTypeAndTimeInForce(s.Type, s.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
 		result, err := me.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, 0, s.Price)
 		if err != nil {
 			return nil, err
@@ -888,10 +888,13 @@ func (me *MEXC) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.C
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (me *MEXC) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	err := orderCancellation.Validate(orderCancellation.StandardCancel())
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	resp := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
-	var err error
 	switch orderCancellation.AssetType {
 	case asset.Spot:
 		orderCancellation.Pair, err = me.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
@@ -923,7 +926,7 @@ func (me *MEXC) CancelAllOrders(ctx context.Context, orderCancellation *order.Ca
 		}
 		return resp, nil
 	default:
-		return order.CancelAllResponse{}, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, orderCancellation.AssetType)
+		return order.CancelAllResponse{}, asset.ErrNotSupported
 	}
 }
 
