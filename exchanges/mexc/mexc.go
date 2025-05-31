@@ -798,8 +798,17 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (string, error) {
 	switch oType {
 	case order.Limit:
+		if tif == order.PostOnly {
+			return "POST_ONLY", nil
+		}
 		return "LIMIT_ORDER", nil
 	case order.Market:
+		switch tif {
+		case order.ImmediateOrCancel:
+			return "IMMEDIATE_OR_CANCEL", nil
+		case order.FillOrKill:
+			return "FILL_OR_KILL", nil
+		}
 		return "MARKET_ORDER", nil
 	case order.StopLimit:
 		return "STOP_LIMIT", nil
