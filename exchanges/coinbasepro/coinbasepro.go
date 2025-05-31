@@ -233,27 +233,11 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}
 
-	var resp [][6]float64
+	var resp []History
 	path := common.EncodeURLValues(
 		fmt.Sprintf("%s/%s/%s", coinbaseproProducts, currencyPair, coinbaseproHistory),
 		values)
-	if err := c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp); err != nil {
-		return nil, err
-	}
-
-	history := make([]History, len(resp))
-	for x := range resp {
-		history[x] = History{
-			Time:   time.Unix(int64(resp[x][0]), 0),
-			Low:    resp[x][1],
-			High:   resp[x][2],
-			Open:   resp[x][3],
-			Close:  resp[x][4],
-			Volume: resp[x][5],
-		}
-	}
-
-	return history, nil
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetStats returns a 24 hr stat for the product. Volume is in base currency

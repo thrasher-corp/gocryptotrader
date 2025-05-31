@@ -191,6 +191,25 @@ func TestGetMarketTrades(t *testing.T) {
 	}
 }
 
+func TestCandlestickUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[["1738108800","229534412.73508700","103734.3","104779.9","101336.6","101343.8","2232.94510000","true"],["1738195200","178316032.62306100","104718.6","106467.1","103286.4","103734.4","1695.00787000","true"],["1738281600","231315376.16747100","102431","106042.7","101555.9","104718.6","2228.03609000","true"]]`)
+	var targets []Candlestick
+	err := json.Unmarshal(data, &targets)
+	require.NoError(t, err)
+	require.Len(t, targets, 3)
+	assert.Equal(t, Candlestick{
+		Timestamp:      types.Time(time.Unix(1738108800, 0)),
+		QuoteCcyVolume: 229534412.73508700,
+		ClosePrice:     103734.3,
+		HighestPrice:   104779.9,
+		LowestPrice:    101336.6,
+		OpenPrice:      101343.8,
+		BaseCcyAmount:  2232.94510000,
+		WindowClosed:   true,
+	}, targets[0])
+}
+
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GetCandlesticks(t.Context(), getPair(t, asset.Spot), 0, time.Time{}, time.Time{}, kline.OneDay); err != nil {

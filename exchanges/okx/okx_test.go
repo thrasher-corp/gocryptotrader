@@ -5553,9 +5553,9 @@ func TestGetOptionsTickBands(t *testing.T) {
 
 func TestExtractIndexCandlestick(t *testing.T) {
 	t.Parallel()
-	data := `[ [ "1597026383085", "3.721", "3.743", "3.677", "3.708", "1" ], [ "1597026383085", "3.731", "3.799", "3.494", "3.72", "1" ]]`
+	data := []byte(`[ [ "1597026383085", "3.721", "3.743", "3.677", "3.708", "1" ], [ "1597026383085", "3.731", "3.799", "3.494", "3.72", "1" ]]`)
 	var resp []CandlestickHistoryItem
-	err := json.Unmarshal([]byte(data), &resp)
+	err := json.Unmarshal(data, &resp)
 	require.NoError(t, err)
 	require.Len(t, resp, 2)
 	require.Equal(t, 3.743, resp[0].HighestPrice.Float64())
