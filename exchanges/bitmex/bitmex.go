@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -883,39 +884,31 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 
 	var respCheck any
 	newRequest := func() (*request.Item, error) {
-		expires := time.Now().Add(time.Second * 10)
-		timestamp := expires.UnixNano()
-		timestampStr := strconv.FormatInt(timestamp, 10)
-		timestampNew := timestampStr[:13]
+		ts := strconv.FormatInt(time.Now().Add(time.Second*10).UnixNano(), 10)[:13]
 
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
-		headers["api-expires"] = timestampNew
+		headers["api-expires"] = ts
 		headers["api-key"] = creds.Key
 
 		var payload string
 		if params != nil {
-			err = params.VerifyData()
-			if err != nil {
+			if err := params.VerifyData(); err != nil {
 				return nil, err
 			}
-			var data []byte
-			data, err = json.Marshal(params)
+			data, err := json.Marshal(params)
 			if err != nil {
 				return nil, err
 			}
 			payload = string(data)
 		}
 
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(verb+"/api/v1"+path+timestampNew+payload),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(verb+"/api/v1"+path+ts+payload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
-		headers["api-signature"] = crypto.HexEncodeToString(hmac)
+		headers["api-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        verb,

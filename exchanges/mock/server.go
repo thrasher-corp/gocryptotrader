@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -179,9 +179,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 					log.Fatal("Mock Test Failure - Cannot find header in request")
 				}
 
-				base64data := strings.Join(headerData, "")
-
-				jsonThings, err := crypto.Base64Decode(base64data)
+				jsonThings, err := base64.StdEncoding.DecodeString(strings.Join(headerData, ""))
 				if err != nil {
 					log.Fatal("Mock Test Failure - ", err)
 				}

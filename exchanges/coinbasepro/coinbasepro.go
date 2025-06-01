@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -772,15 +773,13 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		n := strconv.FormatInt(time.Now().Unix(), 10)
 		message := n + method + "/" + path + string(payload)
 
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(message),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
-		headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+		headers["CB-ACCESS-SIGN"] = base64.StdEncoding.EncodeToString(hmac)
 		headers["CB-ACCESS-TIMESTAMP"] = n
 		headers["CB-ACCESS-KEY"] = creds.Key
 		headers["CB-ACCESS-PASSPHRASE"] = creds.ClientID

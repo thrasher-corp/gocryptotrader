@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -423,9 +424,8 @@ func (b *BTCMarkets) signWsReq(r *WsSubscribe) error {
 	if err != nil {
 		return err
 	}
-	sign := crypto.Base64Encode(tempSign)
 	r.Key = creds.Key
-	r.Signature = sign
+	r.Signature = base64.StdEncoding.EncodeToString(tempSign)
 	return nil
 }
 

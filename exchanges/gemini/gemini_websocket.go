@@ -4,6 +4,8 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -140,7 +142,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 		Request: "/v1/" + geminiWsOrderEvents,
 		Nonce:   time.Now().UnixNano(),
 	}
-	PayloadJSON, err := json.Marshal(payload)
+	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
@@ -149,10 +151,8 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 		return err
 	}
 	endpoint := wsEndpoint + geminiWsOrderEvents
-	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte(PayloadBase64),
-		[]byte(creds.Secret))
+	payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -160,9 +160,9 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	headers := http.Header{}
 	headers.Add("Content-Length", "0")
 	headers.Add("Content-Type", "text/plain")
-	headers.Add("X-GEMINI-PAYLOAD", PayloadBase64)
+	headers.Add("X-GEMINI-PAYLOAD", payloadB64)
 	headers.Add("X-GEMINI-APIKEY", creds.Key)
-	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
+	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
 	err = g.Websocket.AuthConn.Dial(dialer, headers)
