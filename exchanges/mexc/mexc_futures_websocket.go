@@ -242,7 +242,7 @@ func (me *MEXC) WsHandleFuturesData(respRaw []byte) error {
 		}
 	}
 	cnlSplits := strings.Split(resp.Channel, ".")
-	switch cnlSplits[1] {
+	switch strings.Join(cnlSplits[1:], ".") {
 	case cnlFTickers:
 		return me.processFuturesTickers(resp.Data)
 	case cnlFTicker:
@@ -549,16 +549,17 @@ func (me *MEXC) processOrderbookDepth(data []byte, symbol string) error {
 		}
 	}
 	return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Bids:     bids,
-		Asks:     asks,
-		Exchange: me.Name,
-		Pair:     cp,
-		Asset:    asset.Futures,
+		Bids:        bids,
+		Asks:        asks,
+		Exchange:    me.Name,
+		Pair:        cp,
+		Asset:       asset.Futures,
+		LastUpdated: time.Now(),
 	})
 }
 
 func (me *MEXC) processFuturesFillData(data []byte, symbol string) error {
-	var resp *FuturesTransactionFills
+	var resp []FuturesTransactionFills
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -567,22 +568,24 @@ func (me *MEXC) processFuturesFillData(data []byte, symbol string) error {
 	if err != nil {
 		return err
 	}
-	var oSide order.Side
-	switch resp.TransactionDirection {
-	case 1:
-		oSide = order.Buy
-	case 2:
-		oSide = order.Sell
-	}
-	me.Websocket.DataHandler <- &trade.Data{
-		Timestamp: resp.TransationTime.Time(),
-		Exchange:  me.Name,
-		AssetType: asset.Futures.String(),
-		Base:      cp.Base.String(),
-		Quote:     cp.Quote.String(),
-		Side:      oSide.String(),
-		Price:     resp.Price,
-		Amount:    resp.Volume,
+	for x := range resp {
+		var oSide order.Side
+		switch resp[x].TransactionDirection {
+		case 1:
+			oSide = order.Buy
+		case 2:
+			oSide = order.Sell
+		}
+		me.Websocket.DataHandler <- &trade.Data{
+			Timestamp: resp[x].TransationTime.Time(),
+			Exchange:  me.Name,
+			AssetType: asset.Futures.String(),
+			Base:      cp.Base.String(),
+			Quote:     cp.Quote.String(),
+			Side:      oSide.String(),
+			Price:     resp[x].Price,
+			Amount:    resp[x].Volume,
+		}
 	}
 	return nil
 }

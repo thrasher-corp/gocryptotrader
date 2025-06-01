@@ -45,14 +45,17 @@ const (
 
 var defacultChannels = []string{
 	chnlBookTiker,
-	// chnlKlineV3,
-	// chnlAggreDealsV3,
-	// chnlAggregateDepthV3,
+	chnlKlineV3,
+	chnlAggreDealsV3,
+	chnlAggregateDepthV3,
+	chnlIncreaseDepthBatchV3,
 }
 
-// orderbookSnapshotLoadedPairs holds list of symbols and if these instruments snapshot orderbook detail is loaded
-var orderbookSnapshotLoadedPairs = map[string]bool{}
-var syncOrderbookPairsLock sync.Mutex
+// orderbookSnapshotLoadedPairs and syncOrderbookPairsLock holds list of symbols and if these instruments snapshot orderbook detail is loaded, and corresponding lock
+var (
+	orderbookSnapshotLoadedPairs = map[string]bool{}
+	syncOrderbookPairsLock       sync.Mutex
+)
 
 // WsConnect initiates a websocket connection
 func (me *MEXC) WsConnect() error {
@@ -298,14 +301,15 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-			if err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:    me.Name,
 				Asset:       asset.Spot,
 				Asks:        []orderbook.Tranche{ask},
 				Bids:        []orderbook.Tranche{bid},
 				Pair:        cp,
 				LastUpdated: time.Now(),
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
 			syncOrderbookPairsLock.Lock()
@@ -361,14 +365,15 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		}
 
 		if !orderbookSnapshotLoadedPairs[*result.Symbol] {
-			if err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:    me.Name,
 				Asset:       asset.Spot,
 				Asks:        asks,
 				Bids:        bids,
 				Pair:        cp.Format(format),
 				LastUpdated: time.Now(),
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
 			syncOrderbookPairsLock.Lock()
@@ -390,7 +395,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -435,7 +440,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		body := result.GetPublicSpotKline()
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -480,7 +485,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
 		if err != nil {
 			return err
 		}
@@ -510,11 +515,12 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			}
 			if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
 				err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-					Exchange: me.Name,
-					Pair:     cp,
-					Asks:     asks,
-					Bids:     bids,
-					Asset:    asset.Spot,
+					Exchange:    me.Name,
+					Pair:        cp,
+					Asks:        asks,
+					Bids:        bids,
+					Asset:       asset.Spot,
+					LastUpdated: time.Now(),
 				})
 				if err != nil {
 					return err
@@ -542,7 +548,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -584,7 +590,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, true)
 		if err != nil {
 			return err
 		}
@@ -650,7 +656,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}
@@ -727,7 +733,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		case 5:
 			oStatus = order.PartiallyCancelled
 		}
-		cp, err := me.MatchSymbolWithAvailablePairs(dataSplit[2], asset.Spot, false)
+		cp, err := me.MatchSymbolWithAvailablePairs(*result.Symbol, asset.Spot, false)
 		if err != nil {
 			return err
 		}

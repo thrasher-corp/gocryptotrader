@@ -10,6 +10,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+const (
+	typeFillOrKill        = "FILL_OR_KILL"
+	typeImmediateOrCancel = "IMMEDIATE_OR_CANCEL"
+	typeLimitMaker        = "LIMIT_MAKER"
+	typeLimit             = "LIMIT"
+	typeMarket            = "MARKET"
+	typeStopLimit         = "STOP_LIMIT"
+	typePostOnly          = "POST_ONLY"
+)
+
 // ExchangeConfig represents rules and symbols of an exchange
 type ExchangeConfig struct {
 	Timezone        string         `json:"timezone"`

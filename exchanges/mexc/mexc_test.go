@@ -327,21 +327,21 @@ func TestUseAPIDefaultSymbols(t *testing.T) {
 
 func TestNewTestOrder(t *testing.T) {
 	t.Parallel()
-	_, err := me.NewTestOrder(t.Context(), "", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
+	_, err := me.NewTestOrder(t.Context(), "", "123123", "SELL", typeLimit, 1, 0, 123456.78)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "", "LIMIT_ORDER", 1, 0, 123456.78)
+	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "", typeLimit, 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
-	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 0, 0, 123456.78)
+	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
-	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 0)
+	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 1, 0, 0)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
-	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", "MARKET_ORDER", 0, 0, 123456.78)
+	_, err = me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeMarket, 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
-	result, err := me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
+	result, err := me.NewTestOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 1, 0, 123456.78)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -352,14 +352,14 @@ var orderTypeAndTimeInForceToOrderTypeString = []struct {
 	String      string
 	Error       error
 }{
-	{order.Limit, order.PostOnly, "LIMIT_MAKER", nil},
-	{order.Limit, order.UnknownTIF, "LIMIT", nil},
-	{order.Market, order.UnknownTIF, "MARKET", nil},
-	{order.UnknownType, order.PostOnly, "LIMIT_MAKER", nil},
-	{order.Market, order.FillOrKill, "FILL_OR_KILL", nil},
-	{order.Market, order.ImmediateOrCancel, "IMMEDIATE_OR_CANCEL", nil},
-	{order.UnknownType, order.FillOrKill, "FILL_OR_KILL", nil},
-	{order.UnknownType, order.ImmediateOrCancel, "IMMEDIATE_OR_CANCEL", nil},
+	{order.Limit, order.PostOnly, typeLimitMaker, nil},
+	{order.Limit, order.UnknownTIF, typeLimit, nil},
+	{order.Market, order.UnknownTIF, typeMarket, nil},
+	{order.UnknownType, order.PostOnly, typeLimitMaker, nil},
+	{order.Market, order.FillOrKill, typeFillOrKill, nil},
+	{order.Market, order.ImmediateOrCancel, typeImmediateOrCancel, nil},
+	{order.UnknownType, order.FillOrKill, typeFillOrKill, nil},
+	{order.UnknownType, order.ImmediateOrCancel, typeImmediateOrCancel, nil},
 	{order.UnknownType, order.UnknownTIF, "", order.ErrTypeIsInvalid},
 }
 
@@ -381,13 +381,13 @@ var OrderTypeAndTimeInForceFromOrderTypeString = []struct {
 	TimeInForce order.TimeInForce
 	Error       error
 }{
-	{"LIMIT", order.Limit, order.GoodTillCancel, nil},
-	{"LIMIT_MAKER", order.Limit, order.PostOnly, nil},
-	{"POST_ONLY", order.Limit, order.PostOnly, nil},
-	{"MARKET", order.Market, order.UnknownTIF, nil},
-	{"IMMEDIATE_OR_CANCEL", order.Market, order.ImmediateOrCancel, nil},
-	{"FILL_OR_KILL", order.Market, order.FillOrKill, nil},
-	{"STOP_LIMIT", order.StopLimit, order.UnknownTIF, nil},
+	{typeLimit, order.Limit, order.GoodTillCancel, nil},
+	{typeLimitMaker, order.Limit, order.PostOnly, nil},
+	{typePostOnly, order.Limit, order.PostOnly, nil},
+	{typeMarket, order.Market, order.UnknownTIF, nil},
+	{typeImmediateOrCancel, order.Market, order.ImmediateOrCancel, nil},
+	{typeFillOrKill, order.Market, order.FillOrKill, nil},
+	{typeStopLimit, order.StopLimit, order.UnknownTIF, nil},
 	{"", order.UnknownType, order.UnknownTIF, order.ErrUnsupportedOrderType},
 }
 
@@ -406,21 +406,21 @@ func TestStringToOrderTypeAndTimeInForce(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := me.NewOrder(t.Context(), "", "123123", "SELL", "LIMIT_ORDER", 1, 0, 123456.78)
+	_, err := me.NewOrder(t.Context(), "", "123123", "SELL", typeLimit, 1, 0, 123456.78)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "", "LIMIT_ORDER", 1, 0, 123456.78)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "", typeLimit, 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "", 1, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT", 0, 0, 123456.78)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "LIMIT", 1, 0, 0)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeLimit, 1, 0, 0)
 	require.ErrorIs(t, err, order.ErrPriceBelowMin)
-	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", "MARKET", 0, 0, 123456.78)
+	_, err = me.NewOrder(t.Context(), "BTCUSDT", "123123", "SELL", typeMarket, 0, 0, 123456.78)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
-	result, err := me.NewOrder(t.Context(), spotTradablePair.String(), "123123", "BUY", "LIMIT", 1, 0, 123456.78)
+	result, err := me.NewOrder(t.Context(), spotTradablePair.String(), "123123", "BUY", typeLimit, 1, 0, 123456.78)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -477,11 +477,11 @@ func TestOrderTypeString(t *testing.T) {
 		String string
 		Error  error
 	}{
-		{Type: order.Limit}:                    {String: "LIMIT_ORDER"},
+		{Type: order.Limit}:                    {String: typeLimit},
 		{TimeInForce: order.PostOnly}:          {String: "POST_ONLY"},
-		{Type: order.Market}:                   {String: "MARKET_ORDER"},
-		{TimeInForce: order.ImmediateOrCancel}: {String: "IMMEDIATE_OR_CANCEL"},
-		{TimeInForce: order.FillOrKill}:        {String: "FILL_OR_KILL"},
+		{Type: order.Market}:                   {String: typeMarket},
+		{TimeInForce: order.ImmediateOrCancel}: {String: typeImmediateOrCancel},
+		{TimeInForce: order.FillOrKill}:        {String: typeFillOrKill},
 		{Type: order.StopLimit}:                {String: "STOP_LIMIT"},
 		{Type: order.OptimalLimitIOC}:          {String: "", Error: order.ErrUnsupportedOrderType},
 	}
@@ -497,7 +497,7 @@ func TestCancelTradeOrder(t *testing.T) {
 	_, err := me.CancelTradeOrder(t.Context(), "", "", "", "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = me.CancelTradeOrder(t.Context(), "BTCUSDT", "", "", "")
-	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateRealOrders)
 	result, err := me.CancelTradeOrder(t.Context(), "BTCUSDT", "1234", "", "")
@@ -1411,7 +1411,7 @@ func TestCreateBrokerSubAccountAPIKey(t *testing.T) {
 	_, err = me.CreateBrokerSubAccountAPIKey(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidSubAccountNote)
 
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
 	result, err := me.CreateBrokerSubAccountAPIKey(t.Context(), &BrokerSubAccountAPIKeyParams{SubAccount: "my-subaccount-name", Permissions: []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"}, Note: "note-here"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1817,7 +1817,7 @@ func TestWsHandle(t *testing.T) {
 var futuresWsPushDataMap = map[string]string{
 	"sub.tickers":                 `{"channel": "push.tickers", "data": [ { "fairPrice": 183.01, "lastPrice": 183, "riseFallRate": -0.0708, "symbol": "BSV_USDT", "volume24": 200 }, { "fairPrice": 220.22, "lastPrice": 220.4, "riseFallRate": -0.0686, "symbol": "BCH_USDT", "volume24": 200 } ], "ts": 1587442022003}`,
 	"push.ticker":                 `{"symbol":"LINK_USDT","data":{"symbol":"LINK_USDT","lastPrice":14.022,"riseFallRate":-0.0270,"fairPrice":14.022,"indexPrice":14.028,"volume24":104524120,"amount24":149228107.8277,"maxBidPrice":16.833,"minAskPrice":11.222,"lower24Price":13.967,"high24Price":14.518,"timestamp":1746351275382,"bid1":14.02,"ask1":14.021,"holdVol":14558875,"riseFallValue":-0.390,"fundingRate":-0.000045,"zone":"UTC+8","riseFallRates":[-0.0270,-0.0594,0.1172,-0.3674,0.3499,0.0065],"riseFallRatesOfTimezone":[-0.0238,-0.0153,-0.0270]},"channel":"push.ticker","ts":1746351275382}`,
-	"push.deal":                   `{"symbol":"PENGU_USDT","data":{"p":0.00981,"v":2040,"T":1,"O":3,"M":2,"t":1746350434582},"channel":"push.deal","ts":1746350434583}`,
+	"push.deal":                   `{"symbol":"IOTA_USDT","data":[{"p":0.1834,"v":97,"T":1,"O":1,"M":2,"t":1748810708074}],"channel":"push.deal","ts":1748810708074}`,
 	"sub.depth":                   `{"channel":"push.depth", "data":{ "asks":[ [ 6859.5, 3251, 1 ] ], "bids":[ ], "version":96801927 }, "symbol":"BTC_USDT", "ts":1587442022003}`,
 	"push.kline":                  `{"symbol":"CHEEMS_USDT","data":{"symbol":"CHEEMS_USDT","interval":"Min15","t":1746351000,"o":0.0000015036,"c":0.0000014988,"h":0.0000015036,"l":0.0000014962,"a":1183.078,"q":79,"ro":0.0000015021,"rc":0.0000014988,"rh":0.0000015021,"rl":0.0000014962},"channel":"push.kline","ts":1746351123147}`,
 	"sub.funding.rate":            `{"channel":"push.funding.rate", "data":{ "rate":0.001, "symbol":"BTC_USDT" }, "symbol":"BTC_USDT", "ts":1587442022003 }`,
@@ -1828,14 +1828,18 @@ var futuresWsPushDataMap = map[string]string{
 	"push.personal.position":      `{"channel":"push.personal.position", "data":{ "autoAddIm":false, "closeAvgPrice":0.731, "closeVol":1, "frozenVol":0, "holdAvgPrice":0.736, "holdFee":0, "holdVol":0, "im":0, "leverage":15, "liquidatePrice":0, "oim":0, "openAvgPrice":0.736, "openType":1, "positionId":1397818, "positionType":1, "realised":-0.0005, "state":3, "symbol":"CRV_USDT" },"ts":1610005070157}`,
 	"push.personal.adl.level":     `{"channel":"push.personal.adl.level", "data":{ "adlLevel":0, "positionId":1397818 }, "ts":1610005032231 }`,
 	"push.personal.position.mode": `{"channel":"push.personal.position.mode", "data":{ "positionMode": 1 }, "ts":1610005070157}`,
-	"push.fullDepth":              `{"symbol":"AERO_USDT","data":{"asks":[[0.632,71942,2],[0.633,53152,1],[0.634,77401,1],[0.635,44442,1],[0.636,49584,1],[0.637,50168,1],[0.638,65362,1],[0.639,52036,1],[0.64,59476,1],[0.641,73435,1],[0.642,65121,1],[0.643,82070,1],[0.644,72668,1],[0.645,55303,1],[0.646,48258,1],[0.647,75977,1],[0.648,56335,2],[0.649,75518,2],[0.65,76855,2],[0.651,84254,2]],"bids":[[0.631,50233,1],[0.63,54200,1],[0.629,80327,2],[0.628,74360,1],[0.627,62711,1],[0.626,69378,1],[0.625,77686,1],[0.624,69422,1],[0.623,46130,1],[0.622,48479,1],[0.621,52382,1],[0.62,63978,4],[0.619,59744,1],[0.618,77419,1],[0.617,63481,1],[0.616,78084,1],[0.615,55818,2],[0.614,82321,2],[0.613,67096,2],[0.612,64050,2]],"version":1161984765},"channel":"push.depth.full","ts":1746350653444}`,
+	"push.fullDepth":              `{"symbol":"INIT_USDT","data":{"asks":[[0.7542,1484,1],[0.7543,4676,2],[0.7544,11626,2],[0.7545,8247,1],[0.7546,20469,1],[0.7547,10241,1],[0.7548,26518,1],[0.7549,10490,1],[0.755,21088,1],[0.7551,16653,1],[0.7552,22110,1],[0.7553,26518,1],[0.7554,26252,1],[0.7555,16962,1],[0.7556,26518,1],[0.7557,16926,1],[0.7558,18085,1],[0.7559,16484,1],[0.756,26518,1],[0.7561,9654,1]],"bids":[[0.7541,374,1],[0.754,3186,3],[0.7539,3995,1],[0.7538,10560,1],[0.7537,12689,1],[0.7536,14731,1],[0.7535,18077,1],[0.7534,11203,1],[0.7533,9609,1],[0.7532,20530,1],[0.7531,10936,1],[0.753,11492,1],[0.7529,13563,1],[0.7528,15658,1],[0.7527,10737,1],[0.7526,15113,1],[0.7525,20870,1],[0.7524,13257,1],[0.7523,16629,1],[0.7522,10854,1]],"version":197614550},"channel":"push.depth.full","ts":1748810839220}`,
 }
 
 func TestWsHandleFuturesData(t *testing.T) {
 	t.Parallel()
 	for e := range futuresWsPushDataMap {
-		err := me.WsHandleFuturesData([]byte(futuresWsPushDataMap[e]))
-		assert.NoErrorf(t, err, "%v: %s", err, e)
+		t.Run(e, func(t *testing.T) {
+			e := e
+			t.Parallel()
+			err := me.WsHandleFuturesData([]byte(futuresWsPushDataMap[e]))
+			assert.NoErrorf(t, err, "%v: %s", err, e)
+		})
 	}
 }
 
@@ -1965,4 +1969,18 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err = me.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Futures, Pair: futuresTradablePair})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestWsConn(t *testing.T) {
+	t.Parallel()
+	if !me.Websocket.IsEnabled() {
+		return
+	}
+	if !sharedtestvalues.AreAPICredentialsSet(me) {
+		me.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	err := me.WsFuturesConnect()
+	assert.NoError(t, err)
+
+	time.Sleep(time.Second * 23)
 }

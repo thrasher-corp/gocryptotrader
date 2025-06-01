@@ -748,25 +748,25 @@ func SpotOrderStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.Time
 	switch oType {
 	case order.Limit:
 		if tif == order.PostOnly {
-			return "LIMIT_MAKER", nil
+			return typeLimitMaker, nil
 		}
-		return "LIMIT", nil
+		return typeLimit, nil
 	case order.Market:
 		switch tif {
 		case order.ImmediateOrCancel:
-			return "IMMEDIATE_OR_CANCEL", nil
+			return typeImmediateOrCancel, nil
 		case order.FillOrKill:
-			return "FILL_OR_KILL", nil
+			return typeFillOrKill, nil
 		}
-		return "MARKET", nil
+		return typeMarket, nil
 	default:
 		switch tif {
 		case order.PostOnly:
-			return "LIMIT_MAKER", nil
+			return typeLimitMaker, nil
 		case order.ImmediateOrCancel:
-			return "IMMEDIATE_OR_CANCEL", nil
+			return typeImmediateOrCancel, nil
 		case order.FillOrKill:
-			return "FILL_OR_KILL", nil
+			return typeFillOrKill, nil
 		default:
 			return "", order.ErrTypeIsInvalid
 		}
@@ -791,14 +791,14 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	}
 	orderType = strings.ToUpper(orderType)
 	switch orderType {
-	case "LIMIT", "LIMIT_MAKER":
+	case typeLimit, typeLimitMaker:
 		if quantity <= 0 {
 			return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, quantity)
 		}
 		if price <= 0 {
 			return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, price)
 		}
-	case "MARKET", "IMMEDIATE_OR_CANCEL", "FILL_OR_KILL":
+	case typeMarket, typeImmediateOrCancel, typeFillOrKill:
 		if quantity <= 0 && quoteOrderQty <= 0 {
 			return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
 		}
@@ -830,27 +830,27 @@ func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif
 	switch oType {
 	case order.Limit:
 		if tif == order.PostOnly {
-			return "POST_ONLY", nil
+			return typePostOnly, nil
 		}
-		return "LIMIT", nil
+		return typeLimit, nil
 	case order.Market:
 		switch tif {
 		case order.ImmediateOrCancel:
-			return "IMMEDIATE_OR_CANCEL", nil
+			return typeImmediateOrCancel, nil
 		case order.FillOrKill:
-			return "FILL_OR_KILL", nil
+			return typeFillOrKill, nil
 		}
-		return "MARKET_ORDER", nil
+		return typeMarket, nil
 	case order.StopLimit:
-		return "STOP_LIMIT", nil
+		return typeStopLimit, nil
 	case order.UnknownType:
 		switch tif {
 		case order.PostOnly:
-			return "POST_ONLY", nil
+			return typePostOnly, nil
 		case order.ImmediateOrCancel:
-			return "IMMEDIATE_OR_CANCEL", nil
+			return typeImmediateOrCancel, nil
 		case order.FillOrKill:
-			return "FILL_OR_KILL", nil
+			return typeFillOrKill, nil
 		}
 	}
 	return "", fmt.Errorf("%w %w", order.ErrUnsupportedTimeInForce, order.ErrUnsupportedOrderType)
@@ -859,19 +859,19 @@ func (me *MEXC) OrderTypeStringFromOrderTypeAndTimeInForce(oType order.Type, tif
 // StringToOrderTypeAndTimeInForce returns an order type from string
 func (me *MEXC) StringToOrderTypeAndTimeInForce(oType string) (order.Type, order.TimeInForce, error) {
 	switch oType {
-	case "LIMIT":
+	case typeLimit:
 		return order.Limit, order.GoodTillCancel, nil
-	case "MARKET":
+	case typeMarket:
 		return order.Market, order.UnknownTIF, nil
-	case "LIMIT_MAKER":
+	case typeLimitMaker:
 		return order.Limit, order.PostOnly, nil
-	case "POST_ONLY":
+	case typePostOnly:
 		return order.Limit, order.PostOnly, nil
-	case "IMMEDIATE_OR_CANCEL":
+	case typeImmediateOrCancel:
 		return order.Market, order.ImmediateOrCancel, nil
-	case "FILL_OR_KILL":
+	case typeFillOrKill:
 		return order.Market, order.FillOrKill, nil
-	case "STOP_LIMIT":
+	case typeStopLimit:
 		return order.StopLimit, order.UnknownTIF, nil
 	default:
 		return order.UnknownType, order.UnknownTIF, order.ErrUnsupportedOrderType
@@ -895,14 +895,14 @@ func (me *MEXC) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationP
 		}
 		args[a].OrderType = strings.ToUpper(args[a].OrderType)
 		switch args[a].OrderType {
-		case "LIMIT_ORDER":
+		case typeLimit:
 			if args[a].Quantity <= 0 {
 				return nil, fmt.Errorf("%w, quantity %v", order.ErrAmountBelowMin, args[a].Quantity)
 			}
 			if args[a].Price <= 0 {
 				return nil, fmt.Errorf("%w, price %v", order.ErrPriceBelowMin, args[a].Price)
 			}
-		case "MARKET_ORDER":
+		case typeMarket:
 			if args[a].Quantity <= 0 && args[a].QuoteOrderQty <= 0 {
 				return nil, fmt.Errorf("%w, either quantity or quote order quantity must be filled", order.ErrAmountBelowMin)
 			}

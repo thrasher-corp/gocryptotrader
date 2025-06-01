@@ -454,7 +454,6 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 		return nil, fmt.Errorf("%w: asset type: %v", asset.ErrNotSupported, assetType)
 	}
 	return orderbook.Get(me.Name, pair, assetType)
-
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
@@ -1559,7 +1558,7 @@ func (me *MEXC) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 	}
 	resp := make([]futures.Contract, len(contracts.Data))
 	for a := range contracts.Data {
-		cp, err := currency.NewPairFromString(contracts.Data[a].Symbol)
+		cp, err := me.MatchSymbolWithAvailablePairs(contracts.Data[a].Symbol, item, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1654,14 +1653,18 @@ func (me *MEXC) UpdateOrderExecutionLimits(ctx context.Context, assetType asset.
 		if err != nil {
 			return err
 		}
+		pairFormat, err := me.GetPairFormat(assetType, false)
+		if err != nil {
+			return err
+		}
 		limits := make([]order.MinMaxLevel, len(result.Symbols))
 		for a := range result.Symbols {
-			pair, err := currency.NewPairFromString(result.Symbols[a].Symbol)
+			pair, err := currency.NewPairFromStrings(result.Symbols[a].BaseAsset, result.Symbols[a].QuoteAsset)
 			if err != nil {
 				return err
 			}
 			limits[a] = order.MinMaxLevel{
-				Pair:                   pair,
+				Pair:                   pair.Format(pairFormat),
 				Asset:                  assetType,
 				PriceStepIncrementSize: result.Symbols[a].QuoteAmountPrecision.Float64(),
 				QuoteStepIncrementSize: result.Symbols[a].QuoteAmountPrecision.Float64(),
@@ -1678,6 +1681,10 @@ func (me *MEXC) UpdateOrderExecutionLimits(ctx context.Context, assetType asset.
 		if err != nil {
 			return err
 		}
+		pairFormat, err := me.GetPairFormat(assetType, false)
+		if err != nil {
+			return err
+		}
 		limits := make([]order.MinMaxLevel, len(result.Data))
 		for a := range limits {
 			pair, err := currency.NewPairFromString(result.Data[a].Symbol)
@@ -1685,7 +1692,7 @@ func (me *MEXC) UpdateOrderExecutionLimits(ctx context.Context, assetType asset.
 				return err
 			}
 			limits[a] = order.MinMaxLevel{
-				Pair:                   pair,
+				Pair:                   pair.Format(pairFormat),
 				Asset:                  assetType,
 				PriceStepIncrementSize: result.Data[a].PriceScale,
 				MinimumBaseAmount:      result.Data[a].MinVol,
