@@ -3,6 +3,7 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -2699,7 +2700,7 @@ func getSign(sign, secret string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return crypto.HexEncodeToString(hmacSigned), nil
+	return hex.EncodeToString(hmacSigned), nil
 }
 
 // FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.

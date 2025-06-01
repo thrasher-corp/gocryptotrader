@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -109,7 +110,7 @@ func main() {
 	var wsResp WebsocketEventResponse
 	reqData := WebsocketAuth{
 		Username: cfg.RemoteControl.Username,
-		Password: crypto.HexEncodeToString(hash),
+		Password: hex.EncodeToString(hash),
 	}
 	err = SendWebsocketEvent("auth", reqData, &wsResp)
 	if err != nil {

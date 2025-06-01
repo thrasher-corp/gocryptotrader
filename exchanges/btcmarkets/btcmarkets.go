@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -854,7 +855,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 		headers["Content-Type"] = "application/json"
 		headers["BM-AUTH-APIKEY"] = creds.Key
 		headers["BM-AUTH-TIMESTAMP"] = strTime
-		headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
+		headers["BM-AUTH-SIGNATURE"] = base64.StdEncoding.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        method,

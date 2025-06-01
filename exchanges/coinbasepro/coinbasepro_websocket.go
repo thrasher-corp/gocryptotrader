@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -447,7 +448,7 @@ func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
 	if err != nil {
 		return err
 	}
-	r.Signature = crypto.Base64Encode(hmac)
+	r.Signature = base64.StdEncoding.EncodeToString(hmac)
 	r.Key = creds.Key
 	r.Passphrase = creds.ClientID
 	return nil

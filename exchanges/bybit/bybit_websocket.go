@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -107,9 +108,13 @@ func (by *Bybit) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
-	var dialer gws.Dialer
-	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	creds, err := by.GetCredentials(ctx)
 	if err != nil {
+		return err
+	}
+
+	var dialer gws.Dialer
+	if err := by.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
 		return err
 	}
 
@@ -121,10 +126,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 
 	by.Websocket.Wg.Add(1)
 	go by.wsReadData(asset.Spot, by.Websocket.AuthConn)
-	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
+
 	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -135,7 +137,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	sign := crypto.HexEncodeToString(hmac)
+	sign := hex.EncodeToString(hmac)
 	req := Authenticate{
 		RequestID: strconv.FormatInt(by.Websocket.AuthConn.GenerateMessageID(false), 10),
 		Operation: "auth",

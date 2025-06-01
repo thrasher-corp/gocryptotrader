@@ -3,6 +3,7 @@ package okx
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -291,23 +292,22 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 	})
 
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timeUnix := time.Now()
+	unixTS := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(timeUnix.UTC().Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(unixTS, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
 	}
-	base64Sign := crypto.Base64Encode(hmac)
 
 	args := []WebsocketLoginData{
 		{
 			APIKey:     creds.Key,
 			Passphrase: creds.ClientID,
-			Timestamp:  timeUnix.Unix(),
-			Sign:       base64Sign,
+			Timestamp:  unixTS,
+			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
 

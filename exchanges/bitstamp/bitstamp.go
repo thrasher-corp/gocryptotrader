@@ -3,6 +3,7 @@ package bitstamp
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -600,15 +601,12 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		values.Set("key", creds.Key)
 		values.Set("nonce", n)
 
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(n+creds.ClientID+creds.Key),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(n+creds.ClientID+creds.Key), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
-		values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
+		values.Set("signature", strings.ToUpper(hex.EncodeToString(hmac)))
 
 		var fullPath string
 		if v2 {
