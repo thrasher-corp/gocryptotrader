@@ -1411,7 +1411,7 @@ func TestCreateBrokerSubAccountAPIKey(t *testing.T) {
 	_, err = me.CreateBrokerSubAccountAPIKey(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidSubAccountNote)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, me, canManipulateAPIEndpoints)
 	result, err := me.CreateBrokerSubAccountAPIKey(t.Context(), &BrokerSubAccountAPIKeyParams{SubAccount: "my-subaccount-name", Permissions: []string{"SPOT_ACCOUNT_READ", "SPOT_ACCOUNT_WRITE"}, Note: "note-here"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1419,6 +1419,9 @@ func TestCreateBrokerSubAccountAPIKey(t *testing.T) {
 
 func TestGetBrokerSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
+	_, err := me.GetBrokerSubAccountAPIKey(t.Context(), "")
+	require.ErrorIs(t, err, errInvalidSubAccountName)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, me)
 	result, err := me.GetBrokerSubAccountAPIKey(t.Context(), "my-subaccount-name")
 	require.NoError(t, err)
@@ -1506,17 +1509,13 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := me.UpdateTicker(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Options)
+	_, err := me.UpdateTicker(t.Context(), futuresTradablePair, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = me.UpdateTicker(t.Context(), currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := me.UpdateTicker(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
-	result, err = me.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)
+	result, err := me.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -1535,17 +1534,20 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := me.UpdateOrderbook(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Options)
+	_, err := me.UpdateOrderbook(t.Context(), spotTradablePair, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = me.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := me.UpdateOrderbook(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Spot)
+	_, err = me.UpdateOrderbook(t.Context(), spotTradablePair, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err := me.UpdateOrderbook(t.Context(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = me.UpdateOrderbook(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.Futures)
+	result, err = me.UpdateOrderbook(t.Context(), futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1556,6 +1558,9 @@ func TestGetHistoricCandles(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = me.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2))
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
+	_, err = me.GetHistoricCandles(t.Context(), spotTradablePair, asset.Options, kline.TenMin, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2))
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	result, err := me.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour))
@@ -1574,6 +1579,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	_, err = me.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2))
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
+	_, err = me.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Options, kline.TenMin, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2))
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	result, err := me.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour))
 	require.NoError(t, err)
@@ -1632,7 +1640,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := me.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Options,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 spotTradablePair,
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1653,8 +1661,9 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	_, err = me.IsPerpetualFutureCurrency(asset.Spot, spotTradablePair)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	_, err = me.IsPerpetualFutureCurrency(asset.Futures, futuresTradablePair)
+	result, err := me.IsPerpetualFutureCurrency(asset.Futures, futuresTradablePair)
 	assert.NoError(t, err)
+	assert.True(t, result)
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
