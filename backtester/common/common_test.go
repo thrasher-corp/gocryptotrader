@@ -143,7 +143,7 @@ func TestDataTypeConversion(t *testing.T) {
 
 func TestFitStringToLimit(t *testing.T) {
 	t.Parallel()
-	for _, ti := range []struct {
+	for _, tc := range []struct {
 		str      string
 		sep      string
 		limit    int
@@ -188,13 +188,9 @@ func TestFitStringToLimit(t *testing.T) {
 			expected: "h",
 		},
 	} {
-		test := ti
-		t.Run(test.str, func(t *testing.T) {
+		t.Run(tc.str, func(t *testing.T) {
 			t.Parallel()
-			result := FitStringToLimit(test.str, test.sep, test.limit, test.upper)
-			if result != test.expected {
-				t.Errorf("received '%v' expected '%v'", result, test.expected)
-			}
+			assert.Equal(t, tc.expected, FitStringToLimit(tc.str, tc.sep, tc.limit, tc.upper))
 		})
 	}
 }

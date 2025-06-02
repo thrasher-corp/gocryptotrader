@@ -1620,7 +1620,7 @@ func TestStringToOrderType(t *testing.T) {
 	}
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		interval kline.Interval

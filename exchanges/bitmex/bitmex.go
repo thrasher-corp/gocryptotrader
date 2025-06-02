@@ -884,7 +884,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 
 	var respCheck any
 	newRequest := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().Add(time.Second*10).UnixNano(), 10)[:13]
+		ts := strconv.FormatInt(time.Now().Add(time.Second*10).UnixMilli(), 10)
 
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
