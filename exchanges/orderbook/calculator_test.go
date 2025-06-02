@@ -468,13 +468,10 @@ func TestSimulateOrder(t *testing.T) {
 func TestGetAveragePrice(t *testing.T) {
 	var b Base
 	b.Exchange = "Binance"
-	cp, err := currency.NewPairFromString("ETH-USDT")
-	if err != nil {
-		t.Error(err)
-	}
+	cp := currency.NewBTCUSDT()
 	b.Pair = cp
 	b.Bids = []Tranche{}
-	_, err = b.GetAveragePrice(false, 5)
+	_, err := b.GetAveragePrice(false, 5)
 	if errors.Is(errNotEnoughLiquidity, err) {
 		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
 	}

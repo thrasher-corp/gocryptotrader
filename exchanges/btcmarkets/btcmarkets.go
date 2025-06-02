@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -219,8 +220,12 @@ func (b *BTCMarkets) GetMarketCandles(ctx context.Context, marketID, timeWindow 
 func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
+	pFmt, err := b.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
 	for x := range marketIDs {
-		params.Add("marketId", marketIDs[x].String())
+		params.Add("marketId", marketIDs[x].Format(pFmt).String())
 	}
 	return tickers, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsTickers+params.Encode(),
 		&tickers)
@@ -883,11 +888,7 @@ func (b *BTCMarkets) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder
 			return fee, err
 		}
 		for x := range temp.FeeByMarkets {
-			p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
-			if err != nil {
-				return 0, err
-			}
-			if p == feeBuilder.Pair {
+			if temp.FeeByMarkets[x].MarketID.Equal(feeBuilder.Pair) {
 				fee = temp.FeeByMarkets[x].MakerFeeRate
 				if !feeBuilder.IsMaker {
 					fee = temp.FeeByMarkets[x].TakerFeeRate

@@ -10,27 +10,27 @@ import (
 
 // Market holds a tradable market instrument
 type Market struct {
-	MarketID       string  `json:"marketId"`
-	BaseAsset      string  `json:"baseAssetName"`
-	QuoteAsset     string  `json:"quoteAssetName"`
-	MinOrderAmount float64 `json:"minOrderAmount,string"`
-	MaxOrderAmount float64 `json:"maxOrderAmount,string"`
-	AmountDecimals float64 `json:"amountDecimals,string"`
-	PriceDecimals  float64 `json:"priceDecimals,string"`
-	Status         string  `json:"status"`
+	MarketID       currency.Pair `json:"marketId"`
+	BaseAsset      string        `json:"baseAssetName"`
+	QuoteAsset     string        `json:"quoteAssetName"`
+	MinOrderAmount float64       `json:"minOrderAmount,string"`
+	MaxOrderAmount float64       `json:"maxOrderAmount,string"`
+	AmountDecimals float64       `json:"amountDecimals,string"`
+	PriceDecimals  float64       `json:"priceDecimals,string"`
+	Status         string        `json:"status"`
 }
 
 // Ticker holds ticker information
 type Ticker struct {
-	MarketID  string    `json:"marketId"`
-	BestBID   float64   `json:"bestBid,string"`
-	BestAsk   float64   `json:"bestAsk,string"`
-	LastPrice float64   `json:"lastPrice,string"`
-	Volume    float64   `json:"volume24h,string"`
-	Change24h float64   `json:"price24h,string"`
-	Low24h    float64   `json:"low24h,string"`
-	High24h   float64   `json:"high24h,string"`
-	Timestamp time.Time `json:"timestamp"`
+	MarketID  currency.Pair `json:"marketId"`
+	BestBID   float64       `json:"bestBid,string"`
+	BestAsk   float64       `json:"bestAsk,string"`
+	LastPrice float64       `json:"lastPrice,string"`
+	Volume    float64       `json:"volume24h,string"`
+	Change24h float64       `json:"price24h,string"`
+	Low24h    float64       `json:"low24h,string"`
+	High24h   float64       `json:"high24h,string"`
+	Timestamp time.Time     `json:"timestamp"`
 }
 
 // Trade holds trade information
@@ -44,10 +44,10 @@ type Trade struct {
 
 // tempOrderbook stores orderbook data
 type tempOrderbook struct {
-	MarketID   string      `json:"marketId"`
-	SnapshotID int64       `json:"snapshotId"`
-	Asks       [][2]string `json:"asks"`
-	Bids       [][2]string `json:"bids"`
+	MarketID   currency.Pair `json:"marketId"`
+	SnapshotID int64         `json:"snapshotId"`
+	Asks       [][2]string   `json:"asks"`
+	Bids       [][2]string   `json:"bids"`
 }
 
 // OBData stores orderbook data
@@ -58,7 +58,7 @@ type OBData struct {
 
 // Orderbook holds current orderbook information returned from the exchange
 type Orderbook struct {
-	MarketID   string
+	MarketID   currency.Pair
 	SnapshotID int64
 	Asks       []OBData
 	Bids       []OBData
@@ -136,30 +136,30 @@ type AccountData struct {
 
 // TradeHistoryData stores data of past trades
 type TradeHistoryData struct {
-	ID            string    `json:"id"`
-	MarketID      string    `json:"marketId"`
-	Timestamp     time.Time `json:"timestamp"`
-	Price         float64   `json:"price,string"`
-	Amount        float64   `json:"amount,string"`
-	Side          string    `json:"side"`
-	Fee           float64   `json:"fee,string"`
-	OrderID       string    `json:"orderId"`
-	LiquidityType string    `json:"liquidityType"`
+	ID            string        `json:"id"`
+	MarketID      currency.Pair `json:"marketId"`
+	Timestamp     time.Time     `json:"timestamp"`
+	Price         float64       `json:"price,string"`
+	Amount        float64       `json:"amount,string"`
+	Side          string        `json:"side"`
+	Fee           float64       `json:"fee,string"`
+	OrderID       string        `json:"orderId"`
+	LiquidityType string        `json:"liquidityType"`
 }
 
 // OrderData stores data for new order created
 type OrderData struct {
-	OrderID      string    `json:"orderId"`
-	MarketID     string    `json:"marketId"`
-	Side         string    `json:"side"`
-	Type         string    `json:"type"`
-	CreationTime time.Time `json:"creationTime"`
-	Price        float64   `json:"price,string"`
-	Amount       float64   `json:"amount,string"`
-	OpenAmount   float64   `json:"openAmount,string"`
-	Status       string    `json:"status"`
-	TargetAmount float64   `json:"targetAmount,string"`
-	TimeInForce  string    `json:"timeInForce"`
+	OrderID      string        `json:"orderId"`
+	MarketID     currency.Pair `json:"marketId"`
+	Side         string        `json:"side"`
+	Type         string        `json:"type"`
+	CreationTime time.Time     `json:"creationTime"`
+	Price        float64       `json:"price,string"`
+	Amount       float64       `json:"amount,string"`
+	OpenAmount   float64       `json:"openAmount,string"`
+	Status       string        `json:"status"`
+	TargetAmount float64       `json:"targetAmount,string"`
+	TimeInForce  string        `json:"timeInForce"`
 }
 
 // CancelOrderResp stores data for cancelled orders
@@ -243,16 +243,16 @@ type ReportData struct {
 
 // BatchPlaceData stores data for placed batch orders
 type BatchPlaceData struct {
-	OrderID       string    `json:"orderId"`
-	MarketID      string    `json:"marketId"`
-	Side          string    `json:"side"`
-	Type          string    `json:"type"`
-	CreationTime  time.Time `json:"creationTime"`
-	Price         float64   `json:"price,string"`
-	Amount        float64   `json:"amount,string"`
-	OpenAmount    float64   `json:"openAmount,string"`
-	Status        string    `json:"status"`
-	ClientOrderID string    `json:"clientOrderId"`
+	OrderID       string        `json:"orderId"`
+	MarketID      currency.Pair `json:"marketId"`
+	Side          string        `json:"side"`
+	Type          string        `json:"type"`
+	CreationTime  time.Time     `json:"creationTime"`
+	Price         float64       `json:"price,string"`
+	Amount        float64       `json:"amount,string"`
+	OpenAmount    float64       `json:"openAmount,string"`
+	Status        string        `json:"status"`
+	ClientOrderID string        `json:"clientOrderId"`
 }
 
 // UnprocessedBatchResp stores data for unprocessed response
@@ -331,9 +331,9 @@ type CancelOrderMethod struct {
 
 // TradingFeeData stores trading fee data
 type TradingFeeData struct {
-	MakerFeeRate float64 `json:"makerFeeRate,string"`
-	TakerFeeRate float64 `json:"takerFeeRate,string"`
-	MarketID     string  `json:"marketId"`
+	MakerFeeRate float64       `json:"makerFeeRate,string"`
+	TakerFeeRate float64       `json:"takerFeeRate,string"`
+	MarketID     currency.Pair `json:"marketId"`
 }
 
 // TradingFeeResponse stores trading fee data
@@ -360,27 +360,27 @@ type WsMessageType struct {
 
 // WsTick message received for ticker data
 type WsTick struct {
-	Currency    string    `json:"marketId"`
-	Timestamp   time.Time `json:"timestamp"`
-	Bid         float64   `json:"bestBid,string"`
-	Ask         float64   `json:"bestAsk,string"`
-	Last        float64   `json:"lastPrice,string"`
-	Volume      float64   `json:"volume24h,string"`
-	Price24h    float64   `json:"price24h,string"`
-	Low24h      float64   `json:"low24h,string"`
-	High24      float64   `json:"high24h,string"`
-	MessageType string    `json:"messageType"`
+	MarketID    currency.Pair `json:"marketId"`
+	Timestamp   time.Time     `json:"timestamp"`
+	Bid         float64       `json:"bestBid,string"`
+	Ask         float64       `json:"bestAsk,string"`
+	Last        float64       `json:"lastPrice,string"`
+	Volume      float64       `json:"volume24h,string"`
+	Price24h    float64       `json:"price24h,string"`
+	Low24h      float64       `json:"low24h,string"`
+	High24      float64       `json:"high24h,string"`
+	MessageType string        `json:"messageType"`
 }
 
 // WsTrade message received for trade data
 type WsTrade struct {
-	Currency    string     `json:"marketId"`
-	Timestamp   time.Time  `json:"timestamp"`
-	TradeID     int64      `json:"tradeId"`
-	Price       float64    `json:"price,string"`
-	Volume      float64    `json:"volume,string"`
-	Side        order.Side `json:"side"`
-	MessageType string     `json:"messageType"`
+	MarketID    currency.Pair `json:"marketId"`
+	Timestamp   time.Time     `json:"timestamp"`
+	TradeID     int64         `json:"tradeId"`
+	Price       float64       `json:"price,string"`
+	Volume      float64       `json:"volume,string"`
+	Side        order.Side    `json:"side"`
+	MessageType string        `json:"messageType"`
 }
 
 // WsOrderbook message received for orderbook data
@@ -419,7 +419,7 @@ type WsTradeData struct {
 // WsOrderChange stores order data
 type WsOrderChange struct {
 	OrderID       int64         `json:"orderId"`
-	MarketID      string        `json:"marketId"`
+	MarketID      currency.Pair `json:"marketId"`
 	Side          string        `json:"side"`
 	OrderType     string        `json:"type"`
 	OpenVolume    float64       `json:"openVolume,string"`

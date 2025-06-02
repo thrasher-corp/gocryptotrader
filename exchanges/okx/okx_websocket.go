@@ -720,10 +720,6 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
 
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -732,7 +728,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -741,7 +737,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	for i := range response.Data {
 		candlesData := response.Data[i]
 		myCandle := websocket.KlineData{
-			Pair:       pair,
+			Pair:       response.Argument.InstrumentID,
 			Exchange:   ok.Name,
 			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
 			Interval:   candleInterval,
@@ -865,12 +861,8 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	if len(resp.Data) != 1 {
 		return fmt.Errorf("%s - no data returned", ok.Name)
 	}
-	assets, err := ok.getAssetsFromInstrumentID(resp.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 
-	pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
+	assets, err := ok.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
 	if err != nil {
 		return err
 	}
@@ -893,7 +885,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 			Asks:            asks,
 			Bids:            bids,
 			LastUpdated:     resp.Data[0].Timestamp.Time(),
-			Pair:            pair,
+			Pair:            resp.Argument.InstrumentID,
 			Exchange:        ok.Name,
 			VerifyOrderbook: ok.CanVerifyOrderbook,
 		})
@@ -956,27 +948,23 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
 	}
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
-	if !pair.IsPopulated() {
+	if !response.Argument.InstrumentID.IsPopulated() {
 		return currency.ErrCurrencyPairsEmpty
 	}
-	pair.Delimiter = currency.DashDelimiter
+	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == wsOrderbookSnapshot {
-			err = ok.WsProcessSnapshotOrderBook(&response.Data[i], pair, assets)
+			err = ok.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			err = ok.WsProcessUpdateOrderbook(&response.Data[i], pair, assets)
+			err = ok.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
@@ -984,7 +972,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 					{
 						Channel: response.Argument.Channel,
 						Asset:   assets[0],
-						Pairs:   currency.Pairs{pair},
+						Pairs:   currency.Pairs{response.Argument.InstrumentID},
 					},
 				})
 				if err != nil {
@@ -996,10 +984,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 	}
 	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s passed checksum for pair %v",
-			ok.Name, pair,
-		)
+		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", ok.Name, response.Argument.InstrumentID)
 	}
 	return nil
 }
@@ -1181,7 +1166,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1324,10 +1309,6 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -1336,7 +1317,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1346,7 +1327,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		for j := range assets {
 			ok.Websocket.DataHandler <- websocket.KlineData{
 				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
-				Pair:       pair,
+				Pair:       response.Argument.InstrumentID,
 				AssetType:  assets[j],
 				Exchange:   ok.Name,
 				Interval:   candleInterval,
@@ -1377,14 +1358,10 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+			assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 			if err != nil {
 				return err
 			}
-		}
-		c, err := currency.NewPairFromString(response.Data[i].InstrumentID)
-		if err != nil {
-			return err
 		}
 		var baseVolume float64
 		var quoteVolume float64
@@ -1409,7 +1386,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 				AskSize:      response.Data[i].BestAskSize.Float64(),
 				Last:         response.Data[i].LastTradePrice.Float64(),
 				AssetType:    assets[j],
-				Pair:         c,
+				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
 			}
 			ok.Websocket.DataHandler <- tickData
