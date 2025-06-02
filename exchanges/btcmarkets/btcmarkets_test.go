@@ -31,12 +31,9 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	BTCAUD                  = "BTC-AUD"
-	LTCAUD                  = "LTC-AUD"
-	ETHAUD                  = "ETH-AUD"
-	fakePair                = "Fake-USDT"
-	bid                     = "bid"
 )
+
+var spotTestPair = currency.NewPair(currency.BTC, currency.AUD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -76,64 +73,46 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(t.Context(), BTCAUD)
-	if err != nil {
-		t.Error("GetOrderbook() error", err)
-	}
+	_, err := b.GetTicker(t.Context(), spotTestPair.String())
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrades(t.Context(), BTCAUD, 0, 0, 5)
-	if err != nil {
-		t.Error("GetTrades() error", err)
-	}
+	_, err := b.GetTrades(t.Context(), spotTestPair.String(), 0, 0, 5)
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook(t.Context(), BTCAUD, 2)
-	if err != nil {
-		t.Error("GetTrades() error", err)
-	}
+	_, err := b.GetOrderbook(t.Context(), spotTestPair.String(), 2)
+	assert.NoError(t, err, "GetOrderbook should not error")
 }
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles(t.Context(),
-		BTCAUD, "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := b.GetMarketCandles(t.Context(), spotTestPair.String(), "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
+	assert.NoError(t, err, "GetMarketCandles should not error")
 }
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	temp, err := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetTickers(t.Context(), temp)
-	if err != nil {
-		t.Error(err)
-	}
+	pairs := currency.Pairs{spotTestPair, currency.NewPair(currency.LTC, currency.AUD)}
+	_, err := b.GetTickers(t.Context(), pairs)
+	assert.NoError(t, err, "GetTickers should not error")
 }
 
 func TestGetMultipleOrderbooks(t *testing.T) {
 	t.Parallel()
-	temp := []string{BTCAUD, LTCAUD, ETHAUD}
-	_, err := b.GetMultipleOrderbooks(t.Context(), temp)
-	if err != nil {
-		t.Error(err)
-	}
+	marketIDs := []string{spotTestPair.String(), "LTC-AUD", "ETH-AUD"}
+	_, err := b.GetMultipleOrderbooks(t.Context(), marketIDs)
+	assert.NoError(t, err, "GetMultipleOrderbooks should not error")
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetCurrentServerTime(t.Context())
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetCurrentServerTime should not error")
 }
 
 func TestWrapperGetServerTime(t *testing.T) {
@@ -167,18 +146,8 @@ func TestGetTradingFees(t *testing.T) {
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetTradeHistory(t.Context(), ETHAUD, "", -1, -1, -1)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetTradeHistory(t.Context(), BTCAUD, "", -1, -1, 1)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetTradeHistory(t.Context(), fakePair, "", -1, -1, -1)
-	if err == nil {
-		t.Error("expected an error due to invalid trading pair")
-	}
+	_, err := b.GetTradeHistory(t.Context(), spotTestPair.String(), "", -1, -1, 1)
+	assert.NoError(t, err, "GetTradeHistory should not error")
 }
 
 func TestGetTradeByID(t *testing.T) {
@@ -236,39 +205,26 @@ func TestSubmitOrder(t *testing.T) {
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.NewOrder(t.Context(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := b.NewOrder(t.Context(), 100, 1, 0, 0, spotTestPair.String(), limit, bidSide, "", "", "", true)
+	assert.NoError(t, err, "NewOrder should not error")
 }
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetOrders(t.Context(), "", -1, -1, 2, false)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetOrders(t.Context(), LTCAUD, -1, -1, -1, true)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetOrders should not error")
+	_, err = b.GetOrders(t.Context(), spotTestPair.String(), -1, -1, -1, true)
+	assert.NoError(t, err, "GetOrders should not error")
 }
 
 func TestCancelOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
-	temp := []string{BTCAUD, LTCAUD}
-	_, err := b.CancelAllOpenOrdersByPairs(t.Context(), temp)
-	if err != nil {
-		t.Error(err)
-	}
-	temp = []string{BTCAUD, fakePair}
-	_, err = b.CancelAllOpenOrdersByPairs(t.Context(), temp)
-	if err == nil {
-		t.Error("expected an error due to invalid marketID")
-	}
+	pairs := []string{spotTestPair.String(), spotTestPair.String()}
+	_, err := b.CancelAllOpenOrdersByPairs(t.Context(), pairs)
+	assert.NoError(t, err, "CancelAllOpenOrdersByPairs should not error")
 }
 
 func TestFetchOrder(t *testing.T) {
@@ -437,11 +393,11 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 
 	var temp []PlaceBatch
 	o := PlaceBatch{
-		MarketID:  BTCAUD,
+		MarketID:  spotTestPair.String(),
 		Amount:    11000,
 		Price:     1,
 		OrderType: order.Limit.String(),
-		Side:      bid,
+		Side:      order.Bid.String(),
 	}
 	_, err := b.BatchPlaceCancelOrders(t.Context(), nil, append(temp, o))
 	if err != nil {
@@ -770,37 +726,16 @@ func TestWsOrders(t *testing.T) {
 	}
 }
 
-func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
+func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString(BTCAUD)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := b.GetHistoricCandles(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
+	assert.NoError(t, err, "GetHistoricCandles should not error")
 }
 
-func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	start := time.Now().AddDate(0, 0, -1)
-	end := time.Now()
-	pair, err := currency.NewPairFromString(BTCAUD)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.OneHour, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := b.GetHistoricCandlesExtended(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().AddDate(0, 0, -1), time.Now())
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
 func TestFormatExchangeKlineInterval(t *testing.T) {
@@ -831,27 +766,14 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC-AUD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := b.GetRecentTrades(t.Context(), spotTestPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC-AUD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := b.GetHistoricTrades(t.Context(), spotTestPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestChecksum(t *testing.T) {

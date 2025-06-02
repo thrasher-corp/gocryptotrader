@@ -178,7 +178,8 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 		arg := SubscriptionInfo{
 			Channel: subscriptions[i].Channel,
 		}
-		var instrumentID, instrumentFamily, spreadID string
+		var instrumentFamily, spreadID string
+		var instrumentID currency.Pair
 		switch arg.Channel {
 		case okxSpreadOrders,
 			okxSpreadTrades,
@@ -189,7 +190,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 			spreadID = subscriptions[i].Pairs[0].String()
 		case channelPublicBlockTrades,
 			channelBlockTickers:
-			instrumentID = subscriptions[i].Pairs[0].String()
+			instrumentID = subscriptions[i].Pairs[0]
 		}
 		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
 		if okay {

@@ -198,11 +198,6 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(t.Currency)
-		if err != nil {
-			return err
-		}
-
 		side := order.Buy
 		switch {
 		case t.Side.IsLong():
@@ -215,7 +210,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 
 		td := trade.Data{
 			Timestamp:    t.Timestamp,
-			CurrencyPair: p,
+			CurrencyPair: t.MarketID,
 			AssetType:    asset.Spot,
 			Exchange:     b.Name,
 			Price:        t.Price,
@@ -237,11 +232,6 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(tick.Currency)
-		if err != nil {
-			return err
-		}
-
 		b.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: b.Name,
 			Volume:       tick.Volume,
@@ -252,7 +242,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Last:         tick.Last,
 			LastUpdated:  tick.Timestamp,
 			AssetType:    asset.Spot,
-			Pair:         p,
+			Pair:         tick.MarketID,
 		}
 	case fundChange:
 		var transferData WsFundTransfer
@@ -312,15 +302,6 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		p, err := currency.NewPairFromString(orderData.MarketID)
-		if err != nil {
-			b.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: b.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-
 		clientID := ""
 		if creds, err := b.GetCredentials(context.TODO()); err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
@@ -345,7 +326,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			AssetType:       asset.Spot,
 			Date:            orderData.Timestamp,
 			Trades:          trades,
-			Pair:            p,
+			Pair:            orderData.MarketID,
 		}
 	case "error":
 		var wsErr WsError

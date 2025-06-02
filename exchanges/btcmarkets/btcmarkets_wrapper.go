@@ -190,12 +190,7 @@ func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (curr
 	}
 	pairs := make([]currency.Pair, len(markets))
 	for x := range markets {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(markets[x].MarketID)
-		if err != nil {
-			return nil, err
-		}
-		pairs[x] = pair
+		pairs[x] = markets[x].MarketID
 	}
 	return pairs, nil
 }
@@ -231,14 +226,8 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for x := range tickers {
-		var newP currency.Pair
-		newP, err = currency.NewPairFromString(tickers[x].MarketID)
-		if err != nil {
-			return err
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         newP,
+		if err := ticker.ProcessTicker(&ticker.Price{
+			Pair:         tickers[x].MarketID,
 			Last:         tickers[x].LastPrice,
 			High:         tickers[x].High24h,
 			Low:          tickers[x].Low24h,
@@ -248,8 +237,7 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 			LastUpdated:  time.Now(),
 			ExchangeName: b.Name,
 			AssetType:    a,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -508,10 +496,7 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	if err != nil {
 		return nil, err
 	}
-	mod.Pair, err = currency.NewPairFromString(resp.MarketID)
-	if err != nil {
-		return nil, err
-	}
+	mod.Pair = resp.MarketID
 	mod.Side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
 		return nil, err
@@ -610,14 +595,9 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currenc
 		return nil, err
 	}
 
-	p, err := currency.NewPairFromString(o.MarketID)
-	if err != nil {
-		return nil, err
-	}
-
 	resp.Exchange = b.Name
 	resp.OrderID = orderID
-	resp.Pair = p
+	resp.Pair = o.MarketID
 	resp.Price = o.Price
 	resp.Date = o.CreationTime
 	resp.ExecutedAmount = o.Amount - o.OpenAmount
@@ -867,13 +847,8 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 				continue
 			}
 
-			p, err := currency.NewPairFromString(tempData.Orders[c].MarketID)
-			if err != nil {
-				return nil, err
-			}
-
 			tempResp.Exchange = b.Name
-			tempResp.Pair = p
+			tempResp.Pair = tempData.Orders[c].MarketID
 			tempResp.Side = order.Bid
 			if tempData.Orders[c].Side == ask {
 				tempResp.Side = order.Ask
