@@ -964,7 +964,7 @@ func TestWsTrades(t *testing.T) {
 	}
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -992,18 +992,12 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			"1M",
 		},
 	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ret, err := formatExchangeKlineInterval(test.interval)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+			ret, err := formatExchangeKlineInterval(tc.interval)
+			require.NoError(t, err)
+			assert.Equal(t, tc.output, ret)
 		})
 	}
 }

@@ -1703,7 +1703,8 @@ func TestFixCasing(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		interval kline.Interval
@@ -1730,17 +1731,12 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			"14D",
 		},
 	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			ret, err := b.FormatExchangeKlineInterval(test.interval)
-			if err != nil {
-				t.Error(err)
-			}
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ret, err := b.FormatExchangeKlineInterval(tc.interval)
+			require.NoError(t, err, "FormatExchangeKlineInterval must not error")
+			assert.Equal(t, tc.output, ret)
 		})
 	}
 }

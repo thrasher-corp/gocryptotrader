@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -143,7 +144,7 @@ func TestKlineShort(t *testing.T) {
 
 func TestDurationToWord(t *testing.T) {
 	t.Parallel()
-	testCases := []struct {
+	for _, tc := range []struct {
 		name     string
 		interval Interval
 	}{
@@ -178,9 +179,11 @@ func TestDurationToWord(t *testing.T) {
 		{"sixmonth", SixMonth},
 		{"oneyear", OneYear},
 		{"notfound", Interval(time.Hour * 1337)},
-	}
-	for _, tc := range testCases {
-		require.Equal(t, tc.name, durationToWord(tc.interval))
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.name, strings.ToLower(tc.interval.Word()))
+		})
 	}
 }
 
@@ -304,14 +307,10 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 			1,
 		},
 	}
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			v := TotalCandlesPerInterval(start, end, test.interval)
-			if v != test.expected {
-				t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
-			}
+			assert.Equal(t, tc.expected, TotalCandlesPerInterval(start, end, tc.interval))
 		})
 	}
 }
@@ -409,7 +408,7 @@ func setupTest(t *testing.T) {
 func TestStoreInDatabase(t *testing.T) {
 	setupTest(t)
 
-	testCases := []struct {
+	for _, tc := range []struct {
 		name   string
 		config *database.Config
 		seedDB func(bool) error
@@ -429,54 +428,31 @@ func TestStoreInDatabase(t *testing.T) {
 			},
 			seedDB: seedDB,
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&tc.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-			if err != nil {
-				t.Fatal(err)
-			}
+			dbConn, err := testhelpers.ConnectToDatabase(tc.config)
+			require.NoError(t, err)
 
-			if test.seedDB != nil {
-				err = test.seedDB(false)
-				if err != nil {
-					t.Error(err)
-				}
+			if tc.seedDB != nil {
+				require.NoError(t, tc.seedDB(false))
 			}
 
 			_, ohlcvData, err := genOHCLVData()
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 			r, err := StoreInDatabase(&ohlcvData, false)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if r != 365 {
-				t.Fatalf("unexpected number inserted: %v", r)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, uint64(365), r)
 
 			r, err = StoreInDatabase(&ohlcvData, true)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if r != 365 {
-				t.Fatalf("unexpected number inserted: %v", r)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, uint64(365), r)
 
 			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoError(t, err)
 		})
 	}
 
@@ -489,7 +465,7 @@ func TestStoreInDatabase(t *testing.T) {
 func TestLoadFromDatabase(t *testing.T) {
 	setupTest(t)
 
-	testCases := []struct {
+	for _, tc := range []struct {
 		name   string
 		config *database.Config
 		seedDB func(bool) error
@@ -509,46 +485,26 @@ func TestLoadFromDatabase(t *testing.T) {
 			},
 			seedDB: seedDB,
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&tc.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-			if err != nil {
-				t.Fatal(err)
-			}
+			dbConn, err := testhelpers.ConnectToDatabase(tc.config)
+			require.NoError(t, err)
 
-			if test.seedDB != nil {
-				err = test.seedDB(true)
-				if err != nil {
-					t.Error(err)
-				}
-			}
-
-			p, err := currency.NewPairFromString("BTCUSDT")
-			if err != nil {
-				t.Fatal(err)
+			if tc.seedDB != nil {
+				require.NoError(t, tc.seedDB(true))
 			}
 			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 			end := start.AddDate(1, 0, 0)
-			ret, err := LoadFromDatabase(testExchanges[0].Name, p, asset.Spot, OneDay, start, end)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if ret.Exchange != testExchanges[0].Name {
-				t.Fatalf("incorrect data returned: %v", ret.Exchange)
-			}
+			ret, err := LoadFromDatabase(testExchanges[0].Name, currency.NewBTCUSDT(), asset.Spot, OneDay, start, end)
+			require.NoError(t, err)
+			assert.Equal(t, ret.Exchange, testExchanges[0].Name)
 
 			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoError(t, err)
 		})
 	}
 

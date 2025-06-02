@@ -1457,8 +1457,10 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	for _, tc := range []struct {
 		name     string
 		interval kline.Interval
 		output   string
@@ -1473,18 +1475,11 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			kline.OneDay,
 			"86400",
 		},
-	}
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	b := Base{}
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}
 }
@@ -1643,13 +1638,6 @@ func TestAuthenticateWebsocket(t *testing.T) {
 func TestKlineIntervalEnabled(t *testing.T) {
 	b := Base{}
 	if b.klineIntervalEnabled(kline.EightHour) {
-		t.Fatal("unexpected value")
-	}
-}
-
-func TestFormatExchangeKlineInterval(t *testing.T) {
-	b := Base{}
-	if b.FormatExchangeKlineInterval(kline.EightHour) != "28800" {
 		t.Fatal("unexpected value")
 	}
 }

@@ -803,7 +803,8 @@ func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
 	}
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		interval kline.Interval
@@ -820,16 +821,10 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			"1d",
 		},
 	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}
 }

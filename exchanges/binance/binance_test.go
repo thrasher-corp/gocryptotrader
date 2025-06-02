@@ -2319,7 +2319,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
+	t.Parallel()
+	for _, tc := range []struct {
 		name     string
 		interval kline.Interval
 		output   string
@@ -2344,17 +2345,10 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 			kline.OneMonth,
 			"1M",
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}
 }
