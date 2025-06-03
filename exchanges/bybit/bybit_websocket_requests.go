@@ -23,27 +23,27 @@ const (
 	InboundPrivateConnection = "PRIVATE"
 )
 
-// CreateOrderThroughWebsocket creates an order through the websocket connection
+// WSCreateOrder creates an order through the websocket connection
 // NOTE: When a SPOT order gets matched the fee is deducted from the purchased balance. e.g. if you buy 0.001 BTC depending
 // on fee rate you will receive a sub 0.0009... BTC amount. Fees are returned in this response which can then be deducted.
 // This does not apply to other asset types as it uses a settlement.
-func (by *Bybit) CreateOrderThroughWebsocket(ctx context.Context, arg *PlaceOrderParams) (*WebsocketOrderDetails, error) {
+func (by *Bybit) WSCreateOrder(ctx context.Context, arg *PlaceOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
 	return by.SendWebsocketRequest(ctx, WsCreate, arg)
 }
 
-// AmendOrderThroughWebsocket amends an order through the websocket connection
-func (by *Bybit) AmendOrderThroughWebsocket(ctx context.Context, arg *AmendOrderParams) (*WebsocketOrderDetails, error) {
+// WSAmendOrder amends an order through the websocket connection
+func (by *Bybit) WSAmendOrder(ctx context.Context, arg *AmendOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
 	return by.SendWebsocketRequest(ctx, WsAmend, arg)
 }
 
-// CancelOrderThroughWebsocket cancels an order through the websocket connection
-func (by *Bybit) CancelOrderThroughWebsocket(ctx context.Context, arg *CancelOrderParams) (*WebsocketOrderDetails, error) {
+// WSCancelOrder cancels an order through the websocket connection
+func (by *Bybit) WSCancelOrder(ctx context.Context, arg *CancelOrderParams) (*WebsocketOrderDetails, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}

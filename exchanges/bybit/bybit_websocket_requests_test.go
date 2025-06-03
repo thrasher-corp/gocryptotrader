@@ -13,52 +13,52 @@ import (
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 
-func TestCreateOrderThroughWebsocket(t *testing.T) {
+func TestWSCreateOrder(t *testing.T) {
 	t.Parallel()
 
 	arg := &PlaceOrderParams{}
-	_, err := b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err := b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
 	arg.Category = cSpot
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	arg.Symbol = currency.NewBTCUSDT()
 	arg.IsLeverage = 69
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidLeverageValue)
 
 	arg.IsLeverage = 0
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = "Buy"
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	arg.OrderType = "Limit"
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	arg.OrderQuantity = 0.0001
 	arg.TriggerDirection = 69
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidTriggerDirection)
 
 	arg.TriggerDirection = 0
 	arg.OrderFilter = "dodgy"
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidOrderFilter)
 
 	arg.OrderFilter = "Order"
 	arg.TriggerPriceType = "dodgy"
-	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidTriggerPriceType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	b = getWebsocketInstance(t, b)
-	got, err := b.CreateOrderThroughWebsocket(t.Context(), &PlaceOrderParams{
+	got, err := b.WSCreateOrder(t.Context(), &PlaceOrderParams{
 		Category:      cSpot,
 		Symbol:        currency.NewBTCUSDT(),
 		Side:          "Buy",
@@ -98,33 +98,33 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-func TestAmendOrderThroughWebsocket(t *testing.T) {
+func TestWSAmendOrder(t *testing.T) {
 	t.Parallel()
 	arg := &AmendOrderParams{}
-	_, err := b.AmendOrderThroughWebsocket(t.Context(), arg)
+	_, err := b.WSAmendOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
 	arg.Category = cSpot
-	_, err = b.AmendOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSAmendOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = b.AmendOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSAmendOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
 	arg.OrderID = "1793353687809485568" // Replace with a valid order ID
-	_, err = b.AmendOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSAmendOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errAmendArgumentsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	b = getWebsocketInstance(t, b)
 	arg.OrderQuantity = 0.0002
-	got, err := b.AmendOrderThroughWebsocket(t.Context(), arg)
+	got, err := b.WSAmendOrder(t.Context(), arg)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
 
-func TestWebsocketAmendOrder(t *testing.T) {
+func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 	mod := &order.Modify{
 		Pair:      currency.NewBTCUSDT(),
@@ -141,28 +141,28 @@ func TestWebsocketAmendOrder(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
-func TestCancelOrderThroughWebsocketr(t *testing.T) {
+func TestWSCancelOrder(t *testing.T) {
 	t.Parallel()
 	arg := &CancelOrderParams{}
-	_, err := b.CancelOrderThroughWebsocket(t.Context(), arg)
+	_, err := b.WSCancelOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errCategoryNotSet)
 
 	arg.Category = cSpot
-	_, err = b.CancelOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCancelOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = b.CancelOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCancelOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
 	arg.OrderID = "1793353687809485568" // Replace with a valid order ID
 
 	arg.OrderFilter = "dodgy"
-	_, err = b.CancelOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCancelOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidOrderFilter)
 
 	arg.Category = cLinear
-	_, err = b.CancelOrderThroughWebsocket(t.Context(), arg)
+	_, err = b.WSCancelOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidCategory)
 
 	arg.Category = cSpot
@@ -170,7 +170,7 @@ func TestCancelOrderThroughWebsocketr(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	b = getWebsocketInstance(t, b)
-	got, err := b.CancelOrderThroughWebsocket(t.Context(), arg)
+	got, err := b.WSCancelOrder(t.Context(), arg)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

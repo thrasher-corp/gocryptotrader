@@ -867,7 +867,7 @@ func (by *Bybit) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	if err != nil {
 		return nil, err
 	}
-	orderDetails, err := by.CreateOrderThroughWebsocket(ctx, arg)
+	orderDetails, err := by.WSCreateOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1014,7 +1014,7 @@ func (by *Bybit) WebsocketModifyOrder(ctx context.Context, action *order.Modify)
 	if err != nil {
 		return nil, err
 	}
-	result, err := by.AmendOrderThroughWebsocket(ctx, arg)
+	result, err := by.WSAmendOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
