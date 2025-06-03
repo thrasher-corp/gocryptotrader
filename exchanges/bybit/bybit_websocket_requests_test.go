@@ -24,7 +24,7 @@ func TestCreateOrderThroughWebsocket(t *testing.T) {
 	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	arg.Symbol = currency.NewPair(currency.BTC, currency.USDT)
+	arg.Symbol = currency.NewBTCUSDT()
 	arg.IsLeverage = 69
 	_, err = b.CreateOrderThroughWebsocket(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidLeverageValue)
@@ -60,7 +60,7 @@ func TestCreateOrderThroughWebsocket(t *testing.T) {
 	b = getWebsocketInstance(t, b)
 	got, err := b.CreateOrderThroughWebsocket(t.Context(), &PlaceOrderParams{
 		Category:      cSpot,
-		Symbol:        currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:        currency.NewBTCUSDT(),
 		Side:          "Buy",
 		OrderType:     "Limit",
 		Price:         55000,
@@ -77,7 +77,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	// Test quote amount needs to be used due to protocol trade requirements
 	s := &order.Submit{
 		Exchange:  b.Name,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Spot,
 		Side:      order.Buy,
 		Type:      order.Market,
@@ -108,7 +108,7 @@ func TestAmendOrderThroughWebsocket(t *testing.T) {
 	_, err = b.AmendOrderThroughWebsocket(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	arg.Symbol = currency.NewPair(currency.BTC, currency.USDT)
+	arg.Symbol = currency.NewBTCUSDT()
 	_, err = b.AmendOrderThroughWebsocket(t.Context(), arg)
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
@@ -127,7 +127,7 @@ func TestAmendOrderThroughWebsocket(t *testing.T) {
 func TestWebsocketAmendOrder(t *testing.T) {
 	t.Parallel()
 	mod := &order.Modify{
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Spot,
 		Amount:    0.0001,
 		OrderID:   "1793388409122024192", // Replace with a valid order ID
@@ -151,7 +151,7 @@ func TestCancelOrderThroughWebsocketr(t *testing.T) {
 	_, err = b.CancelOrderThroughWebsocket(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	arg.Symbol = currency.NewPair(currency.BTC, currency.USDT)
+	arg.Symbol = currency.NewBTCUSDT()
 	_, err = b.CancelOrderThroughWebsocket(t.Context(), arg)
 	require.ErrorIs(t, err, errEitherOrderIDOROrderLinkIDRequired)
 
@@ -179,7 +179,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 	cancel := &order.Cancel{
 		OrderID:   "1793388409122024192", // Replace with a valid order ID
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 		AssetType: asset.Spot,
 	}
 
