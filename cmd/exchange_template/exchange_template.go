@@ -147,7 +147,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
 	exch.CapitalName = cases.Title(language.English).String(exch.Name)
-	exch.Variable = exch.Name[0:2]
+	exch.Variable = "e"
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true
