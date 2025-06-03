@@ -273,8 +273,8 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					Side:                 orderSide,
 					Status:               orderStatus,
 					AssetType:            assetType,
-					Date:                 data.Data.OrderCreationTime,
-					LastUpdated:          data.Data.TransactionTime,
+					Date:                 data.Data.OrderCreationTime.Time(),
+					LastUpdated:          data.Data.TransactionTime.Time(),
 					Pair:                 pair,
 				}
 				return nil
@@ -349,7 +349,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					return bi.Websocket.Trade.Update(saveTradeData,
 						trade.Data{
 							CurrencyPair: pair,
-							Timestamp:    t.TimeStamp,
+							Timestamp:    t.TimeStamp.Time(),
 							Price:        price,
 							Amount:       amount,
 							Exchange:     bi.Name,
@@ -381,7 +381,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 						Bid:          t.BestBidPrice,
 						Ask:          t.BestAskPrice,
 						Last:         t.LastPrice,
-						LastUpdated:  t.EventTime,
+						LastUpdated:  t.EventTime.Time(),
 						AssetType:    asset.Spot,
 						Pair:         pair,
 					}
@@ -402,12 +402,12 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					}
 
 					bi.Websocket.DataHandler <- websocket.KlineData{
-						Timestamp:  kline.EventTime,
+						Timestamp:  kline.EventTime.Time(),
 						Pair:       pair,
 						AssetType:  asset.Spot,
 						Exchange:   bi.Name,
-						StartTime:  kline.Kline.StartTime,
-						CloseTime:  kline.Kline.CloseTime,
+						StartTime:  kline.Kline.StartTime.Time(),
+						CloseTime:  kline.Kline.CloseTime.Time(),
 						Interval:   kline.Kline.Interval,
 						OpenPrice:  kline.Kline.OpenPrice,
 						ClosePrice: kline.Kline.ClosePrice,
@@ -708,7 +708,7 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 		Asks:       updateAsk,
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
+		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
 }

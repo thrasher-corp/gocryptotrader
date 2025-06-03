@@ -1585,14 +1585,14 @@ func TestWebsocketAggTrade(t *testing.T) {
 			"stream":"btcusdt@aggTrade", 
 			"data": {
 				"e": "aggTrade",  
-				"E": 123456789,   
-				"s": "BNBBTC",    
+				"E": 1672515782136,   
+				"s": "BNBBTC",
 				"a": 12345,       
 				"p": "0.001",     
 				"q": "100",   
 				"f": 100,     
 				"l": 105,   
-				"T": 123456785,
+				"T": 1672515782136,
 				"m": true,
 				"M": true         
 			}

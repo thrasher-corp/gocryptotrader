@@ -3498,14 +3498,14 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	data := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`
-	err := b.wsHandleData(t.Context(), asset.Spot, []byte(data))
+	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
+	err := b.wsHandleData(t.Context(), asset.Spot, data)
 	if err != nil {
 		t.Fatal(err)
 	}
-	update := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`
+	update := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	var wsResponse WebsocketResponse
-	err = json.Unmarshal([]byte(update), &wsResponse)
+	err = json.Unmarshal(update, &wsResponse)
 	if err != nil {
 		t.Fatal(err)
 	}
