@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
@@ -23,9 +24,8 @@ func TestSetupNTPManager(t *testing.T) {
 		AllowedNegativeDifference: &sec,
 	}
 	m, err := setupNTPManager(cfg, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m == nil {
 		t.Error("expected manager")
 	}
@@ -44,9 +44,8 @@ func TestNTPManagerIsRunning(t *testing.T) {
 		Level:                     1,
 	}
 	m, err := setupNTPManager(cfg, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
@@ -73,9 +72,7 @@ func TestNTPManagerStart(t *testing.T) {
 		AllowedNegativeDifference: &sec,
 	}
 	m, err = setupNTPManager(cfg, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start()
 	if !errors.Is(err, errNTPManagerDisabled) {
@@ -84,9 +81,7 @@ func TestNTPManagerStart(t *testing.T) {
 
 	m.level = 1
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start()
 	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
@@ -108,22 +103,18 @@ func TestNTPManagerStop(t *testing.T) {
 		Level:                     1,
 	}
 	m, err = setupNTPManager(cfg, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestFetchNTPTime(t *testing.T) {
@@ -139,32 +130,27 @@ func TestFetchNTPTime(t *testing.T) {
 		Level:                     1,
 	}
 	m, err = setupNTPManager(cfg, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.FetchNTPTime()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	tt, err := m.FetchNTPTime()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if tt.IsZero() {
 		t.Error("expected time")
 	}
 
 	m.pools = []string{"0.pool.ntp.org:123"}
 	tt, err = m.FetchNTPTime()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if tt.IsZero() {
 		t.Error("expected time")
 	}
@@ -179,28 +165,21 @@ func TestProcessTime(t *testing.T) {
 		Pool:                      []string{"0.pool.ntp.org:123"},
 	}
 	m, err := setupNTPManager(cfg, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.processTime()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.processTime()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	m.allowedDifference = time.Duration(1)
 	m.allowedNegativeDifference = time.Duration(1)
 	err = m.processTime()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
