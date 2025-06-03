@@ -598,13 +598,25 @@ type Trade struct {
 
 // Candlestick represents candlestick data point detail.
 type Candlestick struct {
-	Timestamp      time.Time
-	QuoteCcyVolume float64
-	ClosePrice     float64
-	HighestPrice   float64
-	LowestPrice    float64
-	OpenPrice      float64
-	BaseCcyAmount  float64
+	Timestamp      types.Time
+	QuoteCcyVolume types.Number
+	ClosePrice     types.Number
+	HighestPrice   types.Number
+	LowestPrice    types.Number
+	OpenPrice      types.Number
+	BaseCcyAmount  types.Number
+	WindowClosed   bool
+}
+
+// UnmarshalJSON parses kline data from a JSON array into Candlestick fields.
+func (c *Candlestick) UnmarshalJSON(data []byte) error {
+	var windowClosed string
+	err := json.Unmarshal(data, &[8]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &windowClosed})
+	if err != nil {
+		return err
+	}
+	c.WindowClosed, err = strconv.ParseBool(windowClosed)
+	return err
 }
 
 // CurrencyChain currency chain detail.

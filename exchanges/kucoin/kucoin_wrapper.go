@@ -1742,7 +1742,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		for x := range candles {
 			timeseries = append(
 				timeseries, kline.Candle{
-					Time:   candles[x].StartTime,
+					Time:   candles[x].StartTime.Time(),
 					Open:   candles[x].Open,
 					High:   candles[x].High,
 					Low:    candles[x].Low,
@@ -1763,12 +1763,12 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		for x := range candles {
 			timeseries = append(
 				timeseries, kline.Candle{
-					Time:   candles[x].StartTime,
-					Open:   candles[x].Open,
-					High:   candles[x].High,
-					Low:    candles[x].Low,
-					Close:  candles[x].Close,
-					Volume: candles[x].Volume,
+					Time:   candles[x].StartTime.Time(),
+					Open:   candles[x].Open.Float64(),
+					High:   candles[x].High.Float64(),
+					Low:    candles[x].Low.Float64(),
+					Close:  candles[x].Close.Float64(),
+					Volume: candles[x].Volume.Float64(),
 				})
 		}
 	default:
@@ -1796,7 +1796,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			for y := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[y].StartTime,
+						Time:   candles[y].StartTime.Time(),
 						Open:   candles[y].Open,
 						High:   candles[y].High,
 						Low:    candles[y].Low,
@@ -1821,12 +1821,12 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			for x := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[x].StartTime,
-						Open:   candles[x].Open,
-						High:   candles[x].High,
-						Low:    candles[x].Low,
-						Close:  candles[x].Close,
-						Volume: candles[x].Volume,
+						Time:   candles[x].StartTime.Time(),
+						Open:   candles[x].Open.Float64(),
+						High:   candles[x].High.Float64(),
+						Low:    candles[x].Low.Float64(),
+						Close:  candles[x].Close.Float64(),
+						Volume: candles[x].Volume.Float64(),
 					})
 			}
 		}
