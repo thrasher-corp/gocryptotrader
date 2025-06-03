@@ -953,42 +953,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestConvertToKlineCandle(t *testing.T) {
-	t.Parallel()
-
-	_, err := convertToKlineCandle(nil)
-	require.ErrorIs(t, err, errFailedToConvertToCandle)
-
-	data := [6]string{time.RFC3339[:len(time.RFC3339)-5], "1.0", "2", "3", "4", "5"}
-
-	candle, err := convertToKlineCandle(&data)
-	require.NoError(t, err)
-
-	if candle.Time.IsZero() {
-		t.Fatal("time unset")
-	}
-
-	if candle.Open != 1 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Open, 1)
-	}
-
-	if candle.High != 2 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.High, 2)
-	}
-
-	if candle.Low != 3 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Low, 3)
-	}
-
-	if candle.Close != 4 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Close, 4)
-	}
-
-	if candle.Volume != 5 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Volume, 5)
-	}
-}
-
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)

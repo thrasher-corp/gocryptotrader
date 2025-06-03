@@ -4,8 +4,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Market holds a tradable market instrument
@@ -44,10 +46,10 @@ type Trade struct {
 
 // tempOrderbook stores orderbook data
 type tempOrderbook struct {
-	MarketID   currency.Pair `json:"marketId"`
-	SnapshotID int64         `json:"snapshotId"`
-	Asks       [][2]string   `json:"asks"`
-	Bids       [][2]string   `json:"bids"`
+	MarketID   currency.Pair     `json:"marketId"`
+	SnapshotID int64             `json:"snapshotId"`
+	Asks       [][2]types.Number `json:"asks"`
+	Bids       [][2]types.Number `json:"bids"`
 }
 
 // OBData stores orderbook data
@@ -438,7 +440,19 @@ type WsError struct {
 }
 
 // CandleResponse holds OHLCV data for exchange
-type CandleResponse [][6]string
+type CandleResponse struct {
+	Timestamp time.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
+	Volume    types.Number
+}
+
+// UnmarshalJSON unmarshals the CandleResponse struct from JSON data.
+func (c *CandleResponse) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&c.Timestamp, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume})
+}
 
 // WebsocketOrderbook defines a specific websocket orderbook type to directly
 // unmarshal json.

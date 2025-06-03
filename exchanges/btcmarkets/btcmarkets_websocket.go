@@ -26,16 +26,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
 	btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
 )
 
-var (
-	errTypeAssertionFailure = errors.New("type assertion failure")
-	errChecksumFailure      = errors.New("crc32 checksum failure")
-)
+var errChecksumFailure = errors.New("crc32 checksum failure")
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
@@ -92,45 +90,16 @@ func (b *BTCMarkets) wsReadData() {
 
 // UnmarshalJSON implements the unmarshaler interface.
 func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
-	resp := make([][3]any, len(data))
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	var resp [][3]types.Number
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
 	*w = WebsocketOrderbook(make(orderbook.Tranches, len(resp)))
 	for x := range resp {
-		sPrice, ok := resp[x][0].(string)
-		if !ok {
-			return fmt.Errorf("price string %w", errTypeAssertionFailure)
-		}
-		var price float64
-		price, err = strconv.ParseFloat(sPrice, 64)
-		if err != nil {
-			return err
-		}
-
-		sAmount, ok := resp[x][1].(string)
-		if !ok {
-			return fmt.Errorf("amount string %w", errTypeAssertionFailure)
-		}
-
-		var amount float64
-		amount, err = strconv.ParseFloat(sAmount, 64)
-		if err != nil {
-			return err
-		}
-
-		count, ok := resp[x][2].(float64)
-		if !ok {
-			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
-		}
-
-		(*w)[x] = orderbook.Tranche{
-			Amount:     amount,
-			Price:      price,
-			OrderCount: int64(count),
-		}
+		(*w)[x].Price = resp[x][0].Float64()
+		(*w)[x].Amount = resp[x][1].Float64()
+		(*w)[x].OrderCount = resp[x][2].Int64()
 	}
 	return nil
 }

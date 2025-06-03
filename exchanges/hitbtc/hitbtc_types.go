@@ -66,17 +66,17 @@ type ChartData struct {
 
 // Currencies hold the full range of data for a specified currency
 type Currencies struct {
-	ID                 string `json:"id"`                 // Currency identifier.
-	FullName           string `json:"fullName"`           // Currency full name
-	Crypto             bool   `json:"crypto"`             // Is currency belongs to blockchain (false for ICO and fiat, like EUR)
-	PayinEnabled       bool   `json:"payinEnabled"`       // Is allowed for deposit (false for ICO)
-	PayinPaymentID     bool   `json:"payinPaymentId"`     // Is required to provide additional information other than the address for deposit
-	PayinConfirmations int64  `json:"payinConfirmations"` // Blocks confirmations count for deposit
-	PayoutEnabled      bool   `json:"payoutEnabled"`      // Is allowed for withdraw (false for ICO)
-	PayoutIsPaymentID  bool   `json:"payoutIsPaymentId"`  // Is allowed to provide additional information for withdraw
-	TransferEnabled    bool   `json:"transferEnabled"`    // Is allowed to transfer between trading and account (may be disabled on maintain)
-	Delisted           bool   `json:"delisted"`           // True if currency delisted (stopped deposit and trading)
-	PayoutFee          string `json:"payoutFee"`          // Default withdraw fee
+	ID                 string  `json:"id"`                 // Currency identifier.
+	FullName           string  `json:"fullName"`           // Currency full name
+	Crypto             bool    `json:"crypto"`             // Is currency belongs to blockchain (false for ICO and fiat, like EUR)
+	PayinEnabled       bool    `json:"payinEnabled"`       // Is allowed for deposit (false for ICO)
+	PayinPaymentID     bool    `json:"payinPaymentId"`     // Is required to provide additional information other than the address for deposit
+	PayinConfirmations int64   `json:"payinConfirmations"` // Blocks confirmations count for deposit
+	PayoutEnabled      bool    `json:"payoutEnabled"`      // Is allowed for withdraw (false for ICO)
+	PayoutIsPaymentID  bool    `json:"payoutIsPaymentId"`  // Is allowed to provide additional information for withdraw
+	TransferEnabled    bool    `json:"transferEnabled"`    // Is allowed to transfer between trading and account (may be disabled on maintain)
+	Delisted           bool    `json:"delisted"`           // True if currency delisted (stopped deposit and trading)
+	PayoutFee          float64 `json:"payoutFee,string"`   // Default withdraw fee
 }
 
 // LoanOrder contains information about your loans

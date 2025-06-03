@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Bybit is the overarching type across this package
@@ -2528,20 +2529,13 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
-	var err error
+func processOB(ob [][2]types.Number) []orderbook.Tranche {
 	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
-		o[x].Amount, err = strconv.ParseFloat(ob[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		o[x].Price, err = strconv.ParseFloat(ob[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
+		o[x].Price = ob[x][0].Float64()
+		o[x].Amount = ob[x][1].Float64()
 	}
-	return o, nil
+	return o
 }
 
 // SendHTTPRequest sends an unauthenticated request

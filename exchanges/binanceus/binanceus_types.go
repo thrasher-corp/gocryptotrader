@@ -174,9 +174,9 @@ type OrderbookItem struct {
 
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // OrderBook actual structured data that can be used for orderbook
@@ -827,20 +827,20 @@ type update struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string      `json:"e"`
-	Timestamp     types.Time  `json:"E"`
-	Pair          string      `json:"s"`
-	FirstUpdateID int64       `json:"U"`
-	LastUpdateID  int64       `json:"u"`
-	UpdateBids    [][2]string `json:"b"`
-	UpdateAsks    [][2]string `json:"a"`
+	Event         string            `json:"e"`
+	Timestamp     types.Time        `json:"E"`
+	Pair          string            `json:"s"`
+	FirstUpdateID int64             `json:"U"`
+	LastUpdateID  int64             `json:"u"`
+	UpdateBids    [][2]types.Number `json:"b"`
+	UpdateAsks    [][2]types.Number `json:"a"`
 }
 
 // WebsocketDepthDiffStream websocket response of depth diff stream
 type WebsocketDepthDiffStream struct {
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // WsAccountInfoData defines websocket account info data
@@ -963,17 +963,17 @@ type WsListStatusData struct {
 
 // TradeStream holds the trade stream data
 type TradeStream struct {
-	EventType      string     `json:"e"`
-	EventTime      types.Time `json:"E"`
-	Symbol         string     `json:"s"`
-	TradeID        int64      `json:"t"`
-	Price          string     `json:"p"`
-	Quantity       string     `json:"q"`
-	BuyerOrderID   int64      `json:"b"`
-	SellerOrderID  int64      `json:"a"`
-	TimeStamp      types.Time `json:"T"`
-	Maker          bool       `json:"m"`
-	BestMatchPrice bool       `json:"M"`
+	EventType      string       `json:"e"`
+	EventTime      types.Time   `json:"E"`
+	Symbol         string       `json:"s"`
+	TradeID        int64        `json:"t"`
+	Price          types.Number `json:"p"`
+	Quantity       types.Number `json:"q"`
+	BuyerOrderID   int64        `json:"b"`
+	SellerOrderID  int64        `json:"a"`
+	TimeStamp      types.Time   `json:"T"`
+	Maker          bool         `json:"m"`
+	BestMatchPrice bool         `json:"M"`
 }
 
 // KlineStream holds the kline stream data
