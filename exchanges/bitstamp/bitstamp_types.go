@@ -1,6 +1,8 @@
 package bitstamp
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -43,7 +45,7 @@ type OrderbookBase struct {
 
 // Orderbook holds orderbook information
 type Orderbook struct {
-	Timestamp int64 `json:"timestamp,string"`
+	Timestamp time.Time
 	Bids      []OrderbookBase
 	Asks      []OrderbookBase
 }
@@ -101,7 +103,7 @@ type Balances map[string]Balance
 type UserTransactions struct {
 	Date          string  `json:"datetime"`
 	TransactionID int64   `json:"id"`
-	Type          int     `json:"type,string"`
+	Type          int64   `json:"type,string"`
 	USD           float64 `json:"usd"`
 	EUR           float64 `json:"eur"`
 	BTC           float64 `json:"btc"`
@@ -128,7 +130,7 @@ type Order struct {
 // OrderStatus holds order status information
 type OrderStatus struct {
 	AmountRemaining float64 `json:"amount_remaining,string"`
-	Type            int     `json:"type"`
+	Type            int64   `json:"type"`
 	ID              string  `json:"id"`
 	DateTime        string  `json:"datetime"`
 	Status          string  `json:"status"`
@@ -251,10 +253,10 @@ type websocketOrderBookResponse struct {
 }
 
 type websocketOrderBook struct {
-	Asks           [][2]string `json:"asks"`
-	Bids           [][2]string `json:"bids"`
-	Timestamp      int64       `json:"timestamp,string"`
-	Microtimestamp int64       `json:"microtimestamp,string"`
+	Asks           [][2]types.Number `json:"asks"`
+	Bids           [][2]types.Number `json:"bids"`
+	Timestamp      types.Time        `json:"timestamp"`
+	Microtimestamp types.Time        `json:"microtimestamp"`
 }
 
 // OHLCResponse holds returned candle data
@@ -262,12 +264,12 @@ type OHLCResponse struct {
 	Data struct {
 		Pair  string `json:"pair"`
 		OHLCV []struct {
-			Timestamp int64   `json:"timestamp,string"`
-			Open      float64 `json:"open,string"`
-			High      float64 `json:"high,string"`
-			Low       float64 `json:"low,string"`
-			Close     float64 `json:"close,string"`
-			Volume    float64 `json:"volume,string"`
+			Timestamp types.Time `json:"timestamp"`
+			Open      float64    `json:"open,string"`
+			High      float64    `json:"high,string"`
+			Low       float64    `json:"low,string"`
+			Close     float64    `json:"close,string"`
+			Volume    float64    `json:"volume,string"`
 		} `json:"ohlc"`
 	} `json:"data"`
 }

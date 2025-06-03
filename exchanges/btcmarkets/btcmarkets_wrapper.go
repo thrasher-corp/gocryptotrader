@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,8 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-var errFailedToConvertToCandle = errors.New("cannot convert time series data to kline.Candle, insufficient data")
 
 // SetDefaults sets basic defaults
 func (b *BTCMarkets) SetDefaults() {
@@ -933,9 +930,13 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		timeSeries[x], err = convertToKlineCandle(&candles[x])
-		if err != nil {
-			return nil, err
+		timeSeries[x] = kline.Candle{
+			Time:   candles[x].Timestamp,
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -950,7 +951,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		var candles CandleResponse
+		var candles []CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
 			req.RequestFormatted.String(),
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -964,11 +965,14 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 		}
 
 		for i := range candles {
-			elem, err := convertToKlineCandle(&candles[i])
-			if err != nil {
-				return nil, err
-			}
-			timeSeries = append(timeSeries, elem)
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   candles[i].Timestamp,
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
+			})
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1008,39 +1012,6 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		}
 	}
 	return b.LoadLimits(limits)
-}
-
-func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {
-	var elem kline.Candle
-	if candle == nil {
-		return elem, errFailedToConvertToCandle
-	}
-	var err error
-	elem.Time, err = time.Parse(time.RFC3339, candle[0])
-	if err != nil {
-		return elem, err
-	}
-	elem.Open, err = strconv.ParseFloat(candle[1], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.High, err = strconv.ParseFloat(candle[2], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.Low, err = strconv.ParseFloat(candle[3], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.Close, err = strconv.ParseFloat(candle[4], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.Volume, err = strconv.ParseFloat(candle[5], 64)
-	if err != nil {
-		return elem, err
-	}
-	return elem, nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

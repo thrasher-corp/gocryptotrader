@@ -336,47 +336,26 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(arg.Limit, 10))
-	var resp OrderBookData
-	if err := bi.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		common.EncodeURLValues(orderBookDepth, params),
-		orderbookLimit(arg.Limit), &resp); err != nil {
+
+	var resp *OrderBookData
+	if err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(arg.Limit), &resp); err != nil {
 		return nil, err
 	}
-	orderbook := OrderBook{
+
+	ob := &OrderBook{
 		Bids:         make([]OrderbookItem, len(resp.Bids)),
 		Asks:         make([]OrderbookItem, len(resp.Asks)),
 		LastUpdateID: resp.LastUpdateID,
 	}
 	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Bids[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
+		ob.Bids[x].Price = resp.Bids[x][0].Float64()
+		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
 	}
 	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
+		ob.Asks[x].Price = resp.Asks[x][0].Float64()
+		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
 	}
-	return &orderbook, nil
+	return ob, nil
 }
 
 // GetIntervalEnum allowed interval params by Binanceus

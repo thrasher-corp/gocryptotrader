@@ -487,10 +487,7 @@ func (h *HitBTC) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (f
 		if err != nil {
 			return 0, err
 		}
-		fee, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
-		if err != nil {
-			return 0, err
-		}
+		fee = currencyInfo.PayoutFee
 	case exchange.CryptocurrencyDepositFee:
 		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
 			feeBuilder.Amount)
