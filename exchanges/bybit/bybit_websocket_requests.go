@@ -2,12 +2,12 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -148,11 +148,10 @@ func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument I
 	}
 
 	tn := time.Now()
-	id := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
-	nanoTs := strconv.FormatInt(tn.UnixNano(), 10) // UnixNano is used to ensure the ID is unique.
+	requestID := strconv.FormatInt(outbound.GenerateMessageID(false), 10)
 
 	// Sets OrderLinkID to the outbound payload so that the response can be matched to the request in the inbound connection.
-	argumentID := argument.LoadID(nanoTs + id)
+	argumentID := argument.LoadID(strconv.FormatInt(tn.UnixNano(), 10) + requestID) // UnixNano is used to ensure the ID is unique.
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
 	// the outbound trade connection, the response can come back through the inbound private connection before the
@@ -163,8 +162,8 @@ func (by *Bybit) SendWebsocketRequest(ctx context.Context, op string, argument I
 	}
 
 	// TODO: Create new function to return a channel so that we can select on multiple connections, this is a slight potential optimisation.
-	outResp, err := outbound.SendMessageReturnResponse(ctx, request.Unset, id, WebsocketGeneralPayload{
-		RequestID: id,
+	outResp, err := outbound.SendMessageReturnResponse(ctx, request.Unset, requestID, WebsocketGeneralPayload{
+		RequestID: requestID,
 		Header:    map[string]string{"X-BAPI-TIMESTAMP": strconv.FormatInt(tn.UnixMilli(), 10)},
 		Operation: op,
 		Arguments: []any{argument},

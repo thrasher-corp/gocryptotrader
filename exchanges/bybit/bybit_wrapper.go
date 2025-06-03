@@ -879,11 +879,14 @@ func (by *Bybit) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	if err != nil {
 		return nil, err
 	}
-	if orderDetails.TimeInForce == "IOC" {
+
+	switch orderDetails.TimeInForce {
+	case "IOC":
 		resp.TimeInForce = order.ImmediateOrCancel
-	} else if orderDetails.TimeInForce == "PostOnly" {
+	case "PostOnly":
 		resp.TimeInForce = order.PostOnly
 	}
+
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
 	resp.AverageExecutedPrice = orderDetails.AvgPrice.Float64()
@@ -927,11 +930,12 @@ func (by *Bybit) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParams,
 	if s.Type == order.Market {
 		timeInForce = "IOC"
 	} else {
-		if s.TimeInForce.Is(order.FillOrKill) {
+		switch {
+		case s.TimeInForce.Is(order.FillOrKill):
 			timeInForce = "FOK"
-		} else if s.TimeInForce.Is(order.PostOnly) {
+		case s.TimeInForce.Is(order.PostOnly):
 			timeInForce = "PostOnly"
-		} else if s.TimeInForce.Is(order.ImmediateOrCancel) {
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
 			timeInForce = "IOC"
 		}
 	}

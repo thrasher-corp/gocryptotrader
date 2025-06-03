@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -12,16 +11,16 @@ func TestMatchReturnResponses(t *testing.T) {
 	t.Parallel()
 
 	conn := connection{Match: NewMatch()}
-	_, err := conn.MatchReturnResponses(context.Background(), nil, 0)
+	_, err := conn.MatchReturnResponses(t.Context(), nil, 0)
 	require.ErrorIs(t, err, errInvalidBufferSize)
 
-	ch, err := conn.MatchReturnResponses(context.Background(), nil, 1)
+	ch, err := conn.MatchReturnResponses(t.Context(), nil, 1)
 	require.NoError(t, err)
 
 	require.ErrorIs(t, (<-ch).Err, ErrSignatureTimeout)
 	conn.ResponseMaxLimit = time.Millisecond
 
-	ch, err = conn.MatchReturnResponses(context.Background(), nil, 1)
+	ch, err = conn.MatchReturnResponses(t.Context(), nil, 1)
 	require.NoError(t, err)
 
 	exp := []byte("test")
