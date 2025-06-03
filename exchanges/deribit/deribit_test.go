@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	d                                                                     = &Deribit{}
+	d                                                                     = &Exchange{}
 	optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
 	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyBTC, "USDC", "_")
 	futuresTradablePair                                                   = currency.NewPairWithDelimiter(currencyBTC, perpString, "-")
@@ -731,7 +731,7 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	d := new(Deribit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	d := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(d), "Setup instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", d.wsHandleData)
 	close(d.Websocket.DataHandler)
@@ -3346,7 +3346,7 @@ func setupWs() {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	d := new(Deribit) //nolint:govet // Intentional lexical scope shadow
+	d := new(Exchange) //nolint:govet // Intentional lexical scope shadow
 	require.NoError(t, testexch.Setup(d), "Test instance Setup must not error")
 
 	d.Websocket.SetCanUseAuthenticatedEndpoints(true)

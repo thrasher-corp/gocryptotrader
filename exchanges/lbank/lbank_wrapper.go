@@ -29,7 +29,7 @@ import (
 )
 
 // SetDefaults sets the basic defaults for Lbank
-func (l *Lbank) SetDefaults() {
+func (l *Exchange) SetDefaults() {
 	l.Name = "Lbank"
 	l.Enabled = true
 	l.Verbose = true
@@ -107,7 +107,7 @@ func (l *Lbank) SetDefaults() {
 }
 
 // Setup sets exchange configuration profile
-func (l *Lbank) Setup(exch *config.Exchange) error {
+func (l *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
@@ -132,7 +132,7 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (l *Lbank) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
+func (l *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	currencies, err := l.GetCurrencyPairs(ctx)
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (l *Lbank) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (l *Lbank) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (l *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	pairs, err := l.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (l *Lbank) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (l *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tickerInfo, err := l.GetTickers(ctx)
 	if err != nil {
 		return err
@@ -188,7 +188,7 @@ func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (l *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if err := l.UpdateTickers(ctx, a); err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if !l.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
@@ -238,7 +238,7 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (l *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	data, err := l.GetUserInfo(ctx)
 	if err != nil {
@@ -283,12 +283,12 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (l *Lbank) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (l *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (l *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if err := l.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
@@ -315,12 +315,12 @@ func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (l *Lbank) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (l *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return l.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (l *Lbank) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (l *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
@@ -381,7 +381,7 @@ allTrades:
 }
 
 // SubmitOrder submits a new order
-func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (l *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(l.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
@@ -410,12 +410,12 @@ func (l *Lbank) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *Lbank) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (l *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
+func (l *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -428,17 +428,17 @@ func (l *Lbank) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (l *Lbank) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+func (l *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (l *Lbank) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (l *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return l.GetTimestamp(ctx)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
+func (l *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
 	if err := o.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -499,7 +499,7 @@ func (l *Lbank) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Can
 }
 
 // GetOrderInfo returns order information based on order ID
-func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (l *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	var resp order.Detail
 	orderIDs, err := l.getAllOpenOrderID(ctx)
 	if err != nil {
@@ -546,13 +546,13 @@ func (l *Lbank) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (l *Lbank) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+func (l *Exchange) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *Lbank) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -573,18 +573,18 @@ func (l *Lbank) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *Lbank) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *Lbank) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (l *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -649,7 +649,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 
 // GetOrderHistory retrieves account order information *
 // Can Limit response to specific order status
-func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (l *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -723,7 +723,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction *
-func (l *Lbank) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (l *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
@@ -748,7 +748,7 @@ func (l *Lbank) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 }
 
 // GetAllOpenOrderID returns all open orders by currency pairs
-func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, error) {
+func (l *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, error) {
 	allPairs, err := l.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -793,13 +793,13 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (l *Lbank) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+func (l *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := l.UpdateAccountInfo(ctx, assetType)
 	return l.CheckTransientError(err)
 }
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
+func (l *Exchange) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.ThreeMin,
 		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
@@ -816,7 +816,7 @@ func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (l *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := l.GetKlineRequest(pair, a, interval, start, end, true)
 	if err != nil {
 		return nil, err
@@ -846,7 +846,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (l *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := l.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
@@ -882,7 +882,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 }
 
 // GetStatus returns the order.Status from the int representation.
-func (l *Lbank) GetStatus(status int64) order.Status {
+func (l *Exchange) GetStatus(status int64) order.Status {
 	var oStatus order.Status
 	switch status {
 	case -1:
@@ -907,22 +907,22 @@ func (l *Lbank) GetStatus(status int64) order.Status {
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (l *Lbank) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+func (l *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (l *Lbank) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (l *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (l *Lbank) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (l *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (l *Lbank) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+func (l *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := l.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err

@@ -30,7 +30,7 @@ const (
 	canManipulateRealOrders = false
 )
 
-var p = &Poloniex{}
+var p = &Exchange{}
 
 func TestTimestamp(t *testing.T) {
 	t.Parallel()

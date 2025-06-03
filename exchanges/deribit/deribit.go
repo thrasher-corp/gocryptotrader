@@ -22,8 +22,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Deribit is the overarching type across this package
-type Deribit struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 }
 
@@ -177,7 +177,7 @@ const (
 )
 
 // GetBookSummaryByCurrency gets book summary data for currency requested
-func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, ccy currency.Code, kind string) ([]BookSummaryData, error) {
+func (d *Exchange) GetBookSummaryByCurrency(ctx context.Context, ccy currency.Code, kind string) ([]BookSummaryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -192,7 +192,7 @@ func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, ccy currency.Cod
 }
 
 // GetBookSummaryByInstrument gets book summary data for instrument requested
-func (d *Deribit) GetBookSummaryByInstrument(ctx context.Context, instrument string) ([]BookSummaryData, error) {
+func (d *Exchange) GetBookSummaryByInstrument(ctx context.Context, instrument string) ([]BookSummaryData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (d *Deribit) GetBookSummaryByInstrument(ctx context.Context, instrument str
 }
 
 // GetContractSize gets contract size for instrument requested
-func (d *Deribit) GetContractSize(ctx context.Context, instrument string) (*ContractSizeData, error) {
+func (d *Exchange) GetContractSize(ctx context.Context, instrument string) (*ContractSizeData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -214,13 +214,13 @@ func (d *Deribit) GetContractSize(ctx context.Context, instrument string) (*Cont
 }
 
 // GetCurrencies gets all cryptocurrencies supported by the API
-func (d *Deribit) GetCurrencies(ctx context.Context) ([]CurrencyData, error) {
+func (d *Exchange) GetCurrencies(ctx context.Context) ([]CurrencyData, error) {
 	var resp []CurrencyData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, getCurrencies, &resp)
 }
 
 // GetDeliveryPrices gets all delivery prices for the given inde name
-func (d *Deribit) GetDeliveryPrices(ctx context.Context, indexName string, offset, count int64) (*IndexDeliveryPrice, error) {
+func (d *Exchange) GetDeliveryPrices(ctx context.Context, indexName string, offset, count int64) (*IndexDeliveryPrice, error) {
 	if indexName == "" {
 		return nil, errUnsupportedIndexName
 	}
@@ -238,7 +238,7 @@ func (d *Deribit) GetDeliveryPrices(ctx context.Context, indexName string, offse
 
 // GetFundingChartData gets funding chart data for the requested instrument and time length
 // supported lengths: 8h, 24h, 1m <-(1month)
-func (d *Deribit) GetFundingChartData(ctx context.Context, instrument, length string) (*FundingChartData, error) {
+func (d *Exchange) GetFundingChartData(ctx context.Context, instrument, length string) (*FundingChartData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -250,7 +250,7 @@ func (d *Deribit) GetFundingChartData(ctx context.Context, instrument, length st
 }
 
 // GetFundingRateHistory retrieves hourly historical interest rate for requested PERPETUAL instrument.
-func (d *Deribit) GetFundingRateHistory(ctx context.Context, instrumentName string, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+func (d *Exchange) GetFundingRateHistory(ctx context.Context, instrumentName string, startTime, endTime time.Time) ([]FundingRateHistory, error) {
 	params, err := checkInstrument(instrumentName)
 	if err != nil {
 		return nil, err
@@ -266,7 +266,7 @@ func (d *Deribit) GetFundingRateHistory(ctx context.Context, instrumentName stri
 }
 
 // GetFundingRateValue gets funding rate value data.
-func (d *Deribit) GetFundingRateValue(ctx context.Context, instrument string, startTime, endTime time.Time) (float64, error) {
+func (d *Exchange) GetFundingRateValue(ctx context.Context, instrument string, startTime, endTime time.Time) (float64, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return 0, err
@@ -283,7 +283,7 @@ func (d *Deribit) GetFundingRateValue(ctx context.Context, instrument string, st
 }
 
 // GetHistoricalVolatility gets historical volatility data
-func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityData, error) {
+func (d *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -294,7 +294,7 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
-func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
+func (d *Exchange) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -305,7 +305,7 @@ func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) 
 }
 
 // GetIndexPrice gets price data for the requested index
-func (d *Deribit) GetIndexPrice(ctx context.Context, index string) (*IndexPriceData, error) {
+func (d *Exchange) GetIndexPrice(ctx context.Context, index string) (*IndexPriceData, error) {
 	if index == "" {
 		return nil, errUnsupportedIndexName
 	}
@@ -317,13 +317,13 @@ func (d *Deribit) GetIndexPrice(ctx context.Context, index string) (*IndexPriceD
 }
 
 // GetIndexPriceNames gets names of indexes
-func (d *Deribit) GetIndexPriceNames(ctx context.Context) ([]string, error) {
+func (d *Exchange) GetIndexPriceNames(ctx context.Context) ([]string, error) {
 	var resp []string
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, getIndexPriceNames, &resp)
 }
 
 // GetInstrument retrieves instrument detail
-func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*InstrumentData, error) {
+func (d *Exchange) GetInstrument(ctx context.Context, instrument string) (*InstrumentData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -334,7 +334,7 @@ func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*Instru
 }
 
 // GetInstruments gets data for all available instruments
-func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
+func (d *Exchange) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -350,7 +350,7 @@ func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind st
 }
 
 // GetLastSettlementsByCurrency gets last settlement data by currency
-func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTime time.Time) (*SettlementsData, error) {
+func (d *Exchange) GetLastSettlementsByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTime time.Time) (*SettlementsData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -374,7 +374,7 @@ func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy currency
 }
 
 // GetLastSettlementsByInstrument gets last settlement data for requested instrument
-func (d *Deribit) GetLastSettlementsByInstrument(ctx context.Context, instrument, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
+func (d *Exchange) GetLastSettlementsByInstrument(ctx context.Context, instrument, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -397,7 +397,7 @@ func (d *Deribit) GetLastSettlementsByInstrument(ctx context.Context, instrument
 }
 
 // GetLastTradesByCurrency gets last trades for requested currency
-func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
+func (d *Exchange) GetLastTradesByCurrency(ctx context.Context, ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -427,7 +427,7 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy currency.Code
 }
 
 // GetLastTradesByCurrencyAndTime gets last trades for requested currency and time intervals
-func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
+func (d *Exchange) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -454,7 +454,7 @@ func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy curren
 }
 
 // GetLastTradesByInstrument gets last trades for requested instrument requested
-func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, startSeq, endSeq, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
+func (d *Exchange) GetLastTradesByInstrument(ctx context.Context, instrument, startSeq, endSeq, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -479,7 +479,7 @@ func (d *Deribit) GetLastTradesByInstrument(ctx context.Context, instrument, sta
 }
 
 // GetLastTradesByInstrumentAndTime gets last trades for requested instrument requested and time intervals
-func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
+func (d *Exchange) GetLastTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -502,7 +502,7 @@ func (d *Deribit) GetLastTradesByInstrumentAndTime(ctx context.Context, instrume
 }
 
 // GetMarkPriceHistory gets data for mark price history
-func (d *Deribit) GetMarkPriceHistory(ctx context.Context, instrument string, startTime, endTime time.Time) ([]MarkPriceHistory, error) {
+func (d *Exchange) GetMarkPriceHistory(ctx context.Context, instrument string, startTime, endTime time.Time) ([]MarkPriceHistory, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -528,7 +528,7 @@ func checkInstrument(instrumentName string) (url.Values, error) {
 }
 
 // GetOrderbook gets data orderbook of requested instrument
-func (d *Deribit) GetOrderbook(ctx context.Context, instrument string, depth int64) (*Orderbook, error) {
+func (d *Exchange) GetOrderbook(ctx context.Context, instrument string, depth int64) (*Orderbook, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -542,7 +542,7 @@ func (d *Deribit) GetOrderbook(ctx context.Context, instrument string, depth int
 }
 
 // GetOrderbookByInstrumentID retrieves orderbook by instrument ID
-func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID int64, depth float64) (*Orderbook, error) {
+func (d *Exchange) GetOrderbookByInstrumentID(ctx context.Context, instrumentID int64, depth float64) (*Orderbook, error) {
 	if instrumentID == 0 {
 		return nil, errInvalidInstrumentID
 	}
@@ -557,7 +557,7 @@ func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID i
 
 // GetSupportedIndexNames retrieves the identifiers of all supported Price Indexes
 // 'type' represents Type of a cryptocurrency price index. possible 'all', 'spot', 'derivative'
-func (d *Deribit) GetSupportedIndexNames(ctx context.Context, priceIndexType string) ([]string, error) {
+func (d *Exchange) GetSupportedIndexNames(ctx context.Context, priceIndexType string) ([]string, error) {
 	params := url.Values{}
 	if priceIndexType != "" {
 		params.Set("type", priceIndexType)
@@ -567,7 +567,7 @@ func (d *Deribit) GetSupportedIndexNames(ctx context.Context, priceIndexType str
 }
 
 // GetRequestForQuote retrieves RFQ information.
-func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
+func (d *Exchange) GetRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -581,7 +581,7 @@ func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy currency.Code, kin
 }
 
 // GetTradeVolumes gets trade volumes' data of all instruments
-func (d *Deribit) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolumesData, error) {
+func (d *Exchange) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVolumesData, error) {
 	params := url.Values{}
 	if extended {
 		params.Set("extended", "true")
@@ -592,7 +592,7 @@ func (d *Deribit) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVo
 }
 
 // GetTradingViewChart gets volatility index data for the requested instrument
-func (d *Deribit) GetTradingViewChart(ctx context.Context, instrument, resolution string, startTime, endTime time.Time) (*TVChartData, error) {
+func (d *Exchange) GetTradingViewChart(ctx context.Context, instrument, resolution string, startTime, endTime time.Time) (*TVChartData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -613,7 +613,7 @@ func (d *Deribit) GetTradingViewChart(ctx context.Context, instrument, resolutio
 }
 
 // GetResolutionFromInterval returns the string representation of intervals given kline.Interval instance.
-func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, error) {
+func (d *Exchange) GetResolutionFromInterval(interval kline.Interval) (string, error) {
 	switch interval {
 	case kline.HundredMilliseconds:
 		return "100ms", nil
@@ -649,7 +649,7 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 }
 
 // GetVolatilityIndex gets volatility index for the requested currency
-func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy currency.Code, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
+func (d *Exchange) GetVolatilityIndex(ctx context.Context, ccy currency.Code, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -685,7 +685,7 @@ func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy currency.Code, res
 }
 
 // GetPublicTicker gets public ticker data of the instrument requested
-func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*TickerData, error) {
+func (d *Exchange) GetPublicTicker(ctx context.Context, instrument string) (*TickerData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -695,7 +695,7 @@ func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*Tick
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
+func (d *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -720,7 +720,7 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl requ
 }
 
 // GetAccountSummary gets account summary data for the requested instrument
-func (d *Deribit) GetAccountSummary(ctx context.Context, ccy currency.Code, extended bool) (*AccountSummaryData, error) {
+func (d *Exchange) GetAccountSummary(ctx context.Context, ccy currency.Code, extended bool) (*AccountSummaryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -734,7 +734,7 @@ func (d *Deribit) GetAccountSummary(ctx context.Context, ccy currency.Code, exte
 }
 
 // CancelWithdrawal cancels withdrawal request for a given currency by its id
-func (d *Deribit) CancelWithdrawal(ctx context.Context, ccy currency.Code, id int64) (*CancelWithdrawalData, error) {
+func (d *Exchange) CancelWithdrawal(ctx context.Context, ccy currency.Code, id int64) (*CancelWithdrawalData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -750,7 +750,7 @@ func (d *Deribit) CancelWithdrawal(ctx context.Context, ccy currency.Code, id in
 }
 
 // CancelTransferByID cancels transfer by ID through the websocket connection.
-func (d *Deribit) CancelTransferByID(ctx context.Context, ccy currency.Code, tfa string, id int64) (*AccountSummaryData, error) {
+func (d *Exchange) CancelTransferByID(ctx context.Context, ccy currency.Code, tfa string, id int64) (*AccountSummaryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -768,7 +768,7 @@ func (d *Deribit) CancelTransferByID(ctx context.Context, ccy currency.Code, tfa
 }
 
 // CreateDepositAddress creates a deposit address for the currency requested
-func (d *Deribit) CreateDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddressData, error) {
+func (d *Exchange) CreateDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddressData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -780,7 +780,7 @@ func (d *Deribit) CreateDepositAddress(ctx context.Context, ccy currency.Code) (
 }
 
 // GetCurrentDepositAddress gets the current deposit address for the requested currency
-func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddressData, error) {
+func (d *Exchange) GetCurrentDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddressData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -797,7 +797,7 @@ func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy currency.Cod
 }
 
 // GetDeposits gets the deposits of a given currency
-func (d *Deribit) GetDeposits(ctx context.Context, ccy currency.Code, count, offset int64) (*DepositsData, error) {
+func (d *Exchange) GetDeposits(ctx context.Context, ccy currency.Code, count, offset int64) (*DepositsData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -814,7 +814,7 @@ func (d *Deribit) GetDeposits(ctx context.Context, ccy currency.Code, count, off
 }
 
 // GetTransfers gets transfers data for the requested currency
-func (d *Deribit) GetTransfers(ctx context.Context, ccy currency.Code, count, offset int64) (*TransfersData, error) {
+func (d *Exchange) GetTransfers(ctx context.Context, ccy currency.Code, count, offset int64) (*TransfersData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -832,7 +832,7 @@ func (d *Deribit) GetTransfers(ctx context.Context, ccy currency.Code, count, of
 }
 
 // GetWithdrawals gets withdrawals data for a requested currency
-func (d *Deribit) GetWithdrawals(ctx context.Context, ccy currency.Code, count, offset int64) (*WithdrawalsData, error) {
+func (d *Exchange) GetWithdrawals(ctx context.Context, ccy currency.Code, count, offset int64) (*WithdrawalsData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -852,7 +852,7 @@ func (d *Deribit) GetWithdrawals(ctx context.Context, ccy currency.Code, count, 
 // SubmitTransferBetweenSubAccounts transfer funds between two (sub)accounts.
 // Id of the source (sub)account. Can be found in My Account >> Subaccounts tab. By default, it is the Id of the account which made the request.
 // However, if a different "source" is specified, the user must possess the mainaccount scope, and only other subaccounts can be designated as the source.
-func (d *Deribit) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy currency.Code, amount float64, destinationID int64, source string) (*TransferData, error) {
+func (d *Exchange) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy currency.Code, amount float64, destinationID int64, source string) (*TransferData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -874,7 +874,7 @@ func (d *Deribit) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy curr
 }
 
 // SubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
-func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy currency.Code, amount float64, destinationID int64) (*TransferData, error) {
+func (d *Exchange) SubmitTransferToSubAccount(ctx context.Context, ccy currency.Code, amount float64, destinationID int64) (*TransferData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -894,7 +894,7 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy currency.C
 }
 
 // SubmitTransferToUser submits a request to transfer a currency to another user
-func (d *Deribit) SubmitTransferToUser(ctx context.Context, ccy currency.Code, tfa, destinationAddress string, amount float64) (*TransferData, error) {
+func (d *Exchange) SubmitTransferToUser(ctx context.Context, ccy currency.Code, tfa, destinationAddress string, amount float64) (*TransferData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -916,7 +916,7 @@ func (d *Deribit) SubmitTransferToUser(ctx context.Context, ccy currency.Code, t
 }
 
 // SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
-func (d *Deribit) SubmitWithdraw(ctx context.Context, ccy currency.Code, address, priority string, amount float64) (*WithdrawData, error) {
+func (d *Exchange) SubmitWithdraw(ctx context.Context, ccy currency.Code, address, priority string, amount float64) (*WithdrawData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -939,7 +939,7 @@ func (d *Deribit) SubmitWithdraw(ctx context.Context, ccy currency.Code, address
 }
 
 // GetAnnouncements retrieves announcements. Default "start_timestamp" parameter value is current timestamp, "count" parameter value must be between 1 and 50, default is 5.
-func (d *Deribit) GetAnnouncements(ctx context.Context, startTime time.Time, count int64) ([]Announcement, error) {
+func (d *Exchange) GetAnnouncements(ctx context.Context, startTime time.Time, count int64) ([]Announcement, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -952,7 +952,7 @@ func (d *Deribit) GetAnnouncements(ctx context.Context, startTime time.Time, cou
 }
 
 // ChangeAPIKeyName changes the name of the api key requested
-func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (*APIKeyData, error) {
+func (d *Exchange) ChangeAPIKeyName(ctx context.Context, id int64, name string) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -970,7 +970,7 @@ func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (
 // ChangeMarginModel change margin model
 // Margin model: 'cross_pm', 'cross_sm', 'segregated_pm', 'segregated_sm'
 // 'dry_run': If true request returns the result without switching the margining model. Default: false
-func (d *Deribit) ChangeMarginModel(ctx context.Context, userID int64, marginModel string, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
+func (d *Exchange) ChangeMarginModel(ctx context.Context, userID int64, marginModel string, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
 	if marginModel == "" {
 		return nil, errInvalidMarginModel
 	}
@@ -987,7 +987,7 @@ func (d *Deribit) ChangeMarginModel(ctx context.Context, userID int64, marginMod
 }
 
 // ChangeScopeInAPIKey changes the scope of the api key requested
-func (d *Deribit) ChangeScopeInAPIKey(ctx context.Context, id int64, maxScope string) (*APIKeyData, error) {
+func (d *Exchange) ChangeScopeInAPIKey(ctx context.Context, id int64, maxScope string) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -1000,7 +1000,7 @@ func (d *Deribit) ChangeScopeInAPIKey(ctx context.Context, id int64, maxScope st
 }
 
 // ChangeSubAccountName changes the name of the requested subaccount id
-func (d *Deribit) ChangeSubAccountName(ctx context.Context, sid int64, name string) error {
+func (d *Exchange) ChangeSubAccountName(ctx context.Context, sid int64, name string) error {
 	if sid <= 0 {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
@@ -1023,7 +1023,7 @@ func (d *Deribit) ChangeSubAccountName(ctx context.Context, sid int64, name stri
 }
 
 // CreateAPIKey creates an api key based on the provided settings
-func (d *Deribit) CreateAPIKey(ctx context.Context, maxScope, name string, defaultKey bool) (*APIKeyData, error) {
+func (d *Exchange) CreateAPIKey(ctx context.Context, maxScope, name string, defaultKey bool) (*APIKeyData, error) {
 	params := url.Values{}
 	params.Set("max_scope", maxScope)
 	if name != "" {
@@ -1038,14 +1038,14 @@ func (d *Deribit) CreateAPIKey(ctx context.Context, maxScope, name string, defau
 }
 
 // CreateSubAccount creates a new subaccount
-func (d *Deribit) CreateSubAccount(ctx context.Context) (*SubAccountData, error) {
+func (d *Exchange) CreateSubAccount(ctx context.Context) (*SubAccountData, error) {
 	var resp *SubAccountData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		createSubAccount, nil, &resp)
 }
 
 // DisableAPIKey disables the api key linked to the provided id
-func (d *Deribit) DisableAPIKey(ctx context.Context, id int64) (*APIKeyData, error) {
+func (d *Exchange) DisableAPIKey(ctx context.Context, id int64) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -1062,7 +1062,7 @@ func (d *Deribit) DisableAPIKey(ctx context.Context, id int64) (*APIKeyData, err
 // wallet:[read, read_write, none],
 // account:[read, read_write, none],
 // block_trade:[read, read_write, none].
-func (d *Deribit) EditAPIKey(ctx context.Context, id int64, maxScope, name string, enabled bool, enabledFeatures, ipWhitelist []string) (*APIKeyData, error) {
+func (d *Exchange) EditAPIKey(ctx context.Context, id int64, maxScope, name string, enabled bool, enabledFeatures, ipWhitelist []string) (*APIKeyData, error) {
 	if id == 0 {
 		return nil, errInvalidAPIKeyID
 	}
@@ -1095,7 +1095,7 @@ func (d *Deribit) EditAPIKey(ctx context.Context, id int64, maxScope, name strin
 }
 
 // EnableAffiliateProgram enables the affiliate program
-func (d *Deribit) EnableAffiliateProgram(ctx context.Context) error {
+func (d *Exchange) EnableAffiliateProgram(ctx context.Context) error {
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		enableAffiliateProgram, nil, &resp)
@@ -1109,7 +1109,7 @@ func (d *Deribit) EnableAffiliateProgram(ctx context.Context) error {
 }
 
 // EnableAPIKey enables the api key linked to the provided id
-func (d *Deribit) EnableAPIKey(ctx context.Context, id int64) (*APIKeyData, error) {
+func (d *Exchange) EnableAPIKey(ctx context.Context, id int64) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -1121,7 +1121,7 @@ func (d *Deribit) EnableAPIKey(ctx context.Context, id int64) (*APIKeyData, erro
 }
 
 // GetAccessLog lists access logs for the user
-func (d *Deribit) GetAccessLog(ctx context.Context, offset, count int64) (*AccessLog, error) {
+func (d *Exchange) GetAccessLog(ctx context.Context, offset, count int64) (*AccessLog, error) {
 	params := url.Values{}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
@@ -1134,27 +1134,27 @@ func (d *Deribit) GetAccessLog(ctx context.Context, offset, count int64) (*Acces
 }
 
 // GetAffiliateProgramInfo gets the affiliate program info
-func (d *Deribit) GetAffiliateProgramInfo(ctx context.Context) (*AffiliateProgramInfo, error) {
+func (d *Exchange) GetAffiliateProgramInfo(ctx context.Context) (*AffiliateProgramInfo, error) {
 	var resp *AffiliateProgramInfo
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getAffiliateProgramInfo, nil, &resp)
 }
 
 // GetEmailLanguage gets the current language set for the email
-func (d *Deribit) GetEmailLanguage(ctx context.Context) (string, error) {
+func (d *Exchange) GetEmailLanguage(ctx context.Context) (string, error) {
 	var resp string
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getEmailLanguage, nil, &resp)
 }
 
 // GetNewAnnouncements gets new announcements
-func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, error) {
+func (d *Exchange) GetNewAnnouncements(ctx context.Context) ([]Announcement, error) {
 	var resp []Announcement
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getNewAnnouncements, nil, &resp)
 }
 
 // GetPosition gets the data of all positions in the requested instrument name
-func (d *Deribit) GetPosition(ctx context.Context, instrument string) (*PositionData, error) {
+func (d *Exchange) GetPosition(ctx context.Context, instrument string) (*PositionData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -1165,7 +1165,7 @@ func (d *Deribit) GetPosition(ctx context.Context, instrument string) (*Position
 }
 
 // GetSubAccounts gets all subaccounts' data
-func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]SubAccountData, error) {
+func (d *Exchange) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]SubAccountData, error) {
 	params := url.Values{}
 	if withPortfolio {
 		params.Set("with_portfolio", "true")
@@ -1176,7 +1176,7 @@ func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]Sub
 }
 
 // GetSubAccountDetails retrieves sub accounts detail information.
-func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy currency.Code, withOpenOrders bool) ([]SubAccountDetail, error) {
+func (d *Exchange) GetSubAccountDetails(ctx context.Context, ccy currency.Code, withOpenOrders bool) ([]SubAccountDetail, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1190,7 +1190,7 @@ func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy currency.Code, w
 }
 
 // GetPositions gets positions data of the user account
-func (d *Deribit) GetPositions(ctx context.Context, ccy currency.Code, kind string) ([]PositionData, error) {
+func (d *Exchange) GetPositions(ctx context.Context, ccy currency.Code, kind string) ([]PositionData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1205,7 +1205,7 @@ func (d *Deribit) GetPositions(ctx context.Context, ccy currency.Code, kind stri
 }
 
 // GetTransactionLog gets transaction logs' data
-func (d *Deribit) GetTransactionLog(ctx context.Context, ccy currency.Code, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
+func (d *Exchange) GetTransactionLog(ctx context.Context, ccy currency.Code, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1231,13 +1231,13 @@ func (d *Deribit) GetTransactionLog(ctx context.Context, ccy currency.Code, quer
 }
 
 // GetUserLocks retrieves information about locks on user account.
-func (d *Deribit) GetUserLocks(ctx context.Context) ([]UserLock, error) {
+func (d *Exchange) GetUserLocks(ctx context.Context) ([]UserLock, error) {
 	var resp []UserLock
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getUserLocks, nil, &resp)
 }
 
 // ListAPIKeys lists all the api keys associated with a user account
-func (d *Deribit) ListAPIKeys(ctx context.Context, tfa string) ([]APIKeyData, error) {
+func (d *Exchange) ListAPIKeys(ctx context.Context, tfa string) ([]APIKeyData, error) {
 	params := url.Values{}
 	if tfa != "" {
 		params.Set("tfa", tfa)
@@ -1248,7 +1248,7 @@ func (d *Deribit) ListAPIKeys(ctx context.Context, tfa string) ([]APIKeyData, er
 }
 
 // GetCustodyAccounts retrieves user custody accounts list.
-func (d *Deribit) GetCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccount, error) {
+func (d *Exchange) GetCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1259,7 +1259,7 @@ func (d *Deribit) GetCustodyAccounts(ctx context.Context, ccy currency.Code) ([]
 }
 
 // RemoveAPIKey removes api key vid ID
-func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
+func (d *Exchange) RemoveAPIKey(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -1277,7 +1277,7 @@ func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 }
 
 // RemoveSubAccount removes a subaccount given its id
-func (d *Deribit) RemoveSubAccount(ctx context.Context, subAccountID int64) error {
+func (d *Exchange) RemoveSubAccount(ctx context.Context, subAccountID int64) error {
 	params := url.Values{}
 	params.Set("subaccount_id", strconv.FormatInt(subAccountID, 10))
 	var resp string
@@ -1292,7 +1292,7 @@ func (d *Deribit) RemoveSubAccount(ctx context.Context, subAccountID int64) erro
 }
 
 // ResetAPIKey resets the api key to its default settings
-func (d *Deribit) ResetAPIKey(ctx context.Context, id int64) (*APIKeyData, error) {
+func (d *Exchange) ResetAPIKey(ctx context.Context, id int64) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -1304,7 +1304,7 @@ func (d *Deribit) ResetAPIKey(ctx context.Context, id int64) (*APIKeyData, error
 }
 
 // SetAnnouncementAsRead sets an announcement as read
-func (d *Deribit) SetAnnouncementAsRead(ctx context.Context, id int64) error {
+func (d *Exchange) SetAnnouncementAsRead(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return fmt.Errorf("%w, invalid announcement id", errInvalidID)
 	}
@@ -1323,7 +1323,7 @@ func (d *Deribit) SetAnnouncementAsRead(ctx context.Context, id int64) error {
 }
 
 // SetEmailForSubAccount links an email given to the designated subaccount
-func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email string) error {
+func (d *Exchange) SetEmailForSubAccount(ctx context.Context, sid int64, email string) error {
 	if sid <= 0 {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
@@ -1346,7 +1346,7 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 }
 
 // SetEmailLanguage sets a requested language for an email
-func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) error {
+func (d *Exchange) SetEmailLanguage(ctx context.Context, language string) error {
 	if language == "" {
 		return errLanguageIsRequired
 	}
@@ -1366,7 +1366,7 @@ func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) error {
 // SetSelfTradingConfig configure self trading behavior
 // mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
-func (d *Deribit) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
+func (d *Exchange) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {
 		return "", errTradeModeIsRequired
 	}
@@ -1382,7 +1382,7 @@ func (d *Deribit) SetSelfTradingConfig(ctx context.Context, mode string, extende
 }
 
 // ToggleNotificationsFromSubAccount toggles the notifications from a subaccount specified
-func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int64, state bool) error {
+func (d *Exchange) ToggleNotificationsFromSubAccount(ctx context.Context, sid int64, state bool) error {
 	if sid <= 0 {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
@@ -1402,7 +1402,7 @@ func (d *Deribit) ToggleNotificationsFromSubAccount(ctx context.Context, sid int
 }
 
 // TogglePortfolioMargining toggle between SM and PM models.
-func (d *Deribit) TogglePortfolioMargining(ctx context.Context, userID int64, enabled, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
+func (d *Exchange) TogglePortfolioMargining(ctx context.Context, userID int64, enabled, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
 	if userID == 0 {
 		return nil, errUserIDRequired
 	}
@@ -1417,7 +1417,7 @@ func (d *Deribit) TogglePortfolioMargining(ctx context.Context, userID int64, en
 }
 
 // ToggleSubAccountLogin toggles access for subaccount login
-func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, subAccountUserID int64, state bool) error {
+func (d *Exchange) ToggleSubAccountLogin(ctx context.Context, subAccountUserID int64, state bool) error {
 	if subAccountUserID <= 0 {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
@@ -1436,7 +1436,7 @@ func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, subAccountUserID in
 }
 
 // SubmitBuy submits a private buy request through the websocket connection.
-func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+func (d *Exchange) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
 	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
@@ -1487,7 +1487,7 @@ func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*P
 }
 
 // SubmitSell submits a sell request with the parameters provided
-func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+func (d *Exchange) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
 	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w argument is required", common.ErrNilPointer)
 	}
@@ -1538,7 +1538,7 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 }
 
 // SubmitEdit submits an edit order request
-func (d *Deribit) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+func (d *Exchange) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
 	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
@@ -1577,7 +1577,7 @@ func (d *Deribit) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*
 }
 
 // EditOrderByLabel submits an edit order request sorted via label
-func (d *Deribit) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+func (d *Exchange) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
 	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
@@ -1616,7 +1616,7 @@ func (d *Deribit) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellPara
 }
 
 // SubmitCancel sends a request to cancel the order via its orderID
-func (d *Deribit) SubmitCancel(ctx context.Context, orderID string) (*PrivateCancelData, error) {
+func (d *Exchange) SubmitCancel(ctx context.Context, orderID string) (*PrivateCancelData, error) {
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, no order ID specified", errInvalidID)
 	}
@@ -1628,7 +1628,7 @@ func (d *Deribit) SubmitCancel(ctx context.Context, orderID string) (*PrivateCan
 }
 
 // SubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
-func (d *Deribit) SubmitCancelAll(ctx context.Context, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Exchange) SubmitCancelAll(ctx context.Context, detailed bool) (*MultipleCancelResponse, error) {
 	params := url.Values{}
 	if detailed {
 		params.Set("detailed", "true")
@@ -1640,7 +1640,7 @@ func (d *Deribit) SubmitCancelAll(ctx context.Context, detailed bool) (*Multiple
 
 // SubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Exchange) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1663,7 +1663,7 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Co
 // SubmitCancelAllByKind cancels all orders in currency(currencies), optionally filtered by instrument kind and/or order type.
 // 'kind' instrument kind . Possible values: 'future', 'option', 'spot', 'future_combo', 'option_combo', 'combo', 'any'
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Exchange) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1684,7 +1684,7 @@ func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, 
 
 // SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (*MultipleCancelResponse, error) {
+func (d *Exchange) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (*MultipleCancelResponse, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -1705,7 +1705,7 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label string, ccy currency.Code, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Exchange) SubmitCancelByLabel(ctx context.Context, label string, ccy currency.Code, detailed bool) (*MultipleCancelResponse, error) {
 	params := url.Values{}
 	params.Set("label", label)
 	if !ccy.IsEmpty() {
@@ -1727,7 +1727,7 @@ func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label string, ccy cur
 //
 // possible cancel_type values are delta, 'quote_set_id', 'instrument', 'instrument_kind', 'currency', and 'all'
 // possible kind values are future 'option', 'spot', 'future_combo', 'option_combo', 'combo', and 'any'
-func (d *Deribit) SubmitCancelQuotes(ctx context.Context, ccy currency.Code, minDelta, maxDelta float64, cancelType, quoteSetID, instrumentName, kind string, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Exchange) SubmitCancelQuotes(ctx context.Context, ccy currency.Code, minDelta, maxDelta float64, cancelType, quoteSetID, instrumentName, kind string, detailed bool) (*MultipleCancelResponse, error) {
 	if cancelType == "" {
 		return nil, errors.New("cancel type is required")
 	}
@@ -1760,7 +1760,7 @@ func (d *Deribit) SubmitCancelQuotes(ctx context.Context, ccy currency.Code, min
 }
 
 // SubmitClosePosition sends a request to cancel all user orders for the specified label
-func (d *Deribit) SubmitClosePosition(ctx context.Context, instrument, orderType string, price float64) (*PrivateTradeData, error) {
+func (d *Exchange) SubmitClosePosition(ctx context.Context, instrument, orderType string, price float64) (*PrivateTradeData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -1775,7 +1775,7 @@ func (d *Deribit) SubmitClosePosition(ctx context.Context, instrument, orderType
 }
 
 // GetMargins sends a request to fetch account margins data
-func (d *Deribit) GetMargins(ctx context.Context, instrument string, amount, price float64) (*MarginsData, error) {
+func (d *Exchange) GetMargins(ctx context.Context, instrument string, amount, price float64) (*MarginsData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -1794,7 +1794,7 @@ func (d *Deribit) GetMargins(ctx context.Context, instrument string, amount, pri
 }
 
 // GetMMPConfig sends a request to fetch the config for MMP of the requested currency
-func (d *Deribit) GetMMPConfig(ctx context.Context, ccy currency.Code) (*MMPConfigData, error) {
+func (d *Exchange) GetMMPConfig(ctx context.Context, ccy currency.Code) (*MMPConfigData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1806,7 +1806,7 @@ func (d *Deribit) GetMMPConfig(ctx context.Context, ccy currency.Code) (*MMPConf
 }
 
 // GetOpenOrdersByCurrency retrieves open orders data sorted by requested params
-func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string) ([]OrderData, error) {
+func (d *Exchange) GetOpenOrdersByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string) ([]OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1824,7 +1824,7 @@ func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy currency.Code
 }
 
 // GetOpenOrdersByLabel retrieves open orders using label and currency
-func (d *Deribit) GetOpenOrdersByLabel(ctx context.Context, ccy currency.Code, label string) ([]OrderData, error) {
+func (d *Exchange) GetOpenOrdersByLabel(ctx context.Context, ccy currency.Code, label string) ([]OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1838,7 +1838,7 @@ func (d *Deribit) GetOpenOrdersByLabel(ctx context.Context, ccy currency.Code, l
 }
 
 // GetOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params
-func (d *Deribit) GetOpenOrdersByInstrument(ctx context.Context, instrument, orderType string) ([]OrderData, error) {
+func (d *Exchange) GetOpenOrdersByInstrument(ctx context.Context, instrument, orderType string) ([]OrderData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -1851,7 +1851,7 @@ func (d *Deribit) GetOpenOrdersByInstrument(ctx context.Context, instrument, ord
 }
 
 // GetOrderHistoryByCurrency sends a request to fetch order history according to given params and currency
-func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy currency.Code, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
+func (d *Exchange) GetOrderHistoryByCurrency(ctx context.Context, ccy currency.Code, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1878,7 +1878,7 @@ func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy currency.Co
 }
 
 // GetOrderHistoryByInstrument sends a request to fetch order history according to given params and instrument
-func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
+func (d *Exchange) GetOrderHistoryByInstrument(ctx context.Context, instrument string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -1901,7 +1901,7 @@ func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument st
 }
 
 // GetOrderMarginsByID sends a request to fetch order margins data according to their ids
-func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]InitialMarginInfo, error) {
+func (d *Exchange) GetOrderMarginsByID(ctx context.Context, ids []string) ([]InitialMarginInfo, error) {
 	if len(ids) == 0 {
 		return nil, fmt.Errorf("%w, order ids cannot be empty", errInvalidID)
 	}
@@ -1915,7 +1915,7 @@ func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]Init
 }
 
 // GetOrderState sends a request to fetch order state of the order id provided
-func (d *Deribit) GetOrderState(ctx context.Context, orderID string) (*OrderData, error) {
+func (d *Exchange) GetOrderState(ctx context.Context, orderID string) (*OrderData, error) {
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, no order ID specified", errInvalidID)
 	}
@@ -1927,7 +1927,7 @@ func (d *Deribit) GetOrderState(ctx context.Context, orderID string) (*OrderData
 }
 
 // GetOrderStateByLabel retrieves an order state by label and currency
-func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, label string) ([]OrderData, error) {
+func (d *Exchange) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, label string) ([]OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1941,7 +1941,7 @@ func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, l
 }
 
 // GetTriggerOrderHistory sends a request to fetch order state of the order id provided
-func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy currency.Code, instrumentName, continuation string, count int64) (*OrderData, error) {
+func (d *Exchange) GetTriggerOrderHistory(ctx context.Context, ccy currency.Code, instrumentName, continuation string, count int64) (*OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1962,7 +1962,7 @@ func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy currency.Code,
 }
 
 // GetUserTradesByCurrency sends a request to fetch user trades sorted by currency
-func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
+func (d *Exchange) GetUserTradesByCurrency(ctx context.Context, ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1992,7 +1992,7 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy currency.Code
 }
 
 // GetUserTradesByCurrencyAndTime sends a request to fetch user trades sorted by currency and time
-func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
+func (d *Exchange) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2018,7 +2018,7 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy curren
 }
 
 // GetUserTradesByInstrument sends a request to fetch user trades sorted by instrument
-func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sorting string, startSeq, endSeq, count int64, includeOld bool) (*UserTradesData, error) {
+func (d *Exchange) GetUserTradesByInstrument(ctx context.Context, instrument, sorting string, startSeq, endSeq, count int64, includeOld bool) (*UserTradesData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -2044,7 +2044,7 @@ func (d *Deribit) GetUserTradesByInstrument(ctx context.Context, instrument, sor
 }
 
 // GetUserTradesByInstrumentAndTime sends a request to fetch user trades sorted by instrument and time
-func (d *Deribit) GetUserTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
+func (d *Exchange) GetUserTradesByInstrumentAndTime(ctx context.Context, instrument, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -2067,7 +2067,7 @@ func (d *Deribit) GetUserTradesByInstrumentAndTime(ctx context.Context, instrume
 }
 
 // GetUserTradesByOrder sends a request to get user trades fetched by orderID
-func (d *Deribit) GetUserTradesByOrder(ctx context.Context, orderID, sorting string) (*UserTradesData, error) {
+func (d *Exchange) GetUserTradesByOrder(ctx context.Context, orderID, sorting string) (*UserTradesData, error) {
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, no order ID specified", errInvalidID)
 	}
@@ -2082,7 +2082,7 @@ func (d *Deribit) GetUserTradesByOrder(ctx context.Context, orderID, sorting str
 }
 
 // ResetMMP sends a request to reset MMP for a currency provided
-func (d *Deribit) ResetMMP(ctx context.Context, ccy currency.Code) error {
+func (d *Exchange) ResetMMP(ctx context.Context, ccy currency.Code) error {
 	if ccy.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
@@ -2100,7 +2100,7 @@ func (d *Deribit) ResetMMP(ctx context.Context, ccy currency.Code) error {
 }
 
 // SendRequestForQuote sends RFQ on a given instrument.
-func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
+func (d *Exchange) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
 	params, err := checkInstrument(instrumentName)
 	if err != nil {
 		return err
@@ -2123,7 +2123,7 @@ func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string
 }
 
 // SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
-func (d *Deribit) SetMMPConfig(ctx context.Context, ccy currency.Code, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
+func (d *Exchange) SetMMPConfig(ctx context.Context, ccy currency.Code, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
 	if ccy.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
@@ -2154,7 +2154,7 @@ func (d *Deribit) SetMMPConfig(ctx context.Context, ccy currency.Code, interval 
 }
 
 // GetSettlementHistoryByInstrument sends a request to fetch settlement history data sorted by instrument
-func (d *Deribit) GetSettlementHistoryByInstrument(ctx context.Context, instrument, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+func (d *Exchange) GetSettlementHistoryByInstrument(ctx context.Context, instrument, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -2177,7 +2177,7 @@ func (d *Deribit) GetSettlementHistoryByInstrument(ctx context.Context, instrume
 }
 
 // GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
-func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+func (d *Exchange) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2201,7 +2201,7 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy currenc
 }
 
 // SendHTTPAuthRequest sends an authenticated request to deribit api
-func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result any) error {
+func (d *Exchange) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -2258,7 +2258,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 
 // GetComboIDs Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
-func (d *Deribit) GetComboIDs(ctx context.Context, ccy currency.Code, state string) ([]string, error) {
+func (d *Exchange) GetComboIDs(ctx context.Context, ccy currency.Code, state string) ([]string, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2272,7 +2272,7 @@ func (d *Deribit) GetComboIDs(ctx context.Context, ccy currency.Code, state stri
 }
 
 // GetComboDetails retrieves information about a combo
-func (d *Deribit) GetComboDetails(ctx context.Context, comboID string) (*ComboDetail, error) {
+func (d *Exchange) GetComboDetails(ctx context.Context, comboID string) (*ComboDetail, error) {
 	if comboID == "" {
 		return nil, errInvalidComboID
 	}
@@ -2283,7 +2283,7 @@ func (d *Deribit) GetComboDetails(ctx context.Context, comboID string) (*ComboDe
 }
 
 // GetCombos retrieves information about active combos
-func (d *Deribit) GetCombos(ctx context.Context, ccy currency.Code) ([]ComboDetail, error) {
+func (d *Exchange) GetCombos(ctx context.Context, ccy currency.Code) ([]ComboDetail, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2294,7 +2294,7 @@ func (d *Deribit) GetCombos(ctx context.Context, ccy currency.Code) ([]ComboDeta
 }
 
 // CreateCombo verifies and creates a combo book or returns an existing combo matching given trades
-func (d *Deribit) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDetail, error) {
+func (d *Exchange) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDetail, error) {
 	if len(args) == 0 {
 		return nil, errNoArgumentPassed
 	}
@@ -2326,7 +2326,7 @@ func (d *Deribit) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDet
 // ExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (d *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2373,7 +2373,7 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 }
 
 // VerifyBlockTrade verifies and creates block trade signature
-func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (string, error) {
+func (d *Exchange) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (string, error) {
 	if nonce == "" {
 		return "", errMissingNonce
 	}
@@ -2420,7 +2420,7 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 }
 
 // InvalidateBlockTradeSignature user at any time (before the private/execute_block_trade is called) can invalidate its own signature effectively cancelling block trade
-func (d *Deribit) InvalidateBlockTradeSignature(ctx context.Context, signature string) error {
+func (d *Exchange) InvalidateBlockTradeSignature(ctx context.Context, signature string) error {
 	if signature == "" {
 		return errMissingSignature
 	}
@@ -2438,7 +2438,7 @@ func (d *Deribit) InvalidateBlockTradeSignature(ctx context.Context, signature s
 }
 
 // GetUserBlockTrade returns information about users block trade
-func (d *Deribit) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
+func (d *Exchange) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
 	if id == "" {
 		return nil, errMissingBlockTradeID
 	}
@@ -2449,7 +2449,7 @@ func (d *Deribit) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTrad
 }
 
 // GetTime retrieves the current time (in milliseconds). This API endpoint can be used to check the clock skew between your software and Deribit's systems.
-func (d *Deribit) GetTime(ctx context.Context) (time.Time, error) {
+func (d *Exchange) GetTime(ctx context.Context) (time.Time, error) {
 	var result int64
 	err := d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/get_time", &result)
 	if err != nil {
@@ -2459,7 +2459,7 @@ func (d *Deribit) GetTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetLastBlockTradesByCurrency returns list of last users block trades
-func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, ccy currency.Code, startID, endID string, count int64) ([]BlockTradeData, error) {
+func (d *Exchange) GetLastBlockTradesByCurrency(ctx context.Context, ccy currency.Code, startID, endID string, count int64) ([]BlockTradeData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2479,7 +2479,7 @@ func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, ccy currency
 }
 
 // MovePositions moves positions from source subaccount to target subaccount
-func (d *Deribit) MovePositions(ctx context.Context, ccy currency.Code, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
+func (d *Exchange) MovePositions(ctx context.Context, ccy currency.Code, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2514,7 +2514,7 @@ func (d *Deribit) MovePositions(ctx context.Context, ccy currency.Code, sourceSu
 }
 
 // SimulateBlockTrade checks if a block trade can be executed
-func (d *Deribit) SimulateBlockTrade(ctx context.Context, role string, trades []BlockTradeParam) (bool, error) {
+func (d *Exchange) SimulateBlockTrade(ctx context.Context, role string, trades []BlockTradeParam) (bool, error) {
 	if role != roleMaker && role != roleTaker {
 		return false, errInvalidTradeRole
 	}
@@ -2548,14 +2548,14 @@ func (d *Deribit) SimulateBlockTrade(ctx context.Context, role string, trades []
 }
 
 // GetLockedStatus retrieves information about locked currencies
-func (d *Deribit) GetLockedStatus(ctx context.Context) (*LockedCurrenciesStatus, error) {
+func (d *Exchange) GetLockedStatus(ctx context.Context) (*LockedCurrenciesStatus, error) {
 	var resp *LockedCurrenciesStatus
 	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/status", &resp)
 }
 
 // EnableCancelOnDisconnect enable Cancel On Disconnect for the connection.
 // After enabling Cancel On Disconnect all orders created by the connection will be removed when the connection is closed.
-func (d *Deribit) EnableCancelOnDisconnect(ctx context.Context, scope string) (string, error) {
+func (d *Exchange) EnableCancelOnDisconnect(ctx context.Context, scope string) (string, error) {
 	params := url.Values{}
 	if scope != "" {
 		params.Set("scope", scope)
@@ -2565,7 +2565,7 @@ func (d *Deribit) EnableCancelOnDisconnect(ctx context.Context, scope string) (s
 }
 
 // ExchangeToken generates a token for a new subject id. This method can be used to switch between subaccounts.
-func (d *Deribit) ExchangeToken(ctx context.Context, refreshToken string, subjectID int64) (*RefreshTokenInfo, error) {
+func (d *Exchange) ExchangeToken(ctx context.Context, refreshToken string, subjectID int64) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
 		return nil, errRefreshTokenRequired
 	}
@@ -2580,7 +2580,7 @@ func (d *Deribit) ExchangeToken(ctx context.Context, refreshToken string, subjec
 }
 
 // ForkToken generates a token for a new named session. This method can be used only with session scoped tokens.
-func (d *Deribit) ForkToken(ctx context.Context, refreshToken, sessionName string) (*RefreshTokenInfo, error) {
+func (d *Exchange) ForkToken(ctx context.Context, refreshToken, sessionName string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
 		return nil, errRefreshTokenRequired
 	}
@@ -2595,7 +2595,7 @@ func (d *Deribit) ForkToken(ctx context.Context, refreshToken, sessionName strin
 }
 
 // GetAssetKind returns the asset type (kind) string representation.
-func (d *Deribit) GetAssetKind(assetType asset.Item) string {
+func (d *Exchange) GetAssetKind(assetType asset.Item) string {
 	switch assetType {
 	case asset.Options:
 		return "option"
@@ -2609,7 +2609,7 @@ func (d *Deribit) GetAssetKind(assetType asset.Item) string {
 }
 
 // StringToAssetKind returns the asset type (kind) from a string representation.
-func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
+func (d *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 	assetType = strings.ToLower(assetType)
 	switch assetType {
 	case "option":
@@ -2627,7 +2627,7 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 
 // getAssetPairByInstrument is able to determine the asset type and currency pair
 // based on the received instrument ID
-func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
+func (d *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
 	if instrument == "" {
 		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
 	}
@@ -2756,7 +2756,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0003 * price * amount
 }
 
-func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
+func (d *Exchange) formatFuturesTradablePair(pair currency.Pair) string {
 	var instrumentID string
 	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 {
 		instrumentID = strings.Join(result[:2], currency.UnderscoreDelimiter) + currency.DashDelimiter + result[2]
@@ -2771,7 +2771,7 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 // EXPIRE is DDMMMYY
 // STRIKE may include a d for decimal point in linear options
 // TYPE is Call or Put
-func (d *Deribit) optionPairToString(pair currency.Pair) string {
+func (d *Exchange) optionPairToString(pair currency.Pair) string {
 	initialDelimiter := currency.DashDelimiter
 	q := pair.Quote.String()
 	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option

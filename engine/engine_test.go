@@ -477,8 +477,8 @@ func TestSetupExchanges(t *testing.T) {
 		}
 
 		e.ExchangeManager = NewExchangeManager()
-		exchLoader(new(bitstamp.Bitstamp))
-		exchLoader(new(bitfinex.Bitfinex))
+		exchLoader(new(bitstamp.Exchange))
+		exchLoader(new(bitfinex.Exchange))
 		assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, e.Config.GetEnabledExchanges())
 
 		t.Run("Load specific exchange", func(t *testing.T) {

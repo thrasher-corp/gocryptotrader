@@ -57,7 +57,7 @@ var defaultFuturesSubscriptions = []string{
 }
 
 // WsFuturesConnect initiates a websocket connection for futures account
-func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
+func (g *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	a := asset.USDTMarginedFutures
 	if conn.GetURL() == btcFuturesWebsocketURL {
 		a = asset.CoinMarginedFutures
@@ -87,7 +87,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 // TODO: Update to use the new subscription template system
-func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
+func (g *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
@@ -132,17 +132,17 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Exchange) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Exchange) FuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // WsHandleFuturesData handles futures websocket data
-func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
+func (g *Exchange) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asse
 	}
 }
 
-func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -297,7 +297,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Conn
 	return outbound, nil
 }
 
-func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error {
+func (g *Exchange) processFuturesTickers(data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
@@ -326,7 +326,7 @@ func (g *Gateio) processFuturesTickers(data []byte, assetType asset.Item) error 
 	return nil
 }
 
-func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
+func (g *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error {
 	saveTradeData := g.IsSaveTradeDataEnabled()
 	if !saveTradeData && !g.IsTradeFeedEnabled() {
 		return nil
@@ -358,7 +358,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	return g.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
+func (g *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`
@@ -396,7 +396,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 	return nil
 }
 
-func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
+func (g *Exchange) processFuturesOrderbookTicker(incoming []byte) error {
 	var data WsFuturesOrderbookTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -406,7 +406,7 @@ func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
+func (g *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
 	var data WsFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -434,7 +434,7 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 	})
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
+func (g *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
 	if event == "all" {
 		var data WsFuturesOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -512,7 +512,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 	return nil
 }
 
-func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
+func (g *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
@@ -561,7 +561,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	return orderDetails, nil
 }
 
-func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+func (g *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
 	if !g.IsFillsFeedEnabled() {
 		return nil
 	}
@@ -592,7 +592,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	return g.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processFuturesLiquidatesNotification(data []byte) error {
+func (g *Exchange) processFuturesLiquidatesNotification(data []byte) error {
 	resp := struct {
 		Time    int64                              `json:"time"`
 		Channel string                             `json:"channel"`
@@ -607,7 +607,7 @@ func (g *Gateio) processFuturesLiquidatesNotification(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesAutoDeleveragesNotification(data []byte) error {
+func (g *Exchange) processFuturesAutoDeleveragesNotification(data []byte) error {
 	resp := struct {
 		Time    int64                                  `json:"time"`
 		Channel string                                 `json:"channel"`
@@ -622,7 +622,7 @@ func (g *Gateio) processFuturesAutoDeleveragesNotification(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processPositionCloseData(data []byte) error {
+func (g *Exchange) processPositionCloseData(data []byte) error {
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -637,7 +637,7 @@ func (g *Gateio) processPositionCloseData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
+func (g *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    int64       `json:"time"`
 		Channel string      `json:"channel"`
@@ -673,7 +673,7 @@ func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetT
 	return account.ProcessChange(g.Name, changes, creds)
 }
 
-func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {
+func (g *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error {
 	resp := struct {
 		Time    int64                                  `json:"time"`
 		Channel string                                 `json:"channel"`
@@ -688,7 +688,7 @@ func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesPositionsNotification(data []byte) error {
+func (g *Exchange) processFuturesPositionsNotification(data []byte) error {
 	resp := struct {
 		Time    int64               `json:"time"`
 		Channel string              `json:"channel"`
@@ -703,7 +703,7 @@ func (g *Gateio) processFuturesPositionsNotification(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesAutoOrderPushData(data []byte) error {
+func (g *Exchange) processFuturesAutoOrderPushData(data []byte) error {
 	resp := struct {
 		Time    int64                `json:"time"`
 		Channel string               `json:"channel"`

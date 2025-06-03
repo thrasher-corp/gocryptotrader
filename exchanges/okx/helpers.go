@@ -72,7 +72,7 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
 // that the instrument is associated with
-func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
+func (ok *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}

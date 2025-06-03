@@ -1522,7 +1522,7 @@ func TestCheckVars(t *testing.T) {
 	err := checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
 
-	e = &binance.Binance{}
+	e = &binance.Exchange{}
 	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
 

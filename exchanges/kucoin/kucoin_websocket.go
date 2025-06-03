@@ -117,7 +117,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect creates a new websocket connection.
-func (ku *Kucoin) WsConnect() error {
+func (ku *Exchange) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -166,7 +166,7 @@ func (ku *Kucoin) WsConnect() error {
 }
 
 // GetInstanceServers retrieves the server list and temporary public token
-func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
+func (ku *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
 	response := struct {
 		Data WSInstanceServers `json:"data"`
 		Error
@@ -188,7 +188,7 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 }
 
 // GetAuthenticatedInstanceServers retrieves server instances for authenticated users.
-func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
+func (ku *Exchange) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
 	response := struct {
 		Data *WSInstanceServers `json:"data"`
 		Error
@@ -201,7 +201,7 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (ku *Kucoin) wsReadData() {
+func (ku *Exchange) wsReadData() {
 	defer ku.Websocket.Wg.Done()
 	for {
 		resp := ku.Websocket.Conn.ReadMessage()
@@ -216,7 +216,7 @@ func (ku *Kucoin) wsReadData() {
 }
 
 // wsHandleData processes a websocket incoming data.
-func (ku *Kucoin) wsHandleData(respData []byte) error {
+func (ku *Exchange) wsHandleData(respData []byte) error {
 	resp := WsPushData{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -344,7 +344,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 }
 
 // processData used to deserialize and forward the data to DataHandler.
-func (ku *Kucoin) processData(respData []byte, resp any) error {
+func (ku *Exchange) processData(respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func (ku *Kucoin) processData(respData []byte, resp any) error {
 }
 
 // processFuturesAccountBalanceEvent used to process futures account balance change incoming data.
-func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
+func (ku *Exchange) processFuturesAccountBalanceEvent(respData []byte) error {
 	resp := WsFuturesAvailableBalance{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -379,7 +379,7 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 }
 
 // processFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
-func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
+func (ku *Exchange) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 	resp := WsStopOrderLifecycleEvent{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -419,7 +419,7 @@ func (ku *Kucoin) processFuturesStopOrderLifecycleEvent(respData []byte) error {
 }
 
 // processFuturesPrivateTradeOrders processes futures private trade orders updates.
-func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
+func (ku *Exchange) processFuturesPrivateTradeOrders(respData []byte) error {
 	resp := WsFuturesTradeOrder{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -464,7 +464,7 @@ func (ku *Kucoin) processFuturesPrivateTradeOrders(respData []byte) error {
 }
 
 // processFuturesTransactionStatistics processes a futures transaction statistics
-func (ku *Kucoin) processFuturesTransactionStatistics(respData []byte, instrument string) error {
+func (ku *Exchange) processFuturesTransactionStatistics(respData []byte, instrument string) error {
 	resp := WsFuturesTransactionStatisticsTimeEvent{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -474,7 +474,7 @@ func (ku *Kucoin) processFuturesTransactionStatistics(respData []byte, instrumen
 }
 
 // processFuturesSystemAnnouncement processes a system announcement.
-func (ku *Kucoin) processFuturesSystemAnnouncement(respData []byte, subject string) error {
+func (ku *Exchange) processFuturesSystemAnnouncement(respData []byte, subject string) error {
 	resp := WsFuturesFundingBegin{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -485,7 +485,7 @@ func (ku *Kucoin) processFuturesSystemAnnouncement(respData []byte, subject stri
 }
 
 // processFuturesFundingData processes a futures account funding data.
-func (ku *Kucoin) processFuturesFundingData(respData []byte, instrument string) error {
+func (ku *Exchange) processFuturesFundingData(respData []byte, instrument string) error {
 	resp := WsFundingRate{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -496,7 +496,7 @@ func (ku *Kucoin) processFuturesFundingData(respData []byte, instrument string) 
 }
 
 // processFuturesMarkPriceAndIndexPrice processes a futures account mark price and index price changes.
-func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrument string) error {
+func (ku *Exchange) processFuturesMarkPriceAndIndexPrice(respData []byte, instrument string) error {
 	resp := WsFuturesMarkPriceAndIndexPrice{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -507,7 +507,7 @@ func (ku *Kucoin) processFuturesMarkPriceAndIndexPrice(respData []byte, instrume
 }
 
 // ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
-func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
+func (ku *Exchange) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 	fetchedFuturesOrderbookMutex.Lock()
 	defer fetchedFuturesOrderbookMutex.Unlock()
 	if fetchedFuturesOrderbook[symbol] {
@@ -530,7 +530,7 @@ func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 }
 
 // processFuturesOrderbookSnapshot processes a futures account orderbook websocket update.
-func (ku *Kucoin) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
+func (ku *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
 	response := WsOrderbookLevel5Response{}
 	if err := json.Unmarshal(respData, &response); err != nil {
 		return err
@@ -555,7 +555,7 @@ func (ku *Kucoin) processFuturesOrderbookSnapshot(respData []byte, instrument st
 }
 
 // ProcessFuturesOrderbookLevel2 processes a V2 futures account orderbook data.
-func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
+func (ku *Exchange) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
 	resp := WsFuturesOrderbookInfo{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -583,7 +583,7 @@ func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument stri
 }
 
 // processFuturesTickerV2 processes a futures account ticker data.
-func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
+func (ku *Exchange) processFuturesTickerV2(respData []byte) error {
 	resp := WsFuturesTicker{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -612,7 +612,7 @@ func (ku *Kucoin) processFuturesTickerV2(respData []byte) error {
 }
 
 // processFuturesKline represents a futures instrument kline data update.
-func (ku *Kucoin) processFuturesKline(respData []byte, intervalStr string) error {
+func (ku *Exchange) processFuturesKline(respData []byte, intervalStr string) error {
 	resp := WsFuturesKline{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -640,7 +640,7 @@ func (ku *Kucoin) processFuturesKline(respData []byte, intervalStr string) error
 }
 
 // processStopOrderEvent represents a stop order update event.
-func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
+func (ku *Exchange) processStopOrderEvent(respData []byte) error {
 	resp := WsStopOrder{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -676,7 +676,7 @@ func (ku *Kucoin) processStopOrderEvent(respData []byte) error {
 }
 
 // processMarginLendingTradeOrderEvent represents a margin lending trade order event.
-func (ku *Kucoin) processMarginLendingTradeOrderEvent(respData []byte) error {
+func (ku *Exchange) processMarginLendingTradeOrderEvent(respData []byte) error {
 	resp := WsMarginTradeOrderEntersEvent{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -686,7 +686,7 @@ func (ku *Kucoin) processMarginLendingTradeOrderEvent(respData []byte) error {
 }
 
 // processAccountBalanceChange processes an account balance change
-func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
+func (ku *Exchange) processAccountBalanceChange(respData []byte) error {
 	response := WsAccountBalance{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -713,7 +713,7 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 }
 
 // processOrderChangeEvent processes order update events.
-func (ku *Kucoin) processOrderChangeEvent(respData []byte, topic string) error {
+func (ku *Exchange) processOrderChangeEvent(respData []byte, topic string) error {
 	response := WsTradeOrder{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -762,7 +762,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte, topic string) error {
 }
 
 // processTradeData processes a websocket trade data and instruments.
-func (ku *Kucoin) processTradeData(respData []byte, instrument, topic string) error {
+func (ku *Exchange) processTradeData(respData []byte, instrument, topic string) error {
 	response := WsTrade{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -804,7 +804,7 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument, topic string) er
 }
 
 // processTicker processes a ticker data for an instrument.
-func (ku *Kucoin) processTicker(respData []byte, instrument, topic string) error {
+func (ku *Exchange) processTicker(respData []byte, instrument, topic string) error {
 	response := WsTicker{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -839,7 +839,7 @@ func (ku *Kucoin) processTicker(respData []byte, instrument, topic string) error
 }
 
 // processCandlesticks processes a candlestick data for an instrument with a particular interval
-func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalString, topic string) error {
+func (ku *Exchange) processCandlesticks(respData []byte, instrument, intervalString, topic string) error {
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -879,7 +879,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 }
 
 // processOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
-func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument, topic string) error {
+func (ku *Exchange) processOrderbookWithDepth(respData []byte, instrument, topic string) error {
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -910,7 +910,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument, topic s
 
 // updateLocalBuffer updates orderbook buffer and checks status if the book is Initial Sync being via the REST
 // protocol.
-func (ku *Kucoin) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bool, error) {
+func (ku *Exchange) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bool, error) {
 	enabledPairs, err := ku.GetEnabledPairs(assetType)
 	if err != nil {
 		return false, err
@@ -945,7 +945,7 @@ func (ku *Kucoin) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bo
 }
 
 // processOrderbook processes orderbook data for a specific symbol.
-func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error {
+func (ku *Exchange) processOrderbook(respData []byte, symbol, topic string) error {
 	var response Level2Depth5Or20
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -995,7 +995,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 }
 
 // processMarketSnapshot processes a price ticker information for a symbol.
-func (ku *Kucoin) processMarketSnapshot(respData []byte, topic string) error {
+func (ku *Exchange) processMarketSnapshot(respData []byte, topic string) error {
 	response := WsSnapshot{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -1031,16 +1031,16 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte, topic string) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (ku *Kucoin) Subscribe(subscriptions subscription.List) error {
+func (ku *Exchange) Subscribe(subscriptions subscription.List) error {
 	return ku.manageSubscriptions(subscriptions, "subscribe")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (ku *Kucoin) Unsubscribe(subscriptions subscription.List) error {
+func (ku *Exchange) Unsubscribe(subscriptions subscription.List) error {
 	return ku.manageSubscriptions(subscriptions, "unsubscribe")
 }
 
-func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) error {
+func (ku *Exchange) manageSubscriptions(subs subscription.List, operation string) error {
 	var errs error
 	for _, s := range subs {
 		msgID := strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10)
@@ -1086,12 +1086,12 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
+func (ku *Exchange) generateSubscriptions() (subscription.List, error) {
 	return ku.Features.Subscriptions.ExpandTemplates(ku)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (ku *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
 			"channelName":           channelName,
@@ -1131,7 +1131,7 @@ type job struct {
 }
 
 // setupOrderbookManager sets up the orderbook manager for websocket orderbook data handling.
-func (ku *Kucoin) setupOrderbookManager() {
+func (ku *Exchange) setupOrderbookManager() {
 	locker.Lock()
 	defer locker.Unlock()
 	if ku.obm == nil {
@@ -1160,7 +1160,7 @@ func (ku *Kucoin) setupOrderbookManager() {
 }
 
 // processUpdate processes the websocket orderbook update
-func (ku *Kucoin) processUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
+func (ku *Exchange) processUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
 	updateBid := make([]orderbook.Tranche, len(ws.Changes.Bids))
 	for i := range ws.Changes.Bids {
 		var sequence int64
@@ -1190,7 +1190,7 @@ func (ku *Kucoin) processUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (ku *Kucoin) applyBufferUpdate(pair currency.Pair, assetType asset.Item) error {
+func (ku *Exchange) applyBufferUpdate(pair currency.Pair, assetType asset.Item) error {
 	fetching, needsFetching, err := ku.obm.HandleFetchingBook(pair, assetType)
 	if err != nil {
 		return err
@@ -1248,7 +1248,7 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair, assetType as
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (ku *Kucoin) SynchroniseWebsocketOrderbook() {
+func (ku *Exchange) SynchroniseWebsocketOrderbook() {
 	ku.Websocket.Wg.Add(1)
 	go func() {
 		defer ku.Websocket.Wg.Done()
@@ -1275,7 +1275,7 @@ func (ku *Kucoin) SynchroniseWebsocketOrderbook() {
 }
 
 // SeedLocalCache seeds depth data
-func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair, assetType asset.Item) error {
+func (ku *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair, assetType asset.Item) error {
 	var ob *Orderbook
 	var err error
 	ob, err = ku.GetPartOrderbook100(ctx, p.String())
@@ -1289,7 +1289,7 @@ func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair, assetType
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
+func (ku *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
 	newOrderBook := orderbook.Base{
 		Pair:            p,
 		Asset:           assetType,
@@ -1316,7 +1316,7 @@ func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderboo
 }
 
 // processJob fetches and processes orderbook updates
-func (ku *Kucoin) processJob(p currency.Pair, assetType asset.Item) error {
+func (ku *Exchange) processJob(p currency.Pair, assetType asset.Item) error {
 	err := ku.SeedLocalCache(context.TODO(), p, assetType)
 	if err != nil {
 		err = ku.obm.StopFetchingBook(p, assetType)
@@ -1343,7 +1343,7 @@ func (ku *Kucoin) processJob(p currency.Pair, assetType asset.Item) error {
 }
 
 // FlushAndCleanup flushes orderbook and clean local cache
-func (ku *Kucoin) FlushAndCleanup(p currency.Pair, assetType asset.Item) {
+func (ku *Exchange) FlushAndCleanup(p currency.Pair, assetType asset.Item) {
 	errClean := ku.Websocket.Orderbook.FlushOrderbook(p, assetType)
 	if errClean != nil {
 		log.Errorf(log.WebsocketMgr,
@@ -1613,7 +1613,7 @@ func (o *orderbookManager) StopNeedsFetchingBook(pair currency.Pair, assetType a
 }
 
 // CalculateAssets returns the available asset types for a currency pair
-func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
+func (ku *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
 		if err := ku.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
@@ -1653,7 +1653,7 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 
 // checkSubscriptions looks for any backwards incompatibilities with missing assets
 // This should be unnecessary and removable by 2025
-func (ku *Kucoin) checkSubscriptions() {
+func (ku *Exchange) checkSubscriptions() {
 	upgraded := false
 	for _, s := range ku.Config.Features.Subscriptions {
 		if s.Asset != asset.Empty {
@@ -1709,7 +1709,7 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 
 // mergeMarginPairs merges margin pairs into spot pairs for shared subs (ticker, orderbook, etc) if Spot asset and sub are enabled,
 // because Kucoin errors on duplicate pairs in separate subs, and doesn't have separate subs for spot and margin
-func (ku *Kucoin) mergeMarginPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
+func (ku *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
 	if strings.HasPrefix(s.Channel, "/margin") {
 		return ""
 	}

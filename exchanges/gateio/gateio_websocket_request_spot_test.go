@@ -194,12 +194,12 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 
 // getWebsocketInstance returns a websocket instance copy for testing.
 // This restricts the pairs to a single pair per asset type to reduce test time.
-func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Gateio {
+func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	t.Helper()
 	if apiKey == "" || apiSecret == "" {
 		t.Skip()
 	}
-	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, g)
 	g.API.AuthenticatedSupport = true

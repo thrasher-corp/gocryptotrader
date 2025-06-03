@@ -27,7 +27,7 @@ const (
 	canManipulateRealOrders = false
 )
 
-var e = &EXMO{}
+var e = &Exchange{}
 
 func TestMain(m *testing.M) {
 	e.SetDefaults()

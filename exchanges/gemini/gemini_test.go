@@ -34,7 +34,7 @@ const (
 
 const testCurrency = "btcusd"
 
-var g = &Gemini{}
+var g = &Exchange{}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -1303,7 +1303,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	g := new(Gemini)
+	g := new(Exchange)
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
 	require.NoError(t, g.CurrencyPairs.StorePairs(asset.Spot, p, false))

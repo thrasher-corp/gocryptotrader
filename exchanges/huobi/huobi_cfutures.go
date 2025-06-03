@@ -70,7 +70,7 @@ const (
 )
 
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
-func (h *HUOBI) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair) (SwapIndexPriceData, error) {
+func (h *Exchange) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair) (SwapIndexPriceData, error) {
 	var resp SwapIndexPriceData
 	path := huobiSwapIndexPriceInfo
 	if !code.IsEmpty() {
@@ -86,7 +86,7 @@ func (h *HUOBI) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair)
 }
 
 // GetSwapPriceLimits gets price caps for perpetual futures
-func (h *HUOBI) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (SwapPriceLimitsData, error) {
+func (h *Exchange) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (SwapPriceLimitsData, error) {
 	var resp SwapPriceLimitsData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -99,7 +99,7 @@ func (h *HUOBI) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (Swa
 }
 
 // SwapOpenInterestInformation gets open interest data for perpetual futures
-func (h *HUOBI) SwapOpenInterestInformation(ctx context.Context, code currency.Pair) (SwapOpenInterestData, error) {
+func (h *Exchange) SwapOpenInterestInformation(ctx context.Context, code currency.Pair) (SwapOpenInterestData, error) {
 	var resp SwapOpenInterestData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -114,7 +114,7 @@ func (h *HUOBI) SwapOpenInterestInformation(ctx context.Context, code currency.P
 }
 
 // GetSwapMarketDepth gets market depth for perpetual futures
-func (h *HUOBI) GetSwapMarketDepth(ctx context.Context, code currency.Pair, dataType string) (SwapMarketDepthData, error) {
+func (h *Exchange) GetSwapMarketDepth(ctx context.Context, code currency.Pair, dataType string) (SwapMarketDepthData, error) {
 	var resp SwapMarketDepthData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -128,7 +128,7 @@ func (h *HUOBI) GetSwapMarketDepth(ctx context.Context, code currency.Pair, data
 }
 
 // GetSwapKlineData gets kline data for perpetual futures
-func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period string, size int64, startTime, endTime time.Time) (SwapKlineData, error) {
+func (h *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, period string, size int64, startTime, endTime time.Time) (SwapKlineData, error) {
 	var resp SwapKlineData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -155,7 +155,7 @@ func (h *HUOBI) GetSwapKlineData(ctx context.Context, code currency.Pair, period
 }
 
 // GetSwapMarketOverview gets market data overview for perpetual futures
-func (h *HUOBI) GetSwapMarketOverview(ctx context.Context, code currency.Pair) (MarketOverviewData, error) {
+func (h *Exchange) GetSwapMarketOverview(ctx context.Context, code currency.Pair) (MarketOverviewData, error) {
 	var resp MarketOverviewData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -168,7 +168,7 @@ func (h *HUOBI) GetSwapMarketOverview(ctx context.Context, code currency.Pair) (
 }
 
 // GetLastTrade gets the last trade for a given perpetual contract
-func (h *HUOBI) GetLastTrade(ctx context.Context, code currency.Pair) (LastTradeData, error) {
+func (h *Exchange) GetLastTrade(ctx context.Context, code currency.Pair) (LastTradeData, error) {
 	var resp LastTradeData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -181,7 +181,7 @@ func (h *HUOBI) GetLastTrade(ctx context.Context, code currency.Pair) (LastTrade
 }
 
 // GetBatchTrades gets batch trades for a specified contract (fetching size cannot be bigger than 2000)
-func (h *HUOBI) GetBatchTrades(ctx context.Context, code currency.Pair, size int64) (BatchTradesData, error) {
+func (h *Exchange) GetBatchTrades(ctx context.Context, code currency.Pair, size int64) (BatchTradesData, error) {
 	var resp BatchTradesData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -195,7 +195,7 @@ func (h *HUOBI) GetBatchTrades(ctx context.Context, code currency.Pair, size int
 }
 
 // GetTieredAjustmentFactorInfo gets tiered adjustment factor data
-func (h *HUOBI) GetTieredAjustmentFactorInfo(ctx context.Context, code currency.Pair) (TieredAdjustmentFactorData, error) {
+func (h *Exchange) GetTieredAjustmentFactorInfo(ctx context.Context, code currency.Pair) (TieredAdjustmentFactorData, error) {
 	var resp TieredAdjustmentFactorData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -208,7 +208,7 @@ func (h *HUOBI) GetTieredAjustmentFactorInfo(ctx context.Context, code currency.
 }
 
 // GetOpenInterestInfo gets open interest data
-func (h *HUOBI) GetOpenInterestInfo(ctx context.Context, code currency.Pair, period, amountType string, size int64) (OpenInterestData, error) {
+func (h *Exchange) GetOpenInterestInfo(ctx context.Context, code currency.Pair, period, amountType string, size int64) (OpenInterestData, error) {
 	var resp OpenInterestData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -234,7 +234,7 @@ func (h *HUOBI) GetOpenInterestInfo(ctx context.Context, code currency.Pair, per
 }
 
 // GetSystemStatusInfo gets system status data
-func (h *HUOBI) GetSystemStatusInfo(ctx context.Context, code currency.Pair) (SystemStatusData, error) {
+func (h *Exchange) GetSystemStatusInfo(ctx context.Context, code currency.Pair) (SystemStatusData, error) {
 	var resp SystemStatusData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -247,7 +247,7 @@ func (h *HUOBI) GetSystemStatusInfo(ctx context.Context, code currency.Pair) (Sy
 }
 
 // GetTraderSentimentIndexAccount gets top trader sentiment function-account
-func (h *HUOBI) GetTraderSentimentIndexAccount(ctx context.Context, code currency.Pair, period string) (TraderSentimentIndexAccountData, error) {
+func (h *Exchange) GetTraderSentimentIndexAccount(ctx context.Context, code currency.Pair, period string) (TraderSentimentIndexAccountData, error) {
 	var resp TraderSentimentIndexAccountData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -264,7 +264,7 @@ func (h *HUOBI) GetTraderSentimentIndexAccount(ctx context.Context, code currenc
 }
 
 // GetTraderSentimentIndexPosition gets top trader sentiment function-position
-func (h *HUOBI) GetTraderSentimentIndexPosition(ctx context.Context, code currency.Pair, period string) (TraderSentimentIndexPositionData, error) {
+func (h *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code currency.Pair, period string) (TraderSentimentIndexPositionData, error) {
 	var resp TraderSentimentIndexPositionData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -282,7 +282,7 @@ func (h *HUOBI) GetTraderSentimentIndexPosition(ctx context.Context, code curren
 }
 
 // GetLiquidationOrders gets liquidation orders for a given perp
-func (h *HUOBI) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime int64, direction string, fromID int64) (LiquidationOrdersData, error) {
+func (h *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime int64, direction string, fromID int64) (LiquidationOrdersData, error) {
 	var resp LiquidationOrdersData
 	formattedContract, err := h.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
@@ -313,7 +313,7 @@ func (h *HUOBI) GetLiquidationOrders(ctx context.Context, contract currency.Pair
 }
 
 // GetHistoricalFundingRatesForPair gets historical funding rates for perpetual futures
-func (h *HUOBI) GetHistoricalFundingRatesForPair(ctx context.Context, code currency.Pair, pageSize, pageIndex int64) (HistoricalFundingRateData, error) {
+func (h *Exchange) GetHistoricalFundingRatesForPair(ctx context.Context, code currency.Pair, pageSize, pageIndex int64) (HistoricalFundingRateData, error) {
 	var resp HistoricalFundingRateData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -332,7 +332,7 @@ func (h *HUOBI) GetHistoricalFundingRatesForPair(ctx context.Context, code curre
 }
 
 // GetPremiumIndexKlineData gets kline data for premium index
-func (h *HUOBI) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair, period string, size int64) (PremiumIndexKlineData, error) {
+func (h *Exchange) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair, period string, size int64) (PremiumIndexKlineData, error) {
 	var resp PremiumIndexKlineData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -353,7 +353,7 @@ func (h *HUOBI) GetPremiumIndexKlineData(ctx context.Context, code currency.Pair
 }
 
 // GetEstimatedFundingRates gets estimated funding rates for perpetual futures
-func (h *HUOBI) GetEstimatedFundingRates(ctx context.Context, code currency.Pair, period string, size int64) (EstimatedFundingRateData, error) {
+func (h *Exchange) GetEstimatedFundingRates(ctx context.Context, code currency.Pair, period string, size int64) (EstimatedFundingRateData, error) {
 	var resp EstimatedFundingRateData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -374,7 +374,7 @@ func (h *HUOBI) GetEstimatedFundingRates(ctx context.Context, code currency.Pair
 }
 
 // GetBasisData gets basis data for perpetual futures
-func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, basisPriceType string, size int64) (BasisData, error) {
+func (h *Exchange) GetBasisData(ctx context.Context, code currency.Pair, period, basisPriceType string, size int64) (BasisData, error) {
 	var resp BasisData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
@@ -398,7 +398,7 @@ func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, ba
 }
 
 // GetSwapAccountInfo gets swap account info
-func (h *HUOBI) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (SwapAccountInformation, error) {
+func (h *Exchange) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (SwapAccountInformation, error) {
 	var resp SwapAccountInformation
 	req := make(map[string]any)
 	if !code.IsEmpty() {
@@ -412,7 +412,7 @@ func (h *HUOBI) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (Swa
 }
 
 // GetSwapPositionsInfo gets swap positions' info
-func (h *HUOBI) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (SwapPositionInfo, error) {
+func (h *Exchange) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (SwapPositionInfo, error) {
 	var resp SwapPositionInfo
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -424,7 +424,7 @@ func (h *HUOBI) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (S
 }
 
 // GetSwapAssetsAndPositions gets swap positions and asset info
-func (h *HUOBI) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pair) (SwapAssetsAndPositionsData, error) {
+func (h *Exchange) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pair) (SwapAssetsAndPositionsData, error) {
 	var resp SwapAssetsAndPositionsData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -436,7 +436,7 @@ func (h *HUOBI) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pai
 }
 
 // GetSwapAllSubAccAssets gets asset info for all subaccounts
-func (h *HUOBI) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) (SubAccountsAssetData, error) {
+func (h *Exchange) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) (SubAccountsAssetData, error) {
 	var resp SubAccountsAssetData
 	req := make(map[string]any)
 	if !code.IsEmpty() {
@@ -450,7 +450,7 @@ func (h *HUOBI) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) 
 }
 
 // SwapSingleSubAccAssets gets a subaccount's assets info
-func (h *HUOBI) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, subUID int64) (SingleSubAccountAssetsInfo, error) {
+func (h *Exchange) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, subUID int64) (SingleSubAccountAssetsInfo, error) {
 	var resp SingleSubAccountAssetsInfo
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -463,7 +463,7 @@ func (h *HUOBI) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, 
 }
 
 // GetSubAccPositionInfo gets a subaccount's positions info
-func (h *HUOBI) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, subUID int64) (SingleSubAccountPositionsInfo, error) {
+func (h *Exchange) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, subUID int64) (SingleSubAccountPositionsInfo, error) {
 	var resp SingleSubAccountPositionsInfo
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -476,7 +476,7 @@ func (h *HUOBI) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, s
 }
 
 // GetAccountFinancialRecords gets the account's financial records
-func (h *HUOBI) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, pageSize int64) (FinancialRecordData, error) {
+func (h *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, pageSize int64) (FinancialRecordData, error) {
 	var resp FinancialRecordData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -500,7 +500,7 @@ func (h *HUOBI) GetAccountFinancialRecords(ctx context.Context, code currency.Pa
 }
 
 // GetSwapSettlementRecords gets the swap account's settlement records
-func (h *HUOBI) GetSwapSettlementRecords(ctx context.Context, code currency.Pair, startTime, endTime time.Time, pageIndex, pageSize int64) (FinancialRecordData, error) {
+func (h *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.Pair, startTime, endTime time.Time, pageIndex, pageSize int64) (FinancialRecordData, error) {
 	var resp FinancialRecordData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -525,7 +525,7 @@ func (h *HUOBI) GetSwapSettlementRecords(ctx context.Context, code currency.Pair
 }
 
 // GetAvailableLeverage gets user's available leverage data
-func (h *HUOBI) GetAvailableLeverage(ctx context.Context, code currency.Pair) (AvailableLeverageData, error) {
+func (h *Exchange) GetAvailableLeverage(ctx context.Context, code currency.Pair) (AvailableLeverageData, error) {
 	var resp AvailableLeverageData
 	req := make(map[string]any)
 	if !code.IsEmpty() {
@@ -539,7 +539,7 @@ func (h *HUOBI) GetAvailableLeverage(ctx context.Context, code currency.Pair) (A
 }
 
 // GetSwapOrderLimitInfo gets order limit info for swaps
-func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, orderType string) (SwapOrderLimitInfo, error) {
+func (h *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, orderType string) (SwapOrderLimitInfo, error) {
 	var resp SwapOrderLimitInfo
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -555,7 +555,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 }
 
 // GetSwapTradingFeeInfo gets trading fee info for swaps
-func (h *HUOBI) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (SwapTradingFeeData, error) {
+func (h *Exchange) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (SwapTradingFeeData, error) {
 	var resp SwapTradingFeeData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -567,7 +567,7 @@ func (h *HUOBI) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (
 }
 
 // GetSwapTransferLimitInfo gets transfer limit info for swaps
-func (h *HUOBI) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair) (TransferLimitData, error) {
+func (h *Exchange) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair) (TransferLimitData, error) {
 	var resp TransferLimitData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -579,7 +579,7 @@ func (h *HUOBI) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair
 }
 
 // GetSwapPositionLimitInfo gets transfer limit info for swaps
-func (h *HUOBI) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair) (PositionLimitData, error) {
+func (h *Exchange) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair) (PositionLimitData, error) {
 	var resp PositionLimitData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -591,7 +591,7 @@ func (h *HUOBI) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair
 }
 
 // AccountTransferData gets asset transfer data between master and subaccounts
-func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, subUID, transferType string, amount float64) (InternalAccountTransferData, error) {
+func (h *Exchange) AccountTransferData(ctx context.Context, code currency.Pair, subUID, transferType string, amount float64) (InternalAccountTransferData, error) {
 	var resp InternalAccountTransferData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -609,7 +609,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 }
 
 // AccountTransferRecords gets asset transfer records between master and subaccounts
-func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, transferType string, createDate, pageIndex, pageSize int64) (InternalAccountTransferData, error) {
+func (h *Exchange) AccountTransferRecords(ctx context.Context, code currency.Pair, transferType string, createDate, pageIndex, pageSize int64) (InternalAccountTransferData, error) {
 	var resp InternalAccountTransferData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -635,7 +635,7 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 }
 
 // PlaceSwapOrders places orders for swaps
-func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientOrderID, direction, offset, orderPriceType string, price, volume, leverage float64) (SwapOrderData, error) {
+func (h *Exchange) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientOrderID, direction, offset, orderPriceType string, price, volume, leverage float64) (SwapOrderData, error) {
 	var resp SwapOrderData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
@@ -659,7 +659,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 }
 
 // PlaceSwapBatchOrders places a batch of orders for swaps
-func (h *HUOBI) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequestType) (BatchOrderData, error) {
+func (h *Exchange) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequestType) (BatchOrderData, error) {
 	var resp BatchOrderData
 	req := make(map[string]any)
 	if len(data.Data) > 10 || len(data.Data) == 0 {
@@ -684,7 +684,7 @@ func (h *HUOBI) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequest
 }
 
 // CancelSwapOrder sends a request to cancel an order
-func (h *HUOBI) CancelSwapOrder(ctx context.Context, orderID, clientOrderID string, contractCode currency.Pair) (CancelOrdersData, error) {
+func (h *Exchange) CancelSwapOrder(ctx context.Context, orderID, clientOrderID string, contractCode currency.Pair) (CancelOrdersData, error) {
 	var resp CancelOrdersData
 	req := make(map[string]any)
 	if orderID != "" {
@@ -698,7 +698,7 @@ func (h *HUOBI) CancelSwapOrder(ctx context.Context, orderID, clientOrderID stri
 }
 
 // CancelAllSwapOrders sends a request to cancel an order
-func (h *HUOBI) CancelAllSwapOrders(ctx context.Context, contractCode currency.Pair) (CancelOrdersData, error) {
+func (h *Exchange) CancelAllSwapOrders(ctx context.Context, contractCode currency.Pair) (CancelOrdersData, error) {
 	var resp CancelOrdersData
 	req := make(map[string]any)
 	req["contract_code"] = contractCode
@@ -706,7 +706,7 @@ func (h *HUOBI) CancelAllSwapOrders(ctx context.Context, contractCode currency.P
 }
 
 // PlaceLightningCloseOrder places a lightning close order
-func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode currency.Pair, direction, orderPriceType string, volume float64, clientOrderID int64) (LightningCloseOrderData, error) {
+func (h *Exchange) PlaceLightningCloseOrder(ctx context.Context, contractCode currency.Pair, direction, orderPriceType string, volume float64, clientOrderID int64) (LightningCloseOrderData, error) {
 	var resp LightningCloseOrderData
 	req := make(map[string]any)
 	req["contract_code"] = contractCode
@@ -725,7 +725,7 @@ func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode curre
 }
 
 // GetSwapOrderDetails gets order info
-func (h *HUOBI) GetSwapOrderDetails(ctx context.Context, contractCode currency.Pair, orderID, createdAt, orderType string, pageIndex, pageSize int64) (SwapOrderData, error) {
+func (h *Exchange) GetSwapOrderDetails(ctx context.Context, contractCode currency.Pair, orderID, createdAt, orderType string, pageIndex, pageSize int64) (SwapOrderData, error) {
 	var resp SwapOrderData
 	req := make(map[string]any)
 	req["contract_code"] = contractCode
@@ -746,7 +746,7 @@ func (h *HUOBI) GetSwapOrderDetails(ctx context.Context, contractCode currency.P
 }
 
 // GetSwapOrderInfo gets info on a swap order
-func (h *HUOBI) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair, orderID, clientOrderID string) (SwapOrderInfo, error) {
+func (h *Exchange) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair, orderID, clientOrderID string) (SwapOrderInfo, error) {
 	var resp SwapOrderInfo
 	req := make(map[string]any)
 	if !contractCode.IsEmpty() {
@@ -766,7 +766,7 @@ func (h *HUOBI) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair
 }
 
 // GetSwapOpenOrders gets open orders for swap
-func (h *HUOBI) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pair, pageIndex, pageSize int64) (SwapOpenOrdersData, error) {
+func (h *Exchange) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pair, pageIndex, pageSize int64) (SwapOpenOrdersData, error) {
 	var resp SwapOpenOrdersData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -784,7 +784,7 @@ func (h *HUOBI) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pai
 }
 
 // GetSwapOrderHistory gets swap order history
-func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
+func (h *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
 	var resp SwapOrderHistory
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -833,7 +833,7 @@ func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.P
 }
 
 // GetSwapTradeHistory gets swap trade history
-func (h *HUOBI) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
+func (h *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -860,7 +860,7 @@ func (h *HUOBI) GetSwapTradeHistory(ctx context.Context, contractCode currency.P
 }
 
 // PlaceSwapTriggerOrder places a trigger order for a swap
-func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, triggerType, direction, offset, orderPriceType string, triggerPrice, orderPrice, volume, leverageRate float64) (AccountTradeHistoryData, error) {
+func (h *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, triggerType, direction, offset, orderPriceType string, triggerPrice, orderPrice, volume, leverageRate float64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -887,7 +887,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency
 }
 
 // CancelSwapTriggerOrder cancels swap trigger order
-func (h *HUOBI) CancelSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, orderID string) (CancelTriggerOrdersData, error) {
+func (h *Exchange) CancelSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, orderID string) (CancelTriggerOrdersData, error) {
 	var resp CancelTriggerOrdersData
 	req := make(map[string]any)
 	req["contract_code"] = contractCode
@@ -896,7 +896,7 @@ func (h *HUOBI) CancelSwapTriggerOrder(ctx context.Context, contractCode currenc
 }
 
 // CancelAllSwapTriggerOrders cancels all swap trigger orders
-func (h *HUOBI) CancelAllSwapTriggerOrders(ctx context.Context, contractCode currency.Pair) (CancelTriggerOrdersData, error) {
+func (h *Exchange) CancelAllSwapTriggerOrders(ctx context.Context, contractCode currency.Pair) (CancelTriggerOrdersData, error) {
 	var resp CancelTriggerOrdersData
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -908,7 +908,7 @@ func (h *HUOBI) CancelAllSwapTriggerOrders(ctx context.Context, contractCode cur
 }
 
 // GetSwapTriggerOrderHistory gets history for swap trigger orders
-func (h *HUOBI) GetSwapTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, status, tradeType string, createDate, pageIndex, pageSize int64) (TriggerOrderHistory, error) {
+func (h *Exchange) GetSwapTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, status, tradeType string, createDate, pageIndex, pageSize int64) (TriggerOrderHistory, error) {
 	var resp TriggerOrderHistory
 	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
@@ -936,7 +936,7 @@ func (h *HUOBI) GetSwapTriggerOrderHistory(ctx context.Context, contractCode cur
 }
 
 // GetSwapMarkets gets data of swap markets
-func (h *HUOBI) GetSwapMarkets(ctx context.Context, contract currency.Pair) ([]SwapMarketsData, error) {
+func (h *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) ([]SwapMarketsData, error) {
 	vals := url.Values{}
 	if !contract.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contract, asset.CoinMarginedFutures)
@@ -958,7 +958,7 @@ func (h *HUOBI) GetSwapMarkets(ctx context.Context, contract currency.Pair) ([]S
 }
 
 // GetSwapFundingRate gets funding rate data for one currency
-func (h *HUOBI) GetSwapFundingRate(ctx context.Context, contract currency.Pair) (FundingRatesData, error) {
+func (h *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pair) (FundingRatesData, error) {
 	vals := url.Values{}
 	codeValue, err := h.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
@@ -978,7 +978,7 @@ func (h *HUOBI) GetSwapFundingRate(ctx context.Context, contract currency.Pair) 
 }
 
 // GetSwapFundingRates gets funding rates data
-func (h *HUOBI) GetSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
+func (h *Exchange) GetSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
 	var result SwapFundingRatesResponse
 	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapBatchFunding, &result)
 	return result, err

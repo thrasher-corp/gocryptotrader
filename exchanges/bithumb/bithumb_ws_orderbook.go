@@ -24,7 +24,7 @@ const (
 	maxWSOrderbookWorkers = 10
 )
 
-func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
+func (b *Exchange) processBooks(updates *WsOrderbooks) error {
 	bids := make([]orderbook.Tranche, 0, len(updates.List))
 	asks := make([]orderbook.Tranche, 0, len(updates.List))
 	for x := range updates.List {
@@ -45,7 +45,7 @@ func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (b *Bithumb) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
+func (b *Exchange) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 	if len(wsdp.List) < 1 {
 		return false, errors.New("insufficient data to process")
 	}
@@ -67,7 +67,7 @@ func (b *Bithumb) UpdateLocalBuffer(wsdp *WsOrderbooks) (bool, error) {
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
+func (b *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	fetching, needsFetching, err := b.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Bithumb) SynchroniseWebsocketOrderbook() {
+func (b *Exchange) SynchroniseWebsocketOrderbook() {
 	b.Websocket.Wg.Add(1)
 	go func() {
 		defer b.Websocket.Wg.Done()
@@ -139,7 +139,7 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 }
 
 // processJob fetches and processes orderbook updates
-func (b *Bithumb) processJob(p currency.Pair) error {
+func (b *Exchange) processJob(p currency.Pair) error {
 	err := b.SeedLocalCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
@@ -162,7 +162,7 @@ func (b *Bithumb) processJob(p currency.Pair) error {
 }
 
 // flushAndCleanup flushes orderbook and clean local cache
-func (b *Bithumb) flushAndCleanup(p currency.Pair) {
+func (b *Exchange) flushAndCleanup(p currency.Pair) {
 	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
 	if errClean != nil {
 		log.Errorf(log.WebsocketMgr,
@@ -178,7 +178,7 @@ func (b *Bithumb) flushAndCleanup(p currency.Pair) {
 	}
 }
 
-func (b *Bithumb) setupOrderbookManager() {
+func (b *Exchange) setupOrderbookManager() {
 	if b.obm.state == nil {
 		b.obm.state = make(map[currency.Code]map[currency.Code]map[asset.Item]*update)
 		b.obm.jobs = make(chan job, maxWSOrderbookJobs)
@@ -415,7 +415,7 @@ bufferEmpty:
 }
 
 // SeedLocalCache seeds depth data
-func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+func (b *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	ob, err := b.GetOrderBook(ctx, p.String())
 	if err != nil {
 		return err
@@ -424,7 +424,7 @@ func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
+func (b *Exchange) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Bids = make(orderbook.Tranches, len(o.Data.Bids))
 	for i := range o.Data.Bids {

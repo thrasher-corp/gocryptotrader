@@ -101,7 +101,7 @@ func TestLoadCache(t *testing.T) {
 func TestSyncOrderbook(t *testing.T) {
 	t.Parallel()
 
-	g := new(Gateio)
+	g := new(Exchange)
 	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 
@@ -139,7 +139,7 @@ func TestSyncOrderbook(t *testing.T) {
 func TestApplyPendingUpdates(t *testing.T) {
 	t.Parallel()
 
-	g := new(Gateio)
+	g := new(Exchange)
 	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 
@@ -179,7 +179,7 @@ func TestApplyPendingUpdates(t *testing.T) {
 func TestApplyOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
-	g := new(Gateio)
+	g := new(Exchange)
 	require.NoError(t, testexch.Setup(g), "Setup must not error")
 	require.NoError(t, g.UpdateTradablePairs(t.Context(), false))
 

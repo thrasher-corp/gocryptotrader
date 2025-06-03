@@ -23,8 +23,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// Binanceus is the overarching type across this package
-type Binanceus struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 	obm *orderbookManager
 }
@@ -148,14 +148,14 @@ var (
 // General Data Endpoints
 
 // GetServerTime this endpoint returns the exchange server time.
-func (bi *Binanceus) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (bi *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	var response ServerTime
 	err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, serverTime, spotDefaultRate, &response)
 	return response.Timestamp.Time(), err
 }
 
 // GetSystemStatus endpoint to fetch whether the system status is normal or under maintenance.
-func (bi *Binanceus) GetSystemStatus(ctx context.Context) (int, error) {
+func (bi *Exchange) GetSystemStatus(ctx context.Context) (int, error) {
 	resp := struct {
 		Status int `json:"status"`
 	}{}
@@ -166,7 +166,7 @@ func (bi *Binanceus) GetSystemStatus(ctx context.Context) (int, error) {
 }
 
 // GetExchangeInfo to get the current exchange trading rules and trading pair information.
-func (bi *Binanceus) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
+func (bi *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 	var respo ExchangeInfo
 	return respo, bi.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -174,7 +174,7 @@ func (bi *Binanceus) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) 
 }
 
 // GetMostRecentTrades to get older trades. maximum limit in the RecentTradeRequestParams is 1,000 trades.
-func (bi *Binanceus) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
+func (bi *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	params := url.Values{}
 	symbol, err := bi.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
@@ -190,7 +190,7 @@ func (bi *Binanceus) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReq
 // GetHistoricalTrades returns historical trade activity
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
-func (bi *Binanceus) GetHistoricalTrades(ctx context.Context, hist HistoricalTradeParams) ([]HistoricalTrade, error) {
+func (bi *Exchange) GetHistoricalTrades(ctx context.Context, hist HistoricalTradeParams) ([]HistoricalTrade, error) {
 	var resp []HistoricalTrade
 	params := url.Values{}
 	params.Set("symbol", hist.Symbol)
@@ -203,7 +203,7 @@ func (bi *Binanceus) GetHistoricalTrades(ctx context.Context, hist HistoricalTra
 }
 
 // GetAggregateTrades to get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
-func (bi *Binanceus) GetAggregateTrades(ctx context.Context, agg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
+func (bi *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
 	symbol, err := bi.FormatSymbol(agg.Symbol, asset.Spot)
 	if err != nil {
@@ -254,7 +254,7 @@ func (bi *Binanceus) GetAggregateTrades(ctx context.Context, agg *AggregatedTrad
 // batchAggregateTrades fetches trades in multiple requests   <-- copied and amended from the  binance
 // first phase, hourly requests until the first trade (or end time) is reached
 // second phase, limit requests from previous trade until end time (or limit) is reached
-func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
+func (bi *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
 	if arg.Limit == 0 || arg.Limit > 1000 {
@@ -327,7 +327,7 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 }
 
 // GetOrderBookDepth to get the order book depth. Please note the limits in the table below.
-func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
+func (bi *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
 	params := url.Values{}
 	symbol, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
@@ -379,7 +379,7 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 }
 
 // GetIntervalEnum allowed interval params by Binanceus
-func (bi *Binanceus) GetIntervalEnum(interval kline.Interval) string {
+func (bi *Exchange) GetIntervalEnum(interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
 		return "1m"
@@ -417,7 +417,7 @@ func (bi *Binanceus) GetIntervalEnum(interval kline.Interval) string {
 }
 
 // GetSpotKline to get Kline/candlestick bars for a token symbol. Klines are uniquely identified by their open time.
-func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
+func (bi *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
 	symbol, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -502,7 +502,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 }
 
 // GetSinglePriceData to get the latest price for a token symbol or symbols.
-func (bi *Binanceus) GetSinglePriceData(ctx context.Context, symbol currency.Pair) (SymbolPrice, error) {
+func (bi *Exchange) GetSinglePriceData(ctx context.Context, symbol currency.Pair) (SymbolPrice, error) {
 	var res SymbolPrice
 	params := url.Values{}
 	symbolValue, err := bi.FormatSymbol(symbol, asset.Spot)
@@ -515,7 +515,7 @@ func (bi *Binanceus) GetSinglePriceData(ctx context.Context, symbol currency.Pai
 }
 
 // GetPriceDatas to get the latest price for symbols.
-func (bi *Binanceus) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
+func (bi *Exchange) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
 	var res SymbolPrices
 	return res, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tickerPrice, spotSymbolPriceAllRate, &res)
 }
@@ -523,7 +523,7 @@ func (bi *Binanceus) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
 // GetAveragePrice returns current average price for a symbol.
 //
 // symbol: string of currency pair
-func (bi *Binanceus) GetAveragePrice(ctx context.Context, symbol currency.Pair) (AveragePrice, error) {
+func (bi *Exchange) GetAveragePrice(ctx context.Context, symbol currency.Pair) (AveragePrice, error) {
 	resp := AveragePrice{}
 	params := url.Values{}
 	symbolValue, err := bi.FormatSymbol(symbol, asset.Spot)
@@ -540,7 +540,7 @@ func (bi *Binanceus) GetAveragePrice(ctx context.Context, symbol currency.Pair) 
 
 // GetBestPrice returns the latest best price for symbol
 // symbol: string of currency pair
-func (bi *Binanceus) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestPrice, error) {
+func (bi *Exchange) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
 	rateLimit := spotOrderbookTickerAllRate
@@ -560,7 +560,7 @@ func (bi *Binanceus) GetBestPrice(ctx context.Context, symbol currency.Pair) (Be
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
 // symbol: string of currency pair
-func (bi *Binanceus) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (PriceChangeStats, error) {
+func (bi *Exchange) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
 	rateLimit := spotPriceChangeAllRate
@@ -579,14 +579,14 @@ func (bi *Binanceus) GetPriceChangeStats(ctx context.Context, symbol currency.Pa
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
-func (bi *Binanceus) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
+func (bi *Exchange) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
 	return resp, bi.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, priceChange, spotPriceChangeAllRate, &resp)
 }
 
 // GetAccount returns binance user accounts
-func (bi *Binanceus) GetAccount(ctx context.Context) (*Account, error) {
+func (bi *Exchange) GetAccount(ctx context.Context) (*Account, error) {
 	type response struct {
 		Response
 		Account
@@ -609,7 +609,7 @@ func (bi *Binanceus) GetAccount(ctx context.Context) (*Account, error) {
 }
 
 // GetUserAccountStatus  to fetch account status detail.
-func (bi *Binanceus) GetUserAccountStatus(ctx context.Context, recvWindow uint64) (*AccountStatusResponse, error) {
+func (bi *Exchange) GetUserAccountStatus(ctx context.Context, recvWindow uint64) (*AccountStatusResponse, error) {
 	var resp AccountStatusResponse
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
@@ -632,7 +632,7 @@ func (bi *Binanceus) GetUserAccountStatus(ctx context.Context, recvWindow uint64
 }
 
 // GetUserAPITradingStatus to fetch account API trading status details.
-func (bi *Binanceus) GetUserAPITradingStatus(ctx context.Context, recvWindow uint64) (*TradeStatus, error) {
+func (bi *Exchange) GetUserAPITradingStatus(ctx context.Context, recvWindow uint64) (*TradeStatus, error) {
 	type response struct {
 		Success bool        `json:"success"`
 		TC      TradeStatus `json:"status"`
@@ -656,7 +656,7 @@ func (bi *Binanceus) GetUserAPITradingStatus(ctx context.Context, recvWindow uin
 }
 
 // GetFee to fetch trading fees.
-func (bi *Binanceus) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (bi *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
@@ -687,7 +687,7 @@ func (bi *Binanceus) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder
 }
 
 // getMultiplier retrieves account based taker/maker fees
-func (bi *Binanceus) getMultiplier(ctx context.Context, isMaker bool, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (bi *Exchange) getMultiplier(ctx context.Context, isMaker bool, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	symbol, er := bi.FormatSymbol(feeBuilder.Pair, asset.Spot)
 	if er != nil {
 		return 0, er
@@ -718,7 +718,7 @@ func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 }
 
 // GetTradeFee to fetch trading fees.
-func (bi *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint64, symbol string) (TradeFeeList, error) {
+func (bi *Exchange) GetTradeFee(ctx context.Context, recvWindow uint64, symbol string) (TradeFeeList, error) {
 	timestamp := time.Now().UnixMilli()
 	params := url.Values{}
 	var resp TradeFeeList
@@ -748,7 +748,7 @@ func (bi *Binanceus) GetTradeFee(ctx context.Context, recvWindow uint64, symbol 
 //
 // INPUTS:
 // asset: string , startTime & endTime unix time in Milli seconds, recvWindow(duration in milli seconds > 2000 to < 6000)
-func (bi *Binanceus) GetAssetDistributionHistory(ctx context.Context, asset string, startTime, endTime int64, recvWindow uint64) (*AssetDistributionHistories, error) {
+func (bi *Exchange) GetAssetDistributionHistory(ctx context.Context, asset string, startTime, endTime int64, recvWindow uint64) (*AssetDistributionHistories, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	var resp AssetDistributionHistories
@@ -779,7 +779,7 @@ func (bi *Binanceus) GetAssetDistributionHistory(ctx context.Context, asset stri
 }
 
 // QuickEnableCryptoWithdrawal use this endpoint to enable crypto withdrawals.
-func (bi *Binanceus) QuickEnableCryptoWithdrawal(ctx context.Context) error {
+func (bi *Exchange) QuickEnableCryptoWithdrawal(ctx context.Context) error {
 	params := url.Values{}
 	response := struct {
 		Data any
@@ -791,7 +791,7 @@ func (bi *Binanceus) QuickEnableCryptoWithdrawal(ctx context.Context) error {
 }
 
 // QuickDisableCryptoWithdrawal use this endpoint to disable crypto withdrawals.
-func (bi *Binanceus) QuickDisableCryptoWithdrawal(ctx context.Context) error {
+func (bi *Exchange) QuickDisableCryptoWithdrawal(ctx context.Context) error {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
@@ -800,7 +800,7 @@ func (bi *Binanceus) QuickDisableCryptoWithdrawal(ctx context.Context) error {
 }
 
 // GetUsersSpotAssetSnapshot retrieves a snapshot of list of assets in the account.
-func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint64) (*SpotAssetsSnapshotResponse, error) {
+func (bi *Exchange) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint64) (*SpotAssetsSnapshotResponse, error) {
 	params := url.Values{}
 	params.Set("type", "SPOT")
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -823,7 +823,7 @@ func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, e
 }
 
 // GetSubaccountInformation to fetch your sub-account list.
-func (bi *Binanceus) GetSubaccountInformation(ctx context.Context, page, limit uint64, status, email string) ([]SubAccount, error) {
+func (bi *Exchange) GetSubaccountInformation(ctx context.Context, page, limit uint64, status, email string) ([]SubAccount, error) {
 	params := url.Values{}
 	type response struct {
 		Success     bool         `json:"success"`
@@ -855,7 +855,7 @@ func (bi *Binanceus) GetSubaccountInformation(ctx context.Context, page, limit u
 }
 
 // GetSubaccountTransferHistory to fetch sub-account asset transfer history.
-func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context, email string, startTime, endTime, page, limit int64) ([]TransferHistory, error) {
+func (bi *Exchange) GetSubaccountTransferHistory(ctx context.Context, email string, startTime, endTime, page, limit int64) ([]TransferHistory, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errNotValidEmailAddress
 	}
@@ -894,7 +894,7 @@ func (bi *Binanceus) GetSubaccountTransferHistory(ctx context.Context, email str
 }
 
 // ExecuteSubAccountTransfer to execute sub-account asset transfers.
-func (bi *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccountTransferRequestParams) (*SubAccountTransferResponse, error) {
+func (bi *Exchange) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccountTransferRequestParams) (*SubAccountTransferResponse, error) {
 	params := url.Values{}
 	var response SubAccountTransferResponse
 	if !common.MatchesEmailPattern(arg.FromEmail) {
@@ -918,7 +918,7 @@ func (bi *Binanceus) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAcco
 }
 
 // GetSubaccountAssets to fetch sub-account assets.
-func (bi *Binanceus) GetSubaccountAssets(ctx context.Context, email string) (*SubAccountAssets, error) {
+func (bi *Exchange) GetSubaccountAssets(ctx context.Context, email string) (*SubAccountAssets, error) {
 	var resp SubAccountAssets
 	if !common.MatchesEmailPattern(email) {
 		return nil, errNotValidEmailAddress
@@ -936,7 +936,7 @@ func (bi *Binanceus) GetSubaccountAssets(ctx context.Context, email string) (*Su
 }
 
 // GetMasterAccountTotalUSDValue this endpoint to get the total value of assets in the master account in USD.
-func (bi *Binanceus) GetMasterAccountTotalUSDValue(ctx context.Context, email string, page, size int) (*SpotUSDMasterAccounts, error) {
+func (bi *Exchange) GetMasterAccountTotalUSDValue(ctx context.Context, email string, page, size int) (*SpotUSDMasterAccounts, error) {
 	var response SpotUSDMasterAccounts
 	params := url.Values{}
 	if email != "" {
@@ -955,7 +955,7 @@ func (bi *Binanceus) GetMasterAccountTotalUSDValue(ctx context.Context, email st
 }
 
 // GetSubaccountStatusList this endpoint retrieves a status list of sub-accounts.
-func (bi *Binanceus) GetSubaccountStatusList(ctx context.Context, email string) ([]SubAccountStatus, error) {
+func (bi *Exchange) GetSubaccountStatusList(ctx context.Context, email string) ([]SubAccountStatus, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
@@ -972,7 +972,7 @@ func (bi *Binanceus) GetSubaccountStatusList(ctx context.Context, email string) 
 
 // GetOrderRateLimits get the current trade order count rate limits for all time intervals.
 // INPUTS: recvWindow <= 60000
-func (bi *Binanceus) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]OrderRateLimit, error) {
+func (bi *Exchange) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]OrderRateLimit, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	params.Set("timestamp", strconv.Itoa(int(timestamp)))
@@ -986,7 +986,7 @@ func (bi *Binanceus) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([
 }
 
 // NewOrder sends a new order to Binanceus
-func (bi *Binanceus) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
+func (bi *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 	if err := bi.newOrder(ctx, orderRequest, o, &resp); err != nil {
 		return resp, err
@@ -999,13 +999,13 @@ func (bi *Binanceus) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrder
 
 // NewOrderTest sends a new test order to Binanceus
 // to test new order creation and signature/recvWindow long. The endpoint creates and validates a new order but does not send it into the matching engine.
-func (bi *Binanceus) NewOrderTest(ctx context.Context, o *NewOrderRequest) (*NewOrderResponse, error) {
+func (bi *Exchange) NewOrderTest(ctx context.Context, o *NewOrderRequest) (*NewOrderResponse, error) {
 	var resp NewOrderResponse
 	return &resp, bi.newOrder(ctx, testCreateNeworder, o, &resp)
 }
 
 // newOrder this endpoint is used by both new order and NewOrderTest passing their route and order information to send new order.
-func (bi *Binanceus) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
+func (bi *Exchange) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
 	params := url.Values{}
 	symbol, err := bi.FormatSymbol(o.Symbol, asset.Spot)
 	if err != nil {
@@ -1044,7 +1044,7 @@ func (bi *Binanceus) newOrder(ctx context.Context, api string, o *NewOrderReques
 }
 
 // GetOrder to check a trade order's status.
-func (bi *Binanceus) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Order, error) {
+func (bi *Exchange) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Order, error) {
 	var resp Order
 	params := url.Values{}
 	if arg.Symbol == "" {
@@ -1070,7 +1070,7 @@ func (bi *Binanceus) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Or
 }
 
 // GetAllOpenOrders to get all open trade orders on a token symbol. Do not access this without a token symbol as this would return all pair data.
-func (bi *Binanceus) GetAllOpenOrders(ctx context.Context, symbol string) ([]Order, error) {
+func (bi *Exchange) GetAllOpenOrders(ctx context.Context, symbol string) ([]Order, error) {
 	var response []Order
 	params := url.Values{}
 
@@ -1093,7 +1093,7 @@ func (bi *Binanceus) GetAllOpenOrders(ctx context.Context, symbol string) ([]Ord
 }
 
 // CancelExistingOrder to cancel an active trade order.
-func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRequestParams) (*Order, error) {
+func (bi *Exchange) CancelExistingOrder(ctx context.Context, arg *CancelOrderRequestParams) (*Order, error) {
 	params := url.Values{}
 	var response Order
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -1118,7 +1118,7 @@ func (bi *Binanceus) CancelExistingOrder(ctx context.Context, arg *CancelOrderRe
 }
 
 // CancelOpenOrdersForSymbol request to cancel an open orders.
-func (bi *Binanceus) CancelOpenOrdersForSymbol(ctx context.Context, symbol string) ([]Order, error) {
+func (bi *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string) ([]Order, error) {
 	params := url.Values{}
 	if symbol == "" || len(symbol) < 4 {
 		return nil, errMissingCurrencySymbol
@@ -1133,7 +1133,7 @@ func (bi *Binanceus) CancelOpenOrdersForSymbol(ctx context.Context, symbol strin
 }
 
 // GetTrades to get trade data for a specific account and token symbol.
-func (bi *Binanceus) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Trade, error) {
+func (bi *Exchange) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Trade, error) {
 	var resp []Trade
 	params := url.Values{}
 	if arg.Symbol == "" || len(arg.Symbol) <= 2 {
@@ -1164,7 +1164,7 @@ func (bi *Binanceus) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Tra
 // OCO Orders
 
 // CreateNewOCOOrder o place a new OCO(one-cancels-the-other) order.
-func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputParams) (*OCOFullOrderResponse, error) {
+func (bi *Exchange) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputParams) (*OCOFullOrderResponse, error) {
 	params := url.Values{}
 	if arg == nil || arg.Symbol == "" || len(arg.Symbol) <= 2 || arg.Quantity == 0 || arg.Side == "" || arg.Price == 0 || arg.StopPrice == 0 {
 		return nil, errIncompleteArguments
@@ -1212,7 +1212,7 @@ func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputPa
 }
 
 // GetOCOOrder to retrieve a specific OCO order based on provided optional parameters.
-func (bi *Binanceus) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestParams) (*OCOOrderResponse, error) {
+func (bi *Exchange) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestParams) (*OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	switch {
@@ -1229,7 +1229,7 @@ func (bi *Binanceus) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestPar
 }
 
 // GetAllOCOOrder to retrieve all OCO orders based on provided optional parameters. Please note the maximum limit is 1,000 orders.
-func (bi *Binanceus) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestParams) ([]OCOOrderResponse, error) {
+func (bi *Exchange) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestParams) ([]OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response []OCOOrderResponse
@@ -1256,7 +1256,7 @@ func (bi *Binanceus) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestPa
 }
 
 // GetOpenOCOOrders to query open OCO orders.
-func (bi *Binanceus) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([]OCOOrderResponse, error) {
+func (bi *Exchange) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([]OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if recvWindow > 0 {
@@ -1271,7 +1271,7 @@ func (bi *Binanceus) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([
 }
 
 // CancelOCOOrder to cancel an entire order list.
-func (bi *Binanceus) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequestParams) (*OCOFullOrderResponse, error) {
+func (bi *Exchange) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequestParams) (*OCOFullOrderResponse, error) {
 	var response OCOFullOrderResponse
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -1295,7 +1295,7 @@ func (bi *Binanceus) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteReq
 
 // GetSupportedCoinPairs to get a list of supported coin pairs for convert.
 // returns list of CoinPairInfo
-func (bi *Binanceus) GetSupportedCoinPairs(ctx context.Context, symbol currency.Pair) ([]CoinPairInfo, error) {
+func (bi *Exchange) GetSupportedCoinPairs(ctx context.Context, symbol currency.Pair) ([]CoinPairInfo, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("fromCoin", symbol.Base.String())
@@ -1308,7 +1308,7 @@ func (bi *Binanceus) GetSupportedCoinPairs(ctx context.Context, symbol currency.
 }
 
 // RequestForQuote endpoint to request a quote for a from-to coin pair.
-func (bi *Binanceus) RequestForQuote(ctx context.Context, arg *RequestQuoteParams) (*Quote, error) {
+func (bi *Exchange) RequestForQuote(ctx context.Context, arg *RequestQuoteParams) (*Quote, error) {
 	params := url.Values{}
 	var resp Quote
 	if arg.FromCoin == "" {
@@ -1336,7 +1336,7 @@ func (bi *Binanceus) RequestForQuote(ctx context.Context, arg *RequestQuoteParam
 
 // PlaceOTCTradeOrder to place an order using an acquired quote.
 // returns OTCTradeOrderResponse response containing the OrderID,OrderStatus, and CreateTime information of an order.
-func (bi *Binanceus) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*OTCTradeOrderResponse, error) {
+func (bi *Exchange) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*OTCTradeOrderResponse, error) {
 	params := url.Values{}
 	if strings.Trim(quoteID, " ") == "" {
 		return nil, errMissingQuoteID
@@ -1351,7 +1351,7 @@ func (bi *Binanceus) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*O
 }
 
 // GetOTCTradeOrder returns a single OTC Trade Order instance.
-func (bi *Binanceus) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTCTradeOrder, error) {
+func (bi *Exchange) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTCTradeOrder, error) {
 	var response OTCTradeOrder
 	params := url.Values{}
 	if orderID <= 0 {
@@ -1369,7 +1369,7 @@ func (bi *Binanceus) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTC
 }
 
 // GetAllOTCTradeOrders returns list of OTC Trade Orders
-func (bi *Binanceus) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrderRequestParams) ([]OTCTradeOrder, error) {
+func (bi *Exchange) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrderRequestParams) ([]OTCTradeOrder, error) {
 	params := url.Values{}
 	if arg.OrderID != "" {
 		params.Set("orderId", arg.OrderID)
@@ -1397,7 +1397,7 @@ func (bi *Binanceus) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrde
 }
 
 // GetAllOCBSTradeOrders use this endpoint to query all OCBS orders by condition.
-func (bi *Binanceus) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderRequestParams) (*OCBSTradeOrdersResponse, error) {
+func (bi *Exchange) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderRequestParams) (*OCBSTradeOrdersResponse, error) {
 	var resp OCBSTradeOrdersResponse
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -1423,7 +1423,7 @@ func (bi *Binanceus) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderReq
 
 // GetAssetFeesAndWalletStatus to fetch the details of all crypto assets, including fees, withdrawal limits and network status.
 // returns the asset wallet detail as a list.
-func (bi *Binanceus) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWalletList, error) {
+func (bi *Exchange) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWalletList, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response AssetWalletList
@@ -1434,7 +1434,7 @@ func (bi *Binanceus) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWall
 }
 
 // WithdrawCrypto method to withdraw crypto
-func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (string, error) {
+func (bi *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (string, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if arg.Currency.String() == "" {
@@ -1471,7 +1471,7 @@ func (bi *Binanceus) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) 
 
 // WithdrawalHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
+func (bi *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
 	params := url.Values{}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
@@ -1515,7 +1515,7 @@ func (bi *Binanceus) WithdrawalHistory(ctx context.Context, c currency.Code, sta
 
 // FiatWithdrawalHistory to fetch your fiat (USD) withdrawal history.
 // returns FiatAssetHistory containing list of fiat asset records.
-func (bi *Binanceus) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+func (bi *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
@@ -1545,7 +1545,7 @@ func (bi *Binanceus) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdra
 
 // WithdrawFiat to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 // returns the Order ID as string
-func (bi *Binanceus) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestParams) (string, error) {
+func (bi *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestParams) (string, error) {
 	params := url.Values{}
 	timestamp := strconv.Itoa(int(time.Now().UnixMilli()))
 	if arg == nil {
@@ -1583,7 +1583,7 @@ func (bi *Binanceus) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestP
 */
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (bi *Binanceus) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
+func (bi *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
 	params := url.Values{}
 	if currency == "" {
 		return nil, errMissingRequiredArgumentCoin
@@ -1600,7 +1600,7 @@ func (bi *Binanceus) GetDepositAddressForCurrency(ctx context.Context, currency,
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (bi *Binanceus) DepositHistory(ctx context.Context, c currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+func (bi *Exchange) DepositHistory(ctx context.Context, c currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
 	var response []DepositHistory
 	params := url.Values{}
 	if !c.IsEmpty() {
@@ -1645,7 +1645,7 @@ func (bi *Binanceus) DepositHistory(ctx context.Context, c currency.Code, status
 }
 
 // FiatDepositHistory fetch your fiat (USD) deposit history as Fiat Assets History
-func (bi *Binanceus) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+func (bi *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
@@ -1673,7 +1673,7 @@ func (bi *Binanceus) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawal
 }
 
 // GetSubAccountDepositAddress retrieves sub-account’s deposit address.
-func (bi *Binanceus) GetSubAccountDepositAddress(ctx context.Context, arg SubAccountDepositAddressRequestParams) (*SubAccountDepositAddress, error) {
+func (bi *Exchange) GetSubAccountDepositAddress(ctx context.Context, arg SubAccountDepositAddressRequestParams) (*SubAccountDepositAddress, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(arg.Email) {
 		return nil, errMissingSubAccountEmail
@@ -1688,7 +1688,7 @@ func (bi *Binanceus) GetSubAccountDepositAddress(ctx context.Context, arg SubAcc
 }
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history.
-func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
+func (bi *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
@@ -1720,7 +1720,7 @@ func (bi *Binanceus) GetSubAccountDepositHistory(ctx context.Context, email stri
 // Referral Endpoints
 
 // GetReferralRewardHistory retrieves the user’s referral reward history.
-func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
+func (bi *Exchange) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
 	switch {
 	case userBusinessType != 0 && userBusinessType != 1:
@@ -1739,7 +1739,7 @@ func (bi *Binanceus) GetReferralRewardHistory(ctx context.Context, userBusinessT
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+func (bi *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -1759,7 +1759,7 @@ func (bi *Binanceus) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pa
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
 // appended to the headers without a secret
-func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+func (bi *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -1787,7 +1787,7 @@ func (bi *Binanceus) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.U
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
+func (bi *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
 	creds, err := bi.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1852,7 +1852,7 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 // Start a new user data websocket. The stream will close after 60 minutes unless a keepalive is sent.
 // If the account has an active listenKey,
 // that listenKey will be returned and its validity will be extended for 60 minutes.
-func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
+func (bi *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return "", err
@@ -1890,7 +1890,7 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 // Keepalive a user data stream to prevent a time out.
 // User data streams will close after 60 minutes.
 // It's recommended to send a ping about every 30 minutes.
-func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
+func (bi *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return err
@@ -1926,7 +1926,7 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 }
 
 // CloseUserDataStream Close out a user data websocket.
-func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
+func (bi *Exchange) CloseUserDataStream(ctx context.Context) error {
 	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return err

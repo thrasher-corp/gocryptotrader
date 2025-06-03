@@ -76,8 +76,8 @@ const (
 	huobiBatchContracts               = "/v2/market/detail/batch_merged"
 )
 
-// HUOBI is the overarching type across this package
-type HUOBI struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 	AccountID                string
 	futureContractCodesMutex sync.RWMutex
@@ -85,7 +85,7 @@ type HUOBI struct {
 }
 
 // GetMarginRates gets margin rates
-func (h *HUOBI) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesData, error) {
+func (h *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesData, error) {
 	var resp MarginRatesData
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
@@ -100,7 +100,7 @@ func (h *HUOBI) GetMarginRates(ctx context.Context, symbol currency.Pair) (Margi
 
 // GetSpotKline returns kline data
 // KlinesRequestParams contains symbol currency.Pair, period and size
-func (h *HUOBI) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]KlineItem, error) {
+func (h *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
@@ -128,7 +128,7 @@ func (h *HUOBI) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]Kl
 }
 
 // Get24HrMarketSummary returns 24hr market summary for a given market symbol
-func (h *HUOBI) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) (MarketSummary24Hr, error) {
+func (h *Exchange) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) (MarketSummary24Hr, error) {
 	var result MarketSummary24Hr
 	params := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
@@ -140,7 +140,7 @@ func (h *HUOBI) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) 
 }
 
 // GetBatchCoinMarginSwapContracts returns the tickers for coin margined swap contracts
-func (h *HUOBI) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
+func (h *Exchange) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
@@ -149,7 +149,7 @@ func (h *HUOBI) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesB
 }
 
 // GetBatchLinearSwapContracts  returns the tickers for linear swap contracts
-func (h *HUOBI) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
+func (h *Exchange) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
@@ -158,7 +158,7 @@ func (h *HUOBI) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatch
 }
 
 // GetBatchFuturesContracts returns the tickers for futures contracts
-func (h *HUOBI) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
+func (h *Exchange) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
@@ -167,13 +167,13 @@ func (h *HUOBI) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTic
 }
 
 // GetTickers returns the ticker for the specified symbol
-func (h *HUOBI) GetTickers(ctx context.Context) (Tickers, error) {
+func (h *Exchange) GetTickers(ctx context.Context) (Tickers, error) {
 	var result Tickers
 	return result, h.SendHTTPRequest(ctx, exchange.RestSpot, huobiMarketTickers, &result)
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
-func (h *HUOBI) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair) (DetailMerged, error) {
+func (h *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair) (DetailMerged, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -196,7 +196,7 @@ func (h *HUOBI) GetMarketDetailMerged(ctx context.Context, symbol currency.Pair)
 }
 
 // GetDepth returns the depth for the specified symbol
-func (h *HUOBI) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams) (*Orderbook, error) {
+func (h *Exchange) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams) (*Orderbook, error) {
 	symbolValue, err := h.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func (h *HUOBI) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams) (
 }
 
 // GetTrades returns the trades for the specified symbol
-func (h *HUOBI) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade, error) {
+func (h *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -249,7 +249,7 @@ func (h *HUOBI) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade, e
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (h *HUOBI) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (float64, error) {
+func (h *Exchange) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (float64, error) {
 	list, err := h.GetTradeHistory(ctx, symbol, 1)
 	if err != nil {
 		return 0, err
@@ -262,7 +262,7 @@ func (h *HUOBI) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (f
 }
 
 // GetTradeHistory returns the trades for the specified symbol
-func (h *HUOBI) GetTradeHistory(ctx context.Context, symbol currency.Pair, size int64) ([]TradeHistory, error) {
+func (h *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, size int64) ([]TradeHistory, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -289,7 +289,7 @@ func (h *HUOBI) GetTradeHistory(ctx context.Context, symbol currency.Pair, size 
 }
 
 // GetMarketDetail returns the ticker for the specified symbol
-func (h *HUOBI) GetMarketDetail(ctx context.Context, symbol currency.Pair) (Detail, error) {
+func (h *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (Detail, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -312,7 +312,7 @@ func (h *HUOBI) GetMarketDetail(ctx context.Context, symbol currency.Pair) (Deta
 }
 
 // GetSymbols returns an array of symbols supported by Huobi
-func (h *HUOBI) GetSymbols(ctx context.Context) ([]Symbol, error) {
+func (h *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 	type response struct {
 		Response
 		Symbols []Symbol `json:"data"`
@@ -328,7 +328,7 @@ func (h *HUOBI) GetSymbols(ctx context.Context) ([]Symbol, error) {
 }
 
 // GetCurrencies returns a list of currencies supported by Huobi
-func (h *HUOBI) GetCurrencies(ctx context.Context) ([]string, error) {
+func (h *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
 	type response struct {
 		Response
 		Currencies []string `json:"data"`
@@ -344,7 +344,7 @@ func (h *HUOBI) GetCurrencies(ctx context.Context) ([]string, error) {
 }
 
 // GetCurrenciesIncludingChains returns currency and chain data
-func (h *HUOBI) GetCurrenciesIncludingChains(ctx context.Context, curr currency.Code) ([]CurrenciesChainData, error) {
+func (h *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr currency.Code) ([]CurrenciesChainData, error) {
 	resp := struct {
 		Data []CurrenciesChainData `json:"data"`
 	}{}
@@ -362,7 +362,7 @@ func (h *HUOBI) GetCurrenciesIncludingChains(ctx context.Context, curr currency.
 }
 
 // GetCurrentServerTime returns the Huobi server time
-func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
+func (h *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var result struct {
 		Response
 		Timestamp int64 `json:"data"`
@@ -375,7 +375,7 @@ func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetAccounts returns the Huobi user accounts
-func (h *HUOBI) GetAccounts(ctx context.Context) ([]Account, error) {
+func (h *Exchange) GetAccounts(ctx context.Context) ([]Account, error) {
 	result := struct {
 		Accounts []Account `json:"data"`
 	}{}
@@ -384,7 +384,7 @@ func (h *HUOBI) GetAccounts(ctx context.Context) ([]Account, error) {
 }
 
 // GetAccountBalance returns the users Huobi account balance
-func (h *HUOBI) GetAccountBalance(ctx context.Context, accountID string) ([]AccountBalanceDetail, error) {
+func (h *Exchange) GetAccountBalance(ctx context.Context, accountID string) ([]AccountBalanceDetail, error) {
 	result := struct {
 		AccountBalanceData AccountBalance `json:"data"`
 	}{}
@@ -396,7 +396,7 @@ func (h *HUOBI) GetAccountBalance(ctx context.Context, accountID string) ([]Acco
 }
 
 // GetAggregatedBalance returns the balances of all the sub-account aggregated.
-func (h *HUOBI) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalance, error) {
+func (h *Exchange) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalance, error) {
 	result := struct {
 		AggregatedBalances []AggregatedBalance `json:"data"`
 	}{}
@@ -412,7 +412,7 @@ func (h *HUOBI) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalance, 
 }
 
 // SpotNewOrder submits an order to Huobi
-func (h *HUOBI) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestParams) (int64, error) {
+func (h *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestParams) (int64, error) {
 	symbolValue, err := h.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return 0, err
@@ -457,7 +457,7 @@ func (h *HUOBI) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestParams
 }
 
 // CancelExistingOrder cancels an order on Huobi
-func (h *HUOBI) CancelExistingOrder(ctx context.Context, orderID int64) (int64, error) {
+func (h *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (int64, error) {
 	resp := struct {
 		OrderID int64 `json:"data,string"`
 	}{}
@@ -467,7 +467,7 @@ func (h *HUOBI) CancelExistingOrder(ctx context.Context, orderID int64) (int64, 
 }
 
 // CancelOrderBatch cancels a batch of orders
-func (h *HUOBI) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderIDs []string) (*CancelOrderBatch, error) {
+func (h *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderIDs []string) (*CancelOrderBatch, error) {
 	resp := struct {
 		Response
 		Data *CancelOrderBatch `json:"data"`
@@ -483,7 +483,7 @@ func (h *HUOBI) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderIDs [
 }
 
 // CancelOpenOrdersBatch cancels a batch of orders -- to-do
-func (h *HUOBI) CancelOpenOrdersBatch(ctx context.Context, accountID string, symbol currency.Pair) (CancelOpenOrdersBatch, error) {
+func (h *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, symbol currency.Pair) (CancelOpenOrdersBatch, error) {
 	params := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -509,7 +509,7 @@ func (h *HUOBI) CancelOpenOrdersBatch(ctx context.Context, accountID string, sym
 }
 
 // GetOrder returns order information for the specified order
-func (h *HUOBI) GetOrder(ctx context.Context, orderID int64) (OrderInfo, error) {
+func (h *Exchange) GetOrder(ctx context.Context, orderID int64) (OrderInfo, error) {
 	resp := struct {
 		Order OrderInfo `json:"data"`
 	}{}
@@ -525,7 +525,7 @@ func (h *HUOBI) GetOrder(ctx context.Context, orderID int64) (OrderInfo, error) 
 }
 
 // GetOrderMatchResults returns matched order info for the specified order
-func (h *HUOBI) GetOrderMatchResults(ctx context.Context, orderID int64) ([]OrderMatchInfo, error) {
+func (h *Exchange) GetOrderMatchResults(ctx context.Context, orderID int64) ([]OrderMatchInfo, error) {
 	resp := struct {
 		Orders []OrderMatchInfo `json:"data"`
 	}{}
@@ -535,7 +535,7 @@ func (h *HUOBI) GetOrderMatchResults(ctx context.Context, orderID int64) ([]Orde
 }
 
 // GetOrders returns a list of orders
-func (h *HUOBI) GetOrders(ctx context.Context, symbol currency.Pair, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
+func (h *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, types, start, end, states, from, direct, size string) ([]OrderInfo, error) {
 	resp := struct {
 		Orders []OrderInfo `json:"data"`
 	}{}
@@ -577,7 +577,7 @@ func (h *HUOBI) GetOrders(ctx context.Context, symbol currency.Pair, types, star
 }
 
 // GetOpenOrders returns a list of orders
-func (h *HUOBI) GetOpenOrders(ctx context.Context, symbol currency.Pair, accountID, side string, size int64) ([]OrderInfo, error) {
+func (h *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, accountID, side string, size int64) ([]OrderInfo, error) {
 	resp := struct {
 		Orders []OrderInfo `json:"data"`
 	}{}
@@ -599,7 +599,7 @@ func (h *HUOBI) GetOpenOrders(ctx context.Context, symbol currency.Pair, account
 }
 
 // GetOrdersMatch returns a list of matched orders
-func (h *HUOBI) GetOrdersMatch(ctx context.Context, symbol currency.Pair, types, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
+func (h *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, types, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
 	resp := struct {
 		Orders []OrderMatchInfo `json:"data"`
 	}{}
@@ -640,7 +640,7 @@ func (h *HUOBI) GetOrdersMatch(ctx context.Context, symbol currency.Pair, types,
 }
 
 // MarginTransfer transfers assets into or out of the margin account
-func (h *HUOBI) MarginTransfer(ctx context.Context, symbol currency.Pair, currency string, amount float64, in bool) (int64, error) {
+func (h *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, currency string, amount float64, in bool) (int64, error) {
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return 0, err
@@ -668,7 +668,7 @@ func (h *HUOBI) MarginTransfer(ctx context.Context, symbol currency.Pair, curren
 }
 
 // MarginOrder submits a margin order application
-func (h *HUOBI) MarginOrder(ctx context.Context, symbol currency.Pair, currency string, amount float64) (int64, error) {
+func (h *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, currency string, amount float64) (int64, error) {
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return 0, err
@@ -691,7 +691,7 @@ func (h *HUOBI) MarginOrder(ctx context.Context, symbol currency.Pair, currency 
 }
 
 // MarginRepayment repays a margin amount for a margin ID
-func (h *HUOBI) MarginRepayment(ctx context.Context, orderID int64, amount float64) (int64, error) {
+func (h *Exchange) MarginRepayment(ctx context.Context, orderID int64, amount float64) (int64, error) {
 	data := struct {
 		Amount string `json:"amount"`
 	}{
@@ -708,7 +708,7 @@ func (h *HUOBI) MarginRepayment(ctx context.Context, orderID int64, amount float
 }
 
 // GetMarginLoanOrders returns the margin loan orders
-func (h *HUOBI) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
+func (h *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair, currency, start, end, states, from, direct, size string) ([]MarginOrder, error) {
 	vals := url.Values{}
 	symbolValue, err := h.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -749,7 +749,7 @@ func (h *HUOBI) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair, c
 }
 
 // GetMarginAccountBalance returns the margin account balances
-func (h *HUOBI) GetMarginAccountBalance(ctx context.Context, symbol currency.Pair) ([]MarginAccountBalance, error) {
+func (h *Exchange) GetMarginAccountBalance(ctx context.Context, symbol currency.Pair) ([]MarginAccountBalance, error) {
 	resp := struct {
 		Balances []MarginAccountBalance `json:"data"`
 	}{}
@@ -766,7 +766,7 @@ func (h *HUOBI) GetMarginAccountBalance(ctx context.Context, symbol currency.Pai
 }
 
 // Withdraw withdraws the desired amount and currency
-func (h *HUOBI) Withdraw(ctx context.Context, c currency.Code, address, addrTag, chain string, amount, fee float64) (int64, error) {
+func (h *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrTag, chain string, amount, fee float64) (int64, error) {
 	if c.IsEmpty() || address == "" || amount <= 0 {
 		return 0, errors.New("currency, address and amount must be set")
 	}
@@ -805,7 +805,7 @@ func (h *HUOBI) Withdraw(ctx context.Context, c currency.Code, address, addrTag,
 }
 
 // CancelWithdraw cancels a withdraw request
-func (h *HUOBI) CancelWithdraw(ctx context.Context, withdrawID int64) (int64, error) {
+func (h *Exchange) CancelWithdraw(ctx context.Context, withdrawID int64) (int64, error) {
 	resp := struct {
 		WithdrawID int64 `json:"data"`
 	}{}
@@ -818,7 +818,7 @@ func (h *HUOBI) CancelWithdraw(ctx context.Context, withdrawID int64) (int64, er
 }
 
 // QueryDepositAddress returns the deposit address for a specified currency
-func (h *HUOBI) QueryDepositAddress(ctx context.Context, cryptocurrency currency.Code) ([]DepositAddress, error) {
+func (h *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency currency.Code) ([]DepositAddress, error) {
 	resp := struct {
 		DepositAddress []DepositAddress `json:"data"`
 	}{}
@@ -837,7 +837,7 @@ func (h *HUOBI) QueryDepositAddress(ctx context.Context, cryptocurrency currency
 }
 
 // QueryWithdrawQuotas returns the users cryptocurrency withdraw quotas
-func (h *HUOBI) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) (WithdrawQuota, error) {
+func (h *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) (WithdrawQuota, error) {
 	resp := struct {
 		WithdrawQuota WithdrawQuota `json:"data"`
 	}{}
@@ -853,7 +853,7 @@ func (h *HUOBI) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) 
 }
 
 // SearchForExistedWithdrawsAndDeposits returns withdrawal and deposit data
-func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit int64) (WithdrawalHistory, error) {
+func (h *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit int64) (WithdrawalHistory, error) {
 	var resp WithdrawalHistory
 	vals := url.Values{}
 	vals.Set("type", transferType)
@@ -873,7 +873,7 @@ func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c curr
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (h *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -911,7 +911,7 @@ func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result any, isVersion2API bool) error {
+func (h *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result any, isVersion2API bool) error {
 	var err error
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
@@ -1008,7 +1008,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (h *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	if feeBuilder.FeeType == exchange.OfflineTradeFee || feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		fee = calculateTradingFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)

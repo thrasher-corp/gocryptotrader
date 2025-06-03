@@ -34,13 +34,13 @@ const (
 	krakenFuturesVersion          = "3"
 )
 
-// Kraken is the overarching type across the kraken package
-type Kraken struct {
+// Exchange is the overarching type across the kraken package
+type Exchange struct {
 	exchange.Base
 }
 
 // GetCurrentServerTime returns current server time
-func (k *Kraken) GetCurrentServerTime(ctx context.Context) (*TimeResponse, error) {
+func (k *Exchange) GetCurrentServerTime(ctx context.Context) (*TimeResponse, error) {
 	path := fmt.Sprintf("/%s/public/%s", krakenAPIVersion, krakenServerTime)
 
 	var result TimeResponse
@@ -53,7 +53,7 @@ func (k *Kraken) GetCurrentServerTime(ctx context.Context) (*TimeResponse, error
 
 // SeedAssets seeds Kraken's asset list and stores it in the
 // asset translator
-func (k *Kraken) SeedAssets(ctx context.Context) error {
+func (k *Exchange) SeedAssets(ctx context.Context) error {
 	assets, err := k.GetAssets(ctx)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (k *Kraken) SeedAssets(ctx context.Context) error {
 }
 
 // GetAssets returns a full asset list
-func (k *Kraken) GetAssets(ctx context.Context) (map[string]*Asset, error) {
+func (k *Exchange) GetAssets(ctx context.Context) (map[string]*Asset, error) {
 	path := fmt.Sprintf("/%s/public/%s", krakenAPIVersion, krakenAssets)
 	var result map[string]*Asset
 	if err := k.SendHTTPRequest(ctx, exchange.RestSpot, path, &result); err != nil {
@@ -84,7 +84,7 @@ func (k *Kraken) GetAssets(ctx context.Context) (map[string]*Asset, error) {
 
 // GetAssetPairs returns a full asset pair list
 // Parameter 'info' only supports 4 strings: "fees", "leverage", "margin", "info" <- (default)
-func (k *Kraken) GetAssetPairs(ctx context.Context, assetPairs []string, info string) (map[string]*AssetPairs, error) {
+func (k *Exchange) GetAssetPairs(ctx context.Context, assetPairs []string, info string) (map[string]*AssetPairs, error) {
 	path := fmt.Sprintf("/%s/public/%s", krakenAPIVersion, krakenAssetPairs)
 	params := url.Values{}
 	var assets string
@@ -107,7 +107,7 @@ func (k *Kraken) GetAssetPairs(ctx context.Context, assetPairs []string, info st
 }
 
 // GetTicker returns ticker information from kraken
-func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker, error) {
+func (k *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker, error) {
 	values := url.Values{}
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -141,7 +141,7 @@ func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker, 
 // GetTickers supports fetching multiple tickers from Kraken
 // pairList must be in the format pairs separated by commas
 // ("LTCUSD,ETCUSD")
-func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ticker, error) {
+func (k *Exchange) GetTickers(ctx context.Context, pairList string) (map[string]Ticker, error) {
 	values := url.Values{}
 	if pairList != "" {
 		values.Set("pair", pairList)
@@ -175,7 +175,7 @@ func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ti
 }
 
 // GetOHLC returns an array of open high low close values of a currency pair
-func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval string) ([]OpenHighLowClose, error) {
+func (k *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval string) ([]OpenHighLowClose, error) {
 	values := url.Values{}
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -246,7 +246,7 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 }
 
 // GetDepth returns the orderbook for a particular currency
-func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook, error) {
+func (k *Exchange) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -287,7 +287,7 @@ func (k *Kraken) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbook
 }
 
 // GetTrades returns current trades on Kraken
-func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentTrades, error) {
+func (k *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentTrades, error) {
 	values := url.Values{}
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -365,7 +365,7 @@ func (k *Kraken) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentT
 }
 
 // GetSpread returns the full spread on Kraken
-func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread, error) {
+func (k *Exchange) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread, error) {
 	values := url.Values{}
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -420,7 +420,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 }
 
 // GetBalance returns your balance associated with your keys
-func (k *Kraken) GetBalance(ctx context.Context) (map[string]Balance, error) {
+func (k *Exchange) GetBalance(ctx context.Context) (map[string]Balance, error) {
 	var result map[string]Balance
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenBalance, url.Values{}, &result); err != nil {
 		return nil, err
@@ -430,7 +430,7 @@ func (k *Kraken) GetBalance(ctx context.Context) (map[string]Balance, error) {
 }
 
 // GetWithdrawInfo gets withdrawal fees
-func (k *Kraken) GetWithdrawInfo(ctx context.Context, currency string, amount float64) (*WithdrawInformation, error) {
+func (k *Exchange) GetWithdrawInfo(ctx context.Context, currency string, amount float64) (*WithdrawInformation, error) {
 	params := url.Values{}
 	params.Set("asset", currency)
 	params.Set("key", "")
@@ -445,7 +445,7 @@ func (k *Kraken) GetWithdrawInfo(ctx context.Context, currency string, amount fl
 }
 
 // Withdraw withdraws funds
-func (k *Kraken) Withdraw(ctx context.Context, asset, key string, amount float64) (string, error) {
+func (k *Exchange) Withdraw(ctx context.Context, asset, key string, amount float64) (string, error) {
 	params := url.Values{}
 	params.Set("asset", asset)
 	params.Set("key", key)
@@ -460,7 +460,7 @@ func (k *Kraken) Withdraw(ctx context.Context, asset, key string, amount float64
 }
 
 // GetDepositMethods gets withdrawal fees
-func (k *Kraken) GetDepositMethods(ctx context.Context, currency string) ([]DepositMethods, error) {
+func (k *Exchange) GetDepositMethods(ctx context.Context, currency string) ([]DepositMethods, error) {
 	params := url.Values{}
 	params.Set("asset", currency)
 
@@ -474,7 +474,7 @@ func (k *Kraken) GetDepositMethods(ctx context.Context, currency string) ([]Depo
 }
 
 // GetTradeBalance returns full information about your trades on Kraken
-func (k *Kraken) GetTradeBalance(ctx context.Context, args ...TradeBalanceOptions) (*TradeBalanceInfo, error) {
+func (k *Exchange) GetTradeBalance(ctx context.Context, args ...TradeBalanceOptions) (*TradeBalanceInfo, error) {
 	params := url.Values{}
 
 	if args != nil {
@@ -496,7 +496,7 @@ func (k *Kraken) GetTradeBalance(ctx context.Context, args ...TradeBalanceOption
 }
 
 // GetOpenOrders returns all current open orders
-func (k *Kraken) GetOpenOrders(ctx context.Context, args OrderInfoOptions) (*OpenOrders, error) {
+func (k *Exchange) GetOpenOrders(ctx context.Context, args OrderInfoOptions) (*OpenOrders, error) {
 	params := url.Values{}
 
 	if args.Trades {
@@ -516,7 +516,7 @@ func (k *Kraken) GetOpenOrders(ctx context.Context, args OrderInfoOptions) (*Ope
 }
 
 // GetClosedOrders returns a list of closed orders
-func (k *Kraken) GetClosedOrders(ctx context.Context, args GetClosedOrdersOptions) (*ClosedOrders, error) {
+func (k *Exchange) GetClosedOrders(ctx context.Context, args GetClosedOrdersOptions) (*ClosedOrders, error) {
 	params := url.Values{}
 
 	if args.Trades {
@@ -552,7 +552,7 @@ func (k *Kraken) GetClosedOrders(ctx context.Context, args GetClosedOrdersOption
 }
 
 // QueryOrdersInfo returns order information
-func (k *Kraken) QueryOrdersInfo(ctx context.Context, args OrderInfoOptions, txid string, txids ...string) (map[string]OrderInfo, error) {
+func (k *Exchange) QueryOrdersInfo(ctx context.Context, args OrderInfoOptions, txid string, txids ...string) (map[string]OrderInfo, error) {
 	params := url.Values{
 		"txid": {txid},
 	}
@@ -578,7 +578,7 @@ func (k *Kraken) QueryOrdersInfo(ctx context.Context, args OrderInfoOptions, txi
 }
 
 // GetTradesHistory returns trade history information
-func (k *Kraken) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryOptions) (*TradesHistory, error) {
+func (k *Exchange) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryOptions) (*TradesHistory, error) {
 	params := url.Values{}
 
 	if args != nil {
@@ -612,7 +612,7 @@ func (k *Kraken) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryO
 }
 
 // QueryTrades returns information on a specific trade
-func (k *Kraken) QueryTrades(ctx context.Context, trades bool, txid string, txids ...string) (map[string]TradeInfo, error) {
+func (k *Exchange) QueryTrades(ctx context.Context, trades bool, txid string, txids ...string) (map[string]TradeInfo, error) {
 	params := url.Values{
 		"txid": {txid},
 	}
@@ -634,7 +634,7 @@ func (k *Kraken) QueryTrades(ctx context.Context, trades bool, txid string, txid
 }
 
 // OpenPositions returns current open positions
-func (k *Kraken) OpenPositions(ctx context.Context, docalcs bool, txids ...string) (map[string]Position, error) {
+func (k *Exchange) OpenPositions(ctx context.Context, docalcs bool, txids ...string) (map[string]Position, error) {
 	params := url.Values{}
 
 	if txids != nil {
@@ -654,7 +654,7 @@ func (k *Kraken) OpenPositions(ctx context.Context, docalcs bool, txids ...strin
 }
 
 // GetLedgers returns current ledgers
-func (k *Kraken) GetLedgers(ctx context.Context, args ...GetLedgersOptions) (*Ledgers, error) {
+func (k *Exchange) GetLedgers(ctx context.Context, args ...GetLedgersOptions) (*Ledgers, error) {
 	params := url.Values{}
 
 	if args != nil {
@@ -692,7 +692,7 @@ func (k *Kraken) GetLedgers(ctx context.Context, args ...GetLedgersOptions) (*Le
 }
 
 // QueryLedgers queries an individual ledger by ID
-func (k *Kraken) QueryLedgers(ctx context.Context, id string, ids ...string) (map[string]LedgerInfo, error) {
+func (k *Exchange) QueryLedgers(ctx context.Context, id string, ids ...string) (map[string]LedgerInfo, error) {
 	params := url.Values{
 		"id": {id},
 	}
@@ -710,7 +710,7 @@ func (k *Kraken) QueryLedgers(ctx context.Context, id string, ids ...string) (ma
 }
 
 // GetTradeVolume returns your trade volume by currency
-func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...currency.Pair) (*TradeVolumeResponse, error) {
+func (k *Exchange) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...currency.Pair) (*TradeVolumeResponse, error) {
 	params := url.Values{}
 	formattedPairs := make([]string, len(symbol))
 	for x := range symbol {
@@ -737,7 +737,7 @@ func (k *Kraken) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...cur
 }
 
 // AddOrder adds a new order for Kraken exchange
-func (k *Kraken) AddOrder(ctx context.Context, symbol currency.Pair, side, orderType string, volume, price, price2, leverage float64, args *AddOrderOptions) (*AddOrderResponse, error) {
+func (k *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, orderType string, volume, price, price2, leverage float64, args *AddOrderOptions) (*AddOrderResponse, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -802,7 +802,7 @@ func (k *Kraken) AddOrder(ctx context.Context, symbol currency.Pair, side, order
 }
 
 // CancelExistingOrder cancels order by orderID
-func (k *Kraken) CancelExistingOrder(ctx context.Context, txid string) (*CancelOrderResponse, error) {
+func (k *Exchange) CancelExistingOrder(ctx context.Context, txid string) (*CancelOrderResponse, error) {
 	values := url.Values{
 		"txid": {txid},
 	}
@@ -816,7 +816,7 @@ func (k *Kraken) CancelExistingOrder(ctx context.Context, txid string) (*CancelO
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
-func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (k *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := k.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -864,7 +864,7 @@ func (k *Kraken) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result any) error {
+func (k *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result any) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -936,7 +936,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (k *Kraken) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (k *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
@@ -1005,7 +1005,7 @@ func calculateTradingFee(currency string, feePair map[string]TradeVolumeFee, pur
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code string, createNew bool) ([]DepositAddress, error) {
+func (k *Exchange) GetCryptoDepositAddress(ctx context.Context, method, code string, createNew bool) ([]DepositAddress, error) {
 	values := url.Values{}
 	values.Set("asset", code)
 	values.Set("method", method)
@@ -1027,7 +1027,7 @@ func (k *Kraken) GetCryptoDepositAddress(ctx context.Context, method, code strin
 }
 
 // WithdrawStatus gets the status of recent withdrawals
-func (k *Kraken) WithdrawStatus(ctx context.Context, c currency.Code, method string) ([]WithdrawStatusResponse, error) {
+func (k *Exchange) WithdrawStatus(ctx context.Context, c currency.Code, method string) ([]WithdrawStatusResponse, error) {
 	params := url.Values{}
 	params.Set("asset", c.String())
 	if method != "" {
@@ -1043,7 +1043,7 @@ func (k *Kraken) WithdrawStatus(ctx context.Context, c currency.Code, method str
 }
 
 // WithdrawCancel sends a withdrawal cancellation request
-func (k *Kraken) WithdrawCancel(ctx context.Context, c currency.Code, refID string) (bool, error) {
+func (k *Exchange) WithdrawCancel(ctx context.Context, c currency.Code, refID string) (bool, error) {
 	params := url.Values{}
 	params.Set("asset", c.String())
 	params.Set("refid", refID)
@@ -1057,7 +1057,7 @@ func (k *Kraken) WithdrawCancel(ctx context.Context, c currency.Code, refID stri
 }
 
 // GetWebsocketToken returns a websocket token
-func (k *Kraken) GetWebsocketToken(ctx context.Context) (string, error) {
+func (k *Exchange) GetWebsocketToken(ctx context.Context) (string, error) {
 	var response WsTokenResponse
 	if err := k.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWebsocketToken, url.Values{}, &response); err != nil {
 		return "", err

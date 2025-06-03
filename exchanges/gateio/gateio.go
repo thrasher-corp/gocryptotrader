@@ -185,8 +185,8 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 }
 
-// Gateio is the overarching type across this package
-type Gateio struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
 	wsOBUpdateMgr *wsOBUpdateManager
@@ -195,7 +195,7 @@ type Gateio struct {
 // ***************************************** SubAccounts ********************************
 
 // CreateNewSubAccount creates a new sub-account
-func (g *Gateio) CreateNewSubAccount(ctx context.Context, arg SubAccountParams) (*SubAccount, error) {
+func (g *Exchange) CreateNewSubAccount(ctx context.Context, arg SubAccountParams) (*SubAccount, error) {
 	if arg.LoginName == "" {
 		return nil, errors.New("login name can not be empty")
 	}
@@ -204,13 +204,13 @@ func (g *Gateio) CreateNewSubAccount(ctx context.Context, arg SubAccountParams) 
 }
 
 // GetSubAccounts retrieves list of sub-accounts for given account
-func (g *Gateio) GetSubAccounts(ctx context.Context) ([]SubAccount, error) {
+func (g *Exchange) GetSubAccounts(ctx context.Context) ([]SubAccount, error) {
 	var response []SubAccount
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccounts, nil, nil, &response)
 }
 
 // GetSingleSubAccount retrieves a single sub-account for given account
-func (g *Gateio) GetSingleSubAccount(ctx context.Context, userID string) (*SubAccount, error) {
+func (g *Exchange) GetSingleSubAccount(ctx context.Context, userID string) (*SubAccount, error) {
 	if userID == "" {
 		return nil, errors.New("user ID can not be empty")
 	}
@@ -222,7 +222,7 @@ func (g *Gateio) GetSingleSubAccount(ctx context.Context, userID string) (*SubAc
 //
 // name: Permission name (all permissions will be removed if no value is passed)
 // >> wallet: wallet, spot: spot/margin, futures: perpetual contract, delivery: delivery, earn: earn, options: options
-func (g *Gateio) CreateAPIKeysOfSubAccount(ctx context.Context, arg CreateAPIKeySubAccountParams) (*CreateAPIKeyResponse, error) {
+func (g *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg CreateAPIKeySubAccountParams) (*CreateAPIKeyResponse, error) {
 	if arg.SubAccountUserID == 0 {
 		return nil, errInvalidSubAccountUserID
 	}
@@ -234,18 +234,18 @@ func (g *Gateio) CreateAPIKeysOfSubAccount(ctx context.Context, arg CreateAPIKey
 }
 
 // GetAllAPIKeyOfSubAccount list all API Key of the sub-account
-func (g *Gateio) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]CreateAPIKeyResponse, error) {
+func (g *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]CreateAPIKeyResponse, error) {
 	var resp []CreateAPIKeyResponse
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccountsPath+strconv.FormatInt(userID, 10)+"/keys", nil, nil, &resp)
 }
 
 // UpdateAPIKeyOfSubAccount update API key of the sub-account
-func (g *Gateio) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKey string, arg CreateAPIKeySubAccountParams) error {
+func (g *Exchange) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKey string, arg CreateAPIKeySubAccountParams) error {
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPut, subAccountsPath+strconv.FormatInt(arg.SubAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, &arg, nil)
 }
 
 // GetAPIKeyOfSubAccount retrieves the API Key of the sub-account
-func (g *Gateio) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int64, apiKey string) (*CreateAPIKeyResponse, error) {
+func (g *Exchange) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int64, apiKey string) (*CreateAPIKeyResponse, error) {
 	if subAccountUserID == 0 {
 		return nil, errInvalidSubAccountUserID
 	}
@@ -257,7 +257,7 @@ func (g *Gateio) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int
 }
 
 // LockSubAccount locks the sub-account
-func (g *Gateio) LockSubAccount(ctx context.Context, subAccountUserID int64) error {
+func (g *Exchange) LockSubAccount(ctx context.Context, subAccountUserID int64) error {
 	if subAccountUserID == 0 {
 		return errInvalidSubAccountUserID
 	}
@@ -265,7 +265,7 @@ func (g *Gateio) LockSubAccount(ctx context.Context, subAccountUserID int64) err
 }
 
 // UnlockSubAccount locks the sub-account
-func (g *Gateio) UnlockSubAccount(ctx context.Context, subAccountUserID int64) error {
+func (g *Exchange) UnlockSubAccount(ctx context.Context, subAccountUserID int64) error {
 	if subAccountUserID == 0 {
 		return errInvalidSubAccountUserID
 	}
@@ -275,13 +275,13 @@ func (g *Gateio) UnlockSubAccount(ctx context.Context, subAccountUserID int64) e
 // *****************************************  Spot **************************************
 
 // ListSpotCurrencies to retrieve detailed list of each currency.
-func (g *Gateio) ListSpotCurrencies(ctx context.Context) ([]CurrencyInfo, error) {
+func (g *Exchange) ListSpotCurrencies(ctx context.Context) ([]CurrencyInfo, error) {
 	var resp []CurrencyInfo
 	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrenciesSpotEPL, gateioSpotCurrencies, &resp)
 }
 
 // GetCurrencyDetail details of a specific currency.
-func (g *Gateio) GetCurrencyDetail(ctx context.Context, ccy currency.Code) (*CurrencyInfo, error) {
+func (g *Exchange) GetCurrencyDetail(ctx context.Context, ccy currency.Code) (*CurrencyInfo, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -290,13 +290,13 @@ func (g *Gateio) GetCurrencyDetail(ctx context.Context, ccy currency.Code) (*Cur
 }
 
 // ListSpotCurrencyPairs retrieve all currency pairs supported by the exchange.
-func (g *Gateio) ListSpotCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail, error) {
+func (g *Exchange) ListSpotCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail, error) {
 	var resp []CurrencyPairDetail
 	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyPairsSpotEPL, gateioSpotCurrencyPairs, &resp)
 }
 
 // GetCurrencyPairDetail to get details of a specific order for spot/margin accounts.
-func (g *Gateio) GetCurrencyPairDetail(ctx context.Context, currencyPair string) (*CurrencyPairDetail, error) {
+func (g *Exchange) GetCurrencyPairDetail(ctx context.Context, currencyPair string) (*CurrencyPairDetail, error) {
 	if currencyPair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -306,7 +306,7 @@ func (g *Gateio) GetCurrencyPairDetail(ctx context.Context, currencyPair string)
 
 // GetTickers retrieve ticker information
 // Return only related data if currency_pair is specified; otherwise return all of them
-func (g *Gateio) GetTickers(ctx context.Context, currencyPair, timezone string) ([]Ticker, error) {
+func (g *Exchange) GetTickers(ctx context.Context, currencyPair, timezone string) ([]Ticker, error) {
 	params := url.Values{}
 	if currencyPair != "" {
 		params.Set("currency_pair", currencyPair)
@@ -321,7 +321,7 @@ func (g *Gateio) GetTickers(ctx context.Context, currencyPair, timezone string) 
 }
 
 // GetTicker retrieves a single ticker information for a currency pair.
-func (g *Gateio) GetTicker(ctx context.Context, currencyPair, timezone string) (*Ticker, error) {
+func (g *Exchange) GetTicker(ctx context.Context, currencyPair, timezone string) (*Ticker, error) {
 	if currencyPair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -356,7 +356,7 @@ func getIntervalString(interval kline.Interval) (string, error) {
 }
 
 // GetIntervalFromString returns a kline.Interval representation of the interval string
-func (g *Gateio) GetIntervalFromString(interval string) (kline.Interval, error) {
+func (g *Exchange) GetIntervalFromString(interval string) (kline.Interval, error) {
 	switch interval {
 	case "10s":
 		return kline.TenSecond, nil
@@ -396,7 +396,7 @@ func (g *Gateio) GetIntervalFromString(interval string) (kline.Interval, error) 
 }
 
 // GetOrderbook returns the orderbook data for a suppled currency pair
-func (g *Gateio) GetOrderbook(ctx context.Context, pairString, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
+func (g *Exchange) GetOrderbook(ctx context.Context, pairString, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
 	if pairString == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -418,7 +418,7 @@ func (g *Gateio) GetOrderbook(ctx context.Context, pairString, interval string, 
 }
 
 // GetMarketTrades retrieve market trades
-func (g *Gateio) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]Trade, error) {
+func (g *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]Trade, error) {
 	params := url.Values{}
 	if pairString.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -447,7 +447,7 @@ func (g *Gateio) GetMarketTrades(ctx context.Context, pairString currency.Pair, 
 }
 
 // GetCandlesticks retrieves market candlesticks.
-func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
+func (g *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
 	params := url.Values{}
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -476,7 +476,7 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 }
 
 // GetTradingFeeRatio retrieves user trading fee rates
-func (g *Gateio) GetTradingFeeRatio(ctx context.Context, currencyPair currency.Pair) (*SpotTradingFeeRate, error) {
+func (g *Exchange) GetTradingFeeRatio(ctx context.Context, currencyPair currency.Pair) (*SpotTradingFeeRate, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		// specify a currency pair to retrieve precise fee rate
@@ -487,7 +487,7 @@ func (g *Gateio) GetTradingFeeRatio(ctx context.Context, currencyPair currency.P
 }
 
 // GetSpotAccounts retrieves spot account.
-func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]SpotAccount, error) {
+func (g *Exchange) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]SpotAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -497,7 +497,7 @@ func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Spot
 }
 
 // GetUnifiedAccount retrieves unified account.
-func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
+func (g *Exchange) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -508,7 +508,7 @@ func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*Uni
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
-func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]SpotOrder, error) {
+func (g *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]SpotOrder, error) {
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
@@ -546,7 +546,7 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 // List open orders in all currency pairs.
 // Note that pagination parameters affect record number in each currency pair's open order list. No pagination is applied to the number of currency pairs returned. All currency pairs with open orders will be returned.
 // Spot and margin orders are returned by default. To list cross margin orders, account must be set to cross_margin
-func (g *Gateio) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]SpotOrdersDetail, error) {
+func (g *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]SpotOrdersDetail, error) {
 	params := url.Values{}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -562,7 +562,7 @@ func (g *Gateio) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCr
 }
 
 // SpotClosePositionWhenCrossCurrencyDisabled set close position when cross-currency is disabled
-func (g *Gateio) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Context, arg *ClosePositionRequestParam) (*SpotOrder, error) {
+func (g *Exchange) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Context, arg *ClosePositionRequestParam) (*SpotOrder, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -581,7 +581,7 @@ func (g *Gateio) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Context,
 
 // PlaceSpotOrder creates a spot order you can place orders with spot, margin or cross margin account through setting the accountfield.
 // It defaults to spot, which means spot account is used to place orders.
-func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) (*SpotOrder, error) {
+func (g *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) (*SpotOrder, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -608,7 +608,7 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) (*
 }
 
 // GetSpotOrders retrieves spot orders.
-func (g *Gateio) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, status string, page, limit uint64) ([]SpotOrder, error) {
+func (g *Exchange) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, status string, page, limit uint64) ([]SpotOrder, error) {
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -628,7 +628,7 @@ func (g *Gateio) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, 
 }
 
 // CancelAllOpenOrdersSpecifiedCurrencyPair cancel all open orders in specified currency pair
-func (g *Gateio) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, account asset.Item) ([]SpotOrder, error) {
+func (g *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, account asset.Item) ([]SpotOrder, error) {
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -646,7 +646,7 @@ func (g *Gateio) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, c
 
 // CancelBatchOrdersWithIDList cancels batch orders specifying the order ID and currency pair information
 // Multiple currency pairs can be specified, but maximum 20 orders are allowed per request
-func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelOrderByIDParam) ([]CancelOrderByIDResponse, error) {
+func (g *Exchange) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelOrderByIDParam) ([]CancelOrderByIDResponse, error) {
 	var response []CancelOrderByIDResponse
 	if len(args) == 0 {
 		return nil, errNoValidParameterPassed
@@ -662,7 +662,7 @@ func (g *Gateio) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelO
 }
 
 // GetSpotOrder retrieves a single spot order using the order id and currency pair information.
-func (g *Gateio) GetSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item) (*SpotOrder, error) {
+func (g *Exchange) GetSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, account asset.Item) (*SpotOrder, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -682,7 +682,7 @@ func (g *Gateio) GetSpotOrder(ctx context.Context, orderID string, currencyPair 
 // By default, the orders of spot and margin account are updated.
 // If you need to modify orders of the cross-margin account, you must specify account as cross_margin.
 // For portfolio margin account, only cross_margin account is supported.
-func (g *Gateio) AmendSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, isCrossMarginAccount bool, arg *PriceAndAmount) (*SpotOrder, error) {
+func (g *Exchange) AmendSpotOrder(ctx context.Context, orderID string, currencyPair currency.Pair, isCrossMarginAccount bool, arg *PriceAndAmount) (*SpotOrder, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -707,7 +707,7 @@ func (g *Gateio) AmendSpotOrder(ctx context.Context, orderID string, currencyPai
 // CancelSingleSpotOrder cancels a single order
 // Spot and margin orders are cancelled by default.
 // If trying to cancel cross margin orders or portfolio margin account are used, account must be set to cross_margin
-func (g *Gateio) CancelSingleSpotOrder(ctx context.Context, orderID, currencyPair string, isCrossMarginAccount bool) (*SpotOrder, error) {
+func (g *Exchange) CancelSingleSpotOrder(ctx context.Context, orderID, currencyPair string, isCrossMarginAccount bool) (*SpotOrder, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -724,7 +724,7 @@ func (g *Gateio) CancelSingleSpotOrder(ctx context.Context, orderID, currencyPai
 }
 
 // GetMySpotTradingHistory retrieves personal trading history
-func (g *Gateio) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, crossMargin bool, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
+func (g *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, crossMargin bool, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
 	params := url.Values{}
 	if p.IsPopulated() {
 		params.Set("currency_pair", p.String())
@@ -752,7 +752,7 @@ func (g *Gateio) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, o
 }
 
 // GetServerTime retrieves current server time
-func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (g *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	resp := struct {
 		ServerTime int64 `json:"server_time"`
 	}{}
@@ -766,7 +766,7 @@ func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 // CountdownCancelorders Countdown cancel orders
 // When the timeout set by the user is reached, if there is no cancel or set a new countdown, the related pending orders will be automatically cancelled.
 // This endpoint can be called repeatedly to set a new countdown or cancel the countdown.
-func (g *Gateio) CountdownCancelorders(ctx context.Context, arg CountdownCancelOrderParam) (*TriggerTimeResponse, error) {
+func (g *Exchange) CountdownCancelorders(ctx context.Context, arg CountdownCancelOrderParam) (*TriggerTimeResponse, error) {
 	if arg.Timeout <= 0 {
 		return nil, errInvalidCountdown
 	}
@@ -775,7 +775,7 @@ func (g *Gateio) CountdownCancelorders(ctx context.Context, arg CountdownCancelO
 }
 
 // CreatePriceTriggeredOrder create a price-triggered order
-func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTriggeredOrderParam) (*OrderID, error) {
+func (g *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTriggeredOrderParam) (*OrderID, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -817,7 +817,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 }
 
 // GetPriceTriggeredOrderList retrieves price orders created with an order detail and trigger price information.
-func (g *Gateio) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, account asset.Item, offset, limit uint64) ([]SpotPriceTriggeredOrder, error) {
+func (g *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, account asset.Item, offset, limit uint64) ([]SpotPriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status %s", errInvalidOrderStatus, status)
 	}
@@ -840,7 +840,7 @@ func (g *Gateio) GetPriceTriggeredOrderList(ctx context.Context, status string, 
 }
 
 // CancelMultipleSpotOpenOrders deletes price triggered orders.
-func (g *Gateio) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair currency.Pair, account asset.Item) ([]SpotPriceTriggeredOrder, error) {
+func (g *Exchange) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair currency.Pair, account asset.Item) ([]SpotPriceTriggeredOrder, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("market", currencyPair.String())
@@ -858,7 +858,7 @@ func (g *Gateio) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair 
 }
 
 // GetSinglePriceTriggeredOrder get a single order
-func (g *Gateio) GetSinglePriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
+func (g *Exchange) GetSinglePriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -867,7 +867,7 @@ func (g *Gateio) GetSinglePriceTriggeredOrder(ctx context.Context, orderID strin
 }
 
 // CancelPriceTriggeredOrder cancel a price-triggered order
-func (g *Gateio) CancelPriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
+func (g *Exchange) CancelPriceTriggeredOrder(ctx context.Context, orderID string) (*SpotPriceTriggeredOrder, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -876,7 +876,7 @@ func (g *Gateio) CancelPriceTriggeredOrder(ctx context.Context, orderID string) 
 }
 
 // GenerateSignature returns hash for authenticated requests
-func (g *Gateio) GenerateSignature(secret, method, path, query string, body any, dtime time.Time) (string, error) {
+func (g *Exchange) GenerateSignature(secret, method, path, query string, body any, dtime time.Time) (string, error) {
 	h := sha512.New()
 	if body != nil {
 		val, err := json.Marshal(body)
@@ -900,7 +900,7 @@ func (g *Gateio) GenerateSignature(secret, method, path, query string, body any,
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
 // To use this you must setup an APIKey and APISecret from the exchange
-func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, param url.Values, data, result any) error {
+func (g *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, param url.Values, data, result any) error {
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -974,7 +974,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
+func (g *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -995,7 +995,7 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 // *********************************** Withdrawals ******************************
 
 // WithdrawCurrency to withdraw a currency.
-func (g *Gateio) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestParam) (*WithdrawalResponse, error) {
+func (g *Exchange) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestParam) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w currency amount must be greater than zero", errInvalidAmount)
 	}
@@ -1010,7 +1010,7 @@ func (g *Gateio) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestPara
 }
 
 // CancelWithdrawalWithSpecifiedID cancels withdrawal with specified ID.
-func (g *Gateio) CancelWithdrawalWithSpecifiedID(ctx context.Context, withdrawalID string) (*WithdrawalResponse, error) {
+func (g *Exchange) CancelWithdrawalWithSpecifiedID(ctx context.Context, withdrawalID string) (*WithdrawalResponse, error) {
 	if withdrawalID == "" {
 		return nil, errMissingWithdrawalID
 	}
@@ -1021,7 +1021,7 @@ func (g *Gateio) CancelWithdrawalWithSpecifiedID(ctx context.Context, withdrawal
 // *********************************** Wallet ***********************************
 
 // ListCurrencyChain retrieves a list of currency chain name
-func (g *Gateio) ListCurrencyChain(ctx context.Context, ccy currency.Code) ([]CurrencyChain, error) {
+func (g *Exchange) ListCurrencyChain(ctx context.Context, ccy currency.Code) ([]CurrencyChain, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1032,7 +1032,7 @@ func (g *Gateio) ListCurrencyChain(ctx context.Context, ccy currency.Code) ([]Cu
 }
 
 // GenerateCurrencyDepositAddress generate currency deposit address
-func (g *Gateio) GenerateCurrencyDepositAddress(ctx context.Context, ccy currency.Code) (*CurrencyDepositAddressInfo, error) {
+func (g *Exchange) GenerateCurrencyDepositAddress(ctx context.Context, ccy currency.Code) (*CurrencyDepositAddressInfo, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1043,7 +1043,7 @@ func (g *Gateio) GenerateCurrencyDepositAddress(ctx context.Context, ccy currenc
 }
 
 // GetWithdrawalRecords retrieves withdrawal records. Record time range cannot exceed 30 days
-func (g *Gateio) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]WithdrawalResponse, error) {
+func (g *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]WithdrawalResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1067,7 +1067,7 @@ func (g *Gateio) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, fr
 }
 
 // GetDepositRecords retrieves deposit records. Record time range cannot exceed 30 days
-func (g *Gateio) GetDepositRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]DepositRecord, error) {
+func (g *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]DepositRecord, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1091,7 +1091,7 @@ func (g *Gateio) GetDepositRecords(ctx context.Context, ccy currency.Code, from,
 // TransferCurrency Transfer between different accounts. Currently support transfers between the following:
 // spot - margin, spot - futures(perpetual), spot - delivery
 // spot - cross margin, spot - options
-func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyParam) (*TransactionIDResponse, error) {
+func (g *Exchange) TransferCurrency(ctx context.Context, arg *TransferCurrencyParam) (*TransactionIDResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1120,7 +1120,7 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTransferCurrencyEPL, http.MethodPost, walletTransfer, nil, &arg, &response)
 }
 
-func (g *Gateio) assetTypeToString(acc asset.Item) string {
+func (g *Exchange) assetTypeToString(acc asset.Item) string {
 	if acc == asset.Options {
 		return "options"
 	}
@@ -1129,7 +1129,7 @@ func (g *Gateio) assetTypeToString(acc asset.Item) string {
 
 // SubAccountTransfer to transfer between main and sub accounts
 // Support transferring with sub user's spot or futures account. Note that only main user's spot account is used no matter which sub user's account is operated.
-func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferParam) error {
+func (g *Exchange) SubAccountTransfer(ctx context.Context, arg SubAccountTransferParam) error {
 	if arg.Currency.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
@@ -1154,7 +1154,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 // GetSubAccountTransferHistory retrieve transfer records between main and sub accounts.
 // retrieve transfer records between main and sub accounts. Record time range cannot exceed 30 days
 // Note: only records after 2020-04-10 can be retrieved
-func (g *Gateio) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]SubAccountTransferResponse, error) {
+func (g *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]SubAccountTransferResponse, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1180,7 +1180,7 @@ func (g *Gateio) GetSubAccountTransferHistory(ctx context.Context, subAccountUse
 }
 
 // SubAccountTransferToSubAccount performs sub-account transfers to sub-account
-func (g *Gateio) SubAccountTransferToSubAccount(ctx context.Context, arg *InterSubAccountTransferParams) error {
+func (g *Exchange) SubAccountTransferToSubAccount(ctx context.Context, arg *InterSubAccountTransferParams) error {
 	if arg.Currency.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
@@ -1203,7 +1203,7 @@ func (g *Gateio) SubAccountTransferToSubAccount(ctx context.Context, arg *InterS
 }
 
 // GetWithdrawalStatus retrieves withdrawal status
-func (g *Gateio) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]WithdrawalStatus, error) {
+func (g *Exchange) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]WithdrawalStatus, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1213,7 +1213,7 @@ func (g *Gateio) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]
 }
 
 // GetSubAccountBalances retrieve sub account balances
-func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]FuturesSubAccountBalance, error) {
+func (g *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]FuturesSubAccountBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1223,7 +1223,7 @@ func (g *Gateio) GetSubAccountBalances(ctx context.Context, subAccountUserID str
 }
 
 // GetSubAccountMarginBalances query sub accounts' margin balances
-func (g *Gateio) GetSubAccountMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountMarginBalance, error) {
+func (g *Exchange) GetSubAccountMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountMarginBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1233,7 +1233,7 @@ func (g *Gateio) GetSubAccountMarginBalances(ctx context.Context, subAccountUser
 }
 
 // GetSubAccountFuturesBalances retrieves sub accounts' futures account balances
-func (g *Gateio) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID string, settle currency.Code) ([]FuturesSubAccountBalance, error) {
+func (g *Exchange) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID string, settle currency.Code) ([]FuturesSubAccountBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1246,7 +1246,7 @@ func (g *Gateio) GetSubAccountFuturesBalances(ctx context.Context, subAccountUse
 }
 
 // GetSubAccountCrossMarginBalances query subaccount's cross_margin account info
-func (g *Gateio) GetSubAccountCrossMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountCrossMarginInfo, error) {
+func (g *Exchange) GetSubAccountCrossMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountCrossMarginInfo, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1256,7 +1256,7 @@ func (g *Gateio) GetSubAccountCrossMarginBalances(ctx context.Context, subAccoun
 }
 
 // GetSavedAddresses retrieves saved currency address info and related details.
-func (g *Gateio) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit uint64) ([]WalletSavedAddress, error) {
+func (g *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit uint64) ([]WalletSavedAddress, error) {
 	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, fmt.Errorf("%w address is required", currency.ErrCurrencyPairEmpty)
@@ -1273,7 +1273,7 @@ func (g *Gateio) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain
 }
 
 // GetPersonalTradingFee retrieves personal trading fee
-func (g *Gateio) GetPersonalTradingFee(ctx context.Context, currencyPair currency.Pair, settle currency.Code) (*PersonalTradingFee, error) {
+func (g *Exchange) GetPersonalTradingFee(ctx context.Context, currencyPair currency.Pair, settle currency.Code) (*PersonalTradingFee, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		// specify a currency pair to retrieve precise fee rate
@@ -1287,7 +1287,7 @@ func (g *Gateio) GetPersonalTradingFee(ctx context.Context, currencyPair currenc
 }
 
 // GetUsersTotalBalance retrieves user's total balances
-func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*UsersAllAccountBalance, error) {
+func (g *Exchange) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*UsersAllAccountBalance, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1299,7 +1299,7 @@ func (g *Gateio) GetUsersTotalBalance(ctx context.Context, ccy currency.Code) (*
 // ConvertSmallBalances converts small balances of provided currencies into GT.
 // If no currencies are provided, all supported currencies will be converted
 // See [this documentation](https://www.gate.io/help/guide/functional_guidelines/22367) for details and restrictions.
-func (g *Gateio) ConvertSmallBalances(ctx context.Context, currs ...currency.Code) error {
+func (g *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.Code) error {
 	currencyList := make([]string, len(currs))
 	for i := range currs {
 		if currs[i].IsEmpty() {
@@ -1321,13 +1321,13 @@ func (g *Gateio) ConvertSmallBalances(ctx context.Context, currs ...currency.Cod
 // ********************************* Margin *******************************************
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
-func (g *Gateio) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
+func (g *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
 	var currenciePairsInfo []MarginCurrencyPairInfo
 	return currenciePairsInfo, g.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, gateioMarginCurrencyPairs, &currenciePairsInfo)
 }
 
 // GetSingleMarginSupportedCurrencyPair retrieves margin supported currency pair detail given the currency pair.
-func (g *Gateio) GetSingleMarginSupportedCurrencyPair(ctx context.Context, market currency.Pair) (*MarginCurrencyPairInfo, error) {
+func (g *Exchange) GetSingleMarginSupportedCurrencyPair(ctx context.Context, market currency.Pair) (*MarginCurrencyPairInfo, error) {
 	if market.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1336,7 +1336,7 @@ func (g *Gateio) GetSingleMarginSupportedCurrencyPair(ctx context.Context, marke
 }
 
 // GetOrderbookOfLendingLoans retrieves order book of lending loans for specific currency
-func (g *Gateio) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Code) ([]OrderbookOfLendingLoan, error) {
+func (g *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Code) ([]OrderbookOfLendingLoan, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1345,7 +1345,7 @@ func (g *Gateio) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Co
 }
 
 // GetMarginAccountList margin account list
-func (g *Gateio) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
+func (g *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
@@ -1356,7 +1356,7 @@ func (g *Gateio) GetMarginAccountList(ctx context.Context, currencyPair currency
 
 // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
 // Only transferals from and to margin account are provided for now. Time range allows 30 days at most
-func (g *Gateio) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]MarginAccountBalanceChangeInfo, error) {
+func (g *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]MarginAccountBalanceChangeInfo, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1381,7 +1381,7 @@ func (g *Gateio) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy 
 }
 
 // GetMarginFundingAccountList retrieves funding account list
-func (g *Gateio) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]MarginFundingAccountItem, error) {
+func (g *Exchange) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]MarginFundingAccountItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1391,7 +1391,7 @@ func (g *Gateio) GetMarginFundingAccountList(ctx context.Context, ccy currency.C
 }
 
 // MarginLoan represents lend or borrow request
-func (g *Gateio) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*MarginLoanResponse, error) {
+func (g *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*MarginLoanResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1415,7 +1415,7 @@ func (g *Gateio) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*
 }
 
 // GetMarginAllLoans retrieves all loans (borrow and lending) orders.
-func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]MarginLoanResponse, error) {
+func (g *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]MarginLoanResponse, error) {
 	if side != sideLend && side != sideBorrow {
 		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", order.ErrSideIsInvalid)
 	}
@@ -1449,7 +1449,7 @@ func (g *Gateio) GetMarginAllLoans(ctx context.Context, status, side, sortBy str
 }
 
 // MergeMultipleLendingLoans merge multiple lending loans
-func (g *Gateio) MergeMultipleLendingLoans(ctx context.Context, ccy currency.Code, ids []string) (*MarginLoanResponse, error) {
+func (g *Exchange) MergeMultipleLendingLoans(ctx context.Context, ccy currency.Code, ids []string) (*MarginLoanResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1465,7 +1465,7 @@ func (g *Gateio) MergeMultipleLendingLoans(ctx context.Context, ccy currency.Cod
 
 // RetriveOneSingleLoanDetail retrieve one single loan detail
 // "side" represents loan side: Lend or Borrow
-func (g *Gateio) RetriveOneSingleLoanDetail(ctx context.Context, side, loanID string) (*MarginLoanResponse, error) {
+func (g *Exchange) RetriveOneSingleLoanDetail(ctx context.Context, side, loanID string) (*MarginLoanResponse, error) {
 	if side != sideBorrow && side != sideLend {
 		return nil, errInvalidLoanSide
 	}
@@ -1480,7 +1480,7 @@ func (g *Gateio) RetriveOneSingleLoanDetail(ctx context.Context, side, loanID st
 
 // ModifyALoan Modify a loan
 // only auto_renew modification is supported currently
-func (g *Gateio) ModifyALoan(ctx context.Context, loanID string, arg *ModifyLoanRequestParam) (*MarginLoanResponse, error) {
+func (g *Exchange) ModifyALoan(ctx context.Context, loanID string, arg *ModifyLoanRequestParam) (*MarginLoanResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1501,7 +1501,7 @@ func (g *Gateio) ModifyALoan(ctx context.Context, loanID string, arg *ModifyLoan
 }
 
 // CancelLendingLoan cancels lending loans. only lent loans can be canceled.
-func (g *Gateio) CancelLendingLoan(ctx context.Context, ccy currency.Code, loanID string) (*MarginLoanResponse, error) {
+func (g *Exchange) CancelLendingLoan(ctx context.Context, ccy currency.Code, loanID string) (*MarginLoanResponse, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %s", errInvalidLoanID, " loan_id is required")
 	}
@@ -1515,7 +1515,7 @@ func (g *Gateio) CancelLendingLoan(ctx context.Context, ccy currency.Code, loanI
 }
 
 // RepayALoan execute a loan repay.
-func (g *Gateio) RepayALoan(ctx context.Context, loanID string, arg *RepayLoanRequestParam) (*MarginLoanResponse, error) {
+func (g *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoanRequestParam) (*MarginLoanResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1539,7 +1539,7 @@ func (g *Gateio) RepayALoan(ctx context.Context, loanID string, arg *RepayLoanRe
 }
 
 // ListLoanRepaymentRecords retrieves loan repayment records for specified loan ID
-func (g *Gateio) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([]LoanRepaymentRecord, error) {
+func (g *Exchange) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([]LoanRepaymentRecord, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
 	}
@@ -1548,7 +1548,7 @@ func (g *Gateio) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([
 }
 
 // ListRepaymentRecordsOfSpecificLoan retrieves repayment records of specific loan
-func (g *Gateio) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID, status string, page, limit uint64) ([]LoanRecord, error) {
+func (g *Exchange) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID, status string, page, limit uint64) ([]LoanRecord, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
 	}
@@ -1568,7 +1568,7 @@ func (g *Gateio) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID,
 }
 
 // GetOneSingleLoanRecord get one single loan record
-func (g *Gateio) GetOneSingleLoanRecord(ctx context.Context, loanID, loanRecordID string) (*LoanRecord, error) {
+func (g *Exchange) GetOneSingleLoanRecord(ctx context.Context, loanID, loanRecordID string) (*LoanRecord, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
 	}
@@ -1583,7 +1583,7 @@ func (g *Gateio) GetOneSingleLoanRecord(ctx context.Context, loanID, loanRecordI
 
 // ModifyALoanRecord modify a loan record
 // Only auto_renew modification is supported currently
-func (g *Gateio) ModifyALoanRecord(ctx context.Context, loanRecordID string, arg *ModifyLoanRequestParam) (*LoanRecord, error) {
+func (g *Exchange) ModifyALoanRecord(ctx context.Context, loanRecordID string, arg *ModifyLoanRequestParam) (*LoanRecord, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1604,7 +1604,7 @@ func (g *Gateio) ModifyALoanRecord(ctx context.Context, loanRecordID string, arg
 }
 
 // UpdateUsersAutoRepaymentSetting represents update user's auto repayment setting
-func (g *Gateio) UpdateUsersAutoRepaymentSetting(ctx context.Context, statusOn bool) (*OnOffStatus, error) {
+func (g *Exchange) UpdateUsersAutoRepaymentSetting(ctx context.Context, statusOn bool) (*OnOffStatus, error) {
 	var statusStr string
 	if statusOn {
 		statusStr = "on"
@@ -1618,13 +1618,13 @@ func (g *Gateio) UpdateUsersAutoRepaymentSetting(ctx context.Context, statusOn b
 }
 
 // GetUserAutoRepaymentSetting retrieve user auto repayment setting
-func (g *Gateio) GetUserAutoRepaymentSetting(ctx context.Context) (*OnOffStatus, error) {
+func (g *Exchange) GetUserAutoRepaymentSetting(ctx context.Context) (*OnOffStatus, error) {
 	var response *OnOffStatus
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetAutoRepaySettingsEPL, http.MethodGet, gateioMarginAutoRepay, nil, nil, &response)
 }
 
 // GetMaxTransferableAmountForSpecificMarginCurrency get the max transferable amount for a specific margin currency.
-func (g *Gateio) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+func (g *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1638,7 +1638,7 @@ func (g *Gateio) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context.C
 }
 
 // GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
-func (g *Gateio) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+func (g *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1652,13 +1652,13 @@ func (g *Gateio) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Con
 }
 
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
-func (g *Gateio) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
+func (g *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
 	var response []CrossMarginCurrencies
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, http.MethodGet, gateioCrossMarginCurrencies, nil, nil, &response)
 }
 
 // GetCrossMarginSupportedCurrencyDetail retrieve detail of one single currency supported by cross margin
-func (g *Gateio) GetCrossMarginSupportedCurrencyDetail(ctx context.Context, ccy currency.Code) (*CrossMarginCurrencies, error) {
+func (g *Exchange) GetCrossMarginSupportedCurrencyDetail(ctx context.Context, ccy currency.Code) (*CrossMarginCurrencies, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1667,14 +1667,14 @@ func (g *Gateio) GetCrossMarginSupportedCurrencyDetail(ctx context.Context, ccy 
 }
 
 // GetCrossMarginAccounts retrieve cross margin account
-func (g *Gateio) GetCrossMarginAccounts(ctx context.Context) (*CrossMarginAccount, error) {
+func (g *Exchange) GetCrossMarginAccounts(ctx context.Context) (*CrossMarginAccount, error) {
 	var response *CrossMarginAccount
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountsEPL, http.MethodGet, gateioCrossMarginAccounts, nil, nil, &response)
 }
 
 // GetCrossMarginAccountChangeHistory retrieve cross margin account change history
 // Record time range cannot exceed 30 days
-func (g *Gateio) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]CrossMarginAccountHistoryItem, error) {
+func (g *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]CrossMarginAccountHistoryItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1700,7 +1700,7 @@ func (g *Gateio) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy cur
 
 // CreateCrossMarginBorrowLoan create a cross margin borrow loan
 // Borrow amount cannot be less than currency minimum borrow amount
-func (g *Gateio) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMarginBorrowLoanParams) (*CrossMarginLoanResponse, error) {
+func (g *Exchange) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMarginBorrowLoanParams) (*CrossMarginLoanResponse, error) {
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1714,7 +1714,7 @@ func (g *Gateio) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMargi
 // ExecuteRepayment when the liquidity of the currency is insufficient and the transaction risk is high, the currency will be disabled,
 // and funds cannot be transferred.When the available balance of cross-margin is insufficient, the balance of the spot account can be used for repayment.
 // Please ensure that the balance of the spot account is sufficient, and system uses cross-margin account for repayment first
-func (g *Gateio) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([]CrossMarginLoanResponse, error) {
+func (g *Exchange) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([]CrossMarginLoanResponse, error) {
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1726,7 +1726,7 @@ func (g *Gateio) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([
 }
 
 // GetCrossMarginRepayments retrieves list of cross margin repayments
-func (g *Gateio) GetCrossMarginRepayments(ctx context.Context, ccy currency.Code, loanID string, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
+func (g *Exchange) GetCrossMarginRepayments(ctx context.Context, ccy currency.Code, loanID string, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1748,7 +1748,7 @@ func (g *Gateio) GetCrossMarginRepayments(ctx context.Context, ccy currency.Code
 }
 
 // GetMaxTransferableAmountForSpecificCrossMarginCurrency get the max transferable amount for a specific cross margin currency
-func (g *Gateio) GetMaxTransferableAmountForSpecificCrossMarginCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
+func (g *Exchange) GetMaxTransferableAmountForSpecificCrossMarginCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1759,7 +1759,7 @@ func (g *Gateio) GetMaxTransferableAmountForSpecificCrossMarginCurrency(ctx cont
 }
 
 // GetMaxBorrowableAmountForSpecificCrossMarginCurrency returns the max borrowable amount for a specific cross margin currency
-func (g *Gateio) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
+func (g *Exchange) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1771,7 +1771,7 @@ func (g *Gateio) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx contex
 
 // GetCrossMarginBorrowHistory retrieves cross margin borrow history sorted by creation time in descending order by default.
 // Set reverse=false to return ascending results.
-func (g *Gateio) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, ccy currency.Code, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
+func (g *Exchange) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, ccy currency.Code, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
 	if status < 1 || status > 3 {
 		return nil, fmt.Errorf("%s %v, only allowed status values are 1:failed, 2:borrowed, and 3:repayment", g.Name, errInvalidOrderStatus)
 	}
@@ -1794,7 +1794,7 @@ func (g *Gateio) GetCrossMarginBorrowHistory(ctx context.Context, status uint64,
 }
 
 // GetSingleBorrowLoanDetail retrieve single borrow loan detail
-func (g *Gateio) GetSingleBorrowLoanDetail(ctx context.Context, loanID string) (*CrossMarginLoanResponse, error) {
+func (g *Exchange) GetSingleBorrowLoanDetail(ctx context.Context, loanID string) (*CrossMarginLoanResponse, error) {
 	if loanID == "" {
 		return nil, errInvalidLoanID
 	}
@@ -1805,7 +1805,7 @@ func (g *Gateio) GetSingleBorrowLoanDetail(ctx context.Context, loanID string) (
 // *********************************Futures***************************************
 
 // GetAllFutureContracts retrieves list all futures contracts
-func (g *Gateio) GetAllFutureContracts(ctx context.Context, settle currency.Code) ([]FuturesContract, error) {
+func (g *Exchange) GetAllFutureContracts(ctx context.Context, settle currency.Code) ([]FuturesContract, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1814,7 +1814,7 @@ func (g *Gateio) GetAllFutureContracts(ctx context.Context, settle currency.Code
 }
 
 // GetFuturesContract returns a single futures contract info for the specified settle and Currency Pair (contract << in this case)
-func (g *Gateio) GetFuturesContract(ctx context.Context, settle currency.Code, contract string) (*FuturesContract, error) {
+func (g *Exchange) GetFuturesContract(ctx context.Context, settle currency.Code, contract string) (*FuturesContract, error) {
 	if contract == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1826,7 +1826,7 @@ func (g *Gateio) GetFuturesContract(ctx context.Context, settle currency.Code, c
 }
 
 // GetFuturesOrderbook retrieves futures order book data
-func (g *Gateio) GetFuturesOrderbook(ctx context.Context, settle currency.Code, contract, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
+func (g *Exchange) GetFuturesOrderbook(ctx context.Context, settle currency.Code, contract, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
 	if contract == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1849,7 +1849,7 @@ func (g *Gateio) GetFuturesOrderbook(ctx context.Context, settle currency.Code, 
 }
 
 // GetFuturesTradingHistory retrieves futures trading history
-func (g *Gateio) GetFuturesTradingHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, lastID string, from, to time.Time) ([]TradingHistoryItem, error) {
+func (g *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, lastID string, from, to time.Time) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1878,7 +1878,7 @@ func (g *Gateio) GetFuturesTradingHistory(ctx context.Context, settle currency.C
 }
 
 // GetFuturesCandlesticks retrieves specified contract candlesticks.
-func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle currency.Code, contract string, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (g *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.Code, contract string, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1909,7 +1909,7 @@ func (g *Gateio) GetFuturesCandlesticks(ctx context.Context, settle currency.Cod
 
 // PremiumIndexKLine retrieves premium Index K-Line
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
-func (g *Gateio) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]FuturesPremiumIndexKLineResponse, error) {
+func (g *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]FuturesPremiumIndexKLineResponse, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1937,7 +1937,7 @@ func (g *Gateio) PremiumIndexKLine(ctx context.Context, settleCurrency currency.
 }
 
 // GetFuturesTickers retrieves futures ticker information for a specific settle and contract info.
-func (g *Gateio) GetFuturesTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
+func (g *Exchange) GetFuturesTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1950,7 +1950,7 @@ func (g *Gateio) GetFuturesTickers(ctx context.Context, settle currency.Code, co
 }
 
 // GetFutureFundingRates retrieves funding rate information.
-func (g *Gateio) GetFutureFundingRates(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64) ([]FuturesFundingRate, error) {
+func (g *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64) ([]FuturesFundingRate, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1967,7 +1967,7 @@ func (g *Gateio) GetFutureFundingRates(ctx context.Context, settle currency.Code
 }
 
 // GetFuturesInsuranceBalanceHistory retrieves futures insurance balance history
-func (g *Gateio) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
+func (g *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -1980,7 +1980,7 @@ func (g *Gateio) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle c
 }
 
 // GetFutureStats retrieves futures stats
-func (g *Gateio) GetFutureStats(ctx context.Context, settle currency.Code, contract currency.Pair, from time.Time, interval kline.Interval, limit uint64) ([]ContractStat, error) {
+func (g *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, contract currency.Pair, from time.Time, interval kline.Interval, limit uint64) ([]ContractStat, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2007,7 +2007,7 @@ func (g *Gateio) GetFutureStats(ctx context.Context, settle currency.Code, contr
 }
 
 // GetIndexConstituent retrieves index constituents
-func (g *Gateio) GetIndexConstituent(ctx context.Context, settle currency.Code, index string) (*IndexConstituent, error) {
+func (g *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code, index string) (*IndexConstituent, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2020,7 +2020,7 @@ func (g *Gateio) GetIndexConstituent(ctx context.Context, settle currency.Code, 
 }
 
 // GetLiquidationHistory retrieves liqudiation history
-func (g *Gateio) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]LiquidationHistory, error) {
+func (g *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]LiquidationHistory, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2043,7 +2043,7 @@ func (g *Gateio) GetLiquidationHistory(ctx context.Context, settle currency.Code
 }
 
 // QueryFuturesAccount retrieves futures account
-func (g *Gateio) QueryFuturesAccount(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
+func (g *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2052,7 +2052,7 @@ func (g *Gateio) QueryFuturesAccount(ctx context.Context, settle currency.Code) 
 }
 
 // GetFuturesAccountBooks retrieves account books
-func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+func (g *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2074,7 +2074,7 @@ func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle currency.Cod
 }
 
 // GetAllFuturesPositionsOfUsers list all positions of users.
-func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle currency.Code, realPositionsOnly bool) ([]Position, error) {
+func (g *Exchange) GetAllFuturesPositionsOfUsers(ctx context.Context, settle currency.Code, realPositionsOnly bool) ([]Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2087,7 +2087,7 @@ func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle curre
 }
 
 // GetSinglePosition returns a single position
-func (g *Gateio) GetSinglePosition(ctx context.Context, settle currency.Code, contract currency.Pair) (*Position, error) {
+func (g *Exchange) GetSinglePosition(ctx context.Context, settle currency.Code, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2099,7 +2099,7 @@ func (g *Gateio) GetSinglePosition(ctx context.Context, settle currency.Code, co
 }
 
 // UpdateFuturesPositionMargin represents account position margin for a futures contract.
-func (g *Gateio) UpdateFuturesPositionMargin(ctx context.Context, settle currency.Code, change float64, contract currency.Pair) (*Position, error) {
+func (g *Exchange) UpdateFuturesPositionMargin(ctx context.Context, settle currency.Code, change float64, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2116,7 +2116,7 @@ func (g *Gateio) UpdateFuturesPositionMargin(ctx context.Context, settle currenc
 }
 
 // UpdateFuturesPositionLeverage update position leverage
-func (g *Gateio) UpdateFuturesPositionLeverage(ctx context.Context, settle currency.Code, contract currency.Pair, leverage, crossLeverageLimit float64) (*Position, error) {
+func (g *Exchange) UpdateFuturesPositionLeverage(ctx context.Context, settle currency.Code, contract currency.Pair, leverage, crossLeverageLimit float64) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2136,7 +2136,7 @@ func (g *Gateio) UpdateFuturesPositionLeverage(ctx context.Context, settle curre
 }
 
 // UpdateFuturesPositionRiskLimit updates the position risk limit
-func (g *Gateio) UpdateFuturesPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
+func (g *Exchange) UpdateFuturesPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2151,7 +2151,7 @@ func (g *Gateio) UpdateFuturesPositionRiskLimit(ctx context.Context, settle curr
 
 // EnableOrDisableDualMode enable or disable dual mode
 // Before setting dual mode, make sure all positions are closed and no orders are open
-func (g *Gateio) EnableOrDisableDualMode(ctx context.Context, settle currency.Code, dualMode bool) (*DualModeResponse, error) {
+func (g *Exchange) EnableOrDisableDualMode(ctx context.Context, settle currency.Code, dualMode bool) (*DualModeResponse, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2162,7 +2162,7 @@ func (g *Gateio) EnableOrDisableDualMode(ctx context.Context, settle currency.Co
 }
 
 // RetrivePositionDetailInDualMode retrieve position detail in dual mode
-func (g *Gateio) RetrivePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]Position, error) {
+func (g *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2174,7 +2174,7 @@ func (g *Gateio) RetrivePositionDetailInDualMode(ctx context.Context, settle cur
 }
 
 // UpdatePositionMarginInDualMode update position margin in dual mode
-func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, change float64, dualSide string) ([]Position, error) {
+func (g *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, change float64, dualSide string) ([]Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2192,7 +2192,7 @@ func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle curr
 }
 
 // UpdatePositionLeverageInDualMode update position leverage in dual mode
-func (g *Gateio) UpdatePositionLeverageInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, leverage, crossLeverageLimit float64) (*Position, error) {
+func (g *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, leverage, crossLeverageLimit float64) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2212,7 +2212,7 @@ func (g *Gateio) UpdatePositionLeverageInDualMode(ctx context.Context, settle cu
 }
 
 // UpdatePositionRiskLimitInDualMode update position risk limit in dual mode
-func (g *Gateio) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit float64) ([]Position, error) {
+func (g *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit float64) ([]Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2235,7 +2235,7 @@ func (g *Gateio) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle c
 // Set reduce_only to true can keep the position from changing side when reducing position size
 // In single position mode, to close a position, you need to set size to 0 and close to true
 // In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
-func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
+func (g *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2267,7 +2267,7 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreate
 
 // GetFuturesOrders retrieves list of futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal int64) ([]Order, error) {
+func (g *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal int64) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2299,7 +2299,7 @@ func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, s
 
 // CancelMultipleFuturesOpenOrders ancel all open orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
+func (g *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2323,7 +2323,7 @@ func (g *Gateio) CancelMultipleFuturesOpenOrders(ctx context.Context, contract c
 // In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
 // If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
 // In the rate limiting, each order is counted individually
-func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
+func (g *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2358,7 +2358,7 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 }
 
 // GetSingleFuturesOrder retrieves a single order by its identifier
-func (g *Gateio) GetSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (g *Exchange) GetSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2370,7 +2370,7 @@ func (g *Gateio) GetSingleFuturesOrder(ctx context.Context, settle currency.Code
 }
 
 // CancelSingleFuturesOrder cancel a single order
-func (g *Gateio) CancelSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (g *Exchange) CancelSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2382,7 +2382,7 @@ func (g *Gateio) CancelSingleFuturesOrder(ctx context.Context, settle currency.C
 }
 
 // AmendFuturesOrder amends an existing futures order
-func (g *Gateio) AmendFuturesOrder(ctx context.Context, settle currency.Code, orderID string, arg AmendFuturesOrderParam) (*Order, error) {
+func (g *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, orderID string, arg AmendFuturesOrderParam) (*Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2397,7 +2397,7 @@ func (g *Gateio) AmendFuturesOrder(ctx context.Context, settle currency.Code, or
 }
 
 // GetMyFuturesTradingHistory retrieves authenticated account's futures trading history
-func (g *Gateio) GetMyFuturesTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]TradingHistoryItem, error) {
+func (g *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2425,7 +2425,7 @@ func (g *Gateio) GetMyFuturesTradingHistory(ctx context.Context, settle currency
 }
 
 // GetFuturesPositionCloseHistory lists position close history
-func (g *Gateio) GetFuturesPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
+func (g *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2450,7 +2450,7 @@ func (g *Gateio) GetFuturesPositionCloseHistory(ctx context.Context, settle curr
 }
 
 // GetFuturesLiquidationHistory list liquidation history
-func (g *Gateio) GetFuturesLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
+func (g *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2469,7 +2469,7 @@ func (g *Gateio) GetFuturesLiquidationHistory(ctx context.Context, settle curren
 }
 
 // CountdownCancelOrders represents a trigger time response
-func (g *Gateio) CountdownCancelOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
+func (g *Exchange) CountdownCancelOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2481,7 +2481,7 @@ func (g *Gateio) CountdownCancelOrders(ctx context.Context, settle currency.Code
 }
 
 // CreatePriceTriggeredFuturesOrder create a price-triggered order
-func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle currency.Code, arg *FuturesPriceTriggeredOrderParam) (*OrderID, error) {
+func (g *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle currency.Code, arg *FuturesPriceTriggeredOrderParam) (*OrderID, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2520,7 +2520,7 @@ func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle cu
 }
 
 // ListAllFuturesAutoOrders lists all open orders
-func (g *Gateio) ListAllFuturesAutoOrders(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]PriceTriggeredOrder, error) {
+func (g *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]PriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status: %s", errInvalidOrderStatus, status)
 	}
@@ -2543,7 +2543,7 @@ func (g *Gateio) ListAllFuturesAutoOrders(ctx context.Context, status string, se
 }
 
 // CancelAllFuturesOpenOrders cancels all futures open orders
-func (g *Gateio) CancelAllFuturesOpenOrders(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
+func (g *Exchange) CancelAllFuturesOpenOrders(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2557,7 +2557,7 @@ func (g *Gateio) CancelAllFuturesOpenOrders(ctx context.Context, settle currency
 }
 
 // GetSingleFuturesPriceTriggeredOrder retrieves a single price triggered order
-func (g *Gateio) GetSingleFuturesPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
+func (g *Exchange) GetSingleFuturesPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2569,7 +2569,7 @@ func (g *Gateio) GetSingleFuturesPriceTriggeredOrder(ctx context.Context, settle
 }
 
 // CancelFuturesPriceTriggeredOrder cancel a price-triggered order
-func (g *Gateio) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
+func (g *Exchange) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2583,7 +2583,7 @@ func (g *Gateio) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle cu
 // *************************************** Delivery ***************************************
 
 // GetAllDeliveryContracts retrieves all futures contracts
-func (g *Gateio) GetAllDeliveryContracts(ctx context.Context, settle currency.Code) ([]DeliveryContract, error) {
+func (g *Exchange) GetAllDeliveryContracts(ctx context.Context, settle currency.Code) ([]DeliveryContract, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2592,7 +2592,7 @@ func (g *Gateio) GetAllDeliveryContracts(ctx context.Context, settle currency.Co
 }
 
 // GetDeliveryContract retrieves a single delivery contract instance
-func (g *Gateio) GetDeliveryContract(ctx context.Context, settle currency.Code, contract currency.Pair) (*DeliveryContract, error) {
+func (g *Exchange) GetDeliveryContract(ctx context.Context, settle currency.Code, contract currency.Pair) (*DeliveryContract, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2601,7 +2601,7 @@ func (g *Gateio) GetDeliveryContract(ctx context.Context, settle currency.Code, 
 }
 
 // GetDeliveryOrderbook delivery orderbook
-func (g *Gateio) GetDeliveryOrderbook(ctx context.Context, settle currency.Code, interval string, contract currency.Pair, limit uint64, withOrderbookID bool) (*Orderbook, error) {
+func (g *Exchange) GetDeliveryOrderbook(ctx context.Context, settle currency.Code, interval string, contract currency.Pair, limit uint64, withOrderbookID bool) (*Orderbook, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2624,7 +2624,7 @@ func (g *Gateio) GetDeliveryOrderbook(ctx context.Context, settle currency.Code,
 }
 
 // GetDeliveryTradingHistory retrieves futures trading history
-func (g *Gateio) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
+func (g *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2650,7 +2650,7 @@ func (g *Gateio) GetDeliveryTradingHistory(ctx context.Context, settle currency.
 }
 
 // GetDeliveryFuturesCandlesticks retrieves specified contract candlesticks
-func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (g *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2680,7 +2680,7 @@ func (g *Gateio) GetDeliveryFuturesCandlesticks(ctx context.Context, settle curr
 }
 
 // GetDeliveryFutureTickers retrieves futures ticker information for a specific settle and contract info.
-func (g *Gateio) GetDeliveryFutureTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
+func (g *Exchange) GetDeliveryFutureTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2693,7 +2693,7 @@ func (g *Gateio) GetDeliveryFutureTickers(ctx context.Context, settle currency.C
 }
 
 // GetDeliveryInsuranceBalanceHistory retrieves delivery futures insurance balance history
-func (g *Gateio) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
+func (g *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2706,7 +2706,7 @@ func (g *Gateio) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle 
 }
 
 // GetDeliveryFuturesAccounts retrieves futures account
-func (g *Gateio) GetDeliveryFuturesAccounts(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
+func (g *Exchange) GetDeliveryFuturesAccounts(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2715,7 +2715,7 @@ func (g *Gateio) GetDeliveryFuturesAccounts(ctx context.Context, settle currency
 }
 
 // GetDeliveryAccountBooks retrieves account books
-func (g *Gateio) GetDeliveryAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+func (g *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2737,7 +2737,7 @@ func (g *Gateio) GetDeliveryAccountBooks(ctx context.Context, settle currency.Co
 }
 
 // GetAllDeliveryPositionsOfUser retrieves all positions of user
-func (g *Gateio) GetAllDeliveryPositionsOfUser(ctx context.Context, settle currency.Code) (*Position, error) {
+func (g *Exchange) GetAllDeliveryPositionsOfUser(ctx context.Context, settle currency.Code) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2746,7 +2746,7 @@ func (g *Gateio) GetAllDeliveryPositionsOfUser(ctx context.Context, settle curre
 }
 
 // GetSingleDeliveryPosition get single position
-func (g *Gateio) GetSingleDeliveryPosition(ctx context.Context, settle currency.Code, contract currency.Pair) (*Position, error) {
+func (g *Exchange) GetSingleDeliveryPosition(ctx context.Context, settle currency.Code, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2758,7 +2758,7 @@ func (g *Gateio) GetSingleDeliveryPosition(ctx context.Context, settle currency.
 }
 
 // UpdateDeliveryPositionMargin updates position margin
-func (g *Gateio) UpdateDeliveryPositionMargin(ctx context.Context, settle currency.Code, change float64, contract currency.Pair) (*Position, error) {
+func (g *Exchange) UpdateDeliveryPositionMargin(ctx context.Context, settle currency.Code, change float64, contract currency.Pair) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2775,7 +2775,7 @@ func (g *Gateio) UpdateDeliveryPositionMargin(ctx context.Context, settle curren
 }
 
 // UpdateDeliveryPositionLeverage updates position leverage
-func (g *Gateio) UpdateDeliveryPositionLeverage(ctx context.Context, settle currency.Code, contract currency.Pair, leverage float64) (*Position, error) {
+func (g *Exchange) UpdateDeliveryPositionLeverage(ctx context.Context, settle currency.Code, contract currency.Pair, leverage float64) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2793,7 +2793,7 @@ func (g *Gateio) UpdateDeliveryPositionLeverage(ctx context.Context, settle curr
 }
 
 // UpdateDeliveryPositionRiskLimit update position risk limit
-func (g *Gateio) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
+func (g *Exchange) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit uint64) (*Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2808,7 +2808,7 @@ func (g *Gateio) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle cur
 
 // PlaceDeliveryOrder create a futures order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
+func (g *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2836,7 +2836,7 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreat
 
 // GetDeliveryOrders list futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal int64) ([]Order, error) {
+func (g *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal int64) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2868,7 +2868,7 @@ func (g *Gateio) GetDeliveryOrders(ctx context.Context, contract currency.Pair, 
 
 // CancelMultipleDeliveryOrders cancel all open orders matched
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
+func (g *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2886,7 +2886,7 @@ func (g *Gateio) CancelMultipleDeliveryOrders(ctx context.Context, contract curr
 
 // GetSingleDeliveryOrder Get a single order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (g *Gateio) GetSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (g *Exchange) GetSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2898,7 +2898,7 @@ func (g *Gateio) GetSingleDeliveryOrder(ctx context.Context, settle currency.Cod
 }
 
 // CancelSingleDeliveryOrder cancel a single order
-func (g *Gateio) CancelSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (g *Exchange) CancelSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2910,7 +2910,7 @@ func (g *Gateio) CancelSingleDeliveryOrder(ctx context.Context, settle currency.
 }
 
 // GetMyDeliveryTradingHistory retrieves authenticated account delivery futures trading history
-func (g *Gateio) GetMyDeliveryTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]TradingHistoryItem, error) {
+func (g *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2938,7 +2938,7 @@ func (g *Gateio) GetMyDeliveryTradingHistory(ctx context.Context, settle currenc
 }
 
 // GetDeliveryPositionCloseHistory retrieves position history
-func (g *Gateio) GetDeliveryPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
+func (g *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2963,7 +2963,7 @@ func (g *Gateio) GetDeliveryPositionCloseHistory(ctx context.Context, settle cur
 }
 
 // GetDeliveryLiquidationHistory lists liquidation history
-func (g *Gateio) GetDeliveryLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
+func (g *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2982,7 +2982,7 @@ func (g *Gateio) GetDeliveryLiquidationHistory(ctx context.Context, settle curre
 }
 
 // GetDeliverySettlementHistory retrieves settlement history
-func (g *Gateio) GetDeliverySettlementHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]SettlementHistoryItem, error) {
+func (g *Exchange) GetDeliverySettlementHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]SettlementHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -3001,7 +3001,7 @@ func (g *Gateio) GetDeliverySettlementHistory(ctx context.Context, settle curren
 }
 
 // GetDeliveryPriceTriggeredOrder creates a price-triggered order
-func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, arg *FuturesPriceTriggeredOrderParam) (*OrderID, error) {
+func (g *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, arg *FuturesPriceTriggeredOrderParam) (*OrderID, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -3047,7 +3047,7 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle curr
 }
 
 // GetDeliveryAllAutoOrder retrieves all auto orders
-func (g *Gateio) GetDeliveryAllAutoOrder(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]PriceTriggeredOrder, error) {
+func (g *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]PriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status %s", errInvalidOrderStatus, status)
 	}
@@ -3070,7 +3070,7 @@ func (g *Gateio) GetDeliveryAllAutoOrder(ctx context.Context, status string, set
 }
 
 // CancelAllDeliveryPriceTriggeredOrder cancels all delivery price triggered orders
-func (g *Gateio) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
+func (g *Exchange) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -3084,7 +3084,7 @@ func (g *Gateio) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, settl
 }
 
 // GetSingleDeliveryPriceTriggeredOrder retrieves a single price triggered order
-func (g *Gateio) GetSingleDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
+func (g *Exchange) GetSingleDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -3096,7 +3096,7 @@ func (g *Gateio) GetSingleDeliveryPriceTriggeredOrder(ctx context.Context, settl
 }
 
 // CancelDeliveryPriceTriggeredOrder cancel a price-triggered order
-func (g *Gateio) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
+func (g *Exchange) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, orderID string) (*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -3110,13 +3110,13 @@ func (g *Gateio) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle c
 // ********************************** Options ***************************************************
 
 // GetAllOptionsUnderlyings retrieves all option underlyings
-func (g *Gateio) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlying, error) {
+func (g *Exchange) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlying, error) {
 	var response []OptionUnderlying
 	return response, g.SendHTTPRequest(ctx, exchange.RestSpot, publicUnderlyingOptionsEPL, gateioOptionUnderlyings, &response)
 }
 
 // GetExpirationTime return the expiration time for the provided underlying.
-func (g *Gateio) GetExpirationTime(ctx context.Context, underlying string) (time.Time, error) {
+func (g *Exchange) GetExpirationTime(ctx context.Context, underlying string) (time.Time, error) {
 	var timestamp []float64
 	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicExpirationOptionsEPL, gateioOptionExpiration+"?underlying="+underlying, &timestamp)
 	if err != nil {
@@ -3129,7 +3129,7 @@ func (g *Gateio) GetExpirationTime(ctx context.Context, underlying string) (time
 }
 
 // GetAllContractOfUnderlyingWithinExpiryDate retrieves list of contracts of the specified underlying and expiry time.
-func (g *Gateio) GetAllContractOfUnderlyingWithinExpiryDate(ctx context.Context, underlying string, expTime time.Time) ([]OptionContract, error) {
+func (g *Exchange) GetAllContractOfUnderlyingWithinExpiryDate(ctx context.Context, underlying string, expTime time.Time) ([]OptionContract, error) {
 	params := url.Values{}
 	if underlying == "" {
 		return nil, errInvalidUnderlying
@@ -3143,7 +3143,7 @@ func (g *Gateio) GetAllContractOfUnderlyingWithinExpiryDate(ctx context.Context,
 }
 
 // GetOptionsSpecifiedContractDetail query specified contract detail
-func (g *Gateio) GetOptionsSpecifiedContractDetail(ctx context.Context, contract currency.Pair) (*OptionContract, error) {
+func (g *Exchange) GetOptionsSpecifiedContractDetail(ctx context.Context, contract currency.Pair) (*OptionContract, error) {
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
 	}
@@ -3152,7 +3152,7 @@ func (g *Gateio) GetOptionsSpecifiedContractDetail(ctx context.Context, contract
 }
 
 // GetSettlementHistory retrieves list of settlement history
-func (g *Gateio) GetSettlementHistory(ctx context.Context, underlying string, offset, limit uint64, from, to time.Time) ([]OptionSettlement, error) {
+func (g *Exchange) GetSettlementHistory(ctx context.Context, underlying string, offset, limit uint64, from, to time.Time) ([]OptionSettlement, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3175,7 +3175,7 @@ func (g *Gateio) GetSettlementHistory(ctx context.Context, underlying string, of
 }
 
 // GetOptionsSpecifiedContractsSettlement retrieve a single contract settlement detail passing the underlying and contract name
-func (g *Gateio) GetOptionsSpecifiedContractsSettlement(ctx context.Context, contract currency.Pair, underlying string, at int64) (*OptionSettlement, error) {
+func (g *Exchange) GetOptionsSpecifiedContractsSettlement(ctx context.Context, contract currency.Pair, underlying string, at int64) (*OptionSettlement, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3190,7 +3190,7 @@ func (g *Gateio) GetOptionsSpecifiedContractsSettlement(ctx context.Context, con
 }
 
 // GetMyOptionsSettlements retrieves accounts option settlements.
-func (g *Gateio) GetMyOptionsSettlements(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, to time.Time) ([]MyOptionSettlement, error) {
+func (g *Exchange) GetMyOptionsSettlements(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, to time.Time) ([]MyOptionSettlement, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3213,7 +3213,7 @@ func (g *Gateio) GetMyOptionsSettlements(ctx context.Context, underlying string,
 }
 
 // GetOptionsOrderbook returns the orderbook data for the given contract.
-func (g *Gateio) GetOptionsOrderbook(ctx context.Context, contract currency.Pair, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
+func (g *Exchange) GetOptionsOrderbook(ctx context.Context, contract currency.Pair, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -3231,13 +3231,13 @@ func (g *Gateio) GetOptionsOrderbook(ctx context.Context, contract currency.Pair
 }
 
 // GetOptionAccounts lists option accounts
-func (g *Gateio) GetOptionAccounts(ctx context.Context) (*OptionAccount, error) {
+func (g *Exchange) GetOptionAccounts(ctx context.Context) (*OptionAccount, error) {
 	var resp *OptionAccount
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsAccountsEPL, http.MethodGet, gateioOptionAccounts, nil, nil, &resp)
 }
 
 // GetAccountChangingHistory retrieves list of account changing history
-func (g *Gateio) GetAccountChangingHistory(ctx context.Context, offset, limit uint64, from, to time.Time, changingType string) ([]AccountBook, error) {
+func (g *Exchange) GetAccountChangingHistory(ctx context.Context, offset, limit uint64, from, to time.Time, changingType string) ([]AccountBook, error) {
 	params := url.Values{}
 	if changingType != "" {
 		params.Set("type", changingType)
@@ -3259,7 +3259,7 @@ func (g *Gateio) GetAccountChangingHistory(ctx context.Context, offset, limit ui
 }
 
 // GetUsersPositionSpecifiedUnderlying lists user's positions of specified underlying
-func (g *Gateio) GetUsersPositionSpecifiedUnderlying(ctx context.Context, underlying string) ([]UsersPositionForUnderlying, error) {
+func (g *Exchange) GetUsersPositionSpecifiedUnderlying(ctx context.Context, underlying string) ([]UsersPositionForUnderlying, error) {
 	params := url.Values{}
 	if underlying != "" {
 		params.Set("underlying", underlying)
@@ -3269,7 +3269,7 @@ func (g *Gateio) GetUsersPositionSpecifiedUnderlying(ctx context.Context, underl
 }
 
 // GetSpecifiedContractPosition retrieves specified contract position
-func (g *Gateio) GetSpecifiedContractPosition(ctx context.Context, contract currency.Pair) (*UsersPositionForUnderlying, error) {
+func (g *Exchange) GetSpecifiedContractPosition(ctx context.Context, contract currency.Pair) (*UsersPositionForUnderlying, error) {
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
 	}
@@ -3278,7 +3278,7 @@ func (g *Gateio) GetSpecifiedContractPosition(ctx context.Context, contract curr
 }
 
 // GetUsersLiquidationHistoryForSpecifiedUnderlying retrieves user's liquidation history of specified underlying
-func (g *Gateio) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Context, underlying string, contract currency.Pair) ([]ContractClosePosition, error) {
+func (g *Exchange) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Context, underlying string, contract currency.Pair) ([]ContractClosePosition, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3292,7 +3292,7 @@ func (g *Gateio) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Co
 }
 
 // PlaceOptionOrder creates an options order
-func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*OptionOrderResponse, error) {
+func (g *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*OptionOrderResponse, error) {
 	if arg.Contract == "" {
 		return nil, errInvalidOrMissingContractParam
 	}
@@ -3313,7 +3313,7 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*
 }
 
 // GetOptionFuturesOrders retrieves futures orders
-func (g *Gateio) GetOptionFuturesOrders(ctx context.Context, contract currency.Pair, underlying, status string, offset, limit uint64, from, to time.Time) ([]OptionOrderResponse, error) {
+func (g *Exchange) GetOptionFuturesOrders(ctx context.Context, contract currency.Pair, underlying, status string, offset, limit uint64, from, to time.Time) ([]OptionOrderResponse, error) {
 	params := url.Values{}
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
@@ -3342,7 +3342,7 @@ func (g *Gateio) GetOptionFuturesOrders(ctx context.Context, contract currency.P
 }
 
 // CancelMultipleOptionOpenOrders cancels all open orders matched
-func (g *Gateio) CancelMultipleOptionOpenOrders(ctx context.Context, contract currency.Pair, underlying, side string) ([]OptionOrderResponse, error) {
+func (g *Exchange) CancelMultipleOptionOpenOrders(ctx context.Context, contract currency.Pair, underlying, side string) ([]OptionOrderResponse, error) {
 	params := url.Values{}
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
@@ -3358,7 +3358,7 @@ func (g *Gateio) CancelMultipleOptionOpenOrders(ctx context.Context, contract cu
 }
 
 // GetSingleOptionOrder retrieves a single option order
-func (g *Gateio) GetSingleOptionOrder(ctx context.Context, orderID string) (*OptionOrderResponse, error) {
+func (g *Exchange) GetSingleOptionOrder(ctx context.Context, orderID string) (*OptionOrderResponse, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -3367,7 +3367,7 @@ func (g *Gateio) GetSingleOptionOrder(ctx context.Context, orderID string) (*Opt
 }
 
 // CancelOptionSingleOrder cancel a single order.
-func (g *Gateio) CancelOptionSingleOrder(ctx context.Context, orderID string) (*OptionOrderResponse, error) {
+func (g *Exchange) CancelOptionSingleOrder(ctx context.Context, orderID string) (*OptionOrderResponse, error) {
 	if orderID == "" {
 		return nil, errInvalidOrderID
 	}
@@ -3376,7 +3376,7 @@ func (g *Gateio) CancelOptionSingleOrder(ctx context.Context, orderID string) (*
 }
 
 // GetMyOptionsTradingHistory retrieves authenticated account's option trading history
-func (g *Gateio) GetMyOptionsTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]OptionTradingHistory, error) {
+func (g *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]OptionTradingHistory, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3402,7 +3402,7 @@ func (g *Gateio) GetMyOptionsTradingHistory(ctx context.Context, underlying stri
 }
 
 // GetOptionsTickers lists  tickers of options contracts
-func (g *Gateio) GetOptionsTickers(ctx context.Context, underlying string) ([]OptionsTicker, error) {
+func (g *Exchange) GetOptionsTickers(ctx context.Context, underlying string) ([]OptionsTicker, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3412,7 +3412,7 @@ func (g *Gateio) GetOptionsTickers(ctx context.Context, underlying string) ([]Op
 }
 
 // GetOptionUnderlyingTickers retrieves options underlying ticker
-func (g *Gateio) GetOptionUnderlyingTickers(ctx context.Context, underlying string) (*OptionsUnderlyingTicker, error) {
+func (g *Exchange) GetOptionUnderlyingTickers(ctx context.Context, underlying string) (*OptionsUnderlyingTicker, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3421,7 +3421,7 @@ func (g *Gateio) GetOptionUnderlyingTickers(ctx context.Context, underlying stri
 }
 
 // GetOptionFuturesCandlesticks retrieves option futures candlesticks
-func (g *Gateio) GetOptionFuturesCandlesticks(ctx context.Context, contract currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (g *Exchange) GetOptionFuturesCandlesticks(ctx context.Context, contract currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]FuturesCandlestick, error) {
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
 	}
@@ -3446,7 +3446,7 @@ func (g *Gateio) GetOptionFuturesCandlesticks(ctx context.Context, contract curr
 }
 
 // GetOptionFuturesMarkPriceCandlesticks retrieves mark price candlesticks of an underlying
-func (g *Gateio) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, underlying string, limit uint64, from, to time.Time, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (g *Exchange) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, underlying string, limit uint64, from, to time.Time, interval kline.Interval) ([]FuturesCandlestick, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3473,7 +3473,7 @@ func (g *Gateio) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, unde
 }
 
 // GetOptionsTradeHistory retrieves options trade history
-func (g *Gateio) GetOptionsTradeHistory(ctx context.Context, contract currency.Pair, callType string, offset, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
+func (g *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency.Pair, callType string, offset, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
 	params := url.Values{}
 	callType = strings.ToUpper(callType)
 	if callType == "C" || callType == "P" {
@@ -3501,14 +3501,14 @@ func (g *Gateio) GetOptionsTradeHistory(ctx context.Context, contract currency.P
 // ********************************** Flash_SWAP *************************
 
 // GetSupportedFlashSwapCurrencies retrieves all supported currencies in flash swap
-func (g *Gateio) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
+func (g *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
 	var currencies []SwapCurrencies
 	return currencies, g.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, gateioFlashSwapCurrencies, &currencies)
 }
 
 // CreateFlashSwapOrder creates a new flash swap order
 // initiate a flash swap preview in advance because order creation requires a preview result
-func (g *Gateio) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderParams) (*FlashSwapOrderResponse, error) {
+func (g *Exchange) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderParams) (*FlashSwapOrderResponse, error) {
 	if arg.PreviewID == "" {
 		return nil, errMissingPreviewID
 	}
@@ -3529,7 +3529,7 @@ func (g *Gateio) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderPar
 }
 
 // GetAllFlashSwapOrders retrieves list of flash swap orders filtered by the params
-func (g *Gateio) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
+func (g *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
 	params := url.Values{}
 	if status == 1 || status == 2 {
 		params.Set("status", strconv.Itoa(status))
@@ -3552,7 +3552,7 @@ func (g *Gateio) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurr
 }
 
 // GetSingleFlashSwapOrder get a single flash swap order's detail
-func (g *Gateio) GetSingleFlashSwapOrder(ctx context.Context, orderID string) (*FlashSwapOrderResponse, error) {
+func (g *Exchange) GetSingleFlashSwapOrder(ctx context.Context, orderID string) (*FlashSwapOrderResponse, error) {
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, flash order order_id must not be empty", errInvalidOrderID)
 	}
@@ -3561,7 +3561,7 @@ func (g *Gateio) GetSingleFlashSwapOrder(ctx context.Context, orderID string) (*
 }
 
 // InitiateFlashSwapOrderReview initiate a flash swap order preview
-func (g *Gateio) InitiateFlashSwapOrderReview(ctx context.Context, arg FlashSwapOrderParams) (*InitFlashSwapOrderPreviewResponse, error) {
+func (g *Exchange) InitiateFlashSwapOrderReview(ctx context.Context, arg FlashSwapOrderParams) (*InitFlashSwapOrderPreviewResponse, error) {
 	if arg.PreviewID == "" {
 		return nil, errMissingPreviewID
 	}
@@ -3576,7 +3576,7 @@ func (g *Gateio) InitiateFlashSwapOrderReview(ctx context.Context, arg FlashSwap
 }
 
 // IsValidPairString returns true if the string represents a valid currency pair
-func (g *Gateio) IsValidPairString(currencyPair string) bool {
+func (g *Exchange) IsValidPairString(currencyPair string) bool {
 	if len(currencyPair) < 3 {
 		return false
 	}
@@ -3594,7 +3594,7 @@ func (g *Gateio) IsValidPairString(currencyPair string) bool {
 // ********************************* Trading Fee calculation ********************************
 
 // GetFee returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (fee float64, err error) {
+func (g *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (fee float64, err error) {
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		feePairs, err := g.GetPersonalTradingFee(ctx, feeBuilder.Pair, currency.EMPTYCODE)
@@ -3635,7 +3635,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 }
 
 // GetUnderlyingFromCurrencyPair returns an underlying string from a currency pair
-func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, error) {
+func (g *Exchange) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, error) {
 	pairString := strings.ReplaceAll(p.Upper().String(), currency.DashDelimiter, currency.UnderscoreDelimiter)
 	ccies := strings.Split(pairString, currency.UnderscoreDelimiter)
 	if len(ccies) < 2 {
@@ -3645,13 +3645,13 @@ func (g *Gateio) GetUnderlyingFromCurrencyPair(p currency.Pair) (currency.Pair, 
 }
 
 // GetAccountDetails retrieves account details
-func (g *Gateio) GetAccountDetails(ctx context.Context) (*AccountDetails, error) {
+func (g *Exchange) GetAccountDetails(ctx context.Context) (*AccountDetails, error) {
 	var resp *AccountDetails
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/detail", nil, nil, &resp)
 }
 
 // GetUserTransactionRateLimitInfo retrieves user transaction rate limit info
-func (g *Gateio) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
+func (g *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
 	var resp []UserTransactionRateLimitInfo
 	return resp, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }

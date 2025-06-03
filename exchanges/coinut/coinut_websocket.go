@@ -39,7 +39,7 @@ var channels map[string]chan []byte
 // wss://wsapi-eu.coinut.com
 
 // WsConnect initiates a websocket connection
-func (c *COINUT) WsConnect() error {
+func (c *Exchange) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -74,7 +74,7 @@ func (c *COINUT) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *COINUT) wsReadData() {
+func (c *Exchange) wsReadData() {
 	defer c.Websocket.Wg.Done()
 
 	ctx := context.TODO()
@@ -124,7 +124,7 @@ func (c *COINUT) wsReadData() {
 	}
 }
 
-func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
+func (c *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var orders []wsOrderContainer
 		err := json.Unmarshal(respRaw, &orders)
@@ -383,7 +383,7 @@ func stringToOrderStatus(status string, quantity float64) (order.Status, error) 
 	}
 }
 
-func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
+func (c *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
 	var oSide order.Side
 	var oStatus order.Status
 	var err error
@@ -472,7 +472,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 }
 
 // WsGetInstruments fetches instrument list and propagates a local cache
-func (c *COINUT) WsGetInstruments() (Instruments, error) {
+func (c *Exchange) WsGetInstruments() (Instruments, error) {
 	var list Instruments
 	req := wsRequest{
 		Request:      "inst_list",
@@ -497,7 +497,7 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 }
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
-func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
+func (c *Exchange) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	bids := make([]orderbook.Tranche, len(ob.Buy))
 	for i := range ob.Buy {
 		bids[i] = orderbook.Tranche{
@@ -545,7 +545,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 }
 
 // WsProcessOrderbookUpdate process an orderbook update
-func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
+func (c *Exchange) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	pairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
@@ -579,7 +579,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (c *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	channels := []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions subscription.List
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
@@ -599,7 +599,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(subs subscription.List) error {
+func (c *Exchange) Subscribe(subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		if len(s.Pairs) != 1 {
@@ -629,7 +629,7 @@ func (c *COINUT) Subscribe(subs subscription.List) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
+func (c *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
 	var errs error
 	for _, s := range channelToUnsubscribe {
 		if len(s.Pairs) != 1 {
@@ -672,7 +672,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 	return errs
 }
 
-func (c *COINUT) wsAuthenticate(ctx context.Context) error {
+func (c *Exchange) wsAuthenticate(ctx context.Context) error {
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -705,7 +705,7 @@ func (c *COINUT) wsAuthenticate(ctx context.Context) error {
 	return nil
 }
 
-func (c *COINUT) wsGetAccountBalance() (*UserBalance, error) {
+func (c *Exchange) wsGetAccountBalance() (*UserBalance, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
@@ -728,7 +728,7 @@ func (c *COINUT) wsGetAccountBalance() (*UserBalance, error) {
 	return &response, nil
 }
 
-func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error) {
+func (c *Exchange) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
@@ -766,7 +766,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	return ord, nil
 }
 
-func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detail, []error) {
+func (c *Exchange) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detail, []error) {
 	var errs []error
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		errs = append(errs, fmt.Errorf("%v not authorised to submit orders",
@@ -817,7 +817,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 	return ordersResponse, errs
 }
 
-func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error) {
+func (c *Exchange) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error) {
 	var response *WsUserOpenOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get open orders",
@@ -844,7 +844,7 @@ func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error)
 	return response, nil
 }
 
-func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOrdersResponse, error) {
+func (c *Exchange) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOrdersResponse, error) {
 	var response *CancelOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to cancel order", c.Name)
@@ -879,7 +879,7 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	return response, nil
 }
 
-func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*CancelOrdersResponse, error) {
+func (c *Exchange) wsCancelOrders(cancellations []WsCancelOrderParameters) (*CancelOrdersResponse, error) {
 	var err error
 	var response *CancelOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
@@ -913,7 +913,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	return response, err
 }
 
-func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
+func (c *Exchange) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
 	var response *WsTradeHistoryResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get trade history",

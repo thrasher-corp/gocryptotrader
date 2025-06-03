@@ -122,7 +122,7 @@ var (
 )
 
 // WsConnect starts a new connection with the websocket API
-func (d *Deribit) WsConnect() error {
+func (d *Exchange) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -143,7 +143,7 @@ func (d *Deribit) WsConnect() error {
 	return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, setHeartBeatMessage)
 }
 
-func (d *Deribit) wsLogin(ctx context.Context) error {
+func (d *Exchange) wsLogin(ctx context.Context) error {
 	if !d.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", d.Name)
 	}
@@ -191,7 +191,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (d *Deribit) wsReadData() {
+func (d *Exchange) wsReadData() {
 	defer d.Websocket.Wg.Done()
 
 	for {
@@ -207,7 +207,7 @@ func (d *Deribit) wsReadData() {
 	}
 }
 
-func (d *Deribit) wsHandleData(respRaw []byte) error {
+func (d *Exchange) wsHandleData(respRaw []byte) error {
 	var response WsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -321,7 +321,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (d *Deribit) processUserOrders(respRaw []byte, channels []string) error {
+func (d *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 	if len(channels) != 4 && len(channels) != 5 {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -370,7 +370,7 @@ func (d *Deribit) processUserOrders(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) error {
+func (d *Exchange) processUserOrderChanges(respRaw []byte, channels []string) error {
 	if len(channels) < 4 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -449,7 +449,7 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 	return nil
 }
 
-func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
+func (d *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
 	cp, a, err := d.getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
@@ -474,7 +474,7 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
+func (d *Exchange) processTrades(respRaw []byte, channels []string) error {
 	tradeFeed := d.IsTradeFeedEnabled()
 	saveTradeData := d.IsSaveTradeDataEnabled()
 	if !tradeFeed && !saveTradeData {
@@ -524,7 +524,7 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) error {
+func (d *Exchange) processIncrementalTicker(respRaw []byte, channels []string) error {
 	if len(channels) != 2 {
 		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -556,14 +556,14 @@ func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) er
 	return nil
 }
 
-func (d *Deribit) processInstrumentTicker(respRaw []byte, channels []string) error {
+func (d *Exchange) processInstrumentTicker(respRaw []byte, channels []string) error {
 	if len(channels) != 3 {
 		return fmt.Errorf("%w, expected format 'ticker.{instrument_name}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
 	return d.processTicker(respRaw, channels)
 }
 
-func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
+func (d *Exchange) processTicker(respRaw []byte, channels []string) error {
 	cp, a, err := d.getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
@@ -600,7 +600,7 @@ func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processData(respRaw []byte, result any) error {
+func (d *Exchange) processData(respRaw []byte, result any) error {
 	var response WsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)
@@ -611,7 +611,7 @@ func (d *Deribit) processData(respRaw []byte, result any) error {
 	return nil
 }
 
-func (d *Deribit) processCandleChart(respRaw []byte, channels []string) error {
+func (d *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
 		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
@@ -640,7 +640,7 @@ func (d *Deribit) processCandleChart(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
+func (d *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 	var response WsResponse
 	orderbookData := &wsOrderbook{}
 	response.Params.Data = orderbookData
@@ -779,12 +779,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 }
 
 // generateSubscriptions returns a list of configured subscriptions
-func (d *Deribit) generateSubscriptions() (subscription.List, error) {
+func (d *Exchange) generateSubscriptions() (subscription.List, error) {
 	return d.Features.Subscriptions.ExpandTemplates(d)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (d *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":     channelName,
 		"interval":        channelInterval,
@@ -795,7 +795,7 @@ func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (d *Deribit) Subscribe(subs subscription.List) error {
+func (d *Exchange) Subscribe(subs subscription.List) error {
 	errs := d.handleSubscription("public/subscribe", subs.Public())
 	return common.AppendError(errs,
 		d.handleSubscription("private/subscribe", subs.Private()),
@@ -803,14 +803,14 @@ func (d *Deribit) Subscribe(subs subscription.List) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (d *Deribit) Unsubscribe(subs subscription.List) error {
+func (d *Exchange) Unsubscribe(subs subscription.List) error {
 	errs := d.handleSubscription("public/unsubscribe", subs.Public())
 	return common.AppendError(errs,
 		d.handleSubscription("private/unsubscribe", subs.Private()),
 	)
 }
 
-func (d *Deribit) handleSubscription(method string, subs subscription.List) error {
+func (d *Exchange) handleSubscription(method string, subs subscription.List) error {
 	var err error
 	subs, err = subs.ExpandTemplates(d)
 	if err != nil || len(subs) == 0 {

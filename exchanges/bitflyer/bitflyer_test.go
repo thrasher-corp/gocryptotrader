@@ -27,7 +27,7 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &Bitflyer{}
+var b = &Exchange{}
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()

@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Bitmex is the overarching type across this package
-type Bitmex struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 }
 
@@ -115,7 +115,7 @@ const (
 )
 
 // GetAnnouncement returns the general announcements from Bitmex
-func (b *Bitmex) GetAnnouncement(ctx context.Context) ([]Announcement, error) {
+func (b *Exchange) GetAnnouncement(ctx context.Context) ([]Announcement, error) {
 	var announcement []Announcement
 
 	return announcement, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointAnnouncement,
@@ -124,7 +124,7 @@ func (b *Bitmex) GetAnnouncement(ctx context.Context) ([]Announcement, error) {
 }
 
 // GetUrgentAnnouncement returns an urgent announcement for your account
-func (b *Bitmex) GetUrgentAnnouncement(ctx context.Context) ([]Announcement, error) {
+func (b *Exchange) GetUrgentAnnouncement(ctx context.Context) ([]Announcement, error) {
 	var announcement []Announcement
 
 	return announcement, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -134,7 +134,7 @@ func (b *Bitmex) GetUrgentAnnouncement(ctx context.Context) ([]Announcement, err
 }
 
 // GetAPIKeys returns the APIkeys from bitmex
-func (b *Bitmex) GetAPIKeys(ctx context.Context) ([]APIKey, error) {
+func (b *Exchange) GetAPIKeys(ctx context.Context) ([]APIKey, error) {
 	var keys []APIKey
 
 	return keys, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -144,7 +144,7 @@ func (b *Bitmex) GetAPIKeys(ctx context.Context) ([]APIKey, error) {
 }
 
 // RemoveAPIKey removes an Apikey from the bitmex trading engine
-func (b *Bitmex) RemoveAPIKey(ctx context.Context, params APIKeyParams) (bool, error) {
+func (b *Exchange) RemoveAPIKey(ctx context.Context, params APIKeyParams) (bool, error) {
 	var keyDeleted bool
 
 	return keyDeleted, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
@@ -154,7 +154,7 @@ func (b *Bitmex) RemoveAPIKey(ctx context.Context, params APIKeyParams) (bool, e
 }
 
 // DisableAPIKey disables an Apikey from the bitmex trading engine
-func (b *Bitmex) DisableAPIKey(ctx context.Context, params APIKeyParams) (APIKey, error) {
+func (b *Exchange) DisableAPIKey(ctx context.Context, params APIKeyParams) (APIKey, error) {
 	var keyInfo APIKey
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -164,7 +164,7 @@ func (b *Bitmex) DisableAPIKey(ctx context.Context, params APIKeyParams) (APIKey
 }
 
 // EnableAPIKey enables an Apikey from the bitmex trading engine
-func (b *Bitmex) EnableAPIKey(ctx context.Context, params APIKeyParams) (APIKey, error) {
+func (b *Exchange) EnableAPIKey(ctx context.Context, params APIKeyParams) (APIKey, error) {
 	var keyInfo APIKey
 
 	return keyInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -174,14 +174,14 @@ func (b *Bitmex) EnableAPIKey(ctx context.Context, params APIKeyParams) (APIKey,
 }
 
 // GetTrollboxMessages returns messages from the bitmex trollbox
-func (b *Bitmex) GetTrollboxMessages(ctx context.Context, params ChatGetParams) ([]Chat, error) {
+func (b *Exchange) GetTrollboxMessages(ctx context.Context, params ChatGetParams) ([]Chat, error) {
 	var messages []Chat
 
 	return messages, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointTrollbox, &params, &messages)
 }
 
 // SendTrollboxMessage sends a message to the bitmex trollbox
-func (b *Bitmex) SendTrollboxMessage(ctx context.Context, params ChatSendParams) ([]Chat, error) {
+func (b *Exchange) SendTrollboxMessage(ctx context.Context, params ChatSendParams) ([]Chat, error) {
 	var messages []Chat
 
 	return messages, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -191,7 +191,7 @@ func (b *Bitmex) SendTrollboxMessage(ctx context.Context, params ChatSendParams)
 }
 
 // GetTrollboxChannels the channels from the bitmex trollbox
-func (b *Bitmex) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error) {
+func (b *Exchange) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error) {
 	var channels []ChatChannel
 
 	return channels, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointTrollboxChannels,
@@ -200,7 +200,7 @@ func (b *Bitmex) GetTrollboxChannels(ctx context.Context) ([]ChatChannel, error)
 }
 
 // GetTrollboxConnectedUsers the channels from the bitmex trollbox
-func (b *Bitmex) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers, error) {
+func (b *Exchange) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers, error) {
 	var users ConnectedUsers
 
 	return users, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointTrollboxConnected, nil, &users)
@@ -209,7 +209,7 @@ func (b *Bitmex) GetTrollboxConnectedUsers(ctx context.Context) (ConnectedUsers,
 // GetAccountExecutions returns all raw transactions, which includes order
 // opening and cancellation, and order status changes. It can be quite noisy.
 // More focused information is available at /execution/tradeHistory.
-func (b *Bitmex) GetAccountExecutions(ctx context.Context, params *GenericRequestParams) ([]Execution, error) {
+func (b *Exchange) GetAccountExecutions(ctx context.Context, params *GenericRequestParams) ([]Execution, error) {
 	var executionList []Execution
 
 	return executionList, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -220,7 +220,7 @@ func (b *Bitmex) GetAccountExecutions(ctx context.Context, params *GenericReques
 
 // GetAccountExecutionTradeHistory returns all balance-affecting executions.
 // This includes each trade, insurance charge, and settlement.
-func (b *Bitmex) GetAccountExecutionTradeHistory(ctx context.Context, params *GenericRequestParams) ([]Execution, error) {
+func (b *Exchange) GetAccountExecutionTradeHistory(ctx context.Context, params *GenericRequestParams) ([]Execution, error) {
 	var tradeHistory []Execution
 
 	return tradeHistory, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -230,7 +230,7 @@ func (b *Bitmex) GetAccountExecutionTradeHistory(ctx context.Context, params *Ge
 }
 
 // GetFullFundingHistory returns funding history
-func (b *Bitmex) GetFullFundingHistory(ctx context.Context, symbol, count, filter, columns, start string, reverse bool, startTime, endTime time.Time) ([]Funding, error) {
+func (b *Exchange) GetFullFundingHistory(ctx context.Context, symbol, count, filter, columns, start string, reverse bool, startTime, endTime time.Time) ([]Funding, error) {
 	var fundingHistory []Funding
 	params := url.Values{}
 	if symbol != "" {
@@ -265,7 +265,7 @@ func (b *Bitmex) GetFullFundingHistory(ctx context.Context, symbol, count, filte
 }
 
 // GetInstrument returns instrument data
-func (b *Bitmex) GetInstrument(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
+func (b *Exchange) GetInstrument(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
 	var instruments []Instrument
 
 	return instruments, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointInstruments,
@@ -274,7 +274,7 @@ func (b *Bitmex) GetInstrument(ctx context.Context, params *GenericRequestParams
 }
 
 // GetInstruments returns instrument data
-func (b *Bitmex) GetInstruments(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
+func (b *Exchange) GetInstruments(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
 	var instruments []Instrument
 
 	return instruments, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointInstruments,
@@ -283,7 +283,7 @@ func (b *Bitmex) GetInstruments(ctx context.Context, params *GenericRequestParam
 }
 
 // GetActiveInstruments returns active instruments
-func (b *Bitmex) GetActiveInstruments(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
+func (b *Exchange) GetActiveInstruments(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
 	var activeInstruments []Instrument
 
 	return activeInstruments, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointActiveInstruments,
@@ -292,7 +292,7 @@ func (b *Bitmex) GetActiveInstruments(ctx context.Context, params *GenericReques
 }
 
 // GetActiveAndIndexInstruments returns all active instruments and all indices
-func (b *Bitmex) GetActiveAndIndexInstruments(ctx context.Context) ([]Instrument, error) {
+func (b *Exchange) GetActiveAndIndexInstruments(ctx context.Context) ([]Instrument, error) {
 	var activeAndIndices []Instrument
 
 	return activeAndIndices,
@@ -302,7 +302,7 @@ func (b *Bitmex) GetActiveAndIndexInstruments(ctx context.Context) ([]Instrument
 }
 
 // GetActiveIntervals returns funding history
-func (b *Bitmex) GetActiveIntervals(ctx context.Context) (InstrumentInterval, error) {
+func (b *Exchange) GetActiveIntervals(ctx context.Context) (InstrumentInterval, error) {
 	var interval InstrumentInterval
 
 	return interval, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointActiveIntervals,
@@ -311,7 +311,7 @@ func (b *Bitmex) GetActiveIntervals(ctx context.Context) (InstrumentInterval, er
 }
 
 // GetCompositeIndex returns composite index
-func (b *Bitmex) GetCompositeIndex(ctx context.Context, symbol, count, filter, columns, start, reverse string, startTime, endTime time.Time) ([]IndexComposite, error) {
+func (b *Exchange) GetCompositeIndex(ctx context.Context, symbol, count, filter, columns, start, reverse string, startTime, endTime time.Time) ([]IndexComposite, error) {
 	var compositeIndices []IndexComposite
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -343,35 +343,35 @@ func (b *Bitmex) GetCompositeIndex(ctx context.Context, symbol, count, filter, c
 }
 
 // GetIndices returns all price indices
-func (b *Bitmex) GetIndices(ctx context.Context) ([]Instrument, error) {
+func (b *Exchange) GetIndices(ctx context.Context) ([]Instrument, error) {
 	var indices []Instrument
 
 	return indices, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointIndices, nil, &indices)
 }
 
 // GetInsuranceFundHistory returns insurance fund history
-func (b *Bitmex) GetInsuranceFundHistory(ctx context.Context, params *GenericRequestParams) ([]Insurance, error) {
+func (b *Exchange) GetInsuranceFundHistory(ctx context.Context, params *GenericRequestParams) ([]Insurance, error) {
 	var history []Insurance
 
 	return history, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointIndices, params, &history)
 }
 
 // GetLeaderboard returns leaderboard information
-func (b *Bitmex) GetLeaderboard(ctx context.Context, params LeaderboardGetParams) ([]Leaderboard, error) {
+func (b *Exchange) GetLeaderboard(ctx context.Context, params LeaderboardGetParams) ([]Leaderboard, error) {
 	var leader []Leaderboard
 
 	return leader, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointLeader, params, &leader)
 }
 
 // GetAliasOnLeaderboard returns your alias on the leaderboard
-func (b *Bitmex) GetAliasOnLeaderboard(ctx context.Context) (Alias, error) {
+func (b *Exchange) GetAliasOnLeaderboard(ctx context.Context) (Alias, error) {
 	var alias Alias
 
 	return alias, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointAlias, nil, &alias)
 }
 
 // GetLiquidationOrders returns liquidation orders
-func (b *Bitmex) GetLiquidationOrders(ctx context.Context, params *GenericRequestParams) ([]Liquidation, error) {
+func (b *Exchange) GetLiquidationOrders(ctx context.Context, params *GenericRequestParams) ([]Liquidation, error) {
 	var orders []Liquidation
 
 	return orders, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointLiquidation,
@@ -380,7 +380,7 @@ func (b *Bitmex) GetLiquidationOrders(ctx context.Context, params *GenericReques
 }
 
 // GetCurrentNotifications returns your current notifications
-func (b *Bitmex) GetCurrentNotifications(ctx context.Context) ([]Notification, error) {
+func (b *Exchange) GetCurrentNotifications(ctx context.Context) ([]Notification, error) {
 	var notifications []Notification
 
 	return notifications, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -390,7 +390,7 @@ func (b *Bitmex) GetCurrentNotifications(ctx context.Context) ([]Notification, e
 }
 
 // GetOrders returns all the orders, open and closed
-func (b *Bitmex) GetOrders(ctx context.Context, params *OrdersRequest) ([]Order, error) {
+func (b *Exchange) GetOrders(ctx context.Context, params *OrdersRequest) ([]Order, error) {
 	var orders []Order
 	return orders, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		bitmexEndpointOrder,
@@ -399,7 +399,7 @@ func (b *Bitmex) GetOrders(ctx context.Context, params *OrdersRequest) ([]Order,
 }
 
 // AmendOrder amends the quantity or price of an open order
-func (b *Bitmex) AmendOrder(ctx context.Context, params *OrderAmendParams) (Order, error) {
+func (b *Exchange) AmendOrder(ctx context.Context, params *OrderAmendParams) (Order, error) {
 	var order Order
 
 	return order, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut,
@@ -409,7 +409,7 @@ func (b *Bitmex) AmendOrder(ctx context.Context, params *OrderAmendParams) (Orde
 }
 
 // CreateOrder creates a new order
-func (b *Bitmex) CreateOrder(ctx context.Context, params *OrderNewParams) (Order, error) {
+func (b *Exchange) CreateOrder(ctx context.Context, params *OrderNewParams) (Order, error) {
 	var orderInfo Order
 
 	return orderInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -420,7 +420,7 @@ func (b *Bitmex) CreateOrder(ctx context.Context, params *OrderNewParams) (Order
 
 // CancelOrders cancels one or a batch of orders on the exchange and returns
 // a cancelled order list
-func (b *Bitmex) CancelOrders(ctx context.Context, params *OrderCancelParams) ([]Order, error) {
+func (b *Exchange) CancelOrders(ctx context.Context, params *OrderCancelParams) ([]Order, error) {
 	var cancelledOrders []Order
 
 	return cancelledOrders, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
@@ -430,7 +430,7 @@ func (b *Bitmex) CancelOrders(ctx context.Context, params *OrderCancelParams) ([
 }
 
 // CancelAllExistingOrders cancels all open orders on the exchange
-func (b *Bitmex) CancelAllExistingOrders(ctx context.Context, params OrderCancelAllParams) ([]Order, error) {
+func (b *Exchange) CancelAllExistingOrders(ctx context.Context, params OrderCancelAllParams) ([]Order, error) {
 	var cancelledOrders []Order
 
 	return cancelledOrders, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
@@ -440,7 +440,7 @@ func (b *Bitmex) CancelAllExistingOrders(ctx context.Context, params OrderCancel
 }
 
 // AmendBulkOrders amends multiple orders for the same symbol
-func (b *Bitmex) AmendBulkOrders(ctx context.Context, params OrderAmendBulkParams) ([]Order, error) {
+func (b *Exchange) AmendBulkOrders(ctx context.Context, params OrderAmendBulkParams) ([]Order, error) {
 	var amendedOrders []Order
 
 	return amendedOrders, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut,
@@ -450,7 +450,7 @@ func (b *Bitmex) AmendBulkOrders(ctx context.Context, params OrderAmendBulkParam
 }
 
 // CreateBulkOrders creates multiple orders for the same symbol
-func (b *Bitmex) CreateBulkOrders(ctx context.Context, params OrderNewBulkParams) ([]Order, error) {
+func (b *Exchange) CreateBulkOrders(ctx context.Context, params OrderNewBulkParams) ([]Order, error) {
 	var orders []Order
 
 	return orders, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -460,7 +460,7 @@ func (b *Bitmex) CreateBulkOrders(ctx context.Context, params OrderNewBulkParams
 }
 
 // CancelAllOrdersAfterTime closes all positions after a certain time period
-func (b *Bitmex) CancelAllOrdersAfterTime(ctx context.Context, params OrderCancelAllAfterParams) ([]Order, error) {
+func (b *Exchange) CancelAllOrdersAfterTime(ctx context.Context, params OrderCancelAllAfterParams) ([]Order, error) {
 	var cancelledOrder []Order
 
 	return cancelledOrder, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -470,7 +470,7 @@ func (b *Bitmex) CancelAllOrdersAfterTime(ctx context.Context, params OrderCance
 }
 
 // ClosePosition closes a position WARNING deprecated use /order endpoint
-func (b *Bitmex) ClosePosition(ctx context.Context, params OrderClosePositionParams) ([]Order, error) {
+func (b *Exchange) ClosePosition(ctx context.Context, params OrderClosePositionParams) ([]Order, error) {
 	var closedPositions []Order
 
 	return closedPositions, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -480,7 +480,7 @@ func (b *Bitmex) ClosePosition(ctx context.Context, params OrderClosePositionPar
 }
 
 // GetOrderbook returns layer two orderbook data
-func (b *Bitmex) GetOrderbook(ctx context.Context, params OrderBookGetL2Params) ([]OrderBookL2, error) {
+func (b *Exchange) GetOrderbook(ctx context.Context, params OrderBookGetL2Params) ([]OrderBookL2, error) {
 	var orderBooks []OrderBookL2
 
 	return orderBooks, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointOrderbookL2,
@@ -489,7 +489,7 @@ func (b *Bitmex) GetOrderbook(ctx context.Context, params OrderBookGetL2Params) 
 }
 
 // GetPositions returns positions
-func (b *Bitmex) GetPositions(ctx context.Context, params PositionGetParams) ([]Position, error) {
+func (b *Exchange) GetPositions(ctx context.Context, params PositionGetParams) ([]Position, error) {
 	var positions []Position
 
 	return positions, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -499,7 +499,7 @@ func (b *Bitmex) GetPositions(ctx context.Context, params PositionGetParams) ([]
 }
 
 // IsolatePosition enables isolated margin or cross margin per-position
-func (b *Bitmex) IsolatePosition(ctx context.Context, params PositionIsolateMarginParams) (Position, error) {
+func (b *Exchange) IsolatePosition(ctx context.Context, params PositionIsolateMarginParams) (Position, error) {
 	var position Position
 
 	return position, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -509,7 +509,7 @@ func (b *Bitmex) IsolatePosition(ctx context.Context, params PositionIsolateMarg
 }
 
 // LeveragePosition chooses leverage for a position
-func (b *Bitmex) LeveragePosition(ctx context.Context, params PositionUpdateLeverageParams) (Position, error) {
+func (b *Exchange) LeveragePosition(ctx context.Context, params PositionUpdateLeverageParams) (Position, error) {
 	var position Position
 
 	return position, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -519,7 +519,7 @@ func (b *Bitmex) LeveragePosition(ctx context.Context, params PositionUpdateLeve
 }
 
 // UpdateRiskLimit updates risk limit on a position
-func (b *Bitmex) UpdateRiskLimit(ctx context.Context, params PositionUpdateRiskLimitParams) (Position, error) {
+func (b *Exchange) UpdateRiskLimit(ctx context.Context, params PositionUpdateRiskLimitParams) (Position, error) {
 	var position Position
 
 	return position, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -529,7 +529,7 @@ func (b *Bitmex) UpdateRiskLimit(ctx context.Context, params PositionUpdateRiskL
 }
 
 // TransferMargin transfers equity in or out of a position
-func (b *Bitmex) TransferMargin(ctx context.Context, params PositionTransferIsolatedMarginParams) (Position, error) {
+func (b *Exchange) TransferMargin(ctx context.Context, params PositionTransferIsolatedMarginParams) (Position, error) {
 	var position Position
 
 	return position, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -539,7 +539,7 @@ func (b *Bitmex) TransferMargin(ctx context.Context, params PositionTransferIsol
 }
 
 // GetQuotes returns quotations
-func (b *Bitmex) GetQuotes(ctx context.Context, params *GenericRequestParams) ([]Quote, error) {
+func (b *Exchange) GetQuotes(ctx context.Context, params *GenericRequestParams) ([]Quote, error) {
 	var quotations []Quote
 
 	return quotations, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointQuote,
@@ -548,7 +548,7 @@ func (b *Bitmex) GetQuotes(ctx context.Context, params *GenericRequestParams) ([
 }
 
 // GetQuotesByBuckets returns previous quotes in time buckets
-func (b *Bitmex) GetQuotesByBuckets(ctx context.Context, params *QuoteGetBucketedParams) ([]Quote, error) {
+func (b *Exchange) GetQuotesByBuckets(ctx context.Context, params *QuoteGetBucketedParams) ([]Quote, error) {
 	var quotations []Quote
 
 	return quotations, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointQuoteBucketed,
@@ -557,7 +557,7 @@ func (b *Bitmex) GetQuotesByBuckets(ctx context.Context, params *QuoteGetBuckete
 }
 
 // GetSettlementHistory returns settlement history
-func (b *Bitmex) GetSettlementHistory(ctx context.Context, params *GenericRequestParams) ([]Settlement, error) {
+func (b *Exchange) GetSettlementHistory(ctx context.Context, params *GenericRequestParams) ([]Settlement, error) {
 	var history []Settlement
 
 	return history, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointSettlement,
@@ -566,35 +566,35 @@ func (b *Bitmex) GetSettlementHistory(ctx context.Context, params *GenericReques
 }
 
 // GetStats returns exchange wide per series turnover and volume statistics
-func (b *Bitmex) GetStats(ctx context.Context) ([]Stats, error) {
+func (b *Exchange) GetStats(ctx context.Context) ([]Stats, error) {
 	var stats []Stats
 
 	return stats, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointStats, nil, &stats)
 }
 
 // GetStatsHistorical historic stats
-func (b *Bitmex) GetStatsHistorical(ctx context.Context) ([]StatsHistory, error) {
+func (b *Exchange) GetStatsHistorical(ctx context.Context) ([]StatsHistory, error) {
 	var history []StatsHistory
 
 	return history, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointStatsHistory, nil, &history)
 }
 
 // GetStatSummary returns the stats summary in USD terms
-func (b *Bitmex) GetStatSummary(ctx context.Context) ([]StatsUSD, error) {
+func (b *Exchange) GetStatSummary(ctx context.Context) ([]StatsUSD, error) {
 	var summary []StatsUSD
 
 	return summary, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointStatsSummary, nil, &summary)
 }
 
 // GetTrade returns executed trades on the desk
-func (b *Bitmex) GetTrade(ctx context.Context, params *GenericRequestParams) ([]Trade, error) {
+func (b *Exchange) GetTrade(ctx context.Context, params *GenericRequestParams) ([]Trade, error) {
 	var trade []Trade
 
 	return trade, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointTrade, params, &trade)
 }
 
 // GetPreviousTrades previous trade history in time buckets
-func (b *Bitmex) GetPreviousTrades(ctx context.Context, params *TradeGetBucketedParams) ([]Trade, error) {
+func (b *Exchange) GetPreviousTrades(ctx context.Context, params *TradeGetBucketedParams) ([]Trade, error) {
 	var trade []Trade
 
 	return trade, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointTradeBucketed,
@@ -603,7 +603,7 @@ func (b *Bitmex) GetPreviousTrades(ctx context.Context, params *TradeGetBucketed
 }
 
 // GetUserInfo returns your user information
-func (b *Bitmex) GetUserInfo(ctx context.Context) (User, error) {
+func (b *Exchange) GetUserInfo(ctx context.Context) (User, error) {
 	var userInfo User
 
 	return userInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -613,7 +613,7 @@ func (b *Bitmex) GetUserInfo(ctx context.Context) (User, error) {
 }
 
 // UpdateUserInfo updates user information
-func (b *Bitmex) UpdateUserInfo(ctx context.Context, params *UserUpdateParams) (User, error) {
+func (b *Exchange) UpdateUserInfo(ctx context.Context, params *UserUpdateParams) (User, error) {
 	var userInfo User
 
 	return userInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut,
@@ -623,7 +623,7 @@ func (b *Bitmex) UpdateUserInfo(ctx context.Context, params *UserUpdateParams) (
 }
 
 // GetAffiliateStatus returns your affiliate status
-func (b *Bitmex) GetAffiliateStatus(ctx context.Context) (AffiliateStatus, error) {
+func (b *Exchange) GetAffiliateStatus(ctx context.Context) (AffiliateStatus, error) {
 	var status AffiliateStatus
 
 	return status, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -633,7 +633,7 @@ func (b *Bitmex) GetAffiliateStatus(ctx context.Context) (AffiliateStatus, error
 }
 
 // CancelWithdraw cancels a current withdrawal
-func (b *Bitmex) CancelWithdraw(ctx context.Context, token string) (TransactionInfo, error) {
+func (b *Exchange) CancelWithdraw(ctx context.Context, token string) (TransactionInfo, error) {
 	var info TransactionInfo
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -644,7 +644,7 @@ func (b *Bitmex) CancelWithdraw(ctx context.Context, token string) (TransactionI
 
 // CheckReferalCode checks a code, will return a percentage eg 0.1 for 10% or
 // if err a 404
-func (b *Bitmex) CheckReferalCode(ctx context.Context, referralCode string) (float64, error) {
+func (b *Exchange) CheckReferalCode(ctx context.Context, referralCode string) (float64, error) {
 	var percentage float64
 
 	return percentage, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointUserCheckReferralCode,
@@ -653,7 +653,7 @@ func (b *Bitmex) CheckReferalCode(ctx context.Context, referralCode string) (flo
 }
 
 // GetUserCommision returns your account's commission status.
-func (b *Bitmex) GetUserCommision(ctx context.Context) (UserCommission, error) {
+func (b *Exchange) GetUserCommision(ctx context.Context) (UserCommission, error) {
 	var commissionInfo UserCommission
 
 	return commissionInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -663,7 +663,7 @@ func (b *Bitmex) GetUserCommision(ctx context.Context) (UserCommission, error) {
 }
 
 // ConfirmEmail confirms email address with a token
-func (b *Bitmex) ConfirmEmail(ctx context.Context, token string) (ConfirmEmail, error) {
+func (b *Exchange) ConfirmEmail(ctx context.Context, token string) (ConfirmEmail, error) {
 	var confirmation ConfirmEmail
 
 	return confirmation, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -673,7 +673,7 @@ func (b *Bitmex) ConfirmEmail(ctx context.Context, token string) (ConfirmEmail, 
 }
 
 // ConfirmTwoFactorAuth confirms 2FA for this account.
-func (b *Bitmex) ConfirmTwoFactorAuth(ctx context.Context, token, typ string) (bool, error) {
+func (b *Exchange) ConfirmTwoFactorAuth(ctx context.Context, token, typ string) (bool, error) {
 	var working bool
 
 	return working, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -683,7 +683,7 @@ func (b *Bitmex) ConfirmTwoFactorAuth(ctx context.Context, token, typ string) (b
 }
 
 // ConfirmWithdrawal confirms a withdrawal
-func (b *Bitmex) ConfirmWithdrawal(ctx context.Context, token string) (TransactionInfo, error) {
+func (b *Exchange) ConfirmWithdrawal(ctx context.Context, token string) (TransactionInfo, error) {
 	var info TransactionInfo
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -693,7 +693,7 @@ func (b *Bitmex) ConfirmWithdrawal(ctx context.Context, token string) (Transacti
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency
-func (b *Bitmex) GetCryptoDepositAddress(ctx context.Context, cryptoCurrency string) (string, error) {
+func (b *Exchange) GetCryptoDepositAddress(ctx context.Context, cryptoCurrency string) (string, error) {
 	var address string
 	if !strings.EqualFold(cryptoCurrency, currency.XBT.String()) {
 		return "", fmt.Errorf("%v %w only bitcoin", cryptoCurrency, currency.ErrCurrencyNotSupported)
@@ -706,7 +706,7 @@ func (b *Bitmex) GetCryptoDepositAddress(ctx context.Context, cryptoCurrency str
 }
 
 // DisableTFA dsiables 2 factor authentication for your account
-func (b *Bitmex) DisableTFA(ctx context.Context, token, typ string) (bool, error) {
+func (b *Exchange) DisableTFA(ctx context.Context, token, typ string) (bool, error) {
 	var disabled bool
 
 	return disabled, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -716,7 +716,7 @@ func (b *Bitmex) DisableTFA(ctx context.Context, token, typ string) (bool, error
 }
 
 // UserLogOut logs you out of BitMEX
-func (b *Bitmex) UserLogOut(ctx context.Context) error {
+func (b *Exchange) UserLogOut(ctx context.Context) error {
 	return b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
 		bitmexEndpointUserLogout,
 		nil,
@@ -724,7 +724,7 @@ func (b *Bitmex) UserLogOut(ctx context.Context) error {
 }
 
 // UserLogOutAll logs you out of all systems for BitMEX
-func (b *Bitmex) UserLogOutAll(ctx context.Context) (int64, error) {
+func (b *Exchange) UserLogOutAll(ctx context.Context) (int64, error) {
 	var status int64
 
 	return status, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -734,7 +734,7 @@ func (b *Bitmex) UserLogOutAll(ctx context.Context) (int64, error) {
 }
 
 // GetUserMargin returns user margin information
-func (b *Bitmex) GetUserMargin(ctx context.Context, currency string) (UserMargin, error) {
+func (b *Exchange) GetUserMargin(ctx context.Context, currency string) (UserMargin, error) {
 	var info UserMargin
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -744,7 +744,7 @@ func (b *Bitmex) GetUserMargin(ctx context.Context, currency string) (UserMargin
 }
 
 // GetAllUserMargin returns user margin information
-func (b *Bitmex) GetAllUserMargin(ctx context.Context) ([]UserMargin, error) {
+func (b *Exchange) GetAllUserMargin(ctx context.Context) ([]UserMargin, error) {
 	var info []UserMargin
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -754,7 +754,7 @@ func (b *Bitmex) GetAllUserMargin(ctx context.Context) ([]UserMargin, error) {
 }
 
 // GetMinimumWithdrawalFee returns minimum withdrawal fee information
-func (b *Bitmex) GetMinimumWithdrawalFee(ctx context.Context, currency string) (MinWithdrawalFee, error) {
+func (b *Exchange) GetMinimumWithdrawalFee(ctx context.Context, currency string) (MinWithdrawalFee, error) {
 	var fee MinWithdrawalFee
 
 	return fee, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -764,7 +764,7 @@ func (b *Bitmex) GetMinimumWithdrawalFee(ctx context.Context, currency string) (
 }
 
 // GetUserPreferences returns user preferences
-func (b *Bitmex) GetUserPreferences(ctx context.Context, params UserPreferencesParams) (User, error) {
+func (b *Exchange) GetUserPreferences(ctx context.Context, params UserPreferencesParams) (User, error) {
 	var userInfo User
 
 	return userInfo, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -774,7 +774,7 @@ func (b *Bitmex) GetUserPreferences(ctx context.Context, params UserPreferencesP
 }
 
 // EnableTFA enables 2 factor authentication
-func (b *Bitmex) EnableTFA(ctx context.Context, typ string) (bool, error) {
+func (b *Exchange) EnableTFA(ctx context.Context, typ string) (bool, error) {
 	var enabled bool
 
 	return enabled, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -786,7 +786,7 @@ func (b *Bitmex) EnableTFA(ctx context.Context, typ string) (bool, error) {
 // UserRequestWithdrawal This will send a confirmation email to the email
 // address on record, unless requested via an API Key with the withdraw
 // permission.
-func (b *Bitmex) UserRequestWithdrawal(ctx context.Context, params UserRequestWithdrawalParams) (TransactionInfo, error) {
+func (b *Exchange) UserRequestWithdrawal(ctx context.Context, params UserRequestWithdrawalParams) (TransactionInfo, error) {
 	var info TransactionInfo
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -796,7 +796,7 @@ func (b *Bitmex) UserRequestWithdrawal(ctx context.Context, params UserRequestWi
 }
 
 // GetWalletInfo returns user wallet information
-func (b *Bitmex) GetWalletInfo(ctx context.Context, currency string) (WalletInfo, error) {
+func (b *Exchange) GetWalletInfo(ctx context.Context, currency string) (WalletInfo, error) {
 	var info WalletInfo
 
 	if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -817,7 +817,7 @@ func (b *Bitmex) GetWalletInfo(ctx context.Context, currency string) (WalletInfo
 }
 
 // GetWalletHistory returns user wallet history transaction data
-func (b *Bitmex) GetWalletHistory(ctx context.Context, currency string) ([]TransactionInfo, error) {
+func (b *Exchange) GetWalletHistory(ctx context.Context, currency string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -827,7 +827,7 @@ func (b *Bitmex) GetWalletHistory(ctx context.Context, currency string) ([]Trans
 }
 
 // GetWalletSummary returns user wallet summary
-func (b *Bitmex) GetWalletSummary(ctx context.Context, currency string) ([]TransactionInfo, error) {
+func (b *Exchange) GetWalletSummary(ctx context.Context, currency string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
 
 	return info, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
@@ -837,7 +837,7 @@ func (b *Bitmex) GetWalletSummary(ctx context.Context, currency string) ([]Trans
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, params Parameter, result any) error {
+func (b *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, params Parameter, result any) error {
 	var respCheck any
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -871,7 +871,7 @@ func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
-func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result any) error {
+func (b *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result any) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -937,7 +937,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 }
 
 // CaptureError little hack that captures an error
-func (b *Bitmex) CaptureError(resp, reType any) error {
+func (b *Exchange) CaptureError(resp, reType any) error {
 	var Error RequestError
 
 	marshalled, err := json.Marshal(resp)
@@ -956,7 +956,7 @@ func (b *Bitmex) CaptureError(resp, reType any) error {
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *Bitmex) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	var err error
 	switch feeBuilder.FeeType {

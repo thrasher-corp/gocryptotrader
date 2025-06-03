@@ -37,7 +37,7 @@ import (
 )
 
 // SetDefaults sets default values for the exchange
-func (g *Gateio) SetDefaults() {
+func (g *Exchange) SetDefaults() {
 	g.Name = "GateIO"
 	g.Enabled = true
 	g.Verbose = true
@@ -181,7 +181,7 @@ func (g *Gateio) SetDefaults() {
 }
 
 // Setup sets user configuration
-func (g *Gateio) Setup(exch *config.Exchange) error {
+func (g *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
@@ -302,7 +302,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (g *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if !g.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -406,7 +406,7 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (g *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !g.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -530,7 +530,7 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (g *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := g.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := g.FetchTradablePairs(ctx, assets[x])
@@ -549,7 +549,7 @@ func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (g *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !g.SupportsAsset(a) {
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -649,12 +649,12 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (g *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	return g.UpdateOrderbookWithLimit(ctx, p, a, 0)
 }
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
-func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Base, error) {
+func (g *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Base, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -718,7 +718,7 @@ func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, 
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
-func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
+func (g *Exchange) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	info := account.Holdings{
 		Exchange: g.Name,
 		Accounts: []account.SubAccount{{
@@ -806,12 +806,12 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (g *Gateio) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (g *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (g *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	records, err := g.GetWithdrawalRecords(ctx, c, time.Time{}, time.Time{}, 0, 0)
 	if err != nil {
 		return nil, err
@@ -832,7 +832,7 @@ func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
+func (g *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -919,13 +919,13 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (g *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
-func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (g *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(g.GetTradingRequirements())
 	if err != nil {
 		return nil, err
@@ -1048,12 +1048,12 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion
-func (g *Gateio) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (g *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
+func (g *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
@@ -1082,7 +1082,7 @@ func (g *Gateio) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (g *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	response := order.CancelBatchResponse{
 		Status: map[string]string{},
 	}
@@ -1170,7 +1170,7 @@ func (g *Gateio) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
+func (g *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
 	err := o.Validate()
 	if err != nil {
 		return order.CancelAllResponse{}, err
@@ -1233,7 +1233,7 @@ func (g *Gateio) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.Ca
 }
 
 // GetOrderInfo returns order information based on order ID
-func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
+func (g *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
 	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
@@ -1359,7 +1359,7 @@ func (g *Gateio) GetOrderInfo(ctx context.Context, orderID string, pair currency
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+func (g *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
 	addr, err := g.GenerateCurrencyDepositAddress(ctx, cryptocurrency)
 	if err != nil {
 		return nil, err
@@ -1387,7 +1387,7 @@ func (g *Gateio) GetDepositAddress(ctx context.Context, cryptocurrency currency.
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (g *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -1409,18 +1409,18 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (g *Gateio) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (g *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (g *Gateio) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (g *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (g *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
@@ -1432,7 +1432,7 @@ func (g *Gateio) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (g *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1578,7 +1578,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (g *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -1676,7 +1676,7 @@ func (g *Gateio) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (g *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := g.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
@@ -1731,7 +1731,7 @@ func (g *Gateio) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (g *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := g.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
@@ -1787,7 +1787,7 @@ func (g *Gateio) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
-func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+func (g *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	chains, err := g.ListCurrencyChain(ctx, cryptocurrency.Upper())
 	if err != nil {
 		return nil, err
@@ -1803,14 +1803,14 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (g *Gateio) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+func (g *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := g.UpdateAccountInfo(ctx, assetType)
 	return g.CheckTransientError(err)
 }
 
 // checkInstrumentAvailabilityInSpot checks whether the instrument is available in the spot exchange
 // if so we can use the instrument to retrieve orderbook and ticker information using the spot endpoints.
-func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bool, error) {
+func (g *Exchange) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bool, error) {
 	availables, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
 	if err != nil {
 		return false, err
@@ -1819,7 +1819,7 @@ func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bo
 }
 
 // GetFuturesContractDetails returns details about futures contracts
-func (g *Gateio) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
+func (g *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
 	if !a.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
@@ -1924,7 +1924,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
-func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+func (g *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !g.SupportsAsset(a) {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
@@ -1972,7 +1972,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract
-func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+func (g *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
@@ -2053,7 +2053,7 @@ func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (g *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
@@ -2130,14 +2130,14 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
-func (g *Gateio) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+func (g *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
 	return a == asset.CoinMarginedFutures || a == asset.USDTMarginedFutures, nil
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
 // If no pairs are provided, all enabled assets and pairs will be used
 // If keys are provided, those asset pairs only need to be available, not enabled
-func (g *Gateio) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+func (g *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
 	var errs error
 	resp := make([]futures.OpenInterest, 0, len(keys))
 	assets := asset.Items{}
@@ -2221,7 +2221,7 @@ func (c *DeliveryContract) contractName() string {
 	return c.Name
 }
 
-func (g *Gateio) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
+func (g *Exchange) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
 	settle, err := getSettlementCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -2294,7 +2294,7 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+func (g *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := g.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
@@ -2319,7 +2319,7 @@ func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 
 // WebsocketSubmitOrder submits an order to the exchange
 // NOTE: Regarding spot orders, fee is applied to purchased currency.
-func (g *Gateio) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (g *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(g.GetTradingRequirements())
 	if err != nil {
 		return nil, err
@@ -2384,7 +2384,7 @@ func timeInForceString(tif order.TimeInForce) string {
 	}
 }
 
-func (g *Gateio) deriveSpotWebsocketOrderResponse(responses *WebsocketOrderResponse) (*order.SubmitResponse, error) {
+func (g *Exchange) deriveSpotWebsocketOrderResponse(responses *WebsocketOrderResponse) (*order.SubmitResponse, error) {
 	resp, err := g.deriveSpotWebsocketOrderResponses([]*WebsocketOrderResponse{responses})
 	if err != nil {
 		return nil, err
@@ -2393,7 +2393,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponse(responses *WebsocketOrderRespo
 }
 
 // deriveSpotWebsocketOrderResponses returns the order submission responses for spot
-func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
+func (g *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, common.ErrNoResponse
 	}
@@ -2456,7 +2456,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 	return out, nil
 }
 
-func (g *Gateio) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
+func (g *Exchange) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse) (*order.SubmitResponse, error) {
 	resp, err := g.deriveFuturesWebsocketOrderResponses([]*WebsocketFuturesOrderResponse{responses})
 	if err != nil {
 		return nil, err
@@ -2465,7 +2465,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponse(responses *WebsocketFutures
 }
 
 // deriveFuturesWebsocketOrderResponses returns the order submission responses for futures
-func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
+func (g *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFuturesOrderResponse) ([]*order.SubmitResponse, error) {
 	if len(responses) == 0 {
 		return nil, common.ErrNoResponse
 	}
@@ -2521,7 +2521,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 	return out, nil
 }
 
-func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, error) {
+func (g *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, error) {
 	switch {
 	case s.Side.IsLong():
 		s.Side = order.Buy

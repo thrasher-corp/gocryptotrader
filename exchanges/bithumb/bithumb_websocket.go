@@ -35,7 +35,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect initiates a websocket connection
-func (b *Bithumb) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -59,7 +59,7 @@ func (b *Bithumb) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bithumb) wsReadData() {
+func (b *Exchange) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -79,7 +79,7 @@ func (b *Bithumb) wsReadData() {
 	}
 }
 
-func (b *Bithumb) wsHandleData(respRaw []byte) error {
+func (b *Exchange) wsHandleData(respRaw []byte) error {
 	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -172,17 +172,17 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 }
 
 // generateSubscriptions generates the default subscription set
-func (b *Bithumb) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Bithumb) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{"subToReq": subToReq}).Parse(subTplText)
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(subs subscription.List) error {
+func (b *Exchange) Subscribe(subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, json.RawMessage(s.QualifiedChannel))

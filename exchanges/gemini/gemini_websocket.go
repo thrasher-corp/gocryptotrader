@@ -56,7 +56,7 @@ var subscriptionNames = map[string]string{
 var comms = make(chan websocket.Response)
 
 // WsConnect initiates a websocket connection
-func (g *Gemini) WsConnect() error {
+func (g *Exchange) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -82,12 +82,12 @@ func (g *Gemini) WsConnect() error {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (g *Gemini) generateSubscriptions() (subscription.List, error) {
+func (g *Exchange) generateSubscriptions() (subscription.List, error) {
 	return g.Features.Subscriptions.ExpandTemplates(g)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (g *Gemini) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (g *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName": channelName,
 		"interval":    channelInterval,
@@ -95,16 +95,16 @@ func (g *Gemini) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gemini) Subscribe(subs subscription.List) error {
+func (g *Exchange) Subscribe(subs subscription.List) error {
 	return g.manageSubs(subs, wsSubscribeOp)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gemini) Unsubscribe(subs subscription.List) error {
+func (g *Exchange) Unsubscribe(subs subscription.List) error {
 	return g.manageSubs(subs, wsUnsubscribeOp)
 }
 
-func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
+func (g *Exchange) manageSubs(subs subscription.List, op wsSubOp) error {
 	req := wsSubscribeRequest{
 		Type:          op,
 		Subscriptions: make([]wsSubscriptions, 0, len(subs)),
@@ -128,7 +128,7 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 }
 
 // WsAuth will connect to Gemini's secure endpoint
-func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
+func (g *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	if !g.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
@@ -175,7 +175,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 }
 
 // wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
-func (g *Gemini) wsFunnelConnectionData(ws websocket.Connection) {
+func (g *Exchange) wsFunnelConnectionData(ws websocket.Connection) {
 	defer g.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -187,7 +187,7 @@ func (g *Gemini) wsFunnelConnectionData(ws websocket.Connection) {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (g *Gemini) wsReadData() {
+func (g *Exchange) wsReadData() {
 	defer g.Websocket.Wg.Done()
 	for {
 		select {
@@ -217,7 +217,7 @@ func (g *Gemini) wsReadData() {
 	}
 }
 
-func (g *Gemini) wsHandleData(respRaw []byte) error {
+func (g *Exchange) wsHandleData(respRaw []byte) error {
 	// only order details are sent in arrays
 	if strings.HasPrefix(string(respRaw), "[") {
 		var result []WsOrderResponse
@@ -465,7 +465,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 	}
 }
 
-func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
+func (g *Exchange) wsProcessUpdate(result *wsL2MarketData) error {
 	isInitial := len(result.Changes) > 0 && len(result.Trades) > 0
 	enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {

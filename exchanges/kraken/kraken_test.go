@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	k               *Kraken
+	k               *Exchange
 	spotTestPair    = currency.NewPair(currency.XBT, currency.USD)
 	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
 )
@@ -47,7 +47,7 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	k = new(Kraken)
+	k = new(Exchange)
 	if err := testexch.Setup(k); err != nil {
 		log.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 
 	testexch.UpdatePairsOnce(t, k)
@@ -908,7 +908,7 @@ func TestWithdrawCancel(t *testing.T) {
 // single pass, single fail, mixed fail, multiple pass, all fail
 // No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
 func TestWsSubscribe(t *testing.T) {
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
 
@@ -1008,7 +1008,7 @@ func TestWsSubscribe(t *testing.T) {
 
 // TestWsResubscribe tests websocket resubscription
 func TestWsResubscribe(t *testing.T) {
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
@@ -1039,7 +1039,7 @@ func TestWsResubscribe(t *testing.T) {
 func TestWsOrderbookSub(t *testing.T) {
 	t.Parallel()
 
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
 
@@ -1071,7 +1071,7 @@ func TestWsOrderbookSub(t *testing.T) {
 func TestWsCandlesSub(t *testing.T) {
 	t.Parallel()
 
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
 
@@ -1105,7 +1105,7 @@ func TestWsOwnTradesSub(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
 
@@ -1156,7 +1156,7 @@ func TestGetWSToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
 
@@ -1169,7 +1169,7 @@ func TestGetWSToken(t *testing.T) {
 func TestWsAddOrder(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 	id, err := k.wsAddOrder(&WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
@@ -1185,7 +1185,7 @@ func TestWsAddOrder(t *testing.T) {
 func TestWsCancelOrders(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 
 	err := k.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
@@ -1207,7 +1207,7 @@ func TestWsCancelAllOrders(t *testing.T) {
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	for _, l := range []int{10, 100} {
 		err := k.Websocket.AddSuccessfulSubscriptions(k.Websocket.Conn, &subscription.Subscription{
@@ -1224,7 +1224,7 @@ func TestWsHandleData(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 	err := k.Websocket.AddSubscriptions(k.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1258,7 +1258,7 @@ func TestWSProcessTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, k)
 	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", k.wsHandleData)
@@ -1467,7 +1467,7 @@ var websocketGSTEUROrderbookUpdates = []string{
 
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	pairs := currency.Pairs{
 		currency.NewPairWithDelimiter("XDG", "USD", "/"),
@@ -1563,7 +1563,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 
 	_, err := k.GetOpenInterest(t.Context(), key.PairAsset{

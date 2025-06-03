@@ -24,8 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// Bybit is the overarching type across this package
-type Bybit struct {
+// Exchange is the overarching type across this package
+type Exchange struct {
 	exchange.Base
 	account accountTypeHolder
 }
@@ -113,13 +113,13 @@ func stringToInterval(s string) (kline.Interval, error) {
 }
 
 // GetBybitServerTime retrieves bybit server time
-func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
+func (by *Exchange) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
 	var resp *ServerTime
 	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, "market/time", defaultEPL, &resp)
 }
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]KlineItem, error) {
+func (by *Exchange) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]KlineItem, error) {
 	switch category {
 	case "":
 		return nil, errCategoryNotSet
@@ -197,7 +197,7 @@ func processKlineResponse(in [][]string) ([]KlineItem, error) {
 }
 
 // GetInstrumentInfo retrieves the list of instrument details given the category and symbol.
-func (by *Bybit) GetInstrumentInfo(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
+func (by *Exchange) GetInstrumentInfo(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func (by *Bybit) GetInstrumentInfo(ctx context.Context, category, symbol, status
 }
 
 // GetMarkPriceKline query for historical mark price klines. Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+func (by *Exchange) GetMarkPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -247,7 +247,7 @@ func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string,
 }
 
 // GetIndexPriceKline query for historical index price klines. Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+func (by *Exchange) GetIndexPriceKline(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -275,7 +275,7 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string
 }
 
 // GetOrderBook retrieves for orderbook depth data.
-func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limit int64) (*Orderbook, error) {
+func (by *Exchange) GetOrderBook(ctx context.Context, category, symbol string, limit int64) (*Orderbook, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -308,7 +308,7 @@ func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url
 }
 
 // GetTickers returns the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
-func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin string, expiryDate time.Time) (*TickerData, error) {
+func (by *Exchange) GetTickers(ctx context.Context, category, symbol, baseCoin string, expiryDate time.Time) (*TickerData, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -328,7 +328,7 @@ func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin stri
 
 // GetFundingRateHistory retrieves historical funding rates. Each symbol has a different funding interval.
 // For example, if the interval is 8 hours and the current time is UTC 12, then it returns the last funding rate, which settled at UTC 8.
-func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol string, startTime, endTime time.Time, limit int64) (*FundingRateHistory, error) {
+func (by *Exchange) GetFundingRateHistory(ctx context.Context, category, symbol string, startTime, endTime time.Time, limit int64) (*FundingRateHistory, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -355,7 +355,7 @@ func (by *Bybit) GetFundingRateHistory(ctx context.Context, category, symbol str
 
 // GetPublicTradingHistory retrieves recent public trading data.
 // Option type. 'Call' or 'Put'. For option only
-func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, baseCoin, optionType string, limit int64) (*TradingHistory, error) {
+func (by *Exchange) GetPublicTradingHistory(ctx context.Context, category, symbol, baseCoin, optionType string, limit int64) (*TradingHistory, error) {
 	params, err := fillCategoryAndSymbol(category, symbol)
 	if err != nil {
 		return nil, err
@@ -377,7 +377,7 @@ func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, 
 }
 
 // GetOpenInterestData retrieves open interest of each symbol.
-func (by *Bybit) GetOpenInterestData(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
+func (by *Exchange) GetOpenInterestData(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -413,7 +413,7 @@ func (by *Bybit) GetOpenInterestData(ctx context.Context, category, symbol, inte
 // If both 'startTime' and 'endTime' are not specified, it will return the most recent 1 hours worth of data.
 // 'startTime' and 'endTime' are a pair of params. Either both are passed or they are not passed at all.
 // This endpoint can query the last 2 years worth of data, but make sure [endTime - startTime] <= 30 days.
-func (by *Bybit) GetHistoricalVolatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
+func (by *Exchange) GetHistoricalVolatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cOption {
@@ -441,7 +441,7 @@ func (by *Bybit) GetHistoricalVolatility(ctx context.Context, category, baseCoin
 }
 
 // GetInsurance retrieves insurance pool data (BTC/USDT/USDC etc). The data is updated every 24 hours.
-func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHistory, error) {
+func (by *Exchange) GetInsurance(ctx context.Context, coin string) (*InsuranceHistory, error) {
 	params := url.Values{}
 	if coin != "" {
 		params.Set("coin", coin)
@@ -451,7 +451,7 @@ func (by *Bybit) GetInsurance(ctx context.Context, coin string) (*InsuranceHisto
 }
 
 // GetRiskLimit retrieves risk limit history
-func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*RiskLimitHistory, error) {
+func (by *Exchange) GetRiskLimit(ctx context.Context, category, symbol string) (*RiskLimitHistory, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -467,7 +467,7 @@ func (by *Bybit) GetRiskLimit(ctx context.Context, category, symbol string) (*Ri
 }
 
 // GetDeliveryPrice retrieves delivery price.
-func (by *Bybit) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoin, cursor string, limit int64) (*DeliveryPrice, error) {
+func (by *Exchange) GetDeliveryPrice(ctx context.Context, category, symbol, baseCoin, cursor string, limit int64) (*DeliveryPrice, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse && category != cOption {
@@ -503,7 +503,7 @@ func isValidCategory(category string) error {
 }
 
 // PlaceOrder creates an order for spot, spot margin, USDT perpetual, USDC perpetual, USDC futures, inverse futures and options.
-func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
+func (by *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -557,7 +557,7 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
-func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
+func (by *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -576,7 +576,7 @@ func (by *Bybit) AmendOrder(ctx context.Context, arg *AmendOrderParams) (*OrderR
 }
 
 // CancelTradeOrder cancels an open unfilled or partially filled order.
-func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
+func (by *Exchange) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (*OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -611,7 +611,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
-func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
+func (by *Exchange) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -645,7 +645,7 @@ func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, 
 }
 
 // CancelAllTradeOrders cancel all open orders
-func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersParam) ([]OrderResponse, error) {
+func (by *Exchange) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersParam) ([]OrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -667,7 +667,7 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 // GetTradeOrderHistory retrieves order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
 // If you want to get real-time order information, you could query this endpoint or rely on the websocket stream (recommended).
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
-func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
+func (by *Exchange) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
 	baseCoin, settleCoin, orderFilter, orderStatus, cursor string,
 	startTime, endTime time.Time, limit int64,
 ) (*TradeOrders, error) {
@@ -710,7 +710,7 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 }
 
 // PlaceBatchOrder place batch or trade order.
-func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam) ([]BatchOrderResponse, error) {
+func (by *Exchange) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam) ([]BatchOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -745,7 +745,7 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 }
 
 // BatchAmendOrder represents a batch amend order.
-func (by *Bybit) BatchAmendOrder(ctx context.Context, category string, args []BatchAmendOrderParamItem) (*BatchOrderResponse, error) {
+func (by *Exchange) BatchAmendOrder(ctx context.Context, category string, args []BatchAmendOrderParamItem) (*BatchOrderResponse, error) {
 	if len(args) == 0 {
 		return nil, errNilArgument
 	}
@@ -771,7 +771,7 @@ func (by *Bybit) BatchAmendOrder(ctx context.Context, category string, args []Ba
 }
 
 // CancelBatchOrder cancel more than one open order in a single request.
-func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([]CancelBatchResponseItem, error) {
+func (by *Exchange) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([]CancelBatchResponseItem, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -794,7 +794,7 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 }
 
 // GetBorrowQuota retrieves the qty and amount of borrowable coins in spot account.
-func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
+func (by *Exchange) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cSpot {
@@ -816,7 +816,7 @@ func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side stri
 
 // SetDisconnectCancelAll You can use this endpoint to get your current DCP configuration.
 // Your private websocket connection must subscribe "dcp" topic in order to trigger DCP successfully
-func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) error {
+func (by *Exchange) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -827,7 +827,7 @@ func (by *Bybit) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams) 
 }
 
 // GetPositionInfo retrieves real-time position data, such as position size, cumulative realizedPNL.
-func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin, settleCoin, cursor string, limit int64) (*PositionInfoList, error) {
+func (by *Exchange) GetPositionInfo(ctx context.Context, category, symbol, baseCoin, settleCoin, cursor string, limit int64) (*PositionInfoList, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse && category != cOption {
@@ -858,7 +858,7 @@ func (by *Bybit) GetPositionInfo(ctx context.Context, category, symbol, baseCoin
 }
 
 // SetLeverageLevel sets a leverage from 0 to max leverage of corresponding risk limit
-func (by *Bybit) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) error {
+func (by *Exchange) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -883,7 +883,7 @@ func (by *Bybit) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) e
 
 // SwitchTradeMode sets the trade mode value either to 'cross' or 'isolated'.
 // Select cross margin mode or isolated margin mode per symbol level
-func (by *Bybit) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams) error {
+func (by *Exchange) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -908,7 +908,7 @@ func (by *Bybit) SwitchTradeMode(ctx context.Context, arg *SwitchTradeModeParams
 }
 
 // SetTakeProfitStopLossMode set partial TP/SL mode, you can set the TP/SL size smaller than position size.
-func (by *Bybit) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModeParams) (*TPSLModeResponse, error) {
+func (by *Exchange) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModeParams) (*TPSLModeResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -933,7 +933,7 @@ func (by *Bybit) SetTakeProfitStopLossMode(ctx context.Context, arg *TPSLModePar
 // If you are in one-way Mode, you can only open one position on Buy or Sell side.
 // If you are in hedge mode, you can open both Buy and Sell side positions simultaneously.
 // switches mode between MergedSingle: One-Way Mode or BothSide: Hedge Mode
-func (by *Bybit) SwitchPositionMode(ctx context.Context, arg *SwitchPositionModeParams) error {
+func (by *Exchange) SwitchPositionMode(ctx context.Context, arg *SwitchPositionModeParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -954,7 +954,7 @@ func (by *Bybit) SwitchPositionMode(ctx context.Context, arg *SwitchPositionMode
 // If you want to hold a bigger position size, you need more margin. This interface can set the risk limit of a single position.
 // If the order exceeds the current risk limit when placing an order, it will be rejected.
 // '0': one-way mode '1': hedge-mode Buy side '2': hedge-mode Sell side
-func (by *Bybit) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*RiskLimitResponse, error) {
+func (by *Exchange) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*RiskLimitResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -976,7 +976,7 @@ func (by *Bybit) SetRiskLimit(ctx context.Context, arg *SetRiskLimitParam) (*Ris
 }
 
 // SetTradingStop set the take profit, stop loss or trailing stop for the position.
-func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) error {
+func (by *Exchange) SetTradingStop(ctx context.Context, arg *TradingStopParams) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -994,7 +994,7 @@ func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) err
 }
 
 // SetAutoAddMargin sets auto add margin
-func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) error {
+func (by *Exchange) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -1018,7 +1018,7 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) 
 }
 
 // AddOrReduceMargin manually add or reduce margin for isolated margin position
-func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginParam) (*AddOrReduceMargin, error) {
+func (by *Exchange) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginParam) (*AddOrReduceMargin, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1045,7 +1045,7 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginPa
 // GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
 // Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
 // UTA Spot: 'stopOrderType', "" for normal order, "tpslOrder" for TP/SL order, "Stop" for conditional order, "OcoOrder" for OCO order
-func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, stopOrderType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+func (by *Exchange) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, stopOrderType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -1085,7 +1085,7 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 }
 
 // GetClosedPnL retrieves user's closed profit and loss records. The results are sorted by createdTime in descending order.
-func (by *Bybit) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
+func (by *Exchange) GetClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1150,7 +1150,7 @@ func fillOrderAndExecutionFetchParams(ac paramsConfig, category, symbol, baseCoi
 // After the user actively adjusts the risk level, this interface is called to try to calculate the adjusted risk level,
 // and if it passes (retCode=0), the system will remove the position reduceOnly mark.
 // You are recommended to call Get Position Info to check isReduceOnly field.
-func (by *Bybit) ConfirmNewRiskLimit(ctx context.Context, category, symbol string) error {
+func (by *Exchange) ConfirmNewRiskLimit(ctx context.Context, category, symbol string) error {
 	if category == "" {
 		return errCategoryNotSet
 	}
@@ -1168,7 +1168,7 @@ func (by *Bybit) ConfirmNewRiskLimit(ctx context.Context, category, symbol strin
 }
 
 // GetPreUpgradeOrderHistory the account is upgraded to a Unified account, you can get the orders which occurred before the upgrade.
-func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+func (by *Exchange) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor string, startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: true, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, orderFilter, orderStatus, cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1182,7 +1182,7 @@ func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol
 }
 
 // GetPreUpgradeTradeHistory retrieves users' execution records which occurred before you upgraded the account to a Unified account, sorted by execTime in descending order
-func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+func (by *Exchange) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Option: false, Inverse: true}, category, symbol, baseCoin, orderID, orderLinkID, "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1199,7 +1199,7 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 }
 
 // GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
-func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
+func (by *Exchange) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MandatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1213,7 +1213,7 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 }
 
 // GetPreUpgradeTransactionLog retrieves transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
-func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
+func (by *Exchange) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1230,7 +1230,7 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 }
 
 // GetPreUpgradeOptionDeliveryRecord retrieves delivery records of Option before you upgraded the account to a Unified account, sorted by deliveryTime in descending order
-func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*PreUpdateOptionDeliveryRecord, error) {
+func (by *Exchange) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*PreUpdateOptionDeliveryRecord, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, Option: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
 		return nil, err
@@ -1247,7 +1247,7 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 }
 
 // GetPreUpgradeUSDCSessionSettlement retrieves session settlement records of USDC perpetual before you upgrade the account to Unified account.
-func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
+func (by *Exchange) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
 		return nil, err
@@ -1264,7 +1264,7 @@ func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, categor
 // By default, currency information with assets or liabilities of 0 is not returned.
 // Unified account: UNIFIED (trade spot/linear/options), CONTRACT(trade inverse)
 // Normal account: CONTRACT, SPOT
-func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string) (*WalletBalance, error) {
+func (by *Exchange) GetWalletBalance(ctx context.Context, accountType, coin string) (*WalletBalance, error) {
 	params := url.Values{}
 	if accountType == "" {
 		return nil, errMissingAccountType
@@ -1278,13 +1278,13 @@ func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string)
 }
 
 // UpgradeToUnifiedAccount upgrades the account to unified account.
-func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
+func (by *Exchange) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
 	var resp *UnifiedAccountUpgradeResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/upgrade-to-uta", nil, nil, &resp, defaultEPL)
 }
 
 // GetBorrowHistory retrieves interest records, sorted in reverse order of creation time.
-func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
+func (by *Exchange) GetBorrowHistory(ctx context.Context, currency, cursor string, startTime, endTime time.Time, limit int64) (*BorrowHistory, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -1309,7 +1309,7 @@ func (by *Bybit) GetBorrowHistory(ctx context.Context, currency, cursor string, 
 }
 
 // SetCollateralCoin decide whether the assets in the Unified account needs to be collateral coins.
-func (by *Bybit) SetCollateralCoin(ctx context.Context, coin currency.Code, collateralSwitchON bool) error {
+func (by *Exchange) SetCollateralCoin(ctx context.Context, coin currency.Code, collateralSwitchON bool) error {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -1325,7 +1325,7 @@ func (by *Bybit) SetCollateralCoin(ctx context.Context, coin currency.Code, coll
 // GetCollateralInfo retrieves the collateral information of the current unified margin account,
 // including loan interest rate, loanable amount, collateral conversion rate,
 // whether it can be mortgaged as margin, etc.
-func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
+func (by *Exchange) GetCollateralInfo(ctx context.Context, currency string) (*CollateralInfo, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("currency", currency)
@@ -1335,7 +1335,7 @@ func (by *Bybit) GetCollateralInfo(ctx context.Context, currency string) (*Colla
 }
 
 // GetCoinGreeks retrieves current account Greeks information
-func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreeks, error) {
+func (by *Exchange) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreeks, error) {
 	params := url.Values{}
 	if baseCoin != "" {
 		params.Set("baseCoin", baseCoin)
@@ -1345,7 +1345,7 @@ func (by *Bybit) GetCoinGreeks(ctx context.Context, baseCoin string) (*CoinGreek
 }
 
 // GetFeeRate retrieves the trading fee rate.
-func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
+func (by *Exchange) GetFeeRate(ctx context.Context, category, symbol, baseCoin string) (*AccountFee, error) {
 	params := url.Values{}
 	if !slices.Contains(validCategory, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
@@ -1365,13 +1365,13 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 
 // GetAccountInfo retrieves the margin mode configuration of the account.
 // query the margin mode and the upgraded status of account
-func (by *Bybit) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
+func (by *Exchange) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
 	var resp *AccountInfo
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/info", nil, nil, &resp, defaultEPL)
 }
 
 // GetTransactionLog retrieves transaction logs in Unified account.
-func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
+func (by *Exchange) GetTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, OptionalCategory: true, Linear: true, Option: true, Spot: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -1384,7 +1384,7 @@ func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, tran
 }
 
 // SetMarginMode set margin mode to  either of ISOLATED_MARGIN, REGULAR_MARGIN(i.e. Cross margin), PORTFOLIO_MARGIN
-func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
+func (by *Exchange) SetMarginMode(ctx context.Context, marginMode string) (*SetMarginModeResponse, error) {
 	if marginMode == "" {
 		return nil, fmt.Errorf("%w, margin mode should be either of ISOLATED_MARGIN, REGULAR_MARGIN, or PORTFOLIO_MARGIN", errInvalidMode)
 	}
@@ -1397,7 +1397,7 @@ func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarg
 }
 
 // SetSpotHedging to turn on/off Spot hedging feature in Portfolio margin for Unified account.
-func (by *Bybit) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) error {
+func (by *Exchange) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) error {
 	resp := struct{}{}
 	setHedgingMode := "OFF"
 	if setHedgingModeOn {
@@ -1407,7 +1407,7 @@ func (by *Bybit) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) erro
 }
 
 // SetMMP Market Maker Protection (MMP) is an automated mechanism designed to protect market makers (MM) against liquidity risks and over-exposure in the market.
-func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
+func (by *Exchange) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -1431,7 +1431,7 @@ func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 
 // ResetMMP resets MMP.
 // once the mmp triggered, you can unfreeze the account by this endpoint
-func (by *Bybit) ResetMMP(ctx context.Context, baseCoin string) error {
+func (by *Exchange) ResetMMP(ctx context.Context, baseCoin string) error {
 	if baseCoin == "" {
 		return errBaseNotSet
 	}
@@ -1442,7 +1442,7 @@ func (by *Bybit) ResetMMP(ctx context.Context, baseCoin string) error {
 }
 
 // GetMMPState retrieve Market Maker Protection (MMP) states for different coins.
-func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, error) {
+func (by *Exchange) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, error) {
 	if baseCoin == "" {
 		return nil, errBaseNotSet
 	}
@@ -1454,7 +1454,7 @@ func (by *Bybit) GetMMPState(ctx context.Context, baseCoin string) (*MMPStates, 
 }
 
 // GetCoinExchangeRecords queries the coin exchange records.
-func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, cursor string, limit int64) (*CoinExchangeRecords, error) {
+func (by *Exchange) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, cursor string, limit int64) (*CoinExchangeRecords, error) {
 	params := url.Values{}
 	if fromCoin != "" {
 		params.Set("fromCoin", fromCoin)
@@ -1473,7 +1473,7 @@ func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, c
 }
 
 // GetDeliveryRecord retrieves delivery records of USDC futures and Options, sorted by deliveryTime in descending order
-func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
+func (by *Exchange) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
 	if !slices.Contains([]string{cLinear, cOption}, category) {
 		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, []string{cLinear, cOption})
 	}
@@ -1496,7 +1496,7 @@ func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor
 }
 
 // GetUSDCSessionSettlement retrieves session settlement records of USDC perpetual and futures
-func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
+func (by *Exchange) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
 	if category != cLinear {
 		return nil, fmt.Errorf("%w, valid category value is %v", errInvalidCategory, cLinear)
 	}
@@ -1516,7 +1516,7 @@ func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol,
 }
 
 // GetAssetInfo retrieves asset information
-func (by *Bybit) GetAssetInfo(ctx context.Context, accountType, coin string) (*AccountInfos, error) {
+func (by *Exchange) GetAssetInfo(ctx context.Context, accountType, coin string) (*AccountInfos, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
 	}
@@ -1552,7 +1552,7 @@ func fillCoinBalanceFetchParams(accountType, memberID, coin string, withBonus in
 
 // GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub account.
 // It is not allowed to get master account coin balance via sub account api key.
-func (by *Bybit) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
+func (by *Exchange) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, false)
 	if err != nil {
 		return nil, err
@@ -1562,7 +1562,7 @@ func (by *Bybit) GetAllCoinBalance(ctx context.Context, accountType, memberID, c
 }
 
 // GetSingleCoinBalance retrieves the balance of a specific coin in a specific account type. Supports querying sub UID's balance.
-func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalance, error) {
+func (by *Exchange) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalance, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, true)
 	if err != nil {
 		return nil, err
@@ -1575,7 +1575,7 @@ func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, me
 }
 
 // GetTransferableCoin the transferable coin list between each account type
-func (by *Bybit) GetTransferableCoin(ctx context.Context, fromAccountType, toAccountType string) (*TransferableCoins, error) {
+func (by *Exchange) GetTransferableCoin(ctx context.Context, fromAccountType, toAccountType string) (*TransferableCoins, error) {
 	if fromAccountType == "" {
 		return nil, fmt.Errorf("%w, from account type not specified", errMissingAccountType)
 	}
@@ -1592,7 +1592,7 @@ func (by *Bybit) GetTransferableCoin(ctx context.Context, fromAccountType, toAcc
 // CreateInternalTransfer create the internal transfer between different account types under the same UID.
 // Each account type has its own acceptable coins, e.g, you cannot transfer USDC from SPOT to CONTRACT.
 // Please refer to transferable coin list API to find out more.
-func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
+func (by *Exchange) CreateInternalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
 	}
@@ -1618,14 +1618,14 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 }
 
 // GetInternalTransferRecords retrieves the internal transfer records between different account types under the same UID.
-func (by *Bybit) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
+func (by *Exchange) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
 	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp *TransferResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetInterTransferListEPL)
 }
 
 // GetSubUID retrieves the sub UIDs under a main UID
-func (by *Bybit) GetSubUID(ctx context.Context) (*SubUID, error) {
+func (by *Exchange) GetSubUID(ctx context.Context) (*SubUID, error) {
 	var resp *SubUID
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-sub-member-list", nil, nil, &resp, getSubMemberListEPL)
 }
@@ -1633,7 +1633,7 @@ func (by *Bybit) GetSubUID(ctx context.Context) (*SubUID, error) {
 // EnableUniversalTransferForSubUID Transfer between sub-sub or main-sub
 // Use this endpoint to enable a subaccount to take part in a universal transfer. It is a one-time switch which, once thrown, enables a subaccount permanently.
 // If not set, your subaccount cannot use universal transfers.
-func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDs ...string) error {
+func (by *Exchange) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDs ...string) error {
 	if len(subMemberIDs) == 0 {
 		return errMembersIDsNotSet
 	}
@@ -1647,7 +1647,7 @@ func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMember
 // To use sub acct api key, it must have "SubMemberTransferList" permission
 // When use sub acct api key, it can only transfer to main account
 // You can not transfer between the same UID
-func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
+func (by *Exchange) CreateUniversalTransfer(ctx context.Context, arg *TransferParams) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
 	}
@@ -1708,14 +1708,14 @@ func fillTransferQueryParams(transferID, coin, status, cursor string, startTime,
 // Main acct api key or Sub acct api key are both supported
 // Main acct api key needs "SubMemberTransfer" permission
 // Sub acct api key needs "SubMemberTransferList" permission
-func (by *Bybit) GetUniversalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
+func (by *Exchange) GetUniversalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
 	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp *TransferResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-universal-transfer-list", params, nil, &resp, getAssetUniversalTransferListEPL)
 }
 
 // GetAllowedDepositCoinInfo retrieves allowed deposit coin information. To find out paired chain of coin, please refer coin info api.
-func (by *Bybit) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cursor string, limit int64) (*AllowedDepositCoinInfo, error) {
+func (by *Exchange) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cursor string, limit int64) (*AllowedDepositCoinInfo, error) {
 	params := url.Values{}
 	if coin != "" {
 		params.Set("coin", coin)
@@ -1736,7 +1736,7 @@ func (by *Bybit) GetAllowedDepositCoinInfo(ctx context.Context, coin, chain, cur
 // SetDepositAccount sets auto transfer account after deposit. The same function as the setting for Deposit on web GUI
 // account types: CONTRACT Derivatives Account
 // 'SPOT' Spot Account 'INVESTMENT' ByFi Account (The service has been offline) 'OPTION' USDC Account 'UNIFIED' UMA or UTA 'FUND' Funding Account
-func (by *Bybit) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
+func (by *Exchange) SetDepositAccount(ctx context.Context, accountType string) (*StatusResponse, error) {
 	if accountType == "" {
 		return nil, errMissingAccountType
 	}
@@ -1770,14 +1770,14 @@ func fillDepositRecordsParams(coin, cursor string, startTime, endTime time.Time,
 }
 
 // GetDepositRecords query deposit records.
-func (by *Bybit) GetDepositRecords(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
+func (by *Exchange) GetDepositRecords(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
 	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	var resp *DepositRecords
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-record", params, nil, &resp, getAssetDepositRecordsEPL)
 }
 
 // GetSubDepositRecords query subaccount's deposit records by main UID's API key. on chain
-func (by *Bybit) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
+func (by *Exchange) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cursor string, startTime, endTime time.Time, limit int64) (*DepositRecords, error) {
 	if subMemberID == "" {
 		return nil, errMembersIDsNotSet
 	}
@@ -1788,14 +1788,14 @@ func (by *Bybit) GetSubDepositRecords(ctx context.Context, subMemberID, coin, cu
 }
 
 // GetInternalDepositRecordsOffChain retrieves deposit records within the Bybit platform. These transactions are not on the blockchain.
-func (by *Bybit) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*InternalDepositRecords, error) {
+func (by *Exchange) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cursor string, startTime, endTime time.Time, limit int64) (*InternalDepositRecords, error) {
 	params := fillDepositRecordsParams(coin, cursor, startTime, endTime, limit)
 	var resp *InternalDepositRecords
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-internal-record", params, nil, &resp, defaultEPL)
 }
 
 // GetMasterDepositAddress retrieves the deposit address information of MASTER account.
-func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code, chainType string) (*DepositAddresses, error) {
+func (by *Exchange) GetMasterDepositAddress(ctx context.Context, coin currency.Code, chainType string) (*DepositAddresses, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1809,7 +1809,7 @@ func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code
 }
 
 // GetSubDepositAddress retrieves the deposit address information of SUB account.
-func (by *Bybit) GetSubDepositAddress(ctx context.Context, coin currency.Code, chainType, subMemberID string) (*DepositAddresses, error) {
+func (by *Exchange) GetSubDepositAddress(ctx context.Context, coin currency.Code, chainType, subMemberID string) (*DepositAddresses, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1828,7 +1828,7 @@ func (by *Bybit) GetSubDepositAddress(ctx context.Context, coin currency.Code, c
 }
 
 // GetCoinInfo retrieves coin information, including chain information, withdraw and deposit status.
-func (by *Bybit) GetCoinInfo(ctx context.Context, coin currency.Code) (*CoinInfo, error) {
+func (by *Exchange) GetCoinInfo(ctx context.Context, coin currency.Code) (*CoinInfo, error) {
 	params := url.Values{}
 	if coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -1840,7 +1840,7 @@ func (by *Bybit) GetCoinInfo(ctx context.Context, coin currency.Code) (*CoinInfo
 // GetWithdrawalRecords query withdrawal records.
 // endTime - startTime should be less than 30 days. Query last 30 days records by default.
 // Can query by the master UID's api key only
-func (by *Bybit) GetWithdrawalRecords(ctx context.Context, coin currency.Code, withdrawalID, withdrawType, cursor string, startTime, endTime time.Time, limit int64) (*WithdrawalRecords, error) {
+func (by *Exchange) GetWithdrawalRecords(ctx context.Context, coin currency.Code, withdrawalID, withdrawType, cursor string, startTime, endTime time.Time, limit int64) (*WithdrawalRecords, error) {
 	params := url.Values{}
 	if withdrawalID != "" {
 		params.Set("withdrawID", withdrawalID)
@@ -1868,7 +1868,7 @@ func (by *Bybit) GetWithdrawalRecords(ctx context.Context, coin currency.Code, w
 }
 
 // GetWithdrawableAmount retrieves withdrawable amount information using currency code
-func (by *Bybit) GetWithdrawableAmount(ctx context.Context, coin currency.Code) (*WithdrawableAmount, error) {
+func (by *Exchange) GetWithdrawableAmount(ctx context.Context, coin currency.Code) (*WithdrawableAmount, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1879,7 +1879,7 @@ func (by *Bybit) GetWithdrawableAmount(ctx context.Context, coin currency.Code) 
 }
 
 // WithdrawCurrency Withdraw assets from your Bybit account. You can make an off-chain transfer if the target wallet address is from Bybit. This means that no blockchain fee will be charged.
-func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (string, error) {
+func (by *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
 	}
@@ -1905,7 +1905,7 @@ func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (st
 }
 
 // CancelWithdrawal cancel the withdrawal
-func (by *Bybit) CancelWithdrawal(ctx context.Context, id string) (*StatusResponse, error) {
+func (by *Exchange) CancelWithdrawal(ctx context.Context, id string) (*StatusResponse, error) {
 	if id == "" {
 		return nil, errMissingWithdrawalID
 	}
@@ -1919,7 +1919,7 @@ func (by *Bybit) CancelWithdrawal(ctx context.Context, id string) (*StatusRespon
 }
 
 // CreateNewSubUserID created a new sub user id. Use master user's api key only.
-func (by *Bybit) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParams) (*SubUserItem, error) {
+func (by *Exchange) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParams) (*SubUserItem, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1934,7 +1934,7 @@ func (by *Bybit) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParam
 }
 
 // CreateSubUIDAPIKey create new API key for those newly created sub UID. Use master user's api key only.
-func (by *Bybit) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam) (*SubUIDAPIResponse, error) {
+func (by *Exchange) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam) (*SubUIDAPIResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1946,7 +1946,7 @@ func (by *Bybit) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam)
 }
 
 // GetSubUIDList get all sub uid of master account. Use master user's api key only.
-func (by *Bybit) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
+func (by *Exchange) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
 	resp := struct {
 		SubMembers []SubUserItem `json:"subMembers"`
 	}{}
@@ -1954,7 +1954,7 @@ func (by *Bybit) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
 }
 
 // FreezeSubUID freeze Sub UID. Use master user's api key only.
-func (by *Bybit) FreezeSubUID(ctx context.Context, subUID string, frozen bool) error {
+func (by *Exchange) FreezeSubUID(ctx context.Context, subUID string, frozen bool) error {
 	if subUID == "" {
 		return fmt.Errorf("%w, subuid", errMissingUserID)
 	}
@@ -1975,13 +1975,13 @@ func (by *Bybit) FreezeSubUID(ctx context.Context, subUID string, frozen bool) e
 // GetAPIKeyInformation retrieves the information of the api key.
 // Use the api key pending to be checked to call the endpoint.
 // Both master and sub user's api key are applicable.
-func (by *Bybit) GetAPIKeyInformation(ctx context.Context) (*SubUIDAPIResponse, error) {
+func (by *Exchange) GetAPIKeyInformation(ctx context.Context) (*SubUIDAPIResponse, error) {
 	var resp *SubUIDAPIResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-api", nil, nil, &resp, userQueryAPIEPL)
 }
 
 // GetSubAccountAllAPIKeys retrieves all api keys information of a sub UID.
-func (by *Bybit) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, cursor string, limit int64) (*SubAccountAPIKeys, error) {
+func (by *Exchange) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, cursor string, limit int64) (*SubAccountAPIKeys, error) {
 	if subMemberID == "" {
 		return nil, errMembersIDsNotSet
 	}
@@ -1998,7 +1998,7 @@ func (by *Bybit) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, curso
 }
 
 // GetUIDWalletType retrieves available wallet types for the master account or sub account
-func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDs string) (*WalletType, error) {
+func (by *Exchange) GetUIDWalletType(ctx context.Context, memberIDs string) (*WalletType, error) {
 	if memberIDs == "" {
 		return nil, errMembersIDsNotSet
 	}
@@ -2008,7 +2008,7 @@ func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDs string) (*Walle
 
 // ModifyMasterAPIKey modify the settings of master api key.
 // Use the api key pending to be modified to call the endpoint. Use master user's api key only.
-func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
+func (by *Exchange) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
@@ -2020,7 +2020,7 @@ func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdate
 }
 
 // ModifySubAPIKey modifies the settings of sub api key. Use the api key pending to be modified to call the endpoint. Use sub user's api key only.
-func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
+func (by *Exchange) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdateParam) (*SubUIDAPIResponse, error) {
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
@@ -2033,7 +2033,7 @@ func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdatePar
 
 // DeleteSubUID delete a sub UID. Before deleting the UID, please make sure there is no asset.
 // Use master user's api key**.
-func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
+func (by *Exchange) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	if subMemberID == "" {
 		return errMemberIDRequired
 	}
@@ -2046,13 +2046,13 @@ func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
 
 // DeleteMasterAPIKey delete the api key of master account.
 // Use the api key pending to be delete to call the endpoint. Use master user's api key only.
-func (by *Bybit) DeleteMasterAPIKey(ctx context.Context) error {
+func (by *Exchange) DeleteMasterAPIKey(ctx context.Context) error {
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-api", nil, nil, &struct{}{}, userDeleteAPIEPL)
 }
 
 // DeleteSubAccountAPIKey delete the api key of sub account.
 // Use the api key pending to be delete to call the endpoint. Use sub user's api key only.
-func (by *Bybit) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
+func (by *Exchange) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
 	if subAccountUID == "" {
 		return fmt.Errorf("%w, sub-account id missing", errMissingUserID)
 	}
@@ -2066,7 +2066,7 @@ func (by *Bybit) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID strin
 
 // GetAffiliateUserInfo the API is used for affiliate to get their users information
 // The master account uid of affiliate's client
-func (by *Bybit) GetAffiliateUserInfo(ctx context.Context, uid string) (*AffiliateCustomerInfo, error) {
+func (by *Exchange) GetAffiliateUserInfo(ctx context.Context, uid string) (*AffiliateCustomerInfo, error) {
 	if uid == "" {
 		return nil, errMissingUserID
 	}
@@ -2078,7 +2078,7 @@ func (by *Bybit) GetAffiliateUserInfo(ctx context.Context, uid string) (*Affilia
 
 // GetLeverageTokenInfo query leverage token information
 // Abbreviation of the LT, such as BTC3L
-func (by *Bybit) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code) ([]LeverageTokenInfo, error) {
+func (by *Exchange) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code) ([]LeverageTokenInfo, error) {
 	params := url.Values{}
 	if !ltCoin.IsEmpty() {
 		params.Set("ltCoin", ltCoin.String())
@@ -2090,7 +2090,7 @@ func (by *Bybit) GetLeverageTokenInfo(ctx context.Context, ltCoin currency.Code)
 }
 
 // GetLeveragedTokenMarket retrieves leverage token market information
-func (by *Bybit) GetLeveragedTokenMarket(ctx context.Context, ltCoin currency.Code) (*LeveragedTokenMarket, error) {
+func (by *Exchange) GetLeveragedTokenMarket(ctx context.Context, ltCoin currency.Code) (*LeveragedTokenMarket, error) {
 	if ltCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2101,7 +2101,7 @@ func (by *Bybit) GetLeveragedTokenMarket(ctx context.Context, ltCoin currency.Co
 }
 
 // PurchaseLeverageToken purcases a leverage token.
-func (by *Bybit) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code, amount float64, serialNumber string) (*LeverageToken, error) {
+func (by *Exchange) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code, amount float64, serialNumber string) (*LeverageToken, error) {
 	if ltCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2122,7 +2122,7 @@ func (by *Bybit) PurchaseLeverageToken(ctx context.Context, ltCoin currency.Code
 }
 
 // RedeemLeverageToken redeem leverage token
-func (by *Bybit) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, quantity float64, serialNumber string) (*RedeemToken, error) {
+func (by *Exchange) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, quantity float64, serialNumber string) (*RedeemToken, error) {
 	if ltCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, 'ltCoin' is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2144,7 +2144,7 @@ func (by *Bybit) RedeemLeverageToken(ctx context.Context, ltCoin currency.Code, 
 
 // GetPurchaseAndRedemptionRecords retrieves purchase or redeem history.
 // ltOrderType	false	integer	LT order type. 1: purchase, 2: redemption
-func (by *Bybit) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin currency.Code, orderID, serialNo string, startTime, endTime time.Time, ltOrderType, limit int64) ([]RedeemPurchaseRecord, error) {
+func (by *Exchange) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin currency.Code, orderID, serialNo string, startTime, endTime time.Time, ltOrderType, limit int64) ([]RedeemPurchaseRecord, error) {
 	params := url.Values{}
 	if !ltCoin.IsEmpty() {
 		params.Set("ltCoin", ltCoin.String())
@@ -2176,7 +2176,7 @@ func (by *Bybit) GetPurchaseAndRedemptionRecords(ctx context.Context, ltCoin cur
 // ToggleMarginTrade turn on / off spot margin trade
 // Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
 // spotMarginMode '1': on, '0': off
-func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+func (by *Exchange) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
 	arg := &SpotMarginMode{}
 	if spotMarginMode {
 		arg.SpotMarginMode = "1"
@@ -2188,7 +2188,7 @@ func (by *Bybit) ToggleMarginTrade(ctx context.Context, spotMarginMode bool) (*S
 }
 
 // SetSpotMarginTradeLeverage set the user's maximum leverage in spot cross margin
-func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
+func (by *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage float64) error {
 	if leverage <= 2 {
 		return fmt.Errorf("%w, leverage. value range from [2  to 10]", errInvalidLeverage)
 	}
@@ -2196,7 +2196,7 @@ func (by *Bybit) SetSpotMarginTradeLeverage(ctx context.Context, leverage float6
 }
 
 // GetVIPMarginData retrieves public VIP Margin data
-func (by *Bybit) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
+func (by *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, currency string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
 		params.Set("vipLevel", vipLevel)
@@ -2209,7 +2209,7 @@ func (by *Bybit) GetVIPMarginData(ctx context.Context, vipLevel, currency string
 }
 
 // GetMarginCoinInfo retrieves margin coin information.
-func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
+func (by *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2221,7 +2221,7 @@ func (by *Bybit) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]M
 }
 
 // GetBorrowableCoinInfo retrieves borrowable coin info list.
-func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
+func (by *Exchange) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2233,7 +2233,7 @@ func (by *Bybit) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) 
 }
 
 // GetInterestAndQuota retrieves interest and quota information.
-func (by *Bybit) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*InterestAndQuota, error) {
+func (by *Exchange) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*InterestAndQuota, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2244,13 +2244,13 @@ func (by *Bybit) GetInterestAndQuota(ctx context.Context, coin currency.Code) (*
 }
 
 // GetLoanAccountInfo retrieves loan account information.
-func (by *Bybit) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, error) {
+func (by *Exchange) GetLoanAccountInfo(ctx context.Context) (*AccountLoanInfo, error) {
 	var resp *AccountLoanInfo
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-cross-margin-trade/account", nil, nil, &resp, getSpotCrossMarginTradeAccountEPL)
 }
 
 // Borrow borrows a coin.
-func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse, error) {
+func (by *Exchange) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2265,7 +2265,7 @@ func (by *Bybit) Borrow(ctx context.Context, arg *LendArgument) (*BorrowResponse
 }
 
 // Repay repay a debt.
-func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, error) {
+func (by *Exchange) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2281,7 +2281,7 @@ func (by *Bybit) Repay(ctx context.Context, arg *LendArgument) (*RepayResponse, 
 
 // GetBorrowOrderDetail represents the borrow order detail.
 // Status '0'(default)：get all kinds of status '1'：uncleared '2'：cleared
-func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, status, limit int64) ([]BorrowOrderDetail, error) {
+func (by *Exchange) GetBorrowOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, status, limit int64) ([]BorrowOrderDetail, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2305,7 +2305,7 @@ func (by *Bybit) GetBorrowOrderDetail(ctx context.Context, startTime, endTime ti
 }
 
 // GetRepaymentOrderDetail retrieves repayment order detail.
-func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, limit int64) ([]CoinRepaymentResponse, error) {
+func (by *Exchange) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime time.Time, coin currency.Code, limit int64) ([]CoinRepaymentResponse, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2328,7 +2328,7 @@ func (by *Bybit) GetRepaymentOrderDetail(ctx context.Context, startTime, endTime
 // ToggleMarginTradeNormal turn on / off spot margin trade
 // Your account needs to activate spot margin first; i.e., you must have finished the quiz on web / app.
 // spotMarginMode '1': on, '0': off
-func (by *Bybit) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
+func (by *Exchange) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode bool) (*SpotMarginMode, error) {
 	arg := &SpotMarginMode{}
 	if spotMarginMode {
 		arg.SpotMarginMode = "1"
@@ -2340,7 +2340,7 @@ func (by *Bybit) ToggleMarginTradeNormal(ctx context.Context, spotMarginMode boo
 }
 
 // GetProductInfo represents a product info.
-func (by *Bybit) GetProductInfo(ctx context.Context, productID string) (*InstitutionalProductInfo, error) {
+func (by *Exchange) GetProductInfo(ctx context.Context, productID string) (*InstitutionalProductInfo, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
@@ -2351,7 +2351,7 @@ func (by *Bybit) GetProductInfo(ctx context.Context, productID string) (*Institu
 
 // GetInstitutionalLengingMarginCoinInfo retrieves institutional lending margin coin information.
 // ProductId. If not passed, then return all product margin coin. For spot, it returns coin that convertRation greater than 0.
-func (by *Bybit) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
+func (by *Exchange) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
@@ -2361,7 +2361,7 @@ func (by *Bybit) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, prod
 }
 
 // GetInstitutionalLoanOrders retrieves institutional loan orders.
-func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time, limit int64) ([]LoanOrderDetails, error) {
+func (by *Exchange) GetInstitutionalLoanOrders(ctx context.Context, orderID string, startTime, endTime time.Time, limit int64) ([]LoanOrderDetails, error) {
 	params := url.Values{}
 	if orderID != "" {
 		params.Set("orderId", orderID)
@@ -2382,7 +2382,7 @@ func (by *Bybit) GetInstitutionalLoanOrders(ctx context.Context, orderID string,
 }
 
 // GetInstitutionalRepayOrders retrieves list of repaid order information.
-func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, endTime time.Time, limit int64) ([]OrderRepayInfo, error) {
+func (by *Exchange) GetInstitutionalRepayOrders(ctx context.Context, startTime, endTime time.Time, limit int64) ([]OrderRepayInfo, error) {
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2400,14 +2400,14 @@ func (by *Bybit) GetInstitutionalRepayOrders(ctx context.Context, startTime, end
 }
 
 // GetLTV retrieves a loan-to-value(LTV)
-func (by *Bybit) GetLTV(ctx context.Context) (*LTVInfo, error) {
+func (by *Exchange) GetLTV(ctx context.Context) (*LTVInfo, error) {
 	var resp *LTVInfo
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, defaultEPL)
 }
 
 // BindOrUnbindUID For the INS loan product, you can bind new UID to risk unit or unbind UID out from risk unit.
 // possible 'operate' values: 0: bind, 1: unbind
-func (by *Bybit) BindOrUnbindUID(ctx context.Context, uid, operate string) (*BindOrUnbindUIDResponse, error) {
+func (by *Exchange) BindOrUnbindUID(ctx context.Context, uid, operate string) (*BindOrUnbindUIDResponse, error) {
 	if uid == "" {
 		return nil, fmt.Errorf("%w, uid is required", errMissingUserID)
 	}
@@ -2423,7 +2423,7 @@ func (by *Bybit) BindOrUnbindUID(ctx context.Context, uid, operate string) (*Bin
 }
 
 // GetC2CLendingCoinInfo retrieves C2C basic information of lending coins
-func (by *Bybit) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) ([]C2CLendingCoinInfo, error) {
+func (by *Exchange) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) ([]C2CLendingCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2435,7 +2435,7 @@ func (by *Bybit) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) 
 }
 
 // C2CDepositFunds lending funds to Bybit asset pool
-func (by *Bybit) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
+func (by *Exchange) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2450,7 +2450,7 @@ func (by *Bybit) C2CDepositFunds(ctx context.Context, arg *C2CLendingFundsParams
 }
 
 // C2CRedeemFunds withdraw funds from the Bybit asset pool.
-func (by *Bybit) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
+func (by *Exchange) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams) (*C2CLendingFundResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2465,7 +2465,7 @@ func (by *Bybit) C2CRedeemFunds(ctx context.Context, arg *C2CLendingFundsParams)
 }
 
 // GetC2CLendingOrderRecords retrieves lending or redeem history
-func (by *Bybit) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Code, orderID, orderType string, startTime, endTime time.Time, limit int64) ([]C2CLendingFundResponse, error) {
+func (by *Exchange) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Code, orderID, orderType string, startTime, endTime time.Time, limit int64) ([]C2CLendingFundResponse, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2492,7 +2492,7 @@ func (by *Bybit) GetC2CLendingOrderRecords(ctx context.Context, coin currency.Co
 }
 
 // GetC2CLendingAccountInfo retrieves C2C lending account information.
-func (by *Bybit) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Code) (*LendingAccountInfo, error) {
+func (by *Exchange) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Code) (*LendingAccountInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
@@ -2505,7 +2505,7 @@ func (by *Bybit) GetC2CLendingAccountInfo(ctx context.Context, coin currency.Cod
 // The data can support up to past 6 months until T-1
 // startTime & endTime are either entered at the same time or not entered
 // Business type. 'SPOT', 'DERIVATIVES', 'OPTIONS'
-func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor string, startTime, endTime time.Time, limit int64) ([]BrokerEarningItem, error) {
+func (by *Exchange) GetBrokerEarning(ctx context.Context, businessType, cursor string, startTime, endTime time.Time, limit int64) ([]BrokerEarningItem, error) {
 	params := url.Values{}
 	if businessType != "" {
 		params.Set("bizType", businessType)
@@ -2545,7 +2545,7 @@ func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+func (by *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -2577,7 +2577,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
+func (by *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
 	val := reflect.ValueOf(result)
 	if val.Kind() != reflect.Ptr {
 		return errNonePointerArgument
@@ -2704,7 +2704,7 @@ func getSign(sign, secret string) (string, error) {
 }
 
 // FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
-func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
+func (by *Exchange) FetchAccountType(ctx context.Context) (AccountType, error) {
 	by.account.m.Lock()
 	defer by.account.m.Unlock()
 	if by.account.accountType == 0 {
@@ -2720,7 +2720,7 @@ func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
 }
 
 // RequiresUnifiedAccount checks account type and returns error if not unified
-func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
+func (by *Exchange) RequiresUnifiedAccount(ctx context.Context) error {
 	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return nil //nolint:nilerr // if we can't get the account type, we can't check if it's unified or not, fail on call
@@ -2732,7 +2732,7 @@ func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
 }
 
 // GetLongShortRatio retrieves long short ratio of an instrument.
-func (by *Bybit) GetLongShortRatio(ctx context.Context, category, symbol string, interval kline.Interval, limit int64) ([]InstrumentInfoItem, error) {
+func (by *Exchange) GetLongShortRatio(ctx context.Context, category, symbol string, interval kline.Interval, limit int64) ([]InstrumentInfoItem, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {

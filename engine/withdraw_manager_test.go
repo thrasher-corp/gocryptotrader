@@ -24,7 +24,7 @@ const (
 func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManager) {
 	t.Helper()
 	em := NewExchangeManager()
-	b := new(okx.Okx)
+	b := new(okx.Exchange)
 	cfg, err := exchange.GetDefaultConfig(t.Context(), b)
 	if err != nil {
 		t.Fatal(err)

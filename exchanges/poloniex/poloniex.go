@@ -61,14 +61,14 @@ const (
 	poloniexMaxOrderbookDepth    = 100
 )
 
-// Poloniex is the overarching type across the poloniex package
-type Poloniex struct {
+// Exchange is the overarching type across the poloniex package
+type Exchange struct {
 	exchange.Base
 	details CurrencyDetails
 }
 
 // GetTicker returns current ticker information
-func (p *Poloniex) GetTicker(ctx context.Context) (map[string]Ticker, error) {
+func (p *Exchange) GetTicker(ctx context.Context) (map[string]Ticker, error) {
 	type response struct {
 		Data map[string]Ticker
 	}
@@ -80,7 +80,7 @@ func (p *Poloniex) GetTicker(ctx context.Context) (map[string]Ticker, error) {
 }
 
 // GetVolume returns a list of currencies with associated volume
-func (p *Poloniex) GetVolume(ctx context.Context) (any, error) {
+func (p *Exchange) GetVolume(ctx context.Context) (any, error) {
 	var resp any
 	path := "/public?command=return24hVolume"
 
@@ -88,7 +88,7 @@ func (p *Poloniex) GetVolume(ctx context.Context) (any, error) {
 }
 
 // GetOrderbook returns the full orderbook from poloniex
-func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth int) (OrderbookAll, error) {
+func (p *Exchange) GetOrderbook(ctx context.Context, currencyPair string, depth int) (OrderbookAll, error) {
 	vals := url.Values{}
 
 	if depth != 0 {
@@ -156,7 +156,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 }
 
 // GetTradeHistory returns trades history from poloniex
-func (p *Poloniex) GetTradeHistory(ctx context.Context, currencyPair string, start, end int64) ([]TradeHistory, error) {
+func (p *Exchange) GetTradeHistory(ctx context.Context, currencyPair string, start, end int64) ([]TradeHistory, error) {
 	vals := url.Values{}
 	vals.Set("currencyPair", currencyPair)
 
@@ -174,7 +174,7 @@ func (p *Poloniex) GetTradeHistory(ctx context.Context, currencyPair string, sta
 }
 
 // GetChartData returns chart data for a specific currency pair
-func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start, end time.Time, period string) ([]ChartData, error) {
+func (p *Exchange) GetChartData(ctx context.Context, currencyPair string, start, end time.Time, period string) ([]ChartData, error) {
 	vals := url.Values{}
 	vals.Set("currencyPair", currencyPair)
 
@@ -215,7 +215,7 @@ func (p *Poloniex) GetChartData(ctx context.Context, currencyPair string, start,
 }
 
 // GetCurrencies returns information about currencies
-func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, error) {
+func (p *Exchange) GetCurrencies(ctx context.Context) (map[string]*Currencies, error) {
 	type Response struct {
 		Data map[string]*Currencies
 	}
@@ -228,7 +228,7 @@ func (p *Poloniex) GetCurrencies(ctx context.Context) (map[string]*Currencies, e
 }
 
 // GetTimestamp returns server time
-func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
+func (p *Exchange) GetTimestamp(ctx context.Context) (time.Time, error) {
 	var resp TimeStampResponse
 	err := p.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -243,14 +243,14 @@ func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
 
 // GetLoanOrders returns the list of loan offers and demands for a given
 // currency, specified by the "currency" GET parameter.
-func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrders, error) {
+func (p *Exchange) GetLoanOrders(ctx context.Context, currency string) (LoanOrders, error) {
 	resp := LoanOrders{}
 	path := "/public?command=returnLoanOrders&currency=" + currency
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetBalances returns balances for your account.
-func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
+func (p *Exchange) GetBalances(ctx context.Context) (Balance, error) {
 	var result any
 	if err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
 		return Balance{}, err
@@ -282,7 +282,7 @@ func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 }
 
 // GetCompleteBalances returns complete balances from your account.
-func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, error) {
+func (p *Exchange) GetCompleteBalances(ctx context.Context) (CompleteBalances, error) {
 	var result CompleteBalances
 	vals := url.Values{}
 	vals.Set("account", "all")
@@ -295,7 +295,7 @@ func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, e
 }
 
 // GetDepositAddresses returns deposit addresses for all enabled cryptos.
-func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, error) {
+func (p *Exchange) GetDepositAddresses(ctx context.Context) (DepositAddresses, error) {
 	var result any
 	addresses := DepositAddresses{}
 
@@ -321,7 +321,7 @@ func (p *Poloniex) GetDepositAddresses(ctx context.Context) (DepositAddresses, e
 }
 
 // GenerateNewAddress generates a new address for a currency
-func (p *Poloniex) GenerateNewAddress(ctx context.Context, curr string) (string, error) {
+func (p *Exchange) GenerateNewAddress(ctx context.Context, curr string) (string, error) {
 	type Response struct {
 		Success  int
 		Error    string
@@ -344,7 +344,7 @@ func (p *Poloniex) GenerateNewAddress(ctx context.Context, curr string) (string,
 }
 
 // GetDepositsWithdrawals returns a list of deposits and withdrawals
-func (p *Poloniex) GetDepositsWithdrawals(ctx context.Context, start, end string) (DepositsWithdrawals, error) {
+func (p *Exchange) GetDepositsWithdrawals(ctx context.Context, start, end string) (DepositsWithdrawals, error) {
 	resp := DepositsWithdrawals{}
 	values := url.Values{}
 
@@ -364,7 +364,7 @@ func (p *Poloniex) GetDepositsWithdrawals(ctx context.Context, start, end string
 }
 
 // GetOpenOrders returns current unfilled opened orders
-func (p *Poloniex) GetOpenOrders(ctx context.Context, currency string) (OpenOrdersResponse, error) {
+func (p *Exchange) GetOpenOrders(ctx context.Context, currency string) (OpenOrdersResponse, error) {
 	values := url.Values{}
 	values.Set("currencyPair", currency)
 	result := OpenOrdersResponse{}
@@ -372,7 +372,7 @@ func (p *Poloniex) GetOpenOrders(ctx context.Context, currency string) (OpenOrde
 }
 
 // GetOpenOrdersForAllCurrencies returns all open orders
-func (p *Poloniex) GetOpenOrdersForAllCurrencies(ctx context.Context) (OpenOrdersResponseAll, error) {
+func (p *Exchange) GetOpenOrdersForAllCurrencies(ctx context.Context) (OpenOrdersResponseAll, error) {
 	values := url.Values{}
 	values.Set("currencyPair", "all")
 	result := OpenOrdersResponseAll{}
@@ -380,7 +380,7 @@ func (p *Poloniex) GetOpenOrdersForAllCurrencies(ctx context.Context) (OpenOrder
 }
 
 // GetAuthenticatedTradeHistoryForCurrency returns account trade history
-func (p *Poloniex) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, currency string, start, end, limit int64) (AuthenticatedTradeHistoryResponse, error) {
+func (p *Exchange) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, currency string, start, end, limit int64) (AuthenticatedTradeHistoryResponse, error) {
 	values := url.Values{}
 
 	if start > 0 {
@@ -401,7 +401,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistoryForCurrency(ctx context.Context, 
 }
 
 // GetAuthenticatedTradeHistory returns account trade history
-func (p *Poloniex) GetAuthenticatedTradeHistory(ctx context.Context, start, end, limit int64) (AuthenticatedTradeHistoryAll, error) {
+func (p *Exchange) GetAuthenticatedTradeHistory(ctx context.Context, start, end, limit int64) (AuthenticatedTradeHistoryAll, error) {
 	values := url.Values{}
 
 	if start > 0 {
@@ -435,7 +435,7 @@ func (p *Poloniex) GetAuthenticatedTradeHistory(ctx context.Context, start, end,
 }
 
 // GetAuthenticatedOrderStatus returns the status of a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderStatus(ctx context.Context, orderID string) (o OrderStatusData, err error) {
+func (p *Exchange) GetAuthenticatedOrderStatus(ctx context.Context, orderID string) (o OrderStatusData, err error) {
 	values := url.Values{}
 
 	if orderID == "" {
@@ -473,7 +473,7 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(ctx context.Context, orderID stri
 }
 
 // GetAuthenticatedOrderTrades returns all trades involving a given orderId.
-func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID string) (o []OrderTrade, err error) {
+func (p *Exchange) GetAuthenticatedOrderTrades(ctx context.Context, orderID string) (o []OrderTrade, err error) {
 	values := url.Values{}
 
 	if orderID == "" {
@@ -511,7 +511,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 }
 
 // PlaceOrder places a new order on the exchange
-func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
+func (p *Exchange) PlaceOrder(ctx context.Context, currency string, rate, amount float64, immediate, fillOrKill, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -538,7 +538,7 @@ func (p *Poloniex) PlaceOrder(ctx context.Context, currency string, rate, amount
 }
 
 // CancelExistingOrder cancels and order by orderID
-func (p *Poloniex) CancelExistingOrder(ctx context.Context, orderID int64) error {
+func (p *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	result := GenericResponse{}
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderID, 10))
@@ -556,7 +556,7 @@ func (p *Poloniex) CancelExistingOrder(ctx context.Context, orderID int64) error
 }
 
 // MoveOrder moves an order
-func (p *Poloniex) MoveOrder(ctx context.Context, orderID int64, rate, amount float64, postOnly, immediateOrCancel bool) (MoveOrderResponse, error) {
+func (p *Exchange) MoveOrder(ctx context.Context, orderID int64, rate, amount float64, postOnly, immediateOrCancel bool) (MoveOrderResponse, error) {
 	result := MoveOrderResponse{}
 	values := url.Values{}
 
@@ -602,7 +602,7 @@ func (p *Poloniex) MoveOrder(ctx context.Context, orderID int64, rate, amount fl
 // For currencies where there are multiple networks to choose from (like USDT or BTC),
 // you can specify the chain by setting the "currency" parameter to be a multiChain currency
 // name, like USDTTRON, USDTETH, or BTCTRON
-func (p *Poloniex) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
+func (p *Exchange) Withdraw(ctx context.Context, currency, address string, amount float64) (*Withdraw, error) {
 	result := &Withdraw{}
 	values := url.Values{}
 
@@ -623,14 +623,14 @@ func (p *Poloniex) Withdraw(ctx context.Context, currency, address string, amoun
 }
 
 // GetFeeInfo returns fee information
-func (p *Poloniex) GetFeeInfo(ctx context.Context) (Fee, error) {
+func (p *Exchange) GetFeeInfo(ctx context.Context) (Fee, error) {
 	result := Fee{}
 
 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexFeeInfo, url.Values{}, &result)
 }
 
 // GetTradableBalances returns tradable balances
-func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[string]float64, error) {
+func (p *Exchange) GetTradableBalances(ctx context.Context) (map[string]map[string]float64, error) {
 	type Response struct {
 		Data map[string]map[string]any
 	}
@@ -661,7 +661,7 @@ func (p *Poloniex) GetTradableBalances(ctx context.Context) (map[string]map[stri
 }
 
 // TransferBalance transfers balances between your accounts
-func (p *Poloniex) TransferBalance(ctx context.Context, currency, from, to string, amount float64) (bool, error) {
+func (p *Exchange) TransferBalance(ctx context.Context, currency, from, to string, amount float64) (bool, error) {
 	values := url.Values{}
 	result := GenericResponse{}
 
@@ -683,13 +683,13 @@ func (p *Poloniex) TransferBalance(ctx context.Context, currency, from, to strin
 }
 
 // GetMarginAccountSummary returns a summary on your margin accounts
-func (p *Poloniex) GetMarginAccountSummary(ctx context.Context) (Margin, error) {
+func (p *Exchange) GetMarginAccountSummary(ctx context.Context) (Margin, error) {
 	result := Margin{}
 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexMarginAccountSummary, url.Values{}, &result)
 }
 
 // PlaceMarginOrder places a margin order
-func (p *Poloniex) PlaceMarginOrder(ctx context.Context, currency string, rate, amount, lendingRate float64, buy bool) (OrderResponse, error) {
+func (p *Exchange) PlaceMarginOrder(ctx context.Context, currency string, rate, amount, lendingRate float64, buy bool) (OrderResponse, error) {
 	result := OrderResponse{}
 	values := url.Values{}
 
@@ -712,7 +712,7 @@ func (p *Poloniex) PlaceMarginOrder(ctx context.Context, currency string, rate, 
 }
 
 // GetMarginPosition returns a position on a margin order
-func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (any, error) {
+func (p *Exchange) GetMarginPosition(ctx context.Context, currency string) (any, error) {
 	values := url.Values{}
 
 	if currency != "" && currency != "all" {
@@ -730,7 +730,7 @@ func (p *Poloniex) GetMarginPosition(ctx context.Context, currency string) (any,
 }
 
 // CloseMarginPosition closes a current margin position
-func (p *Poloniex) CloseMarginPosition(ctx context.Context, currency string) (bool, error) {
+func (p *Exchange) CloseMarginPosition(ctx context.Context, currency string) (bool, error) {
 	values := url.Values{}
 	values.Set("currencyPair", currency)
 	result := GenericResponse{}
@@ -748,7 +748,7 @@ func (p *Poloniex) CloseMarginPosition(ctx context.Context, currency string) (bo
 }
 
 // CreateLoanOffer places a loan offer on the exchange
-func (p *Poloniex) CreateLoanOffer(ctx context.Context, currency string, amount, rate float64, duration int, autoRenew bool) (int64, error) {
+func (p *Exchange) CreateLoanOffer(ctx context.Context, currency string, amount, rate float64, duration int, autoRenew bool) (int64, error) {
 	values := url.Values{}
 	values.Set("currency", currency)
 	values.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -783,7 +783,7 @@ func (p *Poloniex) CreateLoanOffer(ctx context.Context, currency string, amount,
 }
 
 // CancelLoanOffer cancels a loan offer order
-func (p *Poloniex) CancelLoanOffer(ctx context.Context, orderNumber int64) (bool, error) {
+func (p *Exchange) CancelLoanOffer(ctx context.Context, orderNumber int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
 	values.Set("orderID", strconv.FormatInt(orderNumber, 10))
@@ -801,7 +801,7 @@ func (p *Poloniex) CancelLoanOffer(ctx context.Context, orderNumber int64) (bool
 }
 
 // GetOpenLoanOffers returns all open loan offers
-func (p *Poloniex) GetOpenLoanOffers(ctx context.Context) (map[string][]LoanOffer, error) {
+func (p *Exchange) GetOpenLoanOffers(ctx context.Context) (map[string][]LoanOffer, error) {
 	type Response struct {
 		Data map[string][]LoanOffer
 	}
@@ -820,13 +820,13 @@ func (p *Poloniex) GetOpenLoanOffers(ctx context.Context) (map[string][]LoanOffe
 }
 
 // GetActiveLoans returns active loans
-func (p *Poloniex) GetActiveLoans(ctx context.Context) (ActiveLoans, error) {
+func (p *Exchange) GetActiveLoans(ctx context.Context) (ActiveLoans, error) {
 	result := ActiveLoans{}
 	return result, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexActiveLoans, url.Values{}, &result)
 }
 
 // GetLendingHistory returns lending history for the account
-func (p *Poloniex) GetLendingHistory(ctx context.Context, start, end string) ([]LendingHistory, error) {
+func (p *Exchange) GetLendingHistory(ctx context.Context, start, end string) ([]LendingHistory, error) {
 	vals := url.Values{}
 
 	if start != "" {
@@ -845,7 +845,7 @@ func (p *Poloniex) GetLendingHistory(ctx context.Context, start, end string) ([]
 }
 
 // ToggleAutoRenew allows for the autorenew of a contract
-func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool, error) {
+func (p *Exchange) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool, error) {
 	values := url.Values{}
 	values.Set("orderNumber", strconv.FormatInt(orderNumber, 10))
 	result := GenericResponse{}
@@ -866,7 +866,7 @@ func (p *Poloniex) ToggleAutoRenew(ctx context.Context, orderNumber int64) (bool
 }
 
 // WalletActivity returns the wallet activity between set start and end time
-func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
+func (p *Exchange) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivityResponse, error) {
 	values := url.Values{}
 	err := common.StartEndTimeCheck(start, end)
 	if err != nil {
@@ -885,7 +885,7 @@ func (p *Poloniex) WalletActivity(ctx context.Context, start, end time.Time, act
 }
 
 // CancelMultipleOrdersByIDs Batch cancel one or many smart orders in an account by IDs.
-func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
+func (p *Exchange) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]CancelOrdersResponse, error) {
 	values := url.Values{}
 	if len(orderIDs) > 0 {
 		values.Set("orderIds", strings.Join(orderIDs, ","))
@@ -901,7 +901,7 @@ func (p *Poloniex) CancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clie
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (p *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := p.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -922,7 +922,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result any) error {
+func (p *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, result any) error {
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -963,7 +963,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (p *Poloniex) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (p *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

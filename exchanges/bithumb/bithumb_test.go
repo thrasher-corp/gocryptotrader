@@ -29,10 +29,10 @@ const (
 
 var testPair = currency.NewPairWithDelimiter("BTC", "KRW", "_")
 
-var b = &Bithumb{}
+var b = &Exchange{}
 
 func TestMain(m *testing.M) {
-	b = new(Bithumb)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatalf("Bithumb Setup error: %s", err)
 	}

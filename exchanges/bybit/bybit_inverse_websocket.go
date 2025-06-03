@@ -13,7 +13,7 @@ import (
 )
 
 // WsInverseConnect connects to inverse websocket feed
-func (by *Bybit) WsInverseConnect() error {
+func (by *Exchange) WsInverseConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -35,7 +35,7 @@ func (by *Bybit) WsInverseConnect() error {
 }
 
 // GenerateInverseDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
+func (by *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
@@ -56,16 +56,16 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error
 }
 
 // InverseSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) InverseSubscribe(channelSubscriptions subscription.List) error {
+func (by *Exchange) InverseSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleInversePayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) InverseUnsubscribe(channelSubscriptions subscription.List) error {
+func (by *Exchange) InverseUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleInversePayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions subscription.List) error {
+func (by *Exchange) handleInversePayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
