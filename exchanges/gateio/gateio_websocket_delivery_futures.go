@@ -25,25 +25,23 @@ const (
 	// delivery testnet urls
 	deliveryTestNetBTCTradingURL  = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"  //nolint:unused // Can be used for testing
 	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt" //nolint:unused // Can be used for testing
+
+	deliveryFuturesUpdateLimit uint64 = 100
 )
 
 var defaultDeliveryFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
-	futuresOrderbookChannel,
+	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
 
-var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
-
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
-	if err != nil {
+	if err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
-	if err != nil {
+	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -64,6 +62,7 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Co
 }
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
+// TODO: Update to use the new subscription template system
 func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	_, err := g.GetCredentials(context.Background())
 	if err != nil {
@@ -92,6 +91,9 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
+			case futuresOrderbookUpdateChannel:
+				params["frequency"] = kline.HundredMilliseconds
+				params["level"] = strconv.FormatUint(deliveryFuturesUpdateLimit, 10)
 			}
 			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
 			if err != nil {
@@ -165,7 +167,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
 			var frequencyString string
-			frequencyString, err = g.GetIntervalString(frequency)
+			frequencyString, err = getIntervalString(frequency)
 			if err != nil {
 				return nil, err
 			}
@@ -188,7 +190,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if okay {
 				var intervalString string
-				intervalString, err = g.GetIntervalString(interval)
+				intervalString, err = getIntervalString(interval)
 				if err != nil {
 					return nil, err
 				}

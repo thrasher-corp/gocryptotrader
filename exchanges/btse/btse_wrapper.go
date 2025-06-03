@@ -55,7 +55,7 @@ func (b *BTSE) SetDefaults() {
 			ps.RequestFormat.Delimiter = currency.DashDelimiter
 		}
 		if err := b.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
 		}
 	}
 

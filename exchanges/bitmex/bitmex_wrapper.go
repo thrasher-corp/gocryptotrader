@@ -52,12 +52,12 @@ func (b *Bitmex) SetDefaults() {
 			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
 		}
 		if err := b.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
 		}
 	}
 
 	if err := b.DisableAssetWebsocketSupport(asset.Index); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, asset.Index, err)
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", b.Name, asset.Index, err)
 	}
 
 	b.Features = exchange.Features{

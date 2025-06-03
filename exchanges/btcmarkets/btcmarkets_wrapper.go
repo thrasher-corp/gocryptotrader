@@ -465,7 +465,7 @@ func (b *BTCMarkets) SubmitOrder(ctx context.Context, s *order.Submit) (*order.S
 		b.getTimeInForce(s),
 		"",
 		s.ClientID,
-		s.PostOnly)
+		s.TimeInForce.Is(order.PostOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -635,7 +635,7 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currenc
 	case stop:
 		resp.Type = order.Stop
 	case takeProfit:
-		resp.Type = order.ImmediateOrCancel
+		resp.Type = order.TakeProfit
 	default:
 		resp.Type = order.UnknownType
 	}

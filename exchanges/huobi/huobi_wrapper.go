@@ -54,13 +54,13 @@ func (h *HUOBI) SetDefaults() {
 			ps.RequestFormat.Delimiter = currency.DashDelimiter
 		}
 		if err := h.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", h.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", h.Name, a, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
 		if err := h.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", h.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", h.Name, a, err)
 		}
 	}
 
@@ -1000,10 +1000,29 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		}
 		var oType string
 		switch s.Type {
+		case order.Market:
+			// https://huobiapi.github.io/docs/dm/v1/en/#order-and-trade
+			// At present, Huobi Futures does not support unlimited slippage market price when placing an order.
+			// To increase the probability of a transaction, users can choose to place an order based on BBO price (opponent),
+			// optimal 5 (optimal_5), optimal 10 (optimal_10), optimal 20 (optimal_20), among which the success probability of
+			// optimal 20 is the largest, while the slippage always is the largest as well.
+			//
+			// It is important to note that the above methods will not guarantee the order to be fully-filled
+			// The exchange will obtain the optimal N price when the order is placed
+			oType = "optimal_20"
+			switch {
+			case s.TimeInForce.Is(order.ImmediateOrCancel):
+				oType = "optimal_20_ioc"
+			case s.TimeInForce.Is(order.FillOrKill):
+				oType = "optimal_20_fok"
+			}
 		case order.Limit:
 			oType = "limit"
-		case order.PostOnly:
-			oType = "post_only"
+			if s.TimeInForce.Is(order.PostOnly) {
+				oType = "post_only"
+			}
+		default:
+			oType = "opponent"
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1034,21 +1053,27 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		switch s.Type {
 		case order.Market:
 			// https://huobiapi.github.io/docs/dm/v1/en/#order-and-trade
-			// At present, Huobi Futures does not support market price when placing an order.
+			// At present, Huobi Futures does not support unlimited slippage market price when placing an order.
 			// To increase the probability of a transaction, users can choose to place an order based on BBO price (opponent),
 			// optimal 5 (optimal_5), optimal 10 (optimal_10), optimal 20 (optimal_20), among which the success probability of
 			// optimal 20 is the largest, while the slippage always is the largest as well.
 			//
-			// It is important to note that the above methods will not guarantee the order to be filled in 100%.
-			// The system will obtain the optimal N price at that moment and place the order.
+			// It is important to note that the above methods will not guarantee the order to be fully-filled
+			// The exchange will obtain the optimal N price when the order is placed
 			oType = "optimal_20"
-			if s.ImmediateOrCancel {
+			switch {
+			case s.TimeInForce.Is(order.ImmediateOrCancel):
 				oType = "optimal_20_ioc"
+			case s.TimeInForce.Is(order.FillOrKill):
+				oType = "optimal_20_fok"
 			}
 		case order.Limit:
 			oType = "limit"
-		case order.PostOnly:
-			oType = "post_only"
+			if s.TimeInForce.Is(order.PostOnly) {
+				oType = "post_only"
+			}
+		default:
+			oType = "opponent"
 		}
 		offset := "open"
 		if s.ReduceOnly {
@@ -1335,9 +1360,9 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			if err != nil {
 				return nil, err
 			}
-			maker := true
-			if orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly {
-				maker = false
+			maker := false
+			if orderVars.OrderType == order.Limit || orderVars.TimeInForce.Is(order.PostOnly) {
+				maker = true
 			}
 			orderDetail.Trades = append(orderDetail.Trades, order.TradeHistory{
 				Price:    orderInfo.Data[x].Price,
@@ -1374,7 +1399,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 				TID:      orderInfo.Data[x].OrderIDString,
 				Type:     orderVars.OrderType,
 				Side:     orderVars.Side,
-				IsMaker:  orderVars.OrderType == order.Limit || orderVars.OrderType == order.PostOnly,
+				IsMaker:  orderVars.OrderType == order.Limit || orderVars.TimeInForce.Is(order.PostOnly),
 			})
 		}
 	default:
@@ -1507,9 +1532,8 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 					return orders, err
 				}
 
-				var orderVars OrderVars
 				for x := range openOrders.Data.Orders {
-					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
+					orderVars, err := compatibleVars(openOrders.Data.Orders[x].Direction,
 						openOrders.Data.Orders[x].OrderPriceType,
 						openOrders.Data.Orders[x].Status)
 					if err != nil {
@@ -1520,7 +1544,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1562,7 +1586,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1663,7 +1687,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        orderHistory.Data.Orders[x].LeverageRate,
 						Price:           orderHistory.Data.Orders[x].Price,
 						Amount:          orderHistory.Data.Orders[x].Volume,
@@ -1721,7 +1745,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						return orders, err
 					}
 					orders = append(orders, order.Detail{
-						PostOnly:        orderVars.OrderType == order.PostOnly,
+						TimeInForce:     orderVars.TimeInForce,
 						Leverage:        openOrders.Data.Orders[x].LeverageRate,
 						Price:           openOrders.Data.Orders[x].Price,
 						Amount:          openOrders.Data.Orders[x].Volume,
@@ -1964,7 +1988,8 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case "opponent":
 		resp.OrderType = order.Market
 	case "post_only":
-		resp.OrderType = order.PostOnly
+		resp.OrderType = order.Limit
+		resp.TimeInForce = order.PostOnly
 	default:
 		return resp, errors.New("invalid orderPriceType")
 	}

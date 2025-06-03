@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -50,9 +52,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 		},
 	}
 	resp, err := createUSDTotalsChart(items, stats)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(resp.Data) == 0 {
 		t.Fatal("expected not nil")
 	}
@@ -90,9 +91,7 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 		},
 	}
 	resp, err := createHoldingsOverTimeChart(items)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !resp.ShowZeroDisclaimer {
 		t.Error("expected ShowZeroDisclaimer")
@@ -149,18 +148,13 @@ func TestCreatePNLCharts(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateFuturesSpotDiffChart(t *testing.T) {
@@ -229,9 +223,8 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	}
 
 	charty, err := createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(charty.Data) == 0 {
 		t.Error("expected data")
 	}

@@ -790,7 +790,7 @@ func (k *Kraken) AddOrder(ctx context.Context, symbol currency.Pair, side, order
 	}
 
 	if args.TimeInForce != "" {
-		params.Set("timeinforce", string(args.TimeInForce))
+		params.Set("timeinforce", args.TimeInForce)
 	}
 
 	var result AddOrderResponse

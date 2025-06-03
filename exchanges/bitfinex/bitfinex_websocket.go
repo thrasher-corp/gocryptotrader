@@ -962,7 +962,7 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 			return fmt.Errorf("%w `tradesSnapshot`: %w", common.ErrParsingWSField, err)
 		}
 	default:
-		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
+		return fmt.Errorf("%w `tradesUpdate[1]`: %w %q", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
 	}
 	trades := make([]trade.Data, len(wsTrades))
 	for _, w := range wsTrades {

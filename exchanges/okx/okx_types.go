@@ -690,8 +690,7 @@ type ExpiryOpenInterestAndVolume struct {
 // UnmarshalJSON deserializes slice of data into ExpiryOpenInterestAndVolume structure
 func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
 	var expiryTimeString string
-	target := [6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume}
-	err := json.Unmarshal(data, &target)
+	err := json.Unmarshal(data, &[6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume})
 	if err != nil {
 		return err
 	}
@@ -803,7 +802,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
 		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
@@ -3092,14 +3091,18 @@ type SpreadOrderbook struct {
 
 // SpreadTicker represents a ticker instance
 type SpreadTicker struct {
-	SpreadID  string       `json:"sprdId"`
-	Last      types.Number `json:"last"`
-	LastSize  types.Number `json:"lastSz"`
-	AskPrice  types.Number `json:"askPx"`
-	AskSize   types.Number `json:"askSz"`
-	BidPrice  types.Number `json:"bidPx"`
-	BidSize   types.Number `json:"bidSz"`
-	Timestamp types.Time   `json:"ts"`
+	SpreadID     string       `json:"sprdId"`
+	Last         types.Number `json:"last"`
+	LastSize     types.Number `json:"lastSz"`
+	AskPrice     types.Number `json:"askPx"`
+	AskSize      types.Number `json:"askSz"`
+	BidPrice     types.Number `json:"bidPx"`
+	BidSize      types.Number `json:"bidSz"`
+	Open24Hour   types.Number `json:"open24h"`
+	High24Hour   types.Number `json:"high24h"`
+	Low24Hour    types.Number `json:"low24h"`
+	Volume24Hour types.Number `json:"vol24h"`
+	Timestamp    types.Time   `json:"ts"`
 }
 
 // SpreadPublicTradeItem represents publicly available trade order instance
@@ -3110,6 +3113,22 @@ type SpreadPublicTradeItem struct {
 	Price     types.Number `json:"px"`
 	TradeID   string       `json:"tradeId"`
 	Timestamp types.Time   `json:"ts"`
+}
+
+// SpreadCandlestick represents a candlestick instance
+type SpreadCandlestick struct {
+	Timestamp types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
+	Volume    types.Number
+	Confirm   types.Number
+}
+
+// UnmarshalJSON unmarshals the JSON data into a SpreadCandlestick struct
+func (s *SpreadCandlestick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&s.Timestamp, &s.Open, &s.High, &s.Low, &s.Close, &s.Volume, &s.Confirm})
 }
 
 // UnitConvertResponse unit convert response
@@ -4729,6 +4748,21 @@ type CopyTradingLeadTrader struct {
 	CopyRatio               types.Number `json:"copyRatio"`
 	CopyRelID               string       `json:"copyRelId"`
 	CopyState               string       `json:"copyState"`
+}
+
+// LeadTraderRanksRequest represents lead trader ranks request parameters
+type LeadTraderRanksRequest struct {
+	InstrumentType           string  // Instrument type e.g 'SWAP'. The default value is 'SWAP'
+	SortType                 string  // Overview, the default value. pnl: profit and loss, aum: assets under management, win_ratio: win ratio,pnl_ratio: pnl ratio, current_copy_trader_pnl: current copy trader pnl
+	HasVacancy               bool    // false: include all lead traders (default), with or without vacancies; true: include only those with vacancies
+	MinLeadDays              uint64  // 1: 7 days. 2: 30 days. 3: 90 days. 4: 180 days
+	MinAssets                float64 // Minimum assets in USDT
+	MaxAssets                float64 // Maximum assets in USDT
+	MinAssetsUnderManagement float64 // Minimum assets under management in USDT
+	MaxAssetsUnderManagement float64 // Maximum assets under management in USDT
+	DataVersion              uint64  // It is 14 numbers. e.g. 20231010182400 used for pagination. A new version will be generated every 10 minutes. Only last 5 versions are stored. The default is latest version
+	Page                     uint64  // Page number for pagination
+	Limit                    uint64  // Number of results per request. The maximum is 20; the default is 10
 }
 
 // LeadTradersRank represents lead traders rank info

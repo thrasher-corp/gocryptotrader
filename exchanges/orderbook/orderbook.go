@@ -3,7 +3,6 @@ package orderbook
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -15,71 +14,71 @@ import (
 
 // Get checks and returns the orderbook given an exchange name and currency pair
 func Get(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
-	return service.Retrieve(exchange, p, a)
+	return s.Retrieve(exchange, p, a)
 }
 
 // GetDepth returns a Depth pointer allowing the caller to stream orderbook changes
 func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
-	return service.GetDepth(exchange, p, a)
+	return s.GetDepth(exchange, p, a)
 }
 
 // DeployDepth sets a depth struct and returns a depth pointer. This allows for
 // the loading of a new orderbook snapshot and incremental updates via the
 // streaming package.
 func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
-	return service.DeployDepth(exchange, p, a)
+	return s.DeployDepth(exchange, p, a)
 }
 
 // SubscribeToExchangeOrderbooks returns a pipe to an exchange feed
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-	exch, ok := service.books[strings.ToLower(exchange)]
+	s.m.RLock()
+	defer s.m.RUnlock()
+	id, ok := s.exchangeRouters[exchange]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("%w for %s exchange", ErrOrderbookNotFound, exchange)
 	}
-	return service.Mux.Subscribe(exch.ID)
+	return s.signalMux.Subscribe(id)
 }
 
 // Update stores orderbook data
-func (s *Service) Update(b *Snapshot) error {
-	name := strings.ToLower(b.Exchange)
-	mapKey := key.PairAsset{
-		Base:  b.Pair.Base.Item,
-		Quote: b.Pair.Quote.Item,
-		Asset: b.Asset,
-	}
-
-	s.mu.Lock()
-	m1, ok := s.books[name]
+func (s *store) Update(ss *Snapshot) error {
+	s.m.RLock()
+	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: ss.Exchange, Base: ss.Pair.Base.Item, Quote: ss.Pair.Quote.Item, Asset: ss.Asset}]
+	s.m.RUnlock()
 	if !ok {
-		id, err := s.Mux.GetID()
+		var err error
+		book, err = s.track(ss)
 		if err != nil {
-			s.mu.Unlock()
 			return err
 		}
-		m1 = Exchange{
-			m:  make(map[key.PairAsset]*Depth),
-			ID: id,
-		}
-		s.books[name] = m1
 	}
-	book, ok := m1.m[mapKey]
-	if !ok {
-		book = NewDepth(m1.ID)
-		book.AssignOptions(b)
-		m1.m[mapKey] = book
-	}
-	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true)
-	s.mu.Unlock()
-	if err != nil {
+	if err := book.Depth.LoadSnapshot(ss.Bids, ss.Asks, ss.LastUpdateID, ss.LastUpdated, ss.UpdatePushedAt, true); err != nil {
 		return err
 	}
-	return s.Mux.Publish(book, m1.ID)
+	return s.signalMux.Publish(book.Depth, book.RouterID)
+}
+
+func (s *store) track(ss *Snapshot) (book, error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	id, ok := s.exchangeRouters[ss.Exchange]
+	if !ok {
+		exchangeID, err := s.signalMux.GetID()
+		if err != nil {
+			return book{}, err
+		}
+		id = exchangeID
+		s.exchangeRouters[ss.Exchange] = id
+	}
+	depth := NewDepth(id)
+	depth.AssignOptions(ss)
+	ob := book{RouterID: id, Depth: depth}
+	s.orderbooks[key.ExchangePairAsset{Exchange: ss.Exchange, Base: ss.Pair.Base.Item, Quote: ss.Pair.Quote.Item, Asset: ss.Asset}] = ob
+	return ob, nil
 }
 
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
-func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
 		return nil, errExchangeNameUnset
 	}
@@ -89,107 +88,67 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	if !a.IsValid() {
 		return nil, errAssetTypeNotSet
 	}
-	mapKey := key.PairAsset{
-		Base:  p.Base.Item,
-		Quote: p.Quote.Item,
-		Asset: a,
-	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	m1, ok := s.books[strings.ToLower(exchange)]
+	s.m.RLock()
+	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	s.m.RUnlock()
+	var err error
 	if !ok {
-		id, err := s.Mux.GetID()
-		if err != nil {
-			return nil, err
-		}
-		m1 = Exchange{
-			m:  make(map[key.PairAsset]*Depth),
-			ID: id,
-		}
-		s.books[strings.ToLower(exchange)] = m1
+		ob, err = s.track(&Snapshot{Exchange: exchange, Pair: p, Asset: a})
 	}
-	book, ok := m1.m[mapKey]
-	if ok {
-		// Maybe in future we should return an error here and be more strict.
-		return book, nil
-	}
-	book = NewDepth(m1.ID)
-	book.exchange = exchange
-	book.pair = p
-	book.asset = a
-	m1.m[mapKey] = book
-	return book, nil
+	return ob.Depth, err
 }
 
 // GetDepth returns the actual depth struct for potential subsystems and strategies to interact with
-func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	m1, ok := s.books[strings.ToLower(exchange)]
+func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	s.m.RLock()
+	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	s.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%w for %s exchange", ErrOrderbookNotFound, exchange)
+		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
 	}
-
-	book, ok := m1.m[key.PairAsset{
-		Base:  p.Base.Item,
-		Quote: p.Quote.Item,
-		Asset: a,
-	}]
-	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s", ErrOrderbookNotFound, p.Quote)
-	}
-	return book, nil
+	return ob.Depth, nil
 }
 
 // Retrieve gets orderbook depth data from the stored tranches and returns the
 // base equivalent copy
-func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
+func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	m1, ok := s.books[strings.ToLower(exchange)]
+	s.m.RLock()
+	ob, ok := s.orderbooks[key.ExchangePairAsset{Exchange: exchange, Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	s.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%w for %s exchange", ErrOrderbookNotFound, exchange)
+		return nil, fmt.Errorf("%w for %s %s %s", ErrOrderbookNotFound, exchange, p, a)
 	}
-	book, ok := m1.m[key.PairAsset{
-		Base:  p.Base.Item,
-		Quote: p.Quote.Item,
-		Asset: a,
-	}]
-	if !ok {
-		return nil, fmt.Errorf("%w associated with currency %s %s", ErrOrderbookNotFound, p, a)
-	}
-	return book.Retrieve()
+	return ob.Depth.Retrieve()
 }
 
 // GetDepth returns the concrete book allowing the caller to stream orderbook changes
-func (b *Snapshot) GetDepth() (*Depth, error) {
-	return service.GetDepth(b.Exchange, b.Pair, b.Asset)
+func (ss *Snapshot) GetDepth() (*Depth, error) {
+	return s.GetDepth(ss.Exchange, ss.Pair, ss.Asset)
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (b *Snapshot) TotalBidsAmount() (amountCollated, total float64) {
-	for x := range b.Bids {
-		amountCollated += b.Bids[x].Amount
-		total += b.Bids[x].Amount * b.Bids[x].Price
+func (ss *Snapshot) TotalBidsAmount() (amountCollated, total float64) {
+	for x := range ss.Bids {
+		amountCollated += ss.Bids[x].Amount
+		total += ss.Bids[x].Amount * ss.Bids[x].Price
 	}
 	return amountCollated, total
 }
 
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (b *Snapshot) TotalAsksAmount() (amountCollated, total float64) {
-	for y := range b.Asks {
-		amountCollated += b.Asks[y].Amount
-		total += b.Asks[y].Amount * b.Asks[y].Price
+func (ss *Snapshot) TotalAsksAmount() (amountCollated, total float64) {
+	for y := range ss.Asks {
+		amountCollated += ss.Asks[y].Amount
+		total += ss.Asks[y].Amount * ss.Asks[y].Price
 	}
 	return amountCollated, total
 }
@@ -198,8 +157,8 @@ func (b *Snapshot) TotalAsksAmount() (amountCollated, total float64) {
 // set and will reject any book with incorrect values.
 // Bids should always go from a high price to a low price and
 // Asks should always go from a low price to a higher price
-func (b *Snapshot) Verify() error {
-	if !b.VerifyOrderbook {
+func (ss *Snapshot) Verify() error {
+	if !ss.VerifyOrderbook {
 		return nil
 	}
 
@@ -208,22 +167,22 @@ func (b *Snapshot) Verify() error {
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
-	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
+	if (len(ss.Asks) == 0 || len(ss.Bids) == 0) && !ss.Asset.IsOptions() {
 		log.Warnf(log.OrderBook,
 			bookLengthIssue,
-			b.Exchange,
-			b.Pair,
-			b.Asset,
-			len(b.Bids),
-			len(b.Asks))
+			ss.Exchange,
+			ss.Pair,
+			ss.Asset,
+			len(ss.Bids),
+			len(ss.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, dsc, b.Exchange)
+	err := checkAlignment(ss.Bids, ss.IsFundingRate, ss.PriceDuplication, ss.IDAlignment, ss.ChecksumStringRequired, dsc, ss.Exchange)
 	if err != nil {
-		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+		return fmt.Errorf(bidLoadBookFailure, ss.Exchange, ss.Pair, ss.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, asc, b.Exchange)
+	err = checkAlignment(ss.Asks, ss.IsFundingRate, ss.PriceDuplication, ss.IDAlignment, ss.ChecksumStringRequired, asc, ss.Exchange)
 	if err != nil {
-		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+		return fmt.Errorf(askLoadBookFailure, ss.Exchange, ss.Pair, ss.Asset, err)
 	}
 	return nil
 }
@@ -290,27 +249,27 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
-func (b *Snapshot) Process() error {
-	if b.Exchange == "" {
+func (ss *Snapshot) Process() error {
+	if ss.Exchange == "" {
 		return errExchangeNameUnset
 	}
 
-	if b.Pair.IsEmpty() {
+	if ss.Pair.IsEmpty() {
 		return errPairNotSet
 	}
 
-	if b.Asset.String() == "" {
+	if ss.Asset.String() == "" {
 		return errAssetTypeNotSet
 	}
 
-	if b.LastUpdated.IsZero() {
-		b.LastUpdated = time.Now()
+	if ss.LastUpdated.IsZero() { // TODO: Enforce setting this on all exchanges
+		ss.LastUpdated = time.Now()
 	}
 
-	if err := b.Verify(); err != nil {
+	if err := ss.Verify(); err != nil {
 		return err
 	}
-	return service.Update(b)
+	return s.Update(ss)
 }
 
 // Reverse reverses the order of orderbook items; some bid/asks are

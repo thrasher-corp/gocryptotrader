@@ -69,13 +69,13 @@ func (b *Binance) SetDefaults() {
 
 	for a, ps := range defaultAssetPairStores {
 		if err := b.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		if err := b.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", b.Name, a, err)
 		}
 	}
 
@@ -864,15 +864,15 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		} else {
 			sideType = order.Sell.String()
 		}
-		timeInForce := BinanceRequestParamsTimeGTC
+		timeInForce := order.GoodTillCancel.String()
 		var requestParamsOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:
 			timeInForce = ""
 			requestParamsOrderType = BinanceRequestParamsOrderMarket
 		case order.Limit:
-			if s.ImmediateOrCancel {
-				timeInForce = BinanceRequestParamsTimeIOC
+			if s.TimeInForce.Is(order.ImmediateOrCancel) {
+				timeInForce = order.ImmediateOrCancel.String()
 			}
 			requestParamsOrderType = BinanceRequestParamsOrderLimit
 		default:
@@ -918,15 +918,11 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid side")
 		}
 
-		var (
-			oType       string
-			timeInForce RequestParamsTimeForceType
-		)
-
+		var oType, timeInForce string
 		switch s.Type {
 		case order.Limit:
 			oType = cfuturesLimit
-			timeInForce = BinanceRequestParamsTimeGTC
+			timeInForce = order.GoodTillCancel.String()
 		case order.Market:
 			oType = cfuturesMarket
 		case order.Stop:

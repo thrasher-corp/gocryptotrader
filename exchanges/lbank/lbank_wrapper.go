@@ -170,17 +170,16 @@ func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
 				continue
 			}
 
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         tickerInfo[j].Ticker.Latest,
 				High:         tickerInfo[j].Ticker.High,
 				Low:          tickerInfo[j].Ticker.Low,
 				Volume:       tickerInfo[j].Ticker.Volume,
 				Pair:         tickerInfo[j].Symbol,
-				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
+				LastUpdated:  tickerInfo[j].Timestamp.Time(),
 				ExchangeName: l.Name,
 				AssetType:    a,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -198,62 +197,42 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
-	if p.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	if !l.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
-	if err := l.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+
+	fPair, err := l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
 		return nil, err
 	}
+
+	d, err := l.GetMarketDepths(ctx, fPair.String(), 60)
+	if err != nil {
+		return nil, err
+	}
+
 	book := &orderbook.Snapshot{
 		Exchange:        l.Name,
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: l.CanVerifyOrderbook,
-	}
-	fPair, err := l.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return book, err
+		Asks:            make(orderbook.Tranches, len(d.Data.Asks)),
+		Bids:            make(orderbook.Tranches, len(d.Data.Bids)),
 	}
 
-	a, err := l.GetMarketDepths(ctx, fPair.String(), "60", "1")
-	if err != nil {
-		return book, err
+	for i := range d.Data.Asks {
+		book.Asks[i].Price = d.Data.Asks[i][0].Float64()
+		book.Asks[i].Amount = d.Data.Asks[i][1].Float64()
+	}
+	for i := range d.Data.Bids {
+		book.Bids[i].Price = d.Data.Bids[i][0].Float64()
+		book.Bids[i].Amount = d.Data.Bids[i][1].Float64()
 	}
 
-	book.Asks = make(orderbook.Tranches, len(a.Data.Asks))
-	for i := range a.Data.Asks {
-		price, convErr := strconv.ParseFloat(a.Data.Asks[i][0], 64)
-		if convErr != nil {
-			return book, convErr
-		}
-		amount, convErr := strconv.ParseFloat(a.Data.Asks[i][1], 64)
-		if convErr != nil {
-			return book, convErr
-		}
-		book.Asks[i] = orderbook.Tranche{
-			Price:  price,
-			Amount: amount,
-		}
+	if err := book.Process(); err != nil {
+		return nil, err
 	}
-	book.Bids = make(orderbook.Tranches, len(a.Data.Bids))
-	for i := range a.Data.Bids {
-		price, convErr := strconv.ParseFloat(a.Data.Bids[i][0], 64)
-		if convErr != nil {
-			return book, convErr
-		}
-		amount, convErr := strconv.ParseFloat(a.Data.Bids[i][1], 64)
-		if convErr != nil {
-			return book, convErr
-		}
-		book.Bids[i] = orderbook.Tranche{
-			Price:  price,
-			Amount: amount,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
-	}
+
 	return orderbook.Get(l.Name, p, assetType)
 }
 
@@ -352,14 +331,11 @@ func (l *Lbank) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 	}
 	var resp []trade.Data
 	ts := timestampStart
-	limit := 600
+	const limit uint64 = 600
 allTrades:
 	for {
 		var tradeData []TradeResponse
-		tradeData, err = l.GetTrades(ctx,
-			p.String(),
-			int64(limit),
-			ts.UnixMilli())
+		tradeData, err = l.GetTrades(ctx, p.String(), limit, ts)
 		if err != nil {
 			return nil, err
 		}
@@ -390,7 +366,7 @@ allTrades:
 				ts = tradeTime
 			}
 		}
-		if len(tradeData) != limit {
+		if len(tradeData) != int(limit) {
 			break allTrades
 		}
 	}
@@ -756,22 +732,16 @@ func (l *Lbank) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 		return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.002, nil
 	}
 	if feeBuilder.FeeType == exchange.CryptocurrencyWithdrawalFee {
-		withdrawalFee, err := l.GetWithdrawConfig(ctx,
-			feeBuilder.Pair.Base.Lower().String())
+		withdrawalFee, err := l.GetWithdrawConfig(ctx, feeBuilder.Pair.Base)
 		if err != nil {
 			return resp, err
 		}
 		for i := range withdrawalFee {
-			if !strings.EqualFold(withdrawalFee[i].AssetCode, feeBuilder.Pair.Base.String()) {
+			if !withdrawalFee[i].AssetCode.Equal(feeBuilder.Pair.Base) {
 				continue
 			}
-			if withdrawalFee[i].Fee == "" {
-				return 0, nil
-			}
-			resp, err = strconv.ParseFloat(withdrawalFee[i].Fee, 64)
-			if err != nil {
-				return resp, err
-			}
+			resp = withdrawalFee[i].Fee
+			break
 		}
 	}
 	return resp, nil
@@ -856,7 +826,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		req.RequestFormatted.String(),
 		strconv.FormatUint(req.RequestLimit, 10),
 		l.FormatExchangeKlineInterval(req.ExchangeInterval),
-		strconv.FormatInt(req.Start.Unix(), 10))
+		req.Start)
 	if err != nil {
 		return nil, err
 	}
@@ -866,7 +836,7 @@ func (l *Lbank) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		timeSeries[x] = kline.Candle{
 			Time:   data[x].TimeStamp,
 			Open:   data[x].OpenPrice,
-			High:   data[x].HigestPrice,
+			High:   data[x].HighestPrice,
 			Low:    data[x].LowestPrice,
 			Close:  data[x].ClosePrice,
 			Volume: data[x].TradingVolume,
@@ -889,7 +859,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			req.RequestFormatted.String(),
 			strconv.FormatUint(req.RequestLimit, 10),
 			l.FormatExchangeKlineInterval(req.ExchangeInterval),
-			strconv.FormatInt(req.RangeHolder.Ranges[x].Start.Ticks, 10))
+			req.RangeHolder.Ranges[x].Start.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -901,7 +871,7 @@ func (l *Lbank) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			timeSeries = append(timeSeries, kline.Candle{
 				Time:   data[i].TimeStamp,
 				Open:   data[i].OpenPrice,
-				High:   data[i].HigestPrice,
+				High:   data[i].HighestPrice,
 				Low:    data[i].LowestPrice,
 				Close:  data[i].ClosePrice,
 				Volume: data[i].TradingVolume,
