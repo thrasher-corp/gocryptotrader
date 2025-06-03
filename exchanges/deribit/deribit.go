@@ -2,12 +2,10 @@ package deribit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -28,12 +27,6 @@ type Deribit struct {
 	exchange.Base
 }
 
-var (
-	// optionRegex compiles optionDecimalRegex at startup and is used to help set
-	// option currency lower-case d eg MATIC-USDC-3JUN24-0d64-P
-	optionRegex *regexp.Regexp
-)
-
 const (
 	deribitAPIVersion = "/api/v2"
 	tradeBaseURL      = "https://www.deribit.com/"
@@ -43,8 +36,7 @@ const (
 	tradeFuturesCombo = "futures-spreads/"
 	tradeOptionsCombo = "combos/"
 
-	perpString         = "PERPETUAL"
-	optionDecimalRegex = `\d+(D)\d+`
+	perpString = "PERPETUAL"
 
 	// Public endpoints
 	// Market Data
@@ -129,7 +121,6 @@ const (
 
 	// account management eps
 	getAnnouncements                  = "public/get_announcements"
-	getPublicPortfolioMargins         = "public/get_portfolio_margins"
 	changeAPIKeyName                  = "private/change_api_key_name"
 	changeMarginModel                 = "private/change_margin_model"
 	changeScopeInAPIKey               = "private/change_scope_in_api_key"
@@ -145,7 +136,6 @@ const (
 	getAffiliateProgramInfo           = "private/get_affiliate_program_info"
 	getEmailLanguage                  = "private/get_email_language"
 	getNewAnnouncements               = "private/get_new_announcements"
-	getPrivatePortfolioMargins        = "private/get_portfolio_margins"
 	getPosition                       = "private/get_position"
 	getPositions                      = "private/get_positions"
 	getSubAccounts                    = "private/get_subaccounts"
@@ -299,28 +289,8 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var data [][2]interface{}
-	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getHistoricalVolatility, params), &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]HistoricalVolatilityData, len(data))
-	for x := range data {
-		timeData, ok := data[x][0].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][0], "time data")
-		}
-		val, ok := data[x][1].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][1], "volatility value")
-		}
-		resp[x] = HistoricalVolatilityData{
-			Timestamp: timeData,
-			Value:     val,
-		}
-	}
-	return resp, nil
+	var data []HistoricalVolatilityData
+	return data, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
@@ -364,21 +334,19 @@ func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*Instru
 }
 
 // GetInstruments gets data for all available instruments
-func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
+func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]*InstrumentData, error) {
 	params := url.Values{}
-	params.Set("currency", ccy.String())
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
 	if kind != "" {
 		params.Set("kind", kind)
 	}
 	if expired {
 		params.Set("expired", "true")
 	}
-	var resp []InstrumentData
-	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getInstruments, params), &resp)
+	var resp []*InstrumentData
+	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getInstruments, params), &resp)
 }
 
 // GetLastSettlementsByCurrency gets last settlement data by currency
@@ -727,15 +695,15 @@ func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*Tick
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
+func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 	data := &struct {
-		JSONRPC string      `json:"jsonrpc"`
-		ID      int64       `json:"id"`
-		Data    interface{} `json:"result"`
+		JSONRPC string `json:"jsonrpc"`
+		ID      int64  `json:"id"`
+		Data    any    `json:"result"`
 	}{
 		Data: result,
 	}
@@ -983,24 +951,6 @@ func (d *Deribit) GetAnnouncements(ctx context.Context, startTime time.Time, cou
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getAnnouncements, params), &resp)
 }
 
-// GetPublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
-func (d *Deribit) GetPublicPortfolioMargins(ctx context.Context, ccy currency.Code, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	if len(simulatedPositions) != 0 {
-		values, err := json.Marshal(simulatedPositions)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("simulated_positions", string(values))
-	}
-	var resp *PortfolioMargin
-	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, portfolioMarginEPL, common.EncodeURLValues(getPublicPortfolioMargins, params), &resp)
-}
-
 // ChangeAPIKeyName changes the name of the api key requested
 func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (*APIKeyData, error) {
 	if id <= 0 {
@@ -1203,27 +1153,6 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 		getNewAnnouncements, nil, &resp)
 }
 
-// GetPrivatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy currency.Code, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	if accPositions {
-		params.Set("acc_positions", "true")
-	}
-	if len(simulatedPositions) != 0 {
-		values, err := json.Marshal(simulatedPositions)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("simulated_positions", string(values))
-	}
-	var resp *PortfolioMargin
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getPrivatePortfolioMargins, params, &resp)
-}
-
 // GetPosition gets the data of all positions in the requested instrument name
 func (d *Deribit) GetPosition(ctx context.Context, instrument string) (*PositionData, error) {
 	params, err := checkInstrument(instrument)
@@ -1336,7 +1265,7 @@ func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 	}
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(id, 10))
-	var resp interface{}
+	var resp any
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, removeAPIKey, params, &resp)
 	if err != nil {
 		return err
@@ -1404,7 +1333,7 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
 	params.Set("email", email)
-	var resp interface{}
+	var resp any
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		setEmailForSubAccount, params, &resp)
 	if err != nil {
@@ -2272,7 +2201,7 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy currenc
 }
 
 // SendHTTPAuthRequest sends an authenticated request to deribit api
-func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result interface{}) error {
+func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result any) error {
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -2837,20 +2766,19 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 	return instrumentID
 }
 
-// optionPairToString to format and return an Options currency pairs with the following format: MATIC_USDC-6APR24-0d98-P
-// it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
+// optionPairToString formats an options pair as: SYMBOL-EXPIRE-STRIKE-TYPE
+// SYMBOL may be a currency (BTC) or a pair (XRP_USDC)
+// EXPIRE is DDMMMYY
+// STRIKE may include a d for decimal point in linear options
+// TYPE is Call or Put
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
-	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
 	initialDelimiter := currency.DashDelimiter
-	if subCodes[0] == "USDC" {
+	q := pair.Quote.String()
+	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
 		initialDelimiter = currency.UnderscoreDelimiter
+		// Replace a capital D with d for decimal place in Strike price
+		// Char 11 is either the hyphen before Strike price or first digit
+		q = q[:11] + strings.Replace(q[11:], "D", "d", 1)
 	}
-	for i := range subCodes {
-		if match := optionRegex.MatchString(subCodes[i]); match {
-			subCodes[i] = strings.ToLower(subCodes[i])
-			break
-		}
-	}
-
-	return pair.Base.String() + initialDelimiter + strings.Join(subCodes, currency.DashDelimiter)
+	return pair.Base.String() + initialDelimiter + q
 }

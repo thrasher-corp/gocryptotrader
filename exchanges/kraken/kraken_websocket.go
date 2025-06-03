@@ -3,7 +3,6 @@ package kraken
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -14,16 +13,17 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -58,6 +58,7 @@ const (
 	krakenWsAddOrderStatus       = "addOrderStatus"
 	krakenWsCancelOrderStatus    = "cancelOrderStatus"
 	krakenWsCancelAllOrderStatus = "cancelAllStatus"
+	krakenWsPong                 = "pong"
 	krakenWsPingDelay            = time.Second * 27
 )
 
@@ -79,7 +80,6 @@ func init() {
 
 var (
 	authToken          string
-	errParsingWSField  = errors.New("error parsing WS field")
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -97,16 +97,16 @@ var defaultSubscriptions = subscription.List{
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	comms := make(chan stream.Response)
+	comms := make(chan websocket.Response)
 	k.Websocket.Wg.Add(2)
 	go k.wsReadData(comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
@@ -142,7 +142,7 @@ func (k *Kraken) WsConnect() error {
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
-func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
+func (k *Kraken) wsFunnelConnectionData(ws websocket.Connection, comms chan websocket.Response) {
 	defer k.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -154,7 +154,7 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (k *Kraken) wsReadData(comms chan stream.Response) {
+func (k *Kraken) wsReadData(comms chan websocket.Response) {
 	defer k.Websocket.Wg.Done()
 
 	for {
@@ -227,16 +227,16 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 	}
 
 	switch event {
-	case stream.Pong, krakenWsHeartbeat:
+	case krakenWsPong, krakenWsHeartbeat:
 		return nil
 	case krakenWsCancelOrderStatus, krakenWsCancelAllOrderStatus, krakenWsAddOrderStatus, krakenWsSubscriptionStatus:
 		// All of these should have found a listener already
-		return fmt.Errorf("%w: %s %v", stream.ErrSignatureNotMatched, event, reqID)
+		return fmt.Errorf("%w: %s %v", websocket.ErrSignatureNotMatched, event, reqID)
 	case krakenWsSystemStatus:
 		return k.wsProcessSystemStatus(respRaw)
 	default:
-		k.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: fmt.Sprintf("%s: %s", stream.UnhandledMessage, respRaw),
+		k.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: fmt.Sprintf("%s: %s", websocket.UnhandledMessage, respRaw),
 		}
 	}
 
@@ -244,11 +244,11 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 }
 
 // startWsPingHandler sets up a websocket ping handler to maintain a connection
-func (k *Kraken) startWsPingHandler(conn stream.Connection) {
-	conn.SetupPingHandler(request.Unset, stream.PingHandler{
+func (k *Kraken) startWsPingHandler(conn websocket.Connection) {
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Message:     []byte(`{"event":"ping"}`),
 		Delay:       krakenWsPingDelay,
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 }
 
@@ -293,8 +293,8 @@ func (k *Kraken) wsProcessSystemStatus(respRaw []byte) error {
 	return nil
 }
 
-func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
-	if data, ok := ownOrders.([]interface{}); ok {
+func (k *Kraken) wsProcessOwnTrades(ownOrders any) error {
+	if data, ok := ownOrders.([]any); ok {
 		for i := range data {
 			trades, err := json.Marshal(data[i])
 			if err != nil {
@@ -344,8 +344,8 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 	return errors.New(k.Name + " - Invalid own trades data")
 }
 
-func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
-	if data, ok := ownOrders.([]interface{}); ok {
+func (k *Kraken) wsProcessOpenOrders(ownOrders any) error {
+	if data, ok := ownOrders.([]any); ok {
 		for i := range data {
 			orders, err := json.Marshal(data[i])
 			if err != nil {
@@ -492,23 +492,27 @@ func (k *Kraken) wsProcessSpread(response []any, pair currency.Pair) error {
 	}
 	bestBid, ok := data[0].(string)
 	if !ok {
-		return errors.New("wsProcessSpread: unable to type assert bestBid")
+		return common.GetTypeAssertError("string", data[0], "bestBid")
 	}
 	bestAsk, ok := data[1].(string)
 	if !ok {
-		return errors.New("wsProcessSpread: unable to type assert bestAsk")
+		return common.GetTypeAssertError("string", data[1], "bestAsk")
 	}
-	timeData, err := strconv.ParseFloat(data[2].(string), 64)
+	timeData, ok := data[2].(string)
+	if !ok {
+		return common.GetTypeAssertError("string", data[2], "timeData")
+	}
+	timestamp, err := strconv.ParseFloat(timeData, 64)
 	if err != nil {
-		return fmt.Errorf("wsProcessSpread: unable to parse timeData: %w", err)
+		return err
 	}
 	bidVolume, ok := data[3].(string)
 	if !ok {
-		return errors.New("wsProcessSpread: unable to type assert bidVolume")
+		return common.GetTypeAssertError("string", data[3], "bidVolume")
 	}
 	askVolume, ok := data[4].(string)
 	if !ok {
-		return errors.New("wsProcessSpread: unable to type assert askVolume")
+		return common.GetTypeAssertError("string", data[4], "askVolume")
 	}
 
 	if k.Verbose {
@@ -518,7 +522,7 @@ func (k *Kraken) wsProcessSpread(response []any, pair currency.Pair) error {
 			pair,
 			bestBid,
 			bestAsk,
-			convert.TimeFromUnixTimestampDecimal(timeData),
+			convert.TimeFromUnixTimestampDecimal(timestamp),
 			bidVolume,
 			askVolume)
 	}
@@ -531,33 +535,48 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 	if !ok {
 		return errors.New("received invalid trade data")
 	}
-	if !k.IsSaveTradeDataEnabled() {
+	saveTradeData := k.IsSaveTradeDataEnabled()
+	tradeFeed := k.IsTradeFeedEnabled()
+	if !saveTradeData && !tradeFeed {
 		return nil
 	}
 	trades := make([]trade.Data, len(data))
 	for i := range data {
-		t, ok := data[i].([]interface{})
+		t, ok := data[i].([]any)
 		if !ok {
 			return errors.New("unidentified trade data received")
 		}
-		timeData, err := strconv.ParseFloat(t[2].(string), 64)
+		if len(t) < 4 {
+			return fmt.Errorf("%w; unexpected trade data length: %d", common.ErrParsingWSField, len(t))
+		}
+		ts, ok := t[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[2], "trade.time")
+		}
+		timeData, err := strconv.ParseFloat(ts, 64)
 		if err != nil {
 			return err
 		}
-
-		price, err := strconv.ParseFloat(t[0].(string), 64)
+		p, ok := t[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[0], "trade.price")
+		}
+		price, err := strconv.ParseFloat(p, 64)
 		if err != nil {
 			return err
 		}
-
-		amount, err := strconv.ParseFloat(t[1].(string), 64)
+		v, ok := t[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", t[1], "trade.volume")
+		}
+		amount, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
 		}
-		var tSide = order.Buy
+		tSide := order.Buy
 		s, ok := t[3].(string)
 		if !ok {
-			return common.GetTypeAssertError("string", t[3], "side")
+			return common.GetTypeAssertError("string", t[3], "trade.side")
 		}
 		if s == "s" {
 			tSide = order.Sell
@@ -573,7 +592,15 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 			Side:         tSide,
 		}
 	}
-	return trade.AddTradesToBuffer(k.Name, trades...)
+	if tradeFeed {
+		for i := range trades {
+			k.Websocket.DataHandler <- trades[i]
+		}
+	}
+	if saveTradeData {
+		return trade.AddTradesToBuffer(trades...)
+	}
+	return nil
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates
@@ -616,8 +643,8 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 	}
 	// NOTE: Updates are a priority so check if it's an update first as we don't
 	// need multiple map lookups to check for snapshot.
-	askData, asksExist := ob["a"].([]interface{})
-	bidData, bidsExist := ob["b"].([]interface{})
+	askData, asksExist := ob["a"].([]any)
+	bidData, bidsExist := ob["b"].([]any)
 	if asksExist || bidsExist {
 		checksum, ok := ob["c"].(string)
 		if !ok {
@@ -636,8 +663,8 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 		return err
 	}
 
-	askSnapshot, askSnapshotExists := ob["as"].([]interface{})
-	bidSnapshot, bidSnapshotExists := ob["bs"].([]interface{})
+	askSnapshot, askSnapshotExists := ob["as"].([]any)
+	bidSnapshot, bidSnapshotExists := ob["bs"].([]any)
 	if !askSnapshotExists && !bidSnapshotExists {
 		return fmt.Errorf("%w for %v %v", errNoWebsocketOrderbookData, pair, asset.Spot)
 	}
@@ -661,9 +688,9 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 	// to respect both within a reasonable degree
 	var highestLastUpdate time.Time
 	for i := range askData {
-		asks, ok := askData[i].([]interface{})
+		asks, ok := askData[i].([]any)
 		if !ok {
-			return common.GetTypeAssertError("[]interface{}", askData[i], "asks")
+			return common.GetTypeAssertError("[]any", askData[i], "asks")
 		}
 		if len(asks) < 3 {
 			return errors.New("unexpected asks length")
@@ -705,9 +732,9 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 	}
 
 	for i := range bidData {
-		bids, ok := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]any)
 		if !ok {
-			return common.GetTypeAssertError("[]interface{}", bidData[i], "bids")
+			return common.GetTypeAssertError("[]any", bidData[i], "bids")
 		}
 		if len(bids) < 3 {
 			return errors.New("unexpected bids length")
@@ -770,7 +797,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	for i := range askData {
-		asks, ok := askData[i].([]interface{})
+		asks, ok := askData[i].([]any)
 		if !ok {
 			return errors.New("asks type assertion failure")
 		}
@@ -820,9 +847,9 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 
 	// Bid data is not always sent
 	for i := range bidData {
-		bids, ok := bidData[i].([]interface{})
+		bids, ok := bidData[i].([]any)
 		if !ok {
-			return common.GetTypeAssertError("[]interface{}", bidData[i], "bids")
+			return common.GetTypeAssertError("[]any", bidData[i], "bids")
 		}
 
 		priceStr, ok := bids[0].(string)
@@ -879,7 +906,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w", pair, asset.Spot, err)
 	}
 
-	token, err := strconv.ParseInt(checksum, 10, 64)
+	token, err := strconv.ParseUint(checksum, 10, 32)
 	if err != nil {
 		return err
 	}
@@ -947,7 +974,7 @@ func (k *Kraken) wsProcessCandle(c string, resp []any, pair currency.Pair) error
 	}
 	interval := parts[1]
 
-	k.Websocket.DataHandler <- stream.KlineData{
+	k.Websocket.DataHandler <- websocket.KlineData{
 		AssetType:  asset.Spot,
 		Pair:       pair,
 		Timestamp:  time.Now(),
@@ -1071,8 +1098,7 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 	resps, err := conn.SendMessageReturnResponses(context.TODO(), request.Unset, r.RequestID, r, len(s.Pairs))
 
 	// Ignore an overall timeout, because we'll track individual subscriptions in handleSubResps
-	err = common.ExcludeError(err, stream.ErrSignatureTimeout)
-
+	err = common.ExcludeError(err, websocket.ErrSignatureTimeout)
 	if err != nil {
 		return fmt.Errorf("%w; Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
@@ -1331,7 +1357,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 
 	status, err := jsonparser.GetUnsafeString(resp, "status")
 	if err != nil {
-		return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, err, resp)
+		return fmt.Errorf("%w 'status': %w from message: %s", common.ErrParsingWSField, err, resp)
 	} else if status == "ok" {
 		return nil
 	}

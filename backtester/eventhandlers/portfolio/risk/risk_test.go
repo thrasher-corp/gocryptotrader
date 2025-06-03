@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -18,9 +19,9 @@ import (
 
 func TestAssessHoldingsRatio(t *testing.T) {
 	t.Parallel()
-	ratio := assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
+	ratio := assessHoldingsRatio(currency.NewBTCUSDT(), []holdings.Holding{
 		{
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			BaseValue: decimal.NewFromInt(2),
 		},
 		{
@@ -32,9 +33,9 @@ func TestAssessHoldingsRatio(t *testing.T) {
 		t.Errorf("expected %v received %v", 0.5, ratio)
 	}
 
-	ratio = assessHoldingsRatio(currency.NewPair(currency.BTC, currency.USDT), []holdings.Holding{
+	ratio = assessHoldingsRatio(currency.NewBTCUSDT(), []holdings.Holding{
 		{
-			Pair:      currency.NewPair(currency.BTC, currency.USDT),
+			Pair:      currency.NewBTCUSDT(),
 			BaseValue: decimal.NewFromInt(1),
 		},
 		{
@@ -58,7 +59,7 @@ func TestEvaluateOrder(t *testing.T) {
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	e := "binance"
 	a := asset.Spot
 	o := &order.Order{
@@ -91,9 +92,7 @@ func TestEvaluateOrder(t *testing.T) {
 		BaseSize: decimal.NewFromInt(1),
 	})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	h = append(h, holdings.Holding{
 		Pair: currency.NewPair(currency.DOGE, currency.USDT),
@@ -123,9 +122,7 @@ func TestEvaluateOrder(t *testing.T) {
 		Asset:    a,
 	}].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[key.ExchangePairAsset{
@@ -156,9 +153,7 @@ func TestEvaluateOrder(t *testing.T) {
 		Asset:    a,
 	}].MaximumHoldingRatio = decimal.NewFromFloat(0.1)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: decimal.NewFromInt(1337)})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})

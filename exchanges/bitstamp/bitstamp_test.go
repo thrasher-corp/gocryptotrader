@@ -1,7 +1,6 @@
 package bitstamp
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,7 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -29,8 +30,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &Bitstamp{}
-var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
+var (
+	b          = &Bitstamp{}
+	btcusdPair = currency.NewBTCUSD()
+)
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
@@ -48,8 +51,8 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	var feeBuilder = setFeeBuilder()
-	_, err := b.GetFeeByType(context.Background(), feeBuilder)
+	feeBuilder := setFeeBuilder()
+	_, err := b.GetFeeByType(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
 	if mockTests {
 		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "TradeFee should be correct")
@@ -61,13 +64,13 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 func TestGetFee(t *testing.T) {
 	t.Parallel()
 
-	var feeBuilder = setFeeBuilder()
+	feeBuilder := setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	fee, err := b.GetFee(context.Background(), feeBuilder)
+	fee, err := b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.NotEmpty(t, fee, "Fee should not be empty")
@@ -76,13 +79,13 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	fee, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.Positive(t, fee, "Maker fee should be positive")
@@ -91,7 +94,7 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsTaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = false
-	fee, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.Positive(t, fee, "Taker fee should be positive")
@@ -100,33 +103,33 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	_, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	fee, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	assert.NotEmpty(t, fee, "Fee should not be empty")
 }
@@ -138,7 +141,7 @@ func TestGetAccountTradingFee(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 
-	fee, err := b.GetAccountTradingFee(context.Background(), currency.NewPair(currency.LTC, currency.BTC))
+	fee, err := b.GetAccountTradingFee(t.Context(), currency.NewPair(currency.LTC, currency.BTC))
 	require.NoError(t, err, "GetAccountTradingFee must not error")
 	if mockTests {
 		assert.Positive(t, fee.Fees.Maker, "Maker should be positive")
@@ -147,7 +150,7 @@ func TestGetAccountTradingFee(t *testing.T) {
 	assert.NotEmpty(t, fee.Symbol, "Symbol should not be empty")
 	assert.Equal(t, "ltcbtc", fee.Symbol, "Symbol should be correct")
 
-	_, err = b.GetAccountTradingFee(context.Background(), currency.EMPTYPAIR)
+	_, err = b.GetAccountTradingFee(t.Context(), currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "Should get back the right error")
 }
 
@@ -158,7 +161,7 @@ func TestGetAccountTradingFees(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 
-	fees, err := b.GetAccountTradingFees(context.Background())
+	fees, err := b.GetAccountTradingFees(t.Context())
 	require.NoError(t, err, "GetAccountTradingFee must not error")
 	if assert.NotEmpty(t, fees, "Should get back multiple fees") {
 		fee := fees[0]
@@ -173,7 +176,7 @@ func TestGetAccountTradingFees(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 
-	tick, err := b.GetTicker(context.Background(),
+	tick, err := b.GetTicker(t.Context(),
 		currency.BTC.String()+currency.USD.String(), false)
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Positive(t, tick.Ask, "Ask should be positive")
@@ -192,7 +195,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	ob, err := b.GetOrderbook(context.Background(), currency.BTC.String()+currency.USD.String())
+	ob, err := b.GetOrderbook(t.Context(), currency.BTC.String()+currency.USD.String())
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.NotEmpty(t, ob.Timestamp, "Timestamp should not be empty")
 	for i, o := range [][]OrderbookBase{ob.Asks, ob.Bids} {
@@ -208,7 +211,7 @@ func TestGetOrderbook(t *testing.T) {
 func TestGetTradingPairs(t *testing.T) {
 	t.Parallel()
 
-	p, err := b.GetTradingPairs(context.Background())
+	p, err := b.GetTradingPairs(t.Context())
 	require.NoError(t, err, "GetTradingPairs must not error")
 	assert.NotEmpty(t, p, "Pairs should not be empty")
 	for _, res := range p {
@@ -226,14 +229,14 @@ func TestGetTradingPairs(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 
-	p, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	p, err := b.FetchTradablePairs(t.Context(), asset.Spot)
 	require.NoError(t, err, "FetchTradablePairs must not error")
 	assert.True(t, p.Contains(currency.NewBTCUSD(), true), "Pairs should contain BTC/USD")
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), true)
+	err := b.UpdateTradablePairs(t.Context(), true)
 	require.NoError(t, err, "UpdateTradablePairs must not error")
 }
 
@@ -249,11 +252,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	tests := map[asset.Item][]limitTest{
 		asset.Spot: {
 			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 20},
-			{currency.NewPair(currency.BTC, currency.USDT), 0.01, 20},
+			{currency.NewBTCUSDT(), 0.01, 20},
 		},
 	}
 	for assetItem, limitTests := range tests {
-		if err := b.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
+		if err := b.UpdateOrderExecutionLimits(t.Context(), assetItem); err != nil {
 			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
 		}
 		for _, limitTest := range limitTests {
@@ -281,7 +284,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
 
-	tr, err := b.GetTransactions(context.Background(),
+	tr, err := b.GetTransactions(t.Context(),
 		currency.BTC.String()+currency.USD.String(), "hour")
 	require.NoError(t, err, "GetTransactions must not error")
 	assert.NotEmpty(t, tr, "Transactions should not be empty")
@@ -296,7 +299,7 @@ func TestGetTransactions(t *testing.T) {
 func TestGetEURUSDConversionRate(t *testing.T) {
 	t.Parallel()
 
-	c, err := b.GetEURUSDConversionRate(context.Background())
+	c, err := b.GetEURUSDConversionRate(t.Context())
 	require.NoError(t, err, "GetEURUSDConversionRate must not error")
 	assert.Positive(t, c.Sell, "Sell should be positive")
 	assert.Positive(t, c.Buy, "Buy should be positive")
@@ -308,7 +311,7 @@ func TestGetBalance(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	bal, err := b.GetBalance(context.Background())
+	bal, err := b.GetBalance(t.Context())
 	require.NoError(t, err, "GetBalance must not error")
 	if mockTests {
 		for k, e := range map[string]Balance{
@@ -339,7 +342,7 @@ func TestGetUserTransactions(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	tr, err := b.GetUserTransactions(context.Background(), "btcusd")
+	tr, err := b.GetUserTransactions(t.Context(), "btcusd")
 	require.NoError(t, err, "GetUserTransactions must not error")
 	if mockTests {
 		assert.NotEmpty(t, tr, "Transactions should not be empty")
@@ -356,7 +359,7 @@ func TestGetOpenOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOpenOrders(context.Background(), "btcusd")
+	o, err := b.GetOpenOrders(t.Context(), "btcusd")
 	require.NoError(t, err, "GetOpenOrders must not error")
 	if mockTests {
 		assert.NotEmpty(t, o, "Orders should not be empty")
@@ -380,11 +383,11 @@ func TestGetOrderStatus(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderStatus(context.Background(), 1458532827766784)
+	o, err := b.GetOrderStatus(t.Context(), 1458532827766784)
 	if !mockTests {
 		assert.ErrorContains(t, err, "Order not found")
 	} else {
-		require.NoError(t, err, "TestGetOrderStatus must not error")
+		require.NoError(t, err, "GetOrderStatus must not error")
 		assert.Equal(t, "2022-01-31 14:43:15", o.DateTime, "DateTime should match")
 		assert.Equal(t, "1458532827766784", o.ID, "OrderID should match")
 		assert.Equal(t, 200.00, o.AmountRemaining, "AmountRemaining should match")
@@ -407,7 +410,7 @@ func TestGetWithdrawalRequests(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	r, err := b.GetWithdrawalRequests(context.Background(), 1)
+	r, err := b.GetWithdrawalRequests(t.Context(), 1)
 	require.NoError(t, err, "GetWithdrawalRequests must not error")
 	if mockTests {
 		assert.NotEmpty(t, r, "GetWithdrawalRequests should return a withdrawal request")
@@ -432,7 +435,7 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	d, err := b.GetUnconfirmedBitcoinDeposits(context.Background())
+	d, err := b.GetUnconfirmedBitcoinDeposits(t.Context())
 	require.NoError(t, err, "GetUnconfirmedBitcoinDeposits must not error")
 	if mockTests {
 		assert.NotEmpty(t, d, "Deposits should not be empty")
@@ -450,7 +453,7 @@ func TestTransferAccountBalance(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	err := b.TransferAccountBalance(context.Background(),
+	err := b.TransferAccountBalance(t.Context(),
 		10000, "BTC", "1234567", true)
 	if !mockTests {
 		assert.ErrorContains(t, err, "Sub account with identifier \"1234567\" does not exist.")
@@ -475,7 +478,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
+	o, err := b.GetActiveOrders(t.Context(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -500,7 +503,7 @@ func TestGetOrderHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
+	o, err := b.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -524,7 +527,7 @@ func TestSubmitOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	o, err := b.SubmitOrder(context.Background(), &order.Submit{
+	o, err := b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange: b.Name,
 		Pair: currency.Pair{
 			Base:  currency.BTC,
@@ -557,7 +560,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	err := b.CancelOrder(context.Background(), &order.Cancel{
+	err := b.CancelOrder(t.Context(), &order.Cancel{
 		OrderID: "1453282316578816",
 	})
 	if !mockTests {
@@ -573,9 +576,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	resp, err := b.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.Spot})
-	require.NoError(t, err, "TestCancelAllExchangeOrders must not error")
+	resp, err := b.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must not error")
 	if len(resp.Status) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
@@ -584,7 +586,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Spot})
+	_, err := b.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
@@ -594,7 +596,7 @@ func TestWithdraw(t *testing.T) {
 	if !mockTests {
 		t.Skip("TestWithdraw not allowed for live tests")
 	}
-	w, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
+	w, err := b.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 		Exchange:    b.Name,
 		Amount:      6,
 		Currency:    currency.BTC,
@@ -614,7 +616,7 @@ func TestWithdrawFiat(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Type:     withdraw.Fiat,
 		Exchange: b.Name,
 		Fiat: withdraw.FiatRequest{
@@ -641,7 +643,7 @@ func TestWithdrawFiat(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	w, err := b.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
+	w, err := b.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
 	if mockTests {
 		require.NoError(t, err, "WithdrawFiat must not error")
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
@@ -657,7 +659,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
 
-	var withdrawFiatRequest = withdraw.Request{
+	withdrawFiatRequest := withdraw.Request{
 		Type:     withdraw.Fiat,
 		Exchange: b.Name,
 		Fiat: withdraw.FiatRequest{
@@ -690,7 +692,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Description: "WITHDRAW IT ALL",
 	}
 
-	w, err := b.WithdrawFiatFundsToInternationalBank(context.Background(),
+	w, err := b.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if mockTests {
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
@@ -705,7 +707,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	a, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
+	a, err := b.GetDepositAddress(t.Context(), currency.XRP, "", "")
 	require.NoError(t, err, "GetDepositAddress must not error")
 	assert.NotEmpty(t, a.Address, "Address should not be empty")
 	assert.NotEmpty(t, a.Tag, "Tag should not be empty")
@@ -760,11 +762,11 @@ func TestWsTrade(t *testing.T) {
 func TestWsOrderbook(t *testing.T) {
 	pressXToJSON := []byte(`{"data": {"timestamp": "1580336834", "microtimestamp": "1580336834607546", "bids": [["9328.28", "0.05925332"], ["9327.34", "0.43120000"], ["9327.29", "0.63470860"], ["9326.59", "0.41114619"], ["9326.38", "1.06910000"], ["9323.91", "2.67930000"], ["9322.69", "0.80000000"], ["9322.57", "0.03000000"], ["9322.31", "1.36010820"], ["9319.54", "0.03090000"], ["9318.97", "0.28000000"], ["9317.61", "0.02910000"], ["9316.39", "1.08000000"], ["9316.20", "2.00000000"], ["9315.48", "1.00000000"], ["9314.72", "0.11197459"], ["9314.47", "0.32207398"], ["9312.53", "0.03961501"], ["9312.29", "1.00000000"], ["9311.78", "0.03060000"], ["9311.69", "0.32217221"], ["9310.98", "3.29000000"], ["9310.18", "0.01304192"], ["9310.13", "0.02500000"], ["9309.04", "1.00000000"], ["9309.00", "0.05000000"], ["9308.96", "0.03030000"], ["9308.91", "0.32227154"], ["9307.52", "0.32191362"], ["9307.25", "2.44280000"], ["9305.92", "3.00000000"], ["9305.62", "2.37600000"], ["9305.60", "0.21815312"], ["9305.54", "2.80000000"], ["9305.13", "0.05000000"], ["9305.02", "2.90917302"], ["9303.68", "0.02316372"], ["9303.53", "12.55000000"], ["9303.00", "0.02191430"], ["9302.94", "2.38250000"], ["9302.37", "0.01000000"], ["9301.85", "2.50000000"], ["9300.89", "0.02000000"], ["9300.40", "4.10000000"], ["9300.00", "0.33936139"], ["9298.48", "1.45200000"], ["9297.80", "0.42380000"], ["9295.44", "4.54689328"], ["9295.43", "3.20000000"], ["9295.00", "0.28669566"], ["9291.66", "14.09931321"], ["9290.13", "2.87254900"], ["9290.00", "0.67530840"], ["9285.37", "0.38033002"], ["9285.15", "5.37993528"], ["9285.00", "0.09419278"], ["9283.71", "0.15679830"], ["9280.33", "12.55000000"], ["9280.13", "3.20310000"], ["9280.00", "1.36477909"], ["9276.01", "0.00707488"], ["9275.75", "0.56974291"], ["9275.00", "5.88000000"], ["9274.00", "0.00754205"], ["9271.68", "0.01400000"], ["9271.11", "15.37188500"], ["9270.00", "0.06674325"], ["9268.79", "24.54320000"], ["9257.18", "12.55000000"], ["9256.30", "0.17876365"], ["9255.71", "13.82642967"], ["9254.79", "0.96329407"], ["9250.00", "0.78214958"], ["9245.34", "4.90200000"], ["9245.13", "0.10000000"], ["9240.00", "0.44383459"], ["9238.84", "13.16615207"], ["9234.11", "0.43317656"], ["9234.10", "12.55000000"], ["9231.28", "11.79290000"], ["9230.09", "4.15059441"], ["9227.69", "0.00791097"], ["9225.00", "0.44768346"], ["9224.49", "0.85857203"], ["9223.50", "5.61001041"], ["9216.01", "0.03222653"], ["9216.00", "0.05000000"], ["9213.54", "0.71253866"], ["9212.50", "2.86768195"], ["9211.07", "12.55000000"], ["9210.00", "0.54288817"], ["9208.00", "1.00000000"], ["9206.06", "2.62587578"], ["9205.98", "15.40000000"], ["9205.52", "0.01710603"], ["9205.37", "0.03524953"], ["9205.11", "0.15000000"], ["9205.00", "0.01534763"], ["9204.76", "7.00600000"], ["9203.00", "0.01090000"]], "asks": [["9337.10", "0.03000000"], ["9340.85", "2.67820000"], ["9340.95", "0.02900000"], ["9341.17", "1.00000000"], ["9341.41", "2.13966390"], ["9341.61", "0.20000000"], ["9341.97", "0.11199911"], ["9341.98", "3.00000000"], ["9342.26", "0.32112762"], ["9343.87", "1.00000000"], ["9344.17", "3.57250000"], ["9345.04", "0.32103450"], ["9345.41", "4.90000000"], ["9345.69", "1.03000000"], ["9345.80", "0.03000000"], ["9346.00", "0.10200000"], ["9346.69", "0.02397394"], ["9347.41", "1.00000000"], ["9347.82", "0.32094177"], ["9348.23", "0.02880000"], ["9348.62", "11.96287551"], ["9349.31", "2.44270000"], ["9349.47", "0.96000000"], ["9349.86", "4.50000000"], ["9350.37", "0.03300000"], ["9350.57", "0.34682266"], ["9350.60", "0.32085527"], ["9351.45", "0.31147923"], ["9352.31", "0.28000000"], ["9352.86", "9.80000000"], ["9353.73", "0.02360739"], ["9354.00", "0.45000000"], ["9354.12", "0.03000000"], ["9354.29", "3.82446861"], ["9356.20", "0.64000000"], ["9356.90", "0.02316372"], ["9357.30", "2.50000000"], ["9357.70", "2.38240000"], ["9358.92", "6.00000000"], ["9359.97", "0.34898075"], ["9359.98", "2.30000000"], ["9362.56", "2.37600000"], ["9365.00", "0.64000000"], ["9365.16", "1.70030306"], ["9365.27", "3.03000000"], ["9369.99", "2.47102665"], ["9370.00", "3.15688574"], ["9370.21", "2.32720000"], ["9371.78", "13.20000000"], ["9371.89", "0.96293482"], ["9375.08", "4.74762500"], ["9384.34", "1.45200000"], ["9384.49", "16.42310000"], ["9385.66", "0.34382112"], ["9388.19", "0.00268265"], ["9392.20", "0.20980000"], ["9392.40", "0.10320000"], ["9393.00", "0.20980000"], ["9395.40", "0.40000000"], ["9398.86", "24.54310000"], ["9400.00", "0.05489988"], ["9400.33", "0.00495100"], ["9400.45", "0.00484700"], ["9402.92", "17.20000000"], ["9404.18", "10.00000000"], ["9418.89", "16.38000000"], ["9419.41", "3.06700000"], ["9420.40", "12.50000000"], ["9421.11", "0.10500000"], ["9434.47", "0.03215805"], ["9434.48", "0.28285714"], ["9434.49", "15.83000000"], ["9435.13", "0.15000000"], ["9438.93", "0.00368800"], ["9439.19", "0.69343985"], ["9442.86", "0.10000000"], ["9443.96", "12.50000000"], ["9444.00", "0.06004471"], ["9444.97", "0.01494896"], ["9447.00", "0.01234000"], ["9448.97", "0.14500000"], ["9449.00", "0.05000000"], ["9450.00", "11.13426018"], ["9451.87", "15.90000000"], ["9452.00", "0.20000000"], ["9454.25", "0.01100000"], ["9454.51", "0.02409062"], ["9455.05", "0.00600063"], ["9456.00", "0.27965118"], ["9456.10", "0.17000000"], ["9459.00", "0.00320000"], ["9459.98", "0.02460685"], ["9459.99", "8.11000000"], ["9460.00", "0.08500000"], ["9464.36", "0.56957951"], ["9464.54", "0.69158059"], ["9465.00", "21.00002015"], ["9467.57", "12.50000000"], ["9468.00", "0.08800000"], ["9469.09", "13.94000000"]]}, "event": "data", "channel": "order_book_btcusd"}`)
 	err := b.wsHandleData(pressXToJSON)
-	require.NoError(t, err, "TestWsOrderbook must not error")
+	require.NoError(t, err, "wsHandleData must not error")
 
 	pressXToJSON = []byte(`{"data": {"timestamp": "1580336834", "microtimestamp": "1580336834607546", "bids": [["9328.28", "0.05925332"], ["9327.34", "0.43120000"], ["9327.29", "0.63470860"], ["9326.59", "0.41114619"], ["9326.38", "1.06910000"], ["9323.91", "2.67930000"], ["9322.69", "0.80000000"], ["9322.57", "0.03000000"], ["9322.31", "1.36010820"], ["9319.54", "0.03090000"], ["9318.97", "0.28000000"], ["9317.61", "0.02910000"], ["9316.39", "1.08000000"], ["9316.20", "2.00000000"], ["9315.48", "1.00000000"], ["9314.72", "0.11197459"], ["9314.47", "0.32207398"], ["9312.53", "0.03961501"], ["9312.29", "1.00000000"], ["9311.78", "0.03060000"], ["9311.69", "0.32217221"], ["9310.98", "3.29000000"], ["9310.18", "0.01304192"], ["9310.13", "0.02500000"], ["9309.04", "1.00000000"], ["9309.00", "0.05000000"], ["9308.96", "0.03030000"], ["9308.91", "0.32227154"], ["9307.52", "0.32191362"], ["9307.25", "2.44280000"], ["9305.92", "3.00000000"], ["9305.62", "2.37600000"], ["9305.60", "0.21815312"], ["9305.54", "2.80000000"], ["9305.13", "0.05000000"], ["9305.02", "2.90917302"], ["9303.68", "0.02316372"], ["9303.53", "12.55000000"], ["9303.00", "0.02191430"], ["9302.94", "2.38250000"], ["9302.37", "0.01000000"], ["9301.85", "2.50000000"], ["9300.89", "0.02000000"], ["9300.40", "4.10000000"], ["9300.00", "0.33936139"], ["9298.48", "1.45200000"], ["9297.80", "0.42380000"], ["9295.44", "4.54689328"], ["9295.43", "3.20000000"], ["9295.00", "0.28669566"], ["9291.66", "14.09931321"], ["9290.13", "2.87254900"], ["9290.00", "0.67530840"], ["9285.37", "0.38033002"], ["9285.15", "5.37993528"], ["9285.00", "0.09419278"], ["9283.71", "0.15679830"], ["9280.33", "12.55000000"], ["9280.13", "3.20310000"], ["9280.00", "1.36477909"], ["9276.01", "0.00707488"], ["9275.75", "0.56974291"], ["9275.00", "5.88000000"], ["9274.00", "0.00754205"], ["9271.68", "0.01400000"], ["9271.11", "15.37188500"], ["9270.00", "0.06674325"], ["9268.79", "24.54320000"], ["9257.18", "12.55000000"], ["9256.30", "0.17876365"], ["9255.71", "13.82642967"], ["9254.79", "0.96329407"], ["9250.00", "0.78214958"], ["9245.34", "4.90200000"], ["9245.13", "0.10000000"], ["9240.00", "0.44383459"], ["9238.84", "13.16615207"], ["9234.11", "0.43317656"], ["9234.10", "12.55000000"], ["9231.28", "11.79290000"], ["9230.09", "4.15059441"], ["9227.69", "0.00791097"], ["9225.00", "0.44768346"], ["9224.49", "0.85857203"], ["9223.50", "5.61001041"], ["9216.01", "0.03222653"], ["9216.00", "0.05000000"], ["9213.54", "0.71253866"], ["9212.50", "2.86768195"], ["9211.07", "12.55000000"], ["9210.00", "0.54288817"], ["9208.00", "1.00000000"], ["9206.06", "2.62587578"], ["9205.98", "15.40000000"], ["9205.52", "0.01710603"], ["9205.37", "0.03524953"], ["9205.11", "0.15000000"], ["9205.00", "0.01534763"], ["9204.76", "7.00600000"], ["9203.00", "0.01090000"]], "asks": [["9337.10", "0.03000000"], ["9340.85", "2.67820000"], ["9340.95", "0.02900000"], ["9341.17", "1.00000000"], ["9341.41", "2.13966390"], ["9341.61", "0.20000000"], ["9341.97", "0.11199911"], ["9341.98", "3.00000000"], ["9342.26", "0.32112762"], ["9343.87", "1.00000000"], ["9344.17", "3.57250000"], ["9345.04", "0.32103450"], ["9345.41", "4.90000000"], ["9345.69", "1.03000000"], ["9345.80", "0.03000000"], ["9346.00", "0.10200000"], ["9346.69", "0.02397394"], ["9347.41", "1.00000000"], ["9347.82", "0.32094177"], ["9348.23", "0.02880000"], ["9348.62", "11.96287551"], ["9349.31", "2.44270000"], ["9349.47", "0.96000000"], ["9349.86", "4.50000000"], ["9350.37", "0.03300000"], ["9350.57", "0.34682266"], ["9350.60", "0.32085527"], ["9351.45", "0.31147923"], ["9352.31", "0.28000000"], ["9352.86", "9.80000000"], ["9353.73", "0.02360739"], ["9354.00", "0.45000000"], ["9354.12", "0.03000000"], ["9354.29", "3.82446861"], ["9356.20", "0.64000000"], ["9356.90", "0.02316372"], ["9357.30", "2.50000000"], ["9357.70", "2.38240000"], ["9358.92", "6.00000000"], ["9359.97", "0.34898075"], ["9359.98", "2.30000000"], ["9362.56", "2.37600000"], ["9365.00", "0.64000000"], ["9365.16", "1.70030306"], ["9365.27", "3.03000000"], ["9369.99", "2.47102665"], ["9370.00", "3.15688574"], ["9370.21", "2.32720000"], ["9371.78", "13.20000000"], ["9371.89", "0.96293482"], ["9375.08", "4.74762500"], ["9384.34", "1.45200000"], ["9384.49", "16.42310000"], ["9385.66", "0.34382112"], ["9388.19", "0.00268265"], ["9392.20", "0.20980000"], ["9392.40", "0.10320000"], ["9393.00", "0.20980000"], ["9395.40", "0.40000000"], ["9398.86", "24.54310000"], ["9400.00", "0.05489988"], ["9400.33", "0.00495100"], ["9400.45", "0.00484700"], ["9402.92", "17.20000000"], ["9404.18", "10.00000000"], ["9418.89", "16.38000000"], ["9419.41", "3.06700000"], ["9420.40", "12.50000000"], ["9421.11", "0.10500000"], ["9434.47", "0.03215805"], ["9434.48", "0.28285714"], ["9434.49", "15.83000000"], ["9435.13", "0.15000000"], ["9438.93", "0.00368800"], ["9439.19", "0.69343985"], ["9442.86", "0.10000000"], ["9443.96", "12.50000000"], ["9444.00", "0.06004471"], ["9444.97", "0.01494896"], ["9447.00", "0.01234000"], ["9448.97", "0.14500000"], ["9449.00", "0.05000000"], ["9450.00", "11.13426018"], ["9451.87", "15.90000000"], ["9452.00", "0.20000000"], ["9454.25", "0.01100000"], ["9454.51", "0.02409062"], ["9455.05", "0.00600063"], ["9456.00", "0.27965118"], ["9456.10", "0.17000000"], ["9459.00", "0.00320000"], ["9459.98", "0.02460685"], ["9459.99", "8.11000000"], ["9460.00", "0.08500000"], ["9464.36", "0.56957951"], ["9464.54", "0.69158059"], ["9465.00", "21.00002015"], ["9467.57", "12.50000000"], ["9468.00", "0.08800000"], ["9469.09", "13.94000000"]]}, "event": "data", "channel": ""}`)
 	err = b.wsHandleData(pressXToJSON)
-	require.Equal(t, errWSPairParsingError, err, "TestWsOrderbook must error parsing error")
+	require.ErrorIs(t, err, errChannelUnderscores, "wsHandleData must error parsing channel")
 }
 
 func TestWsOrderbook2(t *testing.T) {
@@ -864,7 +866,7 @@ func TestWsRequestReconnect(t *testing.T) {
 func TestBitstamp_OHLC(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	o, err := b.OHLC(context.Background(), "btcusd", start, end, "60", "10")
+	o, err := b.OHLC(t.Context(), "btcusd", start, end, "60", "10")
 	require.NoError(t, err, "TestBitstamp_OHLC must not error")
 	assert.Equal(t, "BTC/USD", o.Data.Pair, "Pair should be correct")
 	for _, req := range o.Data.OHLCV {
@@ -879,7 +881,7 @@ func TestBitstamp_OHLC(t *testing.T) {
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	c, err := b.GetHistoricCandles(context.Background(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
 	require.NoError(t, err, "GetHistoricCandles must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -897,7 +899,7 @@ func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	c, err := b.GetHistoricCandlesExtended(context.Background(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
 	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -917,7 +919,7 @@ func TestGetRecentTrades(t *testing.T) {
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
 	require.NoError(t, err, "NewPairFromString must not error")
 
-	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	tr, err := b.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
 	require.NoError(t, err, "GetRecentTrades must not error")
 	assert.NotEmpty(t, tr, "Trades should not be empty")
 	for _, req := range tr {
@@ -935,7 +937,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
 	require.NoError(t, err, "NewPairFromString must not error")
-	_, err = b.GetHistoricTrades(context.Background(),
+	_, err = b.GetHistoricTrades(t.Context(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
@@ -976,7 +978,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	h, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	h, err := b.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
 	require.NoError(t, err, "GetWithdrawalsHistory must not error")
 	if mockTests {
 		assert.NotEmpty(t, h, "WithdrawalHistory should not be empty")
@@ -994,7 +996,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", btcusdPair, asset.Spot)
+	o, err := b.GetOrderInfo(t.Context(), "1458532827766784", btcusdPair, asset.Spot)
 	if mockTests {
 		require.NoError(t, err, "GetOrderInfo must not error")
 		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "Date should match")
@@ -1015,7 +1017,7 @@ func TestFetchWSAuth(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	resp, err := b.FetchWSAuth(context.TODO())
+	resp, err := b.FetchWSAuth(t.Context())
 	require.NoError(t, err, "FetchWSAuth must not error")
 	assert.NotNil(t, resp, "resp should not be nil")
 	assert.Positive(t, resp.UserID, "UserID should be positive")
@@ -1028,10 +1030,55 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
-		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+	subs, err := b.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	exp := subscription.List{}
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	for _, baseSub := range b.Features.Subscriptions {
+		for _, p := range pairs.Format(currency.PairFormat{Uppercase: false}) {
+			s := baseSub.Clone()
+			s.Pairs = currency.Pairs{p}
+			s.QualifiedChannel = channelName(s) + "_" + p.String()
+			exp = append(exp, s)
+		}
+	}
+	testsubs.EqualLists(t, exp, subs)
+	assert.PanicsWithError(t,
+		"subscription channel not supported: wibble",
+		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
+		"should panic on invalid channel",
+	)
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	b := new(Bitstamp)
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	b.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, b)
+	err = b.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+	for _, s := range subs {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "Subscription %s should be subscribed", s)
+	}
+	err = b.Unsubscribe(subs)
+	require.NoError(t, err, "UnSubscribe must not error")
+	for _, s := range subs {
+		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "Subscription %s should be subscribed", s)
 	}
 }

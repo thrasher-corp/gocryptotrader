@@ -156,6 +156,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 ```go
 	spot := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "/",
@@ -166,6 +167,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 		},
 	}
 	futures := currency.PairStore{
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
@@ -176,14 +178,14 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 		},
 	}
 
-	err := f.StoreAssetPairFormat(asset.Spot, spot)
+	err := f.SetAssetPairStore(asset.Spot, spot)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
-	err = f.StoreAssetPairFormat(asset.Futures, futures)
+	err = f.SetAssetPairStore(asset.Futures, futures)
 	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+		log.Errorf(log.ExchangeSys, "%s error storing `futures` default asset formats: %s", bi.Name, err)
 	}
 ```
 
@@ -278,16 +280,16 @@ for i := range bot.Exchanges {
 
 // Public calls - wrapper functions
 
-pair := currency.NewPair(currency.BTC, currency.USD)
+pair := currency.NewBTCUSD()
 
 // Fetches current ticker information
-tick, err := e.FetchTicker(context.Background(), pair, asset.Spot) // e -> f 
+tick, err := e.GetCachedTicker(context.Background(), pair, asset.Spot) // e -> f 
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := e.FetchOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
+ob, err := e.GetCachedOrderbook(context.Background(), pair, asset.Spot) // e -> f (do so for the rest of the functions too)
 if err != nil {
   // Handle error
 }
@@ -307,7 +309,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result interface{}) error {
+func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	// This is used to generate the *http.Request, used in conjunction with the
 	// generate functionality below. 
 	item := &request.Item{  
@@ -412,7 +414,7 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
 ```go
 // SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result interface{}) error {
+func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result any) error {
 // A potential example below of closing over authenticated variables which may 
 // be required to regenerate on every request between each attempt after rate
 // limiting. This is for when signatures are based on timestamps/nonces that are 
@@ -551,12 +553,12 @@ type PlaceOrder struct {
 }
 ```
 
-For `POST` or `DELETE` requests, params are sent through a map[string]interface{}:
+For `POST` or `DELETE` requests, params are sent through a map[string]any:
 
 ```go
 // Order places an order
 func (f *FTX) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["market"] = marketName
 	req["side"] = side
 	req["price"] = price
@@ -861,14 +863,14 @@ type WsResponseData struct {
 	ResponseType string      `json:"type"`
 	Channel      string      `json:"channel"`
 	Market       string      `json:"market"`
-	Data         interface{} `json:"data"`
+	Data         any `json:"data"`
 }
 ```
 
 - Unmarshall the raw data into the main type:
 
 ```go
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
@@ -1068,7 +1070,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 	}
 
 	// Websocket details setup below
-	err = f.Websocket.Setup(&stream.WebsocketSetup{
+	err = f.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        	exch,
 		// DefaultURL defines the default endpoint in the event a rollback is 
 		// needed via gctcli.
@@ -1098,7 +1100,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return f.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return f.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload

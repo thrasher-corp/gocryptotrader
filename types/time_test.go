@@ -1,13 +1,13 @@
 package types
 
 import (
-	"encoding/json"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestUnmarshalJSON(t *testing.T) {
@@ -47,6 +47,9 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`"1726106210903.0"`), &testTime))
 	assert.Equal(t, time.UnixMicro(1726106210903000), testTime.Time())
 
+	require.NoError(t, json.Unmarshal([]byte(`"1747278712.09328"`), &testTime))
+	assert.Equal(t, time.UnixMicro(1747278712093280), testTime.Time())
+
 	// nanoseconds
 	require.NoError(t, json.Unmarshal([]byte(`"1606292218213.4578"`), &testTime))
 	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
@@ -63,13 +66,14 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.ErrorIs(t, json.Unmarshal([]byte(`"1606292218213.45.8"`), &testTime), strconv.ErrSyntax)
 }
 
-// 5030734	       240.1 ns/op	     168 B/op	       2 allocs/op (current)
-// 2716176	       441.9 ns/op	     352 B/op	       6 allocs/op (previous)
+// 6152384	       195.5 ns/op	     168 B/op	       2 allocs/op (current)
+// 5030734	       240.1 ns/op	     168 B/op	       2 allocs/op (previous)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
-	for i := 0; i < b.N; i++ {
-		err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime)
-		require.NoError(b, err)
+	for b.Loop() {
+		if err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

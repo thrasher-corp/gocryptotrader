@@ -123,7 +123,6 @@ func (f fakeReport) UseDarkMode(bool) {}
 type fakeStats struct{}
 
 func (f *fakeStats) SetStrategyName(string) {
-
 }
 
 func (f *fakeStats) SetEventForOffset(common.Event) error {
@@ -168,30 +167,31 @@ func (f fakeDataHolder) SetDataForCurrency(string, asset.Item, currency.Pair, da
 }
 
 func (f fakeDataHolder) GetAllData() ([]data.Handler, error) {
-	cp := currency.NewPair(currency.BTC, currency.USD)
-	return []data.Handler{&kline.DataFromKline{
-		Base: &data.Base{},
-		Item: &gctkline.Item{
-			Exchange:       testExchange,
-			Pair:           cp,
-			UnderlyingPair: cp,
-			Asset:          asset.Spot,
-			Interval:       gctkline.OneMin,
-			Candles: []gctkline.Candle{
-				{
-					Time:   time.Now(),
-					Open:   1337,
-					High:   1337,
-					Low:    1337,
-					Close:  1337,
-					Volume: 1337,
+	cp := currency.NewBTCUSD()
+	return []data.Handler{
+		&kline.DataFromKline{
+			Base: &data.Base{},
+			Item: &gctkline.Item{
+				Exchange:       testExchange,
+				Pair:           cp,
+				UnderlyingPair: cp,
+				Asset:          asset.Spot,
+				Interval:       gctkline.OneMin,
+				Candles: []gctkline.Candle{
+					{
+						Time:   time.Now(),
+						Open:   1337,
+						High:   1337,
+						Low:    1337,
+						Close:  1337,
+						Volume: 1337,
+					},
 				},
+				SourceJobID:     uuid.UUID{},
+				ValidationJobID: uuid.UUID{},
 			},
-			SourceJobID:     uuid.UUID{},
-			ValidationJobID: uuid.UUID{},
+			RangeHolder: &gctkline.IntervalRangeHolder{},
 		},
-		RangeHolder: &gctkline.IntervalRangeHolder{},
-	},
 	}, nil
 }
 
@@ -307,7 +307,7 @@ func (f fakeStrat) SupportsSimultaneousProcessing() bool {
 
 func (f fakeStrat) SetSimultaneousProcessing(bool) {}
 
-func (f fakeStrat) SetCustomSettings(map[string]interface{}) error {
+func (f fakeStrat) SetCustomSettings(map[string]any) error {
 	return nil
 }
 
@@ -321,8 +321,8 @@ func (f fakeStrat) CloseAllPositions([]holdings.Holding, []data.Event) ([]signal
 				Exchange:       testExchange,
 				Time:           time.Now(),
 				Interval:       gctkline.FifteenSecond,
-				CurrencyPair:   currency.NewPair(currency.BTC, currency.USD),
-				UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+				CurrencyPair:   currency.NewBTCUSD(),
+				UnderlyingPair: currency.NewBTCUSD(),
 				AssetType:      asset.Spot,
 			},
 			OpenPrice:  leet,

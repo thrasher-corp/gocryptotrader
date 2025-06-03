@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -76,11 +76,6 @@ const (
 	statusOpen = "open"
 
 	krakenFormat = "2006-01-02T15:04:05.000Z"
-
-	// ChannelOrderbookDepthKey configures the orderbook depth in stream.ChannelSubscription.Params
-	ChannelOrderbookDepthKey = "_depth"
-	// ChannelCandlesTimeframeKey configures the candle bar timeframe in stream.ChannelSubscription.Params
-	ChannelCandlesTimeframeKey = "_timeframe"
 )
 
 var (
@@ -185,7 +180,7 @@ type RecentTrades struct {
 	Time          float64
 	BuyOrSell     string
 	MarketOrLimit string
-	Miscellaneous interface{}
+	Miscellaneous any
 	TradeID       int64
 }
 
@@ -409,10 +404,10 @@ type WithdrawInformation struct {
 
 // DepositMethods Used to check deposit fees
 type DepositMethods struct {
-	Method          string      `json:"method"`
-	Limit           interface{} `json:"limit"` // If no limit amount, this comes back as boolean
-	Fee             float64     `json:"fee,string"`
-	AddressSetupFee float64     `json:"address-setup-fee,string"`
+	Method          string  `json:"method"`
+	Limit           any     `json:"limit"` // If no limit amount, this comes back as boolean
+	Fee             float64 `json:"fee,string"`
+	AddressSetupFee float64 `json:"address-setup-fee,string"`
 }
 
 // OrderDescription represents an orders description
@@ -431,13 +426,13 @@ type AddOrderOptions struct {
 	ClosePrice     float64
 	ClosePrice2    float64
 	Validate       bool
-	TimeInForce    RequestParamsTimeForceType
+	TimeInForce    string
 }
 
 // CancelOrderResponse type
 type CancelOrderResponse struct {
-	Count   int64       `json:"count"`
-	Pending interface{} `json:"pending"`
+	Count   int64 `json:"count"`
+	Pending any   `json:"pending"`
 }
 
 // DepositFees the large list of predefined deposit fees
@@ -479,10 +474,10 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // DepositAddress defines a deposit address
 type DepositAddress struct {
-	Address    string      `json:"address"`
-	ExpireTime interface{} `json:"expiretm"` // this is an int when new is specified
-	Tag        string      `json:"tag"`
-	New        bool        `json:"new"`
+	Address    string `json:"address"`
+	ExpireTime any    `json:"expiretm"` // this is an int when new is specified
+	Tag        string `json:"tag"`
+	New        bool   `json:"new"`
 }
 
 // WithdrawStatusResponse defines a withdrawal status response
@@ -504,7 +499,7 @@ type WebsocketSubRequest struct {
 	Event        string                    `json:"event"`
 	RequestID    int64                     `json:"reqid,omitempty"`
 	Pairs        []string                  `json:"pair,omitempty"`
-	Subscription WebsocketSubscriptionData `json:"subscription,omitempty"`
+	Subscription WebsocketSubscriptionData `json:"subscription"`
 }
 
 // WebsocketSubscriptionData contains details on WS channel
@@ -513,16 +508,15 @@ type WebsocketSubscriptionData struct {
 	Interval int    `json:"interval,omitempty"` // Optional - Timeframe for candles subscription in minutes; default 1. Valid: 1|5|15|30|60|240|1440|10080|21600
 	Depth    int    `json:"depth,omitempty"`    // Optional - Depth associated with orderbook; default 10. Valid: 10|25|100|500|1000
 	Token    string `json:"token,omitempty"`    // Optional - Token for authenticated channels
-
 }
 
 // WebsocketEventResponse holds all data response types
 type WebsocketEventResponse struct {
 	Event        string                            `json:"event"`
 	Status       string                            `json:"status"`
-	Pair         currency.Pair                     `json:"pair,omitempty"`
+	Pair         currency.Pair                     `json:"pair"`
 	RequestID    int64                             `json:"reqid,omitempty"`
-	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
+	Subscription WebsocketSubscriptionResponseData `json:"subscription"`
 	ChannelName  string                            `json:"channelName,omitempty"`
 	WebsocketSubscriptionEventResponse
 	WebsocketErrorResponse
@@ -635,25 +629,25 @@ type WsOpenOrderDescription struct {
 
 // WsAddOrderRequest request type for ws adding order
 type WsAddOrderRequest struct {
-	Event           string                     `json:"event"`
-	Token           string                     `json:"token"`
-	RequestID       int64                      `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	OrderType       string                     `json:"ordertype"`
-	OrderSide       string                     `json:"type"`
-	Pair            string                     `json:"pair"`
-	Price           float64                    `json:"price,string,omitempty"`  // optional
-	Price2          float64                    `json:"price2,string,omitempty"` // optional
-	Volume          float64                    `json:"volume,string,omitempty"`
-	Leverage        float64                    `json:"leverage,omitempty"`         // optional
-	OFlags          string                     `json:"oflags,omitempty"`           // optional
-	StartTime       string                     `json:"starttm,omitempty"`          // optional
-	ExpireTime      string                     `json:"expiretm,omitempty"`         // optional
-	UserReferenceID string                     `json:"userref,omitempty"`          // optional
-	Validate        string                     `json:"validate,omitempty"`         // optional
-	CloseOrderType  string                     `json:"close[ordertype],omitempty"` // optional
-	ClosePrice      float64                    `json:"close[price],omitempty"`     // optional
-	ClosePrice2     float64                    `json:"close[price2],omitempty"`    // optional
-	TimeInForce     RequestParamsTimeForceType `json:"timeinforce,omitempty"`      // optional
+	Event           string  `json:"event"`
+	Token           string  `json:"token"`
+	RequestID       int64   `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	OrderType       string  `json:"ordertype"`
+	OrderSide       string  `json:"type"`
+	Pair            string  `json:"pair"`
+	Price           float64 `json:"price,string,omitempty"`  // optional
+	Price2          float64 `json:"price2,string,omitempty"` // optional
+	Volume          float64 `json:"volume,string,omitempty"`
+	Leverage        float64 `json:"leverage,omitempty"`         // optional
+	OFlags          string  `json:"oflags,omitempty"`           // optional
+	StartTime       string  `json:"starttm,omitempty"`          // optional
+	ExpireTime      string  `json:"expiretm,omitempty"`         // optional
+	UserReferenceID string  `json:"userref,omitempty"`          // optional
+	Validate        string  `json:"validate,omitempty"`         // optional
+	CloseOrderType  string  `json:"close[ordertype],omitempty"` // optional
+	ClosePrice      float64 `json:"close[price],omitempty"`     // optional
+	ClosePrice2     float64 `json:"close[price2],omitempty"`    // optional
+	TimeInForce     string  `json:"timeinforce,omitempty"`      // optional
 }
 
 // WsAddOrderResponse response data for ws order
@@ -691,16 +685,6 @@ type OrderVars struct {
 	Fee       float64
 }
 
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// RequestParamsTimeGTC GTC
-	RequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-	// RequestParamsTimeIOC IOC
-	RequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
-
 type genericRESTResponse struct {
 	Error  errorResponse `json:"error"`
 	Result any           `json:"result"`
@@ -724,7 +708,7 @@ func (e *errorResponse) UnmarshalJSON(data []byte) error {
 		} else {
 			e.warnings = append(e.warnings, d)
 		}
-	case []interface{}:
+	case []any:
 		for x := range d {
 			errStr, ok := d[x].(string)
 			if !ok {

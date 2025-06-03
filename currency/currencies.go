@@ -1,8 +1,9 @@
 package currency
 
 import (
-	"encoding/json"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings

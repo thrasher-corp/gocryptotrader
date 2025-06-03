@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -34,11 +34,11 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() (subscription.List, error
 }
 
 // InverseSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) InverseSubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "subscribe", channelSubscriptions)
+func (by *Bybit) InverseSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+	return by.submitSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) InverseUnsubscribe(ctx context.Context, conn stream.Connection, channelSubscriptions subscription.List) error {
-	return by.handleSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "unsubscribe", channelSubscriptions)
+func (by *Bybit) InverseUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
+	return by.submitSubscriptionNonTemplate(ctx, conn, asset.CoinMarginedFutures, "unsubscribe", channelSubscriptions)
 }

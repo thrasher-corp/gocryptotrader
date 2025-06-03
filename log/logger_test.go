@@ -1,7 +1,6 @@
 package log
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -11,7 +10,9 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (
@@ -37,7 +38,8 @@ var (
 				Name:   "lOg",
 				Level:  "INFO|DEBUG|WARN|ERROR",
 				Output: "stdout",
-			}},
+			},
+		},
 	}
 	testConfigDisabled = &Config{
 		Enabled:         convert.BoolPtr(false),
@@ -104,9 +106,7 @@ func TestSetGlobalLogConfig(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigNil)
 	}
 	err = SetGlobalLogConfig(testConfigEnabled)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetLogPath(t *testing.T) {
@@ -117,9 +117,7 @@ func TestSetLogPath(t *testing.T) {
 	}
 
 	err = SetLogPath(tempDir)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if path := GetLogPath(); path != tempDir {
 		t.Fatalf("received: '%v' but expected: '%v'", path, tempDir)
@@ -154,9 +152,8 @@ func TestAddWriter(t *testing.T) {
 	}
 
 	mw, err := multiWriter()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	err = mw.add(io.Discard)
 	if err != nil {
 		t.Fatal(err)
@@ -247,9 +244,8 @@ func TestGetWriters(t *testing.T) {
 	}
 	fileLoggingConfiguredCorrectly = true
 	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	mu.Unlock()
 
 	outputWriters = "stdout|stderr|noobs"
@@ -588,9 +584,7 @@ func TestNewSubLogger(t *testing.T) {
 	}
 
 	sl, err := NewSubLogger("TESTERINOS")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	Debugln(sl, "testerinos")
 
@@ -619,21 +613,15 @@ func TestRotateWrite(t *testing.T) {
 	// test write
 	payload = make([]byte, 1*megabyte-1)
 	_, err = empty.Write(payload)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	// test rotate
 	payload = make([]byte, 1*megabyte)
 	_, err = empty.Write(payload)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = empty.Close()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestOpenNew(t *testing.T) {
@@ -646,14 +634,10 @@ func TestOpenNew(t *testing.T) {
 
 	empty.FileName = "wow.txt"
 	err = empty.openNew()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = empty.Close()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 type testBuffer struct {
@@ -688,15 +672,14 @@ func newTestBuffer() *testBuffer {
 // 2140294	       770.0 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", "", "", time.RFC3339, true, false, false, nil)
 	}
 }
 
 // BenchmarkInfo-8   	 1000000	     64971 ns/op	      47 B/op	       1 allocs/op
 func BenchmarkInfo(b *testing.B) {
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
 	}
 }
@@ -707,24 +690,21 @@ func BenchmarkInfoDisabled(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
 	}
 }
 
 // BenchmarkInfof-8   	 1000000	     72641 ns/op	     178 B/op	       4 allocs/op
 func BenchmarkInfof(b *testing.B) {
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for n := range b.N {
 		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
 }
 
 // BenchmarkInfoln-8   	 1000000	     68152 ns/op	     121 B/op	       3 allocs/op
 func BenchmarkInfoln(b *testing.B) {
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		Infoln(Global, "Hello this is an infoln benchmark")
 	}
 }

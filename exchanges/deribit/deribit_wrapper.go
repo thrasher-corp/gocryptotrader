@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,34 +27,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-// GetDefaultConfig returns a default exchange config
-func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	d.SetDefaults()
-	exchCfg, err := d.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if d.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := d.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
 
 // SetDefaults sets the basic defaults for Deribit
 func (d *Deribit) SetDefaults() {
@@ -65,13 +43,12 @@ func (d *Deribit) SetDefaults() {
 
 	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := d.StoreAssetPairFormat(asset.Spot, currency.PairStore{RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	if err := d.SetAssetPairStore(asset.Spot, currency.PairStore{AssetEnabled: true, RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat}); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", d.Name, asset.Spot, err)
 	}
-	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
-		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
-			log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err := d.SetAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", d.Name, a, err)
 		}
 	}
 
@@ -148,7 +125,10 @@ func (d *Deribit) SetDefaults() {
 				GlobalResultLimit: 500,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
+
+	var err error
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimits()),
@@ -170,7 +150,7 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	d.Websocket = stream.NewWebsocket()
+	d.Websocket = websocket.NewManager()
 	d.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	d.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	d.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -190,14 +170,14 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	err = d.Websocket.Setup(&stream.WebsocketSetup{
+	err = d.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            deribitWebsocketAddress,
 		RunningURL:            deribitWebsocketAddress,
 		Connector:             d.WsConnect,
 		Subscriber:            d.Subscribe,
 		Unsubscriber:          d.Unsubscribe,
-		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: d.generateSubscriptions,
 		Features:              &d.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
@@ -208,10 +188,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// setup option decimal regex at startup to make constant checks more efficient
-	optionRegex = regexp.MustCompile(optionDecimalRegex)
-
-	return d.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return d.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  d.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -223,30 +200,22 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
-	var resp currency.Pairs
-	for _, x := range baseCurrencies {
-		var instrumentsData []InstrumentData
-		var err error
-		if d.Websocket.IsConnected() {
-			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(x), d.GetAssetKind(assetType), false)
-		} else {
-			instrumentsData, err = d.GetInstruments(ctx, currency.NewCode(x), d.GetAssetKind(assetType), false)
+
+	instruments, err := d.GetInstruments(ctx, currency.EMPTYCODE, d.GetAssetKind(assetType), false)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make(currency.Pairs, 0, len(instruments))
+	for _, inst := range instruments {
+		if !inst.IsActive {
+			continue
 		}
+		cp, err := currency.NewPairFromString(inst.InstrumentName)
 		if err != nil {
 			return nil, err
 		}
-
-		for y := range instrumentsData {
-			if !instrumentsData[y].IsActive {
-				continue
-			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
-			if err != nil {
-				return nil, err
-			}
-			resp = resp.Add(cp)
-		}
+		resp = resp.Add(cp)
 	}
 	return resp, nil
 }
@@ -316,24 +285,6 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 	return ticker.GetTicker(d.Name, p, assetType)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (d *Deribit) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(d.Name, p, assetType)
-	if err != nil {
-		return d.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (d *Deribit) FetchOrderbook(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(d.Name, currencyPair, assetType)
-	if err != nil {
-		return d.UpdateOrderbook(ctx, currencyPair, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -413,19 +364,6 @@ func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.
 		resp.Accounts[x] = subAcc
 	}
 	return resp, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (d *Deribit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := d.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	accountData, err := account.GetHoldings(d.Name, creds, assetType)
-	if err != nil {
-		return d.UpdateAccountInfo(ctx, assetType)
-	}
-	return accountData, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -591,7 +529,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
-	var hasMore = true
+	hasMore := true
 	for hasMore {
 		if d.Websocket.IsConnected() {
 			tradesData, err = d.WSRetrieveLastTradesByInstrumentAndTime(instrumentID, "asc", 100, true, timestampStart, timestampEnd)
@@ -647,7 +585,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return nil, err
 	}
 	timeInForce := ""
-	if s.ImmediateOrCancel {
+	if s.TimeInForce.Is(order.ImmediateOrCancel) {
 		timeInForce = "immediate_or_cancel"
 	}
 	var data *PrivateTradeData
@@ -659,7 +597,7 @@ func (d *Deribit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		Amount:       s.Amount,
 		Price:        s.Price,
 		TriggerPrice: s.TriggerPrice,
-		PostOnly:     s.PostOnly,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
 		ReduceOnly:   s.ReduceOnly,
 	}
 	switch {
@@ -711,7 +649,7 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 	var err error
 	reqParam := &OrderBuyAndSellParams{
 		TriggerPrice: action.TriggerPrice,
-		PostOnly:     action.PostOnly,
+		PostOnly:     action.TimeInForce.Is(order.PostOnly),
 		Amount:       action.Amount,
 		OrderID:      action.OrderID,
 		Price:        action.Price,
@@ -835,10 +773,15 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 			return nil, fmt.Errorf("%v: orderStatus %s not supported", d.Name, orderInfo.OrderState)
 		}
 	}
+	var tif order.TimeInForce
+	tif, err = timeInForceFromString(orderInfo.TimeInForce, orderInfo.PostOnly)
+	if err != nil {
+		return nil, err
+	}
 	return &order.Detail{
 		AssetType:       assetType,
 		Exchange:        d.Name,
-		PostOnly:        orderInfo.PostOnly,
+		TimeInForce:     tif,
 		Price:           orderInfo.Price,
 		Amount:          orderInfo.Amount,
 		ExecutedAmount:  orderInfo.FilledAmount,
@@ -914,7 +857,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if len(getOrdersRequest.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	var resp = []order.Detail{}
+	resp := []order.Detail{}
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
@@ -956,10 +899,15 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if ordersData[y].OrderState != "open" {
 				continue
 			}
+
+			var tif order.TimeInForce
+			tif, err = timeInForceFromString(ordersData[y].TimeInForce, ordersData[y].PostOnly)
+			if err != nil {
+				return nil, err
+			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
-				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,
 				Amount:          ordersData[y].Amount,
 				ExecutedAmount:  ordersData[y].FilledAmount,
@@ -971,6 +919,7 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
+				TimeInForce:     tif,
 			})
 		}
 	}
@@ -1025,10 +974,15 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					return resp, fmt.Errorf("%v: orderStatus %s not supported", d.Name, ordersData[y].OrderState)
 				}
 			}
+
+			var tif order.TimeInForce
+			tif, err = timeInForceFromString(ordersData[y].TimeInForce, ordersData[y].PostOnly)
+			if err != nil {
+				return nil, err
+			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
-				PostOnly:        ordersData[y].PostOnly,
 				Price:           ordersData[y].Price,
 				Amount:          ordersData[y].Amount,
 				ExecutedAmount:  ordersData[y].FilledAmount,
@@ -1040,6 +994,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				Side:            orderSide,
 				Type:            orderType,
 				Status:          orderStatus,
+				TimeInForce:     tif,
 			})
 		}
 	}
@@ -1209,7 +1164,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 	}
 	resp := []futures.Contract{}
 	for _, ccy := range baseCurrencies {
-		var marketSummary []InstrumentData
+		var marketSummary []*InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
 			marketSummary, err = d.WSRetrieveInstrumentsData(currency.NewCode(ccy), d.GetAssetKind(item), false)
@@ -1219,17 +1174,16 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		if err != nil {
 			return nil, err
 		}
-		for i := range marketSummary {
-			if marketSummary[i].Kind != "future" && marketSummary[i].Kind != "future_combo" {
+		for _, inst := range marketSummary {
+			if inst.Kind != "future" && inst.Kind != "future_combo" {
 				continue
 			}
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(marketSummary[i].InstrumentName)
+			cp, err := currency.NewPairFromString(inst.InstrumentName)
 			if err != nil {
 				return nil, err
 			}
 			var ct futures.ContractType
-			switch marketSummary[i].SettlementPeriod {
+			switch inst.SettlementPeriod {
 			case "day":
 				ct = futures.Daily
 			case "week":
@@ -1240,7 +1194,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ct = futures.Perpetual
 			}
 			var contractSettlementType futures.ContractSettlementType
-			if marketSummary[i].InstrumentType == "reversed" {
+			if inst.InstrumentType == "reversed" {
 				contractSettlementType = futures.Inverse
 			} else {
 				contractSettlementType = futures.Linear
@@ -1248,16 +1202,16 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			resp = append(resp, futures.Contract{
 				Exchange:             d.Name,
 				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].BaseCurrency), currency.NewCode(marketSummary[i].QuoteCurrency)),
+				Underlying:           currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
 				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
-				StartDate:            marketSummary[i].CreationTimestamp.Time(),
-				EndDate:              marketSummary[i].ExpirationTimestamp.Time(),
+				SettlementCurrencies: []currency.Code{currency.NewCode(inst.SettlementCurrency)},
+				StartDate:            inst.CreationTimestamp.Time(),
+				EndDate:              inst.ExpirationTimestamp.Time(),
 				Type:                 ct,
 				SettlementType:       contractSettlementType,
-				IsActive:             marketSummary[i].IsActive,
-				MaxLeverage:          marketSummary[i].MaxLeverage,
-				Multiplier:           marketSummary[i].ContractSize,
+				IsActive:             inst.IsActive,
+				MaxLeverage:          inst.MaxLeverage,
+				Multiplier:           inst.ContractSize,
 			})
 		}
 	}
@@ -1270,7 +1224,7 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, a)
 	}
 	for _, x := range baseCurrencies {
-		var instrumentsData []InstrumentData
+		var instrumentsData []*InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
 			instrumentsData, err = d.WSRetrieveInstrumentsData(currency.NewCode(x), d.GetAssetKind(a), false)
@@ -1284,17 +1238,17 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		}
 
 		limits := make([]order.MinMaxLevel, len(instrumentsData))
-		for x := range instrumentsData {
+		for x, inst := range instrumentsData {
 			var pair currency.Pair
-			pair, err = currency.NewPairFromString(instrumentsData[x].InstrumentName)
+			pair, err = currency.NewPairFromString(inst.InstrumentName)
 			if err != nil {
 				return err
 			}
 			limits[x] = order.MinMaxLevel{
 				Pair:                   pair,
 				Asset:                  a,
-				PriceStepIncrementSize: instrumentsData[x].TickSize,
-				MinimumBaseAmount:      instrumentsData[x].MinimumTradeAmount,
+				PriceStepIncrementSize: inst.TickSize,
+				MinimumBaseAmount:      inst.MinimumTradeAmount,
 			}
 		}
 		err = d.LoadLimits(limits)
@@ -1355,9 +1309,10 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	}
 
 	var baseSize float64
-	if r.Asset == asset.Futures {
+	switch r.Asset {
+	case asset.Futures:
 		baseSize = pos[index].SizeCurrency
-	} else if r.Asset == asset.Options {
+	case asset.Options:
 		baseSize = pos[index].Size
 	}
 	contractSize = multiplier * baseSize
@@ -1492,7 +1447,7 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, err
 	}
 	if !isPerpetual {
-		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
+		return nil, fmt.Errorf("%w %q", futures.ErrNotPerpetualFuture, r.Pair)
 	}
 	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
@@ -1561,10 +1516,7 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 
 	var fundingRates []fundingrate.Rate
 	mfr := make(map[int64]struct{})
-	for {
-		if ed.Equal(r.StartDate) || ed.Before(r.StartDate) {
-			break
-		}
+	for ed.After(r.StartDate) {
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
 			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)
@@ -1619,4 +1571,15 @@ func (d *Deribit) formatPairString(assetType asset.Item, pair currency.Pair) str
 		return d.optionPairToString(pair)
 	}
 	return pair.String()
+}
+
+func timeInForceFromString(timeInForceString string, postOnly bool) (order.TimeInForce, error) {
+	tif, err := order.StringToTimeInForce(timeInForceString)
+	if err != nil {
+		return order.UnknownTIF, err
+	}
+	if postOnly {
+		tif |= order.PostOnly
+	}
+	return tif, nil
 }

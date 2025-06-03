@@ -1,197 +1,206 @@
 package gateio
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestWebsocketOrderPlaceFutures(t *testing.T) {
+var (
+	BTCUSDT = currency.NewPairWithDelimiter("BTC", "USDT", "_")
+	BTCUSD  = currency.NewPairWithDelimiter("BTC", "USD", "_")
+)
+
+func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketOrderPlaceFutures(context.Background(), nil)
-	require.ErrorIs(t, err, errOrdersEmpty)
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), make([]OrderCreateParams, 1))
+	_, err := g.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &ContractOrderCreateParams{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	out := &ContractOrderCreateParams{Contract: BTCUSDT}
+	_, err = g.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, errInvalidPrice)
+	out.Price = "40000"
+	_, err = g.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, errInvalidAmount)
+	out.Size = 1 // 1 lovely long contract
+	out.AutoSize = "silly_billies"
+	_, err = g.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, errInvalidAutoSize)
 
-	out := OrderCreateParams{}
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	out.Contract, err = currency.NewPairFromString("BTC_USDT")
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	out.AutoSize = ""
+
+	got, err := g.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.NoError(t, err)
+	require.NotEmpty(t, got)
+}
 
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
+func TestWebsocketFuturesSubmitOrders(t *testing.T) {
+	t.Parallel()
+	_, err := g.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures)
+	require.ErrorIs(t, err, errOrdersEmpty)
+
+	out := &ContractOrderCreateParams{}
+	_, err = g.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	out.Contract = BTCUSDT
+
+	_, err = g.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidPrice)
 
 	out.Price = "40000"
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
+	_, err = g.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	out.Size = 1 // 1 lovely long contract
 	out.AutoSize = "silly_billies"
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
+	_, err = g.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
 	out.AutoSize = "close_long"
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
+	_, err = g.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	out.AutoSize = ""
-	outBad := out
-	outBad.Contract, err = currency.NewPairFromString("BTC_USD")
-	require.NoError(t, err)
-
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out, outBad})
-	require.ErrorIs(t, err, errSettlementCurrencyConflict)
-
-	outBad.Contract, out.Contract = out.Contract, outBad.Contract // swapsies
-	_, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out, outBad})
-	require.ErrorIs(t, err, errSettlementCurrencyConflict)
-
-	outBad.Contract, out.Contract = out.Contract, outBad.Contract // swapsies back
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	// test single order
-	got, err := g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out})
+	got, err := g.WebsocketFuturesSubmitOrders(t.Context(), asset.CoinMarginedFutures, out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	// test batch orders
-	got, err = g.WebsocketOrderPlaceFutures(context.Background(), []OrderCreateParams{out, out})
+	got, err = g.WebsocketFuturesSubmitOrders(t.Context(), asset.CoinMarginedFutures, out, out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
 
-func TestWebsocketOrderCancelFutures(t *testing.T) {
+func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	t.Parallel()
-
-	_, err := g.WebsocketOrderCancelFutures(context.Background(), "", currency.EMPTYPAIR)
+	_, err := g.WebsocketFuturesCancelOrder(t.Context(), "", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	_, err = g.WebsocketOrderCancelFutures(context.Background(), "42069", currency.EMPTYPAIR)
+	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = g.WebsocketFuturesCancelOrder(t.Context(), "42069", BTCUSDT, asset.Empty)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-
-	got, err := g.WebsocketOrderCancelFutures(context.Background(), "513160761072", pair)
+	got, err := g.WebsocketFuturesCancelOrder(t.Context(), "513160761072", BTCUSDT, asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
 
-func TestWebsocketOrderCancelAllOpenFuturesOrdersMatched(t *testing.T) {
+func TestWebsocketFuturesCancelAllOpenFuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketOrderCancelAllOpenFuturesOrdersMatched(context.Background(), currency.EMPTYPAIR, "")
+	_, err := g.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), currency.EMPTYPAIR, asset.Empty, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
-	_, err = g.WebsocketOrderCancelAllOpenFuturesOrdersMatched(context.Background(), pair, "bruh")
-	require.ErrorIs(t, err, errInvalidSide)
+	_, err = g.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), BTCUSDT, asset.Empty, "bruh")
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = g.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "bruh")
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	got, err := g.WebsocketOrderCancelAllOpenFuturesOrdersMatched(context.Background(), pair, "bid")
+	got, err := g.WebsocketFuturesCancelAllOpenFuturesOrders(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "bid")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
 
-func TestWebsocketOrderAmendFutures(t *testing.T) {
+func TestWebsocketFuturesAmendOrder(t *testing.T) {
 	t.Parallel()
-
-	_, err := g.WebsocketOrderAmendFutures(context.Background(), nil)
+	_, err := g.WebsocketFuturesAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	amend := &WebsocketFuturesAmendOrder{}
-	_, err = g.WebsocketOrderAmendFutures(context.Background(), amend)
+	_, err = g.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	amend.OrderID = "1337"
-	_, err = g.WebsocketOrderAmendFutures(context.Background(), amend)
+	_, err = g.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	amend.Contract, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	amend.Contract = BTCUSDT
+	_, err = g.WebsocketFuturesAmendOrder(t.Context(), amend)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = g.WebsocketOrderAmendFutures(context.Background(), amend)
+	amend.Asset = asset.USDTMarginedFutures
+	_, err = g.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	amend.Size = 2
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	amend.OrderID = "513170215869"
-	got, err := g.WebsocketOrderAmendFutures(context.Background(), amend)
+	got, err := g.WebsocketFuturesAmendOrder(t.Context(), amend)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
 
-func TestWebsocketOrderListFutures(t *testing.T) {
+func TestWebsocketFuturesOrderList(t *testing.T) {
 	t.Parallel()
-
-	_, err := g.WebsocketOrderListFutures(context.Background(), nil)
+	_, err := g.WebsocketFuturesOrderList(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	list := &WebsocketFutureOrdersList{}
-	_, err = g.WebsocketOrderListFutures(context.Background(), list)
+	_, err = g.WebsocketFuturesOrderList(t.Context(), list)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	list.Contract, err = currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	list.Contract = BTCUSDT
+	_, err = g.WebsocketFuturesOrderList(t.Context(), list)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = g.WebsocketOrderListFutures(context.Background(), list)
+	list.Asset = asset.USDTMarginedFutures
+	_, err = g.WebsocketFuturesOrderList(t.Context(), list)
 	require.ErrorIs(t, err, errStatusNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	list.Status = statusOpen
-	got, err := g.WebsocketOrderListFutures(context.Background(), list)
+	got, err := g.WebsocketFuturesOrderList(t.Context(), list)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
 
-func TestWebsocketGetOrderStatusFutures(t *testing.T) {
+func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 	t.Parallel()
-
-	_, err := g.WebsocketGetOrderStatusFutures(context.Background(), currency.EMPTYPAIR, "")
+	_, err := g.WebsocketFuturesGetOrderStatus(t.Context(), currency.EMPTYPAIR, asset.Empty, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair, err := currency.NewPairFromString("BTC_USDT")
-	require.NoError(t, err)
+	_, err = g.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.Empty, "")
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = g.WebsocketGetOrderStatusFutures(context.Background(), pair, "")
+	_, err = g.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
-	g := getWebsocketInstance(t, g) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	g := newExchangeWithWebsocket(t, asset.Futures) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	got, err := g.WebsocketGetOrderStatusFutures(context.Background(), pair, "513170215869")
+	got, err := g.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "513170215869")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }

@@ -8,9 +8,12 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -330,11 +333,7 @@ func TestParseInterval(t *testing.T) {
 	}
 
 	_, err = parseInterval("6m")
-	if err != nil {
-		if !errors.Is(err, errInvalidInterval) {
-			t.Error(err)
-		}
-	}
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "parseInterval should return invalid interval for 6m")
 }
 
 func TestSetVerbose(t *testing.T) {
@@ -350,9 +349,7 @@ func TestSetVerbose(t *testing.T) {
 	}
 
 	resp, err := setVerbose(&Context{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctx, ok := objects.ToInterface(resp).(*Context)
 	if !ok {
@@ -410,9 +407,7 @@ func TestSetAccount(t *testing.T) {
 	}
 
 	resp, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctx, ok := objects.ToInterface(resp).(*Context)
 	if !ok {
@@ -463,9 +458,7 @@ func TestSetSubAccount(t *testing.T) {
 	}
 
 	subby, err := setSubAccount(&Context{}, dummyStr)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctxWSubAcc, ok := subby.(*Context)
 	if !ok {
@@ -500,14 +493,10 @@ func TestProcessScriptContext(t *testing.T) {
 	}
 
 	fromScript, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	fromScript, err = setVerbose(fromScript)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	scriptCTX, ok := objects.ToInterface(fromScript).(*Context)
 	if !ok {

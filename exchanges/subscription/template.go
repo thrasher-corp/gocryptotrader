@@ -20,11 +20,9 @@ const (
 )
 
 var (
-	errInvalidAssetExpandPairs  = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
 	errAssetRecords             = errors.New("subscription template did not generate the expected number of asset records")
 	errPairRecords              = errors.New("subscription template did not generate the expected number of pair records")
 	errTooManyBatchSizePerAsset = errors.New("more than one BatchSize directive inside an AssetSeparator")
-	errAssetTemplateWithoutAll  = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
 	errNoTemplateContent        = errors.New("subscription template did not generate content")
 	errInvalidTemplate          = errors.New("GetSubscriptionTemplate did not return a template")
 )
@@ -42,7 +40,8 @@ type tplCtx struct {
 // Calls e.GetSubscriptionTemplate to find a template for each subscription
 // Filters out Authenticated subscriptions if !e.CanUseAuthenticatedEndpoints
 // See README.md for more details
-func (l List) ExpandTemplates(e iExchange) (List, error) {
+// The exchange can optionally implement ListValidator to have custom validation on subscriptions
+func (l List) ExpandTemplates(e IExchange) (List, error) {
 	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
 		// Empty list, or already processed
 		return slices.Clone(l), nil
@@ -74,15 +73,28 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 		expanded, err2 := expandTemplate(e, s, maps.Clone(ap), assets)
 		if err2 != nil {
 			err = common.AppendError(err, fmt.Errorf("%s: %w", s, err2))
-		} else {
-			subs = append(subs, expanded...)
+			continue
+		}
+
+		subs = append(subs, expanded...)
+	}
+
+	// Validate the subscriptions after expansion to capture fields that will be used in the template
+	if v, ok := e.(ListValidator); ok {
+		// Need to check against the already stored subscriptions, as we add additional subscriptions
+		storedSubs, err := e.GetSubscriptions()
+		if err != nil {
+			return nil, err
+		}
+		if err := v.ValidateSubscriptions(slices.Concat(subs, storedSubs)); err != nil {
+			return nil, fmt.Errorf("error validating subscriptions: %w", err)
 		}
 	}
 
 	return subs, err
 }
 
-func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
+func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
 	if s.QualifiedChannel != "" {
 		return List{s}, nil
 	}
@@ -129,7 +141,7 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 	}
 
 	buf := &bytes.Buffer{}
-	if err := t.Execute(buf, subCtx); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
+	if err := t.Execute(buf, subCtx); err != nil {
 		return nil, err
 	}
 

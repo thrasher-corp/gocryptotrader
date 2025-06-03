@@ -12,19 +12,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// const values for orderbook package
 const (
 	bidLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Bids: %w"
 	askLoadBookFailure = "cannot load book for exchange %s pair %s asset %s for Asks: %w"
 	bookLengthIssue    = "Potential book issue for exchange %s pair %s asset %s length Bids %d length Asks %d"
 )
 
-// Vars for the orderbook package
+// Public errors
+var (
+	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+)
+
 var (
 	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
 	errPairNotSet           = errors.New("orderbook currency pair not set")
 	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
-	errCannotFindOrderbook  = errors.New("cannot find orderbook(s)")
 	errPriceNotSet          = errors.New("price cannot be zero")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
@@ -36,23 +38,23 @@ var (
 	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
-var service = Service{
-	books: make(map[string]Exchange),
-	Mux:   dispatch.GetNewMux(nil),
+var s = store{
+	orderbooks:      make(map[key.ExchangePairAsset]book),
+	exchangeRouters: make(map[string]uuid.UUID),
+	signalMux:       dispatch.GetNewMux(nil),
 }
 
-// Service provides a store for difference exchange orderbooks
-type Service struct {
-	books map[string]Exchange
-	*dispatch.Mux
-	mu sync.Mutex
+type book struct {
+	RouterID uuid.UUID
+	Depth    *Depth
 }
 
-// Exchange defines a holder for the exchange specific depth items with a
-// specific ID associated with that exchange
-type Exchange struct {
-	m  map[key.PairAsset]*Depth
-	ID uuid.UUID
+// store provides a centralised store for orderbooks
+type store struct {
+	orderbooks      map[key.ExchangePairAsset]book
+	exchangeRouters map[string]uuid.UUID
+	signalMux       *dispatch.Mux
+	m               sync.RWMutex
 }
 
 // Tranche defines a segmented portions of an order or options book
@@ -164,7 +166,7 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID       int64 // Used when no time is provided
+	UpdateID       int64
 	UpdateTime     time.Time
 	UpdatePushedAt time.Time
 	Asset          asset.Item
@@ -174,6 +176,8 @@ type Update struct {
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
+	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data.
+	AllowEmpty bool
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or
@@ -201,7 +205,7 @@ type Movement struct {
 	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
 	// by the requested amount. This might not represent the actual book on the
 	// exchange as they might restrict the amount of information being passed
-	// back from either a REST request or websocket stream.
+	// back from either a REST request or websocket update
 	FullBookSideConsumed bool
 }
 

@@ -2,32 +2,30 @@ package gateio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const (
-	futuresWebsocketBtcURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
-	futuresWebsocketUsdtURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
+	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
 
 	futuresPingChannel            = "futures.ping"
 	futuresTickersChannel         = "futures.tickers"
@@ -47,24 +45,27 @@ const (
 	futuresReduceRiskLimitsChannel  = "futures.reduce_risk_limits"
 	futuresPositionsChannel         = "futures.positions"
 	futuresAutoOrdersChannel        = "futures.autoorders"
+
+	futuresOrderbookUpdateLimit uint64 = 20
 )
 
 var defaultFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
-	futuresOrderbookChannel,
 	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
 
 // WsFuturesConnect initiates a websocket connection for futures account
-func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
-	if err != nil {
+func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
+	a := asset.USDTMarginedFutures
+	if conn.GetURL() == btcFuturesWebsocketURL {
+		a = asset.CoinMarginedFutures
+	}
+	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
-	if err != nil {
+	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -75,9 +76,9 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 	if err != nil {
 		return err
 	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, websocket.PingHandler{
 		Websocket:   true,
-		MessageType: websocket.PingMessage,
+		MessageType: gws.PingMessage,
 		Delay:       time.Second * 15,
 		Message:     pingMessage,
 	})
@@ -85,27 +86,19 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) e
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
-func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (subscription.List, error) {
+// TODO: Update to use the new subscription template system
+func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
-	pairs, err := g.GetEnabledPairs(asset.Futures)
+	pairs, err := g.GetEnabledPairs(a)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
 		}
 		return nil, err
-	}
-
-	switch {
-	case settlement.Equal(currency.USDT):
-		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return !p.Quote.Equal(currency.USDT) })
-	case settlement.Equal(currency.BTC):
-		pairs = slices.DeleteFunc(pairs, func(p currency.Pair) bool { return p.Quote.Equal(currency.USDT) })
-	default:
-		return nil, fmt.Errorf("settlement currency %s not supported", settlement)
 	}
 
 	var subscriptions subscription.List
@@ -119,10 +112,11 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
 			case futuresOrderbookUpdateChannel:
-				params["frequency"] = kline.ThousandMilliseconds
-				params["level"] = "100"
+				// This is the fastest frequency available for futures orderbook updates 20 levels every 20ms
+				params["frequency"] = kline.TwentyMilliseconds
+				params["level"] = strconv.FormatUint(futuresOrderbookUpdateLimit, 10)
 			}
-			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.Futures)
+			fPair, err := g.FormatExchangeCurrency(pairs[j], a)
 			if err != nil {
 				return nil, err
 			}
@@ -130,7 +124,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
-				Asset:   asset.Futures,
+				Asset:   a,
 			})
 		}
 	}
@@ -138,34 +132,28 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions(settlement currency.Code) (
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesSubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Gateio) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
 
 // WsHandleFuturesData handles futures websocket data
-func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
-	var push WsResponse
-	if err := json.Unmarshal(respRaw, &push); err != nil {
+func (g *Gateio) WsHandleFuturesData(ctx context.Context, respRaw []byte, a asset.Item) error {
+	push, err := parseWSHeader(respRaw)
+	if err != nil {
 		return err
 	}
 
 	if push.RequestID != "" {
-		if !g.Websocket.Match.IncomingWithData(push.RequestID, respRaw) {
-			return fmt.Errorf("gateio_websocket.go error - unable to match requestID %v", push.RequestID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
 	}
 
 	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
+		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
 	}
 
 	switch push.Channel {
@@ -174,11 +162,11 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresTradesChannel:
 		return g.processFuturesTrades(respRaw, a)
 	case futuresOrderbookChannel:
-		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.TimeMs.Time())
+		return g.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.Time)
 	case futuresOrderbookTickerChannel:
 		return g.processFuturesOrderbookTicker(push.Result)
 	case futuresOrderbookUpdateChannel:
-		return g.processFuturesAndOptionsOrderbookUpdate(push.Result, a)
+		return g.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, a)
 	case futuresOrdersChannel:
@@ -197,7 +185,7 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresAutoPositionCloseChannel:
 		return g.processPositionCloseData(respRaw)
 	case futuresBalancesChannel:
-		return g.processBalancePushData(respRaw, a)
+		return g.processBalancePushData(ctx, respRaw, a)
 	case futuresReduceRiskLimitsChannel:
 		return g.processFuturesReduceRiskLimitNotification(respRaw)
 	case futuresPositionsChannel:
@@ -205,14 +193,14 @@ func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.
 	case futuresAutoOrdersChannel:
 		return g.processFuturesAutoOrderPushData(respRaw)
 	default:
-		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		g.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: g.Name + websocket.UnhandledMessage + string(respRaw),
 		}
-		return errors.New(stream.UnhandledMessage)
+		return errors.New(websocket.UnhandledMessage)
 	}
 }
 
-func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Gateio) generateFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -262,7 +250,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
 			var frequencyString string
-			frequencyString, err = g.GetIntervalString(frequency)
+			frequencyString, err = getIntervalString(frequency)
 			if err != nil {
 				return nil, err
 			}
@@ -285,7 +273,7 @@ func (g *Gateio) generateFuturesPayload(ctx context.Context, conn stream.Connect
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
 			if okay {
 				var intervalString string
-				intervalString, err = g.GetIntervalString(interval)
+				intervalString, err = getIntervalString(interval)
 				if err != nil {
 					return nil, err
 				}
@@ -358,7 +346,7 @@ func (g *Gateio) processFuturesTrades(data []byte, assetType asset.Item) error {
 	trades := make([]trade.Data, len(resp.Result))
 	for x := range resp.Result {
 		trades[x] = trade.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    assetType,
 			Exchange:     g.Name,
@@ -381,7 +369,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 	if err != nil {
 		return err
 	}
-	klineDatas := make([]stream.KlineData, len(resp.Result))
+	klineDatas := make([]websocket.KlineData, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -391,7 +379,7 @@ func (g *Gateio) processFuturesCandlesticks(data []byte, assetType asset.Item) e
 		if err != nil {
 			return err
 		}
-		klineDatas[x] = stream.KlineData{
+		klineDatas[x] = websocket.KlineData{
 			Pair:       currencyPair,
 			AssetType:  assetType,
 			Exchange:   g.Name,
@@ -418,50 +406,32 @@ func (g *Gateio) processFuturesOrderbookTicker(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
 	var data WsFuturesAndOptionsOrderbookUpdate
-	err := json.Unmarshal(incoming, &data)
-	if err != nil {
+	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	if (assetType == asset.Options && !fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()]) ||
-		(assetType != asset.Options && !fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()]) {
-		orderbooks, err := g.FetchOrderbook(context.Background(), data.ContractName, assetType)
-		if err != nil {
-			return err
-		}
-		if orderbooks.LastUpdateID < data.FirstUpdatedID || orderbooks.LastUpdateID > data.LastUpdatedID {
-			return nil
-		}
-		err = g.Websocket.Orderbook.LoadSnapshot(orderbooks)
-		if err != nil {
-			return err
-		}
-		if assetType == asset.Options {
-			fetchedOptionsCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
-		} else {
-			fetchedFuturesCurrencyPairSnapshotOrderbook[data.ContractName.String()] = true
-		}
-	}
-	updates := orderbook.Update{
-		UpdateTime: data.TimestampInMs.Time(),
-		Pair:       data.ContractName,
-		Asset:      assetType,
-	}
-	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
-		updates.Asks[x].Amount = data.Asks[x].Size
-		updates.Asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Amount = data.Asks[x].Size
 	}
-	updates.Bids = make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
-		updates.Bids[x].Amount = data.Bids[x].Size
-		updates.Bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Amount = data.Bids[x].Size
 	}
-	if len(updates.Asks) == 0 && len(updates.Bids) == 0 {
-		return errors.New("malformed orderbook data")
-	}
-	return g.Websocket.Orderbook.Update(&updates)
+
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
+		UpdateID:       data.LastUpdatedID,
+		UpdateTime:     data.Timestamp.Time(),
+		UpdatePushedAt: pushTime,
+		Pair:           data.ContractName,
+		Asset:          a,
+		Asks:           asks,
+		Bids:           bids,
+		AllowEmpty:     true,
+	})
 }
 
 func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
@@ -475,7 +445,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            data.Contract,
-			LastUpdated:     data.TimestampInMs.Time(),
+			LastUpdated:     data.Timestamp.Time(),
 			UpdatePushedAt:  updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
@@ -579,13 +549,13 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
-			LastUpdated:    resp.Result[x].FinishTimeMs.Time(),
-			Date:           resp.Result[x].CreateTimeMs.Time(),
+			LastUpdated:    resp.Result[x].FinishTime.Time(),
+			Date:           resp.Result[x].CreateTime.Time(),
 			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
 			Price:          resp.Result[x].Price,
 			AssetType:      assetType,
 			AccountID:      resp.Result[x].User,
-			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
+			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
 	return orderDetails, nil
@@ -609,7 +579,7 @@ func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) erro
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
 		fills[x] = fill.Data{
-			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
+			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].Contract,
 			OrderID:      resp.Result[x].OrderID,
@@ -667,7 +637,7 @@ func (g *Gateio) processPositionCloseData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processBalancePushData(data []byte, assetType asset.Item) error {
+func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    int64       `json:"time"`
 		Channel string      `json:"channel"`
@@ -678,23 +648,29 @@ func (g *Gateio) processBalancePushData(data []byte, assetType asset.Item) error
 	if err != nil {
 		return err
 	}
-	accountChange := make([]account.Change, len(resp.Result))
-	for x := range resp.Result {
-		info := strings.Split(resp.Result[x].Text, currency.UnderscoreDelimiter)
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
+	for x, bal := range resp.Result {
+		info := strings.Split(bal.Text, currency.UnderscoreDelimiter)
 		if len(info) != 2 {
 			return errors.New("malformed text")
 		}
-		code := currency.NewCode(info[0])
-		accountChange[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    assetType,
-			Amount:   resp.Result[x].Balance,
-			Account:  resp.Result[x].User,
+		changes[x] = account.Change{
+			AssetType: assetType,
+			Account:   bal.User,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(info[0]),
+				Total:     bal.Balance,
+				Free:      bal.Balance,
+				UpdatedAt: bal.Time.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChange
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
 func (g *Gateio) processFuturesReduceRiskLimitNotification(data []byte) error {

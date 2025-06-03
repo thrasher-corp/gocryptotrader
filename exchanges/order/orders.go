@@ -2,10 +2,10 @@ package order
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
@@ -42,7 +43,6 @@ var (
 )
 
 var (
-	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errExchangeNameUnset        = errors.New("exchange name unset")
@@ -76,7 +76,7 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 	}
 
 	if !s.AssetType.IsValid() {
-		return fmt.Errorf("'%s' %w", s.AssetType, asset.ErrNotSupported)
+		return fmt.Errorf("%q %w", s.AssetType, asset.ErrNotSupported)
 	}
 
 	if !IsValidOrderSubmissionSide(s.Side) {
@@ -87,8 +87,8 @@ func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...vali
 		return ErrTypeIsInvalid
 	}
 
-	if s.ImmediateOrCancel && s.FillOrKill {
-		return errTimeInForceConflict
+	if !s.TimeInForce.IsValid() {
+		return ErrInvalidTimeInForce
 	}
 
 	if s.Amount == 0 && s.QuoteAmount == 0 {
@@ -158,16 +158,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 
 	var updated bool
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if m.TimeInForce != UnknownTIF && d.TimeInForce != m.TimeInForce {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if d.HiddenOrder != m.HiddenOrder {
 		d.HiddenOrder = m.HiddenOrder
-		updated = true
-	}
-	if d.FillOrKill != m.FillOrKill {
-		d.FillOrKill = m.FillOrKill
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -206,10 +202,6 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.AccountID = m.AccountID
 		updated = true
 	}
-	if m.PostOnly != d.PostOnly {
-		d.PostOnly = m.PostOnly
-		updated = true
-	}
 	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
 		// TODO: Add a check to see if the original pair is empty as well, but
 		// error if it is changing from BTC-USD -> LTC-USD.
@@ -226,10 +218,6 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if m.ClientOrderID != "" && m.ClientOrderID != d.ClientOrderID {
 		d.ClientOrderID = m.ClientOrderID
-		updated = true
-	}
-	if m.WalletAddress != "" && m.WalletAddress != d.WalletAddress {
-		d.WalletAddress = m.WalletAddress
 		updated = true
 	}
 	if m.Type != UnknownType && m.Type != d.Type {
@@ -325,8 +313,8 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.OrderID = m.OrderID
 		updated = true
 	}
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -339,10 +327,6 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	}
 	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
 		d.TriggerPrice = m.TriggerPrice
-		updated = true
-	}
-	if m.PostOnly != d.PostOnly {
-		d.PostOnly = m.PostOnly
 		updated = true
 	}
 	if !m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
@@ -384,7 +368,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 // empty elements are ignored
 func (d *Detail) MatchFilter(f *Filter) bool {
 	switch {
-	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
+	case f.Exchange != "" && d.Exchange != f.Exchange:
 		return false
 	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
 		return false
@@ -405,8 +389,6 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 	case !f.InternalOrderID.IsNil() && d.InternalOrderID != f.InternalOrderID:
 		return false
 	case f.AccountID != "" && d.AccountID != f.AccountID:
-		return false
-	case f.WalletAddress != "" && d.WalletAddress != f.WalletAddress:
 		return false
 	default:
 		return true
@@ -501,18 +483,16 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
-		MarginType:        s.MarginType,
+		TimeInForce:   s.TimeInForce,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
+		MarginType:    s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
@@ -594,17 +574,15 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
+		TimeInForce:   s.TimeInForce,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
 
 		InternalOrderID: internal,
 
@@ -654,18 +632,17 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 		return nil, errOrderDetailIsNil
 	}
 	return &ModifyResponse{
-		Exchange:          m.Exchange,
-		OrderID:           m.OrderID,
-		ClientOrderID:     m.ClientOrderID,
-		Type:              m.Type,
-		Side:              m.Side,
-		AssetType:         m.AssetType,
-		Pair:              m.Pair,
-		ImmediateOrCancel: m.ImmediateOrCancel,
-		PostOnly:          m.PostOnly,
-		Price:             m.Price,
-		Amount:            m.Amount,
-		TriggerPrice:      m.TriggerPrice,
+		Exchange:      m.Exchange,
+		OrderID:       m.OrderID,
+		ClientOrderID: m.ClientOrderID,
+		Type:          m.Type,
+		Side:          m.Side,
+		AssetType:     m.AssetType,
+		Pair:          m.Pair,
+		TimeInForce:   m.TimeInForce,
+		Price:         m.Price,
+		Amount:        m.Amount,
+		TriggerPrice:  m.TriggerPrice,
 	}, nil
 }
 
@@ -680,7 +657,6 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 		AccountID:     d.AccountID,
 		ClientID:      d.ClientID,
 		ClientOrderID: d.ClientOrderID,
-		WalletAddress: d.WalletAddress,
 		Type:          d.Type,
 		Side:          d.Side,
 		Pair:          d.Pair,
@@ -697,14 +673,18 @@ func (t Type) String() string {
 		return "LIMIT"
 	case Market:
 		return "MARKET"
-	case PostOnly:
-		return "POST_ONLY"
-	case ImmediateOrCancel:
-		return "IMMEDIATE_OR_CANCEL"
 	case Stop:
 		return "STOP"
 	case ConditionalStop:
 		return "CONDITIONAL"
+	case MarketMakerProtection:
+		return "MMP"
+	case MarketMakerProtectionAndPostOnly:
+		return "MMP_AND_POST_ONLY"
+	case TWAP:
+		return "TWAP"
+	case Chase:
+		return "CHASE"
 	case StopLimit:
 		return "STOP LIMIT"
 	case StopMarket:
@@ -715,8 +695,6 @@ func (t Type) String() string {
 		return "TAKE PROFIT MARKET"
 	case TrailingStop:
 		return "TRAILING_STOP"
-	case FillOrKill:
-		return "FOK"
 	case IOS:
 		return "IOS"
 	case Liquidation:
@@ -963,12 +941,11 @@ func FilterOrdersByPairs(orders *[]Detail, pairs []currency.Pair) {
 			continue
 		}
 
-		for y := range pairs {
-			if (*orders)[x].Pair.EqualIncludeReciprocal(pairs[y]) {
-				(*orders)[target] = (*orders)[x]
-				target++
-				break
-			}
+		if slices.ContainsFunc(pairs, func(p currency.Pair) bool {
+			return (*orders)[x].Pair.EqualIncludeReciprocal(p)
+		}) {
+			(*orders)[target] = (*orders)[x]
+			target++
 		}
 	}
 	*orders = (*orders)[:target]
@@ -1099,7 +1076,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case AnySide.String():
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("'%s' %w", side, ErrSideIsInvalid)
+		return UnknownSide, fmt.Errorf("%q %w", side, ErrSideIsInvalid)
 	}
 }
 
@@ -1129,22 +1106,16 @@ func StringToOrderType(oType string) (Type, error) {
 		return Limit, nil
 	case Market.String(), "EXCHANGE MARKET":
 		return Market, nil
-	case ImmediateOrCancel.String(), "IMMEDIATE OR CANCEL", "IOC", "EXCHANGE IOC":
-		return ImmediateOrCancel, nil
 	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
 	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
 	case StopMarket.String(), "STOP_MARKET":
 		return StopMarket, nil
-	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP":
+	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
-	case FillOrKill.String(), "EXCHANGE FOK":
-		return FillOrKill, nil
 	case IOS.String():
 		return IOS, nil
-	case PostOnly.String():
-		return PostOnly, nil
 	case AnyType.String():
 		return AnyType, nil
 	case Trigger.String():
@@ -1155,6 +1126,20 @@ func StringToOrderType(oType string) (Type, error) {
 		return OCO, nil
 	case ConditionalStop.String():
 		return ConditionalStop, nil
+	case MarketMakerProtection.String():
+		return MarketMakerProtection, nil
+	case MarketMakerProtectionAndPostOnly.String():
+		return MarketMakerProtectionAndPostOnly, nil
+	case TWAP.String():
+		return TWAP, nil
+	case Chase.String():
+		return Chase, nil
+	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+		return TakeProfitMarket, nil
+	case TakeProfit.String(), "TAKE_PROFIT":
+		return TakeProfit, nil
+	case Liquidation.String():
+		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
 	}
@@ -1167,15 +1152,15 @@ func StringToOrderStatus(status string) (Status, error) {
 	switch status {
 	case AnyStatus.String():
 		return AnyStatus, nil
-	case New.String(), "PLACED", "ACCEPTED":
+	case New.String(), "PLACED", "ACCEPTED", "SUBMITTED":
 		return New, nil
 	case Active.String(), "STATUS_ACTIVE", "LIVE":
 		return Active, nil
-	case PartiallyFilled.String(), "PARTIALLY MATCHED", "PARTIALLY FILLED":
+	case PartiallyFilled.String(), "PARTIAL-FILLED", "PARTIALLY MATCHED", "PARTIALLY FILLED":
 		return PartiallyFilled, nil
 	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil
@@ -1208,7 +1193,7 @@ func StringToOrderStatus(status string) (Status, error) {
 	case STP.String(), "STP":
 		return STP, nil
 	default:
-		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
+		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
 }
 
@@ -1229,7 +1214,7 @@ func (o *ClassificationError) Error() string {
 func (c *Cancel) StandardCancel() validate.Checker {
 	return validate.Check(func() error {
 		if c.OrderID == "" {
-			return errors.New("ID not set")
+			return ErrOrderIDNotSet
 		}
 		return nil
 	})
@@ -1366,5 +1351,30 @@ func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
 		return MarkPrice, nil
 	default:
 		return UnknownPriceType, ErrUnknownPriceType
+	}
+}
+
+// String implements the stringer interface
+func (t TrackingMode) String() string {
+	switch t {
+	case Distance:
+		return "distance"
+	case Percentage:
+		return "percentage"
+	default:
+		return ""
+	}
+}
+
+// StringToTrackingMode converts TrackingMode instance from string
+func StringToTrackingMode(mode string) TrackingMode {
+	mode = strings.ToLower(mode)
+	switch mode {
+	case "distance":
+		return Distance
+	case "percentage":
+		return Percentage
+	default:
+		return UnknownTrackingMode
 	}
 }

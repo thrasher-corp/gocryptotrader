@@ -2,7 +2,6 @@ package bitmex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -837,8 +837,8 @@ func (b *Bitmex) GetWalletSummary(ctx context.Context, currency string) ([]Trans
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, params Parameter, result interface{}) error {
-	var respCheck interface{}
+func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, params Parameter, result any) error {
+	var respCheck any
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -871,7 +871,7 @@ func (b *Bitmex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
-func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result interface{}) error {
+func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result any) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -881,7 +881,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		return err
 	}
 
-	var respCheck interface{}
+	var respCheck any
 	newRequest := func() (*request.Item, error) {
 		expires := time.Now().Add(time.Second * 10)
 		timestamp := expires.UnixNano()
@@ -937,7 +937,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 }
 
 // CaptureError little hack that captures an error
-func (b *Bitmex) CaptureError(resp, reType interface{}) error {
+func (b *Bitmex) CaptureError(resp, reType any) error {
 	var Error RequestError
 
 	marshalled, err := json.Marshal(resp)
@@ -978,7 +978,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 // calculateTradingFee returns the fee for trading any currency on Bitmex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
-	var fee = 0.000750
+	fee := 0.000750
 	if isMaker {
 		fee -= 0.000250
 	}

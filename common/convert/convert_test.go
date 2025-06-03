@@ -1,7 +1,6 @@
 package convert
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -112,37 +111,6 @@ func TestTimeFromUnixTimestampDecimal(t *testing.T) {
 	}
 }
 
-func TestUnixTimestampToTime(t *testing.T) {
-	t.Parallel()
-	testTime := int64(1489439831)
-	tm := time.Unix(testTime, 0)
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult := UnixTimestampToTime(testTime)
-	if tm.String() != actualResult.String() {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-}
-
-func TestUnixTimestampStrToTime(t *testing.T) {
-	t.Parallel()
-	testTime := "1489439831"
-	incorrectTime := "DINGDONG"
-	expectedOutput := "2017-03-13 21:17:11 +0000 UTC"
-	actualResult, err := UnixTimestampStrToTime(testTime)
-	if err != nil {
-		t.Error(err)
-	}
-	if actualResult.UTC().String() != expectedOutput {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	_, err = UnixTimestampStrToTime(incorrectTime)
-	if err == nil {
-		t.Error("should throw an error")
-	}
-}
-
 func TestBoolPtr(t *testing.T) {
 	y := BoolPtr(true)
 	if !*y {
@@ -156,135 +124,48 @@ func TestBoolPtr(t *testing.T) {
 
 func TestFloatToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
-	test := FloatToHumanFriendlyString(0, 3, ".", ",")
-	if strings.Contains(test, ",") {
-		t.Error("unexpected ','")
-	}
-	test = FloatToHumanFriendlyString(100, 3, ".", ",")
-	if strings.Contains(test, ",") {
-		t.Error("unexpected ','")
-	}
-	test = FloatToHumanFriendlyString(1000, 3, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
 
-	test = FloatToHumanFriendlyString(-1000, 3, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-
-	test = FloatToHumanFriendlyString(-1000, 10, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-
-	test = FloatToHumanFriendlyString(1000.1337, 1, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-	dec := strings.Split(test, ".")
-	if len(dec) == 1 {
-		t.Error("expected decimal place")
-	}
-	if dec[1] != "1" {
-		t.Error("expected decimal place")
-	}
+	assert.Equal(t, "0.000", FloatToHumanFriendlyString(0, 3, ".", ","))
+	assert.Equal(t, "100.000", FloatToHumanFriendlyString(100, 3, ".", ","))
+	assert.Equal(t, "1,000.000", FloatToHumanFriendlyString(1000, 3, ".", ","))
+	assert.Equal(t, "-1,000.000", FloatToHumanFriendlyString(-1000, 3, ".", ","))
+	assert.Equal(t, "-1,000.0000000000", FloatToHumanFriendlyString(-1000, 10, ".", ","))
+	assert.Equal(t, "1!000.1", FloatToHumanFriendlyString(1000.1337, 1, ".", "!"))
 }
 
 func TestDecimalToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
-	test := DecimalToHumanFriendlyString(decimal.Zero, 0, ".", ",")
-	if strings.Contains(test, ",") {
-		t.Log(test)
-		t.Error("unexpected ','")
-	}
-	test = DecimalToHumanFriendlyString(decimal.NewFromInt(100), 0, ".", ",")
-	if strings.Contains(test, ",") {
-		t.Log(test)
-		t.Error("unexpected ','")
-	}
-	test = DecimalToHumanFriendlyString(decimal.NewFromInt(1000), 0, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
 
-	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.1337), 1, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-	dec := strings.Split(test, ".")
-	if len(dec) == 1 {
-		t.Error("expected decimal place")
-	}
-	if dec[1] != "1" {
-		t.Error("expected decimal place")
-	}
-
-	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.1337), 1, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-
-	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.1337), 100000, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-
-	test = DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.1), 10, ".", ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-	dec = strings.Split(test, ".")
-	if len(dec) == 1 {
-		t.Error("expected decimal place")
-	}
-	if dec[1] != "1" {
-		t.Error("expected decimal place")
-	}
+	assert.Equal(t, "0", DecimalToHumanFriendlyString(decimal.Zero, 0, ".", ","))
+	assert.Equal(t, "100", DecimalToHumanFriendlyString(decimal.NewFromInt(100), 0, ".", ","))
+	assert.Equal(t, "1,000", DecimalToHumanFriendlyString(decimal.NewFromInt(1000), 0, ".", ","))
+	assert.Equal(t, "-1,000", DecimalToHumanFriendlyString(decimal.NewFromInt(-1000), 0, ".", ","))
+	assert.Equal(t, "-1~000!42", DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.42069), 2, "!", "~"))
+	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.42069), 5, ".", ","))
+	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.42069), 100, ".", ","))
 }
 
 func TestIntToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
-	test := IntToHumanFriendlyString(0, ",")
-	if strings.Contains(test, ",") {
-		t.Log(test)
-		t.Error("unexpected ','")
-	}
-	test = IntToHumanFriendlyString(100, ",")
-	if strings.Contains(test, ",") {
-		t.Log(test)
-		t.Error("unexpected ','")
-	}
-	test = IntToHumanFriendlyString(1000, ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
 
-	test = IntToHumanFriendlyString(-1000, ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-
-	test = IntToHumanFriendlyString(1000000, ",")
-	if !strings.Contains(test, ",") {
-		t.Error("expected ','")
-	}
-	dec := strings.Split(test, ",")
-	if len(dec) <= 2 {
-		t.Error("expected two commas place")
-	}
+	assert.Equal(t, "0", IntToHumanFriendlyString(0, ","))
+	assert.Equal(t, "100", IntToHumanFriendlyString(100, ","))
+	assert.Equal(t, "1,000", IntToHumanFriendlyString(1000, ","))
+	assert.Equal(t, "-1,000", IntToHumanFriendlyString(-1000, ","))
+	assert.Equal(t, "-1!000", IntToHumanFriendlyString(-1000, "!"))
 }
 
 func TestNumberToHumanFriendlyString(t *testing.T) {
-	resp := numberToHumanFriendlyString("1", 1337, ".", ",", false)
-	if strings.Contains(resp, ".") {
-		t.Error("expected no comma")
-	}
+	t.Parallel()
+
+	assert.Equal(t, "0", numberToHumanFriendlyString("0", 0, "", ",", false))
+	assert.Equal(t, "1,337.69", numberToHumanFriendlyString("1337.69", 2, ".", ",", false))
+	assert.Equal(t, "-1!000.1", numberToHumanFriendlyString("1000.1", 1, ".", "!", true))
+	assert.Equal(t, "1,000", numberToHumanFriendlyString("1000", 20, ".", ",", false))
 }
 
 func TestInterfaceToFloat64OrZeroValue(t *testing.T) {
-	var x interface{}
+	var x any
 	if r := InterfaceToFloat64OrZeroValue(x); r != 0 {
 		t.Errorf("expected 0, got: %v", r)
 	}
@@ -295,7 +176,7 @@ func TestInterfaceToFloat64OrZeroValue(t *testing.T) {
 }
 
 func TestInterfaceToIntOrZeroValue(t *testing.T) {
-	var x interface{}
+	var x any
 	if r := InterfaceToIntOrZeroValue(x); r != 0 {
 		t.Errorf("expected 0, got: %v", r)
 	}
@@ -306,7 +187,7 @@ func TestInterfaceToIntOrZeroValue(t *testing.T) {
 }
 
 func TestInterfaceToStringOrZeroValue(t *testing.T) {
-	var x interface{}
+	var x any
 	if r := InterfaceToStringOrZeroValue(x); r != "" {
 		t.Errorf("expected empty string, got: %v", r)
 	}

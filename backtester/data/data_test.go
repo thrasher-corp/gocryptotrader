@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -16,10 +18,12 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const exch = "binance"
-const a = asset.Spot
+const (
+	exch = "binance"
+	a    = asset.Spot
+)
 
-var p = currency.NewPair(currency.BTC, currency.USD)
+var p = currency.NewBTCUSD()
 
 type fakeEvent struct {
 	secretID int64
@@ -32,9 +36,8 @@ func TestSetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if d.data == nil {
 		t.Error("expected not nil")
 	}
@@ -52,34 +55,25 @@ func TestGetAllData(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	result, err := d.GetAllData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(result) != 2 {
-		t.Error("expected 2")
-	}
+	require.NoError(t, err)
+	assert.Len(t, result, 2, "GetAllData should return 2 items")
 }
 
 func TestGetDataForCurrency(t *testing.T) {
 	t.Parallel()
 	d := HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, &fakeHandler{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.GetDataForCurrency(nil)
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
@@ -99,63 +93,44 @@ func TestGetDataForCurrency(t *testing.T) {
 		AssetType:    a,
 		CurrencyPair: p,
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestReset(t *testing.T) {
 	t.Parallel()
 	d := &HandlerHolder{}
 	err := d.SetDataForCurrency(exch, a, p, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.SetDataForCurrency(exch, a, currency.NewPair(currency.BTC, currency.DOGE), nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if d.data == nil {
-		t.Error("expected a map")
-	}
+	require.NoError(t, err)
+
+	assert.NotNil(t, d.data, "Reset should initialise the data map")
 	d = nil
 	err = d.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestBaseReset(t *testing.T) {
 	t.Parallel()
 	b := &Base{offset: 1}
 	err := b.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b.offset != 0 {
-		t.Errorf("received '%v' expected '%v'", b.offset, 0)
-	}
+	require.NoError(t, err)
+	assert.Zero(t, b.offset, "offset should be reset")
 	b = nil
 	err = b.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestGetStream(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	resp, err := b.GetStream()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(resp) != 0 {
-		t.Errorf("received '%v' expected '%v'", len(resp), 0)
-	}
+	require.NoError(t, err)
+	assert.Empty(t, resp, "GetStream should return an empty slice")
 	b.stream = []Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -171,57 +146,40 @@ func TestGetStream(t *testing.T) {
 		},
 	}
 	resp, err = b.GetStream()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v'", len(resp), 2)
-	}
+	require.NoError(t, err)
+	assert.Len(t, resp, 2, "GetStream should return 2 items")
 
 	b = nil
 	_, err = b.GetStream()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestOffset(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	o, err := b.Offset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if o != 0 {
-		t.Errorf("received '%v' expected '%v'", o, 0)
-	}
+	require.NoError(t, err)
+	assert.Zero(t, o, "offset should be zero when not set")
+
 	b.offset = 1337
 	o, err = b.Offset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if o != 1337 {
-		t.Errorf("received '%v' expected '%v'", o, 1337)
-	}
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(1337), o, "offset value should be correct")
 
 	b = nil
 	_, err = b.Offset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestSetStream(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	err := b.SetStream(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(b.stream) != 0 {
-		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	require.NoError(t, err)
+	assert.Empty(t, b.stream, "SetStream should not error with nil slice and stream should be empty")
+
+	cp := currency.NewBTCUSD()
 	err = b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -242,17 +200,9 @@ func TestSetStream(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	if len(b.stream) != 2 {
-		t.Fatalf("received '%v' expected '%v'", len(b.stream), 2)
-	}
-	if b.stream[0].GetOffset() != 1 {
-		t.Errorf("received '%v' expected '%v'", b.stream[0].GetOffset(), 1)
-	}
-
+	require.NoError(t, err)
+	assert.Len(t, b.stream, 2, "stream elements should be set correctly")
+	assert.Equal(t, int64(1), b.stream[0].GetOffset(), "GetOffset should return the correct value")
 	misMatchEvent := &fakeEvent{
 		Base: &event.Base{
 			Exchange:     "mismatch",
@@ -286,7 +236,7 @@ func TestSetStream(t *testing.T) {
 func TestNext(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -307,42 +257,29 @@ func TestNext(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err := b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if resp != b.stream[0] {
-		t.Errorf("received '%v' expected '%v'", resp, b.stream[0])
-	}
-	if b.offset != 1 {
-		t.Errorf("received '%v' expected '%v'", b.offset, 1)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, b.stream[0], resp, "Next should return the first event in the stream")
+	assert.Equal(t, int64(1), b.offset, "offset should be correct")
+
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err = b.Next()
-	if !errors.Is(err, ErrEndOfData) {
-		t.Errorf("received '%v' expected '%v'", err, ErrEndOfData)
-	}
-	if resp != nil {
-		t.Errorf("received '%v' expected '%v'", resp, nil)
-	}
+	require.ErrorIs(t, err, ErrEndOfData)
+	assert.Nil(t, resp, "Expected nil response after end of data")
 
 	b = nil
 	_, err = b.Next()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestHistory(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -363,40 +300,28 @@ func TestHistory(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err := b.History()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(resp) != 0 {
-		t.Errorf("received '%v' expected '%v'", len(resp), 0)
-	}
+	require.NoError(t, err)
+	assert.Empty(t, resp, "History should return an empty slice when no events have been processed")
 
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err = b.History()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(resp) != 1 {
-		t.Errorf("received '%v' expected '%v'", len(resp), 1)
-	}
+	require.NoError(t, err)
+	assert.Len(t, resp, 1, "History should return the first event after one Next call")
 
 	b = nil
 	_, err = b.History()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestLatest(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -417,51 +342,36 @@ func TestLatest(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err := b.Latest()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if resp != b.stream[0] {
-		t.Errorf("received '%v' expected '%v'", resp, b.stream[0])
-	}
-	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	resp, err = b.Latest()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if resp != b.stream[0] {
-		t.Errorf("received '%v' expected '%v'", resp, b.stream[0])
-	}
+	require.NoError(t, err)
+
+	assert.Equal(t, b.stream[0], resp, "Latest should return the first event in the stream")
 
 	_, err = b.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err = b.Latest()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if resp != b.stream[1] {
-		t.Errorf("received '%v' expected '%v'", resp, b.stream[1])
-	}
+	require.NoError(t, err)
+	assert.Equal(t, b.stream[0], resp, "Latest should return the first event after one Next call")
+
+	_, err = b.Next()
+	require.NoError(t, err)
+
+	resp, err = b.Latest()
+	require.NoError(t, err)
+	assert.Equal(t, b.stream[1], resp, "Latest should return the second event after two Next calls")
 
 	b = nil
 	_, err = b.Latest()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestList(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -482,28 +392,21 @@ func TestList(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	list, err := b.List()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if len(list) != 2 {
-		t.Errorf("received '%v' expected '%v'", len(list), 2)
-	}
+	require.NoError(t, err)
+	assert.Len(t, list, 2, "List should return all events in the stream")
 
 	b = nil
 	_, err = b.List()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestIsLastEvent(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	err := b.SetStream([]Event{
 		&fakeEvent{
 			Base: &event.Base{
@@ -524,50 +427,37 @@ func TestIsLastEvent(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	b.latest = b.stream[0]
 	b.offset = b.stream[0].GetOffset()
 	isLastEvent, err := b.IsLastEvent()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if isLastEvent {
-		t.Errorf("received '%v' expected '%v'", false, true)
-	}
+	require.NoError(t, err)
+	assert.False(t, isLastEvent, "isLastEvent should return false when not at the last event")
 
 	b.isLiveData = true
 	isLastEvent, err = b.IsLastEvent()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if isLastEvent {
-		t.Errorf("received '%v' expected '%v'", false, true)
-	}
+	require.NoError(t, err)
+	assert.False(t, isLastEvent, "isLastEvent should return false when live data is set")
 
 	b = nil
 	_, err = b.IsLastEvent()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestIsLive(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	isLive, err := b.IsLive()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if isLive {
 		t.Error("expected false")
 	}
 	b.isLiveData = true
 	isLive, err = b.IsLive()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !isLive {
 		t.Error("expected true")
 	}
@@ -583,17 +473,15 @@ func TestSetLive(t *testing.T) {
 	t.Parallel()
 	b := &Base{}
 	err := b.SetLive(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !b.isLiveData {
 		t.Error("expected true")
 	}
 
 	err = b.SetLive(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if b.isLiveData {
 		t.Error("expected false")
 	}
@@ -619,7 +507,7 @@ func TestAppendStream(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 0)
 	}
 	tt := time.Now().Add(-time.Hour)
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	e.Exchange = "b"
 	e.AssetType = asset.Spot
 	e.CurrencyPair = cp
@@ -630,17 +518,15 @@ func TestAppendStream(t *testing.T) {
 
 	e.Time = tt
 	err = b.AppendStream(e, e)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.stream) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 1)
 	}
 
 	err = b.AppendStream(e)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.stream) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 1)
 	}
@@ -653,9 +539,8 @@ func TestAppendStream(t *testing.T) {
 			Time:         time.Now(),
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(b.stream) != 2 {
 		t.Errorf("received '%v' expected '%v'", len(b.stream), 2)
 	}
@@ -711,12 +596,8 @@ func TestFirst(t *testing.T) {
 	}
 
 	first, err := e.First()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if first.GetOffset() != id1 {
-		t.Errorf("received '%v' expected '%v'", first.GetOffset(), id1)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, id1, first.GetOffset())
 }
 
 func TestLast(t *testing.T) {
@@ -731,12 +612,8 @@ func TestLast(t *testing.T) {
 	}
 
 	last, err := e.Last()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if last.GetOffset() != id3 {
-		t.Errorf("received '%v' expected '%v'", last.GetOffset(), id1)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, id3, last.GetOffset())
 }
 
 // methods that satisfy the common.Event interface
@@ -760,7 +637,7 @@ func (f fakeEvent) GetTime() time.Time {
 }
 
 func (f fakeEvent) Pair() currency.Pair {
-	return currency.NewPair(currency.BTC, currency.USD)
+	return currency.NewBTCUSD()
 }
 
 func (f fakeEvent) GetExchange() string {
@@ -806,7 +683,7 @@ func (f fakeEvent) GetUnderlyingPair() currency.Pair {
 	return f.Pair()
 }
 
-func (f fakeEvent) AppendReasonf(string, ...interface{}) {}
+func (f fakeEvent) AppendReasonf(string, ...any) {}
 
 func (f fakeEvent) GetBase() *event.Base {
 	return &event.Base{}

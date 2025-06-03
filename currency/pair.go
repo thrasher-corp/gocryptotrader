@@ -70,10 +70,7 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 // with or without delimiter
 func NewPairFromString(currencyPair string) (Pair, error) {
 	if len(currencyPair) < 3 {
-		return EMPTYPAIR,
-			fmt.Errorf("%w from %s string too short to be a currency pair",
-				errCannotCreatePair,
-				currencyPair)
+		return EMPTYPAIR, fmt.Errorf("%w from %s string too short to be a currency pair", errCannotCreatePair, currencyPair)
 	}
 
 	for x := range currencyPair {
@@ -124,10 +121,7 @@ func (f *PairFormat) clone() *PairFormat {
 func MatchPairsWithNoDelimiter(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
 	for i := range pairs {
 		fPair := pairs[i].Format(pairFmt)
-		maxLen := 6
-		if len(currencyPair) < maxLen {
-			maxLen = len(currencyPair)
-		}
+		maxLen := min(len(currencyPair), 6)
 		for j := 1; j <= maxLen; j++ {
 			if fPair.Base.String() == currencyPair[0:j] &&
 				fPair.Quote.String() == currencyPair[j:] {

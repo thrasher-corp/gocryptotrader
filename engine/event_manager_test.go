@@ -1,15 +1,16 @@
 package engine
 
 import (
-	"context"
 	"errors"
-	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -26,9 +27,8 @@ func TestSetupEventManager(t *testing.T) {
 	}
 
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if m == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected manager")
 	}
@@ -39,13 +39,10 @@ func TestSetupEventManager(t *testing.T) {
 
 func TestEventManagerStart(t *testing.T) {
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start()
 	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
@@ -62,13 +59,11 @@ func TestEventManagerStart(t *testing.T) {
 func TestEventManagerIsRunning(t *testing.T) {
 	t.Parallel()
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -85,17 +80,14 @@ func TestEventManagerIsRunning(t *testing.T) {
 func TestEventManagerStop(t *testing.T) {
 	t.Parallel()
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -111,17 +103,15 @@ func TestEventManagerAdd(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.Add("", "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.Add("", "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
 	if !errors.Is(err, errExchangeDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, errExchangeDisabled)
@@ -132,9 +122,8 @@ func TestEventManagerAdd(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	_, err = m.Add(testExchange, "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
 	if !errors.Is(err, errInvalidItem) {
 		t.Errorf("error '%v', expected '%v'", err, errInvalidItem)
@@ -151,31 +140,25 @@ func TestEventManagerAdd(t *testing.T) {
 	}
 
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, ActionTest)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	action := ActionSMSNotify + "," + ActionTest
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestEventManagerRemove(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.Remove(0) {
 		t.Error("expected false")
 	}
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.Remove(0) {
 		t.Error("expected false")
 	}
@@ -191,13 +174,10 @@ func TestEventManagerRemove(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	id, err := m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !m.Remove(id) {
 		t.Error("expected true")
@@ -208,17 +188,15 @@ func TestGetEventCounter(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	total, executed := m.getEventCounter()
 	if total != 0 && executed != 0 {
 		t.Error("expected 0")
 	}
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	total, executed = m.getEventCounter()
 	if total != 0 && executed != 0 {
 		t.Error("expected 0")
@@ -235,13 +213,10 @@ func TestGetEventCounter(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	total, _ = m.getEventCounter()
 	if total == 0 {
@@ -252,24 +227,18 @@ func TestGetEventCounter(t *testing.T) {
 func TestCheckEventCondition(t *testing.T) {
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err, "setupEventManager must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(nil)
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 	m.m.Unlock()
-	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+
+	require.NoError(t, m.Start(), "Start must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(nil)
-	if !errors.Is(err, errNilEvent) {
-		t.Errorf("error '%v', expected '%v'", err, errNilEvent)
-	}
+	assert.ErrorIs(t, err, errNilEvent)
 	m.m.Unlock()
 
 	action := ActionSMSNotify + "," + ActionTest
@@ -279,67 +248,47 @@ func TestCheckEventCondition(t *testing.T) {
 		OrderbookAmount: 1337,
 	}
 	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
-	conf, err := exchange.GetDefaultConfig(context.Background(), exch)
-	if err != nil {
-		t.Error(err)
-	}
-	err = exch.Setup(conf)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
+
+	conf, err := exchange.GetDefaultConfig(t.Context(), exch)
+	require.NoError(t, err, "GetDefaultConfig must not error")
+
+	require.NoError(t, exch.Setup(conf), "Setup must not error")
+
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USD), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err, "ExchangeManager Add must not error")
+
+	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewBTCUSD(), asset.Spot, action)
+	require.NoError(t, err, "eventManager Add must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !errors.Is(err, ticker.ErrNoTickerFound) {
-		t.Error(err)
-	} else if err == nil {
-		t.Error("expected error")
-	}
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 	m.m.Unlock()
-	_, err = exch.FetchTicker(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+
+	_, err = exch.UpdateTicker(t.Context(), currency.NewBTCUSD(), asset.Spot)
+	require.NoError(t, err, "UpdateTicker must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err, "checkEventCondition must not error")
 	m.m.Unlock()
 
 	m.events[0].Item = ItemOrderbook
 	m.events[0].Executed = false
 	m.events[0].Condition.CheckAsks = true
 	m.events[0].Condition.CheckBids = true
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !strings.Contains(err.Error(), "cannot find orderbook") {
-		t.Error(err)
-	} else if err == nil {
-		t.Error("expected error")
-	}
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 	m.m.Unlock()
 
-	_, err = exch.FetchOrderbook(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	_, err = exch.UpdateOrderbook(t.Context(), currency.NewBTCUSD(), asset.Spot)
+	require.NoError(t, err, "UpdateOrderbook must not error")
+
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err, "checkEventCondition should not error")
 	m.m.Unlock()
 }

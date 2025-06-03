@@ -4,9 +4,11 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
@@ -14,12 +16,7 @@ import (
 func (c *clientTracker) contains(check *http.Client) bool {
 	c.Lock()
 	defer c.Unlock()
-	for x := range c.clients {
-		if check == c.clients[x] {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.clients, check)
 }
 
 func TestCheckAndRegister(t *testing.T) {
@@ -31,9 +28,7 @@ func TestCheckAndRegister(t *testing.T) {
 
 	newLovelyClient := new(http.Client)
 	err = tracker.checkAndRegister(newLovelyClient)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !tracker.contains(newLovelyClient) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
@@ -59,18 +54,14 @@ func TestDeRegister(t *testing.T) {
 	}
 
 	err = tracker.checkAndRegister(newLovelyClient)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !tracker.contains(newLovelyClient) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
 
 	err = tracker.deRegister(newLovelyClient)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if tracker.contains(newLovelyClient) {
 		t.Fatalf("received: '%v' but expected: '%v'", true, false)
@@ -85,9 +76,7 @@ func TestNewProtectedClient(t *testing.T) {
 
 	newLovelyClient := new(http.Client)
 	protec, err := newProtectedClient(newLovelyClient)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if protec.protected != newLovelyClient {
 		t.Fatal("unexpected value")
@@ -109,9 +98,7 @@ func TestClientSetProxy(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errTransportNotSet)
 	}
 	err = (&client{protected: common.NewHTTPClientWithTimeout(0)}).setProxy(pp)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestClientSetHTTPClientTimeout(t *testing.T) {
@@ -121,26 +108,20 @@ func TestClientSetHTTPClientTimeout(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errTransportNotSet)
 	}
 	err = (&client{protected: common.NewHTTPClientWithTimeout(0)}).setHTTPClientTimeout(time.Second)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestRelease(t *testing.T) {
 	t.Parallel()
 	newLovelyClient, err := newProtectedClient(common.NewHTTPClientWithTimeout(0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if !tracker.contains(newLovelyClient.protected) {
 		t.Fatalf("received: '%v' but expected: '%v'", false, true)
 	}
 
 	err = newLovelyClient.release()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if tracker.contains(newLovelyClient.protected) {
 		t.Fatalf("received: '%v' but expected: '%v'", true, false)

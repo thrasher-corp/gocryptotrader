@@ -39,17 +39,17 @@ func TestZip(t *testing.T) {
 	tempDir := t.TempDir()
 	outFile := filepath.Join(tempDir, "out.zip")
 	err := Zip(filepath.Join("..", "..", "..", "testdata", "configtest.json"), outFile)
-	require.NoError(t, err, "Zip should not error")
+	require.NoError(t, err, "Zip must not error")
 	o, err := UnZip(outFile, tempDir)
-	require.NoError(t, err, "UnZip should not error")
+	require.NoError(t, err, "UnZip must not error")
 	assert.Len(t, o, 1, "Should extract 1 file")
 
 	folder := filepath.Join("..", "..", "..", "testdata", "gctscript")
 	outFolderZip := filepath.Join(tempDir, "out_folder.zip")
 	err = Zip(folder, outFolderZip)
-	require.NoError(t, err, "Zip should not error")
+	require.NoError(t, err, "Zip must not error")
 	o, err = UnZip(outFolderZip, tempDir)
-	require.NoError(t, err, "UnZip should not error")
+	require.NoError(t, err, "UnZip must not error")
 	var found bool
 	for i := range o {
 		if filepath.Base(o[i]) == "timer.gct" {

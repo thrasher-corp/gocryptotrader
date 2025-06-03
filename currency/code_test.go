@@ -1,11 +1,12 @@
 package currency
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestRoleString(t *testing.T) {
@@ -73,7 +74,7 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleUnknown Role `json:"RoleUnknown"`
 	}
 
-	var outgoing = AllTheRoles{
+	outgoing := AllTheRoles{
 		RoleOne:   Unset,
 		RoleTwo:   Cryptocurrency,
 		RoleThree: Fiat,
@@ -640,11 +641,7 @@ func TestItemString(t *testing.T) {
 		AssocChain: "Silly",
 	}
 
-	if expected := "HWORLD"; newItem.String() != expected {
-		t.Errorf("Currency String() error expected '%s' but received '%s'",
-			expected,
-			&newItem)
-	}
+	assert.Equal(t, "HWORLD", newItem.String())
 }
 
 // 28848025	        40.84 ns/op	       8 B/op	       1 allocs/op // Current
@@ -652,7 +649,7 @@ func TestItemString(t *testing.T) {
 //	546290	      2192 ns/op	       8 B/op	       1 allocs/op // Previous
 func BenchmarkNewCode(b *testing.B) {
 	b.ReportAllocs()
-	for x := 0; x < b.N; x++ {
+	for b.Loop() {
 		_ = NewCode("someCode")
 	}
 }

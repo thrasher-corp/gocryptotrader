@@ -45,18 +45,21 @@ func (e Exchange) IsEnabled(exch string) bool {
 }
 
 // Orderbook returns current orderbook requested exchange, pair and asset
-func (e Exchange) Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	return engine.Bot.GetSpecificOrderbook(ctx, pair, exch, item)
-}
-
-// Ticker returns ticker for provided currency pair & asset type
-func (e Exchange) Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (e Exchange) Orderbook(ctx context.Context, exch string, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
 	}
+	return ex.UpdateOrderbook(ctx, pair, a)
+}
 
-	return ex.FetchTicker(ctx, pair, item)
+// Ticker returns ticker for provided currency pair & asset type
+func (e Exchange) Ticker(ctx context.Context, exch string, pair currency.Pair, a asset.Item) (*ticker.Price, error) {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return nil, err
+	}
+	return ex.UpdateTicker(ctx, pair, a)
 }
 
 // Pairs returns either all or enabled currency pairs
@@ -134,7 +137,7 @@ func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType
 		return account.Holdings{}, err
 	}
 
-	accountInfo, err := ex.FetchAccountInfo(ctx, assetType)
+	accountInfo, err := ex.GetCachedAccountInfo(ctx, assetType)
 	if err != nil {
 		return account.Holdings{}, err
 	}

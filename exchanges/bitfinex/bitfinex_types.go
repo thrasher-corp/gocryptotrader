@@ -7,14 +7,15 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
 	errSetCannotBeEmpty        = errors.New("set cannot be empty")
 	errNoSeqNo                 = errors.New("no sequence number")
 	errParamNotAllowed         = errors.New("param not allowed")
-	errParsingWSField          = errors.New("error parsing WS field")
 	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")
 	errTickerInvalidResp       = errors.New("invalid ticker response format")
 	errTickerInvalidFieldCount = errors.New("invalid ticker response field count")
@@ -53,13 +54,17 @@ type WalletDataV2 struct {
 }
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote non-contract order types.
-var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
+var AcceptedOrderType = []string{
+	"market", "limit", "stop", "trailing-stop",
 	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
-	"exchange trailing-stop", "exchange fill-or-kill"}
+	"exchange trailing-stop", "exchange fill-or-kill",
+}
 
 // AcceptedWalletNames defines different wallets supported by the exchange
-var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
-	"funding"}
+var AcceptedWalletNames = []string{
+	"trading", "exchange", "deposit", "margin",
+	"funding",
+}
 
 type acceptableMethodStore struct {
 	a map[string][]string
@@ -144,7 +149,7 @@ type Ticker struct {
 	Volume             float64
 	High               float64
 	Low                float64
-	FFRAmountAvailable float64
+	FRRAmountAvailable float64 // Flash Return Rate amount available
 }
 
 // DerivativeDataResponse stores data for queried derivative
@@ -249,7 +254,7 @@ type AccountInfoFees struct {
 
 // AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
-	Withdraw map[string]interface{} `json:"withdraw"`
+	Withdraw map[string]any `json:"withdraw"`
 }
 
 // AccountSummary holds account summary data
@@ -488,16 +493,18 @@ type WebsocketBook struct {
 	Period int64
 }
 
-// WebsocketTrade holds trade information
-type WebsocketTrade struct {
+// wsTrade holds trade information
+type wsTrade struct {
 	ID        int64
-	Timestamp int64
-	Price     float64
+	Timestamp types.Time
 	Amount    float64
-	// Funding rate of the trade
-	Rate float64
-	// Funding offer period in days
-	Period int64
+	Price     float64
+	Period    int64 // Funding offer period in days
+}
+
+// UnmarshalJSON unmarshals json bytes into a wsTrade
+func (t *wsTrade) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[5]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period})
 }
 
 // Candle holds OHLC data
@@ -613,63 +620,6 @@ type WebsocketHandshake struct {
 	Version float64 `json:"version"`
 }
 
-const (
-	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
-	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
-	pong                                   = "pong"
-	wsHeartbeat                            = "hb"
-	wsChecksum                             = "cs"
-	wsPositionSnapshot                     = "ps"
-	wsPositionNew                          = "pn"
-	wsPositionUpdate                       = "pu"
-	wsPositionClose                        = "pc"
-	wsWalletSnapshot                       = "ws"
-	wsWalletUpdate                         = "wu"
-	wsTradeExecutionUpdate                 = "tu"
-	wsTradeExecuted                        = "te"
-	wsFundingCreditSnapshot                = "fcs"
-	wsFundingCreditNew                     = "fcn"
-	wsFundingCreditUpdate                  = "fcu"
-	wsFundingCreditCancel                  = "fcc"
-	wsFundingLoanSnapshot                  = "fls"
-	wsFundingLoanNew                       = "fln"
-	wsFundingLoanUpdate                    = "flu"
-	wsFundingLoanCancel                    = "flc"
-	wsFundingTradeExecuted                 = "fte"
-	wsFundingTradeUpdate                   = "ftu"
-	wsFundingInfoUpdate                    = "fiu"
-	wsBalanceUpdate                        = "bu"
-	wsMarginInfoUpdate                     = "miu"
-	wsNotification                         = "n"
-	wsOrderSnapshot                        = "os"
-	wsOrderNew                             = "on"
-	wsOrderUpdate                          = "ou"
-	wsOrderCancel                          = "oc"
-	wsRequest                              = "-req"
-	wsOrderNewRequest                      = wsOrderNew + wsRequest
-	wsOrderUpdateRequest                   = wsOrderUpdate + wsRequest
-	wsOrderCancelRequest                   = wsOrderCancel + wsRequest
-	wsFundingOfferSnapshot                 = "fos"
-	wsFundingOfferNew                      = "fon"
-	wsFundingOfferUpdate                   = "fou"
-	wsFundingOfferCancel                   = "foc"
-	wsFundingOfferNewRequest               = wsFundingOfferNew + wsRequest
-	wsFundingOfferUpdateRequest            = wsFundingOfferUpdate + wsRequest
-	wsFundingOfferCancelRequest            = wsFundingOfferCancel + wsRequest
-	wsCancelMultipleOrders                 = "oc_multi"
-	wsBook                                 = "book"
-	wsCandles                              = "candles"
-	wsTicker                               = "ticker"
-	wsTrades                               = "trades"
-	wsError                                = "error"
-	wsEventSubscribed                      = "subscribed"
-	wsEventUnsubscribed                    = "unsubscribed"
-	wsEventAuth                            = "auth"
-	wsEventError                           = "error"
-	wsEventConf                            = "conf"
-	wsEventInfo                            = "info"
-)
-
 // WsAuthRequest container for WS auth request
 type WsAuthRequest struct {
 	Event         string `json:"event"`
@@ -689,7 +639,7 @@ type WsFundingOffer struct {
 	Amount         float64
 	OriginalAmount float64
 	Type           string
-	Flags          interface{}
+	Flags          any
 	Status         string
 	Rate           float64
 	Period         int64
@@ -708,7 +658,7 @@ type WsCredit struct {
 	Created      time.Time
 	Updated      time.Time
 	Amount       float64
-	Flags        interface{} // Future params object (stay tuned)
+	Flags        any // Future params object (stay tuned)
 	Status       string
 	Rate         float64
 	Period       int64

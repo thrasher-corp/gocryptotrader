@@ -2,128 +2,201 @@ package config
 
 import (
 	"bytes"
-	"fmt"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/binary"
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {
 	t.Parallel()
 
 	confirm, err := promptForConfigEncryption()
-	if confirm {
-		t.Error("promptForConfigEncryption return incorrect bool")
-	}
-	if err == nil {
-		t.Error("Expected error as there is no input")
-	}
+	require.ErrorIs(t, err, io.EOF)
+	require.False(t, confirm)
 }
 
 func TestPromptForConfigKey(t *testing.T) {
 	t.Parallel()
 
-	byteyBite, err := PromptForConfigKey(true)
-	if err == nil && len(byteyBite) > 1 {
-		t.Errorf("PromptForConfigKey: %s", err)
-	}
+	withInteractiveResponse(t, "\n\n", func() {
+		_, err := PromptForConfigKey(false)
+		require.ErrorIs(t, err, io.EOF)
+	})
 
-	_, err = PromptForConfigKey(false)
-	if err == nil {
-		t.Error("Expected error")
-	}
+	withInteractiveResponse(t, "pass\n", func() {
+		k, err := PromptForConfigKey(false)
+		require.NoError(t, err)
+		assert.Equal(t, "pass", string(k))
+	})
+
+	withInteractiveResponse(t, "what\nwhat\n", func() {
+		k, err := PromptForConfigKey(true)
+		require.NoError(t, err)
+		assert.Equal(t, "what", string(k))
+	})
+
+	withInteractiveResponse(t, "what\nno\n", func() {
+		_, err := PromptForConfigKey(true)
+		require.ErrorIs(t, err, io.EOF, "PromptForConfigKey must EOF when asking for another input but none is given")
+	})
+
+	withInteractiveResponse(t, "what\nno\nwhat\nno\nwhat\nno\n", func() {
+		_, err := PromptForConfigKey(true)
+		require.ErrorIs(t, err, io.EOF, "PromptForConfigKey must EOF when asking for another input but none is given")
+	})
+
+	withInteractiveResponse(t, "what\nno\nwhat\nno\nwhat\nwhat\n", func() {
+		k, err := PromptForConfigKey(true)
+		require.NoError(t, err, "PromptForConfigKey must not error if the user eventually answers consistently")
+		assert.Equal(t, "what", string(k))
+	})
 }
 
-func TestEncryptConfigFile(t *testing.T) {
+func TestEncryptConfigData(t *testing.T) {
 	t.Parallel()
-	_, err := EncryptConfigFile([]byte("test"), nil)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
+	_, err := EncryptConfigData([]byte("test"), nil)
+	require.ErrorIs(t, err, errKeyIsEmpty)
 
 	c := &Config{
 		sessionDK: []byte("a"),
 	}
-	_, err = c.encryptConfigFile([]byte("test"))
-	if err == nil {
-		t.Fatal("Expected error")
-	}
+	_, err = c.encryptConfigData([]byte(`test`))
+	require.ErrorIs(t, err, ErrSettingEncryptConfig)
+
+	_, err = c.encryptConfigData([]byte(`{"test":1}`))
+	require.Error(t, err)
+	require.IsType(t, aes.KeySizeError(1), err)
 
 	sessDk, salt, err := makeNewSessionDK([]byte("asdf"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "makeNewSessionDK must not error")
 
 	c = &Config{
 		sessionDK:  sessDk,
 		storedSalt: salt,
 	}
-	_, err = c.encryptConfigFile([]byte("test"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = c.encryptConfigData([]byte(`{"test":1}`))
+	require.NoError(t, err)
 }
 
-func TestDecryptConfigFile(t *testing.T) {
+func TestDecryptConfigData(t *testing.T) {
 	t.Parallel()
-	result, err := EncryptConfigFile([]byte("test"), []byte("key"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	e, err := EncryptConfigData([]byte(`{"test":1}`), []byte("key"))
+	require.NoError(t, err)
 
-	_, err = DecryptConfigFile(result, nil)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
+	d, err := DecryptConfigData(e, []byte("key"))
+	require.NoError(t, err)
+	assert.Equal(t, `{"test":1,"encryptConfig":1}`, string(d), "encryptConfig should be set to 1 after first encryption")
 
-	_, err = DecryptConfigFile([]byte("test"), nil)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
+	_, err = DecryptConfigData(e, nil)
+	require.ErrorIs(t, err, errKeyIsEmpty)
 
-	_, err = DecryptConfigFile([]byte("test"), []byte("AAAAAAAAAAAAAAAA"))
-	if err == nil {
-		t.Fatalf("Expected %s", errAESBlockSize)
-	}
+	_, err = DecryptConfigData([]byte("test"), nil)
+	require.ErrorIs(t, err, errNoPrefix)
 
-	result, err = EncryptConfigFile([]byte("test"), []byte("key"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = DecryptConfigData(encryptionPrefix, []byte("AAAAAAAAAAAAAAAA"))
+	require.ErrorIs(t, err, errAESBlockSize)
 
-	_, err = DecryptConfigFile(result, []byte("key"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	sessionDK, salt, err := makeNewSessionDK([]byte("key"))
+	require.NoError(t, err, "makeNewSessionDK must not error")
+
+	encData, err := legacyEncrypt(t, salt, []byte(`{"test":123}`), sessionDK)
+	require.NoError(t, err)
+
+	data, err := DecryptConfigData(encData, []byte("key"))
+	require.NoError(t, err)
+	assert.Equal(t, `{"test":123}`, string(data))
+
+	badVersion := make([]byte, len(encryptionPrefix)+len(encryptionVersionPrefix)+versionSize)
+	copy(badVersion, encryptionPrefix)
+	copy(badVersion[len(encryptionPrefix):], encryptionVersionPrefix)
+	binary.BigEndian.PutUint16(badVersion[len(encryptionPrefix)+len(encryptionVersionPrefix):], 69)
+	_, err = DecryptConfigData(badVersion, []byte("key"))
+	require.ErrorIs(t, err, errUnsupportedEncryptionVersion)
 }
 
-func TestConfirmECS(t *testing.T) {
-	t.Parallel()
+func legacyEncrypt(t *testing.T, salt, data, key []byte) ([]byte, error) {
+	t.Helper()
 
-	ECStest := []byte(EncryptConfirmString)
-	if !ConfirmECS(ECStest) {
-		t.Errorf("TestConfirmECS: Error finding ECS.")
+	ciphertext, err := aesCFBEncrypt(t, data, key)
+	if err != nil {
+		return nil, err
 	}
+
+	encData := append(bytes.Clone(encryptionPrefix), salt...)
+	encData = append(encData, ciphertext...)
+	return encData, nil
 }
 
-func TestRemoveECS(t *testing.T) {
+func aesCFBEncrypt(t *testing.T, data, key []byte) ([]byte, error) {
+	t.Helper()
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	ciphertext := make([]byte, aes.BlockSize+len(data))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv) //nolint:staticcheck // For testing purposes only
+	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
+	return ciphertext, nil
+}
+
+func TestEncryptAESGCMCiphertext(t *testing.T) {
 	t.Parallel()
 
-	ECStest := []byte(EncryptConfirmString)
-	reader := bytes.NewReader(ECStest)
-	err := skipECS(reader)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := decryptAESGCMCiphertext(nil, nil)
+	require.ErrorIs(t, err, aes.KeySizeError(0))
 
-	// Attempt read
-	var buf []byte
-	_, err = reader.Read(buf)
-	if err != io.EOF {
-		t.Errorf("TestConfirmECS: Error ECS not deleted.")
-	}
+	validKey := []byte(strings.Repeat("A", 16))
+	block, err := aes.NewCipher(validKey)
+	require.NoError(t, err)
+
+	aead, err := cipher.NewGCMWithRandomNonce(block)
+	require.NoError(t, err)
+
+	ciphertext := aead.Seal(nil, nil, []byte("MEOWMEOWMEOWMEOWMEOW"), nil)
+
+	data, err := decryptAESGCMCiphertext(ciphertext, validKey)
+	require.NoError(t, err)
+	assert.Equal(t, "MEOWMEOWMEOWMEOWMEOW", string(data))
+}
+
+func TestDecryptAESCFBCiphertext(t *testing.T) {
+	t.Parallel()
+
+	_, err := decryptAESCFBCiphertext(nil, nil)
+	require.ErrorIs(t, err, errAESBlockSize)
+
+	_, err = decryptAESCFBCiphertext([]byte("WOOFWOOFWOOFWOOFWOOF"), []byte("A"))
+	require.ErrorIs(t, err, aes.KeySizeError(1))
+
+	validKey := []byte(strings.Repeat("A", 16))
+	data, err := aesCFBEncrypt(t, []byte("WOOFWOOFWOOFWOOFWOOF"), validKey)
+	require.NoError(t, err)
+
+	data, err = decryptAESCFBCiphertext(data, validKey)
+	require.NoError(t, err)
+	assert.Equal(t, "WOOFWOOFWOOFWOOFWOOF", string(data))
+}
+
+func TestIsEncrypted(t *testing.T) {
+	t.Parallel()
+	assert.True(t, IsEncrypted(encryptionPrefix))
+	assert.False(t, IsEncrypted([]byte("mhmmm. Donuts.")))
 }
 
 func TestMakeNewSessionDK(t *testing.T) {
@@ -189,7 +262,7 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 		t.Fatalf("Problem reading file %s: %s\n", enc2, err)
 	}
 	// length of prefix + salt
-	l := len(EncryptConfirmString+SaltPrefix) + SaltRandomLength
+	l := len(encryptionPrefix) + len(saltPrefix) + saltRandomLength
 	// Even though prefix, including salt with the random bytes is the same
 	if !bytes.Equal(data1[:l], data2[:l]) {
 		t.Error("Salt is not reused.")
@@ -208,44 +281,20 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 
 	// Save encrypted config
 	enc := filepath.Join(tempDir, "encrypted.dat")
-	err := withInteractiveResponse(t, "pass\npass\n", func() error {
-		return c.SaveConfigToFile(enc)
+	withInteractiveResponse(t, "pass\npass\n", func() {
+		err := c.SaveConfigToFile(enc)
+		require.NoError(t, err, "SaveConfigToFile must not error")
 	})
-	if err != nil {
-		t.Fatalf("Problem storing config in file %s: %s\n", enc, err)
-	}
 
 	readConf := &Config{}
-	err = withInteractiveResponse(t, "pass\n", func() error {
+	withInteractiveResponse(t, "pass\n", func() {
 		// Load with no existing state, key is read from the prepared file
-		return readConf.ReadConfigFromFile(enc, true)
+		err := readConf.ReadConfigFromFile(enc, true)
+		require.NoError(t, err, "ReadConfigFromFile must not error")
 	})
 
-	// Verify
-	if err != nil {
-		t.Fatalf("Problem reading config in file %s: %s\n", enc, err)
-	}
-
-	if c.Name != readConf.Name || c.EncryptConfig != readConf.EncryptConfig {
-		t.Error("Loaded conf not the same as original")
-	}
-}
-
-// setAnswersFile sets the given file as the current stdin
-// returns the close function to defer for reverting the stdin
-func setAnswersFile(t *testing.T, answerFile string) func() {
-	t.Helper()
-	oldIn := os.Stdin
-
-	inputFile, err := os.Open(answerFile)
-	if err != nil {
-		t.Fatalf("Problem opening temp file at %s: %s\n", answerFile, err)
-	}
-	os.Stdin = inputFile
-	return func() {
-		inputFile.Close()
-		os.Stdin = oldIn
-	}
+	assert.Equal(t, "myCustomName", readConf.Name, "Name should be correct")
+	assert.Equal(t, 1, readConf.EncryptConfig, "EncryptConfig should be set correctly")
 }
 
 func TestReadConfigWithPrompt(t *testing.T) {
@@ -260,14 +309,13 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	// Save config
 	testConfigFile := filepath.Join(tempDir, "config.json")
 	err := c.SaveConfigToFile(testConfigFile)
-	if err != nil {
-		t.Fatalf("Problem saving config file in %s: %s\n", tempDir, err)
-	}
+	require.NoError(t, err, "SaveConfigToFile must not error")
 
 	// Run the test
 	c = &Config{}
-	err = withInteractiveResponse(t, "y\npass\npass\n", func() error {
-		return c.ReadConfigFromFile(testConfigFile, false)
+	withInteractiveResponse(t, "y\npass\npass\n", func() {
+		err = c.ReadConfigFromFile(testConfigFile, false)
+		require.NoError(t, err, "ReadConfigFromFile must not error")
 	})
 	if err != nil {
 		t.Fatalf("Problem reading config file at %s: %s\n", testConfigFile, err)
@@ -281,33 +329,24 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	if c.EncryptConfig != fileEncryptionEnabled {
 		t.Error("Config encryption flag should be set after prompts")
 	}
-	if !ConfirmECS(data) {
-		t.Error("Config file should be encrypted after prompts")
-	}
+	assert.True(t, IsEncrypted(data), "data should be encrypted after prompts")
 }
 
 func TestReadEncryptedConfigFromReader(t *testing.T) {
 	t.Parallel()
-	keyProvider := func() ([]byte, error) { return []byte("pass"), nil }
+	c := &Config{
+		EncryptionKeyProvider: func(_ bool) ([]byte, error) { return []byte("pass"), nil },
+	}
 	// Encrypted conf for: `{"name":"test"}` with key `pass`
 	confBytes := []byte{84, 72, 79, 82, 83, 45, 72, 65, 77, 77, 69, 82, 126, 71, 67, 84, 126, 83, 79, 126, 83, 65, 76, 84, 89, 126, 246, 110, 128, 3, 30, 168, 172, 160, 198, 176, 136, 62, 152, 155, 253, 176, 16, 48, 52, 246, 44, 29, 151, 47, 217, 226, 178, 12, 218, 113, 248, 172, 195, 232, 136, 104, 9, 199, 20, 4, 71, 4, 253, 249}
-	conf, encrypted, err := ReadConfig(bytes.NewReader(confBytes), keyProvider)
-	if err != nil {
-		t.Errorf("TestReadConfig %s", err)
-	}
-	if !encrypted {
-		t.Errorf("Expected encrypted config %s", err)
-	}
-	if conf.Name != "test" {
-		t.Errorf("Conf not properly loaded %s", err)
-	}
+	err := c.readConfig(bytes.NewReader(confBytes))
+	require.NoError(t, err)
+	assert.Equal(t, "test", c.Name)
 
 	// Change the salt
 	confBytes[20] = 0
-	conf, _, err = ReadConfig(bytes.NewReader(confBytes), keyProvider)
-	if err == nil {
-		t.Errorf("Expected unable to decrypt, but got %+v", conf)
-	}
+	err = c.readConfig(bytes.NewReader(confBytes))
+	require.ErrorIs(t, err, errDecryptFailed)
 }
 
 // TestSaveConfigToFileWithErrorInPasswordPrompt should preserve the original file
@@ -317,59 +356,35 @@ func TestSaveConfigToFileWithErrorInPasswordPrompt(t *testing.T) {
 		EncryptConfig: fileEncryptionEnabled,
 	}
 	testData := []byte("testdata")
-	f, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	f, err := os.CreateTemp(t.TempDir(), "")
+	require.NoError(t, err, "CreateTemp must not error")
+
 	targetFile := f.Name()
-	defer os.Remove(targetFile)
 
 	_, err = io.Copy(f, bytes.NewReader(testData))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = f.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = withInteractiveResponse(t, "\n\n", func() error {
+	require.NoError(t, err, "io.Copy must not error")
+	require.NoError(t, f.Close(), "file Close must not error")
+
+	withInteractiveResponse(t, "\n\n", func() {
 		err = c.SaveConfigToFile(targetFile)
-		if err == nil {
-			t.Error("Expected error")
-		}
-		return nil
+		require.ErrorIs(t, err, io.EOF, "SaveConfigToFile must not error")
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	data, err := os.ReadFile(targetFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(data, testData) {
-		t.Errorf("Expected contents %s, but was %s", testData, data)
-	}
+	require.NoError(t, err, "ReadFile must not error")
+	assert.Equal(t, testData, data)
 }
 
-func withInteractiveResponse(t *testing.T, response string, body func() error) error {
-	t.Helper()
-	// Answers to the prompt
-	responseFile, err := os.CreateTemp("", "*.in")
-	if err != nil {
-		return fmt.Errorf("problem creating temp file: %w", err)
-	}
-	_, err = responseFile.WriteString(response)
-	if err != nil {
-		return fmt.Errorf("problem writing to temp file at %s: %w", responseFile.Name(), err)
-	}
-	err = responseFile.Close()
-	if err != nil {
-		return fmt.Errorf("problem closing temp file at %s: %w", responseFile.Name(), err)
-	}
-	defer os.Remove(responseFile.Name())
-
-	// Temporarily replace Stdin with a custom input
-	cleanup := setAnswersFile(t, responseFile.Name())
-	defer cleanup()
-	return body()
+func withInteractiveResponse(tb testing.TB, response string, fn func()) {
+	tb.Helper()
+	f, err := os.CreateTemp(tb.TempDir(), "*.in")
+	require.NoError(tb, err, "CreateTemp must not error")
+	defer f.Close()
+	_, err = f.WriteString(response)
+	require.NoError(tb, err, "WriteString must not error")
+	_, err = f.Seek(0, 0)
+	require.NoError(tb, err, "Seek must not error")
+	defer func(orig *os.File) { os.Stdin = orig }(os.Stdin)
+	os.Stdin = f
+	fn()
 }

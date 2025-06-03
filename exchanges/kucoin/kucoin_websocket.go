@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,9 +13,11 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -24,15 +25,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var fetchedFuturesOrderbookMutex sync.Mutex
-var fetchedFuturesOrderbook map[string]bool
+var (
+	fetchedFuturesOrderbookMutex sync.Mutex
+	fetchedFuturesOrderbook      map[string]bool
+)
 
 const (
 	publicBullets  = "/v1/bullet-public"
@@ -117,12 +119,12 @@ var defaultSubscriptions = subscription.List{
 // WsConnect creates a new websocket connection.
 func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
 	fetchedFuturesOrderbookMutex.Lock()
 	fetchedFuturesOrderbook = map[string]bool{}
 	fetchedFuturesOrderbookMutex.Unlock()
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var instances *WSInstanceServers
@@ -153,10 +155,10 @@ func (ku *Kucoin) WsConnect() error {
 	}
 	ku.Websocket.Wg.Add(1)
 	go ku.wsReadData()
-	ku.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	ku.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 		Message:     []byte(`{"type":"ping"}`),
-		MessageType: websocket.TextMessage,
+		MessageType: gws.TextMessage,
 	})
 
 	ku.setupOrderbookManager()
@@ -180,7 +182,8 @@ func (ku *Kucoin) GetInstanceServers(ctx context.Context) (*WSInstanceServers, e
 			Result:        &response,
 			Verbose:       ku.Verbose,
 			HTTPDebugging: ku.HTTPDebugging,
-			HTTPRecording: ku.HTTPRecording}, nil
+			HTTPRecording: ku.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 }
 
@@ -222,7 +225,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return nil
 	}
 	if resp.ID != "" {
-		return ku.Websocket.Match.EnsureMatchWithData("msgID:"+resp.ID, respData)
+		return ku.Websocket.Match.RequireMatchWithData("msgID:"+resp.ID, respData)
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch topicInfo[0] {
@@ -266,9 +269,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		if resp.Subject == "order.done" {
 			var response WsMarginTradeOrderDoneEvent
 			return ku.processData(resp.Data, &response)
-		} else {
-			return ku.processMarginLendingTradeOrderEvent(resp.Data)
 		}
+		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case spotMarketAdvancedChannel:
 		return ku.processStopOrderEvent(resp.Data)
 	case futuresTickerChannel:
@@ -333,8 +335,8 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		}
 		return ku.processFuturesKline(resp.Data, instrumentInfos[1])
 	default:
-		ku.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: ku.Name + stream.UnhandledMessage + string(respData),
+		ku.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: ku.Name + websocket.UnhandledMessage + string(respData),
 		}
 		return errors.New("push data not handled")
 	}
@@ -342,7 +344,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 }
 
 // processData used to deserialize and forward the data to DataHandler.
-func (ku *Kucoin) processData(respData []byte, resp interface{}) error {
+func (ku *Kucoin) processData(respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -356,13 +358,24 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- account.Change{
-		Exchange: ku.Name,
-		Currency: currency.NewCode(resp.Currency),
-		Asset:    asset.Futures,
-		Amount:   resp.AvailableBalance,
+	creds, err := ku.GetCredentials(context.TODO())
+	if err != nil {
+		return err
 	}
-	return nil
+	changes := []account.Change{
+		{
+			AssetType: asset.Futures,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Currency),
+				Total:     resp.AvailableBalance + resp.HoldBalance,
+				Hold:      resp.HoldBalance,
+				Free:      resp.AvailableBalance,
+				UpdatedAt: resp.Timestamp.Time(),
+			},
+		},
+	}
+	ku.Websocket.DataHandler <- changes
+	return account.ProcessChange(ku.Name, changes, creds)
 }
 
 // processFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
@@ -509,7 +522,7 @@ func (ku *Kucoin) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 	if err != nil {
 		return err
 	}
-	orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+	orderbooks, err := ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
 	if err != nil {
 		return err
 	}
@@ -610,7 +623,7 @@ func (ku *Kucoin) processFuturesKline(respData []byte, intervalStr string) error
 	if err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- &stream.KlineData{
+	ku.Websocket.DataHandler <- &websocket.KlineData{
 		Timestamp:  resp.Time.Time(),
 		AssetType:  asset.Futures,
 		Exchange:   ku.Name,
@@ -679,13 +692,24 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	ku.Websocket.DataHandler <- account.Change{
-		Exchange: ku.Name,
-		Currency: currency.NewCode(response.Currency),
-		Asset:    asset.Futures,
-		Amount:   response.Available,
+	creds, err := ku.GetCredentials(context.TODO())
+	if err != nil {
+		return err
 	}
-	return nil
+	changes := []account.Change{
+		{
+			AssetType: asset.Futures,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(response.Currency),
+				Total:     response.Total,
+				Hold:      response.Hold,
+				Free:      response.Available,
+				UpdatedAt: response.Time.Time(),
+			},
+		},
+	}
+	ku.Websocket.DataHandler <- changes
+	return account.ProcessChange(ku.Name, changes, creds)
 }
 
 // processOrderChangeEvent processes order update events.
@@ -837,7 +861,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 		if !ku.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		ku.Websocket.DataHandler <- &stream.KlineData{
+		ku.Websocket.DataHandler <- &websocket.KlineData{
 			Timestamp:  response.Time.Time(),
 			Pair:       pair,
 			AssetType:  assets[x],
@@ -950,7 +974,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	var lastUpdatedTime = response.Timestamp.Time()
+	lastUpdatedTime := response.Timestamp.Time()
 	if response.Timestamp.Time().IsZero() {
 		lastUpdatedTime = time.Now()
 	}
@@ -1070,11 +1094,8 @@ func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
 func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
-			"channelName": channelName,
-			"removeSpotFromMargin": func(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
-				spotPairs, _ := ku.GetEnabledPairs(asset.Spot)
-				return removeSpotFromMargin(s, ap, spotPairs)
-			},
+			"channelName":           channelName,
+			"mergeMarginPairs":      ku.mergeMarginPairs,
 			"isCurrencyChannel":     isCurrencyChannel,
 			"isSymbolChannel":       isSymbolChannel,
 			"channelInterval":       channelInterval,
@@ -1686,13 +1707,45 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 	return s.Channel
 }
 
-// removeSpotFromMargin removes spot pairs from margin pairs in the supplied AssetPairs map for subscriptions to non-margin endpoints
-func removeSpotFromMargin(s *subscription.Subscription, ap map[asset.Item]currency.Pairs, spotPairs currency.Pairs) string {
+// mergeMarginPairs merges margin pairs into spot pairs for shared subs (ticker, orderbook, etc) if Spot asset and sub are enabled,
+// because Kucoin errors on duplicate pairs in separate subs, and doesn't have separate subs for spot and margin
+func (ku *Kucoin) mergeMarginPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
 	if strings.HasPrefix(s.Channel, "/margin") {
 		return ""
 	}
-	if p, ok := ap[asset.Margin]; ok {
-		ap[asset.Margin] = p.Remove(spotPairs...)
+	wantKey := &subscription.IgnoringAssetKey{Subscription: s}
+	switch s.Asset {
+	case asset.All:
+		_, marginEnabled := ap[asset.Margin]
+		_, spotEnabled := ap[asset.Spot]
+		if marginEnabled && spotEnabled {
+			marginPairs, _ := ku.GetEnabledPairs(asset.Margin)
+			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
+			ap[asset.Margin] = currency.Pairs{}
+		}
+	case asset.Spot:
+		// If there's a margin sub then we should merge the pairs into spot
+		hasMarginSub := slices.ContainsFunc(ku.Features.Subscriptions, func(sB *subscription.Subscription) bool {
+			if sB.Asset != asset.Margin && sB.Asset != asset.All {
+				return false
+			}
+			return wantKey.Match(&subscription.IgnoringAssetKey{Subscription: sB})
+		})
+		if hasMarginSub {
+			marginPairs, _ := ku.GetEnabledPairs(asset.Margin)
+			ap[asset.Spot] = common.SortStrings(ap[asset.Spot].Add(marginPairs...))
+		}
+	case asset.Margin:
+		// If there's a spot sub, all margin pairs are already merged, so empty the margin pairs
+		hasSpotSub := slices.ContainsFunc(ku.Features.Subscriptions, func(sB *subscription.Subscription) bool {
+			if sB.Asset != asset.Spot && sB.Asset != asset.All {
+				return false
+			}
+			return wantKey.Match(&subscription.IgnoringAssetKey{Subscription: sB})
+		})
+		if hasSpotSub {
+			ap[asset.Margin] = currency.Pairs{}
+		}
 	}
 	return ""
 }
@@ -1749,27 +1802,27 @@ func joinPairsWithInterval(b currency.Pairs, s *subscription.Subscription) strin
 }
 
 const subTplText = `
-{{- removeSpotFromMargin $.S $.AssetPairs -}}
+{{- mergeMarginPairs $.S $.AssetPairs }}
 {{- if isCurrencyChannel $.S }}
-	{{ channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join -}}
+	{{- channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join }}
 {{- else if isSymbolChannel $.S }}
-	{{ range $asset, $pairs := $.AssetPairs }}
+	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- with $name := channelName $.S $asset }}
-			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) -}}
+			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) }}
 				{{- $name -}} :all
-				{{- with $i := channelInterval $.S -}}_{{- $i -}}{{- end -}}
-				{{- $.BatchSize -}} {{ len $pairs }}
-			{{- else -}}
-				{{- range $b := batch $pairs 100 -}}
-					{{- $name -}} : {{- joinPairsWithInterval $b $.S -}}
-					{{ $.PairSeparator }}
-				{{- end -}}
+				{{- with $i := channelInterval $.S }}_{{ $i }}{{ end }}
+				{{- $.BatchSize }} {{- len $pairs }}
+			{{- else }}
+				{{- range $b := batch $pairs 100 }}
+					{{- $name -}} : {{- joinPairsWithInterval $b $.S }}
+					{{- $.PairSeparator }}
+				{{- end }}
 				{{- $.BatchSize -}} 100
 			{{- end }}
 		{{- end }}
-		{{ $.AssetSeparator }}
+		{{- $.AssetSeparator }}
 	{{- end }}
-{{- else -}}
-	{{ channelName $.S $.S.Asset }}
+{{- else }}
+	{{- channelName $.S $.S.Asset }}
 {{- end }}
 `

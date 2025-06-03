@@ -3,7 +3,6 @@ package kraken
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -126,7 +126,7 @@ func (k *Kraken) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderDa
 		data[x].Symbol = formattedPair.String()
 	}
 
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["batchOrder"] = data
 
 	jsonData, err := json.Marshal(req)
@@ -156,19 +156,21 @@ func (k *Kraken) FuturesEditOrder(ctx context.Context, orderID, clientOrderID st
 }
 
 // FuturesSendOrder sends a futures order
-func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string,
-	ioc bool,
-	size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
+func (k *Kraken) FuturesSendOrder(ctx context.Context, orderType order.Type, symbol currency.Pair, side, triggerSignal, clientOrderID, reduceOnly string, tif order.TimeInForce, size, limitPrice, stopPrice float64) (FuturesSendOrderData, error) {
 	var resp FuturesSendOrderData
-
-	if ioc && orderType != order.Market {
-		orderType = order.ImmediateOrCancel
-	}
-
 	oType, ok := validOrderTypes[orderType]
 	if !ok {
 		return resp, errors.New("invalid orderType")
 	}
+
+	if oType != "mkt" {
+		if tif.Is(order.PostOnly) {
+			oType = "post"
+		} else if tif.Is(order.ImmediateOrCancel) {
+			oType = "ioc"
+		}
+	}
+
 	params := url.Values{}
 	params.Set("orderType", oType)
 	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
@@ -229,7 +231,7 @@ func (k *Kraken) FuturesGetFills(ctx context.Context, lastFillTime time.Time) (F
 // FuturesTransfer transfers funds between accounts
 func (k *Kraken) FuturesTransfer(ctx context.Context, fromAccount, toAccount, unit string, amount float64) (FuturesTransferData, error) {
 	var resp FuturesTransferData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["fromAccount"] = fromAccount
 	req["toAccount"] = toAccount
 	req["unit"] = unit
@@ -332,7 +334,7 @@ func (k *Kraken) signFuturesRequest(secret, endpoint, nonce, data string) (strin
 }
 
 // SendFuturesAuthRequest will send an auth req
-func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result interface{}) error {
+func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string, data url.Values, result any) error {
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
 		return err

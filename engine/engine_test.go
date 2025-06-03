@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"os"
 	"slices"
@@ -165,15 +164,13 @@ func TestGetExchangeByName(t *testing.T) {
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	exch.SetEnabled(true)
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	e := &Engine{ExchangeManager: em}
 
 	if !exch.IsEnabled() {
@@ -202,17 +199,16 @@ func TestUnloadExchange(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	exch.SetEnabled(true)
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	e := &Engine{ExchangeManager: em,
-		Config: &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
+	require.NoError(t, err)
+
+	e := &Engine{
+		ExchangeManager: em,
+		Config:          &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}
 	err = e.UnloadExchange("asdf")
 	if !errors.Is(err, config.ErrExchangeNotFound) {
@@ -326,10 +322,8 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 	}
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
-	err = e.RegisterWebsocketDataHandler(func(_ string, _ interface{}) error { return nil }, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	err = e.RegisterWebsocketDataHandler(func(_ string, _ any) error { return nil }, false)
+	require.NoError(t, err)
 }
 
 func TestSetDefaultWebsocketDataHandler(t *testing.T) {
@@ -342,9 +336,7 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.SetDefaultWebsocketDataHandler()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSettingsPrint(t *testing.T) {
@@ -369,9 +361,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			exch, err := em.NewExchangeByName(name)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err, "NewExchangeByName must not error")
 
 			if isCITest() && slices.Contains(blockedCIExchanges, name) {
 				t.Skipf("skipping %s due to CI test restrictions", name)
@@ -381,41 +371,19 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 
-			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if defaultCfg == nil {
-				t.Fatal("expected config")
-			}
-
-			if defaultCfg.Name == "" {
-				t.Error("name unset SetDefaults() not called")
-			}
-
-			if !defaultCfg.Enabled {
-				t.Error("expected enabled", defaultCfg.Name)
-			}
+			defaultCfg, err := exchange.GetDefaultConfig(t.Context(), exch)
+			require.NoError(t, err, "GetDefaultConfig must not error")
+			require.NotNil(t, defaultCfg)
+			assert.NotEmpty(t, defaultCfg.Name, "Name should not be empty")
+			assert.True(t, defaultCfg.Enabled, "Enabled should have the correct value")
 
 			if exch.SupportsWebsocket() {
-				if defaultCfg.WebsocketResponseCheckTimeout <= 0 {
-					t.Error("expected websocketResponseCheckTimeout to be greater than 0", defaultCfg.Name)
-				}
-
-				if defaultCfg.WebsocketResponseMaxLimit <= 0 {
-					t.Error("expected WebsocketResponseMaxLimit to be greater than 0", defaultCfg.Name)
-				}
-
-				if defaultCfg.WebsocketTrafficTimeout <= 0 {
-					t.Error("expected WebsocketTrafficTimeout to be greater than 0", defaultCfg.Name)
-				}
+				assert.Positive(t, defaultCfg.WebsocketResponseCheckTimeout, "WebsocketResponseCheckTimeout should be positive")
+				assert.Positive(t, defaultCfg.WebsocketResponseMaxLimit, "WebsocketResponseMaxLimit should be positive")
+				assert.Positive(t, defaultCfg.WebsocketTrafficTimeout, "WebsocketTrafficTimeout should be positive")
 			}
 
-			// Makes sure the config is valid and can be used to setup the exchange
-			if err := exch.Setup(defaultCfg); err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, exch.Setup(defaultCfg), "Setup must not error")
 		})
 	}
 }
@@ -503,7 +471,7 @@ func TestSetupExchanges(t *testing.T) {
 		exchLoader := func(exch exchange.IBotExchange) {
 			exch.SetDefaults()
 			exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
-			cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
+			cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err)
 			e.Config.Exchanges = append(e.Config.Exchanges, *cfg)
 		}

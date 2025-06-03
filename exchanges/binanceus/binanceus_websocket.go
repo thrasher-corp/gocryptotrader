@@ -2,7 +2,6 @@ package binanceus
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,13 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -46,9 +46,9 @@ var (
 // WsConnect initiates a websocket connection
 func (bi *Binanceus) WsConnect() error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	dialer.HandshakeTimeout = bi.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
@@ -82,9 +82,9 @@ func (bi *Binanceus) WsConnect() error {
 		go bi.KeepAuthKeyAlive()
 	}
 
-	bi.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
+	bi.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.PongMessage,
+		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
 
@@ -162,7 +162,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 func (bi *Binanceus) wsHandleData(respRaw []byte) error {
-	var multiStreamData map[string]interface{}
+	var multiStreamData map[string]any
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	}
-	if newData, ok := multiStreamData["data"].(map[string]interface{}); ok {
+	if newData, ok := multiStreamData["data"].(map[string]any); ok {
 		if e, ok := newData["e"].(string); ok {
 			switch e {
 			case "outboundAccountPosition":
@@ -272,8 +272,8 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					Side:                 orderSide,
 					Status:               orderStatus,
 					AssetType:            assetType,
-					Date:                 data.Data.OrderCreationTime,
-					LastUpdated:          data.Data.TransactionTime,
+					Date:                 data.Data.OrderCreationTime.Time(),
+					LastUpdated:          data.Data.TransactionTime.Time(),
 					Pair:                 pair,
 				}
 				return nil
@@ -348,7 +348,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					return bi.Websocket.Trade.Update(saveTradeData,
 						trade.Data{
 							CurrencyPair: pair,
-							Timestamp:    t.TimeStamp,
+							Timestamp:    t.TimeStamp.Time(),
 							Price:        price,
 							Amount:       amount,
 							Exchange:     bi.Name,
@@ -380,7 +380,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 						Bid:          t.BestBidPrice,
 						Ask:          t.BestAskPrice,
 						Last:         t.LastPrice,
-						LastUpdated:  t.EventTime,
+						LastUpdated:  t.EventTime.Time(),
 						AssetType:    asset.Spot,
 						Pair:         pair,
 					}
@@ -400,13 +400,13 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					bi.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  kline.EventTime,
+					bi.Websocket.DataHandler <- websocket.KlineData{
+						Timestamp:  kline.EventTime.Time(),
 						Pair:       pair,
 						AssetType:  asset.Spot,
 						Exchange:   bi.Name,
-						StartTime:  kline.Kline.StartTime,
-						CloseTime:  kline.Kline.CloseTime,
+						StartTime:  kline.Kline.StartTime.Time(),
+						CloseTime:  kline.Kline.CloseTime.Time(),
 						Interval:   kline.Kline.Interval,
 						OpenPrice:  kline.Kline.OpenPrice,
 						ClosePrice: kline.Kline.ClosePrice,
@@ -465,8 +465,8 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					bi.Websocket.DataHandler <- agg
 					return nil
 				default:
-					bi.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-						Message: bi.Name + stream.UnhandledMessage + string(respRaw),
+					bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+						Message: bi.Name + websocket.UnhandledMessage + string(respRaw),
 					}
 				}
 			}
@@ -541,7 +541,7 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 
 // GenerateSubscriptions generates the default subscription set
 func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
+	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)
@@ -581,7 +581,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 			if err != nil {
 				return err
 			}
-			payload.Params = []interface{}{}
+			payload.Params = []any{}
 		}
 	}
 	if len(payload.Params) > 0 {
@@ -605,7 +605,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 			if err != nil {
 				return err
 			}
-			payload.Params = []interface{}{}
+			payload.Params = []any{}
 		}
 	}
 	if len(payload.Params) > 0 {
@@ -705,7 +705,7 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 		Asks:       updateAsk,
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
+		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
 }

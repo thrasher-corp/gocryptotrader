@@ -39,15 +39,15 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 	if cfg == nil {
 		return nil, fmt.Errorf("%w OrderManager", errNilConfig)
 	}
-
-	var respectOrderHistoryLimits bool
-	if cfg.RespectOrderHistoryLimits != nil {
-		respectOrderHistoryLimits = *cfg.RespectOrderHistoryLimits
+	if cfg.ActivelyTrackFuturesPositions && cfg.FuturesTrackingSeekDuration <= 0 {
+		return nil, errInvalidFuturesTrackingSeekDuration
 	}
+
 	om := &OrderManager{
 		shutdown:                      make(chan struct{}),
 		activelyTrackFuturesPositions: cfg.ActivelyTrackFuturesPositions,
-		respectOrderHistoryLimits:     respectOrderHistoryLimits,
+		futuresPositionSeekDuration:   cfg.FuturesTrackingSeekDuration,
+		respectOrderHistoryLimits:     cfg.RespectOrderHistoryLimits,
 		orderStore: store{
 			Orders:                    make(map[string][]*order.Detail),
 			exchangeManager:           exchangeManager,
@@ -59,15 +59,6 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 		cfg: orderManagerConfig{
 			CancelOrdersOnShutdown: cfg.CancelOrdersOnShutdown,
 		},
-	}
-	if cfg.ActivelyTrackFuturesPositions {
-		if cfg.FuturesTrackingSeekDuration > 0 {
-			cfg.FuturesTrackingSeekDuration *= -1
-		}
-		if cfg.FuturesTrackingSeekDuration == 0 {
-			cfg.FuturesTrackingSeekDuration = defaultOrderSeekTime
-		}
-		om.futuresPositionSeekDuration = cfg.FuturesTrackingSeekDuration
 	}
 	return om, nil
 }
@@ -404,10 +395,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 
 	// Populate additional Modify fields as some of them are required by various
 	// exchange implementations.
-	mod.Pair = det.Pair                           // Used by Bithumb.
-	mod.Side = det.Side                           // Used by Bithumb.
-	mod.PostOnly = det.PostOnly                   // Used by Poloniex.
-	mod.ImmediateOrCancel = det.ImmediateOrCancel // Used by Poloniex.
+	mod.Pair = det.Pair
+	mod.Side = det.Side
+	mod.TimeInForce = det.TimeInForce
 
 	// Following is just a precaution to not modify orders by mistake if exchange
 	// implementations do not check fields of the Modify struct for zero values.
@@ -728,7 +718,7 @@ func (m *OrderManager) processOrders() {
 					return
 				}
 				if sd.IsZero() {
-					sd = time.Now().Add(m.futuresPositionSeekDuration)
+					sd = time.Now().Add(-m.futuresPositionSeekDuration)
 				}
 				positions, err = exchanges[x].GetFuturesPositionOrders(context.TODO(), &futures.PositionsRequest{
 					Asset:                     enabledAssets[y],
@@ -792,7 +782,7 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		}
 		return err
 	}
-	tick, err := exch.FetchTicker(context.TODO(), position.Pair, position.Asset)
+	tick, err := exch.GetCachedTicker(position.Pair, position.Asset)
 	if err != nil {
 		return fmt.Errorf("%w when fetching ticker data for %v %v %v", err, exch.GetName(), position.Asset, position.Pair)
 	}

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -62,7 +62,7 @@ type apiServerManager struct {
 // websocketClient stores information related to the websocket client
 type websocketClient struct {
 	Hub              *websocketHub
-	Conn             *websocket.Conn
+	Conn             *gws.Conn
 	Authenticated    bool
 	authFailures     int
 	Send             chan []byte
@@ -88,14 +88,14 @@ type WebsocketEvent struct {
 	Exchange  string `json:"exchange,omitempty"`
 	AssetType string `json:"assetType,omitempty"`
 	Event     string
-	Data      interface{}
+	Data      any
 }
 
 // WebsocketEventResponse is the struct used for websocket event responses
 type WebsocketEventResponse struct {
-	Event string      `json:"event"`
-	Data  interface{} `json:"data"`
-	Error string      `json:"error"`
+	Event string `json:"event"`
+	Data  any    `json:"data"`
+	Error string `json:"error"`
 }
 
 // WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
@@ -140,8 +140,8 @@ type AllEnabledExchangeCurrencies struct {
 // EnabledExchangeCurrencies is a sub type for singular exchanges and respective
 // currencies
 type EnabledExchangeCurrencies struct {
-	ExchangeName   string         `json:"exchangeName"`
-	ExchangeValues []ticker.Price `json:"exchangeValues"`
+	ExchangeName   string          `json:"exchangeName"`
+	ExchangeValues []*ticker.Price `json:"exchangeValues"`
 }
 
 // AllEnabledExchangeAccounts holds all enabled accounts info
@@ -164,5 +164,5 @@ var wsHandlers = map[string]wsCommandHandler{
 
 type wsCommandHandler struct {
 	authRequired bool
-	handler      func(client *websocketClient, data interface{}) error
+	handler      func(client *websocketClient, data any) error
 }

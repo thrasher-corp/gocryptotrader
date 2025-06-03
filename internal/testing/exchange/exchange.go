@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -41,7 +40,7 @@ func Setup(e exchange.IBotExchange) error {
 	eName := e.GetName()
 	exchConf, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
-		return fmt.Errorf("GetExchangeConfig(`%s`) error: %w", eName, err)
+		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
 	e.SetDefaults()
 	b := e.GetBase()
@@ -101,10 +100,10 @@ func MockWsInstance[T any, PT interface {
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
-	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
+	require.NoError(tb, err, "Endpoints.SetRunning must not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
 		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
-		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
+		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)
 	}
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
@@ -113,32 +112,56 @@ func MockWsInstance[T any, PT interface {
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = b.Websocket.Connect()
-	require.NoError(tb, err, "Connect should not error")
+	require.NoError(tb, err, "Connect must not error")
 
 	return e
 }
 
-// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData)
+// FixtureError contains an error and the message that caused it
+type FixtureError struct {
+	Err error
+	Msg []byte
+}
+
+// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
 func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
 	tb.Helper()
 
+	for _, e := range FixtureToDataHandlerWithErrors(tb, fixturePath, reader) {
+		assert.NoErrorf(tb, e.Err, "Should not error handling message:\n%s", e.Msg)
+	}
+}
+
+// FixtureToDataHandlerWithErrors squirts the contents of a file to a reader function (probably e.wsHandleData) and returns handler errors
+// Any errors setting up the fixture will fail tests
+func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func([]byte) error) []FixtureError {
+	tb.Helper()
+
 	fixture, err := os.Open(fixturePath)
-	assert.NoError(tb, err, "Opening fixture '%s' should not error", fixturePath)
+	require.NoErrorf(tb, err, "Opening fixture %q must not error", fixturePath)
 	defer func() {
 		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
 	}()
 
+	errs := []FixtureError{}
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		err := reader(msg)
-		assert.NoErrorf(tb, err, "Fixture message should not error:\n%s", msg)
+		if err := reader(msg); err != nil {
+			errs = append(errs, FixtureError{
+				Err: err,
+				Msg: msg,
+			})
+		}
 	}
 	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
+	return errs
 }
 
-var setupWsMutex sync.Mutex
-var setupWsOnce = make(map[exchange.IBotExchange]bool)
+var (
+	setupWsMutex sync.Mutex
+	setupWsOnce  = make(map[exchange.IBotExchange]bool)
+)
 
 // SetupWs is a helper function to connect both auth and normal websockets
 // It will skip the test if websockets are not enabled
@@ -168,16 +191,19 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = w.Connect()
-	require.NoError(tb, err, "WsConnect should not error")
+	require.NoError(tb, err, "Connect must not error")
 
 	setupWsOnce[e] = true
 }
 
-var updatePairsMutex sync.Mutex
-var updatePairsOnce = make(map[string]*currency.PairsManager)
+var (
+	updatePairsMutex sync.Mutex
+	updatePairsOnce  = make(map[string]*currency.PairsManager)
+)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
 // A clone of the cache of the updated pairs is used to populate duplicate requests
+// Any pairs enabled after this is called will be lost on the next call
 func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 
@@ -190,7 +216,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 		return
 	}
 
-	err := e.UpdateTradablePairs(context.Background(), true)
+	err := e.UpdateTradablePairs(tb.Context(), true)
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
 	cache := new(currency.PairsManager)

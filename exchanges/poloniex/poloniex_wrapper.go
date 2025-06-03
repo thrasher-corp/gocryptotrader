@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -24,8 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -137,7 +137,7 @@ func (p *Poloniex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	p.Websocket = stream.NewWebsocket()
+	p.Websocket = websocket.NewManager()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -163,7 +163,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = p.Websocket.Setup(&stream.WebsocketSetup{
+	err = p.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,
@@ -181,7 +181,7 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return p.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return p.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -257,7 +257,8 @@ func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Volume:       tick[curr].BaseVolume,
 			QuoteVolume:  tick[curr].QuoteVolume,
 			ExchangeName: p.Name,
-			AssetType:    a})
+			AssetType:    a,
+		})
 		if err != nil {
 			return err
 		}
@@ -271,24 +272,6 @@ func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair,
 		return nil, err
 	}
 	return ticker.GetTicker(p.Name, currencyPair, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (p *Poloniex) FetchTicker(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(p.Name, currencyPair, assetType)
-	if err != nil {
-		return p.UpdateTicker(ctx, currencyPair, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (p *Poloniex) FetchOrderbook(ctx context.Context, currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(p.Name, currencyPair, assetType)
-	if err != nil {
-		return p.UpdateOrderbook(ctx, currencyPair, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -390,19 +373,6 @@ func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	}
 
 	return response, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (p *Poloniex) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := p.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(p.Name, creds, assetType)
-	if err != nil {
-		return p.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -579,8 +549,8 @@ func (p *Poloniex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		oID,
 		action.Price,
 		action.Amount,
-		action.PostOnly,
-		action.ImmediateOrCancel)
+		action.TimeInForce.Is(order.PostOnly),
+		action.TimeInForce.Is(order.ImmediateOrCancel))
 	if err != nil {
 		return nil, err
 	}
@@ -990,12 +960,12 @@ func (p *Poloniex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	timeSeries := make([]kline.Candle, len(resp))
 	for x := range resp {
 		timeSeries[x] = kline.Candle{
-			Time:   time.UnixMilli(resp[x].Date),
-			Open:   resp[x].Open,
-			High:   resp[x].High,
-			Low:    resp[x].Low,
-			Close:  resp[x].Close,
-			Volume: resp[x].Volume,
+			Time:   resp[x].Date.Time(),
+			Open:   resp[x].Open.Float64(),
+			High:   resp[x].High.Float64(),
+			Low:    resp[x].Low.Float64(),
+			Close:  resp[x].Close.Float64(),
+			Volume: resp[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1020,12 +990,12 @@ func (p *Poloniex) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 		for x := range resp {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.UnixMilli(resp[x].Date),
-				Open:   resp[x].Open,
-				High:   resp[x].High,
-				Low:    resp[x].Low,
-				Close:  resp[x].Close,
-				Volume: resp[x].Volume,
+				Time:   resp[x].Date.Time(),
+				Open:   resp[x].Open.Float64(),
+				High:   resp[x].High.Float64(),
+				Low:    resp[x].Low.Float64(),
+				Close:  resp[x].Close.Float64(),
+				Volume: resp[x].Volume.Float64(),
 			})
 		}
 	}

@@ -3,7 +3,6 @@ package huobi
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -110,7 +110,7 @@ func (h *HUOBI) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([]Kl
 	vals.Set("period", arg.Period)
 
 	if arg.Size != 0 {
-		vals.Set("size", strconv.Itoa(arg.Size))
+		vals.Set("size", strconv.FormatUint(arg.Size, 10))
 	}
 
 	type response struct {
@@ -251,7 +251,6 @@ func (h *HUOBI) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade, e
 // symbol: string of currency pair
 func (h *HUOBI) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (float64, error) {
 	list, err := h.GetTradeHistory(ctx, symbol, 1)
-
 	if err != nil {
 		return 0, err
 	}
@@ -874,7 +873,7 @@ func (h *HUOBI) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c curr
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := h.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -912,7 +911,7 @@ func (h *HUOBI) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
-func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result interface{}, isVersion2API bool) error {
+func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result any, isVersion2API bool) error {
 	var err error
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {

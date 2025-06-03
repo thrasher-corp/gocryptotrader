@@ -1,6 +1,8 @@
 package subscription
 
 import (
+	"errors"
+	"fmt"
 	"maps"
 	"strings"
 	"testing"
@@ -13,8 +15,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+var errValidateSubscriptionsTestError = errors.New("validate subscriptions test error")
+
+type mockExWithSubValidator struct {
+	GenerateBadSubscription bool
+	FailGetSubscriptions    bool
+	*mockEx
+}
+
+func (m *mockExWithSubValidator) ValidateSubscriptions(in List) error {
+	for _, sub := range in {
+		if sub.Channel == "fail-channel" {
+			return fmt.Errorf("%w: %q", errValidateSubscriptionsTestError, sub.String())
+		}
+	}
+	return nil
+}
+
+func (m *mockExWithSubValidator) GetSubscriptions() (List, error) {
+	if m.GenerateBadSubscription {
+		return List{{Channel: "fail-channel"}}, nil
+	}
+	if m.FailGetSubscriptions {
+		return nil, ErrNotFound
+	}
+	return nil, nil
+}
+
 type mockEx struct {
-	pairs     currency.Pairs
+	pairs     assetPairs
 	assets    asset.Items
 	tpl       string
 	auth      bool
@@ -23,16 +52,13 @@ type mockEx struct {
 }
 
 func newMockEx() *mockEx {
-	pairs := currency.Pairs{btcusdtPair, ethusdcPair}
-	for _, b := range []currency.Code{currency.LTC, currency.XRP, currency.TRX} {
-		for _, q := range []currency.Code{currency.USDT, currency.USDC} {
-			pairs = append(pairs, currency.NewPair(b, q))
-		}
-	}
-
 	return &mockEx{
 		assets: asset.Items{asset.Spot, asset.Futures, asset.Index},
-		pairs:  pairs,
+		pairs: assetPairs{
+			asset.Spot:    currency.Pairs{ethusdcPair, btcusdtPair, currency.NewPair(currency.LTC, currency.USDT)},
+			asset.Futures: currency.Pairs{ethusdcPair, btcusdtPair},
+			asset.Index:   currency.Pairs{btcusdtPair},
+		},
 	}
 }
 
@@ -40,12 +66,12 @@ func (m *mockEx) IsAssetWebsocketSupported(a asset.Item) bool {
 	return a != asset.Index
 }
 
-func (m *mockEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
-	return m.pairs, m.errPairs
+func (m *mockEx) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	return m.pairs[a], m.errPairs
 }
 
 func (m *mockEx) GetPairFormat(_ asset.Item, _ bool) (currency.PairFormat, error) {
-	return currency.PairFormat{Uppercase: true}, m.errFormat
+	return currency.PairFormat{Uppercase: true, Delimiter: "-"}, m.errFormat
 }
 
 func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, error) {
@@ -65,13 +91,21 @@ func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, e
 				ap[asset.Spot] = ap[asset.Spot][0:1]
 				return ""
 			},
-			"batch": common.Batch[currency.Pairs],
+			"batch": func(pairs currency.Pairs, size int) []string {
+				s := []string{}
+				for _, p := range common.Batch(pairs, size) {
+					p = p.Format(currency.PairFormat{Uppercase: true})
+					s = append(s, p.Join())
+				}
+				return s
+			},
 		}).
 		ParseFiles("testdata/" + m.tpl)
 }
 
 func (m *mockEx) GetAssetTypes(_ bool) asset.Items            { return m.assets }
 func (m *mockEx) CanUseAuthenticatedWebsocketEndpoints() bool { return m.auth }
+func (m *mockEx) GetSubscriptions() (List, error)             { return nil, nil }
 
 // equalLists is a utility function to compare subscription lists and show a pretty failure message
 // It overcomes the verbose depth of assert.ElementsMatch spewConfig

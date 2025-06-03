@@ -3,7 +3,6 @@ package bybit
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -27,10 +27,9 @@ import (
 // Bybit is the overarching type across this package
 type Bybit struct {
 	exchange.Base
-	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
-	// 0: unified, and 1: for normal account
-	AccountType int64
-	Counter     common.Counter
+
+	messageIDSeq common.Counter
+	account      accountTypeHolder
 }
 
 const (
@@ -45,8 +44,8 @@ const (
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
 
-	accountTypeNormal  = 0 // 0: regular account
-	accountTypeUnified = 1 // 1: unified trade account
+	accountTypeNormal  AccountType = 1
+	accountTypeUnified AccountType = 2
 
 	longDatedFormat = "02Jan06"
 )
@@ -122,7 +121,7 @@ func (by *Bybit) GetBybitServerTime(ctx context.Context) (*ServerTime, error) {
 }
 
 // GetKlines query for historical klines (also known as candles/candlesticks). Charts are returned in groups based on the requested interval.
-func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) ([]KlineItem, error) {
+func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]KlineItem, error) {
 	switch category {
 	case "":
 		return nil, errCategoryNotSet
@@ -148,7 +147,7 @@ func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interva
 		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp KlineResponse
 	err = by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/kline", params), defaultEPL, &resp)
@@ -542,8 +541,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
-func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string,
-	openOnly, limit int64) (*TradeOrders, error) {
+func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string, openOnly, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -601,7 +599,8 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 // orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
 func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
 	baseCoin, settleCoin, orderFilter, orderStatus, cursor string,
-	startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
+	startTime, endTime time.Time, limit int64,
+) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -1104,8 +1103,9 @@ func (by *Bybit) GetPreUpgradeOrderHistory(ctx context.Context, category, symbol
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var resp *TradeOrders
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/order/history", params, nil, &resp, defaultEPL)
@@ -1117,8 +1117,9 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if executionType != "" {
 		params.Set("executionType", executionType)
@@ -1133,8 +1134,9 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var resp *ClosedProfitAndLossResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
@@ -1146,8 +1148,9 @@ func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, base
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if transactionType != "" {
 		params.Set("type", transactionType)
@@ -1162,8 +1165,9 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if !expiryDate.IsZero() {
 		params.Set("expData", expiryDate.Format(longDatedFormat))
@@ -1178,8 +1182,9 @@ func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, categor
 	if err != nil {
 		return nil, err
 	}
-	if by.AccountType == accountTypeNormal {
-		return nil, errAPIKeyIsNotUnified
+	err = by.RequiresUnifiedAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var resp *SettlementSession
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/settlement-record", params, nil, &resp, defaultEPL)
@@ -1965,7 +1970,7 @@ func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	arg := &struct {
 		SubMemberID string `json:"subMemberId"`
 	}{SubMemberID: subMemberID}
-	var resp interface{}
+	var resp any
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
 }
 
@@ -2470,7 +2475,7 @@ func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}) error {
+func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := by.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -2489,7 +2494,8 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 			Result:        response,
 			Verbose:       by.Verbose,
 			HTTPDebugging: by.HTTPDebugging,
-			HTTPRecording: by.HTTPRecording}, nil
+			HTTPRecording: by.HTTPRecording,
+		}, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
 		return err
@@ -2501,7 +2507,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 }
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
-func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result interface{}, f request.EndpointLimit) error {
+func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result any, f request.EndpointLimit) error {
 	val := reflect.ValueOf(result)
 	if val.Kind() != reflect.Ptr {
 		return errNonePointerArgument
@@ -2627,13 +2633,31 @@ func getSign(sign, secret string) (string, error) {
 	return crypto.HexEncodeToString(hmacSigned), nil
 }
 
-// RetrieveAndSetAccountType retrieve to set account type information
-func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) error {
-	accInfo, err := by.GetAPIKeyInformation(ctx)
-	if err != nil {
-		return err
+// FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
+func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
+	by.account.m.Lock()
+	defer by.account.m.Unlock()
+	if by.account.accountType == 0 {
+		accInfo, err := by.GetAPIKeyInformation(ctx)
+		if err != nil {
+			return 0, err
+		}
+		// From endpoint 0：regular account; 1：unified trade account
+		// + 1 to make it 1 and 2 so that a zero value can be used to check if the account type has been set or not.
+		by.account.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
 	}
-	by.AccountType = accInfo.IsUnifiedTradeAccount // 0：regular account; 1：unified trade account
+	return by.account.accountType, nil
+}
+
+// RequiresUnifiedAccount checks account type and returns error if not unified
+func (by *Bybit) RequiresUnifiedAccount(ctx context.Context) error {
+	at, err := by.FetchAccountType(ctx)
+	if err != nil {
+		return nil //nolint:nilerr // if we can't get the account type, we can't check if it's unified or not, fail on call
+	}
+	if at != accountTypeUnified {
+		return fmt.Errorf("%w, account type: %s", errAPIKeyIsNotUnified, at)
+	}
 	return nil
 }
 

@@ -1,13 +1,13 @@
 package kucoin
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -179,13 +179,18 @@ type Trade struct {
 
 // Kline stores kline data
 type Kline struct {
-	StartTime time.Time
-	Open      float64
-	Close     float64
-	High      float64
-	Low       float64
-	Volume    float64 // Transaction volume
-	Amount    float64 // Transaction amount
+	StartTime types.Time
+	Open      types.Number
+	Close     types.Number
+	High      types.Number
+	Low       types.Number
+	Volume    types.Number // Transaction volume
+	Amount    types.Number // Transaction amount
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into Kline fields.
+func (k *Kline) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.Close, &k.High, &k.Low, &k.Volume, &k.Amount})
 }
 
 // CurrencyBase represents currency code response details
@@ -1773,7 +1778,7 @@ type IsolatedMarginBorrowing struct {
 
 // Response represents response model and implements UnmarshalTo interface
 type Response struct {
-	Data interface{} `json:"data"`
+	Data any `json:"data"`
 	Error
 }
 
@@ -1819,7 +1824,7 @@ type SubAccountResponse struct {
 type SubAccount struct {
 	UserID    string     `json:"userId"`
 	SubName   string     `json:"subName"`
-	Type      int64      `json:"type"` //type:1-rebot  or type:0-nomal
+	Type      int64      `json:"type"` // type:1-robot  or type:0-nomal
 	Remarks   string     `json:"remarks"`
 	UID       int64      `json:"uid"`
 	Status    int64      `json:"status"`

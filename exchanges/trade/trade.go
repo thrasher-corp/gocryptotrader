@@ -3,6 +3,7 @@ package trade
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -29,8 +30,7 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 
 // Setup configures necessary fields to the `Trade` structure that govern trade data
 // processing.
-func (t *Trade) Setup(exchangeName string, tradeFeedEnabled bool, c chan interface{}) {
-	t.exchangeName = exchangeName
+func (t *Trade) Setup(tradeFeedEnabled bool, c chan any) {
 	t.dataHandler = c
 	t.tradeFeedEnabled = tradeFeedEnabled
 }
@@ -48,7 +48,7 @@ func (t *Trade) Update(save bool, data ...Data) error {
 	}
 
 	if save {
-		if err := AddTradesToBuffer(t.exchangeName, data...); err != nil {
+		if err := AddTradesToBuffer(data...); err != nil {
 			return err
 		}
 	}
@@ -57,7 +57,7 @@ func (t *Trade) Update(save bool, data ...Data) error {
 }
 
 // AddTradesToBuffer will push trade data onto the buffer
-func AddTradesToBuffer(exchangeName string, data ...Data) error {
+func AddTradesToBuffer(data ...Data) error {
 	cfg := database.DB.GetConfig()
 	if database.DB == nil || cfg == nil || !cfg.Enabled {
 		return nil
@@ -79,7 +79,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
 			data[i].Timestamp.IsZero() {
-			errs = common.AppendError(errs, fmt.Errorf("%v received invalid trade data: %+v", exchangeName, data[i]))
+			errs = common.AppendError(errs, fmt.Errorf("%v received invalid trade data: %+v", data[i].Exchange, data[i]))
 			continue
 		}
 
@@ -99,7 +99,7 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 		}
 		uu, err := uuid.NewV4()
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
+			errs = common.AppendError(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", data[i].Exchange, data[i]))
 		}
 		data[i].ID = uu
 		validDatas = append(validDatas, data[i])
@@ -126,8 +126,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 	for {
 		<-ticker.C
 		p.mutex.Lock()
-		//nolint: gocritic
-		bufferCopy := append(p.buffer[:0:0], p.buffer...)
+		bufferCopy := slices.Clone(p.buffer)
 		p.buffer = nil
 		p.mutex.Unlock()
 		if len(bufferCopy) == 0 {

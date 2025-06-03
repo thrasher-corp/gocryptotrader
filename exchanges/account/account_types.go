@@ -3,6 +3,7 @@ package account
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -33,8 +34,10 @@ type Accounts struct {
 	// TODO: Credential tracker to match to keys that are managed and return
 	// pointer.
 	// TODO: Have different cred struct for centralized verse DEFI exchanges.
-	SubAccounts map[Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance
+	subAccounts map[Credentials]map[key.SubAccountAsset]currencyBalances
 }
+
+type currencyBalances = map[*currency.Item]*ProtectedBalance
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
 // currencies
@@ -59,15 +62,14 @@ type Balance struct {
 	Free                   float64
 	AvailableWithoutBorrow float64
 	Borrowed               float64
+	UpdatedAt              time.Time
 }
 
 // Change defines incoming balance change on currency holdings
 type Change struct {
-	Exchange string
-	Currency currency.Code
-	Asset    asset.Item
-	Amount   float64
-	Account  string
+	Account   string
+	AssetType asset.Item
+	Balance   *Balance
 }
 
 // ProtectedBalance stores the full balance information for that specific asset
@@ -78,6 +80,7 @@ type ProtectedBalance struct {
 	availableWithoutBorrow float64
 	borrowed               float64
 	m                      sync.Mutex
+	updatedAt              time.Time
 
 	// notice alerts for when the balance changes for strategy inspection and
 	// usage.

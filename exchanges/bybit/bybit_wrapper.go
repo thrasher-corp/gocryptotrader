@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,8 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -62,9 +62,9 @@ func (by *Bybit) SetDefaults() {
 	by.API.CredentialsValidator.RequiresSecret = true
 
 	for _, n := range assetPairFmts {
-		ps := currency.PairStore{RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
-		if err := by.StoreAssetPairFormat(n.asset, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%v %v", n.asset, err)
+		ps := currency.PairStore{AssetEnabled: true, RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
+		if err := by.SetAssetPairStore(n.asset, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", by.Name, n.asset, err)
 		}
 	}
 
@@ -204,7 +204,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.NewWebsocket()
+	by.Websocket = websocket.NewManager()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -225,7 +225,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	if err := by.Websocket.Setup(&stream.WebsocketSetup{
+	if err := by.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &by.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
@@ -236,39 +236,39 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	}
 
 	// Spot - Inbound public data.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      spotPublic,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    func() (subscription.List, error) { return by.generateSubscriptions() },
-		Subscriber:               by.Subscribe,
-		Unsubscriber:             by.Unsubscribe,
-		Handler:                  func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   spotPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateSubscriptions,
+		Subscriber:            by.Subscribe,
+		Unsubscriber:          by.Unsubscribe,
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
+		RequestIDGenerator:    by.websocketRequestIDGenerator,
 	}); err != nil {
 		return err
 	}
 
 	// Options - Inbound public data.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      optionPublic,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    by.GenerateOptionsDefaultSubscriptions,
-		Subscriber:               by.OptionSubscribe,
-		Unsubscriber:             by.OptionUnsubscribe,
-		Handler:                  func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   optionPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.GenerateOptionsDefaultSubscriptions,
+		Subscriber:            by.OptionSubscribe,
+		Unsubscriber:          by.OptionUnsubscribe,
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
+		RequestIDGenerator:    by.websocketRequestIDGenerator,
 	}); err != nil {
 		return err
 	}
 
 	// Linear - USDT margined futures inbound public data.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  linearPublic,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -282,14 +282,14 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		MessageFilter:            asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		RequestIDGenerator: by.websocketRequestIDGenerator,
+		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
 
 	// Linear - USDC margined futures inbound public data.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  linearPublic,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -303,14 +303,14 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		MessageFilter:            asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		RequestIDGenerator: by.websocketRequestIDGenerator,
+		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
 
 	// Inverse - Coin margined futures inbound public data.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   inversePublic,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -322,50 +322,47 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.CoinMarginedFutures)
 		},
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
+		RequestIDGenerator: by.websocketRequestIDGenerator,
 	}); err != nil {
 		return err
 	}
 
 	// Trade - Dedicated trade connection for all outbound trading requests.
-	if err := by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                                   websocketTrade,
-		ResponseCheckTimeout:                  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:                      exch.WebsocketResponseMaxLimit,
-		RateLimit:                             request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                             by.WsConnect,
-		GenerateSubscriptions:                 stream.SubscriptionGenerationNotRequired,
-		Subscriber:                            stream.SubscriberNotRequired,
-		Unsubscriber:                          stream.SubscriberNotRequired,
-		Handler:                               by.wsHandleTradeData,
-		BespokeGenerateMessageID:              by.bespokeWebsocketRequestID,
-		Authenticate:                          by.WebsocketAuthenticateTradeConnection,
-		MessageFilter:                         OutboundTradeConnection,
-		ConnectionDoesNotRequireSubscriptions: true,
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                      websocketTrade,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:                by.WsConnect,
+		Handler:                  by.wsHandleTradeData,
+		RequestIDGenerator:       by.websocketRequestIDGenerator,
+		Authenticate:             by.WebsocketAuthenticateTradeConnection,
+		MessageFilter:            OutboundTradeConnection,
+		SubscriptionsNotRequired: true,
 	}); err != nil {
 		return err
 	}
 
 	// Private - Dedicated private connection for all inbound private data.
-	return by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      websocketPrivate,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
-		Connector:                by.WsConnect,
-		GenerateSubscriptions:    by.generateAuthSubscriptions,
-		Subscriber:               by.authSubscribe,
-		Unsubscriber:             by.authUnsubscribe,
-		Handler:                  by.wsHandleAuthenticated,
-		BespokeGenerateMessageID: by.bespokeWebsocketRequestID,
-		Authenticate:             by.WebsocketAuthenticatePrivateConnection,
-		MessageFilter:            InboundPrivateConnection,
+	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   websocketPrivate,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateAuthSubscriptions,
+		Subscriber:            by.authSubscribe,
+		Unsubscriber:          by.authUnsubscribe,
+		Handler:               by.wsHandleAuthenticatedData,
+		RequestIDGenerator:    by.websocketRequestIDGenerator,
+		Authenticate:          by.WebsocketAuthenticatePrivateConnection,
+		MessageFilter:         InboundPrivateConnection,
 	})
 }
 
-// bespokeWebsocketRequestID generates a unique ID for websocket requests, this is just a simple counter.
-func (by *Bybit) bespokeWebsocketRequestID(bool) int64 {
-	return by.Counter.IncrementAndGet()
+// websocketRequestIDGenerator generates a unique ID for websocket requests, this is just a simple counter.
+func (by *Bybit) websocketRequestIDGenerator() int64 {
+	return by.messageIDSeq.IncrementAndGet()
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -569,29 +566,6 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 	return ticker.GetTicker(by.Name, p, assetType)
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (by *Bybit) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	fPair, err := by.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	tickerNew, err := ticker.GetTicker(by.Name, fPair, assetType)
-	if err != nil {
-		return by.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (by *Bybit) FetchOrderbook(ctx context.Context, currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(by.Name, currency, assetType)
-	if err != nil {
-		return by.UpdateOrderbook(ctx, currency, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -655,7 +629,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var acc account.SubAccount
 	var accountType string
 	info.Exchange = by.Name
-	err := by.RetrieveAndSetAccountType(ctx)
+	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -663,7 +637,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	case asset.Spot, asset.Options,
 		asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures:
-		switch by.AccountType {
+		switch at {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
 		case accountTypeNormal:
@@ -710,20 +684,6 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return account.Holdings{}, err
 	}
 	return info, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (by *Bybit) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(by.Name, creds, assetType)
-	if err != nil {
-		return by.UpdateAccountInfo(ctx, assetType)
-	}
-
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -805,7 +765,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	}
 
 	if by.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(by.Name, resp...)
+		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -919,8 +879,11 @@ func (by *Bybit) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*or
 	if err != nil {
 		return nil, err
 	}
-	resp.ImmediateOrCancel = orderDetails.TimeInForce == "IOC"
-	resp.PostOnly = orderDetails.TimeInForce == "PostOnly"
+	if orderDetails.TimeInForce == "IOC" {
+		resp.TimeInForce = order.ImmediateOrCancel
+	} else if orderDetails.TimeInForce == "PostOnly" {
+		resp.TimeInForce = order.PostOnly
+	}
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
 	resp.AverageExecutedPrice = orderDetails.AvgPrice.Float64()
@@ -964,11 +927,11 @@ func (by *Bybit) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParams,
 	if s.Type == order.Market {
 		timeInForce = "IOC"
 	} else {
-		if s.FillOrKill {
+		if s.TimeInForce.Is(order.FillOrKill) {
 			timeInForce = "FOK"
-		} else if s.PostOnly {
+		} else if s.TimeInForce.Is(order.PostOnly) {
 			timeInForce = "PostOnly"
-		} else if s.ImmediateOrCancel {
+		} else if s.TimeInForce.Is(order.ImmediateOrCancel) {
 			timeInForce = "IOC"
 		}
 	}
@@ -1424,7 +1387,7 @@ func (by *Bybit) ConstructOrderDetails(tradeOrders []TradeOrder, assetType asset
 			return nil, err
 		}
 		if (pair.IsEmpty() && len(filterPairs) > 0 && !filterPairs.Contains(ePair, true)) ||
-			!(pair.IsEmpty() || pair.Equal(ePair)) {
+			(!pair.IsEmpty() && !pair.Equal(ePair)) {
 			continue
 		}
 		orderType, err := order.StringToOrderType(tradeOrders[x].OrderType)

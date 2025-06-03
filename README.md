@@ -100,15 +100,11 @@ When submitting a PR, please abide by our coding guidelines:
 + Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
-## Compiling instructions
+## Compiling and Running instructions
 
-Download and install Go from [Go Downloads](https://golang.org/dl/) for your
-platform.
+Download and install Go from [Go Downloads](https://golang.org/dl/) for your platform.
 
-### Linux/OSX
-
-GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
-Using Go Modules you now clone this repository **outside** your GOPATH
+### Linux/macOS
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
@@ -124,11 +120,23 @@ cp config_example.json ~/.gocryptotrader/config.json
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader
 go build
+mkdir %AppData%\GoCryptoTrader
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 ```
 
 + Make any necessary changes to the `config.json` file.
-+ Run the `gocryptotrader` binary file inside your GOPATH bin folder.
++ Run the `gocryptotrader` binary file.
+
+### Sonic JSON handling
+
+GoCryptoTrader can optionally use the [Sonic](https://github.com/bytedance/sonic) JSON library for improved performance, as a drop in replacement for golang.org/encoding/json.
+Please see sonic [Requirements](https://github.com/bytedance/sonic/#requirement) for supported platforms.
+
+To enable sonic, build with the sonic_on tag:
+
+```bash
+go build -tags=sonic_on
+```
 
 ## Donations
 
@@ -148,25 +156,26 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 700 |
-| [shazbert](https://github.com/shazbert) | 345 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 317 |
-| [gloriousCode](https://github.com/gloriousCode) | 234 |
-| [gbjk](https://github.com/gbjk) | 93 |
+| [thrasher-](https://github.com/thrasher-) | 711 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 369 |
+| [shazbert](https://github.com/shazbert) | 362 |
+| [gloriousCode](https://github.com/gloriousCode) | 237 |
+| [gbjk](https://github.com/gbjk) | 125 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [Beadko](https://github.com/Beadko) | 17 |
-| [Rots](https://github.com/Rots) | 15 |
-| [vazha](https://github.com/vazha) | 15 |
+| [Beadko](https://github.com/Beadko) | 24 |
 | [ydm](https://github.com/ydm) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
+| [Rots](https://github.com/Rots) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [samuael](https://github.com/samuael) | 10 |
+| [samuael](https://github.com/samuael) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [140am](https://github.com/140am) | 8 |
-| [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [geseq](https://github.com/geseq) | 8 |
+| [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [140am](https://github.com/140am) | 8 |
+| [junnplus](https://github.com/junnplus) | 8 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [cranktakular](https://github.com/cranktakular) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
@@ -174,33 +183,62 @@ Binaries will be published once the codebase reaches a stable condition.
 | [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
-| [mshogin](https://github.com/mshogin) | 2 |
-| [herenow](https://github.com/herenow) | 2 |
-| [tk42](https://github.com/tk42) | 2 |
-| [soxipy](https://github.com/soxipy) | 2 |
-| [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [azhang](https://github.com/azhang) | 2 |
-| [bretep](https://github.com/bretep) | 2 |
-| [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
-| [cornelk](https://github.com/cornelk) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
+| [Asalei](https://github.com/Asalei) | 2 |
+| [soxipy](https://github.com/soxipy) | 2 |
+| [tk42](https://github.com/tk42) | 2 |
+| [herenow](https://github.com/herenow) | 2 |
+| [mshogin](https://github.com/mshogin) | 2 |
+| [andreygrehov](https://github.com/andreygrehov) | 2 |
+| [bretep](https://github.com/bretep) | 2 |
+| [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
+| [cornelk](https://github.com/cornelk) | 2 |
+| [gam-phon](https://github.com/gam-phon) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
-| [blombard](https://github.com/blombard) | 1 |
+| [romanornr](https://github.com/romanornr) | 2 |
+| [mortensorensen](https://github.com/mortensorensen) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
-| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
+| [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
+| [tonywangcn](https://github.com/tonywangcn) | 1 |
+| [varunbhat](https://github.com/varunbhat) | 1 |
+| [idealhack](https://github.com/idealhack) | 1 |
+| [hannut91](https://github.com/hannut91) | 1 |
+| [vyloy](https://github.com/vyloy) | 1 |
+| [arttobe](https://github.com/arttobe) | 1 |
+| [shoman4eg](https://github.com/shoman4eg) | 1 |
+| [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
+| [whilei](https://github.com/whilei) | 1 |
+| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
+| [phieudu241](https://github.com/phieudu241) | 1 |
+| [snipesjr](https://github.com/snipesjr) | 1 |
+| [snussik](https://github.com/snussik) | 1 |
+| [taewdy](https://github.com/taewdy) | 1 |
+| [threehonor](https://github.com/threehonor) | 1 |
+| [xiiiew](https://github.com/xiiiew) | 1 |
+| [antonzhukov](https://github.com/antonzhukov) | 1 |
+| [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
+| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
-| [DirectX](https://github.com/DirectX) | 1 |
-| [frankzougc](https://github.com/frankzougc) | 1 |
-| [idoall](https://github.com/idoall) | 1 |
-| [Jimexist](https://github.com/Jimexist) | 1 |
-| [lookfirst](https://github.com/lookfirst) | 1 |
-| [m1kola](https://github.com/m1kola) | 1 |
-| [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
-| [mKurrels](https://github.com/mKurrels) | 1 |
-| [starit](https://github.com/starit) | 1 |
+| [shanhuhai5739](https://github.com/shanhuhai5739) | 1 |
+| [DirectX](https://github.com/DirectX) | 1 |
+| [dnldd](https://github.com/dnldd) | 1 |
+| [Juneezee](https://github.com/Juneezee) | 1 |
+| [fclairamb](https://github.com/fclairamb) | 1 |
+| [frankzougc](https://github.com/frankzougc) | 1 |
+| [gemscng](https://github.com/gemscng) | 1 |
+| [Jdpurohit](https://github.com/Jdpurohit) | 1 |
+| [jimexist](https://github.com/jimexist) | 1 |
+| [lookfirst](https://github.com/lookfirst) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
+| [mattkanwisher](https://github.com/mattkanwisher) | 1 |
+| [mgravitt](https://github.com/mgravitt) | 1 |
+| [mKurrels](https://github.com/mKurrels) | 1 |
+| [m1kola](https://github.com/m1kola) | 1 |
+| [idoall](https://github.com/idoall) | 1 |
+| [starit](https://github.com/starit) | 1 |

@@ -5,11 +5,13 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -25,12 +27,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestSubscribeToExchangeOrderbooks(t *testing.T) {
+	t.Parallel()
 	_, err := SubscribeToExchangeOrderbooks("")
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expected: %v but received: %v", errCannotFindOrderbook, err)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	b := Base{
 		Pair:     p,
@@ -39,15 +40,10 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Bids:     []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
-	err = b.Process()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, b.Process(), "process must not error")
 
 	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SubscribeToExchangeOrderbooks should not error")
 }
 
 func TestVerify(t *testing.T) {
@@ -55,7 +51,7 @@ func TestVerify(t *testing.T) {
 	b := Base{
 		Exchange:        "TestExchange",
 		Asset:           asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USD),
+		Pair:            currency.NewBTCUSD(),
 		VerifyOrderbook: true,
 	}
 
@@ -175,10 +171,11 @@ func TestCalculateTotalAsks(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+
 	c, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
+
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -187,57 +184,39 @@ func TestGetOrderbook(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 
-	err = base.Process()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, base.Process(), "Process must not error")
 
 	result, err := Get("Exchange", c, asset.Spot)
-	if err != nil {
-		t.Fatalf("TestGetOrderbook failed to get orderbook. Error %s",
-			err)
-	}
-	if !result.Pair.Equal(c) {
-		t.Fatal("TestGetOrderbook failed. Mismatched pairs")
-	}
+	require.NoError(t, err, "Get must not error")
+	assert.True(t, result.Pair.Equal(c))
 
 	_, err = Get("nonexistent", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("received '%v', expected '%v'", err, errCannotFindOrderbook)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	c.Base = currency.NewCode("blah")
 	_, err = Get("Exchange", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("received '%v', expected '%v', using invalid first currency", err, errCannotFindOrderbook)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	newCurrency, err := currency.NewPairFromStrings("BTC", "AUD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
+
 	_, err = Get("Exchange", newCurrency, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("received '%v', expected '%v', using invalid second currency", err, errCannotFindOrderbook)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	base.Pair = newCurrency
-	err = base.Process()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, base.Process(), "Process must not error")
 
-	_, err = Get("Exchange", newCurrency, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	got, err := Get("Exchange", newCurrency, asset.Spot)
+	require.NoError(t, err, "Get must not error")
+	assert.True(t, got.Pair.Equal(newCurrency))
 }
 
 func TestGetDepth(t *testing.T) {
+	t.Parallel()
+
 	c, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
+
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -246,57 +225,38 @@ func TestGetDepth(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 
-	err = base.Process()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, base.Process(), "Process must not error")
 
 	result, err := GetDepth("Exchange", c, asset.Spot)
-	if err != nil {
-		t.Fatalf("TestGetOrderbook failed to get orderbook. Error %s",
-			err)
-	}
-	if !result.pair.Equal(c) {
-		t.Fatal("TestGetOrderbook failed. Mismatched pairs")
-	}
+	require.NoError(t, err, "GetDepth must not error")
+	assert.True(t, result.pair.Equal(c))
 
 	_, err = GetDepth("nonexistent", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	c.Base = currency.NewCode("blah")
 	_, err = GetDepth("Exchange", c, asset.Spot)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	newCurrency, err := currency.NewPairFromStrings("BTC", "DOGE")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
+
 	_, err = GetDepth("Exchange", newCurrency, asset.Futures)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	base.Pair = newCurrency
-	err = base.Process()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, base.Process(), "Process must not error")
 
 	_, err = GetDepth("Exchange", newCurrency, asset.Empty)
-	if !errors.Is(err, errCannotFindOrderbook) {
-		t.Fatalf("expecting %s error but received %v", errCannotFindOrderbook, err)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 }
 
 func TestBaseGetDepth(t *testing.T) {
+	t.Parallel()
+
 	c, err := currency.NewPairFromStrings("BTC", "UST")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
+
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -305,19 +265,14 @@ func TestBaseGetDepth(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 
-	if _, err = base.GetDepth(); !errors.Is(err, errCannotFindOrderbook) {
-		t.Errorf("expecting %s error but received %v", errCannotFindOrderbook, err)
-	}
+	_, err = base.GetDepth()
+	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
-	if err = base.Process(); err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, base.Process(), "Process must not error")
 
-	if result, err := base.GetDepth(); err != nil {
-		t.Errorf("failed to get orderbook. Error %s", err)
-	} else if !result.pair.Equal(c) {
-		t.Errorf("Mismatched pairs: %v %v", result.pair, c)
-	}
+	result, err := base.GetDepth()
+	require.NoError(t, err, "GetDepth must not error")
+	assert.True(t, result.pair.Equal(c))
 }
 
 func TestDeployDepth(t *testing.T) {
@@ -616,35 +571,22 @@ func deploySliceOrdered() Tranches {
 }
 
 func TestReverse(t *testing.T) {
-	var b Base
-	b.VerifyOrderbook = true
-
-	if b.Bids = deploySliceOrdered(); len(b.Bids) != 1000 {
-		t.Fatal("incorrect length")
+	b := Base{
+		VerifyOrderbook: true,
 	}
 
-	err := b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	b.Bids = deploySliceOrdered()
+	require.Len(t, b.Bids, 1000)
+	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
 
 	b.Bids.Reverse()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, b.Verify())
 
-	b.Asks = append(b.Bids[:0:0], b.Bids...) //nolint:gocritic //  Short hand
-	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	b.Asks = slices.Clone(b.Bids)
+	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
 
 	b.Asks.Reverse()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, b.Verify())
 }
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op
@@ -654,7 +596,7 @@ func BenchmarkReverse(b *testing.B) {
 		b.Fatal("incorrect length")
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		s.Reverse()
 	}
 }
@@ -664,7 +606,7 @@ func BenchmarkReverse(b *testing.B) {
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
 	}
@@ -676,7 +618,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
 	}
@@ -687,7 +629,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
 	}
@@ -698,7 +640,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
 	}
@@ -709,7 +651,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
 	}
@@ -721,7 +663,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
 	bucket := make(Tranches, len(s))
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
 	}
@@ -752,7 +694,23 @@ func TestCheckAlignment(t *testing.T) {
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"
 	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
+	require.NoError(t, err)
+}
+
+// 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
+// 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
+func BenchmarkProcess(b *testing.B) {
+	base := &Base{
+		Pair:     currency.NewBTCUSD(),
+		Asks:     make(Tranches, 100),
+		Bids:     make(Tranches, 100),
+		Exchange: "BenchmarkProcessOrderbook",
+		Asset:    asset.Spot,
+	}
+
+	for b.Loop() {
+		if err := base.Process(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

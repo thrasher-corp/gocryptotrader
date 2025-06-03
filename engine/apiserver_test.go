@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -10,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestSetupAPIServerManager(t *testing.T) {
@@ -42,18 +43,15 @@ func TestSetupAPIServerManager(t *testing.T) {
 
 	wd, _ := os.Getwd()
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStartRESTServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StartRESTServer()
 	if !errors.Is(err, errServerDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
@@ -69,18 +67,15 @@ func TestStartWebsocketServer(t *testing.T) {
 	t.Parallel()
 	wd, _ := os.Getwd()
 	m, err := setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StartWebsocketServer()
 	if !errors.Is(err, errServerDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
 	}
 	m.remoteConfig.WebsocketRPC.Enabled = true
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestStopRESTServer(t *testing.T) {
@@ -92,9 +87,7 @@ func TestStopRESTServer(t *testing.T) {
 			ListenAddress: "localhost:9051",
 		},
 	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.StopRESTServer()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -102,22 +95,17 @@ func TestStopRESTServer(t *testing.T) {
 	}
 
 	err = m.StartRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// do it again to ensure things have reset appropriately and no errors occur starting
 	err = m.StartRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopRESTServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestWebsocketStop(t *testing.T) {
@@ -129,9 +117,7 @@ func TestWebsocketStop(t *testing.T) {
 			ListenAddress: "localhost:9052",
 		},
 	}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.StopWebsocketServer()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -139,22 +125,17 @@ func TestWebsocketStop(t *testing.T) {
 	}
 
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	// do it again to ensure things have reset appropriately and no errors occur starting
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestIsRESTServerRunning(t *testing.T) {
@@ -197,9 +178,8 @@ func TestGetAllActiveOrderbooks(t *testing.T) {
 	}
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveOrderbooks(man)
 	if resp == nil {
 		t.Error("expected not nil")
@@ -215,9 +195,8 @@ func TestGetAllActiveTickers(t *testing.T) {
 	}
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveTickers(man)
 	if resp == nil {
 		t.Error("expected not nil")
@@ -233,16 +212,15 @@ func TestGetAllActiveAccounts(t *testing.T) {
 	}
 	bs.SetDefaults()
 	err = man.Add(bs)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp := getAllActiveAccounts(man)
 	if resp == nil {
 		t.Error("expected not nil")
 	}
 }
 
-func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
+func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
 	t.Helper()
 	w := httptest.NewRecorder()
 
@@ -269,9 +247,16 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	var responseConfig config.Config
 	err = json.Unmarshal(body, &responseConfig)
 	assert.NoError(t, err, "Unmarshal should not error")
-	for _, e := range responseConfig.Exchanges {
+	for i, e := range responseConfig.Exchanges {
 		err = e.CurrencyPairs.SetDelimitersFromConfig()
 		assert.NoError(t, err, "SetDelimitersFromConfig should not error")
+		// Using require here makes it much easier to isolate differences per-exchange than below
+		// We look into pointers separately
+		for a, p := range e.CurrencyPairs.Pairs {
+			require.Equalf(t, c.Exchanges[i].CurrencyPairs.Pairs[a], p, "%s exchange Config CurrencyManager Pairs for asset %s must match api response", e.Name, a)
+		}
+		require.Equalf(t, c.Exchanges[i].CurrencyPairs, e.CurrencyPairs, "%s exchange Config CurrencyManager must match api response", e.Name)
+		require.Equalf(t, c.Exchanges[i], e, "%s exchange Config must match api response", e.Name) // require here makes it much easier to isolate differences than below
 	}
 	assert.Equal(t, c, responseConfig, "Config should match api response")
 }

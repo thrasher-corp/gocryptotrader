@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -23,7 +24,7 @@ func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	e := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := Data{
 		Config: &config.Config{
 			StrategySettings: config.StrategySettings{
@@ -137,7 +138,7 @@ func TestGenerateReport(t *testing.T) {
 			{
 				Exchange:  "Bitstamp",
 				Asset:     a,
-				Pair:      currency.NewPair(currency.BTC, currency.USD),
+				Pair:      currency.NewBTCUSD(),
 				Interval:  gctkline.OneDay,
 				Watermark: "BITSTAMP - SPOT - BTC-USD - 1d",
 				Candles: []DetailedCandle{
@@ -326,18 +327,15 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errNoCandles)
 	}
 	err = d.SetKlineData(&gctkline.Item{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
 	if !errors.Is(err, errStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
 	}
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
@@ -349,7 +347,7 @@ func TestEnhanceCandles(t *testing.T) {
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
@@ -363,17 +361,14 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
-		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Pair:     currency.NewBTCUSDT(),
 		Asset:    asset.Spot,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
@@ -395,14 +390,10 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
@@ -422,9 +413,7 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
@@ -447,9 +436,7 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
@@ -472,9 +459,7 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if len(d.EnhancedCandles) == 0 {
 		t.Error("expected enhanced candles")
@@ -492,9 +477,8 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(d.OriginalCandles) != 1 {
 		t.Fatal("expected Original Candles len of 1")
 	}
@@ -508,9 +492,8 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
@@ -522,9 +505,8 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(d.OriginalCandles[0].Candles) != 2 {
 		t.Error("expected two candles")
 	}

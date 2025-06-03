@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -45,33 +45,18 @@ func (b *BTSE) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		}
+		if a == asset.Spot {
+			ps.RequestFormat.Delimiter = currency.DashDelimiter
+		}
+		if err := b.SetAssetPairStore(a, ps); err != nil {
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
+		}
 	}
 
 	b.Features = exchange.Features{
@@ -143,6 +128,7 @@ func (b *BTSE) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
+	var err error
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
@@ -158,7 +144,7 @@ func (b *BTSE) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.NewWebsocket()
+	b.Websocket = websocket.NewManager()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -184,7 +170,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            btseWebsocket,
 		RunningURL:            wsRunningURL,
@@ -198,7 +184,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -262,7 +248,8 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 				High:         tickers[x].High24Hr,
 				OpenInterest: tickers[x].OpenInterest,
 				ExchangeName: b.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 		}
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -300,29 +287,12 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 		Volume:       ticks[0].Volume,
 		High:         ticks[0].High24Hr,
 		ExchangeName: b.Name,
-		AssetType:    a})
+		AssetType:    a,
+	})
 	if err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
-	if err != nil {
-		return b.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
-	if err != nil {
-		return b.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -343,7 +313,7 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return book, err
 	}
-	a, err := b.FetchOrderBook(ctx, fPair.String(), 0, 0, 0, assetType == asset.Spot)
+	a, err := b.FetchOrderbook(ctx, fPair.String(), 0, 0, 0, assetType == asset.Spot)
 	if err != nil {
 		return book, err
 	}
@@ -415,20 +385,6 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	}
 
 	return a, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTSE) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := b.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(b.Name, creds, assetType)
-	if err != nil {
-		return b.UpdateAccountInfo(ctx, assetType)
-	}
-
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -590,12 +546,14 @@ func (b *BTSE) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 }
 
 func orderIntToType(i int) order.Type {
-	if i == 77 {
+	switch i {
+	case 77:
 		return order.Market
-	} else if i == 76 {
+	case 76:
 		return order.Limit
+	default:
+		return order.UnknownType
 	}
-	return order.UnknownType
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -620,7 +578,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 			continue
 		}
 
-		var side = order.Buy
+		side := order.Buy
 		if strings.EqualFold(o[i].Side, order.Ask.String()) {
 			side = order.Sell
 		}
@@ -778,7 +736,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 		}
 
 		for i := range resp {
-			var side = order.Buy
+			side := order.Buy
 			if strings.EqualFold(resp[i].Side, order.Ask.String()) {
 				side = order.Sell
 			}
@@ -808,12 +766,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 				Side:            side,
 				Price:           resp[i].Price,
 				Status:          status,
-			}
-
-			if resp[i].OrderType == 77 {
-				openOrder.Type = order.Market
-			} else if resp[i].OrderType == 76 {
-				openOrder.Type = order.Limit
+				Type:            orderIntToType(resp[i].OrderType),
 			}
 
 			fills, err := b.TradeHistory(ctx,
@@ -1083,11 +1036,16 @@ func (m *MarketPair) Pair() (currency.Pair, error) {
 	baseCurr := m.Base
 	var quoteCurr string
 	if m.Futures {
-		s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
-		if len(s) <= 1 {
-			return currency.EMPTYPAIR, errInvalidPairSymbol
+		if baseCurr == "TRUMPSOL" { // Only base currency which is different to the rest
+			baseCurr = "TRUMP"
+			quoteCurr = strings.TrimPrefix(m.Symbol, baseCurr)
+		} else {
+			s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+			if len(s) <= 1 {
+				return currency.EMPTYPAIR, errInvalidPairSymbol
+			}
+			quoteCurr = s[1]
 		}
-		quoteCurr = s[1]
 	} else {
 		s := strings.Split(m.Symbol, currency.DashDelimiter)
 		if len(s) != 2 {
@@ -1281,7 +1239,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 	var errs error
 	limits := make([]order.MinMaxLevel, 0, len(summary))
 	for _, marketInfo := range summary {
-		p, err := marketInfo.Pair() //nolint:govet // Deliberately shadow err
+		p, err := marketInfo.Pair()
 		if err != nil {
 			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
 			continue

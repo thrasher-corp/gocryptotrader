@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Product holds product information
@@ -49,12 +51,17 @@ type Trade struct {
 
 // History holds historic rate information
 type History struct {
-	Time   time.Time
+	Time   types.Time
 	Low    float64
 	High   float64
 	Open   float64
 	Close  float64
 	Volume float64
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into History fields.
+func (h *History) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&h.Time, &h.Low, &h.High, &h.Open, &h.Close, &h.Volume})
 }
 
 // Stats holds last 24 hr data for coinbasepro
@@ -95,12 +102,12 @@ type AccountResponse struct {
 
 // AccountLedgerResponse holds account history information
 type AccountLedgerResponse struct {
-	ID        string      `json:"id"`
-	CreatedAt time.Time   `json:"created_at"`
-	Amount    float64     `json:"amount,string"`
-	Balance   float64     `json:"balance,string"`
-	Type      string      `json:"type"`
-	Details   interface{} `json:"details"`
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Amount    float64   `json:"amount,string"`
+	Balance   float64   `json:"balance,string"`
+	Type      string    `json:"type"`
+	Details   any       `json:"details"`
 }
 
 // AccountHolds contains the hold information about an account
@@ -341,9 +348,9 @@ type OrderbookL3 struct {
 
 // OrderbookResponse is a generalized response for order books
 type OrderbookResponse struct {
-	Sequence int64            `json:"sequence"`
-	Bids     [][3]interface{} `json:"bids"`
-	Asks     [][3]interface{} `json:"asks"`
+	Sequence int64    `json:"sequence"`
+	Bids     [][3]any `json:"bids"`
+	Asks     [][3]any `json:"asks"`
 }
 
 // FillResponse contains fill information from the exchange
@@ -460,45 +467,34 @@ type wsMsgType struct {
 
 type wsStatus struct {
 	Currencies []struct {
-		ConvertibleTo []string    `json:"convertible_to"`
-		Details       struct{}    `json:"details"`
-		ID            string      `json:"id"`
-		MaxPrecision  float64     `json:"max_precision,string"`
-		MinSize       float64     `json:"min_size,string"`
-		Name          string      `json:"name"`
-		Status        string      `json:"status"`
-		StatusMessage interface{} `json:"status_message"`
+		ConvertibleTo []string `json:"convertible_to"`
+		Details       struct{} `json:"details"`
+		ID            string   `json:"id"`
+		MaxPrecision  float64  `json:"max_precision,string"`
+		MinSize       float64  `json:"min_size,string"`
+		Name          string   `json:"name"`
+		Status        string   `json:"status"`
+		StatusMessage any      `json:"status_message"`
 	} `json:"currencies"`
 	Products []struct {
-		BaseCurrency   string      `json:"base_currency"`
-		BaseIncrement  float64     `json:"base_increment,string"`
-		BaseMaxSize    float64     `json:"base_max_size,string"`
-		BaseMinSize    float64     `json:"base_min_size,string"`
-		CancelOnly     bool        `json:"cancel_only"`
-		DisplayName    string      `json:"display_name"`
-		ID             string      `json:"id"`
-		LimitOnly      bool        `json:"limit_only"`
-		MaxMarketFunds float64     `json:"max_market_funds,string"`
-		MinMarketFunds float64     `json:"min_market_funds,string"`
-		PostOnly       bool        `json:"post_only"`
-		QuoteCurrency  string      `json:"quote_currency"`
-		QuoteIncrement float64     `json:"quote_increment,string"`
-		Status         string      `json:"status"`
-		StatusMessage  interface{} `json:"status_message"`
+		BaseCurrency   string  `json:"base_currency"`
+		BaseIncrement  float64 `json:"base_increment,string"`
+		BaseMaxSize    float64 `json:"base_max_size,string"`
+		BaseMinSize    float64 `json:"base_min_size,string"`
+		CancelOnly     bool    `json:"cancel_only"`
+		DisplayName    string  `json:"display_name"`
+		ID             string  `json:"id"`
+		LimitOnly      bool    `json:"limit_only"`
+		MaxMarketFunds float64 `json:"max_market_funds,string"`
+		MinMarketFunds float64 `json:"min_market_funds,string"`
+		PostOnly       bool    `json:"post_only"`
+		QuoteCurrency  string  `json:"quote_currency"`
+		QuoteIncrement float64 `json:"quote_increment,string"`
+		Status         string  `json:"status"`
+		StatusMessage  any     `json:"status_message"`
 	} `json:"products"`
 	Type string `json:"type"`
 }
-
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// CoinbaseRequestParamsTimeGTC GTC
-	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// CoinbaseRequestParamsTimeIOC IOC
-	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
 
 // TransferHistory returns wallet transfer history
 type TransferHistory struct {

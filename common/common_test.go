@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -31,21 +30,21 @@ func TestSendHTTPRequest(t *testing.T) {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	_, err := SendHTTPRequest(context.Background(),
+	_, err := SendHTTPRequest(t.Context(),
 		methodGarbage, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Expected error 'invalid HTTP method specified'")
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodPost, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
@@ -54,25 +53,23 @@ func TestSendHTTPRequest(t *testing.T) {
 	}
 
 	err = SetHTTPUserAgent("GCTbot/1337.69 (+http://www.lol.com/)")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodDelete, "https://www.google.com", headers,
 		strings.NewReader(""), true,
 	)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodGet, ":missingprotocolscheme", headers,
 		strings.NewReader(""), true,
 	)
 	if err == nil {
 		t.Error("Common HTTPRequest accepted missing protocol")
 	}
-	_, err = SendHTTPRequest(context.Background(),
+	_, err = SendHTTPRequest(t.Context(),
 		methodGet, "test://unsupportedprotocolscheme", headers,
 		strings.NewReader(""), true,
 	)
@@ -89,9 +86,7 @@ func TestSetHTTPClientWithTimeout(t *testing.T) {
 	}
 
 	err = SetHTTPClientWithTimeout(time.Second * 15)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPUserAgent(t *testing.T) {
@@ -102,9 +97,7 @@ func TestSetHTTPUserAgent(t *testing.T) {
 	}
 
 	err = SetHTTPUserAgent("testy test")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPClient(t *testing.T) {
@@ -115,9 +108,7 @@ func TestSetHTTPClient(t *testing.T) {
 	}
 
 	err = SetHTTPClient(new(http.Client))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestIsEnabled(t *testing.T) {
@@ -137,101 +128,30 @@ func TestIsEnabled(t *testing.T) {
 
 func TestIsValidCryptoAddress(t *testing.T) {
 	t.Parallel()
-	b, err := IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
+
+	tests := []struct {
+		name, addr, code string
+		err              error
+	}{
+		{"Valid BTC legacy", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC", nil},
+		{"Valid BTC bech32", "bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4", "bTC", nil},
+		{"Invalid BTC (too long)", "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", "bTC", ErrAddressIsEmptyOrInvalid},
+		{"Valid BTC bech32 (longer)", "bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9", "bTC", nil},
+		{"Invalid BTC (starts with 0)", "0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "bTC", ErrAddressIsEmptyOrInvalid},
+		{"Invalid LTC (BTC address)", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc", ErrAddressIsEmptyOrInvalid},
+		{"Valid LTC", "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc", nil},
+		{"Invalid LTC (starts with N)", "NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc", ErrAddressIsEmptyOrInvalid},
+		{"Valid ETH", "0xb794f5ea0ba39494ce839613fffba74279579268", "eth", nil},
+		{"Invalid ETH (starts with xx)", "xxb794f5ea0ba39494ce839613fffba74279579268", "eth", ErrAddressIsEmptyOrInvalid},
+		{"Unsupported crypto", "xxb794f5ea0ba39494ce839613fffba74279579268", "wif", ErrUnsupportedCryptocurrency},
+		{"Empty address", "", "btc", ErrAddressIsEmptyOrInvalid},
 	}
 
-	b, err = IsValidCryptoAddress("bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "bc1qw508d6qejxtdg4y5r3zarvaly0c5xw7kv8f3t4")
-	}
-
-	b, err = IsValidCryptoAddress("an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx")
-	}
-
-	b, err = IsValidCryptoAddress("bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9", "bTC")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "bc1qc7slrfxkknqcq2jevvvkdgvrt8080852dfjewde450xdlk4ugp7szw5tk9")
-	}
-
-	b, err = IsValidCryptoAddress("0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "btc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "0Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
-	}
-
-	b, err = IsValidCryptoAddress("1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX", "lTc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "1Mz7153HMuxXTuR2R1t78mGSdzaAtNbBWX")
-	}
-
-	b, err = IsValidCryptoAddress("3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "ltc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj")
-	}
-
-	b, err = IsValidCryptoAddress("NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj", "lTc")
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "NCDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj")
-	}
-
-	b, err = IsValidCryptoAddress(
-		"0xb794f5ea0ba39494ce839613fffba74279579268",
-		"eth",
-	)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !b {
-		t.Errorf("expected address '%s' to be valid", "0xb794f5ea0ba39494ce839613fffba74279579268")
-	}
-
-	b, err = IsValidCryptoAddress(
-		"xxb794f5ea0ba39494ce839613fffba74279579268",
-		"eTh",
-	)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "xxb794f5ea0ba39494ce839613fffba74279579268")
-	}
-
-	b, err = IsValidCryptoAddress(
-		"xxb794f5ea0ba39494ce839613fffba74279579268",
-		"ding",
-	)
-	if !errors.Is(err, errInvalidCryptoCurrency) {
-		t.Errorf("received '%v' expected '%v'", err, errInvalidCryptoCurrency)
-	}
-	if b {
-		t.Errorf("expected address '%s' to be invalid", "xxb794f5ea0ba39494ce839613fffba74279579268")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, IsValidCryptoAddress(tc.addr, tc.code), tc.err)
+		})
 	}
 }
 
@@ -299,48 +219,19 @@ func TestEncodeURLValues(t *testing.T) {
 	}
 }
 
-func TestExtractHost(t *testing.T) {
+func TestExtractHostOrDefault(t *testing.T) {
 	t.Parallel()
-	address := "localhost:1337"
-	addresstwo := ":1337"
-	expectedOutput := "localhost"
-	actualResult := ExtractHost(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	actualResultTwo := ExtractHost(addresstwo)
-	if expectedOutput != actualResultTwo {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
 
-	address = "192.168.1.100:1337"
-	expectedOutput = "192.168.1.100"
-	actualResult = ExtractHost(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
+	assert.Equal(t, "localhost", ExtractHostOrDefault("localhost:1337"))
+	assert.Equal(t, "localhost", ExtractHostOrDefault(":1337"))
+	assert.Equal(t, "192.168.1.100", ExtractHostOrDefault("192.168.1.100:1337"))
 }
 
-func TestExtractPort(t *testing.T) {
+func TestExtractPortOrDefault(t *testing.T) {
 	t.Parallel()
-	address := "localhost:1337"
-	expectedOutput := 1337
-	actualResult := ExtractPort(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
-	}
 
-	address = "localhost"
-	expectedOutput = 80
-	actualResult = ExtractPort(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
-	}
+	assert.Equal(t, 1337, ExtractPortOrDefault("localhost:1337"))
+	assert.Equal(t, 80, ExtractPortOrDefault("localhost"))
 }
 
 func TestGetURIPath(t *testing.T) {
@@ -352,11 +243,7 @@ func TestGetURIPath(t *testing.T) {
 		"http://www.google.com/accounts?!@#$%;^^":       "",
 	}
 	for testInput, expectedOutput := range testTable {
-		actualOutput := GetURIPath(testInput)
-		if actualOutput != expectedOutput {
-			t.Errorf("Expected '%s'. Actual '%s'.",
-				expectedOutput, actualOutput)
-		}
+		assert.Equal(t, expectedOutput, GetURIPath(testInput))
 	}
 }
 
@@ -595,7 +482,7 @@ func TestErrors(t *testing.T) {
 	assert.NotErrorIs(t, ExcludeError(err, e5), e5, "e4 should be excluded")
 
 	// Formatting retention
-	err = AppendError(e1, fmt.Errorf("%w: Run out of `%s`: %w", e3, "sausages", e5))
+	err = AppendError(e1, fmt.Errorf("%w: Run out of %q: %w", e3, "sausages", e5))
 	assert.ErrorIs(t, err, e1, "Should be an e1")
 	assert.ErrorIs(t, err, e3, "Should be an e3")
 	assert.ErrorIs(t, err, e5, "Should be an e5")
@@ -645,9 +532,7 @@ func TestParseStartEndDate(t *testing.T) {
 	}
 
 	err = StartEndTimeCheck(pt, et)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAssertError(t *testing.T) {
@@ -755,7 +640,7 @@ func TestBatch(t *testing.T) {
 	assert.Len(t, b[3], 1)
 
 	b[0][0] = 42
-	assert.Equal(t, 1, s[0], "Changing the batches must not change the source")
+	assert.Equal(t, 1, s[0], "Changing the batches should not change the source")
 
 	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
 	done := make(chan any, 1)
@@ -764,7 +649,7 @@ func TestBatch(t *testing.T) {
 
 	for _, i := range []int{-1, 0, 50} {
 		b = Batch(s, i)
-		require.Lenf(t, b, 1, "A batch size of %v should produce a single batch", i)
+		require.Lenf(t, b, 1, "A batch size of %v must produce a single batch", i)
 		assert.Lenf(t, b[0], len(s), "A batch size of %v should produce a single batch", i)
 	}
 }
@@ -789,7 +674,30 @@ func TestCounter(t *testing.T) {
 // 683185328	         1.787 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkCounter(b *testing.B) {
 	c := Counter{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		c.IncrementAndGet()
 	}
+}
+
+func TestNilGuard(t *testing.T) {
+	t.Parallel()
+	err := NilGuard((*int)(nil))
+	assert.ErrorIs(t, err, ErrNilPointer)
+	assert.ErrorContains(t, err, "*int")
+
+	s := "normal input"
+	err = NilGuard(&s, 2, &[]int{4, 5, 6}, []int{1, 2, 3}, new(A))
+	assert.NoError(t, err)
+
+	err = NilGuard(&s, nil, (*int)(nil))
+	assert.ErrorIs(t, err, ErrNilPointer)
+	assert.ErrorContains(t, err, "*int")
+	var mErr *multiError
+	require.ErrorAs(t, err, &mErr, "err must be a multiError")
+	assert.Len(t, mErr.Unwrap(), 2, "Should get 2 errors back")
+
+	assert.ErrorIs(t, NilGuard(nil), ErrNilPointer, "Unusual input of an untyped nil should still error correctly")
+
+	err = NilGuard()
+	require.NoError(t, err, "NilGuard with no arguments must not error")
 }

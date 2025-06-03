@@ -130,7 +130,7 @@ candleLoop:
 	d.Item.RemoveDuplicates()
 	d.Item.SortCandlesByTimestamp(false)
 	if d.RangeHolder != nil {
-		d.RangeHolder, err = gctkline.CalculateCandleDateRanges(d.Item.Candles[0].Time, d.Item.Candles[len(d.Item.Candles)-1].Time.Add(d.Item.Interval.Duration()), d.Item.Interval, uint32(d.RangeHolder.Limit))
+		d.RangeHolder, err = gctkline.CalculateCandleDateRanges(d.Item.Candles[0].Time, d.Item.Candles[len(d.Item.Candles)-1].Time.Add(d.Item.Interval.Duration()), d.Item.Interval, d.RangeHolder.Limit)
 		if err != nil {
 			return err
 		}

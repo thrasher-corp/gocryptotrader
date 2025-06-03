@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -35,9 +37,8 @@ var (
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
 	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
@@ -45,9 +46,8 @@ func TestSetupFundingManager(t *testing.T) {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
 	f, err = SetupFundingManager(&engine.ExchangeManager{}, false, true, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
@@ -62,21 +62,17 @@ func TestSetupFundingManager(t *testing.T) {
 func TestReset(t *testing.T) {
 	t.Parallel()
 	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddItem(baseItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if f.usingExchangeLevelFunding {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
@@ -88,9 +84,8 @@ func TestReset(t *testing.T) {
 func TestIsUsingExchangeLevelFunding(t *testing.T) {
 	t.Parallel()
 	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !f.IsUsingExchangeLevelFunding() {
 		t.Errorf("expected '%v received '%v'", true, false)
 	}
@@ -133,9 +128,8 @@ func TestTransfer(t *testing.T) {
 	item2.exchange = "moto"
 	item2.currency = base
 	err = f.Transfer(elite, item1, item2, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !item2.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", item2.available, elite)
 	}
@@ -145,9 +139,8 @@ func TestTransfer(t *testing.T) {
 
 	item2.transferFee = one
 	err = f.Transfer(elite, item2, item1, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !item1.available.Equal(elite.Sub(item2.transferFee)) {
 		t.Errorf("received '%v' expected '%v'", item2.available, elite.Sub(item2.transferFee))
 	}
@@ -157,18 +150,13 @@ func TestAddItem(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	err := f.AddItem(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddItem(baseItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = f.AddItem(baseItem)
 	if !errors.Is(err, ErrAlreadyExists) {
@@ -183,36 +171,28 @@ func TestExists(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 	conflictingSingleItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddItem(conflictingSingleItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !f.Exists(conflictingSingleItem) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
 	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	p, err := CreatePair(baseItem, quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddPair(p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = f.getFundingForEAP(exchName, a, pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	// demonstration that you don't need the original *Items
 	// to check for existence, just matching fields
@@ -239,29 +219,23 @@ func TestAddPair(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	p, err := CreatePair(baseItem, quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddPair(p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = f.getFundingForEAP(exchName, a, pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	p, err = CreatePair(baseItem, quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddPair(p)
 	if !errors.Is(err, ErrAlreadyExists) {
 		t.Errorf("received '%v' expected '%v'", err, ErrAlreadyExists)
@@ -277,25 +251,19 @@ func TestGetFundingForEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	p, err := CreatePair(baseItem, quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddPair(p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = f.GetFundingForEvent(e)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetFundingForEAP(t *testing.T) {
@@ -306,25 +274,19 @@ func TestGetFundingForEAP(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, ErrFundsNotFound)
 	}
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	p, err := CreatePair(baseItem, quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddPair(p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = f.getFundingForEAP(exchName, a, pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = CreatePair(baseItem, nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -335,9 +297,8 @@ func TestGetFundingForEAP(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	p, err = CreatePair(baseItem, quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddPair(p)
 	if !errors.Is(err, ErrAlreadyExists) {
 		t.Errorf("received '%v' expected '%v'", err, ErrAlreadyExists)
@@ -348,9 +309,8 @@ func TestGenerateReport(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	report, err := f.GenerateReport()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if report == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("shouldn't be nil")
 	}
@@ -369,9 +329,8 @@ func TestGenerateReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	report, err = f.GenerateReport()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(report.Items) != 1 {
 		t.Fatal("expected 1")
 	}
@@ -395,7 +354,7 @@ func TestGenerateReport(t *testing.T) {
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: exchName,
-			Pair:     currency.NewPair(currency.BTC, currency.USDT),
+			Pair:     currency.NewBTCUSDT(),
 			Asset:    a,
 			Interval: gctkline.OneHour,
 			Candles: []gctkline.Candle{
@@ -406,23 +365,18 @@ func TestGenerateReport(t *testing.T) {
 		},
 	}
 	err = dfk.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddUSDTrackingData(dfk)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	f.items[0].trackingCandles = dfk
 	err = f.CreateSnapshot(dfk.Item.Candles[0].Time)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	report, err = f.GenerateReport()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(report.Items) != 2 {
 		t.Fatal("expected 2")
 	}
@@ -469,9 +423,7 @@ func TestCreateSnapshot(t *testing.T) {
 		trackingCandles: dfk,
 	})
 	err = f.CreateSnapshot(dfk.Item.Candles[0].Time)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddUSDTrackingData(t *testing.T) {
@@ -502,13 +454,10 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, data.ErrInvalidEventSupplied)
 	}
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddItem(quoteItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	f.disableUSDTracking = true
 	err = f.AddUSDTrackingData(dfk)
@@ -537,26 +486,19 @@ func TestAddUSDTrackingData(t *testing.T) {
 		},
 	}
 	err = dfk.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddUSDTrackingData(dfk)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	usdtItem, err := CreateItem(exchName, a, currency.USDT, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddItem(usdtItem)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = f.AddUSDTrackingData(dfk)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestUSDTrackingDisabled(t *testing.T) {
@@ -589,12 +531,11 @@ func TestFundingLiquidate(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !f.items[0].available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
 	}
@@ -617,13 +558,12 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     "test",
 			AssetType:    asset.Spot,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USDT),
+			CurrencyPair: currency.NewBTCUSDT(),
 		},
 	}
 	err = f.Liquidate(ev)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !f.items[0].available.IsZero() {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, "0")
 	}
@@ -636,9 +576,8 @@ func TestGetAllFunding(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
 	resp, err := f.GetAllFunding()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 0 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 0)
 	}
@@ -651,9 +590,8 @@ func TestGetAllFunding(t *testing.T) {
 	})
 
 	resp, err = f.GetAllFunding()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(resp), 1)
 	}
@@ -751,7 +689,7 @@ func TestUpdateCollateral(t *testing.T) {
 		Base: &event.Base{
 			Exchange:     exchName,
 			AssetType:    asset.Futures,
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			CurrencyPair: currency.NewBTCUSD(),
 		},
 	}
 	f.items = append(f.items, &Item{
@@ -767,9 +705,8 @@ func TestUpdateCollateral(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	f.exchangeManager = em
 
 	expectedError = nil
@@ -820,9 +757,8 @@ func TestLinkCollateralCurrency(t *testing.T) {
 
 	item.asset = asset.Futures
 	err = f.LinkCollateralCurrency(item, currency.BTC)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !item.pairedWith.currency.Equal(currency.BTC) {
 		t.Errorf("received '%v', expected  '%v'", currency.BTC, item.pairedWith.currency)
 	}
@@ -835,9 +771,7 @@ func TestLinkCollateralCurrency(t *testing.T) {
 	f.items = append(f.items, item.pairedWith)
 	item.pairedWith = nil
 	err = f.LinkCollateralCurrency(item, currency.BTC)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetFunding(t *testing.T) {
@@ -867,9 +801,8 @@ func TestSetFunding(t *testing.T) {
 	bal.Currency = currency.BTC
 	bal.Total = 1337
 	err = f.SetFunding(exchName, asset.Spot, bal, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(f.items) != 1 {
 		t.Fatalf("received '%v' expected '%v'", len(f.items), 1)
 	}
@@ -882,9 +815,8 @@ func TestSetFunding(t *testing.T) {
 
 	bal.Total = 1338
 	err = f.SetFunding(exchName, asset.Spot, bal, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !f.items[0].available.Equal(decimal.NewFromFloat(bal.Total)) {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
 	}
@@ -903,16 +835,13 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 
 	f.exchangeManager = engine.NewExchangeManager()
 	err = f.UpdateFundingFromLiveData(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ff := &binance.Binance{}
 	ff.SetDefaults()
 	err = f.exchangeManager.Add(ff)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	err = f.UpdateFundingFromLiveData(false)
 	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received '%v', expected  '%v'", err, exchange.ErrCredentialsAreEmpty)
@@ -929,14 +858,10 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
 
 	err = f.UpdateFundingFromLiveData(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = f.UpdateFundingFromLiveData(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestUpdateAllCollateral(t *testing.T) {
@@ -949,16 +874,13 @@ func TestUpdateAllCollateral(t *testing.T) {
 
 	f.exchangeManager = engine.NewExchangeManager()
 	err = f.UpdateAllCollateral(false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ff := &binance.Binance{}
 	ff.SetDefaults()
 	err = f.exchangeManager.Add(ff)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	err = f.UpdateAllCollateral(false, false)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)
@@ -981,9 +903,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 	err = f.items[0].trackingCandles.SetStream([]data.Event{
 		&fakeEvent{},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = f.UpdateAllCollateral(false, false)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
@@ -1005,9 +925,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 	}
 	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
 	err = f.UpdateAllCollateral(true, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 var leet = decimal.NewFromInt(1337)
@@ -1016,22 +934,22 @@ var leet = decimal.NewFromInt(1337)
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 
-func (f *fakeEvent) GetHighPrice() decimal.Decimal            { return leet }
-func (f *fakeEvent) GetLowPrice() decimal.Decimal             { return leet }
-func (f *fakeEvent) GetOpenPrice() decimal.Decimal            { return leet }
-func (f *fakeEvent) GetVolume() decimal.Decimal               { return leet }
-func (f *fakeEvent) GetOffset() int64                         { return 0 }
-func (f *fakeEvent) SetOffset(int64)                          {}
-func (f *fakeEvent) IsEvent() bool                            { return true }
-func (f *fakeEvent) GetTime() time.Time                       { return time.Now() }
-func (f *fakeEvent) Pair() currency.Pair                      { return pair }
-func (f *fakeEvent) GetExchange() string                      { return exchName }
-func (f *fakeEvent) GetInterval() gctkline.Interval           { return gctkline.OneMin }
-func (f *fakeEvent) GetAssetType() asset.Item                 { return asset.Spot }
-func (f *fakeEvent) AppendReason(string)                      {}
-func (f *fakeEvent) GetClosePrice() decimal.Decimal           { return elite }
-func (f *fakeEvent) AppendReasonf(_ string, _ ...interface{}) {}
-func (f *fakeEvent) GetBase() *event.Base                     { return &event.Base{} }
-func (f *fakeEvent) GetUnderlyingPair() currency.Pair         { return pair }
-func (f *fakeEvent) GetConcatReasons() string                 { return "" }
-func (f *fakeEvent) GetReasons() []string                     { return nil }
+func (f *fakeEvent) GetHighPrice() decimal.Decimal    { return leet }
+func (f *fakeEvent) GetLowPrice() decimal.Decimal     { return leet }
+func (f *fakeEvent) GetOpenPrice() decimal.Decimal    { return leet }
+func (f *fakeEvent) GetVolume() decimal.Decimal       { return leet }
+func (f *fakeEvent) GetOffset() int64                 { return 0 }
+func (f *fakeEvent) SetOffset(int64)                  {}
+func (f *fakeEvent) IsEvent() bool                    { return true }
+func (f *fakeEvent) GetTime() time.Time               { return time.Now() }
+func (f *fakeEvent) Pair() currency.Pair              { return pair }
+func (f *fakeEvent) GetExchange() string              { return exchName }
+func (f *fakeEvent) GetInterval() gctkline.Interval   { return gctkline.OneMin }
+func (f *fakeEvent) GetAssetType() asset.Item         { return asset.Spot }
+func (f *fakeEvent) AppendReason(string)              {}
+func (f *fakeEvent) GetClosePrice() decimal.Decimal   { return elite }
+func (f *fakeEvent) AppendReasonf(_ string, _ ...any) {}
+func (f *fakeEvent) GetBase() *event.Base             { return &event.Base{} }
+func (f *fakeEvent) GetUnderlyingPair() currency.Pair { return pair }
+func (f *fakeEvent) GetConcatReasons() string         { return "" }
+func (f *fakeEvent) GetReasons() []string             { return nil }

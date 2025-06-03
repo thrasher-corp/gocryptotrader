@@ -682,7 +682,7 @@ func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atH
 }
 
 // SendHTTPRequest sends a valid HTTP request
-func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, result interface{}) error {
+func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, result any) error {
 	headers := make(map[string]string)
 	headers["Accept"] = "application/json"
 	headers["X-CMC_PRO_API_KEY"] = c.APIkey
@@ -696,7 +696,8 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		Path:    path,
 		Headers: headers,
 		Result:  result,
-		Verbose: c.Verbose}
+		Verbose: c.Verbose,
+	}
 	return c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)

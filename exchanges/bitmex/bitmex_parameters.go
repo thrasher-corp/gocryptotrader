@@ -19,7 +19,7 @@ type Parameter interface {
 
 // StructValsToURLVals converts a struct into url.values for easy encoding
 // can set json tags for outgoing naming conventions.
-func StructValsToURLVals(v interface{}) (url.Values, error) {
+func StructValsToURLVals(v any) (url.Values, error) {
 	values := url.Values{}
 
 	if reflect.ValueOf(v).Kind() != reflect.Ptr {
@@ -597,7 +597,6 @@ func (p OrderBookGetL2Params) IsNil() bool {
 
 // PositionGetParams contains all the parameters to send to the API endpoint
 type PositionGetParams struct {
-
 	// Columns - Which columns to fetch. For example, send ["columnName"].
 	Columns string `json:"columns,omitempty"`
 
@@ -822,7 +821,7 @@ type TradeGetBucketedParams struct {
 	Reverse bool `json:"reverse,omitempty"`
 
 	// Start - Starting point for results.
-	Start int32 `json:"start,omitempty"`
+	Start int64 `json:"start,omitempty"`
 
 	// StartTime - Starting date filter for results.
 	StartTime string `json:"startTime,omitempty"`

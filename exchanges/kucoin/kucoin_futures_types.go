@@ -1,17 +1,14 @@
 package kucoin
 
 import (
-	"time"
-
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var (
-	validGranularity = []string{
-		"1", "5", "15", "30", "60", "120", "240", "480", "720", "1440", "10080",
-	}
-)
+var validGranularity = []string{
+	"1", "5", "15", "30", "60", "120", "240", "480", "720", "1440", "10080",
+}
 
 // Contract store contract details
 type Contract struct {
@@ -149,12 +146,17 @@ type FundingHistoryItem struct {
 
 // FuturesKline stores kline data
 type FuturesKline struct {
-	StartTime time.Time
+	StartTime types.Time
 	Open      float64
 	Close     float64
 	High      float64
 	Low       float64
 	Volume    float64
+}
+
+// UnmarshalJSON parses kline data from a JSON array into FuturesKline fields.
+func (f *FuturesKline) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&f.StartTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume})
 }
 
 // FutureOrdersResponse represents a future order response list detail

@@ -4815,6 +4815,10 @@
         "borrowed": {
           "type": "number",
           "format": "double"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
@@ -4944,9 +4948,6 @@
         "assetType": {
           "type": "string"
         },
-        "walletAddress": {
-          "type": "string"
-        },
         "side": {
           "type": "string"
         }
@@ -4980,9 +4981,6 @@
           "$ref": "#/definitions/gctrpcCurrencyPair"
         },
         "assetType": {
-          "type": "string"
-        },
-        "walletAddress": {
           "type": "string"
         },
         "side": {
@@ -5318,15 +5316,15 @@
         },
         "requestSizeLimit": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "maxRetryAttempts": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "batchSize": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "status": {
           "type": "string"
@@ -5346,7 +5344,7 @@
         },
         "decimalPlaceComparison": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "secondaryExchangeName": {
           "type": "string"
@@ -7541,7 +7539,7 @@
         },
         "requestSizeLimit": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "dataType": {
           "type": "string",
@@ -7549,11 +7547,11 @@
         },
         "maxRetryAttempts": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "batchSize": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "insertOnly": {
           "type": "boolean"
@@ -7570,7 +7568,7 @@
         },
         "decimalPlaceComparison": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         },
         "secondaryExchangeName": {
           "type": "string"
@@ -7840,8 +7838,8 @@
           "format": "double"
         },
         "type": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "fiat": {
           "$ref": "#/definitions/gctrpcFiatWithdrawalEvent"

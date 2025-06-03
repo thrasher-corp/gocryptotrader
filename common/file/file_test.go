@@ -28,7 +28,7 @@ func TestWrite(t *testing.T) {
 	}
 
 	var tests []testTable
-	tempDir := filepath.Join(os.TempDir(), "gct-temp")
+	tempDir := t.TempDir()
 	testFile := filepath.Join(tempDir, "gcttest.txt")
 	switch runtime.GOOS {
 	case "windows":
@@ -48,10 +48,6 @@ func TestWrite(t *testing.T) {
 		if err != nil && !tests[x].ErrExpected {
 			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
 		}
-	}
-
-	if err := os.RemoveAll(tempDir); err != nil {
-		t.Errorf("unable to remove temp test dir %s, manual deletion required", tempDir)
 	}
 }
 
@@ -269,7 +265,7 @@ func TestWriterNoPermissionFails(t *testing.T) {
 
 	tempDir := t.TempDir()
 	err := os.Chmod(tempDir, 0o555)
-	require.NoError(t, err, "Chmod should not fail to set read-only permissions")
+	require.NoError(t, err, "Chmod must not fail to set read-only permissions")
 	_, err = Writer(filepath.Join(tempDir, "path", "to", "somefile"))
 	assert.Error(t, err, "Writer should fail with no write permissions")
 }

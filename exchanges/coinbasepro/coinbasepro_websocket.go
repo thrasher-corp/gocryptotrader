@@ -2,22 +2,22 @@ package coinbasepro
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -30,9 +30,9 @@ const (
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -173,6 +173,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			}
 		}
 
+		clientID := ""
+		if creds != nil {
+			clientID = creds.ClientID
+		}
+
 		if wsOrder.UserID != "" {
 			var p currency.Pair
 			var a asset.Item
@@ -191,7 +196,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Exchange:        c.Name,
 				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
-				ClientID:        creds.ClientID,
+				ClientID:        clientID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,
@@ -241,7 +246,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			if !c.IsSaveTradeDataEnabled() {
 				return nil
 			}
-			return trade.AddTradesToBuffer(c.Name, trade.Data{
+			return trade.AddTradesToBuffer(trade.Data{
 				Timestamp:    wsOrder.Time,
 				Exchange:     c.Name,
 				CurrencyPair: p,
@@ -253,7 +258,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			})
 		}
 	default:
-		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: c.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil

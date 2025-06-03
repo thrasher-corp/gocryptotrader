@@ -2,14 +2,13 @@ package mock
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 type responsePayload struct {
@@ -18,8 +17,10 @@ type responsePayload struct {
 	Currency string  `json:"currency"`
 }
 
-const queryString = "currency=btc&command=getprice"
-const testFile = "test.json"
+const (
+	queryString = "currency=btc&command=getprice"
+	testFile    = "test.json"
+)
 
 func TestNewVCRServer(t *testing.T) {
 	_, _, err := NewVCRServer("")
@@ -32,9 +33,11 @@ func TestNewVCRServer(t *testing.T) {
 	test1.Routes = make(map[string]map[string][]HTTPResponse)
 	test1.Routes["/test"] = make(map[string][]HTTPResponse)
 
-	rp, err := json.Marshal(responsePayload{Price: 8000.0,
+	rp, err := json.Marshal(responsePayload{
+		Price:    8000.0,
 		Amount:   1,
-		Currency: "bitcoin"})
+		Currency: "bitcoin",
+	})
 	if err != nil {
 		t.Fatal("marshal error", err)
 	}
@@ -62,7 +65,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = common.SendHTTPRequest(context.Background(),
+	_, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		"http://localhost:300/somethingElse?"+queryString,
 		nil,
@@ -72,7 +75,7 @@ func TestNewVCRServer(t *testing.T) {
 	}
 
 	// Expected good outcome
-	r, err := common.SendHTTPRequest(context.Background(),
+	r, err := common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		deets,
 		nil,
@@ -85,7 +88,7 @@ func TestNewVCRServer(t *testing.T) {
 		t.Error("Was not expecting any value returned:", r)
 	}
 
-	r, err = common.SendHTTPRequest(context.Background(),
+	r, err = common.SendHTTPRequest(t.Context(),
 		http.MethodGet,
 		deets+"/test?"+queryString,
 		nil,

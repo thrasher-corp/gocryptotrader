@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -9,16 +8,17 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Vars for the websocket client
 var (
-	WSConn *websocket.Conn
+	WSConn *gws.Conn
 )
 
 // WebsocketEvent is the struct used for websocket events
@@ -26,7 +26,7 @@ type WebsocketEvent struct {
 	Exchange  string `json:"exchange,omitempty"`
 	AssetType string `json:"assetType,omitempty"`
 	Event     string
-	Data      interface{}
+	Data      any
 }
 
 // WebsocketAuth is the struct used for a websocket auth request
@@ -37,9 +37,9 @@ type WebsocketAuth struct {
 
 // WebsocketEventResponse is the struct used for websocket event responses
 type WebsocketEventResponse struct {
-	Event string      `json:"event"`
-	Data  interface{} `json:"data"`
-	Error string      `json:"error"`
+	Event string `json:"event"`
+	Data  any    `json:"data"`
+	Error string `json:"error"`
 }
 
 // WebsocketOrderbookTickerRequest is a struct used for ticker and orderbook
@@ -51,7 +51,7 @@ type WebsocketOrderbookTickerRequest struct {
 }
 
 // SendWebsocketEvent sends a websocket event message
-func SendWebsocketEvent(event string, reqData interface{}, result *WebsocketEventResponse) error {
+func SendWebsocketEvent(event string, reqData any, result *WebsocketEventResponse) error {
 	req := WebsocketEvent{
 		Event: event,
 	}
@@ -85,11 +85,11 @@ func main() {
 	}
 
 	listenAddr := cfg.RemoteControl.WebsocketRPC.ListenAddress
-	wsHost := fmt.Sprintf("ws://%s/ws", net.JoinHostPort(common.ExtractHost(listenAddr),
-		strconv.Itoa(common.ExtractPort(listenAddr))))
+	wsHost := fmt.Sprintf("ws://%s/ws", net.JoinHostPort(common.ExtractHostOrDefault(listenAddr),
+		strconv.Itoa(common.ExtractPortOrDefault(listenAddr))))
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	var resp *http.Response
 	WSConn, resp, err = dialer.Dial(wsHost, http.Header{})
 	if err != nil {

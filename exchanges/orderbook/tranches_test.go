@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var ask = Tranches{
@@ -104,7 +105,7 @@ func TestLoad(t *testing.T) {
 // 84119028	        13.87 ns/op	       0 B/op	       0 allocs/op (new)
 func BenchmarkLoad(b *testing.B) {
 	ts := Tranches{}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ts.load(ask)
 	}
 }
@@ -262,7 +263,7 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 		},
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		a.updateInsertByPrice(updates, 0)
 	}
 }
@@ -285,7 +286,7 @@ func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 		},
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		a.updateInsertByPrice(updates, 0)
 	}
 }
@@ -326,9 +327,7 @@ func TestUpdateByID(t *testing.T) {
 	err = a.updateByID(Tranches{ // Simulate Bitmex updating
 		{Price: 0, Amount: 1337, ID: 3},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("expecting %v but received %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if got := a.retrieve(2); len(got) != 2 || got[1].Price == 0 {
 		t.Fatal("price should not be replaced with zero")
@@ -357,7 +356,7 @@ func BenchmarkUpdateByID(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := asks.updateByID(asksSnapshot)
 		if err != nil {
 			b.Fatal(err)
@@ -427,7 +426,7 @@ func BenchmarkDeleteByID(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := asks.deleteByID(asksSnapshot, false)
 		if err != nil {
 			b.Fatal(err)
@@ -702,7 +701,7 @@ func BenchmarkUpdateInsertByID_asks(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := asks.updateInsertByID(asksSnapshot, askCompare)
 		if err != nil {
 			b.Fatal(err)
@@ -974,7 +973,7 @@ func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 	}
 	bids.load(bidsSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := bids.updateInsertByID(bidsSnapshot, bidCompare)
 		if err != nil {
 			b.Fatal(err)
@@ -1107,7 +1106,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 }
 
 // check checks depth values after an update has taken place
-func Check(t *testing.T, depth interface{}, liquidity, value float64, expectedLen int) {
+func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 	t.Helper()
 	b, isBid := depth.(bidTranches)
 	a, isAsk := depth.(askTranches)
@@ -1830,18 +1829,14 @@ func TestGetHeadPrice(t *testing.T) {
 	}
 
 	val, err := depth.bidTranches.getHeadPriceNoLock()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if val != 1336 {
 		t.Fatal("unexpected value")
 	}
 
 	val, err = depth.askTranches.getHeadPriceNoLock()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if val != 1337 {
 		t.Fatal("unexpected value", val)
@@ -1878,7 +1873,7 @@ func BenchmarkRetrieve(b *testing.B) {
 	}
 	asks.load(asksSnapshot)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = asks.retrieve(6)
 	}
 }

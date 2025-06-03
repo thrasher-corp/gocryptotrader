@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"sort"
@@ -15,10 +16,11 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -27,9 +29,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -307,68 +309,56 @@ func (b *Base) SetCurrencyPairFormat() error {
 func (b *Base) SetConfigPairs() error {
 	assetTypes := b.Config.CurrencyPairs.GetAssetTypes(false)
 	exchangeAssets := b.CurrencyPairs.GetAssetTypes(false)
-	for x := range assetTypes {
-		if !exchangeAssets.Contains(assetTypes[x]) {
-			log.Warnf(log.ExchangeSys,
-				"%s exchange asset type %s unsupported, please manually remove from configuration",
-				b.Name,
-				assetTypes[x])
-			continue // If there are unsupported assets contained in config, skip.
+	for _, a := range assetTypes {
+		if !exchangeAssets.Contains(a) {
+			log.Warnf(log.ExchangeSys, "%s exchange asset type %s unsupported, please manually remove from configuration", b.Name, a)
+			continue
+		}
+		if !b.Config.CurrencyPairs.UseGlobalFormat {
+			// TODO: Should be in SetCurrencyPairFormat. See #1748
+			if err := b.setConfigPairFormatFromExchange(a); err != nil {
+				return err
+			}
+		}
+
+		cfgPS, err := b.Config.CurrencyPairs.Get(a)
+		if err != nil {
+			return err
+		}
+		if err := b.CurrencyPairs.StorePairs(a, cfgPS.Available, false); err != nil {
+			return err
+		}
+		if err := b.CurrencyPairs.StorePairs(a, cfgPS.Enabled, true); err != nil {
+			return err
 		}
 
 		var enabledAsset bool
-		if b.Config.CurrencyPairs.IsAssetEnabled(assetTypes[x]) == nil {
+		if b.Config.CurrencyPairs.IsAssetEnabled(a) == nil {
 			enabledAsset = true
 		}
 
-		err := b.CurrencyPairs.SetAssetEnabled(assetTypes[x], enabledAsset)
-		// Suppress error when assets are enabled by default and they are being
-		// enabled by config. A check for the inverse
-		// e.g. currency.ErrAssetAlreadyDisabled is not needed.
-		if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+		// Must happen after StorePairs, which would have enabled the asset automatically
+		if err := b.CurrencyPairs.SetAssetEnabled(a, enabledAsset); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		cfgPS, err := b.Config.CurrencyPairs.Get(assetTypes[x])
-		if err != nil {
+// setConfigPairFormatFromExchange sets the config formats from the exchange's format
+// This deprecated behaviour will be removed, because config should not be backloaded from runtime
+func (b *Base) setConfigPairFormatFromExchange(a asset.Item) error {
+	ps, err := b.CurrencyPairs.Get(a)
+	if err != nil {
+		return err
+	}
+	if ps.ConfigFormat != nil {
+		if err := b.Config.CurrencyPairs.StoreFormat(a, ps.ConfigFormat, true); err != nil {
 			return err
 		}
-
-		if b.Config.CurrencyPairs.UseGlobalFormat {
-			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-			if err != nil {
-				return err
-			}
-			err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-		exchPS, err := b.CurrencyPairs.Get(assetTypes[x])
-		if err != nil {
-			return err
-		}
-
-		if exchPS.ConfigFormat != nil {
-			err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.ConfigFormat, true)
-			if err != nil {
-				return err
-			}
-		}
-		if exchPS.RequestFormat != nil {
-			err = b.Config.CurrencyPairs.StoreFormat(assetTypes[x], exchPS.RequestFormat, false)
-			if err != nil {
-				return err
-			}
-		}
-
-		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
-		if err != nil {
-			return err
-		}
-		err = b.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
-		if err != nil {
+	}
+	if ps.RequestFormat != nil {
+		if err := b.Config.CurrencyPairs.StoreFormat(a, ps.RequestFormat, false); err != nil {
 			return err
 		}
 	}
@@ -531,8 +521,7 @@ func (b *Base) IsEnabled() bool {
 
 // SetupDefaults sets the exchange settings based on the supplied config
 func (b *Base) SetupDefaults(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 
@@ -558,8 +547,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.HTTPTimeout = DefaultHTTPTimeout
 	}
 
-	err = b.SetHTTPClientTimeout(exch.HTTPTimeout)
-	if err != nil {
+	if err := b.SetHTTPClientTimeout(exch.HTTPTimeout); err != nil {
 		return err
 	}
 
@@ -567,8 +555,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		exch.CurrencyPairs = &b.CurrencyPairs
 		a := exch.CurrencyPairs.GetAssetTypes(false)
 		for i := range a {
-			err = exch.CurrencyPairs.SetAssetEnabled(a[i], true)
-			if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+			if err := exch.CurrencyPairs.SetAssetEnabled(a[i], true); err != nil {
 				return err
 			}
 		}
@@ -576,18 +563,15 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.HTTPDebugging = exch.HTTPDebugging
 	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
-	err = b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	if err != nil {
+	if err := b.SetHTTPClientUserAgent(exch.HTTPUserAgent); err != nil {
 		return err
 	}
 
-	err = b.SetCurrencyPairFormat()
-	if err != nil {
+	if err := b.SetCurrencyPairFormat(); err != nil {
 		return err
 	}
 
-	err = b.SetConfigPairs()
-	if err != nil {
+	if err := b.SetConfigPairs(); err != nil {
 		return err
 	}
 
@@ -597,27 +581,26 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		b.API.Endpoints = b.NewEndpoints()
 	}
 
-	err = b.SetAPIURL()
-	if err != nil {
+	if err := b.SetAPIURL(); err != nil {
 		return err
 	}
 
 	b.SetAPICredentialDefaults()
 
-	err = b.SetClientProxyAddress(exch.ProxyAddress)
-	if err != nil {
+	if err := b.SetClientProxyAddress(exch.ProxyAddress); err != nil {
 		return err
 	}
+
 	b.BaseCurrencies = exch.BaseCurrencies
 
 	if exch.Orderbook.VerificationBypass {
-		log.Warnf(log.ExchangeSys,
-			"%s orderbook verification has been bypassed via config.",
-			b.Name)
+		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
+
 	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
-	return err
+
+	return nil
 }
 
 // SetPairs sets the exchange currency pairs for either enabledPairs or
@@ -913,8 +896,8 @@ func (b *Base) SupportsWithdrawPermissions(permissions uint32) bool {
 // FormatWithdrawPermissions will return each of the exchange's compatible withdrawal methods in readable form
 func (b *Base) FormatWithdrawPermissions() string {
 	var services []string
-	for i := range 32 {
-		var check uint32 = 1 << uint32(i)
+	for i := range uint(32) {
+		var check uint32 = 1 << i
 		if b.GetWithdrawPermissions()&check != 0 {
 			switch check {
 			case AutoWithdrawCrypto:
@@ -1002,30 +985,18 @@ func (b *Base) EnableRateLimiter() error {
 	return b.Requester.EnableRateLimiter()
 }
 
-// StoreAssetPairFormat initialises and stores a defined asset format
-func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
+// SetAssetPairStore initialises and stores a defined asset format
+func (b *Base) SetAssetPairStore(a asset.Item, f currency.PairStore) error {
 	if a.String() == "" {
-		return fmt.Errorf("%s cannot add to pairs manager, no asset provided",
-			b.Name)
+		return asset.ErrInvalidAsset
 	}
 
-	if f.AssetEnabled == nil {
-		f.AssetEnabled = convert.BoolPtr(true)
-	}
-
-	if f.RequestFormat == nil {
-		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
-			b.Name)
-	}
-
-	if f.ConfigFormat == nil {
-		return fmt.Errorf("%s cannot add to pairs manager, config pair format not provided",
-			b.Name)
+	if f.RequestFormat == nil || f.ConfigFormat == nil {
+		return currency.ErrPairFormatIsNil
 	}
 
 	if f.ConfigFormat.Delimiter == "" {
-		return fmt.Errorf("exchange %s cannot set asset %s pair format %w",
-			b.Name, a, errConfigPairFormatRequiresDelimiter)
+		return errConfigPairFormatRequiresDelimiter
 	}
 
 	if b.CurrencyPairs.Pairs == nil {
@@ -1033,6 +1004,7 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	}
 
 	b.CurrencyPairs.Pairs[a] = &f
+
 	return nil
 }
 
@@ -1074,7 +1046,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
-		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
+		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = true
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
@@ -1083,7 +1055,7 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Base) GetWebsocket() (*stream.Websocket, error) {
+func (b *Base) GetWebsocket() (*websocket.Manager, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1151,7 +1123,7 @@ func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 }
 
 // CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
-// Used to avoid import cycles on stream.websocket
+// Used to avoid import cycles on websocket.Manager
 func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
 	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
@@ -1168,21 +1140,23 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// ValidateKline confirms that the requested pair, asset & interval are
-// supported and/or enabled by the requested exchange.
-func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	var err error
-	if b.CurrencyPairs.IsAssetEnabled(a) != nil {
-		err = common.AppendError(err, fmt.Errorf("%w %v", asset.ErrNotEnabled, a))
-	} else if !b.CurrencyPairs.Pairs[a].Enabled.Contains(pair, true) {
-		err = common.AppendError(err, fmt.Errorf("%w in enabled pairs %v", currency.ErrPairNotFound, pair))
+// verifyKlineParameters verifies whether the pair, asset and interval are enabled on the exchange
+func (b *Base) verifyKlineParameters(pair currency.Pair, a asset.Item, interval kline.Interval) error {
+	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return err
+	}
+
+	if ok, err := b.IsPairEnabled(pair, a); err != nil {
+		return err
+	} else if !ok {
+		return fmt.Errorf("%w: %v", currency.ErrPairNotEnabled, pair)
 	}
 
 	if !b.klineIntervalEnabled(interval) {
-		err = common.AppendError(err, fmt.Errorf("%w %v", kline.ErrInvalidInterval, interval))
+		return fmt.Errorf("%w: %v", kline.ErrInvalidInterval, interval)
 	}
 
-	return err
+	return nil
 }
 
 // AddTradesToBuffer is a helper function that will only
@@ -1191,7 +1165,7 @@ func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
-	return trade.AddTradesToBuffer(b.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // IsSaveTradeDataEnabled checks the state of
@@ -1320,12 +1294,8 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 // GetURLMap gets all urls for either running or default map based on the bool value supplied
 func (e *Endpoints) GetURLMap() map[string]string {
 	e.mu.RLock()
-	var urlMap = make(map[string]string)
-	for k, v := range e.defaults {
-		urlMap[k] = v
-	}
-	e.mu.RUnlock()
-	return urlMap
+	defer e.mu.RUnlock()
+	return maps.Clone(e.defaults)
 }
 
 // GetCachedOpenInterest returns open interest data if the exchange
@@ -1459,7 +1429,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 	case edgeCase3URL:
 		return EdgeCase3, nil
 	default:
-		return Invalid, fmt.Errorf("%w '%s'", errEndpointStringNotFound, ep)
+		return Invalid, fmt.Errorf("%w %q", errEndpointStringNotFound, ep)
 	}
 }
 
@@ -1469,9 +1439,7 @@ func getURLTypeFromString(ep string) (URL, error) {
 // check availability of asset type.
 func (b *Base) DisableAssetWebsocketSupport(aType asset.Item) error {
 	if !b.SupportsAsset(aType) {
-		return fmt.Errorf("%s %w",
-			aType,
-			asset.ErrNotSupported)
+		return fmt.Errorf("%s %w", aType, asset.ErrNotSupported)
 	}
 	b.AssetWebsocketSupport.m.Lock()
 	if b.AssetWebsocketSupport.unsupported == nil {
@@ -1529,7 +1497,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, exchangeInterval)
+	err = b.verifyKlineParameters(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1566,7 +1534,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 					modifiedCount,
 					exchangeInterval)
 			}
-			boundary := time.Now().Add(-exchangeInterval.Duration() * time.Duration(limit))
+			boundary := time.Now().Add(-exchangeInterval.Duration() * time.Duration(limit)) //nolint:gosec // TODO: Ensure limit can't overflow
 			return nil, fmt.Errorf("%w %v, exceeding the limit of %v %v candles up to %v. Please reduce timeframe or use GetHistoricCandlesExtended",
 				kline.ErrRequestExceedsExchangeLimits,
 				errMsg,
@@ -1600,7 +1568,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	err = b.ValidateKline(pair, a, exchangeInterval)
+	err = b.verifyKlineParameters(pair, a, exchangeInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1621,7 +1589,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 	}
 	r.IsExtended = true
 
-	dates, err := r.GetRanges(uint32(limit))
+	dates, err := r.GetRanges(limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1634,7 +1602,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 func (b *Base) Shutdown() error {
 	if b.Websocket != nil {
 		err := b.Websocket.Shutdown()
-		if err != nil && !errors.Is(err, stream.ErrNotConnected) {
+		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
 			return err
 		}
 	}
@@ -1942,6 +1910,28 @@ func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 		return protocol.TradingRequirements{}
 	}
 	return b.Features.TradingRequirements
+}
+
+// GetCachedTicker returns the ticker for a currency pair and asset type
+// NOTE: UpdateTicker (or if supported UpdateTickers) method must be called first to update the ticker map
+func (b *Base) GetCachedTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	return ticker.GetTicker(b.Name, p, assetType)
+}
+
+// GetCachedOrderbook returns orderbook base on the currency pair and asset type
+// NOTE: UpdateOrderbook method must be called first to update the orderbook map
+func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	return orderbook.Get(b.Name, p, assetType)
+}
+
+// GetCachedAccountInfo retrieves balances for all enabled currencies
+// NOTE: UpdateAccountInfo method must be called first to update the account info map
+func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	return account.GetHoldings(b.Name, creds, assetType)
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection

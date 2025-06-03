@@ -11,7 +11,7 @@ import (
 )
 
 // FloatFromString format
-func FloatFromString(raw interface{}) (float64, error) {
+func FloatFromString(raw any) (float64, error) {
 	str, ok := raw.(string)
 	if !ok {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
@@ -24,7 +24,7 @@ func FloatFromString(raw interface{}) (float64, error) {
 }
 
 // IntFromString format
-func IntFromString(raw interface{}) (int, error) {
+func IntFromString(raw any) (int, error) {
 	str, ok := raw.(string)
 	if !ok {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
@@ -37,7 +37,7 @@ func IntFromString(raw interface{}) (int, error) {
 }
 
 // Int64FromString format
-func Int64FromString(raw interface{}) (int64, error) {
+func Int64FromString(raw any) (int64, error) {
 	str, ok := raw.(string)
 	if !ok {
 		return 0, fmt.Errorf("unable to parse, value not string: %T", raw)
@@ -50,7 +50,7 @@ func Int64FromString(raw interface{}) (int64, error) {
 }
 
 // TimeFromUnixTimestampFloat format
-func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
+func TimeFromUnixTimestampFloat(raw any) (time.Time, error) {
 	ts, ok := raw.(float64)
 	if !ok {
 		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
@@ -62,20 +62,6 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 func TimeFromUnixTimestampDecimal(input float64) time.Time {
 	i, f := math.Modf(input)
 	return time.Unix(int64(i), int64(f*(1e9))).UTC()
-}
-
-// UnixTimestampToTime returns time.time
-func UnixTimestampToTime(timeint64 int64) time.Time {
-	return time.Unix(timeint64, 0)
-}
-
-// UnixTimestampStrToTime returns a time.time and an error
-func UnixTimestampStrToTime(timeStr string) (time.Time, error) {
-	i, err := strconv.ParseInt(timeStr, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(i, 0), nil
 }
 
 // BoolPtr takes in boolean condition and returns pointer version of it
@@ -103,14 +89,13 @@ func FloatToHumanFriendlyString(number float64, decimals uint, decPoint, thousan
 		number = -number
 		neg = true
 	}
-	dec := int(decimals)
-	str := fmt.Sprintf("%."+strconv.Itoa(dec)+"F", number)
-	return numberToHumanFriendlyString(str, dec, decPoint, thousandsSep, neg)
+	str := fmt.Sprintf("%."+strconv.FormatUint(uint64(decimals), 10)+"F", number)
+	return numberToHumanFriendlyString(str, decimals, decPoint, thousandsSep, neg)
 }
 
 // DecimalToHumanFriendlyString converts a decimal number to a comma separated string at the thousand point
 // eg 1000 becomes 1,000
-func DecimalToHumanFriendlyString(number decimal.Decimal, rounding int, decPoint, thousandsSep string) string {
+func DecimalToHumanFriendlyString(number decimal.Decimal, rounding uint, decPoint, thousandsSep string) string {
 	neg := false
 	if number.LessThan(decimal.Zero) {
 		number = number.Abs()
@@ -119,20 +104,25 @@ func DecimalToHumanFriendlyString(number decimal.Decimal, rounding int, decPoint
 	str := number.String()
 	if rnd := strings.Split(str, "."); len(rnd) == 1 {
 		rounding = 0
-	} else if len(rnd[1]) < rounding {
-		rounding = len(rnd[1])
+	} else if uint(len(rnd[1])) < rounding {
+		rounding = uint(len(rnd[1]))
 	}
-	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
+
+	if rounding > math.MaxInt32 {
+		rounding = math.MaxInt32 // Not feasible to test due to the size of the number
+	}
+
+	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg) //nolint:gosec // Checked above
 }
 
-func numberToHumanFriendlyString(str string, dec int, decPoint, thousandsSep string, neg bool) string {
+func numberToHumanFriendlyString(str string, dec uint, decPoint, thousandsSep string, neg bool) string {
 	var prefix, suffix string
-	if len(str)-(dec+1) < 0 {
+	if dec > 0 && (dec)+1 > uint(len(str)) {
 		dec = 0
 	}
 	if dec > 0 {
-		prefix = str[:len(str)-(dec+1)]
-		suffix = str[len(str)-dec:]
+		prefix = str[:len(str)-(int(dec)+1)]
+		suffix = str[len(str)-int(dec):]
 	} else {
 		prefix = str
 	}
@@ -163,7 +153,7 @@ func numberToHumanFriendlyString(str string, dec int, decPoint, thousandsSep str
 }
 
 // InterfaceToFloat64OrZeroValue returns the type assertion value or variable zero value
-func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
+func InterfaceToFloat64OrZeroValue(r any) float64 {
 	if v, ok := r.(float64); ok {
 		return v
 	}
@@ -171,7 +161,7 @@ func InterfaceToFloat64OrZeroValue(r interface{}) float64 {
 }
 
 // InterfaceToIntOrZeroValue returns the type assertion value or variable zero value
-func InterfaceToIntOrZeroValue(r interface{}) int {
+func InterfaceToIntOrZeroValue(r any) int {
 	if v, ok := r.(int); ok {
 		return v
 	}
@@ -179,7 +169,7 @@ func InterfaceToIntOrZeroValue(r interface{}) int {
 }
 
 // InterfaceToStringOrZeroValue returns the type assertion value or variable zero value
-func InterfaceToStringOrZeroValue(r interface{}) string {
+func InterfaceToStringOrZeroValue(r any) string {
 	if v, ok := r.(string); ok {
 		return v
 	}

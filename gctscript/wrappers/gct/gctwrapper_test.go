@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -31,50 +32,41 @@ func TestMain(m *testing.M) {
 	var err error
 	engine.Bot, err = engine.NewFromSettings(&settings, nil)
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error from engine.NewFromSettings: %s", err)
 	}
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(exch.Value)
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error from NewExchangeByName: %s", err)
 	}
 	cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error during GetDefaultConfig: %s", err)
 	}
-	err = exch.Setup(cfg)
-	if err != nil {
-		log.Fatal(err)
+	if err = exch.Setup(cfg); err != nil {
+		log.Fatalf("Error during exch.Setup: %s", err)
 	}
-	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		log.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	if err = em.Add(exch); err != nil {
+		log.Fatalf("Error during ExchangeManager.Add: %s", err)
 	}
 	engine.Bot.ExchangeManager = em
 	engine.Bot.WithdrawManager, err = engine.SetupWithdrawManager(em, nil, true)
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error during engine.SetupWithdrawManage: %s", err)
 	}
 
 	engine.Bot.DepositAddressManager = engine.SetupDepositAddressManager()
 	err = engine.Bot.DepositAddressManager.Sync(engine.Bot.GetAllExchangeCryptocurrencyDepositAddresses())
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error syncing DepositAddressManager: %s", err)
 	}
 
 	engine.Bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &engine.Bot.ServicesWG, &config.OrderManager{})
 	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+		log.Fatalf("Error during SetupOrderManager: %s", err)
 	}
-	err = engine.Bot.OrderManager.Start()
-	if err != nil {
-		log.Print(err)
-		os.Exit(1)
+	if err = engine.Bot.OrderManager.Start(); err != nil {
+		log.Fatalf("Error starting OrderManager: %s", err)
 	}
 	modules.SetModuleWrapper(Setup())
 	os.Exit(m.Run())
@@ -192,21 +184,15 @@ func TestExchangePairs(t *testing.T) {
 	}
 }
 
-func TestAccountInfo(t *testing.T) {
+func TestExchangeAccountInfo(t *testing.T) {
 	t.Parallel()
 	_, err := gct.ExchangeAccountInfo()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatal(err)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 	obj, err := gct.ExchangeAccountInfo(ctx, exch, assetType)
-	if err != nil {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-	rString, _ := objects.ToString(obj)
-	if rString != `error: "Bitstamp REST or Websocket authentication support is not enabled"` {
-		t.Errorf("received: %v but expected: %v",
-			rString, `error: "Bitstamp REST or Websocket authentication support is not enabled"`)
-	}
+	require.NoError(t, err)
+	rString, ok := objects.ToString(obj)
+	require.True(t, ok, "ExchangeAccountInfo return value must return correctly from objects.ToString")
+	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 
 func TestExchangeOrderQuery(t *testing.T) {
@@ -238,9 +224,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 func TestExchangeOrderSubmit(t *testing.T) {
 	t.Parallel()
 	_, err := gct.ExchangeOrderSubmit()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatal(err)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	orderSide := &objects.String{Value: "ASK"}
 	orderType := &objects.String{Value: "LIMIT"}
@@ -258,16 +242,11 @@ func TestExchangeOrderSubmit(t *testing.T) {
 		orderAmount,
 		orderID,
 		orderAsset)
-	if err != nil {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
-	rString, _ := objects.ToString(obj)
-	if rString != `error: "Bitstamp REST or Websocket authentication support is not enabled"` {
-		t.Errorf("received: [%v] but expected: %v",
-			rString,
-			`error: "Bitstamp REST or Websocket authentication support is not enabled"`)
-	}
+	rString, ok := objects.ToString(obj)
+	require.True(t, ok, "ExchangeOrderSubmit return value must return correctly from objects.ToString")
+	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 
 func TestAllModuleNames(t *testing.T) {

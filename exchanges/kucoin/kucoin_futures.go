@@ -322,23 +322,8 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
-	var resp [][6]float64
-	err := ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresKlineEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
-	if err != nil {
-		return nil, err
-	}
-	kline := make([]FuturesKline, len(resp))
-	for i := range resp {
-		kline[i] = FuturesKline{
-			StartTime: time.UnixMilli(int64(resp[i][0])),
-			Open:      resp[i][1],
-			High:      resp[i][2],
-			Low:       resp[i][3],
-			Close:     resp[i][4],
-			Volume:    resp[i][5],
-		}
-	}
-	return kline, nil
+	var resp []FuturesKline
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresKlineEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
 }
 
 // PostFuturesOrder used to place two types of futures orders: limit and market
@@ -622,7 +607,7 @@ func (ku *Kucoin) SetAutoDepositMargin(ctx context.Context, symbol string, statu
 	if symbol == "" {
 		return false, currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	params["status"] = status
 	var resp bool
@@ -658,7 +643,7 @@ func (ku *Kucoin) AddMargin(ctx context.Context, symbol, uniqueID string, margin
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	if uniqueID == "" {
 		return nil, errors.New("uniqueID cannot be empty")
@@ -686,7 +671,7 @@ func (ku *Kucoin) FuturesUpdateRiskLmitLevel(ctx context.Context, symbol string,
 	if symbol == "" {
 		return false, currency.ErrSymbolStringEmpty
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["symbol"] = symbol
 	params["level"] = strconv.FormatInt(level, 10)
 	var resp bool
@@ -765,7 +750,7 @@ func (ku *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist
 	if passphrase == "" {
 		return nil, errInvalidPassPhraseInstance
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["passphrase"] = passphrase
 	params["remark"] = remark
 	params["subName"] = subName
@@ -790,7 +775,7 @@ func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount 
 	if recAccountType == "" {
 		return nil, fmt.Errorf("%w, invalid receive account type", errAccountTypeMissing)
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["amount"] = amount
 	params["currency"] = ccy.String()
 	params["recAccountType"] = recAccountType
@@ -809,7 +794,7 @@ func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount floa
 	if payAccountType == "" {
 		return fmt.Errorf("%w, payAccountType cannot be empty", errAccountTypeMissing)
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["amount"] = amount
 	params["currency"] = ccy.String()
 	params["payAccountType"] = payAccountType

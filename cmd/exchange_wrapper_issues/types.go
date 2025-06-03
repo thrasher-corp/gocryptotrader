@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -30,7 +29,6 @@ var (
 // Config the data structure for wrapperconfig.json to store all customisation
 type Config struct {
 	OrderSubmission OrderSubmission                         `json:"orderSubmission"`
-	WalletAddress   string                                  `json:"withdrawWalletAddress"`
 	BankDetails     Bank                                    `json:"bankAccount"`
 	Exchanges       map[string]*config.APICredentialsConfig `json:"exchanges"`
 }
@@ -58,7 +56,7 @@ type ExchangeAssetPairResponses struct {
 type EndpointResponse struct {
 	Function   string          `json:"function"`
 	Error      string          `json:"error"`
-	Response   interface{}     `json:"response"`
+	Response   any             `json:"response"`
 	SentParams json.RawMessage `json:"sentParams"`
 }
 

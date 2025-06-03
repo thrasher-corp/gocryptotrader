@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -50,7 +51,7 @@ var (
 	initialFunds100000  *decimal.Decimal
 	initialFunds10      *decimal.Decimal
 
-	mainCurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
+	mainCurrencyPair = currency.NewBTCUSDT()
 )
 
 func TestMain(m *testing.M) {
@@ -67,9 +68,8 @@ func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
 	err := c.validateDate()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	c.DataSettings = DataSettings{
 		DatabaseData: &DatabaseData{},
 	}
@@ -85,9 +85,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
 	if !errors.Is(err, gctcommon.ErrDateUnset) {
@@ -101,9 +100,7 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestValidateCurrencySettings(t *testing.T) {
@@ -136,9 +133,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	c.CurrencySettings[0].Asset = asset.PerpetualSwap
 	err = c.validateCurrencySettings()
@@ -214,9 +209,7 @@ func TestValidateMinMaxes(t *testing.T) {
 	t.Parallel()
 	c := &Config{}
 	err := c.validateMinMaxes()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	c.CurrencySettings = []CurrencySettings{
 		{
@@ -317,15 +310,12 @@ func TestValidateStrategySettings(t *testing.T) {
 	}
 	c.StrategySettings = StrategySettings{Name: dca}
 	err = c.validateStrategySettings()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	c.StrategySettings.SimultaneousSignalProcessing = true
 	err = c.validateStrategySettings()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	c.FundingSettings = FundingSettings{}
 	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateStrategySettings()
@@ -362,7 +352,7 @@ func TestPrintSettings(t *testing.T) {
 		Goal:     "To demonstrate rendering of settings",
 		StrategySettings: StrategySettings{
 			Name: dca,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"dca-dummy1": 30.0,
 				"dca-dummy2": 30.0,
 				"dca-dummy3": 30.0,
@@ -441,9 +431,7 @@ func TestValidate(t *testing.T) {
 		},
 	}
 	err := c.Validate()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	c = nil
 	err = c.Validate()
@@ -459,17 +447,13 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}
 	_, err = passFile.WriteString("{}")
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = passFile.Close()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = ReadStrategyConfigFromFile(passFile.Name())
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = ReadStrategyConfigFromFile("test")
 	if !errors.Is(err, common.ErrFileNotFound) {
@@ -963,7 +947,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
 		StrategySettings: StrategySettings{
 			Name: "rsi",
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"rsi-low":    30.0,
 				"rsi-high":   70.0,
 				"rsi-period": 14,
@@ -1206,7 +1190,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			Name:                         top2bottom2.Name,
 			SimultaneousSignalProcessing: true,
 
-			CustomSettings: map[string]interface{}{
+			CustomSettings: map[string]any{
 				"mfi-low":    32,
 				"mfi-high":   68,
 				"mfi-period": 14,

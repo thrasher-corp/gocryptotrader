@@ -1,21 +1,25 @@
 package bybit
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss etc")
-var errInvalidLeverageValue = errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
-var validCategory = []string{"spot", "linear", "inverse", "option"}
+var (
+	errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss etc")
+	errInvalidLeverageValue   = errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
+	validCategory             = []string{"spot", "linear", "inverse", "option"}
+)
 
 // supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
@@ -37,10 +41,11 @@ type Authenticate struct {
 
 // SubscriptionArgument represents a subscription arguments.
 type SubscriptionArgument struct {
-	auth      bool     `json:"-"`
-	RequestID string   `json:"req_id"`
-	Operation string   `json:"op"`
-	Arguments []string `json:"args"`
+	auth           bool              `json:"-"`
+	RequestID      string            `json:"req_id"`
+	Operation      string            `json:"op"`
+	Arguments      []string          `json:"args"`
+	associatedSubs subscription.List `json:"-"`
 }
 
 // Fee holds fee information
@@ -504,8 +509,7 @@ type CancelOrderParams struct {
 	Symbol      currency.Pair `json:"symbol"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-
-	OrderFilter string `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 }
 
 // Validate checks the input parameters and returns an error if they are invalid
@@ -629,7 +633,7 @@ type PlaceBatchOrderParam struct {
 // BatchOrderItemParam represents a batch order place parameter.
 type BatchOrderItemParam struct {
 	Category         string        `json:"category,omitempty"`
-	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Symbol           currency.Pair `json:"symbol,omitzero"`
 	OrderType        string        `json:"orderType,omitempty"`
 	Side             string        `json:"side,omitempty"`
 	OrderQuantity    float64       `json:"qty,string,omitempty"`
@@ -1407,7 +1411,7 @@ type WithdrawableAmount struct {
 
 // WithdrawalParam represents asset withdrawal request parameter.
 type WithdrawalParam struct {
-	Coin        currency.Code `json:"coin,omitempty"`
+	Coin        currency.Code `json:"coin,omitzero"`
 	Chain       string        `json:"chain,omitempty"`
 	Address     string        `json:"address,omitempty"`
 	Tag         string        `json:"tag,omitempty"`
@@ -1468,7 +1472,7 @@ type SubUIDAPIResponse struct {
 	ExpiredAt             time.Time `json:"expiredAt"`
 	CreatedAt             time.Time `json:"createdAt"`
 	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
-	IsUnifiedTradeAccount int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
+	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
 	UserID                int64     `json:"userID"`
 	InviterID             int64     `json:"inviterID"`
 	VipLevel              string    `json:"vipLevel"`
@@ -2145,21 +2149,21 @@ type WebsocketWallet struct {
 		TotalInitialMargin     types.Number `json:"totalInitialMargin"`
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
 		Coin                   []struct {
-			Coin                string       `json:"coin"`
-			Equity              types.Number `json:"equity"`
-			UsdValue            types.Number `json:"usdValue"`
-			WalletBalance       types.Number `json:"walletBalance"`
-			AvailableToWithdraw types.Number `json:"availableToWithdraw"`
-			AvailableToBorrow   types.Number `json:"availableToBorrow"`
-			BorrowAmount        types.Number `json:"borrowAmount"`
-			AccruedInterest     types.Number `json:"accruedInterest"`
-			TotalOrderIM        types.Number `json:"totalOrderIM"`
-			TotalPositionIM     types.Number `json:"totalPositionIM"`
-			TotalPositionMM     types.Number `json:"totalPositionMM"`
-			UnrealisedPnl       types.Number `json:"unrealisedPnl"`
-			CumRealisedPnl      types.Number `json:"cumRealisedPnl"`
-			Bonus               types.Number `json:"bonus"`
-			SpotHedgingQuantity types.Number `json:"spotHedgingQty"`
+			Coin                currency.Code `json:"coin"`
+			Equity              types.Number  `json:"equity"`
+			UsdValue            types.Number  `json:"usdValue"`
+			WalletBalance       types.Number  `json:"walletBalance"`
+			AvailableToWithdraw types.Number  `json:"availableToWithdraw"`
+			AvailableToBorrow   types.Number  `json:"availableToBorrow"`
+			BorrowAmount        types.Number  `json:"borrowAmount"`
+			AccruedInterest     types.Number  `json:"accruedInterest"`
+			TotalOrderIM        types.Number  `json:"totalOrderIM"`
+			TotalPositionIM     types.Number  `json:"totalPositionIM"`
+			TotalPositionMM     types.Number  `json:"totalPositionMM"`
+			UnrealisedPnl       types.Number  `json:"unrealisedPnl"`
+			CumRealisedPnl      types.Number  `json:"cumRealisedPnl"`
+			Bonus               types.Number  `json:"bonus"`
+			SpotHedgingQuantity types.Number  `json:"spotHedgingQty"`
 		} `json:"coin"`
 		AccountType string `json:"accountType"`
 		AccountLTV  string `json:"accountLTV"`
@@ -2202,4 +2206,27 @@ type Error struct {
 	ReturnMessageV5 string `json:"retMsg"`
 	ExtCode         string `json:"ext_code"`
 	ExtMsg          string `json:"ext_info"`
+}
+
+// accountTypeHolder holds the account type associated with the loaded API key.
+type accountTypeHolder struct {
+	accountType AccountType
+	m           sync.Mutex
+}
+
+// AccountType constants
+type AccountType uint8
+
+// String returns the account type as a string
+func (a AccountType) String() string {
+	switch a {
+	case 0:
+		return "unset"
+	case accountTypeNormal:
+		return "normal"
+	case accountTypeUnified:
+		return "unified"
+	default:
+		return "unknown"
+	}
 }

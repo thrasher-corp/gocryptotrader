@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -42,15 +42,16 @@ type IBotExchange interface {
 	// GetTradingRequirements returns trading requirements for the exchange
 	GetTradingRequirements() protocol.TradingRequirements
 
-	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
+	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
-	FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
 	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
+	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items
 	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
@@ -75,7 +76,7 @@ type IBotExchange interface {
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
-	GetWebsocket() (*stream.Websocket, error)
+	GetWebsocket() (*websocket.Manager, error)
 	SubscribeToWebsocketChannels(channels subscription.List) error
 	UnsubscribeToWebsocketChannels(channels subscription.List) error
 	GetSubscriptions() (subscription.List, error)
@@ -133,8 +134,6 @@ type OrderManagement interface {
 	GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
-
-	// WebsocketSubmitOrder submits an order via the websocket connection
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
 	// WebsocketCancelOrder cancels an order via the websocket connection
 	WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
@@ -155,7 +154,7 @@ type CurrencyStateManagement interface {
 // AccountManagement defines functionality for exchange account management
 type AccountManagement interface {
 	UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
-	FetchAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
+	GetCachedAccountInfo(ctx context.Context, a asset.Item) (account.Holdings, error)
 	HasAssetTypeAccountSegregation() bool
 }
 

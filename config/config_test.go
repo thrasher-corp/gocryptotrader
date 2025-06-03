@@ -93,13 +93,9 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 		}},
 	}
 	_, err := cfg.GetExchangeBankAccounts(bfx, "", "USD")
-	if err != nil {
-		t.Error("GetExchangeBankAccounts error", err)
-	}
+	require.NoError(t, err)
 	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", "Not a currency")
-	if err == nil {
-		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
-	}
+	require.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestCheckBankAccountConfig(t *testing.T) {
@@ -553,7 +549,7 @@ func TestSetPairs(t *testing.T) {
 	t.Parallel()
 	var c Config
 	pairs := currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
 
@@ -724,10 +720,10 @@ func TestCheckPairConsistency(t *testing.T) {
 	t.Parallel()
 
 	var c Config
-	err := c.CheckPairConsistency("asdf")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' buy expected: '%v'", err, ErrExchangeNotFound)
-	}
+	p1 := currency.NewPairWithDelimiter("LTC", "USD", "_")
+	p2 := currency.NewPairWithDelimiter("BTC", "USD", "_")
+
+	assert.ErrorIs(t, c.CheckPairConsistency("asdf"), ErrExchangeNotFound)
 
 	c.Exchanges = append(c.Exchanges,
 		Exchange{
@@ -735,18 +731,9 @@ func TestCheckPairConsistency(t *testing.T) {
 		},
 	)
 
-	// Test nil pair store
-	err = c.CheckPairConsistency(testFakeExchangeName)
-	if !errors.Is(err, errPairsManagerIsNil) {
-		t.Fatalf("received: '%v' buy expected: '%v'", err, errPairsManagerIsNil)
-	}
+	assert.ErrorIs(t, c.CheckPairConsistency(testFakeExchangeName), errPairsManagerIsNil)
 
-	enabled, err := currency.NewPairDelimiter("BTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+	pm := &currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
 				RequestFormat: &currency.PairFormat{
@@ -758,123 +745,51 @@ func TestCheckPairConsistency(t *testing.T) {
 					Delimiter: "_",
 				},
 				Enabled: currency.Pairs{
-					enabled,
+					p2,
 				},
 			},
 		},
 	}
+	c.Exchanges[0].CurrencyPairs = pm
 
-	// Test for nil avail pairs
-	err = c.CheckPairConsistency(testFakeExchangeName)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' buy expected: '%v'", err, nil)
-	}
-
-	p1, err := currency.NewPairDelimiter("LTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error on empty available pairs")
+	assert.Empty(t, pm.Pairs[asset.Spot].Enabled, "Unavailable pairs should be removed from enabled")
 
 	// Test that enabled pair is not found in the available pairs
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		p1,
-	}
+	pm.Pairs[asset.Spot].Available = currency.Pairs{p1}
 
 	// LTC_USD is only found in the available pairs list and should therefore
-	// be added to the enabled pairs list due to the atLestOneEnabled code
-	err = c.CheckPairConsistency(testFakeExchangeName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// be added to the enabled pairs list due to the atLeastOneEnabled code
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error when adding a pair from available to enabled")
+	require.Equal(t, 1, len(pm.Pairs[asset.Spot].Enabled), "One pair must be enabled")
+	assert.True(t, slices.Contains(pm.Pairs[asset.Spot].Enabled, p1), "Newly enabled pair should be in Enabled")
 
-	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatal("there should be at least one pair located in this list")
-	}
+	pm.Pairs[asset.Spot].Available = currency.Pairs{p1, p2}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error with no changes to be made")
 
-	if !c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled[0].Equal(p1) {
-		t.Fatal("LTC_USD should be contained in the enabled pairs list")
-	}
+	pm.Pairs[asset.Spot].Enabled = nil
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "Should not error when adding a pair from available to enabled to fulfil atLeastOne")
+	assert.NotEmpty(t, pm.Pairs[asset.Spot].Enabled, "One pair should be enabled")
 
-	p2, err := currency.NewPairDelimiter("BTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{p1, p2}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with when removing an invalid pair")
 
-	// Add the BTC_USD pair and see result
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		p1, p2,
-	}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with consistent pairs")
 
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Fatal(err)
-	}
+	pm.Pairs[asset.Spot].AssetEnabled = true
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset enabled but no pairs")
 
-	// Test that an empty enabled pair is populated with an available pair
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result", err)
-	}
+	pm.Pairs[asset.Spot].AssetEnabled = true
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset enabled and enabled pairs")
 
-	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
-		t.Fatal("should be populated with at least one currency pair")
-	}
+	pm.Pairs[asset.Spot].AssetEnabled = false
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset disabled and no enabled pairs")
 
-	// Test that an invalid enabled pair is removed from the list
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		p1,
-		p2,
-	}
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	// Test when no update is required as the available pairs and enabled pairs
-	// are consistent
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
-
-	// Test no conflict and at least one on enabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
-
-	// Test with conflict and at least one on enabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
-
-	// Test no conflict and at least one on disabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPair(currency.DASH, currency.USD),
-		p1,
-		p2,
-	}
-
-	// Test with conflict and at least one on disabled asset type
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = nil
-
-	// assetType enabled failure check
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
+	pm.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD), p1, p2}
+	assert.NoError(t, c.CheckPairConsistency(testFakeExchangeName), "CheckPairConsistency should not error with spot asset disabled but enabled pairs")
 }
 
 func TestSupportsPair(t *testing.T) {
@@ -888,8 +803,8 @@ func TestSupportsPair(t *testing.T) {
 				CurrencyPairs: &currency.PairsManager{
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
-							AssetEnabled:  convert.BoolPtr(true),
-							Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+							AssetEnabled:  true,
+							Available:     []currency.Pair{currency.NewBTCUSD()},
 							ConfigFormat:  fmt,
 							RequestFormat: fmt,
 						},
@@ -900,13 +815,13 @@ func TestSupportsPair(t *testing.T) {
 	}
 	assetType := asset.Spot
 	if cfg.SupportsPair("asdf",
-		currency.NewPair(currency.BTC, currency.USD), assetType) {
+		currency.NewBTCUSD(), assetType) {
 		t.Error(
 			"TestSupportsPair. Expected error from Non-existent exchange",
 		)
 	}
 
-	if !cfg.SupportsPair(bfx, currency.NewPair(currency.BTC, currency.USD), assetType) {
+	if !cfg.SupportsPair(bfx, currency.NewBTCUSD(), assetType) {
 		t.Errorf(
 			"expected true",
 		)
@@ -1046,7 +961,7 @@ func TestGetAvailablePairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 	_, err = c.GetAvailablePairs(testFakeExchangeName, asset.Spot)
 	if err != nil {
@@ -1089,11 +1004,11 @@ func TestGetEnabledPairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 	}
 
 	_, err = c.GetEnabledPairs(testFakeExchangeName, asset.Spot)
@@ -1238,7 +1153,7 @@ func TestGetForexProviders(t *testing.T) {
 
 func TestGetPrimaryForexProvider(t *testing.T) {
 	t.Parallel()
-	fxr := "Fixer" // nolint:ifshort,nolintlint // false positive and triggers only on Windows
+	fxr := "Fixer"
 	cfg := &Config{
 		Currency: currency.Config{
 			ForexProviders: []currency.FXSettings{
@@ -1310,18 +1225,8 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg.Exchanges[0].Name = "GDAX"
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-	if cfg.Exchanges[0].Name != "CoinbasePro" {
-		t.Error("exchange name should have been updated from GDAX to CoinbasePRo")
-	}
-
 	// Test API settings migration
 	sptr := func(s string) *string { return &s }
-	int64ptr := func(i int64) *int64 { return &i }
 
 	cfg.Exchanges[0].APIKey = sptr("awesomeKey")
 	cfg.Exchanges[0].APISecret = sptr("meowSecret")
@@ -1376,96 +1281,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].Features.Enabled.Websocket ||
 		!cfg.Exchanges[0].Features.Supports.RESTCapabilities.AutoPairUpdates {
 		t.Error("unexpected values")
-	}
-
-	p1, err := currency.NewPairDelimiter(testPair, "-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test currency pair migration
-	setupPairs := func(emptyAssets bool) {
-		cfg.Exchanges[0].CurrencyPairs = nil
-		p := currency.Pairs{
-			p1,
-		}
-		cfg.Exchanges[0].PairsLastUpdated = int64ptr(1234567)
-
-		if !emptyAssets {
-			cfg.Exchanges[0].AssetTypes = sptr("spot")
-		}
-
-		cfg.Exchanges[0].AvailablePairs = &p
-		cfg.Exchanges[0].EnabledPairs = &p
-		cfg.Exchanges[0].ConfigCurrencyPairFormat = &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-		}
-		cfg.Exchanges[0].RequestCurrencyPairFormat = &currency.PairFormat{
-			Uppercase: false,
-			Delimiter: "~",
-		}
-	}
-
-	setupPairs(false)
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-
-	setupPairs(true)
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if cfg.Exchanges[0].CurrencyPairs.LastUpdated != 1234567 {
-		t.Error("last updated has wrong value")
-	}
-
-	pFmt := cfg.Exchanges[0].CurrencyPairs.ConfigFormat
-	if pFmt.Delimiter != "-" ||
-		!pFmt.Uppercase {
-		t.Error("unexpected config format values")
-	}
-
-	pFmt = cfg.Exchanges[0].CurrencyPairs.RequestFormat
-	if pFmt.Delimiter != "~" ||
-		pFmt.Uppercase {
-		t.Error("unexpected request format values")
-	}
-
-	if !cfg.Exchanges[0].CurrencyPairs.GetAssetTypes(false).Contains(asset.Spot) ||
-		!cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat {
-		t.Error("unexpected results")
-	}
-
-	pairs, err := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(pairs) == 0 || pairs.Join() != testPair {
-		t.Error("pairs not set properly")
-	}
-
-	pairs, err = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(pairs) == 0 || pairs.Join() != testPair {
-		t.Error("pairs not set properly")
-	}
-
-	// Ensure that all old settings are flushed
-	if cfg.Exchanges[0].PairsLastUpdated != nil ||
-		cfg.Exchanges[0].ConfigCurrencyPairFormat != nil ||
-		cfg.Exchanges[0].RequestCurrencyPairFormat != nil ||
-		cfg.Exchanges[0].AssetTypes != nil ||
-		cfg.Exchanges[0].AvailablePairs != nil ||
-		cfg.Exchanges[0].EnabledPairs != nil {
-		t.Error("unexpected results")
 	}
 
 	// Test AutoPairUpdates
@@ -1554,8 +1369,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	// Make a sneaky copy for bank account testing
-	//nolint: gocritic
-	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
+	cpy := slices.Clone(cfg.Exchanges)
 
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
@@ -1642,17 +1456,13 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges = append(cfg.Exchanges, cpy[0])
 
 	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
+	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = false
 	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	cfg.Exchanges[0].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = cfg.CheckExchangeConfigValues()
-	if err == nil {
-		t.Error("err cannot be nil")
-	}
+	assert.ErrorIs(t, err, errNoEnabledExchanges, "Exchanges without any pairs should be disabled")
 }
 
 func TestReadConfigFromFile(t *testing.T) {
@@ -1670,22 +1480,14 @@ func TestReadConfigFromFile(t *testing.T) {
 
 func TestReadConfigFromReader(t *testing.T) {
 	t.Parallel()
+	c := &Config{}
 	confString := `{"name":"test"}`
-	conf, encrypted, err := ReadConfig(strings.NewReader(confString), Unencrypted)
-	if err != nil {
-		t.Errorf("TestReadConfig %s", err)
-	}
-	if encrypted {
-		t.Errorf("Expected unencrypted config %s", err)
-	}
-	if conf.Name != "test" {
-		t.Errorf("Conf not properly loaded %s", err)
-	}
+	err := c.readConfig(strings.NewReader(confString))
+	require.NoError(t, err)
+	assert.Equal(t, "test", c.Name)
 
-	_, _, err = ReadConfig(strings.NewReader("{}"), Unencrypted)
-	if err == nil {
-		t.Error("TestReadConfig error cannot be nil")
-	}
+	err = c.readConfig(strings.NewReader("{}"))
+	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -1704,19 +1506,12 @@ func TestLoadConfig(t *testing.T) {
 func TestSaveConfigToFile(t *testing.T) {
 	cfg := &Config{}
 	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("TestSaveConfig.LoadConfig: %s", err.Error())
-	}
-	f, err := os.CreateTemp("", "")
-	if err != nil {
-		t.Errorf("TestSaveConfig create file: %s", err)
-	}
-	f.Close()
-	defer os.Remove(f.Name())
-	err2 := cfg.SaveConfigToFile(f.Name())
-	if err2 != nil {
-		t.Errorf("TestSaveConfig.SaveConfig, %s", err2.Error())
-	}
+	require.NoError(t, err, "LoadConfig must not error")
+	f, err := os.CreateTemp(t.TempDir(), "")
+	require.NoError(t, err, "CreateTemp must not error")
+	require.NoError(t, f.Close(), "Close must not error")
+	err = cfg.SaveConfigToFile(f.Name())
+	require.NoError(t, err, "SaveConfigToFile must not error")
 }
 
 func TestCheckConnectionMonitorConfig(t *testing.T) {
@@ -1827,7 +1622,7 @@ func TestCheckConfig(t *testing.T) {
 					LastUpdated:     0,
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
-							AssetEnabled:  convert.BoolPtr(true),
+							AssetEnabled:  true,
 							Available:     currency.Pairs{cp1, cp2},
 							Enabled:       currency.Pairs{cp1},
 							ConfigFormat:  &currency.EMPTYFORMAT,
@@ -1845,12 +1640,12 @@ func TestCheckConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	var c Config
-	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig should not error")
+	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig must not error")
 	newCfg := c
-	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig should not error")
+	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig must not error")
 
 	if isGCTDocker := os.Getenv("GCT_DOCKER_CI"); isGCTDocker != "true" {
-		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig should error on non-existent path")
+		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig must error on non-existent path")
 	}
 }
 
@@ -1862,7 +1657,7 @@ func BenchmarkUpdateConfig(b *testing.B) {
 	}
 
 	newCfg := c
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = c.UpdateConfig(TestFile, &newCfg, true)
 	}
 }
@@ -2057,10 +1852,8 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 
 func TestPreengineConfigUpgrade(t *testing.T) {
 	t.Parallel()
-	var c Config
-	if err := c.LoadConfig("../testdata/preengine_config.json", false); err != nil {
-		t.Fatal(err)
-	}
+	err := new(Config).LoadConfig("../testdata/preengine_config.json", false)
+	require.NoError(t, err)
 }
 
 func TestRemoveExchange(t *testing.T) {
@@ -2138,75 +1931,59 @@ func TestMigrateConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		setup   func(t *testing.T)
-		cleanup func(t *testing.T)
 		args    args
 		want    string
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "nonexisting",
 			args: args{
 				configFile: "not-exists.json",
 			},
-			wantErr: true,
+			wantErr: os.ErrNotExist,
 		},
 		{
 			name: "source present, no target dir",
 			setup: func(t *testing.T) {
 				t.Helper()
-				test, err := os.Create("test.json")
-				if err != nil {
-					t.Fatal(err)
-				}
-				test.Close()
-			},
-			cleanup: func(t *testing.T) {
-				t.Helper()
-				os.Remove("test.json")
+				test, err := os.Create(filepath.Join(dir, "test.json"))
+				require.NoError(t, err, "os.Create must not error")
+				require.NoError(t, test.Close(), "file Close must not error")
 			},
 			args: args{
-				configFile: "test.json",
+				configFile: filepath.Join(dir, "test.json"),
 				targetDir:  filepath.Join(dir, "new"),
 			},
-			want:    filepath.Join(dir, "new", File),
-			wantErr: false,
+			want: filepath.Join(dir, "new", File),
 		},
 		{
 			name: "source same as target",
 			setup: func(t *testing.T) {
 				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 			},
 			args: args{
 				configFile: filepath.Join(dir, File),
 				targetDir:  dir,
 			},
-			want:    filepath.Join(dir, File),
-			wantErr: false,
+			want: filepath.Join(dir, File),
 		},
 		{
 			name: "source and target present",
 			setup: func(t *testing.T) {
 				t.Helper()
 				err := file.Write(filepath.Join(dir, File), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 				err = file.Write(filepath.Join(dir, "src", EncryptedFile), nil)
-				if err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, err, "file.Write must not error")
 			},
 			args: args{
 				configFile: filepath.Join(dir, "src", EncryptedFile),
 				targetDir:  dir,
 			},
-			want: filepath.Join(dir, "src", EncryptedFile),
-			// We only expect warning
-			wantErr: false,
+			want:    filepath.Join(dir, "src", EncryptedFile),
+			wantErr: nil, // We only expect warning
 		},
 	}
 
@@ -2215,19 +1992,13 @@ func TestMigrateConfig(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup(t)
 			}
-			if tt.cleanup != nil {
-				defer tt.cleanup(t)
-			}
 			got, err := migrateConfig(tt.args.configFile, tt.args.targetDir)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("migrateConfig() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("migrateConfig() = %v, want %v", got, tt.want)
-			}
-			if err == nil && !file.Exists(got) {
-				t.Errorf("migrateConfig: %v should exist", got)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr, "migrateConfig must error correctly")
+			} else {
+				require.NoError(t, err, "migrateConfig must not error")
+				require.Equal(t, tt.want, got, "migrateConfig must return the correct file")
+				require.Truef(t, file.Exists(got), "migrateConfig return file %q must exist", got)
 			}
 		})
 	}
@@ -2240,9 +2011,7 @@ func TestExchangeConfigValidate(t *testing.T) {
 	}
 
 	err = (&Exchange{}).Validate()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetDefaultSyncManagerConfig(t *testing.T) {

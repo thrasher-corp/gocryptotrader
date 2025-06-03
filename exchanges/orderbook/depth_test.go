@@ -10,6 +10,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -89,14 +91,27 @@ func TestRetrieve(t *testing.T) {
 	mirrored := reflect.Indirect(reflect.ValueOf(d.options))
 	for n := range mirrored.NumField() {
 		structVal := mirrored.Field(n)
-		assert.Falsef(t, structVal.IsZero(), "struct field '%s' not tested", mirrored.Type().Field(n).Name)
+		assert.Falsef(t, structVal.IsZero(), "struct field %q not tested", mirrored.Type().Field(n).Name)
 	}
 
 	ob, err := d.Retrieve()
 	assert.NoError(t, err, "Retrieve should not error")
 	assert.Len(t, ob.Asks, 1, "Should have correct Asks")
 	assert.Len(t, ob.Bids, 1, "Should have correct Bids")
+	assert.Equal(t, "THE BIG ONE!!!!!!", ob.Exchange, "Should have correct Exchange")
+	assert.Equal(t, currency.NewPair(currency.THETA, currency.USD), ob.Pair, "Should have correct Pair")
+	assert.Equal(t, asset.DownsideProfitContract, ob.Asset, "Should have correct Asset")
+	assert.Equal(t, d.options.lastUpdated, ob.LastUpdated, "Should have correct LastUpdated")
+	assert.Equal(t, d.options.updatePushedAt, ob.UpdatePushedAt, "Should have correct UpdatePushedAt")
+	assert.Equal(t, d.options.insertedAt, ob.InsertedAt, "Should have correct InsertedAt")
+	assert.EqualValues(t, 1337, ob.LastUpdateID, "Should have correct LastUpdateID")
+	assert.True(t, ob.PriceDuplication, "Should have correct PriceDuplication")
+	assert.True(t, ob.IsFundingRate, "Should have correct IsFundingRate")
+	assert.True(t, ob.VerifyOrderbook, "Should have correct VerifyOrderbook")
+	assert.True(t, ob.RestSnapshot, "Should have correct RestSnapshot")
+	assert.True(t, ob.IDAlignment, "Should have correct IDAligned")
 	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
+	assert.True(t, ob.ChecksumStringRequired, "Should have correct ChecksumStringRequired")
 }
 
 func TestTotalAmounts(t *testing.T) {
@@ -677,22 +692,6 @@ func TestGetTranches(t *testing.T) {
 	assert.Len(t, bidT, 5, "bids should have correct number of tranches")
 }
 
-func TestGetPair(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-
-	_, err := depth.GetPair()
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPair should error correctly")
-
-	expected := currency.NewPair(currency.BTC, currency.WABI)
-	depth.pair = expected
-
-	pair, err := depth.GetPair()
-	assert.NoError(t, err, "GetPair should not error")
-
-	assert.Equal(t, expected, pair, "GetPair should return correct pair")
-}
-
 func getInvalidDepth() *Depth {
 	depth := NewDepth(id)
 	_ = depth.Invalidate(errors.New("invalid reasoning"))
@@ -744,7 +743,7 @@ func TestMovementMethods(t *testing.T) {
 						assert.InDeltaf(t, field.Float(), expect.Float(), accuracy10dp, "sub test %d movement %s should be correct", i, meta.Type().Field(j).Name)
 					}
 				}
-				assert.Equal(t, subT.expect.FullBookSideConsumed, move.FullBookSideConsumed, "sub test %d movement FullBookSideConsumed should be correct", i)
+				assert.Equalf(t, subT.expect.FullBookSideConsumed, move.FullBookSideConsumed, "sub test %d movement FullBookSideConsumed should be correct", i)
 			}
 		})
 	}
@@ -761,152 +760,236 @@ var movementTests = []struct {
 	name  string
 	tests []movementTest
 }{
-	{"HitTheBidsByImpactSlippage",
+	{
+		"HitTheBidsByImpactSlippage",
 		[]movementTest{
 			{[]any{0.7485029940119761, 1336.0}, Movement{Sold: 10}}, // First and second price from best bid - price level target 1326 (which should be kept)
 			{[]any{1.4221556886227544, 1336.0}, Movement{Sold: 19}}, // All the way up to the last price from best bid price
-		}},
-	{"HitTheBidsByImpactSlippageFromMid",
+		},
+	},
+	{
+		"HitTheBidsByImpactSlippageFromMid",
 		[]movementTest{
 			{[]any{0.7485029940119761}, Movement{Sold: 10.0}}, // First and second price from mid - price level target 1326 (which should be kept)
 			{[]any{1.4221556886227544}, Movement{Sold: 19.0}}, // All the way up to the last price from best bid price
-		}},
-	{"HitTheBidsByNominalSlippageFromMid",
+		},
+	},
+	{
+		"HitTheBidsByNominalSlippageFromMid",
 		[]movementTest{
 			{[]any{0.03741114852226}, Movement{Sold: 1.0}},  // First price from mid point
 			{[]any{0.74822297044519}, Movement{Sold: 20.0}}, // All the way up to the last price from mid price
-		}},
-	{"HitTheBidsByNominalSlippageFromBest",
+		},
+	},
+	{
+		"HitTheBidsByNominalSlippageFromBest",
 		[]movementTest{
 			{[]any{0.037425149700599}, Movement{Sold: 2.0}},                             // First and second price from best bid
 			{[]any{0.71107784431138}, Movement{Sold: 20.0, FullBookSideConsumed: true}}, // All the way up to the last price from best bid price
-		}},
-	{"LiftTheAsksByNominalSlippage",
+		},
+	},
+	{
+		"LiftTheAsksByNominalSlippage",
 		[]movementTest{
 			{[]any{0.037397157816006, 1337.0}, Movement{Sold: 2675.0}}, // First and second price
 			{[]any{0.71054599850411, 1337.0}, Movement{Sold: 26930.0}}, // All the way up to the last price
-		}},
-	{"LiftTheAsksByNominalSlippageFromMid",
+		},
+	},
+	{
+		"LiftTheAsksByNominalSlippageFromMid",
 		[]movementTest{
 			{[]any{0.074822297044519}, Movement{Sold: 2675.0}}, // First price from mid point
 			{[]any{0.74822297044519}, Movement{Sold: 26930.0}}, // All the way up to the last price from mid price
-		}},
-	{"LiftTheAsksByNominalSlippageFromBest",
+		},
+	},
+	{
+		"LiftTheAsksByNominalSlippageFromBest",
 		[]movementTest{
 			{[]any{0.037397157816006}, Movement{Sold: 2675.0}}, // First and second price from best bid
 			{[]any{0.71054599850411}, Movement{Sold: 26930.0}}, // All the way up to the last price from best bid price
-		}},
-	{"HitTheBidsByImpactSlippageFromBest",
+		},
+	},
+	{
+		"HitTheBidsByImpactSlippageFromBest",
 		[]movementTest{
 			{[]any{0.7485029940119761}, Movement{Sold: 10.0}}, // First and second price from mid - price level target 1326 (which should be kept)
 			{[]any{1.4221556886227544}, Movement{Sold: 19.0}}, // All the way up to the last price from best bid price
-		}},
-	{"LiftTheAsksByImpactSlippage",
+		},
+	},
+	{
+		"LiftTheAsksByImpactSlippage",
 		[]movementTest{
 			{[]any{0.7479431563201197, 1337.0}, Movement{Sold: 13415.0}}, // First and second price from best bid - price level target 1326 (which should be kept)
 			{[]any{1.4210919970082274, 1337.0}, Movement{Sold: 25574.0}}, // All the way up to the last price from best bid price
-		}},
-	{"LiftTheAsksByImpactSlippageFromMid",
+		},
+	},
+	{
+		"LiftTheAsksByImpactSlippageFromMid",
 		[]movementTest{
 			{[]any{0.7485029940119761}, Movement{Sold: 13415.0}}, // First and second price from mid - price level target 1326 (which should be kept)
 			{[]any{1.4221556886227544}, Movement{Sold: 25574.0}}, // All the way up to the last price from best bid price
-		}},
-	{"LiftTheAsksByImpactSlippageFromBest",
+		},
+	},
+	{
+		"LiftTheAsksByImpactSlippageFromBest",
 		[]movementTest{
 			{[]any{0.7479431563201197}, Movement{Sold: 13415.0}}, // First and second price from mid - price level target 1326 (which should be kept)
 			// All the way up to the last price from best bid price
 			// This goes to price 1356, it will not count that tranches' volume as it is needed to sustain the slippage.
 			{[]any{1.4210919970082274}, Movement{Sold: 25574.0}},
-		}},
-	{"HitTheBidsByNominalSlippage",
+		},
+	},
+	{
+		"HitTheBidsByNominalSlippage",
 		[]movementTest{
 			{[]any{0.0, 1336.0}, Movement{Sold: 1.0, NominalPercentage: 0.0, StartPrice: 1336.0, EndPrice: 1336.0}},                                                          // 1st
 			{[]any{0.037425149700598806, 1336.0}, Movement{Sold: 2.0, NominalPercentage: 0.037425149700598806, StartPrice: 1336.0, EndPrice: 1335.0}},                        // 2nd
 			{[]any{0.02495009980039353, 1336.0}, Movement{Sold: 1.5, NominalPercentage: 0.02495009980039353, StartPrice: 1336.0, EndPrice: 1335.0}},                          // 1.5ish
 			{[]any{0.7110778443113772, 1336.0}, Movement{Sold: 20, NominalPercentage: 0.7110778443113772, StartPrice: 1336.0, EndPrice: 1317.0, FullBookSideConsumed: true}}, // All
-		}},
-	{"HitTheBids",
+		},
+	},
+	{
+		"HitTheBids",
 		[]movementTest{
 			{[]any{20.1, 1336.0, false}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
 			{[]any{1.0, 1336.0, false}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
 			{[]any{19.5, 1336.0, false}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
 			{[]any{20.0, 1336.0, false}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"HitTheBids_QuotationRequired",
+		},
+	},
+	{
+		"HitTheBids_QuotationRequired",
 		[]movementTest{
 			{[]any{26531.0, 1336.0, true}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
 			{[]any{1336.0, 1336.0, true}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
 			{[]any{25871.5, 1336.0, true}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
 			{[]any{26530.0, 1336.0, true}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"HitTheBidsFromMid",
+		},
+	},
+	{
+		"HitTheBidsFromMid",
 		[]movementTest{
 			{[]any{20.1, false}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
 			{[]any{1.0, false}, Movement{ImpactPercentage: 0.11223344556677892, NominalPercentage: 0.03741114852225963, SlippageCost: zero}}, // mid price 1336.5 -> 1335
 			{[]any{19.5, false}, Movement{NominalPercentage: 0.7299970262933156, ImpactPercentage: 1.4590347923681257, SlippageCost: 180.5}},
 			{[]any{20.0, false}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"HitTheBidsFromMid_QuotationRequired",
+		},
+	},
+	{
+		"HitTheBidsFromMid_QuotationRequired",
 		[]movementTest{
 			{[]any{26531.0, true}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
 			{[]any{1336.0, true}, Movement{ImpactPercentage: 0.11223344556677892, NominalPercentage: 0.03741114852225963, SlippageCost: zero}}, // mid price 1336.5 -> 1335
 			{[]any{25871.5, true}, Movement{NominalPercentage: 0.7299970262933156, ImpactPercentage: 1.4590347923681257, SlippageCost: 180.5}},
 			{[]any{26530.0, true}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"HitTheBidsFromBest",
+		},
+	},
+	{
+		"HitTheBidsFromBest",
 		[]movementTest{
 			{[]any{20.1, false}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
 			{[]any{1.0, false}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
 			{[]any{19.5, false}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
 			{[]any{20.0, false}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"HitTheBidsFromBest_QuotationRequired",
+		},
+	},
+	{
+		"HitTheBidsFromBest_QuotationRequired",
 		[]movementTest{
 			{[]any{26531.0, true}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
 			{[]any{1336.0, true}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
 			{[]any{25871.5, true}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
 			{[]any{26530.0, true}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"LiftTheAsks",
+		},
+	},
+	{
+		"LiftTheAsks",
 		[]movementTest{
 			{[]any{26931.0, 1337.0, false}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
 			{[]any{1337.0, 1337.0, false}, Movement{ImpactPercentage: 0.07479431563201197, NominalPercentage: zero, SlippageCost: zero}},
 			{[]any{26900.0, 1337.0, false}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.57964601770072}},
 			{[]any{26930.0, 1336.0, false}, Movement{NominalPercentage: 0.7859281437125748, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"LiftTheAsks_BaseRequired",
+		},
+	},
+	{
+		"LiftTheAsks_BaseRequired",
 		[]movementTest{
 			{[]any{21.0, 1337.0, true}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
 			{[]any{1.0, 1337.0, true}, Movement{ImpactPercentage: 0.07479431563201197, NominalPercentage: zero, SlippageCost: zero}},
 			{[]any{19.97787610619469, 1337.0, true}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.57964601770072}},
 			{[]any{20.0, 1336.0, true}, Movement{NominalPercentage: 0.7859281437125748, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"LiftTheAsksFromMid",
+		},
+	},
+	{
+		"LiftTheAsksFromMid",
 		[]movementTest{
 			{[]any{26931.0, false}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
 			{[]any{1337.0, false}, Movement{NominalPercentage: 0.03741114852225963, ImpactPercentage: 0.11223344556677892, SlippageCost: zero}},
 			{[]any{26900.0, false}, Movement{NominalPercentage: 0.747435803422031, ImpactPercentage: 1.4590347923681257, SlippageCost: 189.57964601770072}},
 			{[]any{26930.0, false}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"LiftTheAsksFromMid_BaseRequired",
+		},
+	},
+	{
+		"LiftTheAsksFromMid_BaseRequired",
 		[]movementTest{
 			{[]any{21.0, true}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
 			{[]any{1.0, true}, Movement{NominalPercentage: 0.03741114852225963, ImpactPercentage: 0.11223344556677892, SlippageCost: zero}},
 			{[]any{19.97787610619469, true}, Movement{NominalPercentage: 0.7474358034220139, ImpactPercentage: 1.4590347923681257, SlippageCost: 189.5796460176971}},
 			{[]any{20.0, true}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"LiftTheAsksFromBest",
+		},
+	},
+	{
+		"LiftTheAsksFromBest",
 		[]movementTest{
 			{[]any{26931.0, false}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
 			{[]any{1337.0, false}, Movement{NominalPercentage: zero, ImpactPercentage: 0.07479431563201197, SlippageCost: zero}},
 			{[]any{26900.0, false}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.579646017701}},
 			{[]any{26930.0, false}, Movement{NominalPercentage: 0.7105459985041137, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
-	{"LiftTheAsksFromBest_BaseRequired",
+		},
+	},
+	{
+		"LiftTheAsksFromBest_BaseRequired",
 		[]movementTest{
 			{[]any{21.0, true}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
 			{[]any{1.0, true}, Movement{NominalPercentage: zero, ImpactPercentage: 0.07479431563201197, SlippageCost: zero}},
 			{[]any{19.97787610619469, true}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.579646017701}},
 			{[]any{20.0, true}, Movement{NominalPercentage: 0.7105459985041137, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
-		}},
+		},
+	},
+}
+
+func TestPair(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Pair())
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	require.Equal(t, depth.pair, depth.Pair())
+}
+
+func TestAsset(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Asset())
+	depth.asset = asset.Spot
+	require.Equal(t, depth.asset, depth.Asset())
+}
+
+func TestExchange(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Exchange())
+	depth.exchange = "test"
+	require.Equal(t, depth.exchange, depth.Exchange())
+}
+
+func TestKey(t *testing.T) {
+	t.Parallel()
+	depth := NewDepth(id)
+	require.Empty(t, depth.Key())
+	depth.exchange = "test"
+	depth.pair = currency.NewPair(currency.BTC, currency.WABI)
+	depth.asset = asset.Spot
+	require.Equal(t,
+		key.ExchangePairAsset{Exchange: depth.exchange, Base: depth.pair.Base.Item, Quote: depth.pair.Quote.Item, Asset: depth.asset},
+		depth.Key())
 }

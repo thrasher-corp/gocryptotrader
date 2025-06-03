@@ -1,4 +1,4 @@
-# GoCryptoTrader package Database connection
+# GoCryptoTrader package Database Connection
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for Database connection
+## Current Features for Database Connection
 + The database connection manager subsystem is used to periodically check whether the application is connected to the database and will provide alerts of any changes
 + In order to modify the behaviour of the database connection manager subsystem, you can edit the following inside your config file under `database`:
 

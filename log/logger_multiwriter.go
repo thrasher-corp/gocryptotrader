@@ -1,12 +1,14 @@
 package log
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"slices"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 var (
@@ -99,7 +101,7 @@ type deferral func() string
 // StageLogEvent stages a new logger event in a jobs channel to be processed by
 // a worker pool. This segregates the need to process the log string and the
 // writes to the required io.Writer.
-func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat, instance, level string, showLogSystemName, bypassWarning, structuredLog bool, fields map[Key]interface{}) {
+func (mw *multiWriterHolder) StageLogEvent(fn deferral, header, slName, spacer, timestampFormat, instance, level string, showLogSystemName, bypassWarning, structuredLog bool, fields map[Key]any) {
 	newJob := jobsPool.Get().(*job) //nolint:forcetypeassert // Not necessary from a pool
 	newJob.Writers = mw.writers
 	newJob.fn = fn
@@ -142,11 +144,11 @@ func (mw *multiWriterHolder) add(writer io.Writer) error {
 	if writer == nil {
 		return errWriterIsNil
 	}
-	for i := range mw.writers {
-		if mw.writers[i] == writer {
-			return errWriterAlreadyLoaded
-		}
+
+	if slices.Contains(mw.writers, writer) {
+		return errWriterAlreadyLoaded
 	}
+
 	mw.writers = append(mw.writers, writer)
 	return nil
 }

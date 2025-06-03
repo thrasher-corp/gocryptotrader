@@ -31,7 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	gctconfig "github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -117,7 +116,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	if cfg.FundingSettings.UseExchangeLevelFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+	if cfg.FundingSettings.UseExchangeLevelFunding && (cfg.DataSettings.LiveData == nil || !cfg.DataSettings.LiveData.RealOrders) {
 		for i := range cfg.FundingSettings.ExchangeLevelFunding {
 			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
 			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
@@ -186,7 +185,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		if !ok {
 			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
 		}
-		exchangeAsset.AssetEnabled = convert.BoolPtr(true)
+		exchangeAsset.AssetEnabled = true
 		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(*exchangeAsset.RequestFormat)
 		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
 		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
@@ -211,7 +210,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, &gctconfig.OrderManager{
 		Verbose:                       verbose,
 		ActivelyTrackFuturesPositions: trackFuturesPositions,
-		RespectOrderHistoryLimits:     convert.BoolPtr(true),
+		RespectOrderHistoryLimits:     true,
 	})
 	if err != nil {
 		return err
@@ -474,7 +473,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			break
 		}
 	}
-	if !hasFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+	if !hasFunding && (cfg.DataSettings.LiveData == nil || !cfg.DataSettings.LiveData.RealOrders) {
 		return holdings.ErrInitialFundsZero
 	}
 
@@ -663,7 +662,8 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 		return decimal.Zero, decimal.Zero, currency.ErrCurrencyPairEmpty
 	}
 	fTakerFee, err := exch.GetFeeByType(ctx,
-		&gctexchange.FeeBuilder{FeeType: gctexchange.OfflineTradeFee,
+		&gctexchange.FeeBuilder{
+			FeeType:       gctexchange.OfflineTradeFee,
 			Pair:          fPair,
 			IsMaker:       false,
 			PurchasePrice: 1,
@@ -820,19 +820,12 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.EndDate.Add(cfg.DataSettings.Interval.Duration())
 		}
 
-		var limit int64
-		limit, err = b.Features.Enabled.Kline.GetIntervalResultLimit(cfg.DataSettings.Interval)
+		limit, err := b.Features.Enabled.Kline.GetIntervalResultLimit(cfg.DataSettings.Interval)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err = loadAPIData(
-			cfg,
-			exch,
-			fPair,
-			a,
-			uint32(limit),
-			dataType)
+		resp, err = loadAPIData(cfg, exch, fPair, a, limit, dataType)
 		if err != nil {
 			return resp, err
 		}
@@ -894,7 +887,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		isUSDTrackingPair)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint64, dataType int64) (*kline.DataFromKline, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}

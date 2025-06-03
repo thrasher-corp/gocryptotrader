@@ -2,7 +2,6 @@ package coinut
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,15 +10,16 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -31,9 +31,7 @@ const (
 	coinutWebsocketRateLimit = 30
 )
 
-var (
-	channels map[string]chan []byte
-)
+var channels map[string]chan []byte
 
 // NOTE for speed considerations
 // wss://wsapi-as.coinut.com
@@ -43,9 +41,9 @@ var (
 // WsConnect initiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -310,7 +308,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(c.Name, trades...)
+		return trade.AddTradesToBuffer(trades...)
 	case "inst_trade_update":
 		if !c.IsSaveTradeDataEnabled() {
 			return nil
@@ -341,7 +339,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			}
 		}
 
-		return trade.AddTradesToBuffer(c.Name, trade.Data{
+		return trade.AddTradesToBuffer(trade.Data{
 			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
@@ -363,7 +361,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 		}
 		c.Websocket.DataHandler <- o
 	default:
-		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: c.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -389,7 +387,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 	var oSide order.Side
 	var oStatus order.Status
 	var err error
-	var orderID = strconv.FormatInt(oContainer.OrderID, 10)
+	orderID := strconv.FormatInt(oContainer.OrderID, 10)
 	if oContainer.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Side)
 		if err != nil {
@@ -582,7 +580,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
+	channels := []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions subscription.List
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -654,7 +652,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		var response map[string]interface{}
+		var response map[string]any
 		err = json.Unmarshal(resp, &response)
 		if err == nil {
 			val, ok := response["status"].([]any)

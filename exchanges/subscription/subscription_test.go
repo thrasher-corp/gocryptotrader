@@ -1,17 +1,17 @@
 package subscription
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 var (
-	btcusdtPair = currency.NewPair(currency.BTC, currency.USDT)
+	btcusdtPair = currency.NewBTCUSDT()
 	ethusdcPair = currency.NewPair(currency.ETH, currency.USDC)
 	ltcusdcPair = currency.NewPair(currency.LTC, currency.USDC)
 )
@@ -75,19 +75,19 @@ func TestSubscriptionMarshaling(t *testing.T) {
 	t.Parallel()
 	j, err := json.Marshal(&Subscription{Key: 42, Channel: CandlesChannel})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":false,"channel":"candles"}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":false,"channel":"candles"}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
-	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}})
+	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: currency.Pairs{currency.NewBTCUSDT()}})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"orderbook","pairs":"BTCUSDT","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","pairs":"BTCUSDT","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: MyTradesChannel, Authenticated: true})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
+	assert.JSONEq(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
 }
 
 func TestSubscriptionClone(t *testing.T) {
@@ -101,7 +101,7 @@ func TestSubscriptionClone(t *testing.T) {
 	}
 	a.EnsureKeyed()
 	b := a.Clone()
-	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
+	assert.IsType(t, new(Subscription), b, "Clone should return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone should return a new Subscription")
 	assert.Nil(t, b.Key, "Clone should have a nil key")
 	b.Pairs[0].Delimiter = "🐳"
@@ -111,7 +111,7 @@ func TestSubscriptionClone(t *testing.T) {
 	assert.NotEqual(t, params, b.Params, "Params should be cloned")
 	assert.Equal(t, params, a.Params, "Original Params should be left alone")
 	a.m.Lock()
-	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
+	assert.True(t, b.m.TryLock(), "Clone should use a different Mutex")
 }
 
 // TestSetKey exercises SetKey

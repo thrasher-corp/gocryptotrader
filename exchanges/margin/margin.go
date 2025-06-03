@@ -1,9 +1,10 @@
 package margin
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Valid returns whether the margin type is valid
@@ -22,6 +23,11 @@ func (t *Type) UnmarshalJSON(d []byte) error {
 	return err
 }
 
+// MarshalJSON conforms type to the json.Marshaler interface
+func (t Type) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
 // String returns the string representation of the margin type in lowercase
 // the absence of a lower func should hopefully highlight that String is lower
 func (t Type) String() string {
@@ -32,10 +38,13 @@ func (t Type) String() string {
 		return isolatedStr
 	case Multi:
 		return multiStr
-	case Unknown:
+	case SpotIsolated:
+		return spotIsolatedStr
+	case NoMargin:
+		return cashStr
+	default:
 		return unknownStr
 	}
-	return ""
 }
 
 // Upper returns the upper case string representation of the margin type
@@ -46,7 +55,7 @@ func (t Type) Upper() string {
 // IsValidString checks to see if the supplied string is a valid margin type
 func IsValidString(m string) bool {
 	switch strings.ToLower(m) {
-	case isolatedStr, multiStr, unsetStr, crossedStr, crossStr:
+	case isolatedStr, multiStr, unsetStr, crossedStr, crossStr, spotIsolatedStr, cashStr:
 		return true
 	}
 	return false
@@ -60,6 +69,10 @@ func StringToMarginType(m string) (Type, error) {
 		return Isolated, nil
 	case multiStr, crossedStr, crossStr:
 		return Multi, nil
+	case spotIsolatedStr:
+		return SpotIsolated, nil
+	case cashStr:
+		return NoMargin, nil
 	case "":
 		return Unset, nil
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -15,13 +14,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var singleTaskStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
-var printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf bool
+var (
+	singleTaskStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
+	printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf              bool
+)
 
 func main() {
 	wd, err := os.Getwd()

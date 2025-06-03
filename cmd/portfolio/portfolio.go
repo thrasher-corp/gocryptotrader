@@ -77,8 +77,7 @@ func main() {
 	log.Println("Loaded config file.")
 
 	displayCurrency = cfg.Currency.FiatDisplayCurrency
-	port := portfolio.Base{}
-	port.Seed(cfg.Portfolio)
+	port := cfg.Portfolio
 	result := port.GetPortfolioSummary()
 
 	log.Println("Fetched portfolio data.")

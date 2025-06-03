@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -15,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -53,9 +54,7 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 	bt.Funding = &funding.FundManager{}
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dc, ok := bt.LiveDataHandler.(*dataChecker)
 	if !ok {
@@ -81,9 +80,8 @@ func TestStart(t *testing.T) {
 		shutdown: make(chan bool),
 	}
 	err := dc.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	close(dc.shutdown)
 	dc.wg.Wait()
 	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
@@ -130,9 +128,8 @@ func TestLiveHandlerStop(t *testing.T) {
 
 	dc.started = 1
 	err = dc.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	dc.shutdown = make(chan bool)
 	err = dc.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
@@ -166,9 +163,7 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		err = dc.SignalStopFromError(errNoCredsNoLive)
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
+		assert.NoError(t, err)
 	}()
 	wg.Wait()
 
@@ -236,9 +231,8 @@ func TestLiveHandlerReset(t *testing.T) {
 		eventTimeout: 1,
 	}
 	err := dataHandler.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if dataHandler.eventTimeout != 0 {
 		t.Errorf("received '%v' expected '%v'", dataHandler.eventTimeout, 0)
 	}
@@ -281,7 +275,7 @@ func TestAppendDataSource(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, currency.ErrCurrencyPairEmpty)
 	}
 
-	setup.pair = currency.NewPair(currency.BTC, currency.USDT)
+	setup.pair = currency.NewBTCUSDT()
 	err = dataHandler.AppendDataSource(setup)
 	if !errors.Is(err, kline.ErrInvalidInterval) {
 		t.Errorf("received '%v' expected '%v'", err, kline.ErrInvalidInterval)
@@ -289,9 +283,7 @@ func TestAppendDataSource(t *testing.T) {
 
 	setup.interval = kline.OneDay
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if len(dataHandler.sourcesToCheck) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(dataHandler.sourcesToCheck), 1)
@@ -316,25 +308,18 @@ func TestFetchLatestData(t *testing.T) {
 		funding: &fakeFunding{},
 	}
 	_, err := dataHandler.FetchLatestData()
-	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrSubSystemNotStarted)
-	}
+	require.ErrorIs(t, err, engine.ErrSubSystemNotStarted)
 
 	dataHandler.started = 1
 	_, err = dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
-		currency.PairFormat{
-			Uppercase: true,
-		})
+	require.NoError(t, err)
+	cp := currency.NewBTCUSDT()
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
-	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
-	fbA.Enabled = fbA.Enabled.Add(cp)
-	fbA.Available = fbA.Available.Add(cp)
+	require.NoError(t, fb.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
+	require.NoError(t, fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, false), "StorePairs must not error")
+	require.NoError(t, fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true), "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
 			exchange:                  f,
@@ -370,15 +355,11 @@ func TestFetchLatestData(t *testing.T) {
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
 	_, err = dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	var dh *dataChecker
 	_, err = dh.FetchLatestData()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestLoadCandleData(t *testing.T) {
@@ -395,14 +376,14 @@ func TestLoadCandleData(t *testing.T) {
 
 	exch := &binanceus.Binanceus{}
 	exch.SetDefaults()
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
+	cp := currency.NewBTCUSDT().Format(
 		currency.PairFormat{
 			Uppercase: true,
 		})
 	eba := exch.CurrencyPairs.Pairs[asset.Spot]
 	eba.Available = eba.Available.Add(cp)
 	eba.Enabled = eba.Enabled.Add(cp)
-	eba.AssetEnabled = convert.BoolPtr(true)
+	eba.AssetEnabled = true
 	l.exchange = exch
 	l.dataType = common.DataCandle
 	l.asset = asset.Spot
@@ -418,9 +399,8 @@ func TestLoadCandleData(t *testing.T) {
 		},
 	}
 	updated, err := l.loadCandleData(time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !updated {
 		t.Errorf("received '%v' expected '%v'", updated, true)
 	}
@@ -440,16 +420,12 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 
 	dataHandler.started = 1
-	cp := currency.NewPair(currency.BTC, currency.USDT).Format(
-		currency.PairFormat{
-			Uppercase: true,
-		})
+	cp := currency.NewBTCUSDT()
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	fb := f.GetBase()
-	fbA := fb.CurrencyPairs.Pairs[asset.Spot]
-	fbA.Enabled = fbA.Enabled.Add(cp)
-	fbA.Available = fbA.Available.Add(cp)
+	err := fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true)
+	require.NoError(t, err, "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
 			exchange:                  f,
@@ -484,10 +460,8 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		},
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
-	_, err := dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	_, err = dataHandler.FetchLatestData()
+	assert.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -517,9 +491,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
@@ -540,9 +512,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dataHandler = nil
 	err = dataHandler.SetDataForClosingAllPositions()
@@ -574,38 +544,26 @@ func TestUpdateFunding(t *testing.T) {
 	ff := &fakeFunding{}
 	d.funding = ff
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.realOrders = true
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ff.hasFutures = true
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.updatingFunding = 1
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.updatingFunding = 1
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d = nil
 	err = d.UpdateFunding(false)

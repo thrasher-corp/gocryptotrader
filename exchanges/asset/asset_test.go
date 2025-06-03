@@ -1,13 +1,13 @@
 package asset
 
 import (
-	"encoding/json"
 	"errors"
 	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestString(t *testing.T) {
@@ -70,7 +70,7 @@ func TestIsValid(t *testing.T) {
 
 func TestIsFutures(t *testing.T) {
 	t.Parallel()
-	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract}
+	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract, Spread}
 	for a := range All {
 		if slices.Contains(valid, a) {
 			require.Truef(t, a.IsFutures(), "IsFutures must return true for %s", a)
@@ -117,6 +117,7 @@ func TestNew(t *testing.T) {
 		{Input: "Future", Error: ErrNotSupported},
 		{Input: "option_combo", Expected: OptionCombo},
 		{Input: "future_combo", Expected: FutureCombo},
+		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
 	}
 
@@ -150,18 +151,14 @@ func TestSupported(t *testing.T) {
 func TestUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	data, err := json.Marshal(Item(0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if string(data) != `""` {
 		t.Fatal("unexpected value")
 	}
 
 	data, err = json.Marshal(Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if string(data) != `"spot"` {
 		t.Fatal("unexpected value")
@@ -170,9 +167,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 	var spot Item
 
 	err = json.Unmarshal(data, &spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if spot != Spot {
 		t.Fatal("unexpected value")
@@ -184,14 +179,10 @@ func TestUnmarshalMarshal(t *testing.T) {
 	}
 
 	err = json.Unmarshal([]byte(`""`), &spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = json.Unmarshal([]byte(`123`), &spot)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", nil, "an error")
-	}
+	assert.Error(t, err, "Unmarshal should error correctly")
 }
 
 func TestUseDefault(t *testing.T) {

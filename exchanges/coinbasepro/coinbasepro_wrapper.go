@@ -10,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -21,8 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -130,7 +130,7 @@ func (c *CoinbasePro) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = stream.NewWebsocket()
+	c.Websocket = websocket.NewManager()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -156,7 +156,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
+	err = c.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinbaseproWebsocketURL,
 		RunningURL:            wsRunningURL,
@@ -174,7 +174,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return c.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+	return c.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
@@ -256,19 +256,6 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 	return response, nil
 }
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := c.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(c.Name, creds, assetType)
-	if err != nil {
-		return c.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
@@ -301,7 +288,8 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 		Pair:         p,
 		LastUpdated:  tick.Time,
 		ExchangeName: c.Name,
-		AssetType:    a}
+		AssetType:    a,
+	}
 
 	err = ticker.ProcessTicker(tickerPrice)
 	if err != nil {
@@ -309,24 +297,6 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 	}
 
 	return ticker.GetTicker(c.Name, p, a)
-}
-
-// FetchTicker returns the ticker for a currency pair
-func (c *CoinbasePro) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
-	if err != nil {
-		return c.UpdateTicker(ctx, p, assetType)
-	}
-	return tickerNew, nil
-}
-
-// FetchOrderbook returns orderbook base on the currency pair
-func (c *CoinbasePro) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(c.Name, p, assetType)
-	if err != nil {
-		return c.UpdateOrderbook(ctx, p, assetType)
-	}
-	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -460,9 +430,9 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fPair.String(),
 			"")
 	case order.Limit:
-		timeInForce := CoinbaseRequestParamsTimeGTC
-		if s.ImmediateOrCancel {
-			timeInForce = CoinbaseRequestParamsTimeIOC
+		timeInForce := order.GoodTillCancel.String()
+		if s.TimeInForce == order.ImmediateOrCancel {
+			timeInForce = order.ImmediateOrCancel.String()
 		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
@@ -818,7 +788,7 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 	timeSeries := make([]kline.Candle, len(history))
 	for x := range history {
 		timeSeries[x] = kline.Candle{
-			Time:   history[x].Time,
+			Time:   history[x].Time.Time(),
 			Low:    history[x].Low,
 			High:   history[x].High,
 			Open:   history[x].Open,
@@ -850,7 +820,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 
 		for i := range history {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   history[i].Time,
+				Time:   history[i].Time.Time(),
 				Low:    history[i].Low,
 				High:   history[i].High,
 				Open:   history[i].Open,

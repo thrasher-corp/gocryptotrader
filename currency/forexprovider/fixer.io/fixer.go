@@ -168,7 +168,7 @@ func (f *Fixer) ConvertCurrency(from, to, date string, amount float64) (float64,
 
 // GetTimeSeriesData returns daily historical exchange rate data between two
 // specified dates for all available or a specific set of currencies.
-func (f *Fixer) GetTimeSeriesData(startDate, endDate, baseCurrency string, symbols []string) (map[string]interface{}, error) {
+func (f *Fixer) GetTimeSeriesData(startDate, endDate, baseCurrency string, symbols []string) (map[string]any, error) {
 	if f.APIKeyLvl < fixerAPIProfessional {
 		return nil, errors.New("insufficient API privileges, upgrade to professional to use this function")
 	}
@@ -219,7 +219,7 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symb
 }
 
 // SendOpenHTTPRequest sends a typical get request
-func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interface{}) error {
+func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result any) error {
 	if v == nil {
 		v = url.Values{}
 	}
@@ -238,7 +238,8 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,
-		Verbose: f.Verbose}
+		Verbose: f.Verbose,
+	}
 	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, auth)

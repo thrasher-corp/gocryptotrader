@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -56,11 +56,6 @@ func (c *CustomEx) ValidateAPICredentials(_ context.Context, _ asset.Item) error
 	return nil
 }
 
-// FetchTicker is a mock method for CustomEx
-func (c *CustomEx) FetchTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
-	return nil, nil
-}
-
 // UpdateTickers is a mock method for CustomEx
 func (c *CustomEx) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return nil
@@ -68,11 +63,6 @@ func (c *CustomEx) UpdateTickers(_ context.Context, _ asset.Item) error {
 
 // UpdateTicker is a mock method for CustomEx
 func (c *CustomEx) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
-	return nil, nil
-}
-
-// FetchOrderbook is a mock method for CustomEx
-func (c *CustomEx) FetchOrderbook(_ context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
@@ -99,11 +89,6 @@ func (c *CustomEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
 // GetAvailablePairs is a mock method for CustomEx
 func (c *CustomEx) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 	return nil, nil
-}
-
-// FetchAccountInfo is a mock method for CustomEx
-func (c *CustomEx) FetchAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
 }
 
 // UpdateAccountInfo is a mock method for CustomEx
@@ -297,7 +282,7 @@ func (c *CustomEx) EnableRateLimiter() error {
 }
 
 // GetWebsocket is a mock method for CustomEx
-func (c *CustomEx) GetWebsocket() (*stream.Websocket, error) {
+func (c *CustomEx) GetWebsocket() (*websocket.Manager, error) {
 	return nil, nil
 }
 
