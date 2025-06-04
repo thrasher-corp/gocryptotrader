@@ -728,11 +728,6 @@ func (g *Gateio) Unsubscribe(ctx context.Context, conn websocket.Connection, sub
 	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
-// GenerateWebsocketMessageID generates a message ID for the individual connection
-func (g *Gateio) GenerateWebsocketMessageID() int64 {
-	return g.messageIDSeq.IncrementAndGet()
-}
-
 // channelName converts global channel names to gateio specific channel names
 func channelName(s *subscription.Subscription) string {
 	if name, ok := subscriptionNames[s.Channel]; ok {

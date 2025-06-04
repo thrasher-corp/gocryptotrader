@@ -218,7 +218,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Connector:             g.WsConnectSpot,
 		Authenticate:          g.authenticateSpot,
 		MessageFilter:         asset.Spot,
-		RequestIDGenerator:    g.GenerateWebsocketMessageID,
+		RequestIDGenerator:    g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -239,7 +239,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Connector:          g.WsFuturesConnect,
 		Authenticate:       g.authenticateFutures,
 		MessageFilter:      asset.USDTMarginedFutures,
-		RequestIDGenerator: g.GenerateWebsocketMessageID,
+		RequestIDGenerator: g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -260,7 +260,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		},
 		Connector:          g.WsFuturesConnect,
 		MessageFilter:      asset.CoinMarginedFutures,
-		RequestIDGenerator: g.GenerateWebsocketMessageID,
+		RequestIDGenerator: g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -280,7 +280,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:             g.WsDeliveryFuturesConnect,
 		MessageFilter:         asset.DeliveryFutures,
-		RequestIDGenerator:    g.GenerateWebsocketMessageID,
+		RequestIDGenerator:    g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -297,7 +297,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
 		Connector:             g.WsOptionsConnect,
 		MessageFilter:         asset.Options,
-		RequestIDGenerator:    g.GenerateWebsocketMessageID,
+		RequestIDGenerator:    g.messageIDSeq.IncrementAndGet,
 	})
 }
 

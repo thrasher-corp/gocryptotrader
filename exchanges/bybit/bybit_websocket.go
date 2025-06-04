@@ -218,7 +218,6 @@ func (by *Bybit) handleSpotSubscription(ctx context.Context, conn websocket.Conn
 
 // generateSubscriptions generates default subscription
 func (by *Bybit) generateSubscriptions() (subscription.List, error) {
-	fmt.Println("Generating default subscriptions for Bybit WebSocket")
 	return by.Features.Subscriptions.ExpandTemplates(by)
 }
 
