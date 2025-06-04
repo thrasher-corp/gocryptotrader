@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -131,7 +132,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	for _, a := range g.GetAssetTypes(false) {
 		_, err := g.UpdateTicker(t.Context(), getPair(t, a), a)
-		assert.NoError(t, err, "UpdateTicker should not error for %s", a)
+		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
 	}
 }
 
@@ -188,6 +189,25 @@ func TestGetMarketTrades(t *testing.T) {
 	if _, err := g.GetMarketTrades(t.Context(), getPair(t, asset.Spot), 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
 		t.Errorf("%s GetMarketTrades() error %v", g.Name, err)
 	}
+}
+
+func TestCandlestickUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[["1738108800","229534412.73508700","103734.3","104779.9","101336.6","101343.8","2232.94510000","true"],["1738195200","178316032.62306100","104718.6","106467.1","103286.4","103734.4","1695.00787000","true"],["1738281600","231315376.16747100","102431","106042.7","101555.9","104718.6","2228.03609000","true"]]`)
+	var targets []Candlestick
+	err := json.Unmarshal(data, &targets)
+	require.NoError(t, err)
+	require.Len(t, targets, 3)
+	assert.Equal(t, Candlestick{
+		Timestamp:      types.Time(time.Unix(1738108800, 0)),
+		QuoteCcyVolume: 229534412.73508700,
+		ClosePrice:     103734.3,
+		HighestPrice:   104779.9,
+		LowestPrice:    101336.6,
+		OpenPrice:      101343.8,
+		BaseCcyAmount:  2232.94510000,
+		WindowClosed:   true,
+	}, targets[0])
 }
 
 func TestGetCandlesticks(t *testing.T) {
@@ -1818,13 +1838,14 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	for _, a := range g.GetAssetTypes(false) {
 		_, err := g.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:  g.Name,
-			Pair:      getPair(t, a),
-			Side:      order.Buy,
-			Type:      order.Limit,
-			Price:     1,
-			Amount:    1,
-			AssetType: a,
+			Exchange:    g.Name,
+			Pair:        getPair(t, a),
+			Side:        order.Buy,
+			Type:        order.Limit,
+			Price:       1,
+			Amount:      1,
+			AssetType:   a,
+			TimeInForce: order.GoodTillCancel,
 		})
 		assert.NoErrorf(t, err, "SubmitOrder should not error for %s", a)
 	}
@@ -2261,9 +2282,6 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
 
 	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	g.Features.Subscriptions = append(g.Features.Subscriptions, &subscription.Subscription{
-		Enabled: true, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.ThousandMilliseconds, Levels: 5,
-	})
 	subs, err := g.generateSubscriptionsSpot()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
@@ -2740,25 +2758,6 @@ func TestGetClientOrderIDFromText(t *testing.T) {
 	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
 }
 
-func TestGetTypeFromTimeInForce(t *testing.T) {
-	t.Parallel()
-	typeResp, postOnly := getTypeFromTimeInForce("gtc")
-	assert.Equal(t, order.Limit, typeResp, "should be a limit order")
-	assert.False(t, postOnly, "should return false")
-
-	typeResp, postOnly = getTypeFromTimeInForce("ioc")
-	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return false")
-
-	typeResp, postOnly = getTypeFromTimeInForce("poc")
-	assert.Equal(t, order.Limit, typeResp, "should be limit order")
-	assert.True(t, postOnly, "should return true")
-
-	typeResp, postOnly = getTypeFromTimeInForce("fok")
-	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return false")
-}
-
 func TestGetSideAndAmountFromSize(t *testing.T) {
 	t.Parallel()
 	side, amount, remaining := getSideAndAmountFromSize(1, 1)
@@ -2784,29 +2783,6 @@ func TestGetFutureOrderSize(t *testing.T) {
 	ret, err = getFutureOrderSize(&order.Submit{Side: order.Sell, Amount: 1})
 	require.NoError(t, err)
 	assert.Equal(t, -1.0, ret)
-}
-
-func TestGetTimeInForce(t *testing.T) {
-	t.Parallel()
-
-	_, err := getTimeInForce(&order.Submit{Type: order.Market, PostOnly: true})
-	assert.ErrorIs(t, err, errPostOnlyOrderTypeUnsupported)
-
-	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
-	require.NoError(t, err)
-	assert.Equal(t, "ioc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, PostOnly: true})
-	require.NoError(t, err)
-	assert.Equal(t, "poc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Limit})
-	require.NoError(t, err)
-	assert.Equal(t, "gtc", ret)
-
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, FillOrKill: true})
-	require.NoError(t, err)
-	assert.Equal(t, "fok", ret)
 }
 
 func TestProcessFuturesOrdersPushData(t *testing.T) {
@@ -2844,8 +2820,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	for _, a := range g.GetAssetTypes(false) {
 		pairs, err := g.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := g.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a == asset.Options {
 			require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -2969,7 +2945,7 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 		Type:                 order.Market,
 		Side:                 order.Sell,
 		Status:               order.Filled,
-		ImmediateOrCancel:    true,
+		TimeInForce:          order.ImmediateOrCancel,
 		Cost:                 0.0001,
 		Purchased:            9.35033,
 	}, got)
@@ -3012,7 +2988,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Sell,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					Cost:                 0.0001,
 					Purchased:            9.35033,
 				},
@@ -3030,7 +3006,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Buy,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					Cost:                 9.991512,
 					Purchased:            816.3,
 				},
@@ -3048,7 +3024,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Limit,
 					Side:                 order.Buy,
 					Status:               order.Filled,
-					FillOrKill:           true,
+					TimeInForce:          order.FillOrKill,
 					Cost:                 7.346,
 					Purchased:            200,
 				},
@@ -3066,7 +3042,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Buy,
 					Status:          order.Open,
-					PostOnly:        true,
+					TimeInForce:     order.PostOnly,
 				},
 				{
 					Exchange:        g.Name,
@@ -3082,6 +3058,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Sell,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 			},
 		},
@@ -3129,7 +3106,7 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) {
 		Type:                 order.Market,
 		Side:                 order.Long,
 		Status:               order.Filled,
-		ImmediateOrCancel:    true,
+		TimeInForce:          order.ImmediateOrCancel,
 		ReduceOnly:           true,
 	}, got)
 }
@@ -3172,7 +3149,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Long,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					ReduceOnly:           true,
 				},
 				{
@@ -3188,7 +3165,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Short,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 				},
 				{
 					Exchange:        g.Name,
@@ -3203,6 +3180,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Long,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 				{
 					Exchange:        g.Name,
@@ -3217,6 +3195,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:            order.Limit,
 					Side:            order.Short,
 					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
 				},
 				{
 					Exchange:             g.Name,
@@ -3230,7 +3209,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Long,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 				},
 				{
 					Exchange:             g.Name,
@@ -3244,7 +3223,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Type:                 order.Market,
 					Side:                 order.Short,
 					Status:               order.Filled,
-					ImmediateOrCancel:    true,
+					TimeInForce:          order.ImmediateOrCancel,
 					ReduceOnly:           true,
 				},
 			},
@@ -3336,4 +3315,273 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 	pairMap[a] = enabledPairs
 
 	return enabledPairs
+}
+
+func BenchmarkTimeInForceFromString(b *testing.B) {
+	for b.Loop() {
+		for _, tifString := range []string{gtcTIF, iocTIF, pocTIF, fokTIF} {
+			if _, err := timeInForceFromString(tifString); err != nil {
+				b.Fatal(tifString)
+			}
+		}
+	}
+}
+
+func TestTimeInForceFromString(t *testing.T) {
+	t.Parallel()
+	_, err := timeInForceFromString("abcdef")
+	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+
+	for k, v := range map[string]order.TimeInForce{gtcTIF: order.GoodTillCancel, iocTIF: order.ImmediateOrCancel, pocTIF: order.PostOnly, fokTIF: order.FillOrKill} {
+		t.Run(k, func(t *testing.T) {
+			t.Parallel()
+			tif, err := timeInForceFromString(k)
+			require.NoError(t, err)
+			assert.Equal(t, v, tif)
+		})
+	}
+}
+
+func TestGetTypeFromTimeInForce(t *testing.T) {
+	t.Parallel()
+	typeResp := getTypeFromTimeInForce("gtc", 0)
+	assert.Equal(t, order.Limit, typeResp)
+
+	typeResp = getTypeFromTimeInForce("ioc", 0)
+	assert.Equal(t, order.Market, typeResp, "should be market order")
+
+	typeResp = getTypeFromTimeInForce("poc", 123)
+	assert.Equal(t, order.Limit, typeResp, "should be limit order")
+
+	typeResp = getTypeFromTimeInForce("fok", 0)
+	assert.Equal(t, order.Market, typeResp, "should be market order")
+}
+
+func TestTimeInForceString(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, timeInForceString(order.UnknownTIF))
+	for _, valid := range validTimesInForce {
+		assert.Equal(t, valid.String, timeInForceString(valid.TimeInForce))
+	}
+}
+
+func TestIsSingleOrderbookChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		channel  string
+		expected bool
+	}{
+		{channel: spotOrderbookUpdateChannel, expected: true},
+		{channel: spotOrderbookChannel, expected: true},
+		{channel: spotOrderbookTickerChannel, expected: true},
+		{channel: futuresOrderbookChannel, expected: true},
+		{channel: futuresOrderbookTickerChannel, expected: true},
+		{channel: futuresOrderbookUpdateChannel, expected: true},
+		{channel: optionsOrderbookChannel, expected: true},
+		{channel: optionsOrderbookTickerChannel, expected: true},
+		{channel: optionsOrderbookUpdateChannel, expected: true},
+		{channel: spotTickerChannel, expected: false},
+		{channel: "sad", expected: false},
+	} {
+		assert.Equal(t, tc.expected, isSingleOrderbookChannel(tc.channel))
+	}
+}
+
+func TestValidateSubscriptions(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, g.ValidateSubscriptions(nil))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSDT()}}}))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+	}))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD(), currency.NewBTCUSDT()}},
+	}))
+	require.NoError(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSDT()}},
+	}))
+	require.ErrorIs(t, g.ValidateSubscriptions([]*subscription.Subscription{
+		{Channel: spotTickerChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookUpdateChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+		{Channel: spotOrderbookChannel, Pairs: []currency.Pair{currency.NewBTCUSD()}},
+	}), subscription.ErrExclusiveSubscription)
+}
+
+func TestCandlesChannelIntervals(t *testing.T) {
+	t.Parallel()
+	s := &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: 0}
+	_, err := candlesChannelInterval(s)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "candlestickChannelInterval must error correctly with a 0 interval")
+	s.Interval = kline.ThousandMilliseconds
+	i, err := candlesChannelInterval(s)
+	require.NoError(t, err)
+	assert.Equal(t, "1000ms", i)
+}
+
+func TestOrderbookChannelIntervals(t *testing.T) {
+	t.Parallel()
+
+	s := &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Interval: kline.TwentyMilliseconds, Levels: 100}
+	_, err := orderbookChannelInterval(s, asset.Futures)
+	require.ErrorIs(t, err, subscription.ErrInvalidInterval)
+	require.ErrorContains(t, err, "20ms only valid with Levels 20")
+	s.Levels = 20
+	i, err := orderbookChannelInterval(s, asset.Futures)
+	require.NoError(t, err)
+	assert.Equal(t, "20ms", i)
+
+	for s, exp := range map[*subscription.Subscription]error{
+		{Asset: asset.Binary, Channel: "unknown_channel", Interval: kline.OneYear}:                                   nil,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                                        nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                                   subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.HundredMilliseconds}:                      nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.ThousandMilliseconds}:                     nil,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:                nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                                  nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:                    subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: 0}:                                        nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:                       subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:          nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:      subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                          nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:            subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: 0}:                                nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:               subscription.ErrInvalidInterval,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:  nil,
+		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}: nil,
+
+		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: kline.TenMilliseconds}:          subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookTickerChannel, Interval: 0}:                              nil,
+		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: kline.TwoHundredAndFiftyMilliseconds}: subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookChannel, Interval: 0}:                                    nil,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.OneDay}:                   subscription.ErrInvalidInterval,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:      nil,
+		{Asset: asset.Options, Channel: optionsOrderbookUpdateChannel, Interval: kline.ThousandMilliseconds}:     nil,
+	} {
+		t.Run(s.Asset.String()+"/"+s.Channel+"/"+s.Interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			i, err := orderbookChannelInterval(s, s.Asset)
+			if exp != nil {
+				require.ErrorIs(t, err, exp)
+			} else {
+				switch {
+				case s.Channel == "unknown_channel":
+					assert.Empty(t, i, "orderbookChannelInterval should return empty for unknown channels")
+				case strings.HasSuffix(s.Channel, "_ticker"):
+					assert.Empty(t, i)
+				case s.Interval == 0:
+					assert.Equal(t, "0", i)
+				default:
+					exp, err2 := getIntervalString(s.Interval)
+					require.NoError(t, err2, "getIntervalString must not error for validating expected value")
+					require.Equal(t, exp, i)
+				}
+			}
+		})
+	}
+}
+
+func TestChannelLevels(t *testing.T) {
+	t.Parallel()
+
+	for s, exp := range map[*subscription.Subscription]error{
+		{Channel: "unknown_channel", Asset: asset.Binary}:                                   nil,
+		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot}:                            nil,
+		{Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Levels: 1}:                 subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot}:                            nil,
+		{Channel: spotOrderbookUpdateChannel, Asset: asset.Spot, Levels: 100}:               subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot}:                                  subscription.ErrInvalidLevel,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 5}:                       nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 10}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 20}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 50}:                      nil,
+		{Channel: spotOrderbookChannel, Asset: asset.Spot, Levels: 100}:                     nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures}:                            subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 1}:                 nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 5}:                 nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 10}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 20}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 50}:                nil,
+		{Channel: futuresOrderbookChannel, Asset: asset.Futures, Levels: 100}:               nil,
+		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures}:                      nil,
+		{Channel: futuresOrderbookTickerChannel, Asset: asset.Futures, Levels: 1}:           subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures}:                      subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 20}:          nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.Futures, Levels: 50}:          nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures}:              subscription.ErrInvalidLevel,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 5}:   nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 10}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 20}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 50}:  nil,
+		{Channel: futuresOrderbookUpdateChannel, Asset: asset.DeliveryFutures, Levels: 100}: nil,
+		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options}:                      nil,
+		{Channel: optionsOrderbookTickerChannel, Asset: asset.Options, Levels: 1}:           subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options}:                      subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 5}:           nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 10}:          nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 20}:          nil,
+		{Channel: optionsOrderbookUpdateChannel, Asset: asset.Options, Levels: 50}:          nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options}:                            subscription.ErrInvalidLevel,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 5}:                 nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 10}:                nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 20}:                nil,
+		{Channel: optionsOrderbookChannel, Asset: asset.Options, Levels: 50}:                nil,
+	} {
+		t.Run(s.Asset.String()+"/"+s.Channel+"/"+strconv.Itoa(s.Levels), func(t *testing.T) {
+			t.Parallel()
+			l, err := channelLevels(s, s.Asset)
+			switch {
+			case exp != nil:
+				require.ErrorIs(t, err, exp)
+			case s.Levels == 0:
+				assert.Empty(t, l)
+			default:
+				require.NoError(t, err)
+				require.NotEmpty(t, l)
+			}
+		})
+	}
+}
+
+func TestGetIntervalString(t *testing.T) {
+	t.Parallel()
+	for k, exp := range map[kline.Interval]string{
+		kline.TenMilliseconds:                "10ms",
+		kline.TwentyMilliseconds:             "20ms",
+		kline.HundredMilliseconds:            "100ms",
+		kline.TwoHundredAndFiftyMilliseconds: "250ms",
+		kline.ThousandMilliseconds:           "1000ms",
+		kline.TenSecond:                      "10s",
+		kline.ThirtySecond:                   "30s",
+		kline.OneMin:                         "1m",
+		kline.FiveMin:                        "5m",
+		kline.FifteenMin:                     "15m",
+		kline.ThirtyMin:                      "30m",
+		kline.OneHour:                        "1h",
+		kline.TwoHour:                        "2h",
+		kline.FourHour:                       "4h",
+		kline.EightHour:                      "8h",
+		kline.TwelveHour:                     "12h",
+		kline.OneDay:                         "1d",
+		kline.SevenDay:                       "7d",
+		kline.OneMonth:                       "30d",
+	} {
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			s, err := getIntervalString(k)
+			require.NoError(t, err)
+			assert.Equal(t, exp, s)
+		})
+	}
+	_, err := getIntervalString(0)
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "0 should be an invalid interval")
+	_, err = getIntervalString(kline.FiveDay)
+	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
 }

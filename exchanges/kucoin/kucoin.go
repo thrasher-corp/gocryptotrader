@@ -200,22 +200,8 @@ func (ku *Kucoin) GetKlines(ctx context.Context, symbol, period string, start, e
 	if !end.IsZero() {
 		params.Set("endAt", strconv.FormatInt(end.Unix(), 10))
 	}
-	var resp [][7]types.Number
-	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, klinesEPL, common.EncodeURLValues("/v1/market/candles", params), &resp)
-	if err != nil {
-		return nil, err
-	}
-	klines := make([]Kline, len(resp))
-	for i := range resp {
-		klines[i].StartTime = time.Unix(resp[i][0].Int64(), 0)
-		klines[i].Open = resp[i][1].Float64()
-		klines[i].Close = resp[i][2].Float64()
-		klines[i].High = resp[i][3].Float64()
-		klines[i].Low = resp[i][4].Float64()
-		klines[i].Volume = resp[i][5].Float64()
-		klines[i].Amount = resp[i][6].Float64()
-	}
-	return klines, nil
+	var resp []Kline
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, klinesEPL, common.EncodeURLValues("/v1/market/candles", params), &resp)
 }
 
 // GetCurrenciesV3 the V3 of retrieving list of currencies
@@ -1126,7 +1112,7 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		if timeInForce != "" {
 			arg["timeInForce"] = timeInForce
 		}
-		if cancelAfter > 0 && timeInForce == "GTT" {
+		if cancelAfter > 0 && timeInForce == order.GoodTillTime.String() {
 			arg["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
 		}
 		arg["postOnly"] = postOnly

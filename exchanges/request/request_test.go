@@ -548,7 +548,7 @@ func TestEnableDisableRateLimit(t *testing.T) {
 	err = sendIt() // this should block until a token is refilled
 	require.NoError(t, err, "sendIt must not error")
 	elapsed := time.Since(start)
-	assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
+	assert.GreaterOrEqualf(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
 }
 
 func TestSetHTTPClient(t *testing.T) {
@@ -560,9 +560,8 @@ func TestSetHTTPClient(t *testing.T) {
 	client := new(http.Client)
 	r = new(Requester)
 	err = r.SetHTTPClient(client)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	err = r.SetHTTPClient(client)
 	if !errors.Is(err, errCannotReuseHTTPClient) {
 		t.Fatalf("received: '%v', but expected: '%v'", err, errCannotReuseHTTPClient)
@@ -581,9 +580,7 @@ func TestSetHTTPClientTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = r.SetHTTPClientTimeout(time.Second)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPClientUserAgent(t *testing.T) {
@@ -594,9 +591,7 @@ func TestSetHTTPClientUserAgent(t *testing.T) {
 	}
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetHTTPClientUserAgent(t *testing.T) {
@@ -607,13 +602,11 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 	}
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("sillyness")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	ua, err := r.GetHTTPClientUserAgent()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if ua != "sillyness" {
 		t.Fatal("unexpected value")
 	}

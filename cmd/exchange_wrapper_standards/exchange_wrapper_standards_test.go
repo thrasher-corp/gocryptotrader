@@ -104,7 +104,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	b := exch.GetBase()
 
 	assets := b.CurrencyPairs.GetAssetTypes(false)
-	require.NotEmpty(t, assets, "exchange %s must have assets", name)
+	require.NotEmptyf(t, assets, "exchange %s must have assets", name)
 	for _, a := range assets {
 		require.NoErrorf(t, b.CurrencyPairs.SetAssetEnabled(a, true), "exchange %s SetAssetEnabled must not error for %s", name, a)
 	}
@@ -448,30 +448,30 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 		input = reflect.ValueOf(req)
 	case argGenerator.MethodInputType.AssignableTo(orderSubmitParam):
 		input = reflect.ValueOf(&order.Submit{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientID:          "1337",
-			ClientOrderID:     "13371337",
-			ImmediateOrCancel: true,
-			Leverage:          1,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientID:      "1337",
+			ClientOrderID: "13371337",
+			TimeInForce:   order.ImmediateOrCancel,
+			Leverage:      1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
-			Exchange:          exchName,
-			Type:              order.Limit,
-			Side:              order.Buy,
-			Pair:              argGenerator.AssetParams.Pair,
-			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             150,
-			Amount:            1,
-			ClientOrderID:     "13371337",
-			OrderID:           "1337",
-			ImmediateOrCancel: true,
+			Exchange:      exchName,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          argGenerator.AssetParams.Pair,
+			AssetType:     argGenerator.AssetParams.Asset,
+			Price:         150,
+			Amount:        1,
+			ClientOrderID: "13371337",
+			OrderID:       "1337",
+			TimeInForce:   order.ImmediateOrCancel,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderCancelParam):
 		input = reflect.ValueOf(&order.Cancel{

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -32,9 +33,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	}
 
 	_, err = ParseCredentialsMetadata(t.Context(), metadata.MD{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctx := metadata.AppendToOutgoingContext(t.Context(),
 		string(ContextCredentialsFlag), "wow", string(ContextCredentialsFlag), "wow2")
@@ -68,9 +67,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	lovelyMD, _ := metadata.FromOutgoingContext(ctx)
 
 	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	store, ok := ctx.Value(ContextCredentialsFlag).(*ContextCredentialsStore)
 	if !ok {
@@ -98,9 +95,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
 
 	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	sa, ok := ctx.Value(ContextSubAccountFlag).(string)
 	if !ok {
