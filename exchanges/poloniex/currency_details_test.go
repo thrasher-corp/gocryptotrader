@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -99,18 +100,14 @@ func TestWsCurrencyMap(t *testing.T) {
 	}
 
 	btcusdt, err := m.GetPair(121)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if btcusdt.String() != "USDT_BTC" {
 		t.Fatal("expecting USDT_BTC pair")
 	}
 
 	eth, err := m.GetCode(267)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if eth.String() != "ETH" {
 		t.Fatal("unexpected value")
@@ -131,27 +128,21 @@ func TestWsCurrencyMap(t *testing.T) {
 	}
 
 	dAddr, err := m.GetDepositAddress(currency.NewCode("BCN"))
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if dAddr != "25cZNQYVAi3issDCoa6fWA2Aogd4FgPhYdpX3p8KLfhKC6sN8s6Q9WpcW4778TPwcUS5jEM25JrQvjD3XjsvXuNHSWhYUsu" {
 		t.Fatal("unexpected deposit address")
 	}
 
 	wdEnabled, err := m.IsWithdrawAndDepositsEnabled(eth)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if !wdEnabled {
 		t.Fatal("unexpected results")
 	}
 
 	tEnabled, err := m.IsTradingEnabledForCurrency(eth)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if !tEnabled {
 		t.Fatal("unexpected results")
@@ -160,18 +151,14 @@ func TestWsCurrencyMap(t *testing.T) {
 	cp := currency.NewPair(currency.USDT, currency.BTC)
 
 	tEnabled, err = m.IsTradingEnabledForPair(cp)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if !tEnabled {
 		t.Fatal("unexpected results")
 	}
 
 	postOnly, err := m.IsPostOnlyForPair(cp)
-	if !errors.Is(err, nil) {
-		t.Fatalf("expected: %v but received: %v", nil, err)
-	}
+	require.NoError(t, err)
 
 	if postOnly {
 		t.Fatal("unexpected results")

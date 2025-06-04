@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	bitmexWSURL = "wss://www.bitmex.com/realtimemd"
+	bitmexWSURL = "wss://ws.bitmex.com/realtime"
 
 	// Public Subscription Channels
 	bitmexWSAnnouncement        = "announcement"
@@ -86,6 +86,7 @@ func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+
 	var dialer gws.Dialer
 	if err := b.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
 		return err
@@ -94,12 +95,8 @@ func (b *Bitmex) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	ctx := context.TODO()
-	if err := b.wsOpenStream(ctx, b.Websocket.Conn, wsPublicStream); err != nil {
-		return err
-	}
-
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		ctx := context.TODO()
 		if err := b.websocketSendAuth(ctx); err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -110,29 +107,9 @@ func (b *Bitmex) WsConnect() error {
 }
 
 const (
-	wsPublicStream  = "public"
-	wsPrivateStream = "private"
 	wsSubscribeOp   = "subscribe"
 	wsUnsubscribeOp = "unsubscribe"
-	wsMsgPacket     = 0
-	wsOpenPacket    = 1
-	wsClosePacket   = 2
 )
-
-func (b *Bitmex) wsOpenStream(ctx context.Context, c websocket.Connection, name string) error {
-	resp, err := c.SendMessageReturnResponse(ctx, request.Unset, "open:"+name, []any{wsOpenPacket, name, name})
-	if err != nil {
-		return err
-	}
-	var welcomeResp WebsocketWelcome
-	if err := json.Unmarshal(resp, &welcomeResp); err != nil {
-		return err
-	}
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "Successfully connected to Bitmex %s websocket API at time: %s Limit: %d", name, welcomeResp.Timestamp, welcomeResp.Limit.Remaining)
-	}
-	return nil
-}
 
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitmex) wsReadData() {
@@ -151,46 +128,53 @@ func (b *Bitmex) wsReadData() {
 }
 
 func (b *Bitmex) wsHandleData(respRaw []byte) error {
-	var err error
-	msg, _, _, err := jsonparser.Get(respRaw, "[3]")
-	if err != nil {
-		return fmt.Errorf("unknown message format: %s", respRaw)
-	}
 	// We don't need to know about errors, since we're looking optimistically into the json
-	op, _ := jsonparser.GetString(msg, "request", "op")
-	errMsg, _ := jsonparser.GetString(msg, "error")
-	success, _ := jsonparser.GetBoolean(msg, "success")
-	version, _ := jsonparser.GetString(msg, "version")
+	op, _ := jsonparser.GetString(respRaw, "request", "op")
+	errMsg, _ := jsonparser.GetString(respRaw, "error")
+	success, _ := jsonparser.GetBoolean(respRaw, "success")
+	version, _ := jsonparser.GetString(respRaw, "version")
 	switch {
 	case version != "":
-		op = "open"
-		fallthrough
-	case errMsg != "", success:
-		streamID, e2 := jsonparser.GetString(respRaw, "[1]")
-		if e2 != nil {
-			return fmt.Errorf("%w parsing stream", e2)
+		var welcomeResp WebsocketWelcome
+		if err := json.Unmarshal(respRaw, &welcomeResp); err != nil {
+			return err
 		}
-		err = b.Websocket.Match.RequireMatchWithData(op+":"+streamID, msg)
-		if err != nil {
-			return fmt.Errorf("%w: %s:%s", err, op, streamID)
+
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "%s successfully connected to websocket API at time: %s Limit: %d", b.Name, welcomeResp.Timestamp, welcomeResp.Limit.Remaining)
+		}
+		return nil
+	case errMsg != "", success:
+		var req any
+		if op == "authKeyExpires" {
+			req = op
+		} else {
+			reqBytes, _, _, err := jsonparser.Get(respRaw, "request")
+			if err != nil {
+				return err
+			}
+			req = string(reqBytes)
+		}
+		if err := b.Websocket.Match.RequireMatchWithData(req, respRaw); err != nil {
+			return fmt.Errorf("%w: %s", err, op)
 		}
 		return nil
 	}
 
-	tableName, err := jsonparser.GetString(msg, "table")
+	tableName, err := jsonparser.GetString(respRaw, "table")
 	if err != nil {
 		// Anything that's not a table isn't expected
-		return fmt.Errorf("unknown message format: %s", msg)
+		return fmt.Errorf("unknown message format: %s", respRaw)
 	}
 
 	switch tableName {
 	case bitmexWSOrderbookL2, bitmexWSOrderbookL225, bitmexWSOrderbookL10:
 		var orderbooks OrderBookData
-		if err := json.Unmarshal(msg, &orderbooks); err != nil {
+		if err := json.Unmarshal(respRaw, &orderbooks); err != nil {
 			return err
 		}
 		if len(orderbooks.Data) == 0 {
-			return fmt.Errorf("empty orderbook data received: %s", msg)
+			return fmt.Errorf("empty orderbook data received: %s", respRaw)
 		}
 
 		pair, a, err := b.GetPairAndAssetTypeRequestFormatted(orderbooks.Data[0].Symbol)
@@ -203,10 +187,10 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case bitmexWSTrade:
-		return b.handleWsTrades(msg)
+		return b.handleWsTrades(respRaw)
 	case bitmexWSAnnouncement:
 		var announcement AnnouncementData
-		if err := json.Unmarshal(msg, &announcement); err != nil {
+		if err := json.Unmarshal(respRaw, &announcement); err != nil {
 			return err
 		}
 
@@ -217,7 +201,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		b.Websocket.DataHandler <- announcement.Data
 	case bitmexWSAffiliate:
 		var response WsAffiliateResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- response
@@ -226,7 +210,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 	case bitmexWSExecution:
 		// trades of an order
 		var response WsExecutionResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 
@@ -273,7 +257,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		}
 	case bitmexWSOrder:
 		var response WsOrderResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		switch response.Action {
@@ -373,35 +357,35 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		}
 	case bitmexWSMargin:
 		var response WsMarginResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- response
 	case bitmexWSPosition:
 		var response WsPositionResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 	case bitmexWSPrivateNotifications:
 		var response WsPrivateNotificationsResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- response
 	case bitmexWSTransact:
 		var response WsTransactResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- response
 	case bitmexWSWallet:
 		var response WsWalletResponse
-		if err := json.Unmarshal(msg, &response); err != nil {
+		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- response
 	default:
-		b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: b.Name + websocket.UnhandledMessage + string(msg)}
+		b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: b.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
 
 	return nil
@@ -537,20 +521,20 @@ func (b *Bitmex) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 // Subscribe subscribes to a websocket channel
 func (b *Bitmex) Subscribe(subs subscription.List) error {
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l, wsPublicStream) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l, wsPrivateStream) }, len(subs)),
+		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
 	)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l, wsPublicStream) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l, wsPrivateStream) }, len(subs)),
+		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
 	)
 }
 
-func (b *Bitmex) manageSubs(op string, subs subscription.List, stream string) error {
+func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
 	req := WebsocketRequest{
 		Command: op,
 	}
@@ -559,8 +543,11 @@ func (b *Bitmex) manageSubs(op string, subs subscription.List, stream string) er
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 		exp[s.QualifiedChannel] = s
 	}
-	packet := []any{wsMsgPacket, stream, stream, req}
-	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(context.TODO(), request.Unset, op+":"+stream, packet, len(subs))
+	reqJSON, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(context.TODO(), request.Unset, string(reqJSON), req, len(subs))
 	for _, resp := range resps {
 		if errMsg, _ := jsonparser.GetString(resp, "error"); errMsg != "" {
 			errs = common.AppendError(errs, errors.New(errMsg))
@@ -591,23 +578,19 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 		return err
 	}
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
-	newTimestamp := strconv.FormatInt(timestamp, 10)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+newTimestamp), []byte(creds.Secret))
+	timestampStr := strconv.FormatInt(timestamp, 10)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+timestampStr), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 	signature := crypto.HexEncodeToString(hmac)
 
-	err = b.wsOpenStream(ctx, b.Websocket.Conn, wsPrivateStream)
-	if err != nil {
-		return err
-	}
 	req := WebsocketRequest{
 		Command:   "authKeyExpires",
 		Arguments: []any{creds.Key, timestamp, signature},
 	}
-	packet := []any{wsMsgPacket, wsPrivateStream, wsPrivateStream, req}
-	resp, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Command+":"+wsPrivateStream, packet)
+
+	resp, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Command, req)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Ticker stores the ticker price data for a currency pair
@@ -20,7 +21,7 @@ type Ticker struct {
 // TickerResponse stores the ticker price data and timestamp for a currency pair
 type TickerResponse struct {
 	Symbol    currency.Pair `json:"symbol"`
-	Timestamp int64         `json:"timestamp"`
+	Timestamp types.Time    `json:"timestamp"`
 	Ticker    Ticker        `json:"ticker"`
 }
 
@@ -28,10 +29,10 @@ type TickerResponse struct {
 type MarketDepthResponse struct {
 	ErrCapture
 	Data struct {
-		Asks      [][2]string `json:"asks"`
-		Bids      [][2]string `json:"bids"`
-		Timestamp int64       `json:"timestamp"`
-	}
+		Asks      [][2]types.Number `json:"asks"`
+		Bids      [][2]types.Number `json:"bids"`
+		Timestamp types.Time        `json:"timestamp"`
+	} `json:"data"`
 }
 
 // TradeResponse stores date_ms, amount, price, type, tid for a currency pair
@@ -47,7 +48,7 @@ type TradeResponse struct {
 type KlineResponse struct {
 	TimeStamp     time.Time `json:"timestamp"`
 	OpenPrice     float64   `json:"openprice"`
-	HigestPrice   float64   `json:"highestprice"`
+	HighestPrice  float64   `json:"highestprice"`
 	LowestPrice   float64   `json:"lowestprice"`
 	ClosePrice    float64   `json:"closeprice"`
 	TradingVolume float64   `json:"tradingvolume"`
@@ -183,10 +184,15 @@ type ExchangeRateResponse struct {
 
 // WithdrawConfigResponse stores info about withdrawal configurations
 type WithdrawConfigResponse struct {
-	AssetCode   string `json:"assetCode"`
-	Minimum     string `json:"min"`
-	CanWithDraw bool   `json:"canWithDraw"`
-	Fee         string `json:"fee"`
+	AmountScale         int64         `json:"amountScale,string"`
+	Chain               string        `json:"chain"`
+	AssetCode           currency.Code `json:"assetCode"`
+	Minimum             float64       `json:"min,string"`
+	TransferAmountScale int64         `json:"transferAmtScale,string"`
+	CanWithdraw         bool          `json:"canWithDraw"`
+	Fee                 float64       `json:"fee"`
+	MinimumTransfer     float64       `json:"minTransfer,string"`
+	Type                int64         `json:"type,string"`
 }
 
 // WithdrawResponse stores info about the withdrawal
@@ -238,7 +244,7 @@ type GetAllOpenIDResp struct {
 
 // TimestampResponse holds timestamp data
 type TimestampResponse struct {
-	Timestamp int64 `json:"data"`
+	Timestamp types.Time `json:"data"`
 }
 
 var errorCodes = map[int64]string{

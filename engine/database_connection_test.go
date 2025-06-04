@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
@@ -32,9 +33,8 @@ func TestSetupDatabaseConnectionManager(t *testing.T) {
 	}
 
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m == nil {
 		t.Error("expected manager")
 	}
@@ -43,18 +43,16 @@ func TestSetupDatabaseConnectionManager(t *testing.T) {
 func TestStartSQLite(t *testing.T) {
 	CreateDatabase(t)
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
 	if !errors.Is(err, database.ErrDatabaseSupportDisabled) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrDatabaseSupportDisabled)
 	}
 	m, err = SetupDatabaseConnectionManager(&database.Config{Enabled: true})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start(&wg)
 	if !errors.Is(err, database.ErrNoDatabaseProvided) {
 		t.Errorf("error '%v', expected '%v'", err, database.ErrNoDatabaseProvided)
@@ -72,17 +70,14 @@ func TestStartSQLite(t *testing.T) {
 			Database: "test.db",
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 // This test does not care for a successful connection
 func TestStartPostgres(t *testing.T) {
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
 	if !errors.Is(err, database.ErrDatabaseSupportDisabled) {
@@ -110,17 +105,15 @@ func TestDatabaseConnectionManagerIsRunning(t *testing.T) {
 			Database: "test.db",
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -140,9 +133,8 @@ func TestDatabaseConnectionManagerStop(t *testing.T) {
 			Database: "test.db",
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
@@ -150,14 +142,10 @@ func TestDatabaseConnectionManagerStop(t *testing.T) {
 
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	m = nil
 	err = m.Stop()
@@ -181,40 +169,32 @@ func TestCheckConnection(t *testing.T) {
 			Database: "test.db",
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.checkConnection()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.checkConnection()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.checkConnection()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.checkConnection()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	m.dbConn.SetConnected(false)
 	err = m.checkConnection()
@@ -223,9 +203,7 @@ func TestCheckConnection(t *testing.T) {
 	}
 
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetInstance(t *testing.T) {
@@ -238,18 +216,16 @@ func TestGetInstance(t *testing.T) {
 			Database: "test.db",
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	db := m.GetInstance()
 	if db != nil {
 		t.Error("expected nil")
 	}
 	var wg sync.WaitGroup
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	db = m.GetInstance()
 	if db == nil {
 		t.Error("expected not nil")
