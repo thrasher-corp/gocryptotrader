@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
