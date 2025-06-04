@@ -165,6 +165,7 @@ var (
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
 	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired              = errors.New("single asset type required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
