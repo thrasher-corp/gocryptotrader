@@ -838,7 +838,7 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
 			Asset:           asset.Spread,
 			Asks:            extractedResponse.Data[x].Asks,
 			Bids:            extractedResponse.Data[x].Bids,
@@ -888,7 +888,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	}
 
 	for x := range assets {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
 			Asset:           assets[x],
 			Asks:            asks,
 			Bids:            bids,
@@ -1028,7 +1028,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 		return err
 	}
 	for i := range assets {
-		newOrderBook := orderbook.Base{
+		newOrderBook := orderbook.Snapshot{
 			Asset:           assets[i],
 			Asks:            asks,
 			Bids:            bids,
@@ -1088,7 +1088,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tran
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
+func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Snapshot, checksumVal uint32) error {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {

@@ -1200,7 +1200,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 	}{
 		{
 			Name:          "no amount",
-			ExpectedError: errBaseAmountInvalid,
+			ExpectedError: errSnapshotAmountInvalid,
 		},
 		{
 			Name:          "no reference price",

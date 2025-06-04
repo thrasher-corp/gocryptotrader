@@ -2758,7 +2758,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 	_, err := b.GetCachedOrderbook(pair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
-	err = (&orderbook.Base{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
+	err = (&orderbook.Snapshot{Exchange: "test", Pair: pair, Asset: asset.Spot}).Process()
 	assert.NoError(t, err)
 
 	ob, err := b.GetCachedOrderbook(pair, asset.Spot)
@@ -2834,7 +2834,7 @@ func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Ho
 	return account.Holdings{}, nil
 }
 
-func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Snapshot, error) {
 	return nil, nil
 }
 
@@ -2862,7 +2862,7 @@ func (f *FakeBase) UpdateTicker(context.Context, currency.Pair, asset.Item) (*ti
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Snapshot, error) {
 	return nil, nil
 }
 

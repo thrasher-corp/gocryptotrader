@@ -30,7 +30,7 @@ var (
 // Outbound restricts outbound usage of depth. NOTE: Type assert to
 // *orderbook.Depth.
 type Outbound interface {
-	Retrieve() (*Base, error)
+	Retrieve() (*Snapshot, error)
 }
 
 // Depth defines a store of orderbook tranches
@@ -63,15 +63,15 @@ func (d *Depth) Publish() {
 	}
 }
 
-// Retrieve returns the orderbook base a copy of the underlying linked list
+// Retrieve returns the orderbook snapshot a copy of the underlying linked list
 // spread
-func (d *Depth) Retrieve() (*Base, error) {
+func (d *Depth) Retrieve() (*Snapshot, error) {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return &Base{
+	return &Snapshot{
 		Bids:                   d.bidTranches.retrieve(0),
 		Asks:                   d.askTranches.retrieve(0),
 		Exchange:               d.exchange,
@@ -278,7 +278,7 @@ func (d *Depth) UpdateInsertByID(update *Update) error {
 }
 
 // AssignOptions assigns the initial options for the depth instance
-func (d *Depth) AssignOptions(b *Base) {
+func (d *Depth) AssignOptions(b *Snapshot) {
 	d.m.Lock()
 	d.options = options{
 		exchange:               b.Exchange,

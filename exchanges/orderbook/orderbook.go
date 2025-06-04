@@ -13,7 +13,7 @@ import (
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
-func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+func Get(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
 	return s.Retrieve(exchange, p, a)
 }
 
@@ -41,39 +41,39 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 }
 
 // Update stores orderbook data
-func (s *store) Update(b *Base) error {
+func (s *store) Update(ss *Snapshot) error {
 	s.m.RLock()
-	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}]
+	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: ss.Exchange, Base: ss.Pair.Base.Item, Quote: ss.Pair.Quote.Item, Asset: ss.Asset}]
 	s.m.RUnlock()
 	if !ok {
 		var err error
-		book, err = s.track(b)
+		book, err = s.track(ss)
 		if err != nil {
 			return err
 		}
 	}
-	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true); err != nil {
+	if err := book.Depth.LoadSnapshot(ss.Bids, ss.Asks, ss.LastUpdateID, ss.LastUpdated, ss.UpdatePushedAt, true); err != nil {
 		return err
 	}
 	return s.signalMux.Publish(book.Depth, book.RouterID)
 }
 
-func (s *store) track(b *Base) (book, error) {
+func (s *store) track(ss *Snapshot) (book, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	id, ok := s.exchangeRouters[b.Exchange]
+	id, ok := s.exchangeRouters[ss.Exchange]
 	if !ok {
 		exchangeID, err := s.signalMux.GetID()
 		if err != nil {
 			return book{}, err
 		}
 		id = exchangeID
-		s.exchangeRouters[b.Exchange] = id
+		s.exchangeRouters[ss.Exchange] = id
 	}
 	depth := NewDepth(id)
-	depth.AssignOptions(b)
+	depth.AssignOptions(ss)
 	ob := book{RouterID: id, Depth: depth}
-	s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}] = ob
+	s.orderbooks[key.ExchangePairAsset{Exchange: ss.Exchange, Base: ss.Pair.Base.Item, Quote: ss.Pair.Quote.Item, Asset: ss.Asset}] = ob
 	return ob, nil
 }
 
@@ -94,7 +94,7 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 	s.m.RUnlock()
 	var err error
 	if !ok {
-		ob, err = s.track(&Base{Exchange: exchange, Pair: p, Asset: a})
+		ob, err = s.track(&Snapshot{Exchange: exchange, Pair: p, Asset: a})
 	}
 	return ob.Depth, err
 }
@@ -112,7 +112,7 @@ func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth
 
 // Retrieve gets orderbook depth data from the stored tranches and returns the
 // base equivalent copy
-func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Snapshot, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -129,26 +129,26 @@ func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base,
 }
 
 // GetDepth returns the concrete book allowing the caller to stream orderbook changes
-func (b *Base) GetDepth() (*Depth, error) {
-	return s.GetDepth(b.Exchange, b.Pair, b.Asset)
+func (ss *Snapshot) GetDepth() (*Depth, error) {
+	return s.GetDepth(ss.Exchange, ss.Pair, ss.Asset)
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
-	for x := range b.Bids {
-		amountCollated += b.Bids[x].Amount
-		total += b.Bids[x].Amount * b.Bids[x].Price
+func (ss *Snapshot) TotalBidsAmount() (amountCollated, total float64) {
+	for x := range ss.Bids {
+		amountCollated += ss.Bids[x].Amount
+		total += ss.Bids[x].Amount * ss.Bids[x].Price
 	}
 	return amountCollated, total
 }
 
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
-	for y := range b.Asks {
-		amountCollated += b.Asks[y].Amount
-		total += b.Asks[y].Amount * b.Asks[y].Price
+func (ss *Snapshot) TotalAsksAmount() (amountCollated, total float64) {
+	for y := range ss.Asks {
+		amountCollated += ss.Asks[y].Amount
+		total += ss.Asks[y].Amount * ss.Asks[y].Price
 	}
 	return amountCollated, total
 }
@@ -157,8 +157,8 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 // set and will reject any book with incorrect values.
 // Bids should always go from a high price to a low price and
 // Asks should always go from a low price to a higher price
-func (b *Base) Verify() error {
-	if !b.VerifyOrderbook {
+func (ss *Snapshot) Verify() error {
+	if !ss.VerifyOrderbook {
 		return nil
 	}
 
@@ -167,22 +167,22 @@ func (b *Base) Verify() error {
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
-	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
+	if (len(ss.Asks) == 0 || len(ss.Bids) == 0) && !ss.Asset.IsOptions() {
 		log.Warnf(log.OrderBook,
 			bookLengthIssue,
-			b.Exchange,
-			b.Pair,
-			b.Asset,
-			len(b.Bids),
-			len(b.Asks))
+			ss.Exchange,
+			ss.Pair,
+			ss.Asset,
+			len(ss.Bids),
+			len(ss.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, dsc, b.Exchange)
+	err := checkAlignment(ss.Bids, ss.IsFundingRate, ss.PriceDuplication, ss.IDAlignment, ss.ChecksumStringRequired, dsc, ss.Exchange)
 	if err != nil {
-		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+		return fmt.Errorf(bidLoadBookFailure, ss.Exchange, ss.Pair, ss.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, asc, b.Exchange)
+	err = checkAlignment(ss.Asks, ss.IsFundingRate, ss.PriceDuplication, ss.IDAlignment, ss.ChecksumStringRequired, asc, ss.Exchange)
 	if err != nil {
-		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+		return fmt.Errorf(askLoadBookFailure, ss.Exchange, ss.Pair, ss.Asset, err)
 	}
 	return nil
 }
@@ -249,27 +249,27 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
-func (b *Base) Process() error {
-	if b.Exchange == "" {
+func (ss *Snapshot) Process() error {
+	if ss.Exchange == "" {
 		return errExchangeNameUnset
 	}
 
-	if b.Pair.IsEmpty() {
+	if ss.Pair.IsEmpty() {
 		return errPairNotSet
 	}
 
-	if b.Asset.String() == "" {
+	if ss.Asset.String() == "" {
 		return errAssetTypeNotSet
 	}
 
-	if b.LastUpdated.IsZero() { // TODO: Enforce setting this on all exchanges
-		b.LastUpdated = time.Now()
+	if ss.LastUpdated.IsZero() { // TODO: Enforce setting this on all exchanges
+		ss.LastUpdated = time.Now()
 	}
 
-	if err := b.Verify(); err != nil {
+	if err := ss.Verify(); err != nil {
 		return err
 	}
-	return s.Update(b)
+	return s.Update(ss)
 }
 
 // Reverse reverses the order of orderbook items; some bid/asks are
