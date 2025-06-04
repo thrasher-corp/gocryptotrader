@@ -1938,3 +1938,13 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// WebsocketModifyOrder cancels an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
+}

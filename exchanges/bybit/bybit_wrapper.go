@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -67,12 +68,6 @@ func (by *Bybit) SetDefaults() {
 		}
 	}
 
-	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
-		if err := by.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", by.Name, a, err)
-		}
-	}
-
 	by.Features = exchange.Features{
 		CurrencyTranslations: currency.NewTranslations(
 			map[currency.Code]currency.Code{
@@ -100,6 +95,9 @@ func (by *Bybit) SetDefaults() {
 				currency.NewCode("SHIB1000"):        currency.SHIB,
 			},
 		),
+		TradingRequirements: protocol.TradingRequirements{
+			SpotMarketOrderAmountPurchaseQuotationOnly: true,
+		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -214,65 +212,152 @@ func (by *Bybit) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (by *Bybit) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
+
 	if !exch.Enabled {
 		by.SetEnabled(false)
 		return nil
 	}
 
-	err = by.SetupDefaults(exch)
-	if err != nil {
+	if err := by.SetupDefaults(exch); err != nil {
 		return err
 	}
 
-	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
+	if err := by.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               exch,
+		Features:                     &by.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
+		TradeFeed:                    by.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement: true,
+	}); err != nil {
 		return err
 	}
 
-	err = by.Websocket.Setup(
-		&websocket.ManagerSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            spotPublic,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        websocketPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.generateSubscriptions,
-			Features:              &by.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-			},
-			TradeFeed: by.Features.Enabled.TradeFeed,
-		})
-	if err != nil {
-		return err
-	}
-	err = by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  by.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     bybitWebsocketTimer,
-	})
-	if err != nil {
+	// Spot - Inbound public data.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   spotPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateSubscriptions,
+		Subscriber:            by.Subscribe,
+		Unsubscriber:          by.Unsubscribe,
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+	}); err != nil {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  websocketPrivate,
+	// Options - Inbound public data.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   optionPublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.GenerateOptionsDefaultSubscriptions,
+		Subscriber:            by.OptionSubscribe,
+		Unsubscriber:          by.OptionUnsubscribe,
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+	}); err != nil {
+		return err
+	}
+
+	// Linear - USDT margined futures inbound public data.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  linearPublic,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-	})
-}
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:            by.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return by.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
+		},
+		Subscriber:   by.LinearSubscribe,
+		Unsubscriber: by.LinearUnsubscribe,
+		Handler: func(ctx context.Context, resp []byte) error {
+			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
+		},
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
+		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+	}); err != nil {
+		return err
+	}
 
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
-	return by.WsAuth(ctx)
+	// Linear - USDC margined futures inbound public data.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  linearPublic,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:            by.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return by.GenerateLinearDefaultSubscriptions(asset.USDCMarginedFutures)
+		},
+		Subscriber:   by.LinearSubscribe,
+		Unsubscriber: by.LinearUnsubscribe,
+		Handler: func(ctx context.Context, resp []byte) error {
+			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
+		},
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
+		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+	}); err != nil {
+		return err
+	}
+
+	// Inverse - Coin margined futures inbound public data.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   inversePublic,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.GenerateInverseDefaultSubscriptions,
+		Subscriber:            by.InverseSubscribe,
+		Unsubscriber:          by.InverseUnsubscribe,
+		Handler: func(ctx context.Context, resp []byte) error {
+			return by.wsHandleData(ctx, resp, asset.CoinMarginedFutures)
+		},
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
+	}); err != nil {
+		return err
+	}
+
+	// Trade - Dedicated trade connection for all outbound trading requests.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                      websocketTrade,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:                by.WsConnect,
+		Handler:                  by.wsHandleTradeData,
+		RequestIDGenerator:       by.messageIDSeq.IncrementAndGet,
+		Authenticate:             by.WebsocketAuthenticateTradeConnection,
+		MessageFilter:            OutboundTradeConnection,
+		SubscriptionsNotRequired: true,
+	}); err != nil {
+		return err
+	}
+
+	// Private - Dedicated private connection for all inbound private data.
+	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   websocketPrivate,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateAuthSubscriptions,
+		Subscriber:            by.authSubscribe,
+		Unsubscriber:          by.authUnsubscribe,
+		Handler:               by.wsHandleAuthenticatedData,
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+		Authenticate:          by.WebsocketAuthenticatePrivateConnection,
+		MessageFilter:         InboundPrivateConnection,
+	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -751,6 +836,73 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	if err != nil {
 		return nil, err
 	}
+	arg, err := by.DeriveSubmitOrderArguments(s)
+	if err != nil {
+		return nil, err
+	}
+	response, err := by.PlaceOrder(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.DeriveSubmitResponse(response.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = order.New
+	return resp, nil
+}
+
+// WebsocketSubmitOrder submits a new order through the websocket connection
+func (by *Bybit) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	err := s.Validate(by.GetTradingRequirements())
+	if err != nil {
+		return nil, err
+	}
+	arg, err := by.DeriveSubmitOrderArguments(s)
+	if err != nil {
+		return nil, err
+	}
+	orderDetails, err := by.WSCreateOrder(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.DeriveSubmitResponse(orderDetails.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status, err = order.StringToOrderStatus(orderDetails.OrderStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	switch orderDetails.TimeInForce {
+	case "IOC":
+		resp.TimeInForce = order.ImmediateOrCancel
+	case "PostOnly":
+		resp.TimeInForce = order.PostOnly
+	}
+
+	resp.ReduceOnly = orderDetails.ReduceOnly
+	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
+	resp.AverageExecutedPrice = orderDetails.AvgPrice.Float64()
+	resp.ClientOrderID = orderDetails.OrderLinkID
+	resp.Fee = orderDetails.CumExecFee.Float64()
+	resp.Cost = orderDetails.CumExecValue.Float64()
+	return resp, nil
+}
+
+// DeriveSubmitOrderArguments returns a derived order arguments struct from an order.Submit for use in this package.
+func (by *Bybit) DeriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderParams, error) {
+	if err := s.Validate(by.GetTradingRequirements()); err != nil {
+		return nil, err
+	}
+
+	switch s.AssetType {
+	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
+	default:
+		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
+	}
+
 	formattedPair, err := by.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
@@ -764,62 +916,63 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	default:
 		return nil, order.ErrSideIsInvalid
 	}
-	status := order.New
-	switch s.AssetType {
-	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		if s.AssetType == asset.USDCMarginedFutures && !formattedPair.Quote.Equal(currency.PERP) {
-			formattedPair.Delimiter = currency.DashDelimiter
-		}
-		var response *OrderResponse
-		arg := &PlaceOrderParams{
-			Category:        getCategoryName(s.AssetType),
-			Symbol:          formattedPair,
-			Side:            sideType,
-			OrderType:       orderTypeToString(s.Type),
-			OrderQuantity:   s.Amount,
-			Price:           s.Price,
-			OrderLinkID:     s.ClientOrderID,
-			WhetherToBorrow: s.AssetType == asset.Margin,
-			ReduceOnly:      s.ReduceOnly,
-			OrderFilter: func() string {
-				if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
-					s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopLoss.LimitPrice != 0 {
-					return ""
-				} else if s.TriggerPrice != 0 {
-					return "tpslOrder"
-				}
-				return "Order"
-			}(),
-			TriggerPrice: s.TriggerPrice,
-		}
-		if arg.TriggerPrice != 0 {
-			arg.TriggerPriceType = s.TriggerPriceType.String()
-		}
-		if s.RiskManagementModes.TakeProfit.Price != 0 {
-			arg.TakeProfitPrice = s.RiskManagementModes.TakeProfit.Price
-			arg.TakeProfitTriggerBy = s.RiskManagementModes.TakeProfit.TriggerPriceType.String()
-			arg.TpOrderType = getOrderTypeString(s.RiskManagementModes.TakeProfit.OrderType)
-			arg.TpLimitPrice = s.RiskManagementModes.TakeProfit.LimitPrice
-		}
-		if s.RiskManagementModes.StopLoss.Price != 0 {
-			arg.StopLossPrice = s.RiskManagementModes.StopLoss.Price
-			arg.StopLossTriggerBy = s.RiskManagementModes.StopLoss.TriggerPriceType.String()
-			arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
-			arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
-		}
-		response, err = by.PlaceOrder(ctx, arg)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := s.DeriveSubmitResponse(response.OrderID)
-		if err != nil {
-			return nil, err
-		}
-		resp.Status = status
-		return resp, nil
-	default:
-		return nil, fmt.Errorf("%s %w", s.AssetType, asset.ErrNotSupported)
+
+	if s.AssetType == asset.USDCMarginedFutures && !formattedPair.Quote.Equal(currency.PERP) {
+		formattedPair.Delimiter = currency.DashDelimiter
 	}
+
+	timeInForce := "GTC"
+	if s.Type == order.Market {
+		timeInForce = "IOC"
+	} else {
+		switch {
+		case s.TimeInForce.Is(order.FillOrKill):
+			timeInForce = "FOK"
+		case s.TimeInForce.Is(order.PostOnly):
+			timeInForce = "PostOnly"
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
+			timeInForce = "IOC"
+		}
+	}
+
+	arg := &PlaceOrderParams{
+		Category:        getCategoryName(s.AssetType),
+		Symbol:          formattedPair,
+		Side:            sideType,
+		OrderType:       orderTypeToString(s.Type),
+		OrderQuantity:   s.Amount,
+		Price:           s.Price,
+		OrderLinkID:     s.ClientOrderID,
+		WhetherToBorrow: s.AssetType == asset.Margin,
+		ReduceOnly:      s.ReduceOnly,
+		OrderFilter: func() string {
+			if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
+				s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopLoss.LimitPrice != 0 {
+				return ""
+			} else if s.TriggerPrice != 0 {
+				return "tpslOrder"
+			}
+			return "Order"
+		}(),
+		TriggerPrice: s.TriggerPrice,
+		TimeInForce:  timeInForce,
+	}
+	if arg.TriggerPrice != 0 {
+		arg.TriggerPriceType = s.TriggerPriceType.String()
+	}
+	if s.RiskManagementModes.TakeProfit.Price != 0 {
+		arg.TakeProfitPrice = s.RiskManagementModes.TakeProfit.Price
+		arg.TakeProfitTriggerBy = s.RiskManagementModes.TakeProfit.TriggerPriceType.String()
+		arg.TpOrderType = getOrderTypeString(s.RiskManagementModes.TakeProfit.OrderType)
+		arg.TpLimitPrice = s.RiskManagementModes.TakeProfit.LimitPrice
+	}
+	if s.RiskManagementModes.StopLoss.Price != 0 {
+		arg.StopLossPrice = s.RiskManagementModes.StopLoss.Price
+		arg.StopLossTriggerBy = s.RiskManagementModes.StopLoss.TriggerPriceType.String()
+		arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
+		arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
+	}
+	return arg, nil
 }
 
 func getOrderTypeString(oType order.Type) string {
@@ -831,48 +984,13 @@ func getOrderTypeString(oType order.Type) string {
 	}
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
-	if err := action.Validate(); err != nil {
-		return nil, err
-	}
-	var (
-		result *OrderResponse
-		err    error
-	)
-	action.Pair, err = by.FormatExchangeCurrency(action.Pair, action.AssetType)
+	arg, err := by.DeriveAmendOrderArguments(action)
 	if err != nil {
 		return nil, err
 	}
-	switch action.AssetType {
-	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if action.AssetType == asset.USDCMarginedFutures && !action.Pair.Quote.Equal(currency.PERP) {
-			action.Pair.Delimiter = currency.DashDelimiter
-		}
-		arg := &AmendOrderParams{
-			Category:             getCategoryName(action.AssetType),
-			Symbol:               action.Pair,
-			OrderID:              action.OrderID,
-			OrderLinkID:          action.ClientOrderID,
-			OrderQuantity:        action.Amount,
-			Price:                action.Price,
-			TriggerPrice:         action.TriggerPrice,
-			TriggerPriceType:     action.TriggerPriceType.String(),
-			TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
-			TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
-			TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
-			StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
-			StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
-			StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
-		}
-		result, err = by.AmendOrder(ctx, arg)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		err = fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
-	}
+	result, err := by.AmendOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -884,30 +1002,111 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	return resp, nil
 }
 
+// WebsocketModifyOrder will allow of changing orderbook placement and limit to market conversion through the websocket
+// connection.
+func (by *Bybit) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	arg, err := by.DeriveAmendOrderArguments(action)
+	if err != nil {
+		return nil, err
+	}
+	result, err := by.WSAmendOrder(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = result.OrderID
+	resp.ClientOrderID = result.OrderLinkID
+	resp.Amount = result.Qty.Float64()
+	resp.Price = action.Price
+	return resp, nil
+}
+
+// DeriveAmendOrderArguments returns a derived order arguments struct from an order.Modify for use in this package.
+func (by *Bybit) DeriveAmendOrderArguments(action *order.Modify) (*AmendOrderParams, error) {
+	err := action.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	switch action.AssetType {
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
+	default:
+		return nil, fmt.Errorf("%s %w", action.AssetType, asset.ErrNotSupported)
+	}
+
+	action.Pair, err = by.FormatExchangeCurrency(action.Pair, action.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	if action.AssetType == asset.USDCMarginedFutures && !action.Pair.Quote.Equal(currency.PERP) {
+		action.Pair.Delimiter = currency.DashDelimiter
+	}
+
+	return &AmendOrderParams{
+		Category:             getCategoryName(action.AssetType),
+		Symbol:               action.Pair,
+		OrderID:              action.OrderID,
+		OrderLinkID:          action.ClientOrderID,
+		OrderQuantity:        action.Amount,
+		Price:                action.Price,
+		TriggerPrice:         action.TriggerPrice,
+		TriggerPriceType:     action.TriggerPriceType.String(),
+		TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
+		TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
+		TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
+		StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
+		StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
+		StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
+	}, nil
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	if err := ord.Validate(ord.StandardCancel()); err != nil {
-		return err
-	}
-	format, err := by.GetPairFormat(ord.AssetType, true)
+	arg, err := by.DeriveCancelOrderArguments(ord)
 	if err != nil {
 		return err
 	}
+	_, err = by.CancelTradeOrder(ctx, arg)
+	return err
+}
+
+// WebsocketCancelOrder cancels an order by its corresponding ID number
+func (by *Bybit) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	arg, err := by.DeriveCancelOrderArguments(ord)
+	if err != nil {
+		return err
+	}
+	_, err = by.CancelTradeOrder(ctx, arg)
+	return err
+}
+
+// DeriveCancelOrderArguments returns a derived order arguments struct from an order.Cancel for use in this package.
+func (by *Bybit) DeriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderParams, error) {
+	err := ord.Validate(ord.StandardCancel())
+	if err != nil {
+		return nil, err
+	}
+	ord.Pair, err = by.FormatExchangeCurrency(ord.Pair, ord.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	if ord.AssetType == asset.USDCMarginedFutures && !ord.Pair.Quote.Equal(currency.PERP) {
+		ord.Pair.Delimiter = currency.DashDelimiter
+	}
 	switch ord.AssetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if ord.AssetType == asset.USDCMarginedFutures && !ord.Pair.Quote.Equal(currency.PERP) {
-			ord.Pair.Delimiter = currency.DashDelimiter
-		}
-		_, err = by.CancelTradeOrder(ctx, &CancelOrderParams{
-			Category:    getCategoryName(ord.AssetType),
-			Symbol:      ord.Pair.Format(format),
-			OrderID:     ord.OrderID,
-			OrderLinkID: ord.ClientOrderID,
-		})
 	default:
-		return fmt.Errorf("%s %w", ord.AssetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", ord.AssetType, asset.ErrNotSupported)
 	}
-	return err
+	return &CancelOrderParams{
+		Category:    getCategoryName(ord.AssetType),
+		Symbol:      ord.Pair,
+		OrderID:     ord.OrderID,
+		OrderLinkID: ord.ClientOrderID,
+	}, nil
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers

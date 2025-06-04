@@ -1,18 +1,25 @@
 package bybit
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var validCategory = []string{"spot", "linear", "inverse", "option"}
+var (
+	errAmendArgumentsRequired = errors.New("at least one of the following fields is required: orderIv, triggerPrice, qty, price, takeProfit, stopLoss etc")
+	errInvalidLeverageValue   = errors.New("please provide a valid isLeverage value; must be 0 for unified spot and 1 for margin trading")
+	validCategory             = []string{"spot", "linear", "inverse", "option"}
+)
 
 // supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
@@ -164,11 +171,23 @@ func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`
-	List     []TickerItem `json:"list"`
+	List     []TickerREST `json:"list"`
 }
 
-// TickerItem represents a ticker item detail
-type TickerItem struct {
+// TickerREST for REST API
+type TickerREST struct {
+	TickerCommon
+	DeliveryTime types.Time `json:"deliveryTime"`
+}
+
+// TickerWebsocket for websocket API
+type TickerWebsocket struct {
+	TickerCommon
+	DeliveryTime time.Time `json:"deliveryTime"` // "2025-03-28T08:00:00Z"
+}
+
+// TickerCommon common ticker fields
+type TickerCommon struct {
 	Symbol                 string       `json:"symbol"`
 	TickDirection          string       `json:"tickDirection"`
 	LastPrice              types.Number `json:"lastPrice"`
@@ -335,6 +354,60 @@ type PlaceOrderParams struct {
 	SlLimitPrice float64 `json:"slLimitPrice,omitempty,string"`
 }
 
+// Validate checks the input parameters and returns an error if they are invalid.
+func (p *PlaceOrderParams) Validate() error {
+	err := isValidCategory(p.Category)
+	if err != nil {
+		return err
+	}
+	if p.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if p.WhetherToBorrow {
+		p.IsLeverage = 1
+	}
+	// specifies whether to borrow or to trade.
+	if p.IsLeverage != 0 && p.IsLeverage != 1 {
+		return errInvalidLeverageValue
+	}
+	if p.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if p.OrderType == "" { // Market and Limit order types are allowed
+		return order.ErrTypeIsInvalid
+	}
+	if p.OrderQuantity <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	switch p.TriggerDirection {
+	case 0, 1, 2: // 0: None, 1: triggered when market price rises to triggerPrice, 2: triggered when market price falls to triggerPrice
+	default:
+		return fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, p.TriggerDirection)
+	}
+	if p.OrderFilter != "" && p.Category == cSpot {
+		switch p.OrderFilter {
+		case "Order", "tpslOrder", "StopOrder":
+		default:
+			return fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, p.OrderFilter)
+		}
+	}
+	switch p.TriggerPriceType {
+	case "", "LastPrice", "IndexPrice", "MarkPrice":
+	default:
+		return errInvalidTriggerPriceType
+	}
+
+	return nil
+}
+
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (p *PlaceOrderParams) LoadID(id string) string {
+	if p.OrderLinkID == "" {
+		p.OrderLinkID = id
+	}
+	return p.OrderLinkID
+}
+
 // OrderResponse holds newly placed order information.
 type OrderResponse struct {
 	OrderID     string `json:"orderId"`
@@ -343,14 +416,16 @@ type OrderResponse struct {
 
 // AmendOrderParams represents a parameter for amending order.
 type AmendOrderParams struct {
-	Category               string        `json:"category,omitempty"`
-	Symbol                 currency.Pair `json:"symbol,omitzero"`
-	OrderID                string        `json:"orderId,omitempty"`
-	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
-	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
-	TriggerPrice           float64       `json:"triggerPrice,omitempty,string"`
-	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
-	Price                  float64       `json:"price,string,omitempty"`
+	Category    string        `json:"category"`              // Required
+	Symbol      currency.Pair `json:"symbol"`                // Required
+	OrderID     string        `json:"orderId,omitempty"`     // This Required or orderLinkID required
+	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+
+	// At least one of the following fields is required
+	OrderImpliedVolatility string  `json:"orderIv,omitempty"`
+	TriggerPrice           float64 `json:"triggerPrice,omitempty,string"`
+	OrderQuantity          float64 `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
+	Price                  float64 `json:"price,string,omitempty"`
 
 	TakeProfitPrice float64 `json:"takeProfit,omitempty,string"`
 	StopLossPrice   float64 `json:"stopLoss,omitempty,string"`
@@ -370,14 +445,108 @@ type AmendOrderParams struct {
 	TPSLMode string `json:"tpslMode,omitempty"`
 }
 
+// Validate checks the input parameters and returns an error if they are invalid
+func (p *AmendOrderParams) Validate() error {
+	err := isValidCategory(p.Category)
+	if err != nil {
+		return err
+	}
+
+	if p.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+
+	if p.OrderID == "" && p.OrderLinkID == "" {
+		return errEitherOrderIDOROrderLinkIDRequired
+	}
+
+	if AllZero(p.OrderImpliedVolatility,
+		p.TriggerPrice,
+		p.OrderQuantity,
+		p.Price,
+		p.TakeProfitPrice,
+		p.StopLossPrice,
+		p.TakeProfitTriggerBy,
+		p.StopLossTriggerBy,
+		p.TriggerPriceType,
+		p.TakeProfitLimitPrice,
+		p.StopLossLimitPrice,
+		p.TPSLMode) {
+		return errAmendArgumentsRequired
+	}
+
+	return nil
+}
+
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (p *AmendOrderParams) LoadID(id string) string {
+	if p.OrderLinkID == "" {
+		p.OrderLinkID = id
+	}
+	return p.OrderLinkID
+}
+
+// AllZero checks if all the arguments are a zero value
+func AllZero(args ...any) bool {
+	for _, v := range args {
+		switch val := v.(type) {
+		case float64:
+			if val != 0 {
+				return false
+			}
+		case string:
+			if val != "" {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // CancelOrderParams represents a cancel order parameters.
 type CancelOrderParams struct {
-	Category    string        `json:"category,omitempty"`
-	Symbol      currency.Pair `json:"symbol,omitzero"`
+	Category    string        `json:"category"`
+	Symbol      currency.Pair `json:"symbol"`
 	OrderID     string        `json:"orderId,omitempty"`
 	OrderLinkID string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
+	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+}
 
-	OrderFilter string `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+// Validate checks the input parameters and returns an error if they are invalid
+func (p *CancelOrderParams) Validate() error {
+	err := isValidCategory(p.Category)
+	if err != nil {
+		return err
+	}
+
+	if p.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+
+	if p.OrderID == "" && p.OrderLinkID == "" {
+		return errEitherOrderIDOROrderLinkIDRequired
+	}
+
+	switch {
+	case p.OrderFilter != "" && p.Category == cSpot:
+		switch p.OrderFilter {
+		case "Order", "tpslOrder", "StopOrder":
+		default:
+			return fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, p.OrderFilter)
+		}
+	case p.OrderFilter != "":
+		return fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
+	}
+
+	return nil
+}
+
+// LoadID loads the order link ID into the parameter, only if it is not already set
+func (p *CancelOrderParams) LoadID(id string) string {
+	if p.OrderLinkID == "" {
+		p.OrderLinkID = id
+	}
+	return p.OrderLinkID
 }
 
 // TradeOrders represents category and list of trade orders of the category.
@@ -1767,11 +1936,11 @@ type WsOrderbookDetail struct {
 
 // SubscriptionResponse represents a subscription response.
 type SubscriptionResponse struct {
-	Success   bool   `json:"success"`
-	RetMsg    string `json:"ret_msg"`
-	ConnID    string `json:"conn_id"`
-	RequestID string `json:"req_id"`
-	Operation string `json:"op"`
+	Success       bool   `json:"success"`
+	ReturnMessage string `json:"ret_msg"`
+	ConnectionID  string `json:"conn_id"`
+	RequestID     string `json:"req_id"`
+	Operation     string `json:"op"`
 }
 
 // WebsocketResponse represents push data response struct.
@@ -1980,21 +2149,21 @@ type WebsocketWallet struct {
 		TotalInitialMargin     types.Number `json:"totalInitialMargin"`
 		TotalMaintenanceMargin types.Number `json:"totalMaintenanceMargin"`
 		Coin                   []struct {
-			Coin                string       `json:"coin"`
-			Equity              types.Number `json:"equity"`
-			UsdValue            types.Number `json:"usdValue"`
-			WalletBalance       types.Number `json:"walletBalance"`
-			AvailableToWithdraw types.Number `json:"availableToWithdraw"`
-			AvailableToBorrow   types.Number `json:"availableToBorrow"`
-			BorrowAmount        types.Number `json:"borrowAmount"`
-			AccruedInterest     types.Number `json:"accruedInterest"`
-			TotalOrderIM        types.Number `json:"totalOrderIM"`
-			TotalPositionIM     types.Number `json:"totalPositionIM"`
-			TotalPositionMM     types.Number `json:"totalPositionMM"`
-			UnrealisedPnl       types.Number `json:"unrealisedPnl"`
-			CumRealisedPnl      types.Number `json:"cumRealisedPnl"`
-			Bonus               types.Number `json:"bonus"`
-			SpotHedgingQuantity types.Number `json:"spotHedgingQty"`
+			Coin                currency.Code `json:"coin"`
+			Equity              types.Number  `json:"equity"`
+			UsdValue            types.Number  `json:"usdValue"`
+			WalletBalance       types.Number  `json:"walletBalance"`
+			AvailableToWithdraw types.Number  `json:"availableToWithdraw"`
+			AvailableToBorrow   types.Number  `json:"availableToBorrow"`
+			BorrowAmount        types.Number  `json:"borrowAmount"`
+			AccruedInterest     types.Number  `json:"accruedInterest"`
+			TotalOrderIM        types.Number  `json:"totalOrderIM"`
+			TotalPositionIM     types.Number  `json:"totalPositionIM"`
+			TotalPositionMM     types.Number  `json:"totalPositionMM"`
+			UnrealisedPnl       types.Number  `json:"unrealisedPnl"`
+			CumRealisedPnl      types.Number  `json:"cumRealisedPnl"`
+			Bonus               types.Number  `json:"bonus"`
+			SpotHedgingQuantity types.Number  `json:"spotHedgingQty"`
 		} `json:"coin"`
 		AccountType string `json:"accountType"`
 		AccountLTV  string `json:"accountLTV"`
