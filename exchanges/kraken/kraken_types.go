@@ -303,44 +303,44 @@ type TradesHistory struct {
 
 // TradeInfo type
 type TradeInfo struct {
-	OrderTxID                  string   `json:"ordertxid"`
-	Pair                       string   `json:"pair"`
-	Time                       float64  `json:"time"`
-	Type                       string   `json:"type"`
-	OrderType                  string   `json:"ordertype"`
-	Price                      float64  `json:"price,string"`
-	Cost                       float64  `json:"cost,string"`
-	Fee                        float64  `json:"fee,string"`
-	Volume                     float64  `json:"vol,string"`
-	Margin                     float64  `json:"margin,string"`
-	Misc                       string   `json:"misc"`
-	PosTxID                    string   `json:"postxid"`
-	ClosedPositionAveragePrice float64  `json:"cprice,string"`
-	ClosedPositionFee          float64  `json:"cfee,string"`
-	ClosedPositionVolume       float64  `json:"cvol,string"`
-	ClosedPositionMargin       float64  `json:"cmargin,string"`
-	Trades                     []string `json:"trades"`
-	PosStatus                  string   `json:"posstatus"`
+	OrderTxID                  string     `json:"ordertxid"`
+	Pair                       string     `json:"pair"`
+	Time                       types.Time `json:"time"`
+	Type                       string     `json:"type"`
+	OrderType                  string     `json:"ordertype"`
+	Price                      float64    `json:"price,string"`
+	Cost                       float64    `json:"cost,string"`
+	Fee                        float64    `json:"fee,string"`
+	Volume                     float64    `json:"vol,string"`
+	Margin                     float64    `json:"margin,string"`
+	Misc                       string     `json:"misc"`
+	PosTxID                    string     `json:"postxid"`
+	ClosedPositionAveragePrice float64    `json:"cprice,string"`
+	ClosedPositionFee          float64    `json:"cfee,string"`
+	ClosedPositionVolume       float64    `json:"cvol,string"`
+	ClosedPositionMargin       float64    `json:"cmargin,string"`
+	Trades                     []string   `json:"trades"`
+	PosStatus                  string     `json:"posstatus"`
 }
 
 // Position holds the opened position
 type Position struct {
-	Ordertxid      string  `json:"ordertxid"`
-	Pair           string  `json:"pair"`
-	Time           float64 `json:"time"`
-	Type           string  `json:"type"`
-	OrderType      string  `json:"ordertype"`
-	Cost           float64 `json:"cost,string"`
-	Fee            float64 `json:"fee,string"`
-	Volume         float64 `json:"vol,string"`
-	VolumeClosed   float64 `json:"vol_closed,string"`
-	Margin         float64 `json:"margin,string"`
-	RolloverTime   int64   `json:"rollovertm,string"`
-	Misc           string  `json:"misc"`
-	OrderFlags     string  `json:"oflags"`
-	PositionStatus string  `json:"posstatus"`
-	Net            string  `json:"net"`
-	Terms          string  `json:"terms"`
+	Ordertxid      string     `json:"ordertxid"`
+	Pair           string     `json:"pair"`
+	Time           types.Time `json:"time"`
+	Type           string     `json:"type"`
+	OrderType      string     `json:"ordertype"`
+	Cost           float64    `json:"cost,string"`
+	Fee            float64    `json:"fee,string"`
+	Volume         float64    `json:"vol,string"`
+	VolumeClosed   float64    `json:"vol_closed,string"`
+	Margin         float64    `json:"margin,string"`
+	RolloverTime   int64      `json:"rollovertm,string"`
+	Misc           string     `json:"misc"`
+	OrderFlags     string     `json:"oflags"`
+	PositionStatus string     `json:"posstatus"`
+	Net            string     `json:"net"`
+	Terms          string     `json:"terms"`
 }
 
 // GetLedgersOptions type
@@ -361,14 +361,14 @@ type Ledgers struct {
 
 // LedgerInfo type
 type LedgerInfo struct {
-	Refid   string  `json:"refid"`
-	Time    float64 `json:"time"`
-	Type    string  `json:"type"`
-	Aclass  string  `json:"aclass"`
-	Asset   string  `json:"asset"`
-	Amount  float64 `json:"amount,string"`
-	Fee     float64 `json:"fee,string"`
-	Balance float64 `json:"balance,string"`
+	Refid   string     `json:"refid"`
+	Time    types.Time `json:"time"`
+	Type    string     `json:"type"`
+	Aclass  string     `json:"aclass"`
+	Asset   string     `json:"asset"`
+	Amount  float64    `json:"amount,string"`
+	Fee     float64    `json:"fee,string"`
+	Balance float64    `json:"balance,string"`
 }
 
 // TradeVolumeResponse type
@@ -482,16 +482,16 @@ type DepositAddress struct {
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	Method string  `json:"method"`
-	Aclass string  `json:"aclass"`
-	Asset  string  `json:"asset"`
-	Refid  string  `json:"refid"`
-	TxID   string  `json:"txid"`
-	Info   string  `json:"info"`
-	Amount float64 `json:"amount,string"`
-	Fee    float64 `json:"fee,string"`
-	Time   float64 `json:"time"`
-	Status string  `json:"status"`
+	Method string     `json:"method"`
+	Aclass string     `json:"aclass"`
+	Asset  string     `json:"asset"`
+	Refid  string     `json:"refid"`
+	TxID   string     `json:"txid"`
+	Info   string     `json:"info"`
+	Amount float64    `json:"amount,string"`
+	Fee    float64    `json:"fee,string"`
+	Time   types.Time `json:"time"`
+	Status string     `json:"status"`
 }
 
 // WebsocketSubRequest contains request data for Subscribe/Unsubscribe to channels
@@ -552,22 +552,22 @@ type wsSystemStatus struct {
 
 // WsOpenOrder contains all open order data from ws feed
 type WsOpenOrder struct {
-	UserReferenceID int64   `json:"userref"`
-	ExpireTime      float64 `json:"expiretm,string"`
-	LastUpdated     float64 `json:"lastupdated,string"`
-	OpenTime        float64 `json:"opentm,string"`
-	StartTime       float64 `json:"starttm,string"`
-	Fee             float64 `json:"fee,string"`
-	LimitPrice      float64 `json:"limitprice,string"`
-	StopPrice       float64 `json:"stopprice,string"`
-	Volume          float64 `json:"vol,string"`
-	ExecutedVolume  float64 `json:"vol_exec,string"`
-	Cost            float64 `json:"cost,string"`
-	AveragePrice    float64 `json:"avg_price,string"`
-	Misc            string  `json:"misc"`
-	OFlags          string  `json:"oflags"`
-	RefID           string  `json:"refid"`
-	Status          string  `json:"status"`
+	UserReferenceID int64      `json:"userref"`
+	ExpireTime      types.Time `json:"expiretm"`
+	LastUpdated     types.Time `json:"lastupdated"`
+	OpenTime        types.Time `json:"opentm"`
+	StartTime       types.Time `json:"starttm"`
+	Fee             float64    `json:"fee,string"`
+	LimitPrice      float64    `json:"limitprice,string"`
+	StopPrice       float64    `json:"stopprice,string"`
+	Volume          float64    `json:"vol,string"`
+	ExecutedVolume  float64    `json:"vol_exec,string"`
+	Cost            float64    `json:"cost,string"`
+	AveragePrice    float64    `json:"avg_price,string"`
+	Misc            string     `json:"misc"`
+	OFlags          string     `json:"oflags"`
+	RefID           string     `json:"refid"`
+	Status          string     `json:"status"`
 	Description     struct {
 		Close     string  `json:"close"`
 		Price     float64 `json:"price,string"`
@@ -582,32 +582,32 @@ type WsOpenOrder struct {
 
 // WsOwnTrade ws auth owntrade data
 type WsOwnTrade struct {
-	Cost               float64 `json:"cost,string"`
-	Fee                float64 `json:"fee,string"`
-	Margin             float64 `json:"margin,string"`
-	OrderTransactionID string  `json:"ordertxid"`
-	OrderType          string  `json:"ordertype"`
-	Pair               string  `json:"pair"`
-	PostTransactionID  string  `json:"postxid"`
-	Price              float64 `json:"price,string"`
-	Time               float64 `json:"time,string"`
-	Type               string  `json:"type"`
-	Vol                float64 `json:"vol,string"`
+	Cost               float64    `json:"cost,string"`
+	Fee                float64    `json:"fee,string"`
+	Margin             float64    `json:"margin,string"`
+	OrderTransactionID string     `json:"ordertxid"`
+	OrderType          string     `json:"ordertype"`
+	Pair               string     `json:"pair"`
+	PostTransactionID  string     `json:"postxid"`
+	Price              float64    `json:"price,string"`
+	Time               types.Time `json:"time"`
+	Type               string     `json:"type"`
+	Vol                float64    `json:"vol,string"`
 }
 
 // WsOpenOrders ws auth open order data
 type WsOpenOrders struct {
 	Cost           float64                `json:"cost,string"`
 	Description    WsOpenOrderDescription `json:"descr"`
-	ExpireTime     time.Time              `json:"expiretm"`
+	ExpireTime     types.Time             `json:"expiretm"`
 	Fee            float64                `json:"fee,string"`
 	LimitPrice     float64                `json:"limitprice,string"`
 	Misc           string                 `json:"misc"`
 	OFlags         string                 `json:"oflags"`
-	OpenTime       time.Time              `json:"opentm"`
+	OpenTime       types.Time             `json:"opentm"`
 	Price          float64                `json:"price,string"`
 	RefID          string                 `json:"refid"`
-	StartTime      time.Time              `json:"starttm"`
+	StartTime      types.Time             `json:"starttm"`
 	Status         string                 `json:"status"`
 	StopPrice      float64                `json:"stopprice,string"`
 	UserReference  float64                `json:"userref"`

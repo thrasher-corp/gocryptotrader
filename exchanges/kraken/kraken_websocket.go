@@ -330,7 +330,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders any) error {
 					TID:       key,
 					Type:      oType,
 					Side:      oSide,
-					Timestamp: convert.TimeFromUnixTimestampDecimal(val.Time),
+					Timestamp: val.Time.Time(),
 				}
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
@@ -365,8 +365,8 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders any) error {
 					LimitPriceUpper:      val.LimitPrice,
 					ExecutedAmount:       val.ExecutedVolume,
 					Fee:                  val.Fee,
-					Date:                 convert.TimeFromUnixTimestampDecimal(val.OpenTime).Truncate(time.Microsecond),
-					LastUpdated:          convert.TimeFromUnixTimestampDecimal(val.LastUpdated).Truncate(time.Microsecond),
+					Date:                 val.OpenTime.Time(),
+					LastUpdated:          val.LastUpdated.Time(),
 				}
 
 				if val.Status != "" {
