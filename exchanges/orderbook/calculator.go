@@ -26,11 +26,11 @@ type WhaleBombResult struct {
 }
 
 // WhaleBomb finds the amount required to target a price
-func (s *Snapshot) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error) {
+func (ss *Snapshot) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error) {
 	if priceTarget < 0 {
 		return nil, errPriceTargetInvalid
 	}
-	action, err := s.findAmount(priceTarget, buy)
+	action, err := ss.findAmount(priceTarget, buy)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func (s *Snapshot) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, e
 		amount = action.QuoteAmount
 		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
-			amount, s.Pair.Quote, s.Pair.Base, minPrice, maxPrice,
+			amount, ss.Pair.Quote, ss.Pair.Base, minPrice, maxPrice,
 			percent, len(action.Tranches), warning)
 	} else {
 		minPrice = action.TranchePositionPrice
@@ -56,7 +56,7 @@ func (s *Snapshot) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, e
 		amount = action.BaseAmount
 		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
-			amount, s.Pair.Base, s.Pair.Quote, maxPrice, minPrice,
+			amount, ss.Pair.Base, ss.Pair.Quote, maxPrice, minPrice,
 			percent, len(action.Tranches), warning)
 	}
 
@@ -71,7 +71,7 @@ func (s *Snapshot) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, e
 }
 
 // SimulateOrder simulates an order
-func (s *Snapshot) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error) {
+func (ss *Snapshot) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error) {
 	var direction string
 	var action *DeploymentAction
 	var soldAmount, boughtAmount, minimumPrice, maximumPrice float64
@@ -79,7 +79,7 @@ func (s *Snapshot) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, er
 	var err error
 	if buy {
 		direction = "Buying"
-		action, err = s.buy(amount)
+		action, err = ss.buy(amount)
 		if err != nil {
 			return nil, err
 		}
@@ -87,11 +87,11 @@ func (s *Snapshot) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, er
 		boughtAmount = action.BaseAmount
 		maximumPrice = action.TranchePositionPrice
 		minimumPrice = action.ReferencePrice
-		sold = s.Pair.Quote
-		bought = s.Pair.Base
+		sold = ss.Pair.Quote
+		bought = ss.Pair.Base
 	} else {
 		direction = "Selling"
-		action, err = s.sell(amount)
+		action, err = ss.sell(amount)
 		if err != nil {
 			return nil, err
 		}
@@ -99,8 +99,8 @@ func (s *Snapshot) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, er
 		boughtAmount = action.QuoteAmount
 		minimumPrice = action.TranchePositionPrice
 		maximumPrice = action.ReferencePrice
-		sold = s.Pair.Base
-		bought = s.Pair.Quote
+		sold = ss.Pair.Base
+		bought = ss.Pair.Quote
 	}
 
 	var warning string
@@ -122,49 +122,49 @@ func (s *Snapshot) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, er
 	}, nil
 }
 
-func (s *Snapshot) findAmount(priceTarget float64, buy bool) (*DeploymentAction, error) {
+func (ss *Snapshot) findAmount(priceTarget float64, buy bool) (*DeploymentAction, error) {
 	action := DeploymentAction{}
 	if buy {
-		if len(s.Asks) == 0 {
+		if len(ss.Asks) == 0 {
 			return nil, errNoLiquidity
 		}
-		action.ReferencePrice = s.Asks[0].Price
+		action.ReferencePrice = ss.Asks[0].Price
 		if action.ReferencePrice > priceTarget {
 			return nil, fmt.Errorf("%w to %f as it's below ascending ask prices starting at %f",
 				errCannotShiftPrice, priceTarget, action.ReferencePrice)
 		}
-		for x := range s.Asks {
-			if s.Asks[x].Price >= priceTarget {
-				action.TranchePositionPrice = s.Asks[x].Price
+		for x := range ss.Asks {
+			if ss.Asks[x].Price >= priceTarget {
+				action.TranchePositionPrice = ss.Asks[x].Price
 				return &action, nil
 			}
-			action.Tranches = append(action.Tranches, s.Asks[x])
-			action.QuoteAmount += s.Asks[x].Price * s.Asks[x].Amount
-			action.BaseAmount += s.Asks[x].Amount
+			action.Tranches = append(action.Tranches, ss.Asks[x])
+			action.QuoteAmount += ss.Asks[x].Price * ss.Asks[x].Amount
+			action.BaseAmount += ss.Asks[x].Amount
 		}
-		action.TranchePositionPrice = s.Asks[len(s.Asks)-1].Price
+		action.TranchePositionPrice = ss.Asks[len(ss.Asks)-1].Price
 		action.FullLiquidityUsed = true
 		return &action, nil
 	}
 
-	if len(s.Bids) == 0 {
+	if len(ss.Bids) == 0 {
 		return nil, errNoLiquidity
 	}
-	action.ReferencePrice = s.Bids[0].Price
+	action.ReferencePrice = ss.Bids[0].Price
 	if action.ReferencePrice < priceTarget {
 		return nil, fmt.Errorf("%w to %f as it's above descending bid prices starting at %f",
 			errCannotShiftPrice, priceTarget, action.ReferencePrice)
 	}
-	for x := range s.Bids {
-		if s.Bids[x].Price <= priceTarget {
-			action.TranchePositionPrice = s.Bids[x].Price
+	for x := range ss.Bids {
+		if ss.Bids[x].Price <= priceTarget {
+			action.TranchePositionPrice = ss.Bids[x].Price
 			return &action, nil
 		}
-		action.Tranches = append(action.Tranches, s.Bids[x])
-		action.QuoteAmount += s.Bids[x].Price * s.Bids[x].Amount
-		action.BaseAmount += s.Bids[x].Amount
+		action.Tranches = append(action.Tranches, ss.Bids[x])
+		action.QuoteAmount += ss.Bids[x].Price * ss.Bids[x].Amount
+		action.BaseAmount += ss.Bids[x].Amount
 	}
-	action.TranchePositionPrice = s.Bids[len(s.Bids)-1].Price
+	action.TranchePositionPrice = ss.Bids[len(ss.Bids)-1].Price
 	action.FullLiquidityUsed = true
 	return &action, nil
 }
@@ -179,80 +179,80 @@ type DeploymentAction struct {
 	FullLiquidityUsed    bool
 }
 
-func (s *Snapshot) buy(quote float64) (*DeploymentAction, error) {
+func (ss *Snapshot) buy(quote float64) (*DeploymentAction, error) {
 	if quote <= 0 {
 		return nil, errQuoteAmountInvalid
 	}
-	if len(s.Asks) == 0 {
+	if len(ss.Asks) == 0 {
 		return nil, errNoLiquidity
 	}
-	action := &DeploymentAction{ReferencePrice: s.Asks[0].Price}
-	for x := range s.Asks {
-		action.TranchePositionPrice = s.Asks[x].Price
-		trancheValue := s.Asks[x].Price * s.Asks[x].Amount
+	action := &DeploymentAction{ReferencePrice: ss.Asks[0].Price}
+	for x := range ss.Asks {
+		action.TranchePositionPrice = ss.Asks[x].Price
+		trancheValue := ss.Asks[x].Price * ss.Asks[x].Amount
 		action.QuoteAmount += trancheValue
 		remaining := quote - trancheValue
 		if remaining <= 0 {
 			if remaining == 0 {
-				if len(s.Asks)-1 > x {
-					action.TranchePositionPrice = s.Asks[x+1].Price
+				if len(ss.Asks)-1 > x {
+					action.TranchePositionPrice = ss.Asks[x+1].Price
 				} else {
 					action.FullLiquidityUsed = true
 				}
 			}
-			subAmount := quote / s.Asks[x].Price
+			subAmount := quote / ss.Asks[x].Price
 			action.Tranches = append(action.Tranches, Tranche{
-				Price:  s.Asks[x].Price,
+				Price:  ss.Asks[x].Price,
 				Amount: subAmount,
 			})
 			action.BaseAmount += subAmount
 			return action, nil
 		}
-		if len(s.Asks)-1 <= x {
+		if len(ss.Asks)-1 <= x {
 			action.FullLiquidityUsed = true
 		}
 		quote = remaining
-		action.BaseAmount += s.Asks[x].Amount
-		action.Tranches = append(action.Tranches, s.Asks[x])
+		action.BaseAmount += ss.Asks[x].Amount
+		action.Tranches = append(action.Tranches, ss.Asks[x])
 	}
 
 	return action, nil
 }
 
-func (s *Snapshot) sell(base float64) (*DeploymentAction, error) {
+func (ss *Snapshot) sell(base float64) (*DeploymentAction, error) {
 	if base <= 0 {
 		return nil, errSnapshotAmountInvalid
 	}
-	if len(s.Bids) == 0 {
+	if len(ss.Bids) == 0 {
 		return nil, errNoLiquidity
 	}
-	action := &DeploymentAction{ReferencePrice: s.Bids[0].Price}
-	for x := range s.Bids {
-		action.TranchePositionPrice = s.Bids[x].Price
-		remaining := base - s.Bids[x].Amount
+	action := &DeploymentAction{ReferencePrice: ss.Bids[0].Price}
+	for x := range ss.Bids {
+		action.TranchePositionPrice = ss.Bids[x].Price
+		remaining := base - ss.Bids[x].Amount
 		if remaining <= 0 {
 			if remaining == 0 {
-				if len(s.Bids)-1 > x {
-					action.TranchePositionPrice = s.Bids[x+1].Price
+				if len(ss.Bids)-1 > x {
+					action.TranchePositionPrice = ss.Bids[x+1].Price
 				} else {
 					action.FullLiquidityUsed = true
 				}
 			}
 			action.Tranches = append(action.Tranches, Tranche{
-				Price:  s.Bids[x].Price,
+				Price:  ss.Bids[x].Price,
 				Amount: base,
 			})
 			action.BaseAmount += base
-			action.QuoteAmount += base * s.Bids[x].Price
+			action.QuoteAmount += base * ss.Bids[x].Price
 			return action, nil
 		}
-		if len(s.Bids)-1 <= x {
+		if len(ss.Bids)-1 <= x {
 			action.FullLiquidityUsed = true
 		}
 		base = remaining
-		action.BaseAmount += s.Bids[x].Amount
-		action.QuoteAmount += s.Bids[x].Amount * s.Bids[x].Price
-		action.Tranches = append(action.Tranches, s.Bids[x])
+		action.BaseAmount += ss.Bids[x].Amount
+		action.QuoteAmount += ss.Bids[x].Amount * ss.Bids[x].Price
+		action.Tranches = append(action.Tranches, ss.Bids[x])
 	}
 	return action, nil
 }
@@ -260,18 +260,18 @@ func (s *Snapshot) sell(base float64) (*DeploymentAction, error) {
 // GetAveragePrice finds the average buy or sell price of a specified amount.
 // It finds the nominal amount spent on the total purchase or sell and uses it
 // to find the average price for an individual unit bought or sold
-func (s *Snapshot) GetAveragePrice(buy bool, amount float64) (float64, error) {
+func (ss *Snapshot) GetAveragePrice(buy bool, amount float64) (float64, error) {
 	if amount <= 0 {
 		return 0, errAmountInvalid
 	}
 	var aggNominalAmount, remainingAmount float64
 	if buy {
-		aggNominalAmount, remainingAmount = s.Asks.FindNominalAmount(amount)
+		aggNominalAmount, remainingAmount = ss.Asks.FindNominalAmount(amount)
 	} else {
-		aggNominalAmount, remainingAmount = s.Bids.FindNominalAmount(amount)
+		aggNominalAmount, remainingAmount = ss.Bids.FindNominalAmount(amount)
 	}
 	if remainingAmount != 0 {
-		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", errNotEnoughLiquidity, s.Pair, s.Exchange, amount)
+		return 0, fmt.Errorf("%w for %v on exchange %v to support a buy amount of %v", errNotEnoughLiquidity, ss.Pair, ss.Exchange, amount)
 	}
 	return aggNominalAmount / amount, nil
 }
