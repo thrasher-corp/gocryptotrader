@@ -47,7 +47,7 @@ const (
 	getOneClickRepayHistoryEPL
 	oneClickRepayCurrencyListEPL
 	tradeOneClickRepayEPL
-	massCancemMMPOrderEPL
+	massCancelMMPOrderEPL
 	getCounterpartiesEPL
 	createRFQEPL
 	cancelRFQEPL
@@ -254,6 +254,8 @@ const (
 	getSpreadOrderbookEPL
 	getSpreadTickerEPL
 	getSpreadPublicTradesEPL
+	getSpreadCandlesticksEPL
+	getSpreadCandlesticksHistoryEPL
 	cancelAllSpreadOrdersAfterEPL
 	getActiveSpreadOrdersEPL
 	getSpreadOrders7DaysEPL
@@ -323,8 +325,7 @@ const (
 	getFiatDepositPaymentMethodsEPL
 )
 
-// GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func GetRateLimit() request.RateLimitDefinitions {
+var rateLimits = func() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// Trade Endpoints
 		placeOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
@@ -358,7 +359,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getOneClickRepayHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
 		oneClickRepayCurrencyListEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
 		tradeOneClickRepayEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		massCancemMMPOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		massCancelMMPOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Block Trading endpoints
 		getCounterpartiesEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -582,20 +583,22 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getBlockTickersEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getBlockTradesEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
-		// Spread Orders rate limiters
-		placeSpreadOrderEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelSpreadOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAllSpreadOrderEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		amendSpreadOrderEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadOrderDetailsEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getActiveSpreadOrdersEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getSpreadOrders7DaysEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadOrderTradesEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadsEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadOrderbookEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadTickerEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getSpreadPublicTradesEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAllSpreadOrdersAfterEPL: request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		// Spread trading related rate limiters
+		placeSpreadOrderEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelSpreadOrderEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAllSpreadOrderEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		amendSpreadOrderEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrderDetailsEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getActiveSpreadOrdersEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getSpreadOrders7DaysEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrderTradesEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadsEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadOrderbookEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadTickerEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadPublicTradesEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSpreadCandlesticksEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
+		getSpreadCandlesticksHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAllSpreadOrdersAfterEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
 
 		// Public Data Endpoints
 		getInstrumentsEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -661,4 +664,4 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getWithdrawalPaymentMethodsEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getFiatDepositPaymentMethodsEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 	}
-}
+}()

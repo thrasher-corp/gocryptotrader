@@ -121,7 +121,6 @@ const (
 
 	// account management eps
 	getAnnouncements                  = "public/get_announcements"
-	getPublicPortfolioMargins         = "public/get_portfolio_margins"
 	changeAPIKeyName                  = "private/change_api_key_name"
 	changeMarginModel                 = "private/change_margin_model"
 	changeScopeInAPIKey               = "private/change_scope_in_api_key"
@@ -137,7 +136,6 @@ const (
 	getAffiliateProgramInfo           = "private/get_affiliate_program_info"
 	getEmailLanguage                  = "private/get_email_language"
 	getNewAnnouncements               = "private/get_new_announcements"
-	getPrivatePortfolioMargins        = "private/get_portfolio_margins"
 	getPosition                       = "private/get_position"
 	getPositions                      = "private/get_positions"
 	getSubAccounts                    = "private/get_subaccounts"
@@ -291,28 +289,8 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var data [][2]any
-	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getHistoricalVolatility, params), &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]HistoricalVolatilityData, len(data))
-	for x := range data {
-		timeData, ok := data[x][0].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][0], "time data")
-		}
-		val, ok := data[x][1].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][1], "volatility value")
-		}
-		resp[x] = HistoricalVolatilityData{
-			Timestamp: timeData,
-			Value:     val,
-		}
-	}
-	return resp, nil
+	var data []HistoricalVolatilityData
+	return data, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
@@ -973,24 +951,6 @@ func (d *Deribit) GetAnnouncements(ctx context.Context, startTime time.Time, cou
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getAnnouncements, params), &resp)
 }
 
-// GetPublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
-func (d *Deribit) GetPublicPortfolioMargins(ctx context.Context, ccy currency.Code, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	if len(simulatedPositions) != 0 {
-		values, err := json.Marshal(simulatedPositions)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("simulated_positions", string(values))
-	}
-	var resp *PortfolioMargin
-	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, portfolioMarginEPL, common.EncodeURLValues(getPublicPortfolioMargins, params), &resp)
-}
-
 // ChangeAPIKeyName changes the name of the api key requested
 func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (*APIKeyData, error) {
 	if id <= 0 {
@@ -1191,27 +1151,6 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 	var resp []Announcement
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getNewAnnouncements, nil, &resp)
-}
-
-// GetPrivatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy currency.Code, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	if accPositions {
-		params.Set("acc_positions", "true")
-	}
-	if len(simulatedPositions) != 0 {
-		values, err := json.Marshal(simulatedPositions)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("simulated_positions", string(values))
-	}
-	var resp *PortfolioMargin
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getPrivatePortfolioMargins, params, &resp)
 }
 
 // GetPosition gets the data of all positions in the requested instrument name
