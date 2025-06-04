@@ -244,7 +244,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Subscriber:            by.Subscribe,
 		Unsubscriber:          by.Unsubscribe,
 		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
-		RequestIDGenerator:    by.websocketRequestIDGenerator,
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Subscriber:            by.OptionSubscribe,
 		Unsubscriber:          by.OptionUnsubscribe,
 		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
-		RequestIDGenerator:    by.websocketRequestIDGenerator,
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
 		},
-		RequestIDGenerator: by.websocketRequestIDGenerator,
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
 		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
@@ -301,7 +301,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
 		},
-		RequestIDGenerator: by.websocketRequestIDGenerator,
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
 		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
@@ -320,7 +320,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, resp []byte) error {
 			return by.wsHandleData(ctx, resp, asset.CoinMarginedFutures)
 		},
-		RequestIDGenerator: by.websocketRequestIDGenerator,
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -337,14 +337,9 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Subscriber:            by.authSubscribe,
 		Unsubscriber:          by.authUnsubscribe,
 		Handler:               by.wsHandleAuthenticatedData,
-		RequestIDGenerator:    by.websocketRequestIDGenerator,
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
 		Authenticate:          by.WebsocketAuthenticateConnection,
 	})
-}
-
-// websocketRequestIDGenerator generates a unique ID for websocket requests, this is just a simple counter.
-func (by *Bybit) websocketRequestIDGenerator() int64 {
-	return by.messageIDSeq.IncrementAndGet()
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
