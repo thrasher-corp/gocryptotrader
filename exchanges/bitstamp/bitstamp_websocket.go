@@ -59,8 +59,9 @@ func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	ctx := context.TODO()
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -72,19 +73,19 @@ func (b *Bitstamp) WsConnect() error {
 		Message:     hbMsg,
 		Delay:       hbInterval,
 	})
-	err = b.seedOrderBook(context.TODO())
+	err = b.seedOrderBook(ctx)
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
 
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(ctx)
 
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitstamp) wsReadData() {
+func (b *Bitstamp) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -92,13 +93,13 @@ func (b *Bitstamp) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		if err := b.wsHandleData(resp.Raw); err != nil {
+		if err := b.wsHandleData(ctx, resp.Raw); err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Bitstamp) wsHandleData(respRaw []byte) error {
+func (b *Bitstamp) wsHandleData(_ context.Context, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)
@@ -236,24 +237,26 @@ func (b *Bitstamp) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (b *Bitstamp) Subscribe(subs subscription.List) error {
-	return b.manageSubsWithCreds(subs, "sub")
+	ctx := context.TODO()
+	return b.manageSubsWithCreds(ctx, subs, "sub")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
 func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
-	return b.manageSubsWithCreds(subs, "unsub")
+	ctx := context.TODO()
+	return b.manageSubsWithCreds(ctx, subs, "unsub")
 }
 
-func (b *Bitstamp) manageSubsWithCreds(subs subscription.List, op string) error {
+func (b *Bitstamp) manageSubsWithCreds(ctx context.Context, subs subscription.List, op string) error {
 	var errs error
 	var creds *WebsocketAuthResponse
 	if authed := subs.Private(); len(authed) > 0 {
-		creds, errs = b.FetchWSAuth(context.TODO())
+		creds, errs = b.FetchWSAuth(ctx)
 	}
-	return common.AppendError(errs, b.ParallelChanOp(subs, func(s subscription.List) error { return b.manageSubs(s, op, creds) }, 1))
+	return common.AppendError(errs, b.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error { return b.manageSubs(ctx, s, op, creds) }, 1))
 }
 
-func (b *Bitstamp) manageSubs(subs subscription.List, op string, creds *WebsocketAuthResponse) error {
+func (b *Bitstamp) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketAuthResponse) error {
 	subs, errs := subs.ExpandTemplates(b)
 	for _, s := range subs {
 		req := websocketEventRequest{
@@ -269,7 +272,7 @@ func (b *Bitstamp) manageSubs(subs subscription.List, op string, creds *Websocke
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(creds.UserID))
 			req.Data.Auth = creds.Token
 		}
-		_, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, op+":"+req.Data.Channel, req)
+		_, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, op+":"+req.Data.Channel, req)
 		if err == nil {
 			if op == "sub" {
 				err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, s)
