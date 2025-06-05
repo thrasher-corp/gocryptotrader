@@ -1,7 +1,9 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
 LINTPKG = github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
+GOPATH ?= $(shell go env GOPATH)
 LINTBIN = $(GOPATH)/bin/golangci-lint
+GOFUMPTBIN = $(GOPATH)/bin/gofumpt
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
 GO_FILES_TO_FORMAT := $(shell find . -type f -name '*.go' 	-not -path "./database/models/*" 	-not -path "./vendor/*" 	-not -name "*.pb.go" 	-not -name "*.pb.gw.go")
@@ -37,7 +39,7 @@ fmt:
 
 gofumpt:
 	@command -v gofumpt >/dev/null 2>&1 || go install mvdan.cc/gofumpt@latest
-	gofumpt -l -w $(GO_FILES_TO_FORMAT)
+	$(GOFUMPTBIN) -l -w $(GO_FILES_TO_FORMAT)
 
 update_deps:
 	go mod verify
