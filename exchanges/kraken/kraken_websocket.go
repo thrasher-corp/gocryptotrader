@@ -111,24 +111,17 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
-		k.wsAuthMu.Lock()
-		k.wsAuthToken, err = k.GetWebsocketToken(context.TODO())
-		k.wsAuthMu.Unlock()
-		if err != nil {
+		if authToken, err := k.GetWebsocketToken(context.TODO()); err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				k.Name,
-				err)
+			log.Errorf(log.ExchangeSys, "%s - authentication failed: %v\n", k.Name, err)
 		} else {
-			err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
-			if err != nil {
+			if err := k.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys,
-					"%v - failed to connect to authenticated endpoint: %v\n",
-					k.Name,
-					err)
+				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 			} else {
+				k.wsAuthMu.Lock()
+				k.wsAuthToken = authToken
+				k.wsAuthMu.Unlock()
 				k.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
