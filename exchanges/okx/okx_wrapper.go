@@ -974,7 +974,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
-	case "trigger":
+	case orderTrigger:
 		result, err = ok.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
@@ -986,7 +986,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			TriggerPrice:     s.TriggerPrice,
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "conditional":
+	case orderConditional:
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = ok.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
@@ -1000,7 +1000,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			StopLossOrderPrice:       s.Price,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "chase":
+	case orderChase:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1018,7 +1018,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			MaxChaseType:  s.TrackingMode.String(),
 			MaxChaseValue: s.TrackingValue,
 		})
-	case "move_order_stop":
+	case orderMoveOrderStop:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1041,7 +1041,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			CallbackSpreadVariance: callbackSpread,
 			ActivePrice:            s.TriggerPrice,
 		})
-	case "twap":
+	case orderTWAP:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1066,7 +1066,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			LimitPrice:    s.Price,
 			TimeInterval:  kline.FifteenMin,
 		})
-	case "oco":
+	case orderOCO:
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
 			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)

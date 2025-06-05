@@ -350,9 +350,9 @@ const (
 // Type enforces a standard for order types across the code base
 type Type uint32
 
-// Is checks to see if the enum contains the flag
-func (t Type) Is(in Type) bool {
-	return in != 0 && t&in == in
+// Is checks to see if the Type contains the Type cmp
+func (t Type) Is(cmp Type) bool {
+	return cmp != 0 && t&cmp == cmp
 }
 
 // Defined package order types
@@ -369,10 +369,10 @@ const (
 	Trigger
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
-	TWAP            // time-weighted average price.
-	Chase           // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	TWAP            // time-weighted average price
+	Chase           // chase limit order
 	OptimalLimit
-	MarketMakerProtection // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
+	MarketMakerProtection
 
 	// Hybrid order types
 	StopLimit        = Stop | Limit

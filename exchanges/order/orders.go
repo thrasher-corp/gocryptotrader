@@ -667,6 +667,10 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {
+	case StopMarket:
+		return "STOP MARKET"
+	case StopLimit:
+		return "STOP LIMIT"
 	case Limit:
 		return "LIMIT"
 	case Market:
@@ -697,15 +701,9 @@ func (t Type) String() string {
 		return "OPTIMAL_LIMIT"
 	case MarketMakerProtection:
 		return "MMP"
+	case AnyType:
+		return "ANY"
 	default:
-		switch {
-		case t == AnyType:
-			return "ANY"
-		case t.Is(StopLimit):
-			return "STOP LIMIT"
-		case t.Is(StopMarket):
-			return "STOP MARKET"
-		}
 		return "UNKNOWN"
 	}
 }

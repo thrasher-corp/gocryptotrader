@@ -25,18 +25,18 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.Limit, order.ImmediateOrCancel, nil
 	case orderOptimalLimitIOC:
 		return order.OptimalLimit, order.ImmediateOrCancel, nil
-	case "mmp":
+	case orderMarketMakerProtection:
 		return order.MarketMakerProtection, order.UnknownTIF, nil
-	case "mmp_and_post_only":
+	case orderMarketMakerProtectionAndPostOnly:
 		return order.MarketMakerProtection, order.PostOnly, nil
-	case "twap":
+	case orderTWAP:
 		return order.TWAP, order.UnknownTIF, nil
-	case "move_order_stop":
-		return order.TrailingStop, 0, nil
-	case "chase":
+	case orderMoveOrderStop:
+		return order.TrailingStop, order.UnknownTIF, nil
+	case orderChase:
 		return order.Chase, order.UnknownTIF, nil
 	default:
-		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %q", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
@@ -45,16 +45,16 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	switch orderType {
 	case order.MarketMakerProtection:
 		if tif == order.PostOnly {
-			return "mmp_and_post_only", nil
+			return orderMarketMakerProtectionAndPostOnly, nil
 		}
-		return "mmp", nil
+		return orderMarketMakerProtection, nil
 	case order.OptimalLimit:
-		return "optimal_limit_ioc", nil
+		return orderOptimalLimitIOC, nil
 	case order.Limit:
 		if tif == order.PostOnly {
 			return orderPostOnly, nil
 		}
-		return orderType.Lower(), nil
+		return orderLimit, nil
 	case order.Market:
 		switch tif {
 		case order.FillOrKill:
@@ -62,16 +62,16 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return orderType.Lower(), nil
+		return orderMarket, nil
 	case order.Trigger,
 		order.Chase,
 		order.TWAP,
 		order.OCO:
 		return orderType.Lower(), nil
 	case order.ConditionalStop:
-		return "conditional", nil
+		return orderConditional, nil
 	case order.TrailingStop:
-		return "move_order_stop", nil
+		return orderMoveOrderStop, nil
 	default:
 		switch tif {
 		case order.PostOnly:
@@ -81,7 +81,7 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return "", fmt.Errorf("%w: `%v`", order.ErrUnsupportedOrderType, orderType)
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
 }
 

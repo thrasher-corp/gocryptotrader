@@ -305,6 +305,39 @@ func TestOrderTypes(t *testing.T) {
 	assert.Equal(t, "Unknown", orderType.Title())
 }
 
+var orderToToStringsList = []struct {
+	OrderType Type
+	String    string
+}{
+	{StopMarket, "STOP MARKET"},
+	{StopLimit, "STOP LIMIT"},
+	{Limit, "LIMIT"},
+	{Market, "MARKET"},
+	{Stop, "STOP"},
+	{ConditionalStop, "CONDITIONAL"},
+	{TWAP, "TWAP"},
+	{Chase, "CHASE"},
+	{TakeProfit, "TAKE PROFIT"},
+	{TakeProfitMarket, "TAKE PROFIT MARKET"},
+	{TrailingStop, "TRAILING_STOP"},
+	{IOS, "IOS"},
+	{Liquidation, "LIQUIDATION"},
+	{Trigger, "TRIGGER"},
+	{OCO, "OCO"},
+	{OptimalLimit, "OPTIMAL_LIMIT"},
+	{MarketMakerProtection, "MMP"},
+	{AnyType, "ANY"},
+	{UnknownType | Limit, "LIMIT"},
+	{StopMarket | ConditionalStop, "UNKNOWN"},
+}
+
+func TestOrderTypeToString(t *testing.T) {
+	t.Parallel()
+	for x := range orderToToStringsList {
+		assert.Equal(t, orderToToStringsList[x].String, orderToToStringsList[x].OrderType.String())
+	}
+}
+
 func TestInferCostsAndTimes(t *testing.T) {
 	t.Parallel()
 	var detail Detail
@@ -780,6 +813,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"optimal_limit", OptimalLimit, nil},
+		{"OPTIMAL_LIMIT", OptimalLimit, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
