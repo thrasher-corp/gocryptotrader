@@ -229,13 +229,13 @@ type TradeBalanceInfo struct {
 
 // OrderInfo type
 type OrderInfo struct {
-	RefID       string  `json:"refid"`
-	UserRef     int32   `json:"userref"`
-	Status      string  `json:"status"`
-	OpenTime    float64 `json:"opentm"`
-	CloseTime   float64 `json:"closetm"`
-	StartTime   float64 `json:"starttm"`
-	ExpireTime  float64 `json:"expiretm"`
+	RefID       string     `json:"refid"`
+	UserRef     int32      `json:"userref"`
+	Status      string     `json:"status"`
+	OpenTime    types.Time `json:"opentm"`
+	CloseTime   types.Time `json:"closetm"`
+	StartTime   types.Time `json:"starttm"`
+	ExpireTime  types.Time `json:"expiretm"`
 	Description struct {
 		Pair      string  `json:"pair"`
 		Type      string  `json:"type"`

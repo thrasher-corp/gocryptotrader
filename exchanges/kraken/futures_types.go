@@ -378,7 +378,7 @@ type FuturesFillsData struct {
 	Fills []struct {
 		FillID   string    `json:"fill_id"`
 		Symbol   string    `json:"symbol"`
-		Side     string    `json:"buy"`
+		Side     string    `json:"side"`
 		OrderID  string    `json:"order_id"`
 		Size     float64   `json:"size"`
 		Price    float64   `json:"price"`
