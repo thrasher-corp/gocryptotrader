@@ -685,7 +685,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.DialContext(t.Context(), &dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	require.NoError(t, err, "Dial must not error")
 	go c.wsReadData(t.Context())
 

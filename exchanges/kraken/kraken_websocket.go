@@ -102,7 +102,7 @@ func (k *Kraken) WsConnect() error {
 	}
 
 	var dialer gws.Dialer
-	err := k.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := k.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (k *Kraken) WsConnect() error {
 				k.Name,
 				err)
 		} else {
-			err = k.Websocket.AuthConn.DialContext(ctx, &dialer, http.Header{})
+			err = k.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 			if err != nil {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				log.Errorf(log.ExchangeSys,

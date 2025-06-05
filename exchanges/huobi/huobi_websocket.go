@@ -79,7 +79,7 @@ func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := h.Websocket.Conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := h.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 
@@ -565,7 +565,7 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string
 }
 
 func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
-	if err := h.Websocket.AuthConn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := h.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
 	if err := h.wsLogin(ctx); err != nil {

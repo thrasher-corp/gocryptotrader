@@ -34,7 +34,7 @@ func (c *CoinbasePro) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

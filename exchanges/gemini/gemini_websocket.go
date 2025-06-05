@@ -63,7 +63,7 @@ func (g *Gemini) WsConnect() error {
 	}
 
 	var dialer gws.Dialer
-	err := g.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := g.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = g.Websocket.AuthConn.DialContext(ctx, dialer, headers)
+	err = g.Websocket.AuthConn.Dial(ctx, dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}

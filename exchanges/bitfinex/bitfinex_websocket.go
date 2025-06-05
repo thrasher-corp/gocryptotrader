@@ -127,7 +127,7 @@ func (b *Bitfinex) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
 			b.Name,
@@ -137,7 +137,7 @@ func (b *Bitfinex) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(b.Websocket.Conn)
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		err = b.Websocket.AuthConn.DialContext(ctx, &dialer, http.Header{})
+		err = b.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",

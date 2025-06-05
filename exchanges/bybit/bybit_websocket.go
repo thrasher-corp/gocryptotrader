@@ -84,7 +84,7 @@ func (by *Bybit) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := by.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := by.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (by *Bybit) WsConnect() error {
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
 	var dialer gws.Dialer
-	err := by.Websocket.AuthConn.DialContext(ctx, &dialer, http.Header{})
+	err := by.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

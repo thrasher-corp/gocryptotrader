@@ -61,7 +61,7 @@ func (b *Bitstamp) WsConnect() error {
 	}
 	ctx := context.TODO()
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

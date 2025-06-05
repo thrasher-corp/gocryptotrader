@@ -52,7 +52,7 @@ func (ok *Okx) WsConnectBusiness(ctx context.Context) error {
 	dialer.WriteBufferSize = 8192
 
 	ok.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
-	err := ok.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

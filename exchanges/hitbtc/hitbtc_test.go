@@ -463,7 +463,7 @@ func setupWsAuth(t *testing.T) {
 	}
 
 	var dialer gws.Dialer
-	err := h.Websocket.Conn.DialContext(t.Context(), &dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -60,7 +60,7 @@ func (p *Poloniex) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := p.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

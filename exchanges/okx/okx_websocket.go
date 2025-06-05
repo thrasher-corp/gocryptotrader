@@ -244,7 +244,7 @@ func (ok *Okx) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ok.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 		return err
 	}
 	var dialer gws.Dialer
-	err = ok.Websocket.AuthConn.DialContext(ctx, &dialer, http.Header{})
+	err = ok.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

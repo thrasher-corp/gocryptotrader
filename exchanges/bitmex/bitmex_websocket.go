@@ -89,7 +89,7 @@ func (b *Bitmex) WsConnect() error {
 
 	ctx := context.TODO()
 	var dialer gws.Dialer
-	if err := b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{}); err != nil {
+	if err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 

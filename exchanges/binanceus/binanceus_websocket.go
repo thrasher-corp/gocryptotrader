@@ -71,7 +71,7 @@ func (bi *Binanceus) WsConnect() error {
 			}
 		}
 	}
-	err = bi.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err = bi.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			bi.Name,

@@ -150,7 +150,7 @@ func (ku *Kucoin) WsConnect() error {
 		return errors.New("no websocket instance server found")
 	}
 	ku.Websocket.Conn.SetURL(instances.InstanceServers[0].Endpoint + "?token=" + instances.Token)
-	err = ku.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err = ku.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", ku.Name, err)
 	}

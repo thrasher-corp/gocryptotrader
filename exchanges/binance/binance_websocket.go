@@ -79,7 +79,7 @@ func (b *Binance) WsConnect() error {
 		}
 	}
 
-	err = b.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err = b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			b.Name,

@@ -20,7 +20,7 @@ func (by *Bybit) WsInverseConnect() error {
 	}
 	by.Websocket.Conn.SetURL(inversePublic)
 	var dialer gws.Dialer
-	err := by.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := by.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

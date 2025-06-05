@@ -57,7 +57,7 @@ func (h *HitBTC) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := h.Websocket.Conn.DialContext(ctx, &dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
