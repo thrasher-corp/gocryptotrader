@@ -6133,7 +6133,6 @@ func TestWsProcessSpreadTradesJSON(t *testing.T) {
 
 func TestOrderTypeFromString(t *testing.T) {
 	t.Parallel()
-
 	orderTypeStrings := map[string]struct {
 		OType order.Type
 		TIF   order.TimeInForce
@@ -6156,6 +6155,8 @@ func TestOrderTypeFromString(t *testing.T) {
 	}
 	for s, exp := range orderTypeStrings {
 		t.Run(s, func(t *testing.T) {
+			t.Parallel()
+			s := s
 			oType, tif, err := orderTypeFromString(s)
 			require.ErrorIs(t, err, exp.Error)
 			assert.Equal(t, exp.OType, oType)
