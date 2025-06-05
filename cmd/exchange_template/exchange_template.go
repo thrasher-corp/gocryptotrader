@@ -28,7 +28,6 @@ const (
 type exchange struct {
 	Name        string
 	CapitalName string
-	Variable    string
 	REST        bool
 	WS          bool
 	FIX         bool
@@ -147,7 +146,6 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
 	exch.CapitalName = cases.Title(language.English).String(exch.Name)
-	exch.Variable = "e"
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true

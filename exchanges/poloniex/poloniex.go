@@ -61,7 +61,7 @@ const (
 	poloniexMaxOrderbookDepth    = 100
 )
 
-// Exchange is the overarching type across the poloniex package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Poloniex
 type Exchange struct {
 	exchange.Base
 	details CurrencyDetails

@@ -5,7 +5,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
-// Exchange is the overarching type across this package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with {{.CapitalName}}
 type Exchange struct {
 	exchange.Base
 }

@@ -14,7 +14,7 @@ const (
 )
 
 // WebsocketClient starts a new webstocket connection
-func (a *Alphapoint) WebsocketClient() {
+func (a *Exchange) WebsocketClient() {
 	for a.Enabled {
 		var dialer gws.Dialer
 		var err error

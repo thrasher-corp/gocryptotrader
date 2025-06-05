@@ -31,12 +31,12 @@ import (
 )
 
 // SetDefaults sets the basic defaults for {{.CapitalName}}
-func ({{.Variable}} *Exchange) SetDefaults() {
-	{{.Variable}}.Name = "{{.CapitalName}}"
-	{{.Variable}}.Enabled = true
-	{{.Variable}}.Verbose = true
-	{{.Variable}}.API.CredentialsValidator.RequiresKey = true
-	{{.Variable}}.API.CredentialsValidator.RequiresSecret = true
+func (e *Exchange) SetDefaults() {
+	e.Name = "{{.CapitalName}}"
+	e.Enabled = true
+	e.Verbose = true
+	e.API.CredentialsValidator.RequiresKey = true
+	e.API.CredentialsValidator.RequiresSecret = true
 
 	// If using only one pair format for request and configuration, across all 
 	// supported asset types either SPOT and FUTURES etc. You can use the 
@@ -48,7 +48,7 @@ func ({{.Variable}} *Exchange) SetDefaults() {
 	// Config format denotes what the pair as a string will be, when saved to 
 	// the config.json file.
 	configFmt := &currency.PairFormat{/*Set pair request formatting details here*/}
-	err := {{.Variable}}.SetGlobalPairsManager(requestFmt, configFmt, /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	err := e.SetGlobalPairsManager(requestFmt, configFmt, /*multiple assets can be set here using the asset package ie asset.Spot*/)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -70,17 +70,17 @@ func ({{.Variable}} *Exchange) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	err = {{.Variable}}.SetAssetPairStore(asset.Spot, fmt1)
+	err = e.SetAssetPairStore(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", {{.Variable}}.Name, asset.Spot, err)
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
 	}
-	err = {{.Variable}}.SetAssetPairStore(asset.Margin, fmt2)
+	err = e.SetAssetPairStore(asset.Margin, fmt2)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", {{.Variable}}.Name, asset.Margin, err)
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Margin, err)
 	}
 
 	// Fill out the capabilities/features that the exchange supports
-	{{.Variable}}.Features = exchange.Features{
+	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			{{ if .REST }} REST: true, {{ end }}
 			{{ if .WS }} Websocket: true, {{ end }}
@@ -92,21 +92,21 @@ func ({{.Variable}} *Exchange) SetDefaults() {
 			{{ end }}
 			{{ if .WS }}
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching: 		   true,
-				OrderbookFetching:         true,
-				// KlineFetching:          true,
-				// TradeFetching:          true,
-				// Subscribe:              true,
-				// Unsubscribe:            true,
-				// GetOrders:              true,
-				// AccountInfo:            true,
-				// AuthenticatedEndpoints: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				KlineFetching:          true,
+				TradeFetching:          true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				GetOrders:              true,
+				AccountInfo:            true,
+				AuthenticatedEndpoints: true,
 			},
 			{{ end }}
 			WithdrawPermissions: exchange.AutoWithdrawCrypto | 
 				exchange.AutoWithdrawFiat,
 			Kline: kline.ExchangeCapabilitiesSupported{
-				// Intervals:  true,
+				Intervals:  false,
 			},
 		},
 
@@ -122,68 +122,68 @@ func ({{.Variable}} *Exchange) SetDefaults() {
 		Subscriptions: subscription.List{},
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
-	{{.Variable}}.Requester, err = request.New({{.Variable}}.Name,
+	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
 	// NOTE: SET THE URLs HERE
-	{{.Variable}}.API.Endpoints = {{.Variable}}.NewEndpoints()
-	err = {{.Variable}}.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	e.API.Endpoints = e.NewEndpoints()
+	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	{{.Variable}}.Websocket = websocket.NewManager()
-	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	e.Websocket = websocket.NewManager()
+	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func ({{.Variable}} *Exchange) Setup(exch *config.Exchange) error {
+func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		{{.Variable}}.SetEnabled(false)
+		e.SetEnabled(false)
 		return nil
 	}
-	err = {{.Variable}}.SetupDefaults(exch)
+	err = e.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
 	/*
-	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
 	// If websocket is supported, please fill out the following
-	err = {{.Variable}}.Websocket.Setup(
+	err = e.Websocket.Setup(
 		&websocket.ManagerSetup{
 			ExchangeConfig:  exch,
 			DefaultURL:      {{.Name}}WSAPIURL,
 			RunningURL:      wsRunningEndpoint,
-			Connector:       {{.Variable}}.WsConnect,
-			Subscriber:      {{.Variable}}.Subscribe,
-			UnSubscriber:    {{.Variable}}.Unsubscribe,
-			Features:        &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+			Connector:       e.WsConnect,
+			Subscriber:      e.Subscribe,
+			UnSubscriber:    e.Unsubscribe,
+			Features:        &e.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
 	}
 
-	{{.Variable}}.WebsocketConn = &websocket.WebsocketConnection{
-		ExchangeName:         {{.Variable}}.Name,
-		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
-		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
-		Verbose:              {{.Variable}}.Verbose,
+	e.WebsocketConn = &websocket.WebsocketConnection{
+		ExchangeName:         e.Name,
+		URL:                  e.Websocket.GetWebsocketURL(),
+		ProxyURL:             e.Websocket.GetProxyAddress(),
+		Verbose:              e.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
@@ -192,22 +192,22 @@ func ({{.Variable}} *Exchange) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func ({{.Variable}} *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	// Implement fetching the exchange available pairs if supported
 	return nil, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func ({{.Variable}} *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := {{.Variable}}.GetAssetTypes(false)
+func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	assetTypes := e.GetAssetTypes(false)
 	for x := range assetTypes {
-		pairs, err := {{.Variable}}.FetchTradablePairs(ctx, assetTypes[x])
+		pairs, err := e.FetchTradablePairs(ctx, assetTypes[x])
 		if err != nil {
 			return err
 		}
 
-		err = {{.Variable}}.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
+		err = e.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -217,7 +217,7 @@ func ({{.Variable}} *Exchange) UpdateTradablePairs(ctx context.Context, forceUpd
 
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func ({{.Variable}} *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
 	tick, err := ti.GetTickers()
@@ -248,14 +248,14 @@ func ({{.Variable}} *Exchange) UpdateTicker(ctx context.Context, p currency.Pair
 		}
 	}
 	*/
-	return ticker.GetTicker({{.Variable}}.Name, p, assetType)
+	return ticker.GetTicker(e.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
-func ({{.Variable}} *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
     // NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-	tick, err := {{.Variable}}.GetTickers()
+	tick, err := e.GetTickers()
 	if err != nil {
 		return err
 	}
@@ -287,17 +287,17 @@ func ({{.Variable}} *Exchange) UpdateTickers(ctx context.Context, assetType asse
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	book := &orderbook.Base{
-		Exchange: {{.Variable}}.Name, 
+		Exchange: e.Name, 
 		Pair: pair, 
 		Asset: assetType,
-		VerifyOrderbook: {{.Variable}}.CanVerifyOrderbook,
+		VerifyOrderbook: e.CanVerifyOrderbook,
 	}
 	
 	// NOTE: UPDATE ORDERBOOK EXAMPLE
 	/* 
-	orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
+	orderbookNew, err := e.GetOrderBook(exchange.FormatExchangeCurrency(e.Name, p).String(), 1000)
 	if err != nil {
 		return book, err
 	}
@@ -324,11 +324,11 @@ func ({{.Variable}} *Exchange) UpdateOrderbook(ctx context.Context, pair currenc
 		return book, err
 	}
 
-	return orderbook.Get({{.Variable}}.Name, pair, assetType)
+	return orderbook.Get(e.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func ({{.Variable}} *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	// If fetching requires more than one asset type please set 
 	// HasAssetTypeAccountSegregation to true in RESTCapabilities above. 
 	return account.Holdings{}, common.ErrNotYetImplemented
@@ -336,35 +336,35 @@ func ({{.Variable}} *Exchange) UpdateAccountInfo(ctx context.Context, assetType 
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func ({{.Variable}} *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func ({{.Variable}} *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func ({{.Variable}} *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func ({{.Variable}} *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 
 // GetServerTime returns the current exchange server time.
-func ({{.Variable}} *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
 
 // SubmitOrder submits a new order
-func ({{.Variable}} *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate({{.Variable}}.GetTradingRequirements()); err != nil {
+func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	// When an order has been submitted you can use this helpful constructor to
@@ -381,7 +381,7 @@ func ({{.Variable}} *Exchange) SubmitOrder(ctx context.Context, s *order.Submit)
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func ({{.Variable}} *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
@@ -397,7 +397,7 @@ func ({{.Variable}} *Exchange) ModifyOrder(ctx context.Context, action *order.Mo
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func ({{.Variable}} *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	// if err := ord.Validate(ord.StandardCancel()); err != nil {
 	//	 return err
 	// }
@@ -405,12 +405,12 @@ func ({{.Variable}} *Exchange) CancelOrder(ctx context.Context, ord *order.Cance
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func ({{.Variable}} *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
     return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func ({{.Variable}} *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// if err := orderCancellation.Validate(); err != nil {
 	//	 return err
 	// }
@@ -418,24 +418,24 @@ func ({{.Variable}} *Exchange) CancelAllOrders(ctx context.Context, orderCancell
 }
 
 // GetOrderInfo returns order information based on order ID
-func ({{.Variable}} *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func ({{.Variable}} *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
-func ({{.Variable}} *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -444,7 +444,7 @@ func ({{.Variable}} *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, 
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *Exchange) WithdrawFiatFunds(_ context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(_ context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -453,7 +453,7 @@ func ({{.Variable}} *Exchange) WithdrawFiatFunds(_ context.Context, withdrawRequ
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	// if err := withdrawRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -461,7 +461,7 @@ func ({{.Variable}} *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Co
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func ({{.Variable}} *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -470,7 +470,7 @@ func ({{.Variable}} *Exchange) GetActiveOrders(ctx context.Context, getOrdersReq
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func ({{.Variable}} *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// if err := getOrdersRequest.Validate(); err != nil {
 	//	return nil, err
 	// }
@@ -478,43 +478,43 @@ func ({{.Variable}} *Exchange) GetOrderHistory(ctx context.Context, getOrdersReq
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func ({{.Variable}} *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrNotYetImplemented
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
-func ({{.Variable}} *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := {{.Variable}}.UpdateAccountInfo(ctx, assetType)
-	return {{.Variable}}.CheckTransientError(err)
+func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := e.UpdateAccountInfo(ctx, assetType)
+	return e.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func ({{.Variable}} *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func ({{.Variable}} *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func ({{.Variable}} *Exchange) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
+func (e *Exchange) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	return -1, common.ErrNotYetImplemented
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func ({{.Variable}} *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+func (e *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func ({{.Variable}} *Exchange) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (e *Exchange) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
-func ({{.Variable}} *Exchange) GetHistoricalFundingRates(_ context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+func (e *Exchange) GetHistoricalFundingRates(_ context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -522,13 +522,13 @@ func ({{.Variable}} *Exchange) GetHistoricalFundingRates(_ context.Context, r *f
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func ({{.Variable}} *Exchange) GetOpenInterest(_ context.Context, _ ...key.PairAsset) ([]futures.OpenInterest, error) {
+func (e *Exchange) GetOpenInterest(_ context.Context, _ ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func ({{.Variable}} *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := {{.Variable}}.CurrencyPairs.IsPairEnabled(cp, a)
+func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
 	}
@@ -536,12 +536,12 @@ func ({{.Variable}} *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.It
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func ({{.Variable}} *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func ({{.Variable}} *Exchange) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
+func (e *Exchange) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
 	return common.ErrNotYetImplemented
 }
 

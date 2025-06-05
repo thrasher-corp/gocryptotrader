@@ -109,7 +109,7 @@ const (
 	CandlesPeriodKey = "_period"
 )
 
-// Exchange is the overarching type across the bitfinex package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bitfinex
 type Exchange struct {
 	exchange.Base
 }

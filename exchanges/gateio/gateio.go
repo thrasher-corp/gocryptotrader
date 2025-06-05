@@ -185,7 +185,7 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
 }
 
-// Exchange is the overarching type across this package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with GateIO
 type Exchange struct {
 	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base

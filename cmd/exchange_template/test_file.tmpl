@@ -16,19 +16,19 @@ const (
 	canManipulateRealOrders   = false
 )
 
-var {{.Variable}} *Exchange
+var e *Exchange
 
 func TestMain(m *testing.M) {
-	{{.Variable}} = new(Exchange)
-	if err := testexch.Setup({{.Variable}}); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		{{.Variable}}.API.AuthenticatedSupport = true
-		{{ if .WS }} {{.Variable}}.API.AuthenticatedWebsocketSupport = true {{ end }}
-		{{.Variable}}.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		{{ if .WS }} {{.Variable}}.Websocket.SetCanUseAuthenticatedEndpoints(true) {{ end }}
+		e.API.AuthenticatedSupport = true
+		{{ if .WS }} e.API.AuthenticatedWebsocketSupport = true {{ end }}
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		{{ if .WS }} e.Websocket.SetCanUseAuthenticatedEndpoints(true) {{ end }}
 	}
 
 	os.Exit(m.Run())

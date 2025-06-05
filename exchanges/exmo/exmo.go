@@ -49,7 +49,7 @@ const (
 	exmoRequestRate  = 180
 )
 
-// Exchange exchange struct
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with EXMO
 type Exchange struct {
 	exchange.Base
 }

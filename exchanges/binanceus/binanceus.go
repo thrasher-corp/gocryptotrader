@@ -23,7 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// Exchange is the overarching type across this package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Binanceus
 type Exchange struct {
 	exchange.Base
 	obm *orderbookManager

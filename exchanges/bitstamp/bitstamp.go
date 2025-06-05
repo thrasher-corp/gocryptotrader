@@ -59,7 +59,7 @@ const (
 	bitstampTimeLayout   = "2006-1-2 15:04:05"
 )
 
-// Exchange is the overarching type across the bitstamp package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bitstamp
 type Exchange struct {
 	exchange.Base
 }

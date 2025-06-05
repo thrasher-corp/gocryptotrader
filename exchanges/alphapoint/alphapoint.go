@@ -41,15 +41,15 @@ const (
 	alphapointOrderFee         = "GetOrderFee"
 )
 
-// Alphapoint is the overarching type across the alphapoint package
-type Alphapoint struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Alphapoint
+type Exchange struct {
 	exchange.Base
 	WebsocketConn *gws.Conn
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected
 // currency pair ie "BTCUSD"
-func (a *Alphapoint) GetTicker(ctx context.Context, currencyPair string) (Ticker, error) {
+func (a *Exchange) GetTicker(ctx context.Context, currencyPair string) (Ticker, error) {
 	req := make(map[string]any)
 	req["productPair"] = currencyPair
 	response := Ticker{}
@@ -75,7 +75,7 @@ func (a *Alphapoint) GetTicker(ctx context.Context, currencyPair string) (Ticker
 // AlphaPoint Exchange. To begin from the most recent trade, set startIndex to
 // 0 (default: 0)
 // Count: specifies the number of trades to return (default: 10)
-func (a *Alphapoint) GetTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
+func (a *Exchange) GetTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
 	req := make(map[string]any)
 	req["ins"] = currencyPair
 	req["startIndex"] = startIndex
@@ -97,7 +97,7 @@ func (a *Alphapoint) GetTrades(ctx context.Context, currencyPair string, startIn
 // CurrencyPair - instrument code (ex: “BTCUSD”)
 // StartDate - specifies the starting time in epoch time, type is long
 // EndDate - specifies the end time in epoch time, type is long
-func (a *Alphapoint) GetTradesByDate(ctx context.Context, currencyPair string, startDate, endDate int64) (Trades, error) {
+func (a *Exchange) GetTradesByDate(ctx context.Context, currencyPair string, startDate, endDate int64) (Trades, error) {
 	req := make(map[string]any)
 	req["ins"] = currencyPair
 	req["startDate"] = startDate
@@ -121,7 +121,7 @@ func (a *Alphapoint) GetTradesByDate(ctx context.Context, currencyPair string, s
 
 // GetOrderbook fetches the current orderbook for a given currency pair
 // CurrencyPair - trade pair (ex: “BTCUSD”)
-func (a *Alphapoint) GetOrderbook(ctx context.Context, currencyPair string) (Orderbook, error) {
+func (a *Exchange) GetOrderbook(ctx context.Context, currencyPair string) (Orderbook, error) {
 	req := make(map[string]any)
 	req["productPair"] = currencyPair
 	response := Orderbook{}
@@ -138,7 +138,7 @@ func (a *Alphapoint) GetOrderbook(ctx context.Context, currencyPair string) (Ord
 }
 
 // GetProductPairs gets the currency pairs currently traded on alphapoint
-func (a *Alphapoint) GetProductPairs(ctx context.Context) (ProductPairs, error) {
+func (a *Exchange) GetProductPairs(ctx context.Context) (ProductPairs, error) {
 	response := ProductPairs{}
 
 	err := a.SendHTTPRequest(ctx,
@@ -153,7 +153,7 @@ func (a *Alphapoint) GetProductPairs(ctx context.Context) (ProductPairs, error) 
 }
 
 // GetProducts gets the currency products currently supported on alphapoint
-func (a *Alphapoint) GetProducts(ctx context.Context) (Products, error) {
+func (a *Exchange) GetProducts(ctx context.Context) (Products, error) {
 	response := Products{}
 
 	err := a.SendHTTPRequest(ctx,
@@ -173,7 +173,7 @@ func (a *Alphapoint) GetProducts(ctx context.Context) (Products, error) {
 // Email - Email address
 // Phone - Phone number (ex: “+12223334444”)
 // Password - Minimum 8 characters
-func (a *Alphapoint) CreateAccount(ctx context.Context, firstName, lastName, email, phone, password string) error {
+func (a *Exchange) CreateAccount(ctx context.Context, firstName, lastName, email, phone, password string) error {
 	if len(password) < 8 {
 		return errors.New(
 			"alphapoint Error - Create account - Password must be 8 characters or more",
@@ -200,7 +200,7 @@ func (a *Alphapoint) CreateAccount(ctx context.Context, firstName, lastName, ema
 }
 
 // GetUserInfo returns current account user information
-func (a *Alphapoint) GetUserInfo(ctx context.Context) (UserInfo, error) {
+func (a *Exchange) GetUserInfo(ctx context.Context) (UserInfo, error) {
 	response := UserInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(ctx,
@@ -227,7 +227,7 @@ func (a *Alphapoint) GetUserInfo(ctx context.Context) (UserInfo, error) {
 // Cell2FAValue - Cell phone number, required for Authentication
 // Use2FAForWithdraw - “true” or “false” set to true for using 2FA for
 // withdrawals
-func (a *Alphapoint) SetUserInfo(ctx context.Context, firstName, lastName, cell2FACountryCode, cell2FAValue string, useAuthy2FA, use2FAForWithdraw bool) (UserInfoSet, error) {
+func (a *Exchange) SetUserInfo(ctx context.Context, firstName, lastName, cell2FACountryCode, cell2FAValue string, useAuthy2FA, use2FAForWithdraw bool) (UserInfoSet, error) {
 	response := UserInfoSet{}
 
 	userInfoKVPs := []UserInfoKVP{
@@ -277,7 +277,7 @@ func (a *Alphapoint) SetUserInfo(ctx context.Context, firstName, lastName, cell2
 }
 
 // GetAccountInformation returns account info
-func (a *Alphapoint) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
+func (a *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
 	response := AccountInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(ctx,
@@ -300,7 +300,7 @@ func (a *Alphapoint) GetAccountInformation(ctx context.Context) (AccountInfo, er
 // CurrencyPair - Instrument code (ex: “BTCUSD”)
 // StartIndex - Starting index, if less than 0 then start from the beginning
 // Count - Returns last trade, (Default: 30)
-func (a *Alphapoint) GetAccountTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
+func (a *Exchange) GetAccountTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
 	req := make(map[string]any)
 	req["ins"] = currencyPair
 	req["startIndex"] = startIndex
@@ -324,7 +324,7 @@ func (a *Alphapoint) GetAccountTrades(ctx context.Context, currencyPair string, 
 }
 
 // GetDepositAddresses generates a deposit address
-func (a *Alphapoint) GetDepositAddresses(ctx context.Context) ([]DepositAddresses, error) {
+func (a *Exchange) GetDepositAddresses(ctx context.Context) ([]DepositAddresses, error) {
 	response := Response{}
 
 	err := a.SendAuthenticatedHTTPRequest(ctx,
@@ -348,7 +348,7 @@ func (a *Alphapoint) GetDepositAddresses(ctx context.Context) ([]DepositAddresse
 // product - Currency name (ex: “BTC”)
 // amount - Amount (ex: “.011”)
 // address - Withdraw address
-func (a *Alphapoint) WithdrawCoins(ctx context.Context, symbol, product, address string, amount float64) error {
+func (a *Exchange) WithdrawCoins(ctx context.Context, symbol, product, address string, amount float64) error {
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["product"] = product
@@ -372,7 +372,7 @@ func (a *Alphapoint) WithdrawCoins(ctx context.Context, symbol, product, address
 	return nil
 }
 
-func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
+func (a *Exchange) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
 	if orderType == order.Market.String() {
 		orderTypeNumber = 1
 	}
@@ -386,7 +386,7 @@ func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderT
 // orderType - “1” for market orders, “0” for limit orders
 // quantity - Quantity
 // price - Price in USD
-func (a *Alphapoint) CreateOrder(ctx context.Context, symbol, side, orderType string, quantity, price float64) (int64, error) {
+func (a *Exchange) CreateOrder(ctx context.Context, symbol, side, orderType string, quantity, price float64) (int64, error) {
 	orderTypeNumber := a.convertOrderTypeToOrderTypeNumber(orderType)
 	req := make(map[string]any)
 	req["ins"] = symbol
@@ -420,7 +420,7 @@ func (a *Alphapoint) CreateOrder(ctx context.Context, symbol, side, orderType st
 // book. A buy order will be modified to the highest bid and a sell order will
 // be modified to the lowest ask price. “1” means "Execute now", which will
 // convert a limit order into a market order.
-func (a *Alphapoint) ModifyExistingOrder(ctx context.Context, symbol string, orderID, action int64) (int64, error) {
+func (a *Exchange) ModifyExistingOrder(ctx context.Context, symbol string, orderID, action int64) (int64, error) {
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["serverOrderId"] = orderID
@@ -446,7 +446,7 @@ func (a *Alphapoint) ModifyExistingOrder(ctx context.Context, symbol string, ord
 // CancelExistingOrder cancels an order that has not been executed.
 // symbol - Instrument code (ex: “BTCUSD”)
 // OrderID - Order id (ex: 1000)
-func (a *Alphapoint) CancelExistingOrder(ctx context.Context, orderID int64, omsid string) (int64, error) {
+func (a *Exchange) CancelExistingOrder(ctx context.Context, orderID int64, omsid string) (int64, error) {
 	req := make(map[string]any)
 	req["OrderId"] = orderID
 	req["OMSId"] = omsid
@@ -470,7 +470,7 @@ func (a *Alphapoint) CancelExistingOrder(ctx context.Context, orderID int64, oms
 
 // CancelAllExistingOrders cancels all open orders by symbol.
 // symbol - Instrument code (ex: “BTCUSD”)
-func (a *Alphapoint) CancelAllExistingOrders(ctx context.Context, omsid string) error {
+func (a *Exchange) CancelAllExistingOrders(ctx context.Context, omsid string) error {
 	req := make(map[string]any)
 	req["OMSId"] = omsid
 	response := Response{}
@@ -492,7 +492,7 @@ func (a *Alphapoint) CancelAllExistingOrders(ctx context.Context, omsid string) 
 }
 
 // GetOrders returns all current open orders
-func (a *Alphapoint) GetOrders(ctx context.Context) ([]OpenOrders, error) {
+func (a *Exchange) GetOrders(ctx context.Context) ([]OpenOrders, error) {
 	response := OrderInfo{}
 
 	err := a.SendAuthenticatedHTTPRequest(ctx,
@@ -516,7 +516,7 @@ func (a *Alphapoint) GetOrders(ctx context.Context) ([]OpenOrders, error) {
 // side - “buy” or “sell”
 // quantity - Quantity
 // price - Price in USD
-func (a *Alphapoint) GetOrderFee(ctx context.Context, symbol, side string, quantity, price float64) (float64, error) {
+func (a *Exchange) GetOrderFee(ctx context.Context, symbol, side string, quantity, price float64) (float64, error) {
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["side"] = side
@@ -541,7 +541,7 @@ func (a *Alphapoint) GetOrderFee(ctx context.Context, symbol, side string, quant
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (a *Alphapoint) SendHTTPRequest(_ context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
+func (a *Exchange) SendHTTPRequest(_ context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
 	endpoint, err := a.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -572,7 +572,7 @@ func (a *Alphapoint) SendHTTPRequest(_ context.Context, ep exchange.URL, method,
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
-func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
+func (a *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
 	creds, err := a.GetCredentials(ctx)
 	if err != nil {
 		return err

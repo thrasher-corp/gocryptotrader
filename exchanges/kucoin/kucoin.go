@@ -27,7 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Exchange is the overarching type across this package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kucoin
 type Exchange struct {
 	exchange.Base
 	obm *orderbookManager

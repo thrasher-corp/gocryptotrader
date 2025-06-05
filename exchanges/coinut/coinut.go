@@ -47,7 +47,7 @@ const (
 
 var errLookupInstrumentID = errors.New("unable to lookup instrument ID")
 
-// Exchange is the overarching type across the coinut package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with COINUT
 type Exchange struct {
 	exchange.Base
 	instrumentMap instrumentMap

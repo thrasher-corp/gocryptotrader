@@ -92,7 +92,7 @@ const (
 	clientType         = "api"
 )
 
-// Exchange is the overarching type across the Exchange package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with BTC Markets
 type Exchange struct {
 	exchange.Base
 }

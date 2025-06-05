@@ -42,7 +42,7 @@ const (
 	apiOrder            = "api/2/order"
 )
 
-// Exchange is the overarching type across the hitbtc package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with HitBTC
 type Exchange struct {
 	exchange.Base
 }

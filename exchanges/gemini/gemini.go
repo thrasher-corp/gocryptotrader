@@ -49,7 +49,7 @@ const (
 	geminiTransfers          = "transfers"
 )
 
-// Exchange is the overarching type across the Exchange package, create multiple
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Gemini, create multiple
 // instances with differing APIkeys for segregation of roles for authenticated
 // requests & sessions by appending new sessions to the Session map using
 // AddSession. If sandbox test is needed, append a new session with the same

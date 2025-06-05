@@ -34,7 +34,7 @@ const (
 	krakenFuturesVersion          = "3"
 )
 
-// Exchange is the overarching type across the kraken package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kraken
 type Exchange struct {
 	exchange.Base
 }

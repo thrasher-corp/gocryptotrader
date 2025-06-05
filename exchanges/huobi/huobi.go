@@ -76,7 +76,7 @@ const (
 	huobiBatchContracts               = "/v2/market/detail/batch_merged"
 )
 
-// Exchange is the overarching type across this package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Huobi
 type Exchange struct {
 	exchange.Base
 	AccountID                string

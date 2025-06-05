@@ -52,7 +52,7 @@ const (
 
 var errSymbolIsEmpty = errors.New("symbol cannot be empty")
 
-// Exchange is the overarching type across the Exchange package
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bithumb
 type Exchange struct {
 	exchange.Base
 	location *time.Location
