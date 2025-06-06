@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -32,9 +34,8 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 		t.Fatal(err)
 	}
 	err = em.Add(b)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {
 		t.Fatal(err)
@@ -102,9 +103,8 @@ func TestSubmitWithdrawal(t *testing.T) {
 	}
 	adds := pm.GetAddresses()
 	adds[0].WhiteListed = true
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.SubmitWithdrawal(t.Context(), req)
 	if !errors.Is(err, withdraw.ErrStrExchangeNotSupportedByAddress) {
 		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
@@ -123,9 +123,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 
 	m.isDryRun = true
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestWithdrawEventByID(t *testing.T) {
@@ -145,9 +143,8 @@ func TestWithdrawEventByID(t *testing.T) {
 
 	withdraw.Cache.Add(withdraw.DryRunID.String(), tempResp)
 	v, err := m.WithdrawalEventByID(withdraw.DryRunID.String())
-	if !errors.Is(err, nil) {
-		t.Errorf("expected %v, received %v", nil, err)
-	}
+	assert.NoError(t, err)
+
 	if v == nil {
 		t.Error("expected WithdrawalEventByID() to return data from cache")
 	}

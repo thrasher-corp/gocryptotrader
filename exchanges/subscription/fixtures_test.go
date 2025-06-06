@@ -26,7 +26,7 @@ type mockExWithSubValidator struct {
 func (m *mockExWithSubValidator) ValidateSubscriptions(in List) error {
 	for _, sub := range in {
 		if sub.Channel == "fail-channel" {
-			return fmt.Errorf("%w: '%s'", errValidateSubscriptionsTestError, sub.String())
+			return fmt.Errorf("%w: %q", errValidateSubscriptionsTestError, sub.String())
 		}
 	}
 	return nil

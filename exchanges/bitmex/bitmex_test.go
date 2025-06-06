@@ -1090,8 +1090,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -1143,12 +1143,12 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testexch.SetupWs(t, b)
 	err = b.Subscribe(subs)
-	require.NoError(t, err, "Subscribe should not error")
+	require.NoError(t, err, "Subscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.SubscribedState, s.State(), "%s state should be subscribed", s.QualifiedChannel)
 	}
 	err = b.Unsubscribe(subs)
-	require.NoError(t, err, "Unsubscribe should not error")
+	require.NoError(t, err, "Unsubscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "%s state should be unsusbscribed", s.QualifiedChannel)
 	}
