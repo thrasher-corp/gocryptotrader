@@ -1485,7 +1485,7 @@ func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 	return info.TimeNano.Time(), err
 }
 
-// transformInstrumentInfoSymbol converts GetInstrumentInfo symbol to one stored in config with proper delimiters
+// transformSymbol converts GetInstrumentInfo symbol to one stored in config with proper delimiters
 func (i *InstrumentInfo) transformSymbol(a asset.Item) string {
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures:
