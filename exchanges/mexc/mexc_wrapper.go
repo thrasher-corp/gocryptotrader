@@ -68,17 +68,21 @@ func (me *MEXC) SetDefaults() {
 				TickerFetching:    true,
 				OrderbookFetching: true,
 				KlineFetching:     true,
+				AccountInfo:       true,
+				SubmitOrder:       true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
 				OrderbookFetching: true,
 				KlineFetching:     true,
+				AccountInfo:       true,
+				SubmitOrder:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
 		},
 		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
+			AutoPairUpdates: false,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
 					kline.IntervalCapacity{Interval: kline.OneMin},
@@ -160,6 +164,10 @@ func (me *MEXC) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	pairFormat, err := me.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	switch a {
 	case asset.Spot:
 		result, err := me.GetSymbols(ctx, nil)
@@ -175,7 +183,7 @@ func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 			if err != nil {
 				return nil, err
 			}
-			currencyPairs = append(currencyPairs, pair)
+			currencyPairs = append(currencyPairs, pair.Format(pairFormat))
 		}
 		return currencyPairs, nil
 	case asset.Futures:
@@ -189,11 +197,11 @@ func (me *MEXC) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 			case 2, 3, 4:
 				continue
 			}
-			pair, err := currency.NewPairFromString(result.Data[i].Symbol)
+			pair, err := currency.NewPairFromStrings(result.Data[i].BaseCoin, result.Data[i].QuoteCoin)
 			if err != nil {
 				return nil, err
 			}
-			currencyPairs = append(currencyPairs, pair)
+			currencyPairs = append(currencyPairs, pair.Format(pairFormat))
 		}
 		return currencyPairs, nil
 	default:
@@ -456,49 +464,55 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 	return orderbook.Get(me.Name, pair, assetType)
 }
 
+// ValidateAPICredentials validates current credentials used for wrapper
+// functionality
+func (me *MEXC) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := me.UpdateAccountInfo(ctx, assetType)
+	return me.CheckTransientError(err)
+}
+
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (me *MEXC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (me *MEXC) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
 	resp := account.Holdings{
 		Exchange: me.Name,
 	}
-	subAccounts, err := me.GetSubAccountList(ctx, "", false, 0, 0)
+	accountInfo, err := me.GetAccountInformation(ctx)
 	if err != nil {
 		return resp, err
 	}
-	resp.Accounts = make([]account.SubAccount, len(subAccounts.SubAccounts))
-	for sacc := range subAccounts.SubAccounts {
-		accAssets, err := me.GetSubAccountAsset(ctx, subAccounts.SubAccounts[sacc].SubAccount, assetType)
-		if err != nil {
-			return resp, err
-		}
-		currBalances := make([]account.Balance, len(accAssets.Balances))
-		for b := range accAssets.Balances {
-			currBalances[b] = account.Balance{
-				Currency: currency.NewCode(accAssets.Balances[b].Asset),
-				Total:    accAssets.Balances[b].Free.Float64() + accAssets.Balances[b].Locked.Float64(),
-				Hold:     accAssets.Balances[b].Locked.Float64(),
-			}
-		}
-		resp.Accounts[sacc] = account.SubAccount{
-			ID:         subAccounts.SubAccounts[sacc].SubAccount,
-			AssetType:  assetType,
-			Currencies: currBalances,
+
+	currBalances := make([]account.Balance, len(accountInfo.Balances))
+	for b := range accountInfo.Balances {
+		currBalances[b] = account.Balance{
+			Currency: currency.NewCode(accountInfo.Balances[b].Asset),
+			Total:    accountInfo.Balances[b].Free.Float64() + accountInfo.Balances[b].Locked.Float64(),
+			Hold:     accountInfo.Balances[b].Locked.Float64(),
 		}
 	}
-	return resp, nil
-}
+	var assetType asset.Item
+	switch accountInfo.AccountType {
+	case "SPOT":
+		assetType = asset.Spot
+	case "FUTURES":
+		assetType = asset.Futures
+	}
+	resp.Accounts = []account.SubAccount{
+		{
+			AssetType:  assetType,
+			Currencies: currBalances,
+		},
+	}
 
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (me *MEXC) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	creds, err := me.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	acc, err := account.GetHoldings(me.Name, creds, assetType)
+
+	err = account.Process(&resp, creds)
 	if err != nil {
-		return me.UpdateAccountInfo(ctx, assetType)
+		return account.Holdings{}, err
 	}
-	return acc, nil
+	return resp, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -1418,12 +1432,6 @@ func (me *MEXC) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 	case exchange.InternationalBankDepositFee:
 	}
 	return 0, nil
-}
-
-// ValidateAPICredentials validates current credentials used for wrapper
-func (me *MEXC) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := me.UpdateAccountInfo(ctx, assetType)
-	return me.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

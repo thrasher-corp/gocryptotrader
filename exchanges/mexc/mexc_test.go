@@ -1979,8 +1979,6 @@ func TestWsConn(t *testing.T) {
 	if !sharedtestvalues.AreAPICredentialsSet(me) {
 		me.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := me.WsFuturesConnect()
+	err := me.WsConnect()
 	assert.NoError(t, err)
-
-	time.Sleep(time.Second * 23)
 }

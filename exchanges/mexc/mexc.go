@@ -782,7 +782,6 @@ func (me *MEXC) newOrder(ctx context.Context, symbol, newClientOrderID, side, or
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	println("Side: ", side)
 	if side == "" {
 		return nil, order.ErrSideIsInvalid
 	}

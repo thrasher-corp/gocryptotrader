@@ -44,11 +44,11 @@ const (
 )
 
 var defacultChannels = []string{
-	chnlBookTiker,
-	chnlKlineV3,
+	// chnlBookTiker,
+	// chnlKlineV3,
 	chnlAggreDealsV3,
-	chnlAggregateDepthV3,
-	chnlIncreaseDepthBatchV3,
+	// chnlAggregateDepthV3,
+	// chnlIncreaseDepthBatchV3,
 }
 
 // orderbookSnapshotLoadedPairs and syncOrderbookPairsLock holds list of symbols and if these instruments snapshot orderbook detail is loaded, and corresponding lock
@@ -410,17 +410,13 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			dealTime, err := strconv.ParseInt(body.Deals[t].Time, 10, 64)
-			if err != nil {
-				return err
-			}
 			tradesDetail[t] = trade.Data{
 				Exchange:     me.Name,
 				CurrencyPair: cp,
 				AssetType:    asset.Spot,
 				Price:        price,
 				Amount:       amount,
-				Timestamp:    time.UnixMilli(dealTime),
+				Timestamp:    time.UnixMilli(body.Deals[t].Time),
 				Side: func() order.Side {
 					if body.Deals[t].TradeType == 1 {
 						return order.Buy

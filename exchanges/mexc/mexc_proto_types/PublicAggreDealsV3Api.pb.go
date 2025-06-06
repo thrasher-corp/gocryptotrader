@@ -81,7 +81,7 @@ type PublicAggreDealsV3ApiItem struct {
 	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
 	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	TradeType     int32                  `protobuf:"varint,3,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
-	Time          string                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	Time          int64                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,11 +137,11 @@ func (x *PublicAggreDealsV3ApiItem) GetTradeType() int32 {
 	return 0
 }
 
-func (x *PublicAggreDealsV3ApiItem) GetTime() string {
+func (x *PublicAggreDealsV3ApiItem) GetTime() int64 {
 	if x != nil {
 		return x.Time
 	}
-	return ""
+	return 0
 }
 
 var File_PublicAggreDealsV3Api_proto protoreflect.FileDescriptor
