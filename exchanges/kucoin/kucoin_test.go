@@ -53,7 +53,7 @@ var (
 func TestMain(m *testing.M) {
 	ku = new(Kucoin)
 	if err := testexch.Setup(ku); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Kucoin Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" && passPhrase != "" {

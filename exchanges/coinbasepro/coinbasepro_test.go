@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	c        = &CoinbasePro{}
+	c        *CoinbasePro
 	testPair = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
 )
 
