@@ -692,9 +692,24 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	_, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Time{}, kline.OneDay)
 	require.ErrorIs(t, err, errMissingExpiryTimeParameter)
 
-	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Now(), kline.OneDay)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	instruments, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+		InstrumentType: instTypeOption,
+		Underlying:     optionsPair.String(),
+	})
+	require.NoErrorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
+	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
+	var selectedExpTime time.Time
+	for _, inst := range instruments {
+		if inst.ExpTime.Time().IsZero() {
+			continue
+		}
+		selectedExpTime = inst.ExpTime.Time()
+		break
+	}
+	require.NotZero(t, selectedExpTime, "GetInstruments must return an instrument with a non-zero expiry time")
+	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, selectedExpTime, kline.OneDay)
+	require.NoErrorf(t, err, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s must not error", selectedExpTime, currency.BTC)
+	assert.NotNilf(t, result, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s should return a non-nil result", selectedExpTime, currency.BTC)
 }
 
 func TestGetTakerFlow(t *testing.T) {
@@ -3910,46 +3925,46 @@ func TestOrderPushData(t *testing.T) {
 		case *order.Detail:
 			switch len(ok.Websocket.DataHandler) {
 			case 3:
-				require.Equal(t, "452197707845865472", v.OrderID, "OrderID")
-				require.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
-				require.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				require.Equal(t, order.Sell, v.Side, "Side")
-				require.Equal(t, order.Filled, v.Status, "Status")
-				require.Equal(t, order.Limit, v.Type, "Type")
-				require.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
-				require.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
-				require.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
-				require.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
-				require.Equal(t, 0.001, v.Amount, "Amount")
-				require.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
-				require.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
-				require.Equal(t, 31527.1, v.Price, "Price")
-				require.Equal(t, 0.02522168, v.Fee, "Fee")
-				require.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
+				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, order.Limit, v.Type, "Type")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
+				assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
+				assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
+				assert.Equal(t, 0.001, v.Amount, "Amount")
+				assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 31527.1, v.Price, "Price")
+				assert.Equal(t, 0.02522168, v.Fee, "Fee")
+				assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
 			case 2:
-				require.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				require.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				require.Equal(t, order.Market, v.Type, "Type")
-				require.Equal(t, order.Sell, v.Side, "Side")
-				require.Equal(t, order.Active, v.Status, "Status")
-				require.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
-				require.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Market, v.Type, "Type")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Active, v.Status, "Status")
+				assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
 			case 1:
-				require.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				require.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				require.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
-				require.Equal(t, 0.010000249968, v.Fee, "Fee")
-				require.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-				require.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-				require.Equal(t, order.PartiallyFilled, v.Status, "Status")
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
 			case 0:
-				require.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				require.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				require.Equal(t, 0.010000249968, v.Fee, "Fee")
-				require.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-				require.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-				require.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
-				require.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
+				assert.Equal(t, order.Filled, v.Status, "Status")
 			}
 		case error:
 			t.Error(v)
@@ -4101,7 +4116,7 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	for _, assetType := range assets {
-		require.Len(t, trades[assetType], len(exp), "Must have received %d trades for asset %v", len(exp), assetType)
+		require.Lenf(t, trades[assetType], len(exp), "Must have received %d trades for asset %v", len(exp), assetType)
 		slices.SortFunc(trades[assetType], func(a, b trade.Data) int {
 			return strings.Compare(a.TID, b.TID)
 		})
@@ -4110,7 +4125,7 @@ func TestWSProcessTrades(t *testing.T) {
 			expected.AssetType = assetType
 			expected.Exchange = ok.Name
 			expected.CurrencyPair = p
-			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
+			require.Equalf(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
 		}
 	}
 }
@@ -4287,7 +4302,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		default:
 			require.Len(t, assets, 1)
 		}
-		assert.Contains(t, assets, a, "Should contain asset: %s", a)
+		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
 	_, err = ok.getAssetsFromInstrumentID("test")
@@ -4333,7 +4348,7 @@ func TestGetCollateralMode(t *testing.T) {
 	assert.NotNil(t, result)
 
 	_, err = ok.GetCollateralMode(contextGenerate(), asset.Futures)
-	assert.True(t, errors.Is(err, nil) || errors.Is(err, asset.ErrNotSupported))
+	assert.True(t, err == nil || errors.Is(err, asset.ErrNotSupported))
 }
 
 func TestSetCollateralMode(t *testing.T) {
@@ -4455,13 +4470,13 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	require.NoError(t, err)
 
 	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
-	got, err := orderbook.Get("okx", required, asset.Spot)
+	got, err := orderbook.Get(ok.Name, required, asset.Spot)
 	require.NoError(t, err)
 
 	require.Len(t, got.Asks, 5)
 	require.Len(t, got.Bids, 5)
 	// Book replicated to margin
-	got, err = orderbook.Get("okx", required, asset.Margin)
+	got, err = orderbook.Get(ok.Name, required, asset.Margin)
 	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
@@ -5538,9 +5553,9 @@ func TestGetOptionsTickBands(t *testing.T) {
 
 func TestExtractIndexCandlestick(t *testing.T) {
 	t.Parallel()
-	data := `[ [ "1597026383085", "3.721", "3.743", "3.677", "3.708", "1" ], [ "1597026383085", "3.731", "3.799", "3.494", "3.72", "1" ]]`
+	data := []byte(`[ [ "1597026383085", "3.721", "3.743", "3.677", "3.708", "1" ], [ "1597026383085", "3.731", "3.799", "3.494", "3.72", "1" ]]`)
 	var resp []CandlestickHistoryItem
-	err := json.Unmarshal([]byte(data), &resp)
+	err := json.Unmarshal(data, &resp)
 	require.NoError(t, err)
 	require.Len(t, resp, 2)
 	require.Equal(t, 3.743, resp[0].HighestPrice.Float64())

@@ -43,11 +43,11 @@ var (
 
 // promptForConfigEncryption asks for encryption confirmation
 // returns true if encryption was desired, false otherwise
-func promptForConfigEncryption() (bool, error) {
+func promptForConfigEncryption(r io.Reader) (bool, error) {
 	fmt.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
-	if _, err := fmt.Scanln(&input); err != nil {
+	if _, err := fmt.Fscanln(r, &input); err != nil {
 		return false, err
 	}
 

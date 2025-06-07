@@ -29,7 +29,7 @@ func isFuturesAsset(a string) error {
 		return err
 	}
 	if !i.IsFutures() {
-		return fmt.Errorf("%w '%s'", futures.ErrNotFuturesAsset, a)
+		return fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, a)
 	}
 	return nil
 }

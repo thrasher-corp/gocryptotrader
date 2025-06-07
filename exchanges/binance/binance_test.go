@@ -3228,8 +3228,8 @@ func TestSubscribe(t *testing.T) {
 		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
 			tb.Helper()
 			var req WsPayload
-			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal should not error")
-			require.ElementsMatch(tb, req.Params, exp, "Params should have correct channels")
+			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
 			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%d}`, req.ID))
 		}
 		b = testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock))
@@ -3251,7 +3251,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		tb.Helper()
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
-		require.NoError(tb, err, "Unmarshal should not error")
+		require.NoError(tb, err, "Unmarshal must not error")
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%d}`, req.ID))
 	}
 	b := testexch.MockWsInstance[Binance](t, mockws.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
@@ -3605,7 +3605,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	subs, err := b.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
+	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
 
@@ -3896,8 +3896,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Options} {
 		pairs, err := b.FetchTradablePairs(t.Context(), a)
-		require.NoErrorf(t, err, "FetchTradablePairs should not error for %s", a)
-		require.NotEmptyf(t, pairs, "Should get some pairs for %s", a)
+		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+		require.NotEmptyf(t, pairs, "Must get some pairs for %s", a)
 		tests[a] = pairs[0]
 	}
 	for _, a := range b.GetAssetTypes(false) {
@@ -9199,8 +9199,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		require.NotEmpty(t, resp)
