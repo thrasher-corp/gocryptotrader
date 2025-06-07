@@ -1440,9 +1440,7 @@ func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 		return err
 	}
 
-	k.wsAuthMu.Lock()
-	k.wsAuthToken = resp
-	k.wsAuthMu.Unlock()
+	k.setWebsocketAuthToken(resp)
 	return nil
 }
 

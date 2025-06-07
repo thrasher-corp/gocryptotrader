@@ -119,9 +119,7 @@ func (k *Kraken) WsConnect() error {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 			} else {
-				k.wsAuthMu.Lock()
-				k.wsAuthToken = authToken
-				k.wsAuthMu.Unlock()
+				k.setWebsocketAuthToken(authToken)
 				k.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
@@ -1411,7 +1409,13 @@ const subTplText = `
 
 // websocketAuthToken retrieves the current websocket session's auth token
 func (k *Kraken) websocketAuthToken() string {
-	k.wsAuthMu.RLock()
-	defer k.wsAuthMu.RUnlock()
+	k.wsAuthMtx.RLock()
+	defer k.wsAuthMtx.RUnlock()
 	return k.wsAuthToken
+}
+
+func (k *Kraken) setWebsocketAuthToken(token string) {
+	k.wsAuthMtx.Lock()
+	k.wsAuthToken = token
+	k.wsAuthMtx.Unlock()
 }

@@ -39,7 +39,7 @@ const (
 type Kraken struct {
 	exchange.Base
 	wsAuthToken string
-	wsAuthMu    sync.RWMutex
+	wsAuthMtx   sync.RWMutex
 }
 
 // GetCurrentServerTime returns current server time
