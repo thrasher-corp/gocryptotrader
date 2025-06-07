@@ -690,8 +690,7 @@ type ExpiryOpenInterestAndVolume struct {
 // UnmarshalJSON deserializes slice of data into ExpiryOpenInterestAndVolume structure
 func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
 	var expiryTimeString string
-	target := [6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume}
-	err := json.Unmarshal(data, &target)
+	err := json.Unmarshal(data, &[6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume})
 	if err != nil {
 		return err
 	}
@@ -803,7 +802,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
 		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: `%s`, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)

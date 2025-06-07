@@ -69,13 +69,13 @@ func (b *Binance) SetDefaults() {
 
 	for a, ps := range defaultAssetPairStores {
 		if err := b.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		if err := b.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", b.Name, a, err)
 		}
 	}
 

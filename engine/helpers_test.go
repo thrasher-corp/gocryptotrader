@@ -112,9 +112,8 @@ func TestGetRPCEndpoints(t *testing.T) {
 	}
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(m) != 4 {
 		t.Fatalf("expected length: %d but received: %d", 4, len(m))
 	}
@@ -1094,9 +1093,7 @@ func TestGetExchangeNames(t *testing.T) {
 		if exch != nil {
 			exch.SetDefaults()
 			err = bot.ExchangeManager.Add(exch)
-			if !errors.Is(err, nil) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-			}
+			require.NoError(t, err)
 		}
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {

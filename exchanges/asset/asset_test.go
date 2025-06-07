@@ -151,18 +151,14 @@ func TestSupported(t *testing.T) {
 func TestUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	data, err := json.Marshal(Item(0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if string(data) != `""` {
 		t.Fatal("unexpected value")
 	}
 
 	data, err = json.Marshal(Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if string(data) != `"spot"` {
 		t.Fatal("unexpected value")
@@ -171,9 +167,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 	var spot Item
 
 	err = json.Unmarshal(data, &spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if spot != Spot {
 		t.Fatal("unexpected value")
@@ -185,14 +179,10 @@ func TestUnmarshalMarshal(t *testing.T) {
 	}
 
 	err = json.Unmarshal([]byte(`""`), &spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = json.Unmarshal([]byte(`123`), &spot)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", nil, "an error")
-	}
+	assert.Error(t, err, "Unmarshal should error correctly")
 }
 
 func TestUseDefault(t *testing.T) {

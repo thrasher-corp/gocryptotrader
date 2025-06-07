@@ -68,11 +68,11 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 	err = {{.Variable}}.SetAssetPairStore(asset.Spot, fmt1)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", {{.Variable}}.Name, asset.Spot, err)
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", {{.Variable}}.Name, asset.Spot, err)
 	}
 	err = {{.Variable}}.SetAssetPairStore(asset.Margin, fmt2)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", {{.Variable}}.Name, asset.Margin, err)
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", {{.Variable}}.Name, asset.Margin, err)
 	}
 
 	// Fill out the capabilities/features that the exchange supports

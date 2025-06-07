@@ -86,7 +86,7 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 	}
 	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
-		return nil, fmt.Errorf("%w: `%s`", err, instrumentID)
+		return nil, fmt.Errorf("%w: %q", err, instrumentID)
 	}
 	switch {
 	case len(splitSymbol) == 2:

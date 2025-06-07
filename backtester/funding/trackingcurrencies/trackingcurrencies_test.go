@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -57,13 +59,11 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	eba.AssetEnabled = true
 
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	resp, err := CreateUSDTrackingPairs([]TrackingPair{s1}, em)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Error("expected 1 currency setting as it contains a USDT equiv")
 	}
@@ -71,9 +71,8 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	s1.Quote = currency.BTC
 
 	resp, err = CreateUSDTrackingPairs([]TrackingPair{s1}, em)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 3 {
 		t.Error("expected 3 currency settings as it did not contain a USDT equiv")
 	}

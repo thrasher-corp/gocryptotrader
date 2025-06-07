@@ -444,8 +444,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	require.NoError(t, err, "SetAssetEnabled must not error")
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err, "GetCurrencyTradeURL must not error")
 		assert.NotEmpty(t, resp, "GetCurrencyTradeURL should return an url")

@@ -554,9 +554,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	var pairs Pairs
 	pairs = append(pairs, NewBTCUSD())
 	result, err = pairs.GetRandomPair()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
@@ -568,9 +566,8 @@ func TestRandomPairFromPairs(t *testing.T) {
 	expectedResults := make(map[string]bool)
 	for range 50 {
 		result, err = pairs.GetRandomPair()
-		if !errors.Is(err, nil) {
-			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-		}
+		require.NoError(t, err)
+
 		expectedResults[result.String()] = true
 	}
 

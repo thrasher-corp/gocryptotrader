@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -53,9 +54,7 @@ func TestSetupLiveDataHandler(t *testing.T) {
 
 	bt.Funding = &funding.FundManager{}
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dc, ok := bt.LiveDataHandler.(*dataChecker)
 	if !ok {
@@ -81,9 +80,8 @@ func TestStart(t *testing.T) {
 		shutdown: make(chan bool),
 	}
 	err := dc.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	close(dc.shutdown)
 	dc.wg.Wait()
 	atomic.CompareAndSwapUint32(&dc.started, 0, 1)
@@ -130,9 +128,8 @@ func TestLiveHandlerStop(t *testing.T) {
 
 	dc.started = 1
 	err = dc.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	dc.shutdown = make(chan bool)
 	err = dc.Stop()
 	if !errors.Is(err, engine.ErrSubSystemNotStarted) {
@@ -166,9 +163,7 @@ func TestLiveHandlerStopFromError(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		err = dc.SignalStopFromError(errNoCredsNoLive)
-		if !errors.Is(err, nil) {
-			t.Errorf("received '%v' expected '%v'", err, nil)
-		}
+		assert.NoError(t, err)
 	}()
 	wg.Wait()
 
@@ -236,9 +231,8 @@ func TestLiveHandlerReset(t *testing.T) {
 		eventTimeout: 1,
 	}
 	err := dataHandler.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if dataHandler.eventTimeout != 0 {
 		t.Errorf("received '%v' expected '%v'", dataHandler.eventTimeout, 0)
 	}
@@ -289,9 +283,7 @@ func TestAppendDataSource(t *testing.T) {
 
 	setup.interval = kline.OneDay
 	err = dataHandler.AppendDataSource(setup)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if len(dataHandler.sourcesToCheck) != 1 {
 		t.Errorf("received '%v' expected '%v'", len(dataHandler.sourcesToCheck), 1)
@@ -407,9 +399,8 @@ func TestLoadCandleData(t *testing.T) {
 		},
 	}
 	updated, err := l.loadCandleData(time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !updated {
 		t.Errorf("received '%v' expected '%v'", updated, true)
 	}
@@ -470,9 +461,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
 	_, err = dataHandler.FetchLatestData()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -502,9 +491,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
 		Base: &event.Base{
@@ -525,9 +512,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 		SellLimit:  leet,
 		Amount:     leet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	dataHandler = nil
 	err = dataHandler.SetDataForClosingAllPositions()
@@ -559,38 +544,26 @@ func TestUpdateFunding(t *testing.T) {
 	ff := &fakeFunding{}
 	d.funding = ff
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.realOrders = true
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ff.hasFutures = true
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.updatingFunding = 1
 	err = d.UpdateFunding(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.updatingFunding = 1
 	err = d.UpdateFunding(false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d = nil
 	err = d.UpdateFunding(false)

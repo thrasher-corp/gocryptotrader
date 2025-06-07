@@ -1584,14 +1584,14 @@ func TestWebsocketAggTrade(t *testing.T) {
 			"stream":"btcusdt@aggTrade", 
 			"data": {
 				"e": "aggTrade",  
-				"E": 123456789,   
-				"s": "BNBBTC",    
+				"E": 1672515782136,   
+				"s": "BNBBTC",
 				"a": 12345,       
 				"p": "0.001",     
 				"q": "100",   
 				"f": 100,     
 				"l": 105,   
-				"T": 123456785,
+				"T": 1672515782136,
 				"m": true,
 				"M": true         
 			}
@@ -1812,8 +1812,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, bi)
 	for _, a := range bi.GetAssetTypes(false) {
 		pairs, err := bi.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := bi.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

@@ -141,7 +141,7 @@ func main() {
 
 	gctscript.Setup()
 
-	gctlog.Infof(gctlog.Global, "JSON encoding is set to package `%s`", json.Implementation)
+	gctlog.Infof(gctlog.Global, "JSON encoding is set to package %q", json.Implementation)
 
 	engine.Bot.Settings.PrintLoadedSettings()
 

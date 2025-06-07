@@ -103,11 +103,3 @@ func GetHMAC(hashType int, input, key []byte) ([]byte, error) {
 	_, err := h.Write(input)
 	return h.Sum(nil), err
 }
-
-// Sha1ToHex takes a string, sha1 hashes it and return a hex string of the
-// result
-func Sha1ToHex(data string) (string, error) {
-	h := sha1.New() //nolint:gosec // hash function used by some exchanges
-	_, err := h.Write([]byte(data))
-	return hex.EncodeToString(h.Sum(nil)), err
-}

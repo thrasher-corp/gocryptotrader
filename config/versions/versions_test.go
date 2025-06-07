@@ -62,7 +62,7 @@ func TestDeploy(t *testing.T) {
 	_, err = m.Deploy(t.Context(), in, UseLatestVersion)
 	require.Implements(t, (*ExchangeVersion)(nil), m.versions[1])
 	require.ErrorIs(t, err, errUpgrade)
-	require.ErrorContains(t, err, "for `Juan`")
+	require.ErrorContains(t, err, "for \"Juan\"")
 
 	j2, err = m.Deploy(t.Context(), j, 0)
 	require.NoError(t, err)

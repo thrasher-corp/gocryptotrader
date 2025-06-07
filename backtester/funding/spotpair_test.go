@@ -5,19 +5,18 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 func TestBaseInitialFunds(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -30,13 +29,11 @@ func TestBaseInitialFunds(t *testing.T) {
 func TestQuoteInitialFunds(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -49,13 +46,11 @@ func TestQuoteInitialFunds(t *testing.T) {
 func TestBaseAvailable(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -68,13 +63,11 @@ func TestBaseAvailable(t *testing.T) {
 func TestQuoteAvailable(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -87,13 +80,11 @@ func TestQuoteAvailable(t *testing.T) {
 func TestReservePair(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -102,9 +93,8 @@ func TestReservePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Reserve(elite, gctorder.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
@@ -122,13 +112,11 @@ func TestReservePair(t *testing.T) {
 func TestReleasePair(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -137,9 +125,8 @@ func TestReleasePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Reserve(elite, gctorder.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
@@ -154,9 +141,8 @@ func TestReleasePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
@@ -180,13 +166,11 @@ func TestReleasePair(t *testing.T) {
 func TestIncreaseAvailablePair(t *testing.T) {
 	t.Parallel()
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
@@ -213,9 +197,8 @@ func TestIncreaseAvailablePair(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
 	err = pairItems.IncreaseAvailable(elite, gctorder.Buy)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !pairItems.base.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.base.available)
 	}
@@ -315,9 +298,8 @@ func TestPairReleaser(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	if _, err := p.PairReleaser(); !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	_, err := p.PairReleaser()
+	assert.NoError(t, err)
 }
 
 func TestCollateralReleaser(t *testing.T) {

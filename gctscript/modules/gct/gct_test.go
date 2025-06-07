@@ -9,6 +9,7 @@ import (
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -348,9 +349,7 @@ func TestSetVerbose(t *testing.T) {
 	}
 
 	resp, err := setVerbose(&Context{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctx, ok := objects.ToInterface(resp).(*Context)
 	if !ok {
@@ -408,9 +407,7 @@ func TestSetAccount(t *testing.T) {
 	}
 
 	resp, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctx, ok := objects.ToInterface(resp).(*Context)
 	if !ok {
@@ -461,9 +458,7 @@ func TestSetSubAccount(t *testing.T) {
 	}
 
 	subby, err := setSubAccount(&Context{}, dummyStr)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctxWSubAcc, ok := subby.(*Context)
 	if !ok {
@@ -498,14 +493,10 @@ func TestProcessScriptContext(t *testing.T) {
 	}
 
 	fromScript, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	fromScript, err = setVerbose(fromScript)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	scriptCTX, ok := objects.ToInterface(fromScript).(*Context)
 	if !ok {

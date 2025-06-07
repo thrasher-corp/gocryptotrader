@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -32,9 +33,7 @@ func TestGetSnapshot(t *testing.T) {
 			}},
 		},
 	}).GetCurrencyStateSnapshot()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if o == nil {
 		t.Fatal("unexpected value")
@@ -60,9 +59,8 @@ func TestCanTradePair(t *testing.T) {
 	}
 
 	err = (&States{}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, nil) { // not found but default to operational
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+	// not found but default to operational
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -72,9 +70,7 @@ func TestCanTradePair(t *testing.T) {
 			},
 		},
 	}).CanTradePair(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -143,9 +139,7 @@ func TestStatesCanWithdraw(t *testing.T) {
 			},
 		},
 	}).CanWithdraw(currency.BTC, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -177,9 +171,7 @@ func TestStatesCanDeposit(t *testing.T) {
 			},
 		},
 	}).CanDeposit(currency.BTC, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = (&States{
 		m: map[asset.Item]map[*currency.Item]*Currency{
@@ -221,24 +213,17 @@ func TestStatesUpdateAll(t *testing.T) {
 			Deposit:  convert.BoolPtr(true),
 		},
 	})
-
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = s.UpdateAll(asset.Spot, map[currency.Code]Options{currency.BTC: {
 		Withdraw: convert.BoolPtr(false),
 		Deposit:  convert.BoolPtr(false),
 		Trade:    convert.BoolPtr(false),
 	}})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	c, err := s.Get(currency.BTC, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if c.CanDeposit() || c.CanTrade() || c.CanWithdraw() {
 		t.Fatal()
@@ -267,9 +252,7 @@ func TestStatesUpdate(t *testing.T) {
 			asset.Spot: {currency.BTC.Item: &Currency{}},
 		},
 	}).Update(currency.BTC, asset.Spot, Options{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestStatesGet(t *testing.T) {

@@ -1,7 +1,6 @@
 package coinbasepro
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -24,6 +24,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -75,6 +76,30 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+func TestHistoryUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[[1746649200,96269.22,96307.18,96275.58,96307.18,1.85952049],[1746649140,96256.39,96297.31,96296,96273.29,3.41045323],[1746649080,96256.01,96365.73,96365.73,96299.99,3.56073877]]`)
+	var resp []History
+	err := json.Unmarshal(data, &resp)
+	require.NoError(t, err)
+	require.Len(t, resp, 3)
+	assert.Equal(t, History{
+		Time:   types.Time(time.Unix(1746649200, 0)),
+		Low:    96269.22,
+		High:   96307.18,
+		Open:   96275.58,
+		Close:  96307.18,
+		Volume: 1.85952049,
+	}, resp[0])
+}
+
+func TestGetHistoricRates(t *testing.T) {
+	t.Parallel()
+	result, err := c.GetHistoricRates(t.Context(), "BTC-USD", "", "", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
@@ -120,9 +145,7 @@ func TestGetCurrentServerTime(t *testing.T) {
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := c.GetServerTime(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")
@@ -1031,8 +1054,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, c)
 	for _, a := range c.GetAssetTypes(false) {
 		pairs, err := c.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := c.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

@@ -7,17 +7,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	// import sqlite3 driver
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSetConfig(t *testing.T) {
 	t.Parallel()
 	inst := &Instance{}
 	err := inst.SetConfig(&Config{Verbose: true})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = inst.SetConfig(nil)
 	if !errors.Is(err, ErrNilConfig) {
@@ -40,9 +38,7 @@ func TestSetSQLiteConnection(t *testing.T) {
 	}
 
 	err = inst.SetSQLiteConnection(&sql.DB{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	inst = nil
 	err = inst.SetSQLiteConnection(nil)
@@ -59,21 +55,16 @@ func TestSetPostgresConnection(t *testing.T) {
 	inst := &Instance{}
 	databaseFullLocation := filepath.Join(DB.DataPath, "TestSetPostgresConnection")
 	con, err := sql.Open("sqlite3", databaseFullLocation)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = inst.SetPostgresConnection(con)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = con.Close()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = os.Remove(databaseFullLocation)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetConnected(t *testing.T) {
@@ -94,17 +85,13 @@ func TestCloseConnection(t *testing.T) {
 	inst := &Instance{}
 	databaseFullLocation := filepath.Join(DB.DataPath, "TestCloseConnection")
 	con, err := sql.Open("sqlite3", databaseFullLocation)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = inst.SetSQLiteConnection(con)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = inst.CloseConnection()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestIsConnected(t *testing.T) {
@@ -131,9 +118,7 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	err := inst.SetConfig(&Config{Enabled: true})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	cfg = inst.GetConfig()
 	if cfg == nil {
@@ -146,18 +131,15 @@ func TestPing(t *testing.T) {
 	inst := &Instance{}
 	databaseFullLocation := filepath.Join(DB.DataPath, "TestPing")
 	con, err := sql.Open("sqlite3", databaseFullLocation)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = inst.SetSQLiteConnection(con)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	inst.SetConnected(true)
 	err = inst.Ping()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	inst.SQL = nil
 	err = inst.Ping()
 	if !errors.Is(err, errNilSQL) {
@@ -174,13 +156,10 @@ func TestPing(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, ErrNilInstance)
 	}
 	err = con.Close()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = os.Remove(databaseFullLocation)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetSQL(t *testing.T) {
@@ -193,17 +172,13 @@ func TestGetSQL(t *testing.T) {
 
 	databaseFullLocation := filepath.Join(DB.DataPath, "TestGetSQL")
 	con, err := sql.Open("sqlite3", databaseFullLocation)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = inst.SetSQLiteConnection(con)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = inst.GetSQL()
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	inst = nil
 	_, err = inst.GetSQL()

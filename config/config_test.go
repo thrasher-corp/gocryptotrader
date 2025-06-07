@@ -1640,12 +1640,12 @@ func TestCheckConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	var c Config
-	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig should not error")
+	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig must not error")
 	newCfg := c
-	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig should not error")
+	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig must not error")
 
 	if isGCTDocker := os.Getenv("GCT_DOCKER_CI"); isGCTDocker != "true" {
-		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig should error on non-existent path")
+		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig must error on non-existent path")
 	}
 }
 
@@ -1998,7 +1998,7 @@ func TestMigrateConfig(t *testing.T) {
 			} else {
 				require.NoError(t, err, "migrateConfig must not error")
 				require.Equal(t, tt.want, got, "migrateConfig must return the correct file")
-				require.Truef(t, file.Exists(got), "migrateConfig return file `%s` must exist", got)
+				require.Truef(t, file.Exists(got), "migrateConfig return file %q must exist", got)
 			}
 		})
 	}
@@ -2011,9 +2011,7 @@ func TestExchangeConfigValidate(t *testing.T) {
 	}
 
 	err = (&Exchange{}).Validate()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetDefaultSyncManagerConfig(t *testing.T) {

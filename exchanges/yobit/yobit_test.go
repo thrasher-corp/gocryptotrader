@@ -1,7 +1,6 @@
 package yobit
 
 import (
-	"errors"
 	"log"
 	"math"
 	"os"
@@ -553,9 +552,7 @@ func TestUpdateTickers(t *testing.T) {
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := y.GetServerTime(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Fatal("expected a time")
@@ -567,8 +564,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, y)
 	for _, a := range y.GetAssetTypes(false) {
 		pairs, err := y.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := y.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

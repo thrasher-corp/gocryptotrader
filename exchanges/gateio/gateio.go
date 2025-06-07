@@ -471,55 +471,8 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var candles [][7]string
-	err = g.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues(gateioSpotCandlesticks, params), &candles)
-	if err != nil {
-		return nil, err
-	}
-	if len(candles) == 0 {
-		return nil, fmt.Errorf("no candlesticks available for instrument %v", currencyPair)
-	}
-	candlesticks := make([]Candlestick, len(candles))
-	for x := range candles {
-		timestamp, err := strconv.ParseInt(candles[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		quoteTradingVolume, err := strconv.ParseFloat(candles[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		closePrice, err := strconv.ParseFloat(candles[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		highestPrice, err := strconv.ParseFloat(candles[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		lowestPrice, err := strconv.ParseFloat(candles[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		openPrice, err := strconv.ParseFloat(candles[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		baseCurrencyAmount, err := strconv.ParseFloat(candles[x][6], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x] = Candlestick{
-			Timestamp:      time.Unix(timestamp, 0),
-			QuoteCcyVolume: quoteTradingVolume,
-			ClosePrice:     closePrice,
-			HighestPrice:   highestPrice,
-			LowestPrice:    lowestPrice,
-			OpenPrice:      openPrice,
-			BaseCcyAmount:  baseCurrencyAmount,
-		}
-	}
-	return candlesticks, nil
+	var candles []Candlestick
+	return candles, g.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues(gateioSpotCandlesticks, params), &candles)
 }
 
 // GetTradingFeeRatio retrieves user trading fee rates
@@ -836,7 +789,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
-		return nil, fmt.Errorf("invalid price trigger condition or rule '%s' but expected '>=' or '<='", arg.Trigger.Rule)
+		return nil, fmt.Errorf("invalid price trigger condition or rule %q but expected '>=' or '<='", arg.Trigger.Rule)
 	}
 	if arg.Trigger.Expiration <= 0 {
 		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")
@@ -1193,7 +1146,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	switch arg.SubAccountType {
 	case "", "spot", "futures", "delivery":
 	default:
-		return fmt.Errorf("%w `%s` for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
+		return fmt.Errorf("%w %q for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferEPL, http.MethodPost, walletSubAccountTransfer, nil, &arg, nil)
 }

@@ -447,7 +447,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 			CurrencyPair: p,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Quantity,
-			Timestamp:    tradeData[i].Time,
+			Timestamp:    tradeData[i].Time.Time(),
 		}
 	}
 
@@ -664,8 +664,8 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 		Status:         status,
 		Price:          resp.Price,
 		ExecutedAmount: resp.ExecutedQty,
-		Date:           resp.Time,
-		LastUpdated:    resp.UpdateTime,
+		Date:           resp.Time.Time(),
+		LastUpdated:    resp.UpdateTime.Time(),
 	}, nil
 }
 
@@ -763,7 +763,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 		}
 		orders[x] = order.Detail{
 			Amount:        resp[x].OrigQty,
-			Date:          resp[x].Time,
+			Date:          resp[x].Time.Time(),
 			Exchange:      bi.Name,
 			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
@@ -773,7 +773,7 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 			Status:        orderStatus,
 			Pair:          getOrdersRequest.Pairs[0],
 			AssetType:     getOrdersRequest.AssetType,
-			LastUpdated:   resp[x].UpdateTime,
+			LastUpdated:   resp[x].UpdateTime.Time(),
 		}
 	}
 	return getOrdersRequest.Filter(bi.Name, orders), nil

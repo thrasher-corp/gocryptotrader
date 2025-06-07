@@ -124,7 +124,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %w: `%s`", exch, ErrExchangeHoldingsNotFound, assetType)
+		return Holdings{}, fmt.Errorf("%s %w: %q", exch, ErrExchangeHoldingsNotFound, assetType)
 	}
 
 	subAccountHoldings, ok := accounts.subAccounts[*creds]
@@ -288,7 +288,7 @@ func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 				bal = &ProtectedBalance{}
 			}
 			if err := bal.load(accBal); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w",
+				errs = common.AppendError(errs, fmt.Errorf("%w for account ID %q [%s %s]: %w",
 					errLoadingBalance,
 					incoming.Accounts[x].ID,
 					incoming.Accounts[x].AssetType,

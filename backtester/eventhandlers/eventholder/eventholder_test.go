@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -13,9 +14,8 @@ func TestReset(t *testing.T) {
 	t.Parallel()
 	e := &Holder{Queue: []common.Event{}}
 	err := e.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if e.Queue != nil {
 		t.Error("expected nil")
 	}

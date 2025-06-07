@@ -132,7 +132,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	for _, a := range g.GetAssetTypes(false) {
 		_, err := g.UpdateTicker(t.Context(), getPair(t, a), a)
-		assert.NoError(t, err, "UpdateTicker should not error for %s", a)
+		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
 	}
 }
 
@@ -189,6 +189,25 @@ func TestGetMarketTrades(t *testing.T) {
 	if _, err := g.GetMarketTrades(t.Context(), getPair(t, asset.Spot), 0, "", true, time.Time{}, time.Time{}, 1); err != nil {
 		t.Errorf("%s GetMarketTrades() error %v", g.Name, err)
 	}
+}
+
+func TestCandlestickUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[["1738108800","229534412.73508700","103734.3","104779.9","101336.6","101343.8","2232.94510000","true"],["1738195200","178316032.62306100","104718.6","106467.1","103286.4","103734.4","1695.00787000","true"],["1738281600","231315376.16747100","102431","106042.7","101555.9","104718.6","2228.03609000","true"]]`)
+	var targets []Candlestick
+	err := json.Unmarshal(data, &targets)
+	require.NoError(t, err)
+	require.Len(t, targets, 3)
+	assert.Equal(t, Candlestick{
+		Timestamp:      types.Time(time.Unix(1738108800, 0)),
+		QuoteCcyVolume: 229534412.73508700,
+		ClosePrice:     103734.3,
+		HighestPrice:   104779.9,
+		LowestPrice:    101336.6,
+		OpenPrice:      101343.8,
+		BaseCcyAmount:  2232.94510000,
+		WindowClosed:   true,
+	}, targets[0])
 }
 
 func TestGetCandlesticks(t *testing.T) {
@@ -2799,8 +2818,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	for _, a := range g.GetAssetTypes(false) {
 		pairs, err := g.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := g.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a == asset.Options {
 			require.ErrorIs(t, err, asset.ErrNotSupported)

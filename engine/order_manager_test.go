@@ -188,13 +188,11 @@ func TestOrderManagerStart(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
 	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
@@ -209,17 +207,15 @@ func TestOrderManagerIsRunning(t *testing.T) {
 
 	var wg sync.WaitGroup
 	m, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -234,22 +230,18 @@ func TestOrderManagerStop(t *testing.T) {
 
 	var wg sync.WaitGroup
 	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func OrdersSetup(t *testing.T) *OrderManager {
@@ -274,13 +266,11 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	m.started = 1
 	return m
 }
@@ -480,9 +470,7 @@ func TestCancelOrder(t *testing.T) {
 		Pair:      btcusdPair,
 	}
 	err = m.Cancel(t.Context(), cancel)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")
@@ -616,9 +604,7 @@ func TestSubmit(t *testing.T) {
 		Exchange: testExchange,
 		OrderID:  "FakePassingExchangeOrder",
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o2, err := m.orderStore.getByExchangeAndID(testExchange, "FakePassingExchangeOrder")
 	if err != nil {
@@ -762,13 +748,11 @@ func TestProcessOrders(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	m.started = 1
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USD},
@@ -1187,13 +1171,11 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 1 {
 		t.Error("expected 1 position")
 	}
@@ -1235,17 +1217,14 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	resp, err := o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 0 {
 		t.Errorf("expected no position, received '%v'", len(resp))
 	}
@@ -1287,13 +1266,11 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	unrealised, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 2, time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !unrealised.Equal(decimal.NewFromInt(1)) {
 		t.Errorf("received '%v', expected '%v'", unrealised, 1)
 	}
@@ -1323,9 +1300,8 @@ func TestSubmitFakeOrder(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	o.orderStore.exchangeManager = em
 
 	ord := &order.Submit{}
@@ -1348,9 +1324,7 @@ func TestSubmitFakeOrder(t *testing.T) {
 	o.orderStore.commsManager = &CommunicationManager{}
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	_, err = o.SubmitFakeOrder(ord, resp, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrdersSnapshot(t *testing.T) {
@@ -1405,17 +1379,14 @@ func TestUpdateExisting(t *testing.T) {
 	}
 	s.futuresPositionController = futures.SetupPositionController()
 	err = s.futuresPositionController.TrackNewOrder(od)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.updateExisting(od)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pos, err := s.futuresPositionController.GetPositionsForExchange(testExchange, asset.Futures, od.Pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(pos) != 1 {
 		t.Error("expected 1")
 	}
@@ -1462,9 +1433,8 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
 	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 0
 	_, err = o.GetAllOpenFuturesPositions()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
@@ -1490,9 +1460,8 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
 	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 0
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
@@ -1534,18 +1503,16 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, &config.OrderManager{
 		Enabled:                       true,
 		FuturesTrackingSeekDuration:   time.Hour,
 		Verbose:                       true,
 		ActivelyTrackFuturesPositions: true,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 1
 
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
@@ -1568,13 +1535,10 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 		Amount:    1337,
 		Exchange:  testExchange,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Futures, cp)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o = nil
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
@@ -1628,14 +1592,12 @@ func TestProcessFuturesPositions(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	o, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	o.started = 1
 
 	err = o.processFuturesPositions(fakeExchange, nil)
@@ -1674,15 +1636,11 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	b.Features.Supports.FuturesCapabilities.FundingRates = true
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 // TestGetByDetail tests orderstore.getByDetail
