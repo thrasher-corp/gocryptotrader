@@ -765,6 +765,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"tRiGgEr", Trigger, nil},
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
+		{"Sor", SOR, nil},
+		{"sor", SOR, nil},
 		{"mMp", MarketMakerProtection, nil},
 		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
@@ -781,6 +783,12 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"LIMIT_MAKER", LimitMaker, nil},
+		{"LIMIT MAKER", LimitMaker, nil},
+		{"OtO", OTO, nil},
+		{"OTO", OTO, nil},
+		{"TAKE PROFIT LIMIT", TakeProfitLimit, nil},
+		{"take_profit_limit", TakeProfitLimit, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
