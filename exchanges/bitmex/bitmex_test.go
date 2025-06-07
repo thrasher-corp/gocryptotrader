@@ -3,6 +3,7 @@ package bitmex
 import (
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -199,8 +200,41 @@ func TestGetInsuranceFundHistory(t *testing.T) {
 
 func TestGetLeaderboard(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLeaderboard(t.Context(), LeaderboardGetParams{})
-	require.NoError(t, err)
+
+	b := new(Bitmex) //nolint:govet // Intentional shadow
+	err := testexch.Setup(b)
+	require.NoError(t, err, "Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v1/leaderboard", r.URL.Path, "Request path should match expected")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(`[
+			{
+				"isRealName": true,
+				"name": "Trader Joe",
+				"profit": 12345.67
+			},
+			{
+				"isRealName": false,
+				"name": "CryptoKing",
+				"profit": 9876.54
+			}
+		]`))
+		assert.NoError(t, err, "Writing response to handler should not error")
+	}))
+	defer server.Close()
+
+	err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunning must not error")
+
+	expectedLeaderboard := []Leaderboard{
+		{IsRealName: true, Name: "Trader Joe", Profit: 12345.67},
+		{Name: "CryptoKing", Profit: 9876.54},
+	}
+
+	result, err := b.GetLeaderboard(t.Context(), LeaderboardGetParams{})
+	require.NoError(t, err, "GetLeaderboard must not error")
+	assert.Equal(t, expectedLeaderboard, result, "GetLeaderboard result should match expected")
 }
 
 func TestGetAliasOnLeaderboard(t *testing.T) {
@@ -349,8 +383,45 @@ func TestGetStats(t *testing.T) {
 
 func TestGetStatsHistorical(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetStatsHistorical(t.Context())
-	require.NoError(t, err)
+
+	b := new(Bitmex) //nolint:govet // Intentional shadow
+	err := testexch.Setup(b)
+	require.NoError(t, err, "Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v1/stats/history", r.URL.Path, "Request path should match expected")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(`[
+			{
+				"currency": "XBt",
+				"date": "2023-10-26T00:00:00.000Z",
+				"rootSymbol": "XBT",
+				"turnover": 5000000000,
+				"volume": 100000
+			},
+			{
+				"currency": "XBt",
+				"date": "2023-10-25T10:35:42.123Z",
+				"rootSymbol": "XBT",
+				"turnover": 4500000000,
+				"volume": 90000
+			}
+		]`))
+		assert.NoError(t, err, "Writing response to handler should not error")
+	}))
+	defer server.Close()
+
+	err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunning must not error")
+
+	expectedStats := []StatsHistory{
+		{Currency: "XBt", Date: time.Date(2023, 10, 26, 0, 0, 0, 0, time.UTC), RootSymbol: "XBT", Turnover: 5000000000, Volume: 100000},
+		{Currency: "XBt", Date: time.Date(2023, 10, 25, 10, 35, 42, 123000000, time.UTC), RootSymbol: "XBT", Turnover: 4500000000, Volume: 90000},
+	}
+
+	result, err := b.GetStatsHistorical(t.Context())
+	require.NoError(t, err, "GetStatsHistorical must not error")
+	assert.Equal(t, expectedStats, result, "GetStatsHistorical result should match expected")
 }
 
 func TestGetStatSummary(t *testing.T) {
