@@ -297,7 +297,7 @@ func TestGetOrderStatus(t *testing.T) {
 				}
 			case mockTests:
 				if tt.errExpected {
-					t.Errorf("Mock get order status expect an error '%s', get no error", tt.errMsgExpected)
+					t.Errorf("Mock get order status expect an error %q, get no error", tt.errMsgExpected)
 				}
 			}
 		})
@@ -641,9 +641,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	start := time.Unix(1588741402, 0)
 	_, err = p.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.FiveMin, start, time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -655,9 +653,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 
 	_, err = p.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
-	if !errors.Is(err, nil) {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -1107,9 +1103,7 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestGetTimestamp(t *testing.T) {
 	t.Parallel()
 	st, err := p.GetTimestamp(t.Context())
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Error("expected a time")
@@ -1119,9 +1113,7 @@ func TestGetTimestamp(t *testing.T) {
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := p.GetServerTime(t.Context(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if st.IsZero() {
 		t.Error("expected a time")
@@ -1141,8 +1133,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, p)
 	for _, a := range p.GetAssetTypes(false) {
 		pairs, err := p.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := p.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

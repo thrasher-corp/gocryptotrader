@@ -256,17 +256,14 @@ func TestBalanceInternalWait(t *testing.T) {
 
 	bi = &ProtectedBalance{}
 	waiter, _, err := bi.Wait(time.Nanosecond)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if !<-waiter {
 		t.Fatal("should been alerted by timeout")
 	}
 
 	waiter, _, err = bi.Wait(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	go bi.notice.Alert()
 	if <-waiter {
