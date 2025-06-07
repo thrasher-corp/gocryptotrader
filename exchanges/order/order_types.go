@@ -359,6 +359,8 @@ const (
 	StopLimit
 	StopMarket
 	TakeProfit
+	TakeProfitLimit
+	StopLoss
 	TakeProfitMarket
 	TrailingStop
 	IOS
@@ -457,8 +459,9 @@ type PriceType uint8
 
 // price types
 const (
-	LastPrice  PriceType = 0
-	IndexPrice PriceType = 1 << iota
+	UnsetPriceType PriceType = 0
+	LastPrice      PriceType = 1 << iota
+	IndexPrice
 	MarkPrice
 	UnknownPriceType
 )
