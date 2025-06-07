@@ -1487,7 +1487,7 @@ func (c *Config) readConfig(d io.Reader) error {
 // If they agree, c.EncryptConfig is set to Enabled, the config is encrypted and saved
 // Otherwise, c.EncryptConfig is set to Disabled and the file is resaved
 func (c *Config) saveWithEncryptPrompt(path string) error {
-	if confirm, err := PromptForConfigEncryption(); err != nil {
+	if confirm, err := promptForConfigEncryption(os.Stdin); err != nil {
 		return nil //nolint:nilerr // Ignore encryption prompt failures; The user will be prompted again
 	} else if confirm {
 		c.EncryptConfig = fileEncryptionEnabled

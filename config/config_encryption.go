@@ -54,11 +54,6 @@ func promptForConfigEncryption(r io.Reader) (bool, error) {
 	return common.YesOrNo(input), nil
 }
 
-// PromptForConfigEncryption asks for encryption confirmation using stdin
-func PromptForConfigEncryption() (bool, error) {
-	return promptForConfigEncryption(os.Stdin)
-}
-
 // PromptForConfigKey asks for configuration key
 func PromptForConfigKey(confirmKey bool) ([]byte, error) {
 	for range 3 {
