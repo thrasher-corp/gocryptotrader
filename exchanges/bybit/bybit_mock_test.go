@@ -20,13 +20,13 @@ var mockTests = true
 func TestMain(m *testing.M) {
 	b = new(Bybit)
 	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Bybit Setup error: %s", err)
 	}
 
 	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountInfo test
 
 	if err := testexch.MockHTTPInstance(b); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Bybit MockHTTPInstance error: %s", err)
 	}
 
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {

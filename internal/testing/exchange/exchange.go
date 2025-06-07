@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,24 +59,32 @@ const httpMockFile = "testdata/http.json"
 
 // MockHTTPInstance takes an existing Exchange instance and attaches it to a new http server
 // It is expected to be run once,  since http requests do not often tangle with each other
-func MockHTTPInstance(e exchange.IBotExchange) error {
-	serverDetails, newClient, err := mock.NewVCRServer(httpMockFile)
+func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
+	serverPath, newClient, err := mock.NewVCRServer(httpMockFile)
 	if err != nil {
-		return fmt.Errorf("mock server error %s", err)
+		return fmt.Errorf("error starting NewVCRServer: %w", err)
 	}
+
 	b := e.GetBase()
 	b.SkipAuthCheck = true
-	err = b.SetHTTPClient(newClient)
-	if err != nil {
-		return fmt.Errorf("mock server error %s", err)
+	if err := b.SetHTTPClient(newClient); err != nil {
+		return fmt.Errorf("error setting HTTP client: %w", err)
 	}
-	endpointMap := b.API.Endpoints.GetURLMap()
-	for k := range endpointMap {
-		err = b.API.Endpoints.SetRunning(k, serverDetails)
+
+	if len(optionalPathPostfix) > 0 {
+		newPath, err := url.JoinPath(serverPath, optionalPathPostfix...)
 		if err != nil {
-			return fmt.Errorf("mock server error %s", err)
+			return fmt.Errorf("error joining server URL path: %w", err)
+		}
+		serverPath = newPath
+	}
+
+	for k := range b.API.Endpoints.GetURLMap() {
+		if err := b.API.Endpoints.SetRunning(k, serverPath); err != nil {
+			return fmt.Errorf("error setting running endpoint: %w", err)
 		}
 	}
+
 	log.Printf(sharedtestvalues.MockTesting, e.GetName())
 
 	return nil

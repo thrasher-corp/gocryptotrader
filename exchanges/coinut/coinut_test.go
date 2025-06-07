@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -26,7 +25,7 @@ import (
 )
 
 var (
-	c          = &COINUT{}
+	c          *COINUT
 	wsSetupRan bool
 )
 
@@ -38,29 +37,21 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	c.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Coinut load config error", err)
+	c = new(COINUT)
+	if err := testexch.Setup(c); err != nil {
+		log.Fatalf("Coinut Setup error: %s", err)
 	}
-	coinutCfg, err := cfg.GetExchangeConfig("COINUT")
-	if err != nil {
-		log.Fatal("Coinut Setup() init error")
+
+	if apiKey != "" && clientID != "" {
+		c.API.AuthenticatedSupport = true
+		c.API.AuthenticatedWebsocketSupport = true
+		c.SetCredentials(apiKey, clientID, "", "", "", "")
 	}
-	coinutCfg.API.AuthenticatedSupport = true
-	coinutCfg.API.AuthenticatedWebsocketSupport = true
-	coinutCfg.API.Credentials.Key = apiKey
-	coinutCfg.API.Credentials.ClientID = clientID
-	c.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = c.Setup(coinutCfg)
-	if err != nil {
-		log.Fatal("Coinut setup error", err)
+
+	if err := c.SeedInstruments(context.Background()); err != nil {
+		log.Fatalf("Coinut SeedInstruments error: %s", err)
 	}
-	err = c.SeedInstruments(context.Background())
-	if err != nil {
-		log.Fatal("Coinut setup error ", err)
-	}
+
 	os.Exit(m.Run())
 }
 

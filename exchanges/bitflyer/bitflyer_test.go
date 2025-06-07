@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -27,26 +26,17 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &Bitflyer{}
+var b *Bitflyer
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Bitflyer load config error", err)
-	}
-	bitflyerConfig, err := cfg.GetExchangeConfig("Bitflyer")
-	if err != nil {
-		log.Fatal("bitflyer Setup() init error")
+	b = new(Bitflyer)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatalf("Bitflyer Setup error: %s", err)
 	}
 
-	bitflyerConfig.API.AuthenticatedSupport = true
-	bitflyerConfig.API.Credentials.Key = apiKey
-	bitflyerConfig.API.Credentials.Secret = apiSecret
-	b.SetDefaults()
-	err = b.Setup(bitflyerConfig)
-	if err != nil {
-		log.Fatal("Bitflyer setup error", err)
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	os.Exit(m.Run())

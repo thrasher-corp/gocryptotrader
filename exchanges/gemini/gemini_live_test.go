@@ -9,35 +9,25 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Gemini load config error", err)
+	g = new(Gemini)
+	if err := testexch.Setup(g); err != nil {
+		log.Fatalf("Gemini Setup error: %s", err)
 	}
-	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
-	if err != nil {
-		log.Fatal("Gemini Setup() init error", err)
-	}
-	geminiConfig.API.AuthenticatedSupport = true
-	geminiConfig.API.Credentials.Key = apiKey
-	geminiConfig.API.Credentials.Secret = apiSecret
-	g.SetDefaults()
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = g.Setup(geminiConfig)
-	if err != nil {
-		log.Fatal("Gemini setup error", err)
+	if apiKey != "" && apiSecret != "" {
+		g.API.AuthenticatedSupport = true
+		g.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiAPIURL)
 	if err != nil {
-		log.Fatalf("endpoint setting failed. key: %s, val: %s", exchange.RestSpot.String(), geminiAPIURL)
+		log.Fatalf("Gemini SetRunning error: %s", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, g.Name)
 	os.Exit(m.Run())
