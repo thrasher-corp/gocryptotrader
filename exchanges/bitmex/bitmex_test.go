@@ -206,6 +206,7 @@ func TestGetLeaderboard(t *testing.T) {
 	require.NoError(t, err, "Setup must not error")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should match expected")
 		assert.Equal(t, "/api/v1/leaderboard", r.URL.Path, "Request path should match expected")
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write([]byte(`[
@@ -389,6 +390,7 @@ func TestGetStatsHistorical(t *testing.T) {
 	require.NoError(t, err, "Setup must not error")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should match expected")
 		assert.Equal(t, "/api/v1/stats/history", r.URL.Path, "Request path should match expected")
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write([]byte(`[
