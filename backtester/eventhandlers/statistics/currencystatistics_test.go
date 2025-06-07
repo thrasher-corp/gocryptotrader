@@ -1,7 +1,6 @@
 package statistics
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -284,9 +283,7 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 
 	c.Asset = asset.Binary
 	err = c.calculateHighestCommittedFunds()
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestAnalysePNLGrowth(t *testing.T) {

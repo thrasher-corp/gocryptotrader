@@ -1,7 +1,6 @@
 package holdings
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -58,9 +57,8 @@ func collateral(t *testing.T) *funding.CollateralPair {
 func TestCreate(t *testing.T) {
 	t.Parallel()
 	_, err := Create(nil, pair(t))
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	_, err = Create(&fill.Fill{
 		Base: &event.Base{AssetType: asset.Spot},
 	}, pair(t))
@@ -101,9 +99,7 @@ func TestUpdateValue(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = h.UpdateValue(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	h.BaseSize = decimal.NewFromInt(1)
 	err = h.UpdateValue(&kline.Kline{

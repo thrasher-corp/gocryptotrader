@@ -1,7 +1,6 @@
 package funding
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -53,33 +52,24 @@ func TestReserve(t *testing.T) {
 	t.Parallel()
 	i := Item{}
 	err := i.Reserve(decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = i.Reserve(elite)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	i.reserved = elite
 	err = i.Reserve(elite)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	i.available = elite
 	err = i.Reserve(elite)
 	assert.NoError(t, err)
 
 	err = i.Reserve(elite)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
 
 	err = i.Reserve(neg)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
 }
 
 func TestIncreaseAvailable(t *testing.T) {
@@ -92,26 +82,21 @@ func TestIncreaseAvailable(t *testing.T) {
 		t.Errorf("expected %v", elite)
 	}
 	err = i.IncreaseAvailable(decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = i.IncreaseAvailable(neg)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
 }
 
 func TestRelease(t *testing.T) {
 	t.Parallel()
 	i := Item{}
 	err := i.Release(decimal.Zero, decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = i.Release(elite, decimal.Zero)
-	if !errors.Is(err, errCannotAllocate) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
-	}
+	assert.ErrorIs(t, err, errCannotAllocate)
+
 	i.reserved = elite
 	err = i.Release(elite, decimal.Zero)
 	assert.NoError(t, err)
@@ -121,13 +106,10 @@ func TestRelease(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = i.Release(neg, decimal.Zero)
-	if !errors.Is(err, errZeroAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
-	}
+	assert.ErrorIs(t, err, errZeroAmountReceived)
+
 	err = i.Release(elite, neg)
-	if !errors.Is(err, errNegativeAmountReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errNegativeAmountReceived)
-	}
+	assert.ErrorIs(t, err, errNegativeAmountReceived)
 }
 
 func TestMatchesCurrency(t *testing.T) {

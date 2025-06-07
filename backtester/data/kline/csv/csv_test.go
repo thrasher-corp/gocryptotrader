@@ -1,7 +1,6 @@
 package csv
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -56,9 +55,7 @@ func TestLoadDataInvalid(t *testing.T) {
 		p,
 		a,
 		false)
-	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
-	}
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 
 	_, err = LoadData(
 		-1,
@@ -68,7 +65,5 @@ func TestLoadDataInvalid(t *testing.T) {
 		p,
 		a,
 		true)
-	if !errors.Is(err, errNoUSDData) {
-		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
-	}
+	assert.ErrorIs(t, err, errNoUSDData)
 }

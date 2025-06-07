@@ -1,7 +1,6 @@
 package account
 
 import (
-	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -59,9 +58,7 @@ func TestCollectBalances(t *testing.T) {
 	}
 
 	_, err = CollectBalances(map[string][]Balance{}, asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetHoldings(t *testing.T) {
@@ -250,9 +247,7 @@ func TestBalanceInternalWait(t *testing.T) {
 	t.Parallel()
 	var bi *ProtectedBalance
 	_, _, err := bi.Wait(0)
-	if !errors.Is(err, errBalanceIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBalanceIsNil)
-	}
+	require.ErrorIs(t, err, errBalanceIsNil)
 
 	bi = &ProtectedBalance{}
 	waiter, _, err := bi.Wait(time.Nanosecond)

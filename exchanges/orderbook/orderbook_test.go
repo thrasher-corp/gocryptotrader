@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -62,77 +61,55 @@ func TestVerify(t *testing.T) {
 
 	b.Asks = []Tranche{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errIDDuplication) {
-		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
-	}
+	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errDuplication) {
-		t.Fatalf("expecting %s error but received %v", errDuplication, err)
-	}
+	require.ErrorIs(t, err, errDuplication)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
-	if !errors.Is(err, errPeriodUnset) {
-		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
-	}
+	require.ErrorIs(t, err, errPeriodUnset)
+
 	b.IsFundingRate = false
 
 	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
-	if !errors.Is(err, errAmountInvalid) {
-		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
-	}
+	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
-	}
+	require.ErrorIs(t, err, errPriceNotSet)
 
 	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errIDDuplication) {
-		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
-	}
+	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errDuplication) {
-		t.Fatalf("expecting %s error but received %v", errDuplication, err)
-	}
+	require.ErrorIs(t, err, errDuplication)
 
 	b.Bids = []Tranche{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
-	if !errors.Is(err, errPeriodUnset) {
-		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
-	}
+	require.ErrorIs(t, err, errPeriodUnset)
+
 	b.IsFundingRate = false
 
 	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
-	if !errors.Is(err, errAmountInvalid) {
-		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
-	}
+	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
-	}
+	require.ErrorIs(t, err, errPriceNotSet)
 }
 
 func TestCalculateTotalBids(t *testing.T) {
@@ -539,9 +516,7 @@ func TestSorting(t *testing.T) {
 
 	b.Asks = deployUnorderedSlice()
 	err := b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks.SortAsks()
 	err = b.Verify()
@@ -551,9 +526,7 @@ func TestSorting(t *testing.T) {
 
 	b.Bids = deployUnorderedSlice()
 	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids.SortBids()
 	err = b.Verify()
@@ -677,19 +650,14 @@ func TestCheckAlignment(t *testing.T) {
 		t.Error(err)
 	}
 	err = checkAlignment(itemWithFunding, false, true, false, false, dsc, "Bitfinex")
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
-	}
+	require.ErrorIs(t, err, errPriceNotSet)
+
 	err = checkAlignment(itemWithFunding, true, true, false, false, dsc, "Binance")
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
-	}
+	require.ErrorIs(t, err, errPriceNotSet)
 
 	itemWithFunding[0].Price = 1337
 	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
-	if !errors.Is(err, errChecksumStringNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errChecksumStringNotSet)
-	}
+	require.ErrorIs(t, err, errChecksumStringNotSet)
 
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"

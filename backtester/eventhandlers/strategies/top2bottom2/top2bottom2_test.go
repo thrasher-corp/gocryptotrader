@@ -1,7 +1,6 @@
 package top2bottom2
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -61,47 +60,37 @@ func TestSetCustomSettings(t *testing.T) {
 
 	mappalopalous[mfiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 
 	mappalopalous[mfiPeriodKey] = float14
 	mappalopalous[mfiLowKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 
 	mappalopalous[mfiLowKey] = float14
 	mappalopalous[mfiHighKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 
 	mappalopalous[mfiHighKey] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 }
 
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	if _, err := s.OnSignal(nil, nil, nil); !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
-		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
-	}
+	_, err := s.OnSignal(nil, nil, nil)
+	assert.ErrorIs(t, err, errStrategyOnlySupportsSimultaneousProcessing)
 }
 
 func TestOnSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
-		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
-	}
+	assert.ErrorIs(t, err, errStrategyOnlySupportsSimultaneousProcessing)
+
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot

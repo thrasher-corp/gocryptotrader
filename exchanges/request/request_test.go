@@ -390,9 +390,7 @@ func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 			Path:   testURL + "/always-retry",
 		}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, errFailedToRetryRequest) {
-		t.Fatalf("received: %v but expected: %v", err, errFailedToRetryRequest)
-	}
+	require.ErrorIs(t, err, errFailedToRetryRequest)
 }
 
 func TestDoRequest_NotRetryable(t *testing.T) {
@@ -415,9 +413,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 			Path:   testURL + "/always-retry",
 		}, nil
 	}, UnauthenticatedRequest)
-	if !errors.Is(err, notRetryErr) {
-		t.Fatalf("received: %v but expected: %v", err, notRetryErr)
-	}
+	require.ErrorIs(t, err, notRetryErr)
 }
 
 func TestGetNonce(t *testing.T) {
@@ -457,9 +453,8 @@ func TestSetProxy(t *testing.T) {
 	t.Parallel()
 	var r *Requester
 	err := r.SetProxy(nil)
-	if !errors.Is(err, ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+
 	r, err = New("test", &http.Client{Transport: new(http.Transport)}, WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
@@ -506,9 +501,7 @@ func TestBasicLimiter(t *testing.T) {
 	ctx, cancel := context.WithDeadline(ctx, tn.Add(time.Nanosecond))
 	defer cancel()
 	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &i, nil }, UnauthenticatedRequest)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("received: %v but expected: %v", err, context.DeadlineExceeded)
-	}
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
@@ -554,26 +547,22 @@ func TestEnableDisableRateLimit(t *testing.T) {
 func TestSetHTTPClient(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClient(nil)
-	if !errors.Is(err, ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+
 	client := new(http.Client)
 	r = new(Requester)
 	err = r.SetHTTPClient(client)
 	require.NoError(t, err)
 
 	err = r.SetHTTPClient(client)
-	if !errors.Is(err, errCannotReuseHTTPClient) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, errCannotReuseHTTPClient)
-	}
+	require.ErrorIs(t, err, errCannotReuseHTTPClient)
 }
 
 func TestSetHTTPClientTimeout(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClientTimeout(0)
-	if !errors.Is(err, ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+
 	r = new(Requester)
 	err = r.SetHTTPClient(common.NewHTTPClientWithTimeout(2))
 	if err != nil {
@@ -586,9 +575,8 @@ func TestSetHTTPClientTimeout(t *testing.T) {
 func TestSetHTTPClientUserAgent(t *testing.T) {
 	var r *Requester
 	err := r.SetHTTPClientUserAgent("")
-	if !errors.Is(err, ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("")
 	require.NoError(t, err)
@@ -597,9 +585,8 @@ func TestSetHTTPClientUserAgent(t *testing.T) {
 func TestGetHTTPClientUserAgent(t *testing.T) {
 	var r *Requester
 	_, err := r.GetHTTPClientUserAgent()
-	if !errors.Is(err, ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, ErrRequestSystemIsNil)
+
 	r = new(Requester)
 	err = r.SetHTTPClientUserAgent("sillyness")
 	require.NoError(t, err)

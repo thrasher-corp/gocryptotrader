@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -89,9 +88,7 @@ func TestCreateKline(t *testing.T) {
 
 	pair := currency.NewBTCUSD()
 	_, err := CreateKline(nil, OneMin, pair, asset.Spot, "Binance")
-	if !errors.Is(err, errInsufficientTradeData) {
-		t.Fatalf("received: '%v' but expected '%v'", err, errInsufficientTradeData)
-	}
+	require.ErrorIs(t, err, errInsufficientTradeData)
 
 	tradeTotal := 24000
 	trades := make([]order.TradeHistory, tradeTotal)
@@ -107,9 +104,7 @@ func TestCreateKline(t *testing.T) {
 	}
 
 	_, err = CreateKline(trades, 0, pair, asset.Spot, "Binance")
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrInvalidInterval)
-	}
+	require.ErrorIs(t, err, ErrInvalidInterval)
 
 	c, err := CreateKline(trades, OneMin, pair, asset.Spot, "Binance")
 	if err != nil {
@@ -801,14 +796,10 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 
 func TestConvertToNewInterval(t *testing.T) {
 	_, err := (*Item)(nil).ConvertToNewInterval(OneMin)
-	if !errors.Is(err, errNilKline) {
-		t.Errorf("received '%v' expected '%v'", err, errNilKline)
-	}
+	assert.ErrorIs(t, err, errNilKline)
 
 	_, err = (&Item{}).ConvertToNewInterval(OneMin)
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Errorf("received '%v' expected '%v'", err, ErrInvalidInterval)
-	}
+	assert.ErrorIs(t, err, ErrInvalidInterval)
 
 	old := &Item{
 		Exchange: "lol",
@@ -844,18 +835,14 @@ func TestConvertToNewInterval(t *testing.T) {
 	}
 
 	_, err = old.ConvertToNewInterval(0)
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Errorf("received '%v' expected '%v'", err, ErrInvalidInterval)
-	}
+	assert.ErrorIs(t, err, ErrInvalidInterval)
+
 	_, err = old.ConvertToNewInterval(OneMin)
-	if !errors.Is(err, ErrCanOnlyUpscaleCandles) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCanOnlyUpscaleCandles)
-	}
+	assert.ErrorIs(t, err, ErrCanOnlyUpscaleCandles)
+
 	old.Interval = ThreeDay
 	_, err = old.ConvertToNewInterval(OneWeek)
-	if !errors.Is(err, ErrWholeNumberScaling) {
-		t.Errorf("received '%v' expected '%v'", err, ErrWholeNumberScaling)
-	}
+	assert.ErrorIs(t, err, ErrWholeNumberScaling)
 
 	old.Interval = OneDay
 	newInterval := ThreeDay
@@ -889,9 +876,7 @@ func TestConvertToNewInterval(t *testing.T) {
 	}
 
 	_, err = old.ConvertToNewInterval(OneMonth)
-	if !errors.Is(err, ErrInsufficientCandleData) {
-		t.Errorf("received '%v' expected '%v'", err, ErrInsufficientCandleData)
-	}
+	assert.ErrorIs(t, err, ErrInsufficientCandleData)
 
 	tn := time.Now().Truncate(time.Duration(OneDay))
 
@@ -946,9 +931,7 @@ func TestConvertToNewInterval(t *testing.T) {
 	}
 
 	_, err = old.ConvertToNewInterval(newInterval)
-	if !errors.Is(err, errCandleDataNotPadded) {
-		t.Errorf("received '%v' expected '%v'", err, errCandleDataNotPadded)
-	}
+	assert.ErrorIs(t, err, errCandleDataNotPadded)
 
 	err = old.addPadding(tn, tn.AddDate(0, 0, 9), false)
 	require.NoError(t, err)
@@ -968,9 +951,7 @@ func TestAddPadding(t *testing.T) {
 
 	var k *Item
 	err := k.addPadding(tn, tn.AddDate(0, 0, 5), false)
-	if !errors.Is(err, errNilKline) {
-		t.Fatalf("received '%v' expected '%v'", err, errNilKline)
-	}
+	require.ErrorIs(t, err, errNilKline)
 
 	k = &Item{}
 	k.Candles = []Candle{
@@ -984,9 +965,7 @@ func TestAddPadding(t *testing.T) {
 		},
 	}
 	err = k.addPadding(tn, tn.AddDate(0, 0, 5), false)
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Fatalf("received '%v' expected '%v'", err, ErrInvalidInterval)
-	}
+	require.ErrorIs(t, err, ErrInvalidInterval)
 
 	k.Interval = OneDay
 	k.Candles = []Candle{
@@ -1008,9 +987,7 @@ func TestAddPadding(t *testing.T) {
 		},
 	}
 	err = k.addPadding(tn.AddDate(0, 0, 5), tn, false)
-	if !errors.Is(err, errCannotEstablishTimeWindow) {
-		t.Fatalf("received '%v' expected '%v'", err, errCannotEstablishTimeWindow)
-	}
+	require.ErrorIs(t, err, errCannotEstablishTimeWindow)
 
 	k.Candles = []Candle{
 		{
@@ -1040,9 +1017,7 @@ func TestAddPadding(t *testing.T) {
 	}
 
 	err = k.addPadding(tn, tn.AddDate(0, 0, 3), false)
-	if !errors.Is(err, errCandleOpenTimeIsNotUTCAligned) {
-		t.Fatalf("received '%v' expected '%v'", err, errCandleOpenTimeIsNotUTCAligned)
-	}
+	require.ErrorIs(t, err, errCandleOpenTimeIsNotUTCAligned)
 
 	k.Candles = []Candle{
 		{
@@ -1127,9 +1102,7 @@ func TestGetClosePriceAtTime(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", price, 1337)
 	}
 	_, err = k.GetClosePriceAtTime(tt.Add(time.Minute))
-	if !errors.Is(err, ErrNotFoundAtTime) {
-		t.Errorf("received '%v' expected '%v'", err, ErrNotFoundAtTime)
-	}
+	assert.ErrorIs(t, err, ErrNotFoundAtTime)
 }
 
 func TestDeployExchangeIntervals(t *testing.T) {
@@ -1145,14 +1118,10 @@ func TestDeployExchangeIntervals(t *testing.T) {
 	}
 
 	_, err := exchangeIntervals.Construct(0)
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Errorf("received '%v' expected '%v'", err, ErrInvalidInterval)
-	}
+	assert.ErrorIs(t, err, ErrInvalidInterval)
 
 	_, err = exchangeIntervals.Construct(OneMin)
-	if !errors.Is(err, ErrCannotConstructInterval) {
-		t.Errorf("received '%v' expected '%v'", err, ErrCannotConstructInterval)
-	}
+	assert.ErrorIs(t, err, ErrCannotConstructInterval)
 
 	request, err := exchangeIntervals.Construct(OneWeek)
 	assert.NoError(t, err)
@@ -1214,16 +1183,12 @@ func TestGetIntervalResultLimit(t *testing.T) {
 
 	var e *ExchangeCapabilitiesEnabled
 	_, err := e.GetIntervalResultLimit(OneMin)
-	if !errors.Is(err, errExchangeCapabilitiesEnabledIsNil) {
-		t.Errorf("received '%v' expected '%v'", err, errExchangeCapabilitiesEnabledIsNil)
-	}
+	assert.ErrorIs(t, err, errExchangeCapabilitiesEnabledIsNil)
 
 	e = &ExchangeCapabilitiesEnabled{}
 	e.Intervals = ExchangeIntervals{}
 	_, err = e.GetIntervalResultLimit(OneDay)
-	if !errors.Is(err, errIntervalNotSupported) {
-		t.Errorf("received '%v' expected '%v'", err, errIntervalNotSupported)
-	}
+	assert.ErrorIs(t, err, errIntervalNotSupported)
 
 	e.Intervals = ExchangeIntervals{
 		supported: map[Interval]uint64{
@@ -1233,9 +1198,7 @@ func TestGetIntervalResultLimit(t *testing.T) {
 	}
 
 	_, err = e.GetIntervalResultLimit(OneMin)
-	if !errors.Is(err, errCannotFetchIntervalLimit) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotFetchIntervalLimit)
-	}
+	assert.ErrorIs(t, err, errCannotFetchIntervalLimit)
 
 	limit, err := e.GetIntervalResultLimit(OneDay)
 	assert.NoError(t, err)

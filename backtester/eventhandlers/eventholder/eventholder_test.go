@@ -1,7 +1,6 @@
 package eventholder
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,9 +21,7 @@ func TestReset(t *testing.T) {
 
 	e = nil
 	err = e.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestAppendEvent(t *testing.T) {

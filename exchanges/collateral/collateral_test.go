@@ -1,10 +1,10 @@
 package collateral
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -69,9 +69,8 @@ func TestUnmarshalJSONCollateralType(t *testing.T) {
 
 	jason = []byte(`{"collateral":"hello moto"}`)
 	err = json.Unmarshal(jason, &alien)
-	if !errors.Is(err, ErrInvalidCollateralMode) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, ErrInvalidCollateralMode)
+
 	if alien.M != UnknownMode {
 		t.Errorf("received '%v' expected 'UnknownMode'", alien.M)
 	}
@@ -143,9 +142,8 @@ func TestIsValidCollateralTypeString(t *testing.T) {
 func TestStringToCollateralType(t *testing.T) {
 	t.Parallel()
 	resp, err := StringToMode("lol")
-	if !errors.Is(err, ErrInvalidCollateralMode) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, ErrInvalidCollateralMode)
+
 	if resp != UnknownMode {
 		t.Errorf("received '%v' expected '%v'", resp, UnknownMode)
 	}

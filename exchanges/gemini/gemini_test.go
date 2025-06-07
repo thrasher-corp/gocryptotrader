@@ -1,7 +1,6 @@
 package gemini
 
 import (
-	"errors"
 	"net/url"
 	"strings"
 	"testing"
@@ -1268,14 +1267,10 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = g.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatal(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	availPairs, err := g.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	for x := range availPairs {
 		var limit order.MinMaxLevel
 		limit, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])

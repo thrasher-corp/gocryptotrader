@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,14 +11,10 @@ import (
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	_, err := SetupCommunicationManager(nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilConfig)
 
 	_, err = SetupCommunicationManager(&base.CommunicationsConfig{})
-	if !errors.Is(err, communications.ErrNoRelayersEnabled) {
-		t.Errorf("error '%v', expected '%v'", err, communications.ErrNoRelayersEnabled)
-	}
+	assert.ErrorIs(t, err, communications.ErrNoRelayersEnabled)
 
 	m, err := SetupCommunicationManager(&base.CommunicationsConfig{
 		SlackConfig: base.SlackConfig{
@@ -72,9 +67,7 @@ func TestStart(t *testing.T) {
 
 	m.started = 1
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
 
 func TestGetStatus(t *testing.T) {
@@ -94,9 +87,7 @@ func TestGetStatus(t *testing.T) {
 
 	m.started = 0
 	_, err = m.GetStatus()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 }
 
 func TestStop(t *testing.T) {
@@ -115,14 +106,11 @@ func TestStop(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestPushEvent(t *testing.T) {
