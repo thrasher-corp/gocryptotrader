@@ -38,12 +38,12 @@ const (
 )
 
 var (
-	b          *Bitfinex
+	b          *Exchange
 	btcusdPair = currency.NewBTCUSD()
 )
 
 func TestMain(m *testing.M) {
-	b = new(Bitfinex)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
 	}
@@ -531,7 +531,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bitfinex) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, b)
 
@@ -1130,7 +1130,7 @@ func TestWSAuth(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bitfinex) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Setup must not error")
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
@@ -1176,7 +1176,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 // TestWSSubscribe tests Subscribe and Unsubscribe functionality
 // See also TestSubscribeReq which covers key and symbol conversion
 func TestWSSubscribe(t *testing.T) {
-	b := new(Bitfinex) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow of b to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "TestInstance must not error")
 	testexch.SetupWs(t, b)
 	err := b.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
@@ -1367,7 +1367,7 @@ func TestWSOrderBook(t *testing.T) {
 func TestWSAllTrades(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bitfinex) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	err := b.Websocket.AddSubscriptions(b.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")

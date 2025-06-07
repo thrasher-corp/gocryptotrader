@@ -178,12 +178,12 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 		},
 	}
 
-	err := f.SetAssetPairStore(asset.Spot, spot)
+	err := e.SetAssetPairStore(asset.Spot, spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
 	}
 
-	err = f.SetAssetPairStore(asset.Futures, futures)
+	err = e.SetAssetPairStore(asset.Futures, futures)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s error storing `futures` default asset formats: %s", bi.Name, err)
 	}
@@ -303,22 +303,36 @@ go run documentation.go
 
 This will generate a readme file for the exchange which can be found in the new exchange's folder
 
+### Code Consistency Guidelines
+
+1. Exchange API function parameters and structs should default to using unsigned integers (e.g., uint64) instead of int or int64. Using int can be problematic since we target different architectures, and its size varies between 32-bit and 64-bit systems (e.g., I still run Raspberry Pi on a 32-bit architecture). Explicitly using uint64 ensures consistency and prevents issues like negative values where they don’t make sense. Additionally, many common strconv functions (e.g., FormatUint) default to uint64, making it a more natural choice over uint32, despite the potential memory savings.
+
+2. Exchange parameters for start and end times should use time.Time instead of int64 UNIX timestamps. Even if an exchange requires a UNIX timestamp, we should convert it within the function to maintain consistency and readability.
+
+3. Time usage within Exchange API requests and responses should default to UTC. There is an existing PR for this, but further work is needed to enforce UTC across all exchanges before merging.
+
+4. TestMain in exchanges must avoid API calls to keep test footprint as minimal as possible unless there's a good case as to why it was done
+
+5. Excessive exchange API method params should use structs
+
+6. Test deduplication should be the default approach for exchanges, image provided as an example diff
+
 ### Create functions supported by the exchange:
 
 #### Requester functions:
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result any) error {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	// This is used to generate the *http.Request, used in conjunction with the
 	// generate functionality below. 
 	item := &request.Item{  
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
-		Verbose:       f.Verbose,
-		HTTPDebugging: f.HTTPDebugging,
-		HTTPRecording: f.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
 
 	// Request function that closes over the above request.Item values, which
@@ -328,7 +342,7 @@ func (f *FTX) SendHTTPRequest(ctx context.Context, path string, result any) erro
 	endpoint := request.Unset // Used in conjunction with the rate limiting 
 	// system defined in the exchange package to slow down outbound requests
 	// depending on each individual endpoint. 
-	return f.SendPayload(ctx, endpoint, generate)
+	return e.SendPayload(ctx, endpoint, generate)
 }
 ```
 
@@ -379,9 +393,9 @@ const (
 Create a get function in ftx.go file and unmarshall the data in the created type:
 ```go
 // GetMarkets gets market data
-func (f *FTX) GetMarkets(ctx context.Context) (Markets, error) {
+func (e *Exchange) GetMarkets(ctx context.Context) (Markets, error) {
 	var resp Markets
-	return resp, f.SendHTTPRequest(ctx, ftxAPIURL+getMarkets, &resp)
+	return resp, e.SendHTTPRequest(ctx, ftxAPIURL+getMarkets, &resp)
 }
 ```
 
@@ -393,18 +407,16 @@ const(
 
 func TestGetMarket(t *testing.T) {
 	t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
-	f.Verbose = true // used for more detailed output
-	a, err := f.GetMarket(context.Background(), spotPair) // spotPair is just a const so it can be reused in other tests too
+	e.Verbose = true // used for more detailed output
+	a, err := e.GetMarket(context.Background(), spotPair) // spotPair is just a const so it can be reused in other tests too
 	t.Log(a)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 ```
 Verbose can be set to true to see the data received if there are errors unmarshalling
 Once testing is done remove verbose, variable a and t.Log(a) since they produce unnecessary output when GCT is run
 ```go
-_, err := f.GetMarket(context.Background(), spotPair)
+_, err := e.GetMarket(context.Background(), spotPair)
 ```
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
@@ -414,7 +426,7 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
 ```go
 // SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result any) error {
+func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result any) error {
 // A potential example below of closing over authenticated variables which may 
 // be required to regenerate on every request between each attempt after rate
 // limiting. This is for when signatures are based on timestamps/nonces that are 
@@ -423,7 +435,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 
 	// Fetches credentials, this can either use a context set credential or if
 	// not found, will default to the config.json exchange specific credentials.
-	creds, err := f.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -458,9 +470,9 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 			Headers:       headers,
 			Body:          body,
 			Result:        result,
-			Verbose:       f.Verbose,
-			HTTPDebugging: f.HTTPDebugging,
-			HTTPRecording: f.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}
 		return item, nil
 	}, request.AuthenticatedRequest)
@@ -469,7 +481,7 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 	// system defined in the exchange package to slow down outbound requests
 	// depending on each individual endpoint. 
 
-	return f.SendPayload(ctx, endpoint, generate)
+	return e.SendPayload(ctx, endpoint, generate)
 }
 ```
 
@@ -483,9 +495,9 @@ https://docs.ftx.com/#get-account-information:
 
 ```go
 // GetAccountInfo gets account info
-func (f *FTX) GetAccountInfo(ctx context.Context) (AccountData, error) {
+func (e *Exchange) GetAccountInfo(ctx context.Context) (AccountData, error) {
 	var resp AccountData
-	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getAccountInfo, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, http.MethodGet, getAccountInfo, nil, &resp)
 }
 ```
 
@@ -495,7 +507,7 @@ https://docs.ftx.com/#get-withdrawal-history:
 
 ```go
 // GetTriggerOrderHistory gets trigger orders that are currently open
-func (f *FTX) GetTriggerOrderHistory(ctx context.Context, marketName string, startTime, endTime time.Time, side, orderType, limit string) (TriggerOrderHistory, error) {
+func (e *Exchange) GetTriggerOrderHistory(ctx context.Context, marketName string, startTime, endTime time.Time, side, orderType, limit string) (TriggerOrderHistory, error) {
 	var resp TriggerOrderHistory
 	params := url.Values{}
 	if marketName != "" {
@@ -517,7 +529,7 @@ func (f *FTX) GetTriggerOrderHistory(ctx context.Context, marketName string, sta
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	return resp, f.SendAuthHTTPRequest(ctx, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 ```
 
@@ -557,7 +569,7 @@ For `POST` or `DELETE` requests, params are sent through a map[string]any:
 
 ```go
 // Order places an order
-func (f *FTX) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
+func (e *Exchange) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
 	req := make(map[string]any)
 	req["market"] = marketName
 	req["side"] = side
@@ -577,7 +589,7 @@ func (f *FTX) Order(ctx context.Context, marketName, side, orderType, reduceOnly
 		req["clientID"] = clientID
 	}
 	var resp PlaceOrder
-	return resp, f.SendAuthHTTPRequest(ctx, http.MethodPost, placeOrder, req, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, http.MethodPost, placeOrder, req, &resp)
 }
 ```
 
@@ -591,7 +603,7 @@ Unsupported Example:
 ```go
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *FTX) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var resp *withdraw.ExchangeResponse
 	return resp, common.ErrFunctionNotSupported
 }
@@ -601,11 +613,11 @@ Supported Examples:
 
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *FTX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !f.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
+func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !e.SupportsAsset(a) {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, e.Name)
 	}
-	markets, err := f.GetMarkets(ctx)
+	markets, err := e.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -633,11 +645,11 @@ Wrapper functions on most exchanges are written in similar ways so other exchang
 Many helper functions defined in [exchange.go](../exchanges/exchange.go) can be useful when implementing wrapper functions. See examples below:
 
 ```go
-f.FormatExchangeCurrency(p, a) // Formats the currency pair to the style accepted by the exchange. p is the currency pair & a is the asset type
+e.FormatExchangeCurrency(p, a) // Formats the currency pair to the style accepted by the exchange. p is the currency pair & a is the asset type
 
-f.SupportsAsset(a) // Checks if an asset type is supported by the bot
+e.SupportsAsset(a) // Checks if an asset type is supported by the bot
 
-f.GetPairAssetType(p) // Returns the asset type of currency pair p
+e.GetPairAssetType(p) // Returns the asset type of currency pair p
 ```
 
 The currency package contains many helper functions to format and process currency pairs. See [currency](../currency/README.md).
@@ -656,40 +668,40 @@ The currency package contains many helper functions to format and process curren
 
 ```go
 // WsConnect connects to a websocket feed
-func (f *FTX) WsConnect() error {
-	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
+func (e *Exchange) WsConnect() error {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := f.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	// Can set up custom ping handler per websocket connection.
-	f.Websocket.Conn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	e.Websocket.Conn.SetupPingHandler(wshandler.WebsocketPingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       ftxWebsocketTimer,
 	})
-	if f.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
+	if e.Verbose {
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", e.Name)
 	}
 	// This reader routine is called prior to initiating a subscription for
 	// efficient processing.
-	go f.wsReadData()
-	if f.IsWebsocketAuthenticationSupported() {
-		err = f.WsAuth(context.TODO())
+	go e.wsReadData()
+	if e.IsWebsocketAuthenticationSupported() {
+		err = e.WsAuth(context.TODO())
 		if err != nil {
-			f.Websocket.DataHandler <- err
-			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.DataHandler <- err
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	// Generates the default subscription set, based off enabled pairs.
-	subs, err := f.generateSubscriptions()
+	subs, err := e.generateSubscriptions()
 	if err != nil {
 		return err
 	}
 	// Finally subscribes to each individual channel.
-	return f.Websocket.SubscribeToChannels(subs)
+	return e.Websocket.SubscribeToChannels(subs)
 }
 ```
 
@@ -697,7 +709,7 @@ func (f *FTX) WsConnect() error {
 
 ```go
 // generateSubscriptions generates default subscription
-func (f *FTX) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	subscriptions = append(subscriptions, &subscription.Subscription{
 		Channel: wsMarkets,
@@ -705,9 +717,9 @@ func (f *FTX) generateSubscriptions() (subscription.List, error) {
 	// Ranges over available channels, pairs and asset types to produce a full
 	// subscription list.
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := f.GetAssetTypes()
+	assets := e.GetAssetTypes()
 	for a := range assets {
-		pairs, err := f.GetEnabledPairs(assets[a])
+		pairs, err := e.GetEnabledPairs(assets[a])
 		if err != nil {
 			return nil, err
 		}
@@ -726,7 +738,7 @@ func (f *FTX) generateSubscriptions() (subscription.List, error) {
 		}
 	}
 	// Appends authenticated channels to the subscription list
-	if f.IsWebsocketAuthenticationSupported() {
+	if e.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
 			subscriptions = append(subscriptions, &subscription.Subscription{Channel: authchan[x]})
@@ -770,7 +782,7 @@ type WsSub struct {
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelsToSubscribe subscription.List) error {
+func (e *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	// For subscriptions we try to batch as much as possible to limit the amount
 	// of connection usage but sometimes this is not supported on the exchange 
 	// API.
@@ -787,20 +799,20 @@ channels:
 		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for the full set of tradable markets do not need a currency pair association. 
 		default:
 			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different from what our request format needs to be.
-			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Pair, channelsToSubscribe[i].Asset)
+			formattedPair, err := e.FormatExchangeCurrency(channelsToSubscribe[i].Pair, channelsToSubscribe[i].Asset)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
 			sub.Market = formattedPair.String()
 		}
-		err := f.Websocket.Conn.SendJSONMessage(sub)
+		err := e.Websocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 		// When we have a successful subscription, we can alert our internal management system of the success.
-		f.Websocket.AddSuccessfulSubscriptions(f.Websocket.Conn, channelsToSubscribe[i])
+		e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, channelsToSubscribe[i])
 	}
     return errs
 }
@@ -828,23 +840,23 @@ Run gocryptotrader with the following settings enabled in config
 
 ```go
 // wsReadData gets and passes on websocket messages for processing
-func (f *FTX) wsReadData() {
-	f.Websocket.Wg.Add(1)
-	defer f.Websocket.Wg.Done()
+func (e *Exchange) wsReadData() {
+	e.Websocket.Wg.Add(1)
+	defer e.Websocket.Wg.Done()
 
 	for {
 		select {
-		case <-f.Websocket.ShutdownC:
+		case <-e.Websocket.ShutdownC:
 			return
 		default:
-			resp := f.Websocket.Conn.ReadMessage()
+			resp := e.Websocket.Conn.ReadMessage()
 			if resp.Raw == nil {
 				return
 			}
 
-			err := f.wsHandleData(resp.Raw)
+			err := e.wsHandleData(resp.Raw)
 			if err != nil {
-				f.Websocket.DataHandler <- err
+				e.Websocket.DataHandler <- err
 			}
 		}
 	}
@@ -889,15 +901,16 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
 		if err != nil {
 			return err
 		}
-		f.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: f.Name,
+		e.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: e.Name,
 			Bid:          resultData.Ticker.Bid,
 			Ask:          resultData.Ticker.Ask,
 			Last:         resultData.Ticker.Last,
 			LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
 			Pair:         p,
 			AssetType:    a,
-	  }
+	    }
+	}
 ```
 
 If neither of those provide a suitable struct to store the data in, the data can just be passed onto wshandler without any further changes:
@@ -909,7 +922,7 @@ If neither of those provide a suitable struct to store the data in, the data can
 			if err != nil {
 				return err
 			}
-      f.Websocket.DataHandler <- resultData.FillsData
+      e.Websocket.DataHandler <- resultData.FillsData
 ```
 
 - Data Handling can be tested offline similar to the following example:
@@ -917,9 +930,7 @@ If neither of those provide a suitable struct to store the data in, the data can
 ```go
 func TestParsingWSOrdersData(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	data := []byte(`{
 		"channel": "orders",
 		"data": {
@@ -940,10 +951,8 @@ func TestParsingWSOrdersData(t *testing.T) {
 		},
 		"type": "update"
 	  }`)
-	err := f.wsHandleData(data)
-	if err != nil {
-		t.Error(err)
-	}
+	err := e.wsHandleData(data)
+	assert.NoError(t, err)
 }
 ```
 
@@ -983,13 +992,13 @@ https://docs.ftx.com/#private-channels
 
 ```go
 // WsAuth sends an authentication message to receive auth data
-func (f *FTX) WsAuth(ctx context.Context) error {
+func (e *Exchange) WsAuth(ctx context.Context) error {
 	// Fetches credentials, this can either use a context set credential or if
 	// not found, will default to the config.json exchange specific credentials.
 	// NOTE: Websocket context values are not sufficiently propagated yet, so in 
 	// most circumstances the calling function can call context.TODO() and will
 	// use default credentials.
-	creds, err := f.GetCredentials(ctx)
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -1008,7 +1017,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 			Time: intNonce,
 		},
 	}
-	return f.Websocket.Conn.SendJSONMessage(req)
+	return e.Websocket.Conn.SendJSONMessage(req)
 }
 ```
 
@@ -1016,7 +1025,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 
 ```go
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+func (e *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
 	var errs common.Errors
 channels:
@@ -1027,20 +1036,20 @@ channels:
 		switch channelsToUnsubscribe[i].Channel {
 		case wsFills, wsOrders, wsMarkets:
 		default:
-			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, channelsToUnsubscribe[i].Asset)
+			formattedPair, err := e.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, channelsToUnsubscribe[i].Asset)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
 			unSub.Market = formattedPair.String()
 		}
-		err := f.Websocket.Conn.SendJSONMessage(unSub)
+		err := e.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 		// When we have a successful unsubscription, we can alert our internal management system of the success.
-		f.Websocket.RemoveSubscriptions(f.Websocket.Conn, channelsToUnsubscribe[i])
+		e.Websocket.RemoveSubscriptions(e.Websocket.Conn, channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs
@@ -1055,40 +1064,40 @@ Add websocket functionality if supported to Setup:
 
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.Exchange) error {
+func (e *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		f.SetEnabled(false)
+		e.SetEnabled(false)
 		return nil
 	}
-	err = f.SetupDefaults(exch)
+	err = e.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
 	// Websocket details setup below
-	err = f.Websocket.Setup(&websocket.ManagerSetup{
+	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        	exch,
 		// DefaultURL defines the default endpoint in the event a rollback is 
 		// needed via gctcli.
 		DefaultURL:             ftxWSURL, 
 		RunningURL:             exch.API.Endpoints.WebsocketURL,
 		// Connector function outlined above.
-		Connector:              f.WsConnect, 
+		Connector:              e.WsConnect, 
 		// Subscriber function outlined above.
-		Subscriber:             f.Subscribe, 
+		Subscriber:             e.Subscribe, 
 		// Unsubscriber function outlined above.
-		UnSubscriber:           f.Unsubscribe,
+		UnSubscriber:           e.Unsubscribe,
 		// GenerateSubscriptions function outlined above. 
-		GenerateSubscriptions:  f.generateSubscriptions, 
+		GenerateSubscriptions:  e.generateSubscriptions, 
 		// Defines the capabilities of the websocket outlined in supported 
 		// features struct. This allows the websocket connection to be flushed 
 		// appropriately if we have a pair/asset enable/disable change. This is 
 		// outlined below.
-		Features:               &f.Features.Supports.WebsocketCapabilities, 
+		Features:               &e.Features.Supports.WebsocketCapabilities, 
 
 		// Orderbook buffer specific variables for processing orderbook updates 
 		// via websocket feed: 
@@ -1100,11 +1109,11 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return f.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
-		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. f.Websocket.AuthConn
+		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. e.Websocket.AuthConn
 	})
 }
 ```
@@ -1112,7 +1121,7 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 Below are the features supported by FTX API protocol:
 
   ```go
-  f.Features = exchange.Features{
+  e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -1155,8 +1164,8 @@ Initially the functions return nil or common.ErrNotYetImplemented
 
 ```go
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (f *FTX) AuthenticateWebsocket(ctx context.Context) error {
-	return f.WsAuth(ctx)
+func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
+	return e.WsAuth(ctx)
 }
 ```
 

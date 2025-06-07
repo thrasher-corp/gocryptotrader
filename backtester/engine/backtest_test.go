@@ -447,7 +447,7 @@ func TestFullCycle(t *testing.T) {
 	}, &risk.Risk{}, decimal.Zero)
 	assert.NoError(t, err)
 
-	fx := &binance.Binance{}
+	fx := &binance.Exchange{}
 	fx.Name = testExchange
 	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: fx, Asset: a, Pair: cp})
 	assert.NoError(t, err)
@@ -569,7 +569,7 @@ func TestFullCycleMulti(t *testing.T) {
 	}, &risk.Risk{}, decimal.Zero)
 	assert.NoError(t, err)
 
-	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: &binance.Binance{}, Asset: a, Pair: cp})
+	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: &binance.Exchange{}, Asset: a, Pair: cp})
 	assert.NoError(t, err)
 
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
@@ -805,7 +805,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	bt.Funding = f
-	exch := &binance.Binance{}
+	exch := &binance.Exchange{}
 	exch.Name = testExchange
 	ev.Time = time.Now()
 	fl := &fill.Fill{
@@ -884,7 +884,7 @@ func TestProcessSignalEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	bt.Funding = f
-	exch := &binance.Binance{}
+	exch := &binance.Exchange{}
 	exch.Name = testExchange
 	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
 		Exchange: exch,
@@ -952,7 +952,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	bt.Funding = f
-	exch := &binance.Binance{}
+	exch := &binance.Exchange{}
 	exch.Name = testExchange
 	err = pt.SetCurrencySettingsMap(&exchange.Settings{
 		Exchange: exch,
@@ -1289,7 +1289,7 @@ func TestCloseAllPositions(t *testing.T) {
 	dc.funding = bt.Funding
 	cp := currency.NewBTCUSD()
 	dc.sourcesToCheck = append(dc.sourcesToCheck, &liveDataSourceDataHandler{
-		exchange:                  &binance.Binance{},
+		exchange:                  &binance.Exchange{},
 		exchangeName:              testExchange,
 		asset:                     asset.Spot,
 		pair:                      cp,
@@ -1372,7 +1372,7 @@ func TestRunLive(t *testing.T) {
 	}
 	// 	AppendDataSource(exchange gctexchange.IBotExchange, interval gctkline.Interval, asset asset.Asset, pair, underlyingPair currency.Pair, dataType int64) error
 	setup := &liveDataSourceSetup{
-		exchange:       &binance.Binance{},
+		exchange:       &binance.Exchange{},
 		interval:       i.Interval,
 		asset:          i.Asset,
 		pair:           i.Pair,
@@ -1461,7 +1461,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 	cfg := &config.Config{}
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	b := f.GetBase()
 	err = setExchangeCredentials(cfg, b)
@@ -1512,7 +1512,7 @@ func TestGetFees(t *testing.T) {
 	_, _, err := getFees(t.Context(), nil, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	f := &binance.Binance{}
+	f := &binance.Exchange{}
 	f.SetDefaults()
 	_, _, err = getFees(t.Context(), f, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)

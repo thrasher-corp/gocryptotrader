@@ -79,7 +79,7 @@ var subscriptionNames = map[string]string{
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
 
 // WsConnectSpot initiates a websocket connection
-func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
+func (g *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) e
 }
 
 // websocketLogin authenticates the websocket connection
-func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
+func (g *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
 	if conn == nil {
 		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
 	}
@@ -155,7 +155,7 @@ func (g *Gateio) websocketLogin(ctx context.Context, conn websocket.Connection, 
 	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
-func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (string, error) {
+func (g *Exchange) generateWsSignature(secret, event, channel string, t int64) (string, error) {
 	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10)
 	mac := hmac.New(sha512.New, []byte(secret))
 	if _, err := mac.Write([]byte(msg)); err != nil {
@@ -165,7 +165,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
+func (g *Exchange) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -255,7 +255,7 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 	return r, errs
 }
 
-func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
+func (g *Exchange) processTicker(incoming []byte, pushTime time.Time) error {
 	var data WsTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -282,7 +282,7 @@ func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 	return nil
 }
 
-func (g *Gateio) processTrades(incoming []byte) error {
+func (g *Exchange) processTrades(incoming []byte) error {
 	saveTradeData := g.IsSaveTradeDataEnabled()
 	if !saveTradeData && !g.IsTradeFeedEnabled() {
 		return nil
@@ -318,7 +318,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processCandlestick(incoming []byte) error {
+func (g *Exchange) processCandlestick(incoming []byte) error {
 	var data WsCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -353,7 +353,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
+func (g *Exchange) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -369,7 +369,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
+func (g *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -396,7 +396,7 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 	})
 }
 
-func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
+func (g *Exchange) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -431,7 +431,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 	return nil
 }
 
-func (g *Gateio) processSpotOrders(data []byte) error {
+func (g *Exchange) processSpotOrders(data []byte) error {
 	resp := struct {
 		Time    int64         `json:"time"`
 		Channel string        `json:"channel"`
@@ -475,7 +475,7 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processUserPersonalTrades(data []byte) error {
+func (g *Exchange) processUserPersonalTrades(data []byte) error {
 	if !g.IsFillsFeedEnabled() {
 		return nil
 	}
@@ -510,7 +510,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	return g.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
+func (g *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64           `json:"time"`
 		Channel string          `json:"channel"`
@@ -543,7 +543,7 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 	return account.ProcessChange(g.Name, changes, creds)
 }
 
-func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
+func (g *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -575,7 +575,7 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 	return account.ProcessChange(g.Name, changes, creds)
 }
 
-func (g *Gateio) processFundingBalances(data []byte) error {
+func (g *Exchange) processFundingBalances(data []byte) error {
 	resp := struct {
 		Time    int64              `json:"time"`
 		Channel string             `json:"channel"`
@@ -590,7 +590,7 @@ func (g *Gateio) processFundingBalances(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) error {
+func (g *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64                  `json:"time"`
 		Channel string                 `json:"channel"`
@@ -622,7 +622,7 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 	return account.ProcessChange(g.Name, changes, creds)
 }
 
-func (g *Gateio) processCrossMarginLoans(data []byte) error {
+func (g *Exchange) processCrossMarginLoans(data []byte) error {
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -638,12 +638,12 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 }
 
 // generateSubscriptionsSpot returns configured subscriptions
-func (g *Gateio) generateSubscriptionsSpot() (subscription.List, error) {
+func (g *Exchange) generateSubscriptionsSpot() (subscription.List, error) {
 	return g.Features.Subscriptions.ExpandTemplates(g)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (g *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(sprig.FuncMap()).
 		Funcs(template.FuncMap{
@@ -656,7 +656,7 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
-func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
+func (g *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(g)
 	if errs != nil {
@@ -692,7 +692,7 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Co
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (g *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
 		ID:      conn.GenerateMessageID(false),
 		Event:   event,
@@ -719,17 +719,17 @@ func (g *Gateio) manageSubReq(ctx context.Context, event string, conn websocket.
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+func (g *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, subscribeEvent, conn, subs)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+func (g *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	return g.manageSubs(ctx, unsubscribeEvent, conn, subs)
 }
 
 // GenerateWebsocketMessageID generates a message ID for the individual connection
-func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
+func (g *Exchange) GenerateWebsocketMessageID(bool) int64 {
 	return g.Counter.IncrementAndGet()
 }
 
@@ -753,7 +753,7 @@ func singleSymbolChannel(name string) bool {
 // ValidateSubscriptions implements the subscription.ListValidator interface.
 // It ensures that, for each orderbook pair asset, only one type of subscription (e.g., best bid/ask, orderbook update, or orderbook snapshot)
 // is active at a time. Multiple concurrent subscriptions for the same asset are disallowed to prevent orderbook data corruption.
-func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
+func (g *Exchange) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {
 		n := channelName(s)
@@ -919,7 +919,7 @@ const subTplText = `
 type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+func (g *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
 	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -954,7 +954,7 @@ type resultHolder struct {
 }
 
 // SendWebsocketRequest sends a websocket request to the exchange
-func (g *Gateio) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
+func (g *Exchange) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, channel string, connSignature, params, result any, expectedResponses int) error {
 	paramPayload, err := json.Marshal(params)
 	if err != nil {
 		return err

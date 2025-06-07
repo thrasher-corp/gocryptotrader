@@ -23,7 +23,7 @@ var (
 )
 
 // WSPlaceOrder submits an order
-func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
+func (ok *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (ok *Okx) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*
 }
 
 // WSPlaceMultipleOrders submits multiple orders
-func (ok *Okx) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
+func (ok *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -56,7 +56,7 @@ func (ok *Okx) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderReque
 }
 
 // WSCancelOrder cancels an order
-func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
+func (ok *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) (*OrderData, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -78,7 +78,7 @@ func (ok *Okx) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestParam) 
 }
 
 // WSCancelMultipleOrders cancels multiple orders
-func (ok *Okx) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
+func (ok *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -99,7 +99,7 @@ func (ok *Okx) WSCancelMultipleOrders(ctx context.Context, args []CancelOrderReq
 }
 
 // WSAmendOrder amends an order
-func (ok *Okx) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
+func (ok *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -123,7 +123,7 @@ func (ok *Okx) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (
 }
 
 // WSAmendMultipleOrders amends multiple orders
-func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
+func (ok *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -147,7 +147,7 @@ func (ok *Okx) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderReque
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
-func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam) error {
+func (ok *Exchange) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
@@ -183,7 +183,7 @@ func (ok *Okx) WSMassCancelOrders(ctx context.Context, args []CancelMassReqParam
 }
 
 // WSPlaceSpreadOrder submits a spread order
-func (ok *Okx) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
+func (ok *Exchange) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (ok *Okx) WSPlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*
 }
 
 // WSAmendSpreadOrder amends a spread order
-func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
+func (ok *Exchange) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
@@ -221,7 +221,7 @@ func (ok *Okx) WSAmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderPara
 }
 
 // WSCancelSpreadOrder cancels an incomplete spread order through the websocket connection.
-func (ok *Okx) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
+func (ok *Exchange) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -245,7 +245,7 @@ func (ok *Okx) WSCancelSpreadOrder(ctx context.Context, orderID, clientOrderID s
 }
 
 // WSCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
-func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) error {
+func (ok *Exchange) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) error {
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
 		arg["sprdId"] = spreadID
@@ -271,7 +271,7 @@ func (ok *Okx) WSCancelAllSpreadOrders(ctx context.Context, spreadID string) err
 }
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
-func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
+func (ok *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
 	if operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}

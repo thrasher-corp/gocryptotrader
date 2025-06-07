@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	h          = &HitBTC{}
+	h          = &Exchange{}
 	wsSetupRan bool
 )
 
@@ -1084,7 +1084,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	h := new(HitBTC)
+	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)

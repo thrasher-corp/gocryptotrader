@@ -54,7 +54,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (p *Poloniex) WsConnect() error {
+func (p *Exchange) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -76,7 +76,7 @@ func (p *Poloniex) WsConnect() error {
 }
 
 // TODO: Create routine to refresh list every day/week(?) for production
-func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
+func (p *Exchange) loadCurrencyDetails(ctx context.Context) error {
 	if p.details.isInitial() {
 		ticks, err := p.GetTicker(ctx)
 		if err != nil {
@@ -101,7 +101,7 @@ func (p *Poloniex) loadCurrencyDetails(ctx context.Context) error {
 }
 
 // wsReadData handles data from the websocket connection
-func (p *Poloniex) wsReadData() {
+func (p *Exchange) wsReadData() {
 	defer p.Websocket.Wg.Done()
 	for {
 		resp := p.Websocket.Conn.ReadMessage()
@@ -115,7 +115,7 @@ func (p *Poloniex) wsReadData() {
 	}
 }
 
-func (p *Poloniex) wsHandleData(respRaw []byte) error {
+func (p *Exchange) wsHandleData(respRaw []byte) error {
 	var result any
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -270,7 +270,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (p *Poloniex) wsHandleTickerData(data []any) error {
+func (p *Exchange) wsHandleTickerData(data []any) error {
 	tickerData, ok := data[2].([]any)
 	if !ok {
 		return fmt.Errorf("%w ticker data is not []any",
@@ -375,7 +375,7 @@ func (p *Poloniex) wsHandleTickerData(data []any) error {
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local
 // of orderbooks
-func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
+func (p *Exchange) WsProcessOrderbookSnapshot(data []any) error {
 	subDataMap, ok := data[1].(map[string]any)
 	if !ok {
 		return fmt.Errorf("%w subData element is not map[string]any",
@@ -491,7 +491,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 }
 
 // WsProcessOrderbookUpdate processes new orderbook updates
-func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []any, pair currency.Pair) error {
+func (p *Exchange) WsProcessOrderbookUpdate(sequenceNumber float64, data []any, pair currency.Pair) error {
 	if len(data) < 5 {
 		return errNotEnoughData
 	}
@@ -542,7 +542,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []any, 
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (p *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	enabledPairs, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -571,16 +571,16 @@ func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(subs subscription.List) error {
+func (p *Exchange) Subscribe(subs subscription.List) error {
 	return p.manageSubs(subs, wsSubscribeOp)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(subs subscription.List) error {
+func (p *Exchange) Unsubscribe(subs subscription.List) error {
 	return p.manageSubs(subs, wsUnsubscribeOp)
 }
 
-func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
+func (p *Exchange) manageSubs(subs subscription.List, op wsOp) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
@@ -621,7 +621,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 	return errs
 }
 
-func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
+func (p *Exchange) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(nonce),
@@ -639,7 +639,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 }
 
-func (p *Poloniex) processAccountMarginPosition(notification []any) error {
+func (p *Exchange) processAccountMarginPosition(notification []any) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
@@ -687,7 +687,7 @@ func (p *Poloniex) processAccountMarginPosition(notification []any) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountPendingOrder(notification []any) error {
+func (p *Exchange) processAccountPendingOrder(notification []any) error {
 	if len(notification) < 7 {
 		return errNotEnoughData
 	}
@@ -755,7 +755,7 @@ func (p *Poloniex) processAccountPendingOrder(notification []any) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountOrderUpdate(notification []any) error {
+func (p *Exchange) processAccountOrderUpdate(notification []any) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
@@ -825,7 +825,7 @@ func (p *Poloniex) processAccountOrderUpdate(notification []any) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountOrderLimit(notification []any) error {
+func (p *Exchange) processAccountOrderLimit(notification []any) error {
 	if len(notification) != 9 {
 		return errNotEnoughData
 	}
@@ -916,7 +916,7 @@ func (p *Poloniex) processAccountOrderLimit(notification []any) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountBalanceUpdate(notification []any) error {
+func (p *Exchange) processAccountBalanceUpdate(notification []any) error {
 	if len(notification) < 4 {
 		return errNotEnoughData
 	}
@@ -972,7 +972,7 @@ func deriveWalletType(s string) string {
 	}
 }
 
-func (p *Poloniex) processAccountTrades(notification []any) error {
+func (p *Exchange) processAccountTrades(notification []any) error {
 	if len(notification) < 11 {
 		return errNotEnoughData
 	}
@@ -1058,7 +1058,7 @@ func (p *Poloniex) processAccountTrades(notification []any) error {
 	return nil
 }
 
-func (p *Poloniex) processAccountKilledOrder(notification []any) error {
+func (p *Exchange) processAccountKilledOrder(notification []any) error {
 	if len(notification) < 3 {
 		return errNotEnoughData
 	}
@@ -1081,7 +1081,7 @@ func (p *Poloniex) processAccountKilledOrder(notification []any) error {
 	return nil
 }
 
-func (p *Poloniex) processTrades(currencyID float64, subData []any) error {
+func (p *Exchange) processTrades(currencyID float64, subData []any) error {
 	if !p.IsSaveTradeDataEnabled() {
 		return nil
 	}

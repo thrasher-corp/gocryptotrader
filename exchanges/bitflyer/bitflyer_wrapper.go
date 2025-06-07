@@ -29,7 +29,7 @@ import (
 )
 
 // SetDefaults sets the basic defaults for Bitflyer
-func (b *Bitflyer) SetDefaults() {
+func (b *Exchange) SetDefaults() {
 	b.Name = "Bitflyer"
 	b.Enabled = true
 	b.Verbose = true
@@ -89,7 +89,7 @@ func (b *Bitflyer) SetDefaults() {
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitflyer) Setup(exch *config.Exchange) error {
+func (b *Exchange) Setup(exch *config.Exchange) error {
 	if err := exch.Validate(); err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (b *Bitflyer) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+func (b *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	symbols, err := b.GetMarkets(ctx)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (b *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := b.CurrencyPairs.GetAssetTypes(false)
 	for _, a := range assets {
 		pairs, err := b.FetchTradablePairs(ctx, a)
@@ -146,17 +146,17 @@ func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) er
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bitflyer) UpdateTickers(_ context.Context, _ asset.Item) error {
+func (b *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
-func (b *Bitflyer) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
+func (b *Exchange) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (b *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	fPair, err := b.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (b *Bitflyer) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // CheckFXString upgrades currency pair if needed
-func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
+func (b *Exchange) CheckFXString(p currency.Pair) currency.Pair {
 	if strings.Contains(p.Base.String(), "FX") {
 		p.Base = currency.FX_BTC
 		return p
@@ -193,7 +193,7 @@ func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -243,23 +243,23 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
+func (b *Exchange) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (b *Bitflyer) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (b *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (b *Bitflyer) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (b *Exchange) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetRecentTrades returns recent historic trades
-func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (b *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -303,79 +303,79 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *Bitflyer) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (b *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
-func (b *Bitflyer) SubmitOrder(_ context.Context, _ *order.Submit) (*order.SubmitResponse, error) {
+func (b *Exchange) SubmitOrder(_ context.Context, _ *order.Submit) (*order.SubmitResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (b *Bitflyer) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (b *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (b *Bitflyer) CancelOrder(_ context.Context, _ *order.Cancel) error {
+func (b *Exchange) CancelOrder(_ context.Context, _ *order.Cancel) error {
 	return common.ErrNotYetImplemented
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (b *Bitflyer) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+func (b *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (b *Bitflyer) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (b *Exchange) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	// TODO, implement BitFlyer API
 	b.CancelAllExistingOrders()
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns order information based on order ID
-func (b *Bitflyer) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (b *Exchange) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitflyer) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+func (b *Exchange) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitflyer) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Exchange) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitflyer) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (b *Bitflyer) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (b *Exchange) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (b *Bitflyer) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (b *Exchange) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
@@ -388,38 +388,38 @@ func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
-func (b *Bitflyer) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+func (b *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := b.UpdateAccountInfo(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitflyer) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (b *Exchange) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (b *Bitflyer) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (b *Exchange) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (b *Bitflyer) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+func (b *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (b *Bitflyer) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (b *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (b *Bitflyer) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (b *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (b *Bitflyer) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+func (b *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err

@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	b          = &Bitstamp{}
+	b          = &Exchange{}
 	btcusdPair = currency.NewBTCUSD()
 )
 
@@ -778,7 +778,7 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bitstamp) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", b.wsHandleData)
 	close(b.Websocket.DataHandler)
@@ -1065,7 +1065,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Bitstamp)
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
 	require.NoError(t, err, "ExpandTemplates must not error")

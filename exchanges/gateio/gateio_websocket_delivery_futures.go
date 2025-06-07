@@ -37,7 +37,7 @@ var defaultDeliveryFuturesSubscriptions = []string{
 }
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
-func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
+func (g *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	if err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Co
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 // TODO: Update to use the new subscription template system
-func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
+func (g *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	_, err := g.GetCredentials(context.Background())
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -111,16 +111,16 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.Lis
 }
 
 // DeliveryFuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) DeliveryFuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Exchange) DeliveryFuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateDeliveryFuturesPayload)
 }
 
 // DeliveryFuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateDeliveryFuturesPayload)
 }
 
-func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}

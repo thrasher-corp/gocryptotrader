@@ -6,8 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -17,41 +16,24 @@ const (
 	canManipulateRealOrders   = false
 )
 
-var {{.Variable}} = &{{.CapitalName}}{}
+var e *Exchange
 
 func TestMain(m *testing.M) {
-	{{.Variable}}.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("{{.CapitalName}}")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	{{ if .WS }} exchCfg.API.AuthenticatedWebsocketSupport = true {{ end }}
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-
-	err = {{.Variable}}.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		{{ if .WS }} e.API.AuthenticatedWebsocketSupport = true {{ end }}
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		{{ if .WS }} e.Websocket.SetCanUseAuthenticatedEndpoints(true) {{ end }}
 	}
 
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new({{.CapitalName}}); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
-}
 
 // Implement tests for API endpoints below
 {{end}}

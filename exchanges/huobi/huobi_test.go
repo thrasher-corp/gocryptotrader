@@ -46,7 +46,7 @@ const (
 )
 
 var (
-	h                  = &HUOBI{}
+	h                  = &Exchange{}
 	btcFutureDatedPair currency.Pair
 	btccwPair          = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	btcusdPair         = currency.NewPairWithDelimiter("BTC", "USD", "-")
@@ -862,7 +862,7 @@ func TestGetSpotKline(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	updatePairsOnce(t, h)
 
@@ -883,7 +883,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	updatePairsOnce(t, h)
 
@@ -1301,7 +1301,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 
 func TestWSCandles(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1328,7 +1328,7 @@ func TestWSCandles(t *testing.T) {
 
 func TestWSOrderbook(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1356,7 +1356,7 @@ func TestWSOrderbook(t *testing.T) {
 // TestWSHandleAllTradesMsg ensures wsHandleAllTrades sends trade.Data to the ws.DataHandler
 func TestWSHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1402,7 +1402,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 
 func TestWSTicker(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1431,7 +1431,7 @@ func TestWSTicker(t *testing.T) {
 
 func TestWSAccountUpdate(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1455,7 +1455,7 @@ func TestWSAccountUpdate(t *testing.T) {
 
 func TestWSOrderUpdate(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1521,7 +1521,7 @@ func TestWSOrderUpdate(t *testing.T) {
 
 func TestWSMyTrades(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Setup Instance must not error")
 	err := h.Websocket.AddSubscriptions(h.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1734,7 +1734,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
 	updatePairsOnce(t, h)
 
@@ -1825,7 +1825,7 @@ var expiryWindows = map[string]uint{
 func TestPairFromContractExpiryCode(t *testing.T) {
 	t.Parallel()
 
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
 
 	_, err := h.FetchTradablePairs(t.Context(), asset.Futures)
@@ -1940,7 +1940,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -2007,7 +2007,7 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 // TestSubscribe exercises live public subscriptions
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	h := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
 	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -2025,7 +2025,7 @@ func TestSubscribe(t *testing.T) {
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 	subCfg := h.Features.Subscriptions
-	h := testexch.MockWsInstance[HUOBI](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := subCfg.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -2065,7 +2065,7 @@ func TestGetErrResp(t *testing.T) {
 
 func TestBootstrap(t *testing.T) {
 	t.Parallel()
-	h := new(HUOBI)
+	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Test Instance Setup must not fail")
 
 	c, err := h.Bootstrap(t.Context())
@@ -2085,7 +2085,7 @@ var (
 )
 
 // updatePairsOnce updates the pairs once, and ensures a future dated contract is enabled
-func updatePairsOnce(tb testing.TB, h *HUOBI) {
+func updatePairsOnce(tb testing.TB, h *Exchange) {
 	tb.Helper()
 
 	updatePairsMutex.Lock()

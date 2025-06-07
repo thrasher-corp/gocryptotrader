@@ -39,7 +39,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect connects the websocket client
-func (b *BTSE) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -68,7 +68,7 @@ func (b *BTSE) WsConnect() error {
 }
 
 // WsAuthenticate Send an authentication message to receive auth data
-func (b *BTSE) WsAuthenticate(ctx context.Context) error {
+func (b *Exchange) WsAuthenticate(ctx context.Context) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *BTSE) wsReadData() {
+func (b *Exchange) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -129,7 +129,7 @@ func (b *BTSE) wsReadData() {
 	}
 }
 
-func (b *BTSE) wsHandleData(respRaw []byte) error {
+func (b *Exchange) wsHandleData(respRaw []byte) error {
 	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
@@ -360,7 +360,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 
 // orderbookFilter is needed on book levels from this exchange as their data
 // is incorrect
-func (b *BTSE) orderbookFilter(price, amount float64) bool {
+func (b *Exchange) orderbookFilter(price, amount float64) bool {
 	// Amount filtering occurs when the amount exceeds the decimal returned.
 	// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH
 	// Opted to not round up to 0.01 as this might skew calculations
@@ -374,12 +374,12 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (b *BTSE) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *BTSE) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":     channelName,
 		"isSymbolChannel": isSymbolChannel,
@@ -387,7 +387,7 @@ func (b *BTSE) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.
 }
 
 // Subscribe sends a websocket message to receive data from a list of channels
-func (b *BTSE) Subscribe(subs subscription.List) error {
+func (b *Exchange) Subscribe(subs subscription.List) error {
 	req := wsSub{Operation: "subscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
@@ -400,7 +400,7 @@ func (b *BTSE) Subscribe(subs subscription.List) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (b *BTSE) Unsubscribe(subs subscription.List) error {
+func (b *Exchange) Unsubscribe(subs subscription.List) error {
 	req := wsSub{Operation: "unsubscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)

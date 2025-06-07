@@ -77,13 +77,13 @@ const (
 )
 
 // FuturesExchangeInfo stores CoinMarginedFutures, data
-func (b *Binance) FuturesExchangeInfo(ctx context.Context) (CExchangeInfo, error) {
+func (b *Exchange) FuturesExchangeInfo(ctx context.Context) (CExchangeInfo, error) {
 	var resp CExchangeInfo
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesExchangeInfo, cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures,
-func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
+func (b *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 }
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,
-func (b *Binance) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
+func (b *Exchange) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
 	var resp []FuturesPublicTradesData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -163,7 +163,7 @@ func (b *Binance) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pa
 }
 
 // GetFuturesHistoricalTrades gets historical public trades for CoinMarginedFutures,
-func (b *Binance) GetFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]UPublicTradesData, error) {
+func (b *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]UPublicTradesData, error) {
 	var resp []UPublicTradesData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -181,7 +181,7 @@ func (b *Binance) GetFuturesHistoricalTrades(ctx context.Context, symbol currenc
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,
-func (b *Binance) GetPastPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
+func (b *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID int64) ([]FuturesPublicTradesData, error) {
 	var resp []FuturesPublicTradesData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -199,7 +199,7 @@ func (b *Binance) GetPastPublicTrades(ctx context.Context, symbol currency.Pair,
 }
 
 // GetFuturesAggregatedTradesList gets aggregated trades list for CoinMarginedFutures,
-func (b *Binance) GetFuturesAggregatedTradesList(ctx context.Context, symbol currency.Pair, fromID, limit int64, startTime, endTime time.Time) ([]AggregatedTrade, error) {
+func (b *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol currency.Pair, fromID, limit int64, startTime, endTime time.Time) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -224,7 +224,7 @@ func (b *Binance) GetFuturesAggregatedTradesList(ctx context.Context, symbol cur
 }
 
 // GetIndexAndMarkPrice gets index and mark prices  for CoinMarginedFutures,
-func (b *Binance) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string) ([]IndexMarkPrice, error) {
+func (b *Exchange) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string) ([]IndexMarkPrice, error) {
 	var resp []IndexMarkPrice
 	params := url.Values{}
 	if symbol != "" {
@@ -237,14 +237,14 @@ func (b *Binance) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string)
 }
 
 // GetFundingRateInfo returns extra details about funding rates
-func (b *Binance) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
+func (b *Exchange) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
 	params := url.Values{}
 	var resp []FundingRateInfoResponse
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesFundingRateInfo+params.Encode(), uFuturesDefaultRate, &resp)
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
-func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -365,7 +365,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 }
 
 // GetContinuousKlineData gets continuous kline data
-func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Exchange) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	params.Set("pair", pair)
 	if !slices.Contains(validContractType, contractType) {
@@ -484,7 +484,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 }
 
 // GetIndexPriceKlines gets continuous kline data
-func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Exchange) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	params := url.Values{}
 	params.Set("pair", pair)
 	if limit > 0 {
@@ -599,7 +599,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 }
 
 // GetMarkPriceKline gets mark price kline data
-func (b *Binance) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+func (b *Exchange) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -733,7 +733,7 @@ func getKlineRateBudget(limit uint64) request.EndpointLimit {
 }
 
 // GetFuturesSwapTickerChangeStats gets 24hr ticker change stats for CoinMarginedFutures,
-func (b *Binance) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol currency.Pair, pair string) ([]PriceChangeStats, error) {
+func (b *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol currency.Pair, pair string) ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
 	params := url.Values{}
 	rateLimit := cFuturesTickerPriceHistoryRate
@@ -752,7 +752,7 @@ func (b *Binance) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol cu
 }
 
 // FuturesGetFundingHistory gets funding history for CoinMarginedFutures,
-func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+func (b *Exchange) FuturesGetFundingHistory(ctx context.Context, symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
 	var resp []FundingRateHistory
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -776,7 +776,7 @@ func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.
 }
 
 // GetFuturesSymbolPriceTicker gets price ticker for symbol
-func (b *Binance) GetFuturesSymbolPriceTicker(ctx context.Context, symbol currency.Pair, pair string) ([]SymbolPriceTicker, error) {
+func (b *Exchange) GetFuturesSymbolPriceTicker(ctx context.Context, symbol currency.Pair, pair string) ([]SymbolPriceTicker, error) {
 	var resp []SymbolPriceTicker
 	params := url.Values{}
 	rateLimit := cFuturesOrderbookTickerAllRate
@@ -795,7 +795,7 @@ func (b *Binance) GetFuturesSymbolPriceTicker(ctx context.Context, symbol curren
 }
 
 // GetFuturesOrderbookTicker gets orderbook ticker for symbol
-func (b *Binance) GetFuturesOrderbookTicker(ctx context.Context, symbol currency.Pair, pair string) ([]SymbolOrderBookTicker, error) {
+func (b *Exchange) GetFuturesOrderbookTicker(ctx context.Context, symbol currency.Pair, pair string) ([]SymbolOrderBookTicker, error) {
 	var resp []SymbolOrderBookTicker
 	params := url.Values{}
 	rateLimit := cFuturesOrderbookTickerAllRate
@@ -814,7 +814,7 @@ func (b *Binance) GetFuturesOrderbookTicker(ctx context.Context, symbol currency
 }
 
 // OpenInterest gets open interest data for a symbol
-func (b *Binance) OpenInterest(ctx context.Context, symbol currency.Pair) (OpenInterestData, error) {
+func (b *Exchange) OpenInterest(ctx context.Context, symbol currency.Pair) (OpenInterestData, error) {
 	var resp OpenInterestData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -826,7 +826,7 @@ func (b *Binance) OpenInterest(ctx context.Context, symbol currency.Pair) (OpenI
 }
 
 // GetOpenInterestStats gets open interest stats for a symbol
-func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]OpenInterestStats, error) {
+func (b *Exchange) GetOpenInterestStats(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]OpenInterestStats, error) {
 	var resp []OpenInterestStats
 	params := url.Values{}
 	if pair != "" {
@@ -854,7 +854,7 @@ func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, 
 }
 
 // GetTraderFuturesAccountRatio gets a traders futures account long/short ratio
-func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderAccountRatio, error) {
+func (b *Exchange) GetTraderFuturesAccountRatio(ctx context.Context, pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderAccountRatio, error) {
 	var resp []TopTraderAccountRatio
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -876,7 +876,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair, period
 }
 
 // GetTraderFuturesPositionsRatio gets a traders futures positions' long/short ratio
-func (b *Binance) GetTraderFuturesPositionsRatio(ctx context.Context, pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
+func (b *Exchange) GetTraderFuturesPositionsRatio(ctx context.Context, pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
 	var resp []TopTraderPositionRatio
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -898,7 +898,7 @@ func (b *Binance) GetTraderFuturesPositionsRatio(ctx context.Context, pair, peri
 }
 
 // GetMarketRatio gets global long/short ratio
-func (b *Binance) GetMarketRatio(ctx context.Context, pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
+func (b *Exchange) GetMarketRatio(ctx context.Context, pair, period string, limit int64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
 	var resp []TopTraderPositionRatio
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -920,7 +920,7 @@ func (b *Binance) GetMarketRatio(ctx context.Context, pair, period string, limit
 }
 
 // GetFuturesTakerVolume gets futures taker buy/sell volumes
-func (b *Binance) GetFuturesTakerVolume(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]TakerBuySellVolume, error) {
+func (b *Exchange) GetFuturesTakerVolume(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]TakerBuySellVolume, error) {
 	var resp []TakerBuySellVolume
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -946,7 +946,7 @@ func (b *Binance) GetFuturesTakerVolume(ctx context.Context, pair, contractType,
 }
 
 // GetFuturesBasisData gets futures basis data
-func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]FuturesBasisData, error) {
+func (b *Exchange) GetFuturesBasisData(ctx context.Context, pair, contractType, period string, limit int64, startTime, endTime time.Time) ([]FuturesBasisData, error) {
 	var resp []FuturesBasisData
 	params := url.Values{}
 	params.Set("pair", pair)
@@ -972,7 +972,7 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair, contractType, p
 }
 
 // FuturesNewOrder sends a new futures order to the exchange
-func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest) (
+func (b *Exchange) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest) (
 	FuturesOrderPlaceData,
 	error,
 ) {
@@ -1037,7 +1037,7 @@ func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest
 }
 
 // FuturesBatchOrder sends a batch order request
-func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
+func (b *Exchange) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
 	var resp []FuturesOrderPlaceData
 	params := url.Values{}
 	for x := range data {
@@ -1075,7 +1075,7 @@ func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderD
 }
 
 // FuturesBatchCancelOrders sends a batch request to cancel orders
-func (b *Binance) FuturesBatchCancelOrders(ctx context.Context, symbol currency.Pair, orderList, origClientOrderIDList []string) ([]BatchCancelOrderData, error) {
+func (b *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency.Pair, orderList, origClientOrderIDList []string) ([]BatchCancelOrderData, error) {
 	var resp []BatchCancelOrderData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1101,7 +1101,7 @@ func (b *Binance) FuturesBatchCancelOrders(ctx context.Context, symbol currency.
 }
 
 // FuturesGetOrderData gets futures order data
-func (b *Binance) FuturesGetOrderData(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
+func (b *Exchange) FuturesGetOrderData(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
 	var resp FuturesOrderGetData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1119,7 +1119,7 @@ func (b *Binance) FuturesGetOrderData(ctx context.Context, symbol currency.Pair,
 }
 
 // FuturesCancelOrder cancels a futures order
-func (b *Binance) FuturesCancelOrder(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
+func (b *Exchange) FuturesCancelOrder(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
 	var resp FuturesOrderGetData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1137,7 +1137,7 @@ func (b *Binance) FuturesCancelOrder(ctx context.Context, symbol currency.Pair, 
 }
 
 // FuturesCancelAllOpenOrders cancels a futures order
-func (b *Binance) FuturesCancelAllOpenOrders(ctx context.Context, symbol currency.Pair) (GenericAuthResponse, error) {
+func (b *Exchange) FuturesCancelAllOpenOrders(ctx context.Context, symbol currency.Pair) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1150,7 +1150,7 @@ func (b *Binance) FuturesCancelAllOpenOrders(ctx context.Context, symbol currenc
 
 // AutoCancelAllOpenOrders cancels all open futures orders
 // countdownTime 1000 = 1s, example - to cancel all orders after 30s (countdownTime: 30000)
-func (b *Binance) AutoCancelAllOpenOrders(ctx context.Context, symbol currency.Pair, countdownTime int64) (AutoCancelAllOrdersData, error) {
+func (b *Exchange) AutoCancelAllOpenOrders(ctx context.Context, symbol currency.Pair, countdownTime int64) (AutoCancelAllOrdersData, error) {
 	var resp AutoCancelAllOrdersData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1163,7 +1163,7 @@ func (b *Binance) AutoCancelAllOpenOrders(ctx context.Context, symbol currency.P
 }
 
 // FuturesOpenOrderData gets open order data for CoinMarginedFutures,
-func (b *Binance) FuturesOpenOrderData(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
+func (b *Exchange) FuturesOpenOrderData(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (FuturesOrderGetData, error) {
 	var resp FuturesOrderGetData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1181,7 +1181,7 @@ func (b *Binance) FuturesOpenOrderData(ctx context.Context, symbol currency.Pair
 }
 
 // GetFuturesAllOpenOrders gets all open orders data for CoinMarginedFutures,
-func (b *Binance) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair string) ([]FuturesOrderData, error) {
+func (b *Exchange) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair string) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
 	var p string
@@ -1205,7 +1205,7 @@ func (b *Binance) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.P
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
-func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
+func (b *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]FuturesOrderData, error) {
 	var resp []FuturesOrderData
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
@@ -1237,19 +1237,19 @@ func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency
 }
 
 // GetFuturesAccountBalance gets account balance data for CoinMarginedFutures, account
-func (b *Binance) GetFuturesAccountBalance(ctx context.Context) ([]FuturesAccountBalanceData, error) {
+func (b *Exchange) GetFuturesAccountBalance(ctx context.Context) ([]FuturesAccountBalanceData, error) {
 	var resp []FuturesAccountBalanceData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesAccountBalance, nil, cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesAccountInfo gets account info data for CoinMarginedFutures, account
-func (b *Binance) GetFuturesAccountInfo(ctx context.Context) (FuturesAccountInformation, error) {
+func (b *Exchange) GetFuturesAccountInfo(ctx context.Context) (FuturesAccountInformation, error) {
 	var resp FuturesAccountInformation
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesAccountInfo, nil, cFuturesAccountInformationRate, &resp)
 }
 
 // FuturesChangeInitialLeverage changes initial leverage for the account
-func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (FuturesLeverageData, error) {
+func (b *Exchange) FuturesChangeInitialLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (FuturesLeverageData, error) {
 	var resp FuturesLeverageData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1265,7 +1265,7 @@ func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol curre
 }
 
 // FuturesChangeMarginType changes margin type
-func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.Pair, marginType string) (GenericAuthResponse, error) {
+func (b *Exchange) FuturesChangeMarginType(ctx context.Context, symbol currency.Pair, marginType string) (GenericAuthResponse, error) {
 	var resp GenericAuthResponse
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1281,7 +1281,7 @@ func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.P
 }
 
 // ModifyIsolatedPositionMargin changes margin for an isolated position
-func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (FuturesMarginUpdatedResponse, error) {
+func (b *Exchange) ModifyIsolatedPositionMargin(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (FuturesMarginUpdatedResponse, error) {
 	var resp FuturesMarginUpdatedResponse
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1305,7 +1305,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 }
 
 // FuturesMarginChangeHistory gets past margin changes for positions
-func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currency.Pair, changeType string, startTime, endTime time.Time, limit int64) ([]GetPositionMarginChangeHistoryData, error) {
+func (b *Exchange) FuturesMarginChangeHistory(ctx context.Context, symbol currency.Pair, changeType string, startTime, endTime time.Time, limit int64) ([]GetPositionMarginChangeHistoryData, error) {
 	var resp []GetPositionMarginChangeHistoryData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1334,7 +1334,7 @@ func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currenc
 // FuturesPositionsInfo gets futures positions info
 // "pair" for coinmarginedfutures in GCT terms is the pair base
 // eg ADAUSD_PERP the "pair" parameter is ADAUSD
-func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]FuturesPositionInformation, error) {
+func (b *Exchange) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]FuturesPositionInformation, error) {
 	var resp []FuturesPositionInformation
 	params := url.Values{}
 	if marginAsset != "" {
@@ -1349,7 +1349,7 @@ func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair st
 }
 
 // FuturesTradeHistory gets trade history for CoinMarginedFutures, account
-func (b *Binance) FuturesTradeHistory(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, limit, fromID int64) ([]FuturesAccountTradeList, error) {
+func (b *Exchange) FuturesTradeHistory(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, limit, fromID int64) ([]FuturesAccountTradeList, error) {
 	var resp []FuturesAccountTradeList
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
@@ -1381,7 +1381,7 @@ func (b *Binance) FuturesTradeHistory(ctx context.Context, symbol currency.Pair,
 }
 
 // FuturesIncomeHistory gets income history for CoinMarginedFutures,
-func (b *Binance) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) ([]FuturesIncomeHistoryData, error) {
+func (b *Exchange) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) ([]FuturesIncomeHistoryData, error) {
 	var resp []FuturesIncomeHistoryData
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -1411,7 +1411,7 @@ func (b *Binance) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair
 }
 
 // FuturesNotionalBracket gets futures notional bracket
-func (b *Binance) FuturesNotionalBracket(ctx context.Context, pair string) ([]NotionalBracketData, error) {
+func (b *Exchange) FuturesNotionalBracket(ctx context.Context, pair string) ([]NotionalBracketData, error) {
 	var resp []NotionalBracketData
 	params := url.Values{}
 	if pair != "" {
@@ -1421,7 +1421,7 @@ func (b *Binance) FuturesNotionalBracket(ctx context.Context, pair string) ([]No
 }
 
 // FuturesForceOrders gets futures forced orders
-func (b *Binance) FuturesForceOrders(ctx context.Context, symbol currency.Pair, autoCloseType string, startTime, endTime time.Time) ([]ForcedOrdersData, error) {
+func (b *Exchange) FuturesForceOrders(ctx context.Context, symbol currency.Pair, autoCloseType string, startTime, endTime time.Time) ([]ForcedOrdersData, error) {
 	var resp []ForcedOrdersData
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -1448,7 +1448,7 @@ func (b *Binance) FuturesForceOrders(ctx context.Context, symbol currency.Pair, 
 }
 
 // FuturesPositionsADLEstimate estimates ADL on positions
-func (b *Binance) FuturesPositionsADLEstimate(ctx context.Context, symbol currency.Pair) ([]ADLEstimateData, error) {
+func (b *Exchange) FuturesPositionsADLEstimate(ctx context.Context, symbol currency.Pair) ([]ADLEstimateData, error) {
 	var resp []ADLEstimateData
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -1462,7 +1462,7 @@ func (b *Binance) FuturesPositionsADLEstimate(ctx context.Context, symbol curren
 }
 
 // FetchCoinMarginExchangeLimits fetches coin margined order execution limits
-func (b *Binance) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+func (b *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
 	coinFutures, err := b.FuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
