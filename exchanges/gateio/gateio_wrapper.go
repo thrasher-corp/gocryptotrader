@@ -208,17 +208,17 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 	// Spot connection
 	err = g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      gateioWebsocketEndpoint,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleSpotData,
-		Subscriber:               g.Subscribe,
-		Unsubscriber:             g.Unsubscribe,
-		GenerateSubscriptions:    g.generateSubscriptionsSpot,
-		Connector:                g.WsConnectSpot,
-		Authenticate:             g.authenticateSpot,
-		MessageFilter:            asset.Spot,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		URL:                   gateioWebsocketEndpoint,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               g.WsHandleSpotData,
+		Subscriber:            g.Subscribe,
+		Unsubscriber:          g.Unsubscribe,
+		GenerateSubscriptions: g.generateSubscriptionsSpot,
+		Connector:             g.WsConnectSpot,
+		Authenticate:          g.authenticateSpot,
+		MessageFilter:         asset.Spot,
+		RequestIDGenerator:    g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -236,10 +236,10 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return g.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 		},
-		Connector:                g.WsFuturesConnect,
-		Authenticate:             g.authenticateFutures,
-		MessageFilter:            asset.USDTMarginedFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		Connector:          g.WsFuturesConnect,
+		Authenticate:       g.authenticateFutures,
+		MessageFilter:      asset.USDTMarginedFutures,
+		RequestIDGenerator: g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -258,9 +258,9 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return g.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 		},
-		Connector:                g.WsFuturesConnect,
-		MessageFilter:            asset.CoinMarginedFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		Connector:          g.WsFuturesConnect,
+		MessageFilter:      asset.CoinMarginedFutures,
+		RequestIDGenerator: g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -275,12 +275,12 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, incoming []byte) error {
 			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
 		},
-		Subscriber:               g.DeliveryFuturesSubscribe,
-		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
-		Connector:                g.WsDeliveryFuturesConnect,
-		MessageFilter:            asset.DeliveryFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		Subscriber:            g.DeliveryFuturesSubscribe,
+		Unsubscriber:          g.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions: g.GenerateDeliveryFuturesDefaultSubscriptions,
+		Connector:             g.WsDeliveryFuturesConnect,
+		MessageFilter:         asset.DeliveryFutures,
+		RequestIDGenerator:    g.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
@@ -288,16 +288,16 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 
 	// Futures connection - Options
 	return g.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      optionsWebsocketURL,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleOptionsData,
-		Subscriber:               g.OptionsSubscribe,
-		Unsubscriber:             g.OptionsUnsubscribe,
-		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
-		Connector:                g.WsOptionsConnect,
-		MessageFilter:            asset.Options,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		URL:                   optionsWebsocketURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler:               g.WsHandleOptionsData,
+		Subscriber:            g.OptionsSubscribe,
+		Unsubscriber:          g.OptionsUnsubscribe,
+		GenerateSubscriptions: g.GenerateOptionsDefaultSubscriptions,
+		Connector:             g.WsOptionsConnect,
+		MessageFilter:         asset.Options,
+		RequestIDGenerator:    g.messageIDSeq.IncrementAndGet,
 	})
 }
 
