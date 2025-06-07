@@ -34,15 +34,6 @@ type CompressedTradesData struct {
 	BuyerMaker   bool       `json:"b"`
 }
 
-// MarkPriceData stores mark price data for futures
-type MarkPriceData struct {
-	Symbol          string     `json:"symbol"`
-	MarkPrice       float64    `json:"markPrice"`
-	LastFundingRate float64    `json:"lastFundingRate"`
-	NextFundingTime int64      `json:"nextFundingTime"`
-	Time            types.Time `json:"time"`
-}
-
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
 	Symbol string     `json:"symbol"`

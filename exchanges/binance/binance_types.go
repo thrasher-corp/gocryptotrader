@@ -768,7 +768,7 @@ type SymbolOrders struct {
 	ListStatusType          string            `json:"listStatusType,omitempty"`
 	ListOrderStatus         string            `json:"listOrderStatus,omitempty"`
 	ListClientOrderID       string            `json:"listClientOrderId,omitempty"`
-	TransactionTime         int64             `json:"transactionTime,omitempty"`
+	TransactionTime         types.Time        `json:"transactionTime,omitempty"`
 	Orders                  []struct {
 		Symbol        string `json:"symbol"`
 		OrderID       int64  `json:"orderId"`

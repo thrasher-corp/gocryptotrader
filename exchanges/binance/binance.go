@@ -168,7 +168,7 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 		}
 		// Can not handle this request locally or remotely
 		// We would receive {"code":-1128,"msg":"Combination of optional parameters invalid."}
-		return nil, errors.New("please set StartTime or FromId, but not both")
+		return nil, errors.New("either StartTime or FromId must be provided")
 	}
 	var resp []AggregatedTrade
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/aggTrades", params), aggTradesRate, &resp)
@@ -1756,7 +1756,14 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 		}
 		return err
 	}
-	return json.Unmarshal(responseJSON, result)
+	err = json.Unmarshal(responseJSON, result)
+	if err != nil {
+		return err
+	}
+	if result == nil {
+		return common.ErrNoResponse
+	}
+	return nil
 }
 
 // errorCodeToErrorMap represents common error messages.

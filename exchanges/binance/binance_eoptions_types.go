@@ -157,18 +157,18 @@ type EOptionIndexSymbolPriceTicker struct {
 // EXTRINSIC_VALUE_EXPIRED -> Expired OTM
 type ExerciseHistoryItem struct {
 	Symbol          string       `json:"symbol"`
-	StrikePrice     types.Number `json:"strikePrice"`
-	RealStrikePrice types.Number `json:"realStrikePrice"`
 	ExpiryDate      int64        `json:"expiryDate"`
 	StrikeResult    string       `json:"strikeResult"`
+	StrikePrice     types.Number `json:"strikePrice"`
+	RealStrikePrice types.Number `json:"realStrikePrice"`
 }
 
 // OpenInterest represents an instance open interest
 type OpenInterest struct {
 	Symbol             string       `json:"symbol"`
+	Timestamp          types.Time   `json:"timestamp"`
 	SumOpenInterest    types.Number `json:"sumOpenInterest"`
 	SumOpenInterestUSD types.Number `json:"sumOpenInterestUsd"`
-	Timestamp          types.Time   `json:"timestamp"`
 }
 
 // EOptionsAccountInformation represents current account information.
@@ -209,29 +209,29 @@ type OptionsOrderParams struct {
 
 // OptionOrder represents an options order instance.
 type OptionOrder struct {
-	OrderID       int64             `json:"orderId"`
-	ClientOrderID string            `json:"clientOrderId"`
-	Symbol        string            `json:"symbol"`
-	Price         types.Number      `json:"price"`
-	Quantity      types.Number      `json:"quantity"`
-	Side          string            `json:"side"`
-	Type          string            `json:"type"`
-	CreateDate    types.Time        `json:"createDate,omitempty"`
-	UpdateTime    types.Time        `json:"updateTime"`
-	ExecutedQty   types.Number      `json:"executedQty,omitempty"`
-	Fee           types.Number      `json:"fee,omitempty"`
-	TimeInForce   order.TimeInForce `json:"timeInForce,omitempty"`
-	ReduceOnly    bool              `json:"reduceOnly,omitempty"`
-	PostOnly      bool              `json:"postOnly,omitempty"`
-	Source        string            `json:"source"`
-	CreateTime    types.Time        `json:"createTime,omitempty"`
-	Status        string            `json:"status,omitempty"`
-	AvgPrice      types.Number      `json:"avgPrice,omitempty"`
-	PriceScale    int64             `json:"priceScale,omitempty"`
-	QuantityScale int64             `json:"quantityScale,omitempty"`
-	OptionSide    string            `json:"optionSide,omitempty"`
-	QuoteAsset    string            `json:"quoteAsset,omitempty"`
-	Mmp           bool              `json:"mmp,omitempty"` // is market maker protection order, true/false
+	OrderID               int64             `json:"orderId"`
+	ClientOrderID         string            `json:"clientOrderId"`
+	Symbol                string            `json:"symbol"`
+	Price                 types.Number      `json:"price"`
+	Quantity              types.Number      `json:"quantity"`
+	Side                  string            `json:"side"`
+	Type                  string            `json:"type"`
+	CreateDate            types.Time        `json:"createDate,omitempty"`
+	UpdateTime            types.Time        `json:"updateTime"`
+	ExecutedQty           types.Number      `json:"executedQty,omitempty"`
+	Fee                   types.Number      `json:"fee,omitempty"`
+	TimeInForce           order.TimeInForce `json:"timeInForce,omitempty"`
+	ReduceOnly            bool              `json:"reduceOnly,omitempty"`
+	PostOnly              bool              `json:"postOnly,omitempty"`
+	Source                string            `json:"source"`
+	CreateTime            types.Time        `json:"createTime,omitempty"`
+	Status                string            `json:"status,omitempty"`
+	AvgPrice              types.Number      `json:"avgPrice,omitempty"`
+	PriceScale            int64             `json:"priceScale,omitempty"`
+	QuantityScale         int64             `json:"quantityScale,omitempty"`
+	OptionSide            string            `json:"optionSide,omitempty"`
+	QuoteAsset            string            `json:"quoteAsset,omitempty"`
+	MarketMakerProtection bool              `json:"mmp,omitempty"` // is market maker protection order, true/false
 }
 
 // OptionPosition represents current position information.
@@ -243,11 +243,11 @@ type OptionPosition struct {
 	ReducibleQty      string       `json:"reducibleQty"` //// Number of positions that can be reduced
 	MarkValue         string       `json:"markValue"`
 	Ror               string       `json:"ror"`
-	UnrealizedPNL     string       `json:"unrealizedPNL"` // Unrealized profit/loss
-	MarkPrice         string       `json:"markPrice"`
-	StrikePrice       string       `json:"strikePrice"`
-	PositionCost      string       `json:"positionCost"`
-	ExpiryTime        int64        `json:"expiryDate"`
+	UnrealizedPNL     types.Number `json:"unrealizedPNL"` // Unrealized profit/loss
+	MarkPrice         types.Number `json:"markPrice"`
+	StrikePrice       types.Number `json:"strikePrice"`
+	PositionCost      types.Number `json:"positionCost"`
+	ExpiryTime        types.Time   `json:"expiryDate"`
 	PriceScale        int64        `json:"priceScale"`
 	QuantityScale     int64        `json:"quantityScale"`
 	OptionSide        string       `json:"optionSide"`
@@ -363,8 +363,8 @@ type MarketMakerProtection struct {
 
 // UnderlyingCountdown represents a response for cancelling open orders.
 type UnderlyingCountdown struct {
-	Underlying    string `json:"underlying"`
-	CountdownTime int64  `json:"countdownTime"`
+	Underlying    string     `json:"underlying"`
+	CountdownTime types.Time `json:"countdownTime"`
 }
 
 // EOptionsWsTrade represents an european options

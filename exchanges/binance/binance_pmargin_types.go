@@ -7,10 +7,10 @@ import (
 
 // UMCMOrder represents a portfolio margin USDT Margined or Coin Margined order.
 type UMCMOrder struct {
+	OrderID       int64        `json:"orderId"`
 	ClientOrderID string       `json:"clientOrderId"`
 	CumQty        types.Number `json:"cumQty"`
 	ExecutedQty   types.Number `json:"executedQty"`
-	OrderID       int64        `json:"orderId"`
 	AvgPrice      types.Number `json:"avgPrice"`
 	OrigQty       types.Number `json:"origQty"`
 	Price         types.Number `json:"price"`

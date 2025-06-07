@@ -71,7 +71,6 @@ func getTime() (start, end time.Time) {
 	if mockTests {
 		return time.Unix(1577836800, 0), time.Unix(1580515200, 0)
 	}
-
 	tn := time.Now()
 	offset := time.Hour * 24 * 6
 	return tn.Add(-offset), tn
@@ -9877,78 +9876,84 @@ func TestCreateAPIKey(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+var orderTypeFromStringList = []struct {
+	String    string
+	OrderType order.Type
+	Error     error
+}{
+	{"STOP_MARKET", order.StopMarket, nil},
+	{"TAKE_PROFIT", order.TakeProfit, nil},
+	{"TAKE_PROFIT_MARKET", order.TakeProfitMarket, nil},
+	{"TRAILING_STOP_MARKET", order.TrailingStop, nil},
+	{"STOP_LOSS_LIMIT", order.StopLimit, nil},
+	{"TAKE_PROFIT_LIMIT", order.TakeProfitLimit, nil},
+	{"LIMIT_MAKER", order.LimitMaker, nil},
+	{"LIMIT", order.Limit, nil},
+	{"MARKET", order.Market, nil},
+	{"STOP", order.Stop, nil},
+	{"OCO", order.OCO, nil},
+	{"OTO", order.OTO, nil},
+	{"STOP_LOSS", order.Stop, nil},
+	{"abcd", order.UnknownType, order.ErrUnsupportedOrderType},
+}
+
 func TestOrderTypeFromString(t *testing.T) {
 	t.Parallel()
-	orderTypeFromStringMap := map[string]struct {
-		OrderType order.Type
-		Error     error
-	}{
-		"STOP_MARKET":          {order.StopMarket, nil},
-		"TAKE_PROFIT":          {order.TakeProfit, nil},
-		"TAKE_PROFIT_MARKET":   {order.TakeProfitMarket, nil},
-		"TRAILING_STOP_MARKET": {order.TrailingStop, nil},
-		"STOP_LOSS_LIMIT":      {order.StopLimit, nil},
-		"TAKE_PROFIT_LIMIT":    {order.TakeProfitLimit, nil},
-		"LIMIT_MAKER":          {order.LimitMaker, nil},
-		"LIMIT":                {order.Limit, nil},
-		"MARKET":               {order.Market, nil},
-		"STOP":                 {order.Stop, nil},
-		"OCO":                  {order.OCO, nil},
-		"OTO":                  {order.OTO, nil},
-		"STOP_LOSS":            {order.Stop, nil},
-		"abcd":                 {order.UnknownType, order.ErrUnsupportedOrderType},
+	for _, val := range orderTypeFromStringList {
+		result, err := StringToOrderType(val.String)
+		require.ErrorIs(t, err, val.Error)
+		assert.Equal(t, result, val.OrderType)
 	}
-	for k, v := range orderTypeFromStringMap {
-		result, err := StringToOrderType(k)
-		require.ErrorIs(t, err, v.Error)
-		assert.Equal(t, result, v.OrderType)
-	}
+}
+
+var orderTypeStringToTypeList = []struct {
+	OrderType order.Type
+	String    string
+	Error     error
+}{
+	{order.Limit, "LIMIT", nil},
+	{order.StopMarket, "STOP_MARKET", nil},
+	{order.TakeProfit, "TAKE_PROFIT", nil},
+	{order.TakeProfitMarket, "TAKE_PROFIT_MARKET", nil},
+	{order.TrailingStop, "TRAILING_STOP_MARKET", nil},
+	{order.StopLimit, "STOP_LOSS_LIMIT", nil},
+	{order.TakeProfitLimit, "TAKE_PROFIT_LIMIT", nil},
+	{order.LimitMaker, "LIMIT_MAKER", nil},
+	{order.Market, "MARKET", nil},
+	{order.OCO, "OCO", nil},
+	{order.OTO, "OTO", nil},
+	{order.Stop, "STOP_LOSS", nil},
+	{order.IOS, "", order.ErrUnsupportedOrderType},
 }
 
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
-	orderTypeStringToTypeMap := map[order.Type]struct {
-		String string
-		Error  error
-	}{
-		order.Limit:            {"LIMIT", nil},
-		order.StopMarket:       {"STOP_MARKET", nil},
-		order.TakeProfit:       {"TAKE_PROFIT", nil},
-		order.TakeProfitMarket: {"TAKE_PROFIT_MARKET", nil},
-		order.TrailingStop:     {"TRAILING_STOP_MARKET", nil},
-		order.StopLimit:        {"STOP_LOSS_LIMIT", nil},
-		order.TakeProfitLimit:  {"TAKE_PROFIT_LIMIT", nil},
-		order.LimitMaker:       {"LIMIT_MAKER", nil},
-		order.Market:           {"MARKET", nil},
-		order.OCO:              {"OCO", nil},
-		order.OTO:              {"OTO", nil},
-		order.Stop:             {"STOP_LOSS", nil},
-		order.IOS:              {"", order.ErrUnsupportedOrderType},
+	for _, value := range orderTypeStringToTypeList {
+		result, err := OrderTypeString(value.OrderType)
+		require.ErrorIs(t, err, value.Error)
+		assert.Equal(t, result, value.String)
 	}
-	for k, v := range orderTypeStringToTypeMap {
-		result, err := OrderTypeString(k)
-		require.ErrorIs(t, err, v.Error)
-		assert.Equal(t, result, v.String)
-	}
+}
+
+var timeInForceStringList = []struct {
+	TIF    order.TimeInForce
+	OType  order.Type
+	String string
+}{
+	{order.FillOrKill, 0, "FOK"},
+	{order.ImmediateOrCancel, 0, "IOC"},
+	{order.GoodTillCancel, 0, "GTC"},
+	{order.GoodTillDay, 0, "GTD"},
+	{order.GoodTillCrossing, 0, "GTX"},
+	{order.UnknownTIF, order.Limit, "GTC"},
+	{order.UnknownTIF, order.Market, "IOC"},
+	{order.UnknownTIF, order.UnknownType, ""},
 }
 
 func TestTimeInForceString(t *testing.T) {
 	t.Parallel()
-	timeInForceStringMap := map[struct {
-		TIF   order.TimeInForce
-		OType order.Type
-	}]string{
-		{order.FillOrKill, 0}:                 "FOK",
-		{order.ImmediateOrCancel, 0}:          "IOC",
-		{order.GoodTillCancel, 0}:             "GTC",
-		{order.GoodTillDay, 0}:                "GTD",
-		{order.GoodTillCrossing, 0}:           "GTX",
-		{order.UnknownTIF, order.Limit}:       "GTC",
-		{order.UnknownTIF, order.Market}:      "IOC",
-		{order.UnknownTIF, order.UnknownType}: "",
-	}
-	for k, v := range timeInForceStringMap {
-		result := timeInForceString(k.TIF, k.OType)
-		assert.Equal(t, v, result)
+	for _, val := range timeInForceStringList {
+		result := timeInForceString(val.TIF, val.OType)
+		assert.Equal(t, val.String, result)
 	}
 }
