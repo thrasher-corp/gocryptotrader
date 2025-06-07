@@ -1340,7 +1340,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricCandlesExtended should error correctly")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		interval kline.Interval

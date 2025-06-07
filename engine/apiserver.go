@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -698,8 +699,7 @@ func wsAuth(client *websocketClient, data any) error {
 		return err
 	}
 
-	hashPW := crypto.HexEncodeToString(hash)
-	if auth.Username == client.username && auth.Password == hashPW {
+	if auth.Username == client.username && auth.Password == hex.EncodeToString(hash) {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
 		log.Debugln(log.APIServerMgr,

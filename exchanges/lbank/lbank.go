@@ -7,6 +7,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -537,8 +539,7 @@ func (l *Lbank) sign(data string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	m := strings.ToUpper(gctcrypto.HexEncodeToString(md5hash))
-	s, err := gctcrypto.GetSHA256([]byte(m))
+	s, err := gctcrypto.GetSHA256([]byte(strings.ToUpper(hex.EncodeToString(md5hash))))
 	if err != nil {
 		return "", err
 	}
@@ -546,7 +547,7 @@ func (l *Lbank) sign(data string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return gctcrypto.Base64Encode(r), nil
+	return base64.StdEncoding.EncodeToString(r), nil
 }
 
 // SendAuthHTTPRequest sends an authenticated request

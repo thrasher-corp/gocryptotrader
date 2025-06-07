@@ -2,6 +2,8 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
@@ -428,15 +430,13 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 
 		maps.Copy(req, params)
 
-		PayloadJSON, err := json.Marshal(req)
+		payload, err := json.Marshal(req)
 		if err != nil {
 			return nil, err
 		}
 
-		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-			[]byte(PayloadBase64),
-			[]byte(creds.Secret))
+		payloadB64 := base64.StdEncoding.EncodeToString(payload)
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -445,8 +445,8 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		headers["Content-Length"] = "0"
 		headers["Content-Type"] = "text/plain"
 		headers["X-GEMINI-APIKEY"] = creds.Key
-		headers["X-GEMINI-PAYLOAD"] = PayloadBase64
-		headers["X-GEMINI-SIGNATURE"] = crypto.HexEncodeToString(hmac)
+		headers["X-GEMINI-PAYLOAD"] = payloadB64
+		headers["X-GEMINI-SIGNATURE"] = hex.EncodeToString(hmac)
 		headers["Cache-Control"] = "no-cache"
 
 		return &request.Item{

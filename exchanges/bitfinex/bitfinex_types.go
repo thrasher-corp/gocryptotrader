@@ -354,22 +354,22 @@ type Withdrawal struct {
 
 // Order holds order information when an order is in the market
 type Order struct {
-	ID                    int64   `json:"id"`
-	Symbol                string  `json:"symbol"`
-	Exchange              string  `json:"exchange"`
-	Price                 float64 `json:"price,string"`
-	AverageExecutionPrice float64 `json:"avg_execution_price,string"`
-	Side                  string  `json:"side"`
-	Type                  string  `json:"type"`
-	Timestamp             string  `json:"timestamp"`
-	IsLive                bool    `json:"is_live"`
-	IsCancelled           bool    `json:"is_cancelled"`
-	IsHidden              bool    `json:"is_hidden"`
-	WasForced             bool    `json:"was_forced"`
-	OriginalAmount        float64 `json:"original_amount,string"`
-	RemainingAmount       float64 `json:"remaining_amount,string"`
-	ExecutedAmount        float64 `json:"executed_amount,string"`
-	OrderID               int64   `json:"order_id,omitempty"`
+	ID                    int64         `json:"id"`
+	Symbol                currency.Pair `json:"symbol"`
+	Exchange              string        `json:"exchange"`
+	Price                 float64       `json:"price,string"`
+	AverageExecutionPrice float64       `json:"avg_execution_price,string"`
+	Side                  string        `json:"side"`
+	Type                  string        `json:"type"`
+	Timestamp             types.Time    `json:"timestamp"`
+	IsLive                bool          `json:"is_live"`
+	IsCancelled           bool          `json:"is_cancelled"`
+	IsHidden              bool          `json:"is_hidden"`
+	WasForced             bool          `json:"was_forced"`
+	OriginalAmount        float64       `json:"original_amount,string"`
+	RemainingAmount       float64       `json:"remaining_amount,string"`
+	ExecutedAmount        float64       `json:"executed_amount,string"`
+	OrderID               int64         `json:"order_id,omitempty"`
 }
 
 // OrderMultiResponse holds order information on the executed orders

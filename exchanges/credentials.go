@@ -2,12 +2,12 @@ package exchange
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -168,7 +168,7 @@ func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 	}
 
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !creds.SecretBase64Decoded {
-		decodedResult, err := crypto.Base64Decode(creds.Secret)
+		decodedResult, err := base64.StdEncoding.DecodeString(creds.Secret)
 		if err != nil {
 			return fmt.Errorf("%s API secret %w: %s", b.Name, errBase64DecodeFailure, err)
 		}
@@ -190,7 +190,7 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 	b.API.credentials.OneTimePassword = oneTimePassword
 
 	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		result, err := crypto.Base64Decode(apiSecret)
+		result, err := base64.StdEncoding.DecodeString(apiSecret)
 		if err != nil {
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false

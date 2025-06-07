@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
@@ -43,7 +45,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestScript(t *testing.T) {
-	testCases := []struct {
+	t.Parallel()
+	for _, tc := range []struct {
 		name   string
 		config *database.Config
 		runner func()
@@ -67,29 +70,22 @@ func TestScript(t *testing.T) {
 			nil,
 			nil,
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !testhelpers.CheckValidConfig(&tc.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-			if err != nil {
-				t.Fatal(err)
+			dbConn, err := testhelpers.ConnectToDatabase(tc.config)
+			require.NoError(t, err)
+
+			if tc.runner != nil {
+				tc.runner()
 			}
 
-			if test.runner != nil {
-				test.runner()
-			}
-
-			if test.closer != nil {
-				err = test.closer(dbConn)
-				if err != nil {
-					t.Log(err)
-				}
+			if tc.closer != nil {
+				assert.NoError(t, tc.closer(dbConn))
 			}
 		})
 	}
