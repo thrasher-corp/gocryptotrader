@@ -41,19 +41,22 @@ const (
 	positionSideNet   = "net"
 )
 
+// order types, margin balance types, and instrument types constants
 const (
-	// orderLimit Limit order
-	orderLimit = "limit"
-	// orderMarket Market order
-	orderMarket = "market"
-	// orderPostOnly POST_ONLY order type
-	orderPostOnly = "post_only"
-	// orderFOK fill or kill order type
-	orderFOK = "fok"
-	// orderIOC IOC (immediate or cancel)
-	orderIOC = "ioc"
-	// orderOptimalLimitIOC OPTIMAL_LIMIT_IOC
-	orderOptimalLimitIOC = "optimal_limit_ioc"
+	orderLimit                            = "limit"
+	orderMarket                           = "market"
+	orderPostOnly                         = "post_only"
+	orderFOK                              = "fok"
+	orderIOC                              = "ioc"
+	orderOptimalLimitIOC                  = "optimal_limit_ioc"
+	orderConditional                      = "conditional"
+	orderMoveOrderStop                    = "move_order_stop"
+	orderChase                            = "chase"
+	orderTWAP                             = "twap"
+	orderTrigger                          = "trigger"
+	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
+	orderMarketMakerProtection            = "mmp"
+	orderOCO                              = "oco"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
