@@ -5866,9 +5866,12 @@ func TestOrderTypeString(t *testing.T) {
 		{OrderType: order.Trigger, TIF: order.UnknownTIF}:               {Expected: orderTrigger},
 	}
 	for tc, val := range orderTypesToStringMap {
-		orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
-		require.ErrorIsf(t, err, val.Error, "expected %v, got %v", val.Error, err)
-		assert.Equal(t, val.Expected, orderTypeString)
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
+			t.Parallel()
+			orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, orderTypeString)
+		})
 	}
 }
 
@@ -6156,11 +6159,10 @@ func TestOrderTypeFromString(t *testing.T) {
 	for s, exp := range orderTypeStrings {
 		t.Run(s, func(t *testing.T) {
 			t.Parallel()
-			s := s
 			oType, tif, err := orderTypeFromString(s)
 			require.ErrorIs(t, err, exp.Error)
 			assert.Equal(t, exp.OType, oType)
-			assert.Equal(t, exp.TIF.String(), tif.String(), s)
+			assert.Equal(t, exp.TIF.String(), tif.String())
 		})
 	}
 }

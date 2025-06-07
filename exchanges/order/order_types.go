@@ -348,7 +348,7 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint32
+type Type uint64
 
 // Is checks to see if the Type contains the Type cmp
 func (t Type) Is(cmp Type) bool {

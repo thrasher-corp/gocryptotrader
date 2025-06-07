@@ -297,6 +297,32 @@ func TestTitle(t *testing.T) {
 	require.Equal(t, "Limit", orderType.Title())
 }
 
+var orderComparisonList = []struct {
+	Type    Type
+	Targets []Type
+}{
+	{Type: Limit | TakeProfit, Targets: []Type{TakeProfit, Limit}},
+	{Type: IOS, Targets: []Type{IOS}},
+	{Type: Stop, Targets: []Type{Stop}},
+	{Type: AnyType, Targets: []Type{AnyType}},
+	{Type: StopLimit, Targets: []Type{Stop, Limit}},
+	{Type: StopLimit, Targets: []Type{Stop, Limit}},
+	{Type: TakeProfit, Targets: []Type{TakeProfit}},
+	{Type: StopMarket, Targets: []Type{Stop, Market}},
+	{Type: TrailingStop, Targets: []Type{TrailingStop}},
+	{Type: UnknownType | Limit, Targets: []Type{Limit}},
+	{Type: TakeProfitMarket, Targets: []Type{TakeProfit, Market}},
+}
+
+func TestOrderIs(t *testing.T) {
+	t.Parallel()
+	for _, oType := range orderComparisonList {
+		for _, target := range oType.Targets {
+			assert.Truef(t, oType.Type.Is(target), "expected %v, got %q", target, oType.Type.String())
+		}
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 	var orderType Type
@@ -333,8 +359,8 @@ var orderToToStringsList = []struct {
 
 func TestOrderTypeToString(t *testing.T) {
 	t.Parallel()
-	for x := range orderToToStringsList {
-		assert.Equal(t, orderToToStringsList[x].String, orderToToStringsList[x].OrderType.String())
+	for _, tt := range orderToToStringsList {
+		assert.Equal(t, tt.String, tt.OrderType.String())
 	}
 }
 
