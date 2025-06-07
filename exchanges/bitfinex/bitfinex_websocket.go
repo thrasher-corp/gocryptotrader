@@ -1676,7 +1676,7 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 	if len(c.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	if err := b.Websocket.Orderbook.FlushOrderbook(c.Pairs[0], c.Asset); err != nil {
+	if err := b.Websocket.Orderbook.InvalidateOrderbook(c.Pairs[0], c.Asset); err != nil {
 		// Non-fatal error
 		log.Errorf(log.ExchangeSys, "%s error flushing orderbook: %v", b.Name, err)
 	}
