@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1740,4 +1741,39 @@ func TestEnforceStandardChannelNames(t *testing.T) {
 		err := enforceStandardChannelNames(&subscription.Subscription{Channel: n})
 		assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "Private channel names should not be allowed for %s", n)
 	}
+}
+
+func TestWebsocketAuthToken(t *testing.T) {
+	t.Parallel()
+	k := new(Kraken)
+	k.setWebsocketAuthToken("meep")
+	const n = 69
+	var wg sync.WaitGroup
+	wg.Add(2 * n)
+
+	start := make(chan struct{})
+	for range n {
+		go func() {
+			defer wg.Done()
+			<-start
+			k.setWebsocketAuthToken("69420")
+		}()
+	}
+	for range n {
+		go func() {
+			defer wg.Done()
+			<-start
+			k.websocketAuthToken()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	assert.Equal(t, "69420", k.websocketAuthToken(), "websocketAuthToken should return correctly after concurrent reads and writes")
+}
+
+func TestSetWebsocketAuthToken(t *testing.T) {
+	t.Parallel()
+	k := new(Kraken)
+	k.setWebsocketAuthToken("69420")
+	assert.Equal(t, "69420", k.websocketAuthToken())
 }
