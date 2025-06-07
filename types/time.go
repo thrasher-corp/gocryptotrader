@@ -21,8 +21,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		s = s[1 : len(s)-1]
 	}
 
-	switch s {
-	case "null", "0", "":
+	if s == "" || s[0] == 'n' || (s[0] == '0' && strings.Trim(s, "0.") == "") {
 		return nil
 	}
 

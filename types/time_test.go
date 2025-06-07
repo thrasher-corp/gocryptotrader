@@ -26,6 +26,12 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`"0"`), &testTime))
 	assert.Equal(t, time.Time{}, testTime.Time())
 
+	require.NoError(t, json.Unmarshal([]byte(`"0.0"`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"0.00000"`), &testTime))
+	assert.Equal(t, time.Time{}, testTime.Time())
+
 	// seconds
 	require.NoError(t, json.Unmarshal([]byte(`"1628736847"`), &testTime))
 	assert.Equal(t, time.Unix(1628736847, 0), testTime.Time())
@@ -53,6 +59,9 @@ func TestUnmarshalJSON(t *testing.T) {
 	// nanoseconds
 	require.NoError(t, json.Unmarshal([]byte(`"1606292218213.4578"`), &testTime))
 	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())
+
+	require.NoError(t, json.Unmarshal([]byte(`"1560516023.070651"`), &testTime))
+	assert.Equal(t, time.Unix(0, 1560516023070651000), testTime.Time())
 
 	require.NoError(t, json.Unmarshal([]byte(`"1606292218213457800"`), &testTime))
 	assert.Equal(t, time.Unix(0, 1606292218213457800), testTime.Time())

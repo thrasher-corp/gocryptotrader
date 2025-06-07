@@ -1283,7 +1283,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, order.Pending, v.Status, "order status")
 				assert.Equal(t, 0.0, v.Price, "price")
 				assert.Equal(t, 0.0001, v.Amount, "amount")
-				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date, "Date")
+				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date.UTC(), "Date")
 			case 4:
 				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
 				assert.Equal(t, order.Open, v.Status, "order status")
@@ -1300,7 +1300,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
 				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
 				assert.Equal(t, 0.00687, v.Fee, "Fee")
-				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated.UTC(), "LastUpdated")
 			case 1:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
@@ -1310,7 +1310,7 @@ func TestWsOpenOrders(t *testing.T) {
 			case 0:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated.UTC(), "LastUpdated")
 				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
 				assert.Equal(t, 0.001, v.Fee, "Fee")
 				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
@@ -1424,7 +1424,7 @@ func TestGetCharts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Candles)
 
-	end := time.UnixMilli(resp.Candles[0].Time)
+	end := resp.Candles[0].Time.Time()
 	_, err = k.GetFuturesCharts(t.Context(), "1d", "spot", futuresTestPair, end.Add(-time.Hour*24*7), end)
 	require.NoError(t, err)
 }
