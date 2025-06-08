@@ -52,7 +52,7 @@ func TestRateLimit_Limit(t *testing.T) {
 			}
 
 			err := rl.InitiateRateLimit(ctx, tt.Limit)
-			require.True(t, err == nil || errors.Is(err, context.DeadlineExceeded), "InitiateRateLimit must not error")
+			require.Truef(t, err == nil || errors.Is(err, context.DeadlineExceeded), "InitiateRateLimit must not error: %s", err)
 		})
 	}
 }

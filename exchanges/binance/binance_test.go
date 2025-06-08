@@ -2291,7 +2291,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		require.NotEmptyf(t, cps, "GetAvailablePairs for asset %s must return at least one pair", bAssets[i])
 		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
 		require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
-			"EnablePair for asset %s and pair %s must not error", bAssets[i], cps[0])
+			"EnablePair for asset %s and pair %s must not error: %s", bAssets[i], cps[0], err)
 		_, err = b.GetHistoricCandles(t.Context(), cps[0], bAssets[i], kline.OneDay, startTime, end)
 		assert.NoErrorf(t, err, "GetHistoricCandles should not error for asset %s and pair %s", bAssets[i], cps[0])
 	}
@@ -2312,7 +2312,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		require.NotEmptyf(t, cps, "GetAvailablePairs for asset %s must return at least one pair", bAssets[i])
 		err = b.CurrencyPairs.EnablePair(bAssets[i], cps[0])
 		require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
-			"EnablePair for asset %s and pair %s must not error", bAssets[i], cps[0])
+			"EnablePair for asset %s and pair %s must not error: %s", bAssets[i], cps[0], err)
 		_, err = b.GetHistoricCandlesExtended(t.Context(), cps[0], bAssets[i], kline.OneDay, startTime, end)
 		assert.NoErrorf(t, err, "GetHistoricCandlesExtended should not error for asset %s and pair %s", bAssets[i], cps[0])
 	}
@@ -2848,8 +2848,8 @@ func TestGetLatestFundingRates(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
-	require.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
-		"EnablePair for asset %s and pair %s must not error", asset.USDTMarginedFutures, cp)
+	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
+		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, cp, err)
 
 	_, err = b.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,

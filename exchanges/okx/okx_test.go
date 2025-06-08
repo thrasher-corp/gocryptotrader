@@ -2267,7 +2267,7 @@ func TestSetLeverageRate(t *testing.T) {
 		MarginMode:   "cross",
 		InstrumentID: perpetualSwapPair.String(),
 	})
-	assert.True(t, err == nil || errors.Is(err, common.ErrNoResponse))
+	assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "SetLeverageRate should not error: %s", err)
 }
 
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {

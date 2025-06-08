@@ -3010,7 +3010,7 @@ func TestWsLinearConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsLinearConnect()
-	assert.True(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil)
+	assert.Truef(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil, "WsLinerConnect should not error: %s", err)
 }
 
 func TestWsInverseConnect(t *testing.T) {
@@ -3019,7 +3019,7 @@ func TestWsInverseConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsInverseConnect()
-	assert.True(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil)
+	assert.Truef(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil, "WsInverseConnect should not error: %s", err)
 }
 
 func TestWsOptionsConnect(t *testing.T) {
@@ -3028,7 +3028,7 @@ func TestWsOptionsConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsOptionsConnect()
-	assert.True(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil)
+	assert.Truef(t, errors.Is(err, websocket.ErrWebsocketNotEnabled) || err == nil, "WsOptionsConnect should not error: %s", err)
 }
 
 var pushDataMap = map[string]string{
