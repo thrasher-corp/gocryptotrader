@@ -1461,24 +1461,20 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	for _, tc := range []struct {
-		name     string
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"60",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"86400",
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
-
 			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}

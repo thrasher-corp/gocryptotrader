@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -100,18 +100,13 @@ func main() {
 	resp.Body.Close()
 	log.Println("Connected to websocket!")
 
-	hash, err := crypto.GetSHA256([]byte(cfg.RemoteControl.Password))
-	if err != nil {
-		log.Println("Unable to generate SHA256 hash from remote control password:", err)
-		return
-	}
-
 	log.Println("Authenticating..")
-	var wsResp WebsocketEventResponse
+	shasum := sha256.Sum256([]byte(cfg.RemoteControl.Password))
 	reqData := WebsocketAuth{
 		Username: cfg.RemoteControl.Username,
-		Password: hex.EncodeToString(hash),
+		Password: hex.EncodeToString(shasum[:]),
 	}
+	var wsResp WebsocketEventResponse
 	err = SendWebsocketEvent("auth", reqData, &wsResp)
 	if err != nil {
 		log.Fatal(err)

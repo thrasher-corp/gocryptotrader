@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -694,12 +694,8 @@ func wsAuth(client *websocketClient, data any) error {
 		return err
 	}
 
-	hash, err := crypto.GetSHA256([]byte(client.password))
-	if err != nil {
-		return err
-	}
-
-	if auth.Username == client.username && auth.Password == hex.EncodeToString(hash) {
+	shasum := sha256.Sum256([]byte(client.password))
+	if auth.Username == client.username && auth.Password == hex.EncodeToString(shasum[:]) {
 		client.Authenticated = true
 		wsResp.Data = WebsocketResponseSuccess
 		log.Debugln(log.APIServerMgr,

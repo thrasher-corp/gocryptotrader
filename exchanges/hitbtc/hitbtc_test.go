@@ -948,34 +948,28 @@ func TestWsTrades(t *testing.T) {
 
 func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
-	testCases := []struct {
-		name     string
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"M1",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"D1",
 		},
 		{
-			"SevenDay",
 			kline.SevenDay,
 			"D7",
 		},
 		{
-			"OneMonth",
 			kline.OneMonth,
 			"1M",
 		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
 			ret, err := formatExchangeKlineInterval(tc.interval)
 			require.NoError(t, err)

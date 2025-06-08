@@ -654,8 +654,8 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 	}()
 }
 
-// ProcessUpdate processes the websocket orderbook update
-func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
+// ProcessOrderbookUpdate processes the websocket orderbook update
+func (bi *Binanceus) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Tranche, len(wsDSUpdate.UpdateBids))
 	for i := range wsDSUpdate.UpdateBids {
 		updateBid[i].Price = wsDSUpdate.UpdateBids[i][0].Float64()
@@ -730,7 +730,7 @@ func (bi *Binanceus) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = bi.obm.checkAndProcessUpdate(bi.ProcessUpdate, pair, recent)
+		err = bi.obm.checkAndProcessUpdate(bi.ProcessOrderbookUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,

@@ -39,27 +39,6 @@ func GetRandomSalt(input []byte, saltLen int) ([]byte, error) {
 	return result, nil
 }
 
-// GetMD5 returns a MD5 hash of a byte array
-func GetMD5(input []byte) ([]byte, error) {
-	m := md5.New() //nolint:gosec // hash function used by some exchanges
-	_, err := m.Write(input)
-	return m.Sum(nil), err
-}
-
-// GetSHA512 returns a SHA512 hash of a byte array
-func GetSHA512(input []byte) ([]byte, error) {
-	sha := sha512.New()
-	_, err := sha.Write(input)
-	return sha.Sum(nil), err
-}
-
-// GetSHA256 returns a SHA256 hash of a byte array
-func GetSHA256(input []byte) ([]byte, error) {
-	sha := sha256.New()
-	_, err := sha.Write(input)
-	return sha.Sum(nil), err
-}
-
 // GetHMAC returns a keyed-hash message authentication code using the desired
 // hashtype
 func GetHMAC(hashType int, input, key []byte) ([]byte, error) {

@@ -2318,35 +2318,30 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 }
 
-func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name     string
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"1m",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"1d",
 		},
 		{
-			"OneWeek",
 			kline.OneWeek,
 			"1w",
 		},
 		{
-			"OneMonth",
 			kline.OneMonth,
 			"1M",
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})

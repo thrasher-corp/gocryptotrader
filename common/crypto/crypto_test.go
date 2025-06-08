@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"bytes"
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,29 +21,6 @@ func TestGetRandomSalt(t *testing.T) {
 	salt, err = GetRandomSalt([]byte("RAWR"), 12)
 	require.NoError(t, err, "GetRandomSalt must not error")
 	assert.Len(t, salt, 16, "GetRandomSalt should return a salt of the specified length plus input length")
-}
-
-func TestGetMD5(t *testing.T) {
-	t.Parallel()
-	r, err := GetMD5([]byte("I am testing the MD5 function in common!"))
-	require.NoError(t, err, "GetMD5 must not error")
-	assert.Equal(t, "18fddf4a41ba90a7352765e62e7a8744", hex.EncodeToString(r), "GetMD5 result should match the expected output")
-}
-
-func TestGetSHA512(t *testing.T) {
-	t.Parallel()
-	h, err := GetSHA512([]byte("I am testing the GetSHA512 function in common!"))
-	require.NoError(t, err, "GetSHA512 must not error")
-	const expectedOutput = "a2273f492ea73fddc4f25c267b34b3b74998bd8a6301149e1e1c835678e3c0b90859fce22e4e7af33bde1711cbb924809aedf5d759d648d61774b7185c5dc02b"
-	assert.Equal(t, expectedOutput, hex.EncodeToString(h), "GetSHA512 result should match the expected output")
-}
-
-func TestGetSHA256(t *testing.T) {
-	t.Parallel()
-	h, err := GetSHA256([]byte("I am testing the GetSHA256 function in common!"))
-	require.NoError(t, err, "GetSHA256 must not error")
-	const expectedOutput = "0962813d7a9f739cdcb7f0c0be0c2a13bd630167e6e54468266e4af6b1ad9303"
-	assert.Equal(t, expectedOutput, hex.EncodeToString(h), "GetSHA256 result should match the expected output")
 }
 
 func TestGetHMAC(t *testing.T) {

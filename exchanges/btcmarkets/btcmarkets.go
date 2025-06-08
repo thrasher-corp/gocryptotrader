@@ -204,7 +204,7 @@ func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) (
 		return nil, err
 	}
 	for x := range marketIDs {
-		params.Add("marketId", marketIDs[x].Format(pFmt).String())
+		params.Add("marketId", pFmt.Format(marketIDs[x]))
 	}
 	return tickers, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsTickers+params.Encode(),
 		&tickers)

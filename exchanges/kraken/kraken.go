@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -884,13 +885,10 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
 
-		shasum, err := crypto.GetSHA256([]byte(nonce + encoded))
-		if err != nil {
-			return nil, err
-		}
-
+		shasum := sha256.Sum256([]byte(nonce + encoded))
+		s := shasum[:]
 		path := "/" + krakenAPIVersion + "/private/" + method
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512, append([]byte(path), shasum...), []byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, append([]byte(path), s...), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

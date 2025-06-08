@@ -196,119 +196,96 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	testCases := []struct {
-		name     string
+	for _, tc := range []struct {
 		interval Interval
 		expected uint64
 	}{
 		{
-			"FifteenSecond",
 			FifteenSecond,
 			2102400,
 		},
 		{
-			"OneMin",
 			OneMin,
 			525600,
 		},
 		{
-			"ThreeMin",
 			ThreeMin,
 			175200,
 		},
 		{
-			"FiveMin",
 			FiveMin,
 			105120,
 		},
 		{
-			"TenMin",
 			TenMin,
 			52560,
 		},
 		{
-			"FifteenMin",
 			FifteenMin,
 			35040,
 		},
 		{
-			"ThirtyMin",
 			ThirtyMin,
 			17520,
 		},
 		{
-			"OneHour",
 			OneHour,
 			8760,
 		},
 		{
-			"TwoHour",
 			TwoHour,
 			4380,
 		},
 		{
-			"FourHour",
 			FourHour,
 			2190,
 		},
 		{
-			"SixHour",
 			SixHour,
 			1460,
 		},
 		{
-			"EightHour",
 			OneHour * 8,
 			1095,
 		},
 		{
-			"TwelveHour",
 			TwelveHour,
 			730,
 		},
 		{
-			"OneDay",
 			OneDay,
 			365,
 		},
 		{
-			"ThreeDay",
 			ThreeDay,
 			121,
 		},
 		{
-			"FiveDay",
 			FiveDay,
 			73,
 		},
 		{
-			"FifteenDay",
 			FifteenDay,
 			24,
 		},
 		{
-			"OneWeek",
 			OneWeek,
 			52,
 		},
 		{
-			"TwoWeek",
 			TwoWeek,
 			26,
 		},
 		{
-			"OneMonth",
 			OneMonth,
 			12,
 		},
 		{
-			"OneYear",
 			OneYear,
 			1,
 		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.expected, TotalCandlesPerInterval(start, end, tc.interval))
 		})

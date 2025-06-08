@@ -88,10 +88,10 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 		return err
 	}
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	unixTS := time.Now().Unix()
+	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(unixTS, 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
@@ -101,7 +101,7 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 		{
 			APIKey:     creds.Key,
 			Passphrase: creds.ClientID,
-			Timestamp:  unixTS,
+			Timestamp:  ts,
 			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}

@@ -120,7 +120,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		err = c.ProcessUpdate(&update)
+		err = c.ProcessOrderbookUpdate(&update)
 		if err != nil {
 			return err
 		}
@@ -310,8 +310,8 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	return c.Websocket.Orderbook.LoadSnapshot(ob)
 }
 
-// ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
+// ProcessOrderbookUpdate updates the orderbook local cache
+func (c *CoinbasePro) ProcessOrderbookUpdate(update *WebsocketL2Update) error {
 	if len(update.Changes) == 0 {
 		return errors.New("no data in websocket update")
 	}

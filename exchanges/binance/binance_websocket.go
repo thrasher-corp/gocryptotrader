@@ -613,8 +613,8 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 	return err
 }
 
-// ProcessUpdate processes the websocket orderbook update
-func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
+// ProcessOrderbookUpdate processes the websocket orderbook update
+func (b *Binance) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
 		updateBid[i] = orderbook.Tranche{
@@ -666,7 +666,7 @@ func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, recent)
+		err = b.obm.checkAndProcessUpdate(b.ProcessOrderbookUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
