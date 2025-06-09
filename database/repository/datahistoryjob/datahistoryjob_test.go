@@ -169,8 +169,7 @@ func TestDataHistoryJob(t *testing.T) {
 
 			results, err = db.GetJobsBetween(time.Now().Add(-time.Hour), time.Now())
 			require.NoError(t, err)
-
-			assert.Len(t, results, 20)
+			require.Len(t, results, 20)
 
 			jerb, err = db.GetJobAndAllResults(results[0].Nickname)
 			require.NoError(t, err)
@@ -181,12 +180,12 @@ func TestDataHistoryJob(t *testing.T) {
 			require.NoError(t, err)
 
 			jerb, err = db.GetByID(results[1].ID)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, int64(1337), jerb.Status)
 
 			rel, err := db.GetRelatedUpcomingJobs(results[0].Nickname)
-			assert.NoError(t, err)
-			assert.Len(t, rel, 1)
+			require.NoError(t, err)
+			require.Len(t, rel, 1)
 			assert.Equal(t, rel[0].ID, results[1].ID)
 
 			err = db.SetRelationshipByID(results[0].ID, results[2].ID, 1337)
@@ -194,12 +193,10 @@ func TestDataHistoryJob(t *testing.T) {
 
 			rel, err = db.GetRelatedUpcomingJobs(results[0].Nickname)
 			require.NoError(t, err)
-			assert.Len(t, rel, 2)
-			for i := range rel {
-				if rel[i].ID != results[1].ID && rel[i].ID != results[2].ID {
-					t.Errorf("received %v expected %v or %v", rel[i].ID, results[1].ID, results[2].ID)
-				}
-			}
+			require.Len(t, rel, 2)
+			expectedIDs := []string{results[1].ID, results[2].ID}
+			actualIDs := []string{rel[0].ID, rel[1].ID}
+			assert.ElementsMatch(t, expectedIDs, actualIDs)
 
 			jerb, err = db.GetPrerequisiteJob(results[1].Nickname)
 			require.NoError(t, err)

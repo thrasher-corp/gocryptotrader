@@ -193,7 +193,7 @@ func TestSeries(t *testing.T) {
 			require.ErrorIs(t, err, errInvalidInput)
 
 			_, err = Series(testExchanges[0].Name, "BTC", "MOON", 864000, "spot", start, end)
-			require.ErrorIs(t, err, ErrNoCandleDataFound)
+			assert.ErrorIs(t, err, ErrNoCandleDataFound)
 			assert.NoError(t, testhelpers.CloseDatabase(dbConn))
 		})
 	}
