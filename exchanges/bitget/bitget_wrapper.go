@@ -274,7 +274,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			pairs[filter] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
 			filter++
 		}
-		return pairs[:filter], nil
+		return pairs[:filter:filter], nil
 	case asset.Futures:
 		var resp []FutureTickerResp
 		req := []string{"USDT-FUTURES", "COIN-FUTURES", "USDC-FUTURES"}
@@ -308,7 +308,7 @@ func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			pairs[filter] = currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin)
 			filter++
 		}
-		return pairs[:filter], nil
+		return pairs[:filter:filter], nil
 	}
 	return nil, asset.ErrNotSupported
 }
@@ -432,13 +432,13 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		var filter int
 		newTick := make([]TickerResp, len(tick))
 		for i := range tick {
-			if tick[i].Symbol == "BABYBONKUSDT" || tick[i].Symbol == "CARUSDT" || tick[i].Symbol == "PAWSUSDT" {
+			if tick[i].Symbol == "BABYBONKUSDT" || tick[i].Symbol == "CARUSDT" || tick[i].Symbol == "PAWSUSDT" || tick[i].Symbol == "ARTFIUSDT" {
 				continue
 			}
 			newTick[filter] = tick[i]
 			filter++
 		}
-		newTick = newTick[:filter]
+		newTick = newTick[:filter:filter]
 		for x := range newTick {
 			p, err := bi.MatchSymbolWithAvailablePairs(newTick[x].Symbol, assetType, false)
 			if err != nil {
@@ -494,7 +494,7 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			}
 		}
 	case asset.Margin, asset.CrossMargin:
-		pairs, err := bi.GetSupportedCurrencies(ctx)
+		pairs, err := bi.GetAvailablePairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -511,12 +511,12 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			checkSlice[filter] = check[i].Symbol
 			filter++
 		}
-		checkSlice = checkSlice[:filter]
+		checkSlice = checkSlice[:filter:filter]
 		for x := range pairs {
-			if !slices.Contains(checkSlice, pairs[x].Symbol) {
+			if !slices.Contains(checkSlice, pairs[x].String()) {
 				continue
 			}
-			p, err := bi.MatchSymbolWithAvailablePairs(pairs[x].Symbol, assetType, false)
+			p, err := bi.MatchSymbolWithAvailablePairs(pairs[x].String(), assetType, false)
 			if err != nil {
 				return err
 			}

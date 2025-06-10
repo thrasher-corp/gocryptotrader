@@ -971,7 +971,7 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 		if err != nil {
 			return err
 		}
-		resp := make([]account.Change, len(acc))
+		resp = make([]account.Change, len(acc))
 		for i := range acc {
 			resp[i] = account.Change{
 				AssetType: asset.Spot,
@@ -991,7 +991,7 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 		if err != nil {
 			return err
 		}
-		resp := make([]account.Change, len(acc))
+		resp = make([]account.Change, len(acc))
 		for i := range acc {
 			resp[i] = account.Change{
 				AssetType: asset.Futures,

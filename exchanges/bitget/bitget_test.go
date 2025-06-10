@@ -2866,9 +2866,9 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetHistoricCandles(t.Context(), currency.Pair{}, asset.Spot, kline.Raw, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = bi.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.OneDay, time.Now().Add(-time.Hour*24*20), time.Now())
+	_, err = bi.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
-	_, err = bi.GetHistoricCandles(t.Context(), testPair, asset.Futures, kline.OneDay, time.Now().Add(-time.Hour*24*20), time.Now())
+	_, err = bi.GetHistoricCandles(t.Context(), testPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
 }
 
@@ -2876,9 +2876,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetHistoricCandlesExtended(t.Context(), currency.Pair{}, asset.Spot, kline.Raw, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = bi.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneDay, time.Now().Add(-time.Hour*24*20), time.Now())
+	_, err = bi.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
-	_, err = bi.GetHistoricCandlesExtended(t.Context(), testPair, asset.Futures, kline.OneDay, time.Now().Add(-time.Hour*24*20), time.Now())
+	_, err = bi.GetHistoricCandlesExtended(t.Context(), testPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
 }
 
@@ -3763,6 +3763,7 @@ func TestIsolatedAccountDataHandler(t *testing.T) {
 
 func TestAccountUpdateDataHandler(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	mockJSON := []byte(`{"event":"update","arg":{"channel":"account"},"data":[]}`)
 	err := bi.wsHandleData(mockJSON)
 	assert.NoError(t, err)
