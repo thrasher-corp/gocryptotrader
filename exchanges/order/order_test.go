@@ -781,6 +781,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"brAcket", Bracket, nil},
+		{"TRIGGER_bracket", Bracket, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -1687,6 +1689,6 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "json.Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"TrackingMode":0,"TrackingValue":0,"StopDirection":false}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0}`)
 	assert.Equal(t, exp, j)
 }

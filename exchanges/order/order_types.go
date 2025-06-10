@@ -378,6 +378,7 @@ const (
 	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
 	TWAP                             // time-weighted average price.
 	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	Bracket                          // Sets both a profit target and a stop loss simultaneously.
 )
 
 // AllOrderTypes collects all order types for easy and consistent comparisons
@@ -399,7 +400,8 @@ var AllOrderTypes = Limit |
 	MarketMakerProtection |
 	MarketMakerProtectionAndPostOnly |
 	TWAP |
-	Chase
+	Chase |
+	Bracket
 
 // Side enforces a standard for order sides across the code base
 type Side uint32

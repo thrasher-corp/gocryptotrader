@@ -304,8 +304,9 @@ func TestCancelOrders(t *testing.T) {
 	var orderSlice []string
 	_, err := c.CancelOrders(t.Context(), orderSlice)
 	assert.ErrorIs(t, err, errOrderIDEmpty)
+	orderSlice = make([]string, 200)
 	for i := range 200 {
-		orderSlice = append(orderSlice, strconv.Itoa(i))
+		orderSlice[i] = strconv.Itoa(i)
 	}
 	_, err = c.CancelOrders(t.Context(), orderSlice)
 	assert.ErrorIs(t, err, errCancelLimitExceeded)
@@ -351,7 +352,7 @@ func TestPlaceOrder(t *testing.T) {
 		ClientOID:  id.String(),
 		ProductID:  testPairStable.String(),
 		Side:       order.Buy.String(),
-		OrderType:  order.Limit.String(),
+		OrderType:  order.Limit,
 		MarginType: "CROSS",
 		BaseAmount: testAmount,
 		LimitPrice: testPrice2,
@@ -525,7 +526,7 @@ func TestPreviewOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	inf.ProductID = testPairStable.String()
 	inf.Side = "BUY"
-	inf.OrderType = "MARKET"
+	inf.OrderType = order.Market
 	inf.MarginType = "ISOLATED"
 	inf.BaseAmount = testAmount
 	resp, err := c.PreviewOrder(t.Context(), inf)
@@ -1534,8 +1535,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, c)
 	for _, a := range c.GetAssetTypes(false) {
 		pairs, err := c.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := c.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -1768,21 +1769,21 @@ func TestEncodePagination(t *testing.T) {
 
 func TestCreateOrderConfig(t *testing.T) {
 	t.Parallel()
-	_, err := createOrderConfig("", "", 0, 0, 0, 0, time.Time{}, false)
+	_, err := createOrderConfig(order.UnknownType, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Time{}, false, 0, 0)
 	assert.ErrorIs(t, err, errInvalidOrderType)
-	_, err = createOrderConfig(order.Market.String(), "", 1, 2, 0, 0, time.Time{}, false)
+	_, err = createOrderConfig(order.Market, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit.String(), "", 1, 2, 0, 0, time.Time{}, false)
+	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.Limit.String(), "", 0, 0, 0, 0, time.Unix(1, 1), false)
+	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, 0, 0)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.Limit.String(), "", 1, 2, 0, 0, time.Now().Add(time.Hour), false)
+	_, err = createOrderConfig(order.Limit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit.String(), "", 1, 2, 0, 0, time.Time{}, false)
+	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Time{}, false, 0, 0)
 	assert.NoError(t, err)
-	_, err = createOrderConfig(order.StopLimit.String(), "", 0, 0, 0, 0, time.Unix(1, 1), false)
+	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 0, 0, 0, 0, 0, time.Unix(1, 1), false, 0, 0)
 	assert.ErrorIs(t, err, errEndTimeInPast)
-	_, err = createOrderConfig(order.StopLimit.String(), "", 1, 2, 0, 0, time.Now().Add(time.Hour), false)
+	_, err = createOrderConfig(order.StopLimit, order.UnknownTIF, "", 1, 2, 0, 0, 0, time.Now().Add(time.Hour), false, 0, 0)
 	assert.NoError(t, err)
 }
 

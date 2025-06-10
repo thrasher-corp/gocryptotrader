@@ -45,7 +45,6 @@ var (
 )
 
 var (
-	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
@@ -706,6 +705,8 @@ func (t Type) String() string {
 		return "OPTIMAL_LIMIT_IOC"
 	case OCO:
 		return "OCO"
+	case Bracket:
+		return "BRACKET"
 	default:
 		return "UNKNOWN"
 	}
@@ -1141,6 +1142,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return TakeProfit, nil
 	case Liquidation.String():
 		return Liquidation, nil
+	case Bracket.String(), "TRIGGER_BRACKET":
+		return Bracket, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, ErrUnrecognisedOrderType)
 	}

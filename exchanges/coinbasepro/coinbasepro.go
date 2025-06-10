@@ -378,7 +378,7 @@ func (c *CoinbasePro) SetIntradayMarginSetting(ctx context.Context, setting stri
 
 // CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
 func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]OrderCancelDetail, error) {
-	if len(orderIDs) <= 0 {
+	if len(orderIDs) == 0 {
 		return nil, errOrderIDEmpty
 	}
 	if len(orderIDs) > 100 {
@@ -392,6 +392,7 @@ func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) ([]Or
 	return resp.Results, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true, &resp)
 }
 
+// ClosePosition closes a position by client order ID, product ID, and size
 func (c *CoinbasePro) ClosePosition(ctx context.Context, clientOrderID string, productID currency.Pair, size float64) (*SuccessFailureConfig, error) {
 	if clientOrderID == "" {
 		return nil, errClientOrderIDEmpty
@@ -423,7 +424,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Suc
 	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.EndTime, ord.PostOnly)
+	orderConfig, err := createOrderConfig(ord.OrderType, ord.TimeInForce, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, 0, ord.EndTime, ord.PostOnly, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +708,7 @@ func (c *CoinbasePro) PreviewOrder(ctx context.Context, inf *PreviewOrderInfo) (
 	if inf.BaseAmount <= 0 && inf.QuoteAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(inf.OrderType, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, inf.EndTime, inf.PostOnly)
+	orderConfig, err := createOrderConfig(inf.OrderType, inf.TimeInForce, inf.StopDirection, inf.BaseAmount, inf.QuoteAmount, inf.LimitPrice, inf.StopPrice, 0, inf.EndTime, inf.PostOnly, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1630,44 +1631,43 @@ func marketIOCImplementation(baseAmount, quoteAmount float64) *MarketMarketIOC {
 }
 
 // createOrderConfig populates the OrderConfiguration struct
-func createOrderConfig(orderType, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
+func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice, bucketSize float64, endTime time.Time, postOnly bool, bucketNumber int64, bucketDuration time.Duration) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
-	case order.Market.String():
+	case order.Market:
 		orderConfig.MarketMarketIOC = marketIOCImplementation(baseAmount, quoteAmount)
-	case order.ImmediateOrCancel.String():
-		if limitPrice != 0 {
+	case order.Limit:
+		switch {
+		case timeInForce == order.StopOrReduce:
 			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
-		} else {
-			orderConfig.MarketMarketIOC = marketIOCImplementation(baseAmount, quoteAmount)
-		}
-	case order.Limit.String():
-		if endTime.IsZero() {
-			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
+		case endTime.IsZero():
+			orderConfig.LimitLimitGTC = &LimitLimitGTC{LimitPrice: types.Number(limitPrice), PostOnly: postOnly}
 			if baseAmount != 0 {
 				orderConfig.LimitLimitGTC.BaseSize = types.Number(baseAmount)
 			}
 			if quoteAmount != 0 {
 				orderConfig.LimitLimitGTC.QuoteSize = types.Number(quoteAmount)
 			}
-			orderConfig.LimitLimitGTC.LimitPrice = types.Number(limitPrice)
-			orderConfig.LimitLimitGTC.PostOnly = postOnly
-		} else {
+		case timeInForce == order.FillOrKill:
+			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
+		default:
 			if endTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
 			}
-			orderConfig.LimitLimitGTD = &LimitLimitGTD{}
+			orderConfig.LimitLimitGTD = &LimitLimitGTD{LimitPrice: types.Number(limitPrice), PostOnly: postOnly, EndTime: endTime}
 			if baseAmount != 0 {
 				orderConfig.LimitLimitGTD.BaseSize = types.Number(baseAmount)
 			}
 			if quoteAmount != 0 {
 				orderConfig.LimitLimitGTD.QuoteSize = types.Number(quoteAmount)
 			}
-			orderConfig.LimitLimitGTD.LimitPrice = types.Number(limitPrice)
-			orderConfig.LimitLimitGTD.PostOnly = postOnly
-			orderConfig.LimitLimitGTD.EndTime = endTime
 		}
-	case order.StopLimit.String():
+	case order.TWAP:
+		if endTime.Before(time.Now()) {
+			return orderConfig, errEndTimeInPast
+		}
+		orderConfig.TWAPLimitGTD = &TWAPLimitGTD{StartTime: time.Now(), EndTime: endTime, LimitPrice: types.Number(limitPrice), NumberBuckets: bucketNumber, BucketSize: types.Number(bucketSize), BucketDuration: bucketDuration}
+	case order.StopLimit:
 		if endTime.IsZero() {
 			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
 			if baseAmount != 0 {

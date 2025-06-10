@@ -270,14 +270,14 @@ type LimitLimitGTD struct {
 
 // TWAPLimitGTD is a sub-struct used in the type OrderConfiguration
 type TWAPLimitGTD struct {
-	QuoteSize      types.Number `json:"quote_size,omitempty"`
-	BaseSize       types.Number `json:"base_size,omitempty"`
-	StartTime      time.Time    `json:"start_time"`
-	EndTime        time.Time    `json:"end_time"`
-	LimitPrice     types.Number `json:"limit_price"`
-	NumberBuckets  int64        `json:"number_buckets"`
-	BucketSize     types.Number `json:"bucket_size"`
-	BucketDuration string       `json:"bucket_duration"`
+	QuoteSize      types.Number  `json:"quote_size,omitempty"`
+	BaseSize       types.Number  `json:"base_size,omitempty"`
+	StartTime      time.Time     `json:"start_time"`
+	EndTime        time.Time     `json:"end_time"`
+	LimitPrice     types.Number  `json:"limit_price"`
+	NumberBuckets  int64         `json:"number_buckets"`
+	BucketSize     types.Number  `json:"bucket_size"`
+	BucketDuration time.Duration `json:"bucket_duration"`
 }
 
 // StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
@@ -352,7 +352,8 @@ type PlaceOrderInfo struct {
 	ProductID                  string
 	Side                       string
 	StopDirection              string
-	OrderType                  string
+	OrderType                  order.Type
+	TimeInForce                order.TimeInForce
 	SelfTradePreventionID      string
 	MarginType                 string
 	RetailPortfolioID          string
@@ -475,7 +476,8 @@ type FillResponse struct {
 type PreviewOrderInfo struct {
 	ProductID        string
 	Side             string
-	OrderType        string
+	OrderType        order.Type
+	TimeInForce      order.TimeInForce
 	StopDirection    string
 	MarginType       string
 	CommissionValue  float64
