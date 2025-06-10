@@ -500,7 +500,8 @@ func (l *Lbank) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 	}, request.UnauthenticatedRequest)
 }
 
-func (l *Lbank) loadPrivKey(ctx context.Context) error {
+// LoadPrivKey loads the private key
+func (l *Lbank) LoadPrivKey(ctx context.Context) error {
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
 		return err

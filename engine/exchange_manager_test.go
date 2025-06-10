@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -101,8 +102,8 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	m = NewExchangeManager()
 
 	err = m.RemoveExchange("")
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	err = m.RemoveExchange("Bitfinex")
@@ -148,8 +149,8 @@ func TestNewExchangeByName(t *testing.T) {
 
 	m = NewExchangeManager()
 	_, err = m.NewExchangeByName("")
-	if !errors.Is(err, ErrExchangeNameIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	exchanges := exchange.Exchanges

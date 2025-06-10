@@ -71,7 +71,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = Process(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	holdings := Holdings{Exchange: "Test"}
 
@@ -114,7 +114,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = GetHoldings("", nil, asset.Spot)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	_, err = GetHoldings("bla", nil, asset.Spot)
 	assert.ErrorIs(t, err, errCredentialsAreNil)
@@ -185,7 +185,7 @@ func TestGetBalance(t *testing.T) {
 	t.Parallel()
 
 	_, err := GetBalance("", "", nil, asset.Empty, currency.Code{})
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	_, err = GetBalance("bruh", "", nil, asset.Empty, currency.Code{})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -322,7 +322,7 @@ func TestSave(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = s.Save(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	err = s.Save(&Holdings{
 		Exchange: "TeSt",
@@ -412,7 +412,7 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
 	err := s.Update("", nil, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 
 	err = s.Update("test", nil, nil)
 	assert.ErrorIs(t, err, errCredentialsAreNil)
