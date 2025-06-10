@@ -52,7 +52,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 // 3948978         303.5 ns/op       168 B/op          2 allocs/op (current) after more stringent checks
-// 6152384	       195.5 ns/op	     168 B/op	       2 allocs/op (previous)
+// 6152384         195.5 ns/op       168 B/op          2 allocs/op (previous)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
 	for b.Loop() {
