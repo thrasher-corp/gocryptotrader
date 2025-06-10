@@ -592,17 +592,12 @@ func TestRealisePNL(t *testing.T) {
 		isCollateral: true,
 	})
 
-	var expectedError error
 	err := f.RealisePNL("test", asset.Futures, currency.BTC, decimal.NewFromInt(1))
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "RealisePNL must not error")
+	assert.Equal(t, decimal.NewFromInt(1337), f.items[0].available)
 
-	if !f.items[0].available.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", f.items[0].available, decimal.NewFromInt(1337))
-	}
-
-	expectedError = ErrFundsNotFound
 	err = f.RealisePNL("test2", asset.Futures, currency.BTC, decimal.NewFromInt(1))
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, ErrFundsNotFound)
 }
 
 func TestCreateCollateral(t *testing.T) {
@@ -621,24 +616,21 @@ func TestCreateCollateral(t *testing.T) {
 		available: decimal.NewFromInt(1336),
 	}
 
-	var expectedError error
 	_, err := CreateCollateral(collat, contract)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "CreateCollateral should not error")
 
-	expectedError = gctcommon.ErrNilPointer
 	_, err = CreateCollateral(nil, contract)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	_, err = CreateCollateral(collat, nil)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestUpdateCollateral(t *testing.T) {
 	t.Parallel()
 	f := &FundManager{}
-	expectedError := common.ErrNilEvent
 	err := f.UpdateCollateralForEvent(nil, false)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	ev := &signal.Signal{
 		Base: &event.Base{
@@ -655,20 +647,16 @@ func TestUpdateCollateral(t *testing.T) {
 	})
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	exch.SetDefaults()
 	err = em.Add(exch)
 	require.NoError(t, err)
 
 	f.exchangeManager = em
 
-	expectedError = nil
 	err = f.UpdateCollateralForEvent(ev, false)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "UpdateCollateralForEvent should not error")
 
-	expectedError = gctcommon.ErrNotYetImplemented
 	f.items = append(f.items, &Item{
 		exchange:     exchName,
 		asset:        asset.Futures,
@@ -677,7 +665,7 @@ func TestUpdateCollateral(t *testing.T) {
 		isCollateral: true,
 	})
 	err = f.UpdateCollateralForEvent(ev, false)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNotYetImplemented)
 }
 
 func TestCreateFuturesCurrencyCode(t *testing.T) {

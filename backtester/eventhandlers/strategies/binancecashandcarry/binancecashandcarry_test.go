@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -167,30 +168,23 @@ func TestSortSignals(t *testing.T) {
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	expectedError := gctcommon.ErrNilPointer
 	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	spotSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Spot},
 	}
 	_, err = s.createSignals(nil, spotSignal, nil, decimal.Zero, false)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	// targeting first case
-	expectedError = nil
 	futuresSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Futures},
 	}
 	resp, err := s.createSignals(nil, spotSignal, futuresSignal, decimal.Zero, false)
-	assert.ErrorIs(t, err, expectedError)
-
-	if len(resp) != 1 {
-		t.Errorf("received '%v' expected '%v", len(resp), 1)
-	}
-	if resp[0].GetAssetType() != asset.Spot {
-		t.Errorf("received '%v' expected '%v", resp[0].GetAssetType(), asset.Spot)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 1, "createSignals must return one signal")
+	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
 
 	// targeting second case:
 	pos := []futures.Position{
@@ -199,76 +193,53 @@ func TestCreateSignals(t *testing.T) {
 		},
 	}
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, false)
-	assert.ErrorIs(t, err, expectedError)
-
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 2, "createSignals must return two signals")
 	caseTested := false
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != gctorder.ClosePosition {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.ClosePosition)
-			}
+			assert.Equal(t, gctorder.ClosePosition, resp[i].GetDirection())
 			caseTested = true
+			break
 		}
 	}
-	if !caseTested {
-		t.Fatal("unhandled issue in test scenario")
-	}
+	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting third case
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, true)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 2, "createSignals must return two signals")
 
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
-	}
 	caseTested = false
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != gctorder.ClosePosition {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.ClosePosition)
-			}
+			assert.Equal(t, gctorder.ClosePosition, resp[i].GetDirection())
 			caseTested = true
+			break
 		}
 	}
-	if !caseTested {
-		t.Fatal("unhandled issue in test scenario")
-	}
+	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting first case after a cash and carry is completed, have a new one opened
 	pos[0].Status = gctorder.Closed
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
-	assert.ErrorIs(t, err, expectedError)
-
-	if len(resp) != 1 {
-		t.Errorf("received '%v' expected '%v", len(resp), 1)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 1, "createSignals must return one signal")
 	caseTested = false
 	for i := range resp {
 		if resp[i].GetAssetType() == asset.Spot {
-			if resp[i].GetDirection() != gctorder.Buy {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.Buy)
-			}
-			if resp[i].GetFillDependentEvent() == nil {
-				t.Errorf("received '%v' expected '%v'", nil, "fill dependent event")
-			}
+			assert.Equal(t, gctorder.Buy, resp[i].GetDirection())
+			assert.NotNil(t, resp[i].GetFillDependentEvent())
 			caseTested = true
 		}
 	}
-	if !caseTested {
-		t.Fatal("unhandled issue in test scenario")
-	}
+	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting default case
 	pos[0].Status = gctorder.UnknownStatus
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
-	assert.ErrorIs(t, err, expectedError)
-
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	assert.Len(t, resp, 2, "createSignals must return two signals")
 }
 
 // fakeFunds overrides default implementation

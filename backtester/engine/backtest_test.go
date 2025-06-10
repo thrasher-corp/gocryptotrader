@@ -655,13 +655,11 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	bt := BackTest{
 		shutdown: make(chan struct{}),
 	}
-	expectedError := common.ErrNilEvent
 	err := bt.triggerLiquidationsForExchange(nil, nil)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	cp := currency.NewBTCUSDT()
 	a := asset.USDTMarginedFutures
-	expectedError = gctcommon.ErrNilPointer
 	ev := &evkline.Kline{
 		Base: &event.Base{
 			Exchange:     testExchange,
@@ -670,7 +668,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 		},
 	}
 	err = bt.triggerLiquidationsForExchange(ev, nil)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	bt.Portfolio = &portfolioOverride{}
 	pnl := &portfolio.PNLSummary{}
@@ -705,7 +703,6 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	bt.Statistic = &statistics.Statistic{}
-	expectedError = nil
 
 	bt.EventQueue = &eventholder.Holder{}
 	bt.Funding = &funding.FundManager{}
@@ -713,22 +710,18 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = bt.Statistic.SetEventForOffset(ev)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "SetEventForOffset should not error")
 
 	pnl.Exchange = ev.Exchange
 	pnl.Asset = ev.AssetType
 	pnl.Pair = ev.CurrencyPair
 	err = bt.triggerLiquidationsForExchange(ev, pnl)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "triggerLiquidationsForExchange should not error")
 
 	ev2 := bt.EventQueue.NextEvent()
 	ev2o, ok := ev2.(order.Event)
-	if !ok {
-		t.Fatal("expected order event")
-	}
-	if ev2o.GetDirection() != gctorder.Short {
-		t.Error("expected liquidation order")
-	}
+	require.True(t, ok, "NextEvent must return an order event")
+	assert.Equal(t, gctorder.Short, ev2o.GetDirection())
 }
 
 func TestUpdateStatsForDataEvent(t *testing.T) {
@@ -739,9 +732,9 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		Portfolio: &fakeFolio{},
 		shutdown:  make(chan struct{}),
 	}
-	expectedError := common.ErrNilEvent
+
 	err := bt.updateStatsForDataEvent(nil, nil)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	cp := currency.NewBTCUSDT()
 	a := asset.Futures
@@ -753,22 +746,20 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		},
 	}
 
-	expectedError = gctcommon.ErrNilPointer
 	err = bt.updateStatsForDataEvent(ev, nil)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	expectedError = nil
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetupFundingManager must not error")
 
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.Funding = f
 	exch := &binance.Binance{}
@@ -795,15 +786,14 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		},
 	}
 	_, err = bt.Portfolio.TrackFuturesOrder(fl, pair)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "TrackFuturesOrder should not error")
 
 	err = bt.updateStatsForDataEvent(ev, pair)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "updateStatsForDataEvent should not error")
 }
 
 func TestProcessSignalEvent(t *testing.T) {
 	t.Parallel()
-	var expectedError error
 	bt := &BackTest{
 		Statistic:  &fakeStats{},
 		Funding:    &funding.FundManager{},
@@ -822,23 +812,23 @@ func TestProcessSignalEvent(t *testing.T) {
 		},
 	}
 	err := bt.Statistic.SetEventForOffset(de)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetEventForOffset must not error")
 
 	ev := &signal.Signal{
 		Base: de.Base,
 	}
 
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetupFundingManager must not error")
 
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.Funding = f
 	exch := &binance.Binance{}
@@ -850,17 +840,16 @@ func TestProcessSignalEvent(t *testing.T) {
 	})
 	ev.Direction = gctorder.Short
 	err = bt.Statistic.SetEventForOffset(ev)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetEventForOffset must not error")
 
 	err = bt.processSignalEvent(ev, pair)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "processSignalEvent should not error")
 }
 
 func TestProcessOrderEvent(t *testing.T) {
 	t.Parallel()
-	var expectedError error
 	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "Setup must not error")
 
 	bt := &BackTest{
 		Statistic:  &statistics.Statistic{},
@@ -881,23 +870,23 @@ func TestProcessOrderEvent(t *testing.T) {
 		},
 	}
 	err = bt.Statistic.SetEventForOffset(de)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetEventForOffset must not error")
 
 	ev := &order.Order{
 		Base: de.Base,
 	}
 
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetupFundingManager must not error")
 
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.Funding = f
 	exch := &binance.Binance{}
@@ -916,7 +905,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	})
 	ev.Direction = gctorder.Short
 	err = bt.Statistic.SetEventForOffset(ev)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetEventForOffset must not error")
 
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
@@ -961,12 +950,11 @@ func TestProcessOrderEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = bt.processOrderEvent(ev, pair)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "processOrderEvent must not error")
 
 	ev2 := bt.EventQueue.NextEvent()
-	if _, ok := ev2.(fill.Event); !ok {
-		t.Fatal("expected fill event")
-	}
+	_, ok := ev2.(fill.Event)
+	require.True(t, ok, "NextEvent must return a fill event")
 }
 
 func TestProcessFillEvent(t *testing.T) {
@@ -1071,7 +1059,6 @@ func TestProcessFillEvent(t *testing.T) {
 
 func TestProcessFuturesFillEvent(t *testing.T) {
 	t.Parallel()
-	var expectedError error
 	bt := &BackTest{
 		Statistic:  &fakeStats{},
 		Funding:    &funding.FundManager{},
@@ -1091,28 +1078,26 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		},
 	}
 	err := bt.Statistic.SetEventForOffset(de)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetEventForOffset must note error")
 
 	ev := &fill.Fill{
 		Base: de.Base,
 	}
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	exch.SetDefaults()
 	err = em.Add(exch)
 	require.NoError(t, err)
 
 	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateCollateral must not error")
 
 	bt.exchangeManager = em
 	bt.Exchange.SetExchangeAssetCurrencySettings(a, cp, &exchange.Settings{
@@ -1122,7 +1107,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	})
 	ev.Direction = gctorder.Short
 	err = bt.Statistic.SetEventForOffset(ev)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "SetEventForOffset must not error")
 
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
@@ -1161,7 +1146,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		},
 	}
 	err = k.Load()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	ev.Order = &gctorder.Detail{
 		Exchange:  testExchange,
@@ -1174,10 +1159,10 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 		Date:      time.Now(),
 	}
 	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = bt.processFuturesFillEvent(ev, pair)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "processFuturesFillEvent should not error")
 }
 
 func TestCloseAllPositions(t *testing.T) {

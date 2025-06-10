@@ -570,11 +570,9 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 
 func TestAllocateFundsPostOrder(t *testing.T) {
 	t.Parallel()
-	expectedError := common.ErrNilEvent
 	err := allocateFundsPostOrder(nil, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
-	expectedError = gctcommon.ErrNilPointer
 	f := &fill.Fill{
 		Base: &event.Base{
 			AssetType: asset.Spot,
@@ -582,75 +580,66 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		Direction: gctorder.Buy,
 	}
 	err = allocateFundsPostOrder(f, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	expectedError = nil
 	one := decimal.NewFromInt(1)
 	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	err = item.Reserve(one)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "Reserve must not error")
 
 	err = item2.Reserve(one)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "Reserve must not error")
 
 	fundPair, err := funding.CreatePair(item, item2)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreatePair must not error")
 
 	f.Order = &gctorder.Detail{}
 	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
 	f.SetDirection(gctorder.Sell)
 	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
-	expectedError = gctorder.ErrSubmissionIsNil
-	orderError := gctorder.ErrSubmissionIsNil
-	err = allocateFundsPostOrder(f, fundPair, orderError, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	err = allocateFundsPostOrder(f, fundPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
+	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
 	f.AssetType = asset.Futures
 	f.SetDirection(gctorder.Short)
-	expectedError = nil
 	item3, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateItem must not error")
 
 	err = item3.Reserve(one)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "Reserve must not error")
 
 	err = item4.Reserve(one)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "Reserve must not error")
 
 	collateralPair, err := funding.CreateCollateral(item, item2)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "CreateCollateral must not error")
 
-	expectedError = gctorder.ErrSubmissionIsNil
-	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
+	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
-	expectedError = nil
 	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
-	expectedError = gctorder.ErrSubmissionIsNil
 	f.SetDirection(gctorder.Long)
-	err = allocateFundsPostOrder(f, collateralPair, orderError, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
+	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
-	expectedError = nil
 	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	assert.NoError(t, err, "allocateFundsPostOrder should not error")
 
 	f.AssetType = asset.Margin
-	expectedError = common.ErrInvalidDataType
 	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 }

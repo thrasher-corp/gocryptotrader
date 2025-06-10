@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -221,13 +222,9 @@ func TestGetPairReader(t *testing.T) {
 	p := &SpotPair{
 		base: &Item{exchange: "hello"},
 	}
-	var expectedError error
 	ip, err := p.GetPairReader()
-	assert.ErrorIs(t, err, expectedError)
-
-	if ip != p {
-		t.Error("expected the same thing")
-	}
+	require.NoError(t, err, "GetPairReader must not error")
+	assert.Equal(t, p, ip)
 }
 
 func TestGetCollateralReader(t *testing.T) {

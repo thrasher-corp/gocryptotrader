@@ -215,36 +215,20 @@ func TestCollateralReserve(t *testing.T) {
 		},
 		contract: &Item{asset: asset.Futures},
 	}
-	var expectedError error
 	err := c.Reserve(decimal.NewFromInt(1), gctorder.Long)
-	assert.ErrorIs(t, err, expectedError)
-
-	if !c.collateral.reserved.Equal(decimal.NewFromInt(1)) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(1))
-	}
-	if !c.collateral.available.Equal(decimal.NewFromInt(1336)) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1336))
-	}
+	require.NoError(t, err, "Reserve must not error")
+	assert.Equal(t, decimal.NewFromInt(1), c.collateral.reserved)
+	assert.Equal(t, decimal.NewFromInt(1336), c.collateral.available)
 
 	err = c.Reserve(decimal.NewFromInt(1), gctorder.Short)
-	assert.ErrorIs(t, err, expectedError)
-
-	if !c.collateral.reserved.Equal(decimal.NewFromInt(2)) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.reserved, decimal.NewFromInt(2))
-	}
-	if !c.collateral.available.Equal(decimal.NewFromInt(1335)) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1335))
-	}
+	require.NoError(t, err, "Reserve must not error")
+	assert.Equal(t, decimal.NewFromInt(2), c.collateral.reserved)
+	assert.Equal(t, decimal.NewFromInt(1335), c.collateral.available)
 
 	err = c.Reserve(decimal.NewFromInt(2), gctorder.ClosePosition)
-	assert.ErrorIs(t, err, expectedError)
-
-	if !c.collateral.reserved.Equal(decimal.NewFromInt(4)) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.reserved, decimal.Zero)
-	}
-	if !c.collateral.available.Equal(decimal.NewFromInt(1333)) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1333))
-	}
+	require.NoError(t, err, "Reserve must not error")
+	assert.Equal(t, decimal.NewFromInt(4), c.collateral.reserved)
+	assert.Equal(t, decimal.NewFromInt(1333), c.collateral.available)
 	err = c.Reserve(decimal.NewFromInt(2), gctorder.Buy)
 	assert.ErrorIs(t, err, errCannotAllocate)
 }

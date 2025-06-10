@@ -921,9 +921,8 @@ func TestGetHoldingsForTime(t *testing.T) {
 func TestGetPositions(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
-	expectedError := common.ErrNilEvent
 	_, err := p.GetPositions(nil)
-	require.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	ev := &fill.Fill{
 		Base: &event.Base{
@@ -937,17 +936,15 @@ func TestGetPositions(t *testing.T) {
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
 	assert.ErrorIs(t, err, gctcommon.ErrNotYetImplemented)
 
-	expectedError = errNoPortfolioSettings
 	_, err = p.GetPositions(ev)
-	require.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, errNoPortfolioSettings)
 }
 
 func TestGetLatestPNLForEvent(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{}
-	expectedError := common.ErrNilEvent
 	_, err := p.GetLatestPNLForEvent(nil)
-	require.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	ev := &fill.Fill{
 		Base: &event.Base{
@@ -961,9 +958,8 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: ev.AssetType, Pair: ev.Pair()})
 	assert.ErrorIs(t, err, gctcommon.ErrNotYetImplemented)
 
-	expectedError = errNoPortfolioSettings
 	_, err = p.GetLatestPNLForEvent(ev)
-	require.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, errNoPortfolioSettings)
 
 	mpt, err := futures.SetupMultiPositionTracker(&futures.MultiPositionTrackerSetup{
 		Exchange:           testExchange,
@@ -973,8 +969,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		CollateralCurrency: currency.USDT,
 		OfflineCalculation: true,
 	})
-	assert.NoError(t, err)
-
+	require.NoError(t, err, "SetupMultiPositionTracker must not error")
 	s := &Settings{
 		FuturesTracker: mpt,
 	}
@@ -986,7 +981,6 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		Quote:    ev.Pair().Quote.Item,
 		Asset:    asset.Futures,
 	}] = s
-	expectedError = nil
 	err = s.FuturesTracker.TrackNewOrder(&gctorder.Detail{
 		Exchange:  ev.GetExchange(),
 		AssetType: ev.AssetType,
@@ -997,14 +991,11 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		Date:      time.Now(),
 		Side:      gctorder.Buy,
 	})
-	require.ErrorIs(t, err, expectedError)
+	require.NoError(t, err, "TrackNewOrder must not error")
 
 	latest, err := p.GetLatestPNLForEvent(ev)
-	require.ErrorIs(t, err, expectedError)
-
-	if latest == nil {
-		t.Error("unexpected")
-	}
+	require.NoError(t, err, "GetLatestPNLForEvent must not error")
+	assert.NotNil(t, latest, "GetLatestPNLForEvent should return a non-nil result")
 }
 
 func TestGetFuturesSettingsFromEvent(t *testing.T) {
@@ -1182,64 +1173,42 @@ func TestGetDirection(t *testing.T) {
 
 func TestCannotPurchase(t *testing.T) {
 	t.Parallel()
-	expectedError := common.ErrNilEvent
 	_, err := cannotPurchase(nil, nil)
-	require.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	s := &signal.Signal{
 		Base: &event.Base{},
 	}
-	expectedError = gctcommon.ErrNilPointer
 	_, err = cannotPurchase(s, nil)
-	require.ErrorIs(t, err, expectedError)
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	o := &order.Order{
 		Base: &event.Base{},
 	}
 	s.Direction = gctorder.Buy
-	expectedError = nil
 	result, err := cannotPurchase(s, o)
-	require.ErrorIs(t, err, expectedError)
-
-	if result.Direction != gctorder.CouldNotBuy {
-		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotBuy)
-	}
+	require.NoError(t, err, "cannotPurchase must not error")
+	assert.Equal(t, gctorder.CouldNotBuy, result.Direction)
 
 	s.Direction = gctorder.Sell
-	expectedError = nil
 	result, err = cannotPurchase(s, o)
-	require.ErrorIs(t, err, expectedError)
-
-	if result.Direction != gctorder.CouldNotSell {
-		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotSell)
-	}
+	require.NoError(t, err, "cannotPurchase must not error")
+	assert.Equal(t, gctorder.CouldNotSell, result.Direction)
 
 	s.Direction = gctorder.Short
-	expectedError = nil
 	result, err = cannotPurchase(s, o)
-	require.ErrorIs(t, err, expectedError)
-
-	if result.Direction != gctorder.CouldNotShort {
-		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotShort)
-	}
+	require.NoError(t, err, "cannotPurchase must not error")
+	assert.Equal(t, gctorder.CouldNotShort, result.Direction)
 
 	s.Direction = gctorder.Long
-	expectedError = nil
 	result, err = cannotPurchase(s, o)
-	require.ErrorIs(t, err, expectedError)
-
-	if result.Direction != gctorder.CouldNotLong {
-		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.CouldNotLong)
-	}
+	require.NoError(t, err, "cannotPurchase must not error")
+	assert.Equal(t, gctorder.CouldNotLong, result.Direction)
 
 	s.Direction = gctorder.UnknownSide
-	expectedError = nil
 	result, err = cannotPurchase(s, o)
-	require.ErrorIs(t, err, expectedError)
-
-	if result.Direction != gctorder.DoNothing {
-		t.Errorf("received '%v' expected '%v'", result.Direction, gctorder.DoNothing)
-	}
+	require.NoError(t, err, "cannotPurchase must not error")
+	assert.Equal(t, gctorder.DoNothing, result.Direction)
 }
 
 func TestCreateLiquidationOrdersForExchange(t *testing.T) {
