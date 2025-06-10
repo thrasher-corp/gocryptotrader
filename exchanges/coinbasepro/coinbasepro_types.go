@@ -354,7 +354,6 @@ type PlaceOrderInfo struct {
 	StopDirection              string
 	OrderType                  order.Type
 	TimeInForce                order.TimeInForce
-	SelfTradePreventionID      string
 	MarginType                 string
 	RetailPortfolioID          string
 	PreviewID                  string
@@ -365,6 +364,9 @@ type PlaceOrderInfo struct {
 	Leverage                   float64
 	PostOnly                   bool
 	EndTime                    time.Time
+	BucketSize                 float64
+	BucketNumber               int64
+	BucketDuration             time.Duration
 	AttachedOrderConfiguration OrderConfiguration
 }
 

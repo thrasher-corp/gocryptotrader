@@ -502,22 +502,20 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		}
 	}
 	resp, err := c.PlaceOrder(ctx, &PlaceOrderInfo{
-		ClientOID:             s.ClientOrderID,
-		ProductID:             fPair.String(),
-		Side:                  s.Side.String(),
-		StopDirection:         stopDir,
-		OrderType:             s.Type,
-		TimeInForce:           s.TimeInForce,
-		SelfTradePreventionID: "",
-		MarginType:            s.MarginType.Upper(),
-		RetailPortfolioID:     "",
-		BaseAmount:            s.Amount,
-		QuoteAmount:           s.QuoteAmount,
-		LimitPrice:            s.Price,
-		StopPrice:             s.TriggerPrice,
-		Leverage:              s.Leverage,
-		PostOnly:              s.TimeInForce.Is(order.PostOnly),
-		EndTime:               s.EndTime,
+		ClientOID:     s.ClientOrderID,
+		ProductID:     fPair.String(),
+		Side:          s.Side.String(),
+		StopDirection: stopDir,
+		OrderType:     s.Type,
+		TimeInForce:   s.TimeInForce,
+		MarginType:    s.MarginType.Upper(),
+		BaseAmount:    s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		LimitPrice:    s.Price,
+		StopPrice:     s.TriggerPrice,
+		Leverage:      s.Leverage,
+		PostOnly:      s.TimeInForce.Is(order.PostOnly),
+		EndTime:       s.EndTime,
 	})
 	if err != nil {
 		return nil, err

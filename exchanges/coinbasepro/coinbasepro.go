@@ -424,17 +424,18 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, ord *PlaceOrderInfo) (*Suc
 	if ord.BaseAmount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	orderConfig, err := createOrderConfig(ord.OrderType, ord.TimeInForce, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, 0, ord.EndTime, ord.PostOnly, 0, 0)
+	orderConfig, err := createOrderConfig(ord.OrderType, ord.TimeInForce, ord.StopDirection, ord.BaseAmount, ord.QuoteAmount, ord.LimitPrice, ord.StopPrice, ord.BucketSize, ord.EndTime, ord.PostOnly, ord.BucketNumber, ord.BucketDuration)
 	if err != nil {
 		return nil, err
 	}
 	req := map[string]any{
-		"client_order_id":          ord.ClientOID,
-		"product_id":               ord.ProductID,
-		"side":                     ord.Side,
-		"order_configuration":      orderConfig,
-		"self_trade_prevention_id": ord.SelfTradePreventionID,
-		"retail_portfolio_id":      ord.RetailPortfolioID,
+		"client_order_id":              ord.ClientOID,
+		"product_id":                   ord.ProductID,
+		"side":                         ord.Side,
+		"order_configuration":          orderConfig,
+		"retail_portfolio_id":          ord.RetailPortfolioID,
+		"preview_id":                   ord.PreviewID,
+		"attached_order_configuration": ord.AttachedOrderConfiguration,
 	}
 	if ord.MarginType != "" {
 		req["margin_type"] = FormatMarginType(ord.MarginType)
@@ -1669,31 +1670,33 @@ func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stop
 		orderConfig.TWAPLimitGTD = &TWAPLimitGTD{StartTime: time.Now(), EndTime: endTime, LimitPrice: types.Number(limitPrice), NumberBuckets: bucketNumber, BucketSize: types.Number(bucketSize), BucketDuration: bucketDuration}
 	case order.StopLimit:
 		if endTime.IsZero() {
-			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
+			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{LimitPrice: types.Number(limitPrice), StopPrice: types.Number(stopPrice), StopDirection: stopDirection}
 			if baseAmount != 0 {
 				orderConfig.StopLimitStopLimitGTC.BaseSize = types.Number(baseAmount)
 			}
 			if quoteAmount != 0 {
 				orderConfig.StopLimitStopLimitGTC.QuoteSize = types.Number(quoteAmount)
 			}
-			orderConfig.StopLimitStopLimitGTC.LimitPrice = types.Number(limitPrice)
-			orderConfig.StopLimitStopLimitGTC.StopPrice = types.Number(stopPrice)
-			orderConfig.StopLimitStopLimitGTC.StopDirection = stopDirection
 		} else {
 			if endTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
 			}
-			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{}
+			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{LimitPrice: types.Number(limitPrice), StopPrice: types.Number(stopPrice), StopDirection: stopDirection, EndTime: endTime}
 			if baseAmount != 0 {
 				orderConfig.StopLimitStopLimitGTD.BaseSize = types.Number(baseAmount)
 			}
 			if quoteAmount != 0 {
 				orderConfig.StopLimitStopLimitGTD.QuoteSize = types.Number(quoteAmount)
 			}
-			orderConfig.StopLimitStopLimitGTD.LimitPrice = types.Number(limitPrice)
-			orderConfig.StopLimitStopLimitGTD.StopPrice = types.Number(stopPrice)
-			orderConfig.StopLimitStopLimitGTD.StopDirection = stopDirection
-			orderConfig.StopLimitStopLimitGTD.EndTime = endTime
+		}
+	case order.Bracket:
+		if endTime.IsZero() {
+			orderConfig.TriggerBracketGTC = &TriggerBracketGTC{BaseSize: types.Number(baseAmount), LimitPrice: types.Number(limitPrice), StopTriggerPrice: types.Number(stopPrice)}
+		} else {
+			if endTime.Before(time.Now()) {
+				return orderConfig, errEndTimeInPast
+			}
+			orderConfig.TriggerBracketGTD = &TriggerBracketGTD{BaseSize: types.Number(baseAmount), LimitPrice: types.Number(limitPrice), StopTriggerPrice: types.Number(stopPrice), EndTime: endTime}
 		}
 	default:
 		return orderConfig, errInvalidOrderType
