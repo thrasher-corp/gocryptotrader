@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,6 +14,8 @@ import (
 // format requirements.
 type Time time.Time
 
+var errInvalidTimestampFormat = errors.New("invalid timestamp format")
+
 // UnmarshalJSON deserializes json, and timestamp information.
 func (t *Time) UnmarshalJSON(data []byte) error {
 	s := string(data)
@@ -21,12 +24,16 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		s = s[1 : len(s)-1]
 	}
 
-	if s == "" || s[0] == 'n' || (s[0] == '0' && strings.Trim(s, "0.") == "") {
+	if s == "" || s[0] == 'n' || s == "0" {
 		return nil
 	}
 
 	if target := strings.Index(s, "."); target != -1 {
 		s = s[:target] + s[target+1:]
+
+		if strings.Trim(s, "0") == "" {
+			return nil
+		}
 	}
 
 	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
@@ -52,7 +59,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	case 19:
 		*t = Time(time.Unix(0, unixTS))
 	default:
-		return fmt.Errorf("cannot unmarshal %s into Time", data)
+		return fmt.Errorf("%w: %q", errInvalidTimestampFormat, data)
 	}
 	return nil
 }
