@@ -1,7 +1,6 @@
 package dollarcostaverage
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -37,17 +36,13 @@ func TestSupportsSimultaneousProcessing(t *testing.T) {
 func TestSetCustomSettings(t *testing.T) {
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrCustomSettingsUnsupported)
-	}
+	assert.ErrorIs(t, err, base.ErrCustomSettingsUnsupported)
 }
 
 func TestOnSignal(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -124,9 +119,8 @@ func TestOnSignal(t *testing.T) {
 func TestOnSignals(t *testing.T) {
 	s := Strategy{}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"

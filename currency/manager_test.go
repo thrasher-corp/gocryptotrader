@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,14 +80,10 @@ func TestGet(t *testing.T) {
 	}
 
 	_, err = p.Get(asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = p.Get(asset.CoinMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestPairsManagerMatch(t *testing.T) {
@@ -97,26 +92,18 @@ func TestPairsManagerMatch(t *testing.T) {
 	p := &PairsManager{}
 
 	_, err := p.Match("", 1337)
-	if !errors.Is(err, ErrSymbolStringEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolStringEmpty)
-	}
+	require.ErrorIs(t, err, ErrSymbolStringEmpty)
 
 	_, err = p.Match("sillyBilly", 1337)
-	if !errors.Is(err, errPairMatcherIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairMatcherIsNil)
-	}
+	require.ErrorIs(t, err, errPairMatcherIsNil)
 
 	p = initTest(t)
 
 	_, err = p.Match("sillyBilly", 1337)
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, ErrPairNotFound)
 
 	_, err = p.Match("sillyBilly", asset.Spot)
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, ErrPairNotFound)
 
 	whatIgot, err := p.Match("bTCuSD", asset.Spot)
 	require.NoError(t, err)
@@ -172,14 +159,10 @@ func TestStore(t *testing.T) {
 	}
 
 	err = p.Store(asset.Empty, nil)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = p.Store(asset.Futures, nil)
-	if !errors.Is(err, errPairStoreIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPairStoreIsNil)
-	}
+	require.ErrorIs(t, err, errPairStoreIsNil)
 }
 
 func TestDelete(t *testing.T) {
@@ -240,9 +223,7 @@ func TestGetPairs(t *testing.T) {
 	}
 
 	pairs, err = p.GetPairs(asset.Empty, true)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	if pairs != nil {
 		t.Fatal("pairs shouldn't be populated")
@@ -263,14 +244,10 @@ func TestStoreFormat(t *testing.T) {
 	p := &PairsManager{}
 
 	err := p.StoreFormat(0, &PairFormat{Delimiter: "~"}, true)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = p.StoreFormat(asset.Spot, nil, true)
-	if !errors.Is(err, ErrPairFormatIsNil) {
-		t.Fatalf("received: %v but expected: %v", err, ErrPairFormatIsNil)
-	}
+	require.ErrorIs(t, err, ErrPairFormatIsNil)
 
 	err = p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "~"}, true)
 	require.NoError(t, err)
@@ -302,9 +279,7 @@ func TestStorePairs(t *testing.T) {
 	p := initTest(t)
 
 	err := p.StorePairs(0, nil, false)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	p.Pairs = nil
 
@@ -410,10 +385,7 @@ func TestDisablePair(t *testing.T) {
 func TestEnablePair(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
-
-	if err := p.EnablePair(asset.Empty, NewBTCUSD()); !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, p.EnablePair(asset.Empty, NewBTCUSD()), asset.ErrNotSupported)
 
 	p.Pairs = nil
 	// Test enabling a pair when the pair manager is not initialised
@@ -522,9 +494,7 @@ func TestFullStoreUnmarshalMarshal(t *testing.T) {
 
 	data = []byte(`{"bro":{"assetEnabled":null,"enabled":"","available":""}}`)
 	err = json.Unmarshal(data, &another)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestIsPairAvailable(t *testing.T) {
@@ -691,9 +661,7 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		Pairs: map[asset.Item]*PairStore{},
 	}
 	_, _, err = pm.EnsureOnePairEnabled()
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Errorf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	assert.ErrorIs(t, err, ErrCurrencyPairsEmpty)
 }
 
 func TestLoad(t *testing.T) {

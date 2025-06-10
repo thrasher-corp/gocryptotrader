@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"sync"
 	"testing"
 
@@ -11,9 +10,7 @@ import (
 
 func TestSetupPortfolioManager(t *testing.T) {
 	_, err := setupPortfolioManager(nil, 0, nil)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
 	assert.NoError(t, err)
@@ -49,42 +46,32 @@ func TestPortfolioManagerStart(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Start(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
 	assert.NoError(t, err)
 
 	err = m.Start(nil)
-	if !errors.Is(err, errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
-	}
+	assert.ErrorIs(t, err, errNilWaitGroup)
 
 	err = m.Start(&wg)
 	assert.NoError(t, err)
 
 	err = m.Start(&wg)
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
 
 func TestPortfolioManagerStop(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
 	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start(&wg)
 	assert.NoError(t, err)
