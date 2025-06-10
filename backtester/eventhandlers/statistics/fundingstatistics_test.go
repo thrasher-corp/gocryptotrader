@@ -1,7 +1,6 @@
 package statistics
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -22,9 +21,8 @@ import (
 func TestCalculateFundingStatistics(t *testing.T) {
 	t.Parallel()
 	_, err := CalculateFundingStatistics(nil, nil, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
 	assert.NoError(t, err)
 
@@ -41,9 +39,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = CalculateFundingStatistics(f, nil, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	usdKline := gctkline.Item{
 		Exchange: "binance",
@@ -67,9 +63,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = f.AddUSDTrackingData(dfk)
-	if !errors.Is(err, funding.ErrUSDTrackingDisabled) {
-		t.Errorf("received %v expected %v", err, funding.ErrUSDTrackingDisabled)
-	}
+	assert.ErrorIs(t, err, funding.ErrUSDTrackingDisabled)
 
 	cs := make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
@@ -94,9 +88,8 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		Asset:    asset.Spot,
 	}] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received %v expected %v", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
+
 	err = f.CreateSnapshot(usdKline.Candles[0].Time)
 	assert.NoError(t, err)
 
@@ -115,17 +108,13 @@ func TestCalculateFundingStatistics(t *testing.T) {
 
 func TestCalculateIndividualFundingStatistics(t *testing.T) {
 	_, err := CalculateIndividualFundingStatistics(true, nil, nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = CalculateIndividualFundingStatistics(true, &funding.ReportItem{}, nil)
 	assert.NoError(t, err)
 
 	_, err = CalculateIndividualFundingStatistics(false, &funding.ReportItem{}, nil)
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received %v expected %v", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
 
 	ri := &funding.ReportItem{
 		Snapshots: []funding.ItemSnapshot{
@@ -146,17 +135,14 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 		},
 	}
 	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	rs[0].stat = &CurrencyPairStatistic{}
 	ri.USDInitialFunds = decimal.NewFromInt(1000)
 	ri.USDFinalFunds = decimal.NewFromInt(1337)
 	_, err = CalculateIndividualFundingStatistics(false, ri, rs)
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received %v expected %v", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
+
 	cp := currency.NewBTCUSD()
 	ri.USDPairCandle = &kline.DataFromKline{
 		Base: &data.Base{},
@@ -196,9 +182,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 func TestFundingStatisticsPrintResults(t *testing.T) {
 	f := FundingStatistics{}
 	err := f.PrintResults(false)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
 	assert.NoError(t, err)
@@ -224,9 +208,7 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 	f.TotalUSDStatistics = &TotalFundingStatistics{}
 	f.Report.DisableUSDTracking = false
 	err = f.PrintResults(false)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	f.TotalUSDStatistics = &TotalFundingStatistics{
 		GeometricRatios:  &Ratios{},
