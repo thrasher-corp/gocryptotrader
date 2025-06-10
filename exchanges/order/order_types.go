@@ -380,6 +380,28 @@ const (
 	TakeProfitMarket = TakeProfit | Market
 )
 
+// order-type string representations
+const (
+	orderStopMarket            = "STOP MARKET"
+	orderStopLimit             = "STOP LIMIT"
+	orderLimit                 = "LIMIT"
+	orderMarket                = "MARKET"
+	orderStop                  = "STOP"
+	orderConditionalStop       = "CONDITIONAL"
+	orderTWAP                  = "TWAP"
+	orderChase                 = "CHASE"
+	orderTakeProfit            = "TAKE PROFIT"
+	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTrailingStop          = "TRAILING_STOP"
+	orderIOS                   = "IOS"
+	orderLiquidation           = "LIQUIDATION"
+	orderTrigger               = "TRIGGER"
+	orderOCO                   = "OCO"
+	orderOptimalLimit          = "OPTIMAL_LIMIT"
+	orderMarketMakerProtection = "MMP"
+	orderAnyType               = "ANY"
+)
+
 // Side enforces a standard for order sides across the code base
 type Side uint32
 

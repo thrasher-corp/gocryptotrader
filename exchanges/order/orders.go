@@ -668,41 +668,41 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 func (t Type) String() string {
 	switch t {
 	case StopMarket:
-		return "STOP MARKET"
+		return orderStopMarket
 	case StopLimit:
-		return "STOP LIMIT"
+		return orderStopLimit
 	case Limit:
-		return "LIMIT"
+		return orderLimit
 	case Market:
-		return "MARKET"
+		return orderMarket
 	case Stop:
-		return "STOP"
+		return orderStop
 	case ConditionalStop:
-		return "CONDITIONAL"
+		return orderConditionalStop
 	case TWAP:
-		return "TWAP"
+		return orderTWAP
 	case Chase:
-		return "CHASE"
+		return orderChase
 	case TakeProfit:
-		return "TAKE PROFIT"
+		return orderTakeProfit
 	case TakeProfitMarket:
-		return "TAKE PROFIT MARKET"
+		return orderTakeProfitMarket
 	case TrailingStop:
-		return "TRAILING_STOP"
+		return orderTrailingStop
 	case IOS:
-		return "IOS"
+		return orderIOS
 	case Liquidation:
-		return "LIQUIDATION"
+		return orderLiquidation
 	case Trigger:
-		return "TRIGGER"
+		return orderTrigger
 	case OCO:
-		return "OCO"
+		return orderOCO
 	case OptimalLimit:
-		return "OPTIMAL_LIMIT"
+		return orderOptimalLimit
 	case MarketMakerProtection:
-		return "MMP"
+		return orderMarketMakerProtection
 	case AnyType:
-		return "ANY"
+		return orderAnyType
 	default:
 		return "UNKNOWN"
 	}
@@ -1100,41 +1100,41 @@ func (s Side) MarshalJSON() ([]byte, error) {
 func StringToOrderType(oType string) (Type, error) {
 	oType = strings.ToUpper(oType)
 	switch oType {
-	case Limit.String(), "EXCHANGE LIMIT":
+	case orderLimit, "EXCHANGE LIMIT":
 		return Limit, nil
-	case Market.String(), "EXCHANGE MARKET":
+	case orderMarket, "EXCHANGE MARKET":
 		return Market, nil
-	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
+	case orderStop, "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
+	case orderStopLimit, "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
-	case StopMarket.String(), "STOP_MARKET":
+	case orderStopMarket, "STOP_MARKET":
 		return StopMarket, nil
-	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
+	case orderTrailingStop, "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
-	case IOS.String():
+	case orderIOS:
 		return IOS, nil
-	case AnyType.String():
+	case orderAnyType:
 		return AnyType, nil
-	case Trigger.String():
+	case orderTrigger:
 		return Trigger, nil
-	case OptimalLimit.String():
+	case orderOptimalLimit:
 		return OptimalLimit, nil
-	case OCO.String():
+	case orderOCO:
 		return OCO, nil
-	case ConditionalStop.String():
+	case orderConditionalStop:
 		return ConditionalStop, nil
-	case MarketMakerProtection.String():
+	case orderMarketMakerProtection:
 		return MarketMakerProtection, nil
-	case TWAP.String():
+	case orderTWAP:
 		return TWAP, nil
-	case Chase.String():
+	case orderChase:
 		return Chase, nil
-	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
-	case TakeProfit.String(), "TAKE_PROFIT":
+	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
-	case Liquidation.String():
+	case orderLiquidation:
 		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)
