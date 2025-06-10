@@ -515,7 +515,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		LimitPrice:            s.Price,
 		StopPrice:             s.TriggerPrice,
 		Leverage:              s.Leverage,
-		PostOnly:              s.PostOnly,
+		PostOnly:              s.TimeInForce.Is(order.PostOnly),
 		EndTime:               s.EndTime,
 	})
 	if err != nil {
@@ -1181,9 +1181,15 @@ func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse
 	if len(genOrderDetail.EditHistory) > 0 {
 		lastUpdateTime = genOrderDetail.EditHistory[len(genOrderDetail.EditHistory)-1].ReplaceAcceptTimestamp
 	}
+	var tif order.TimeInForce
+	if postOnly {
+		tif = order.PostOnly
+	}
+	if genOrderDetail.OrderConfiguration.MarketMarketIOC != nil {
+		tif |= order.ImmediateOrCancel
+	}
 	response := order.Detail{
-		ImmediateOrCancel:    genOrderDetail.OrderConfiguration.MarketMarketIOC != nil,
-		PostOnly:             postOnly,
+		TimeInForce:          tif,
 		Price:                price,
 		Amount:               amount,
 		TriggerPrice:         triggerPrice,

@@ -1467,29 +1467,29 @@ func TestGetOrderRespToOrderDetail(t *testing.T) {
 		EditHistory: []EditHistory{(EditHistory{})},
 	}
 	resp := c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected := &order.Detail{ImmediateOrCancel: true, Exchange: "CoinbasePro", Type: 0x40, Side: 0x2, Status: 0x8000, AssetType: 0x1, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
+	expected := &order.Detail{TimeInForce: order.ImmediateOrCancel, Exchange: "CoinbasePro", Type: order.StopLimit, Side: order.Buy, Status: order.Open, AssetType: asset.Spot, Date: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CloseTime: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), LastUpdated: time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), Pair: testPairStable}
 	assert.Equal(t, expected, resp)
 	mockData.Side = "SELL"
 	mockData.Status = "FILLED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected.Side = 0x4
-	expected.Status = 0x80
+	expected.Side = order.Sell
+	expected.Status = order.Filled
 	assert.Equal(t, expected, resp)
 	mockData.Status = "CANCELLED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected.Status = 0x100
+	expected.Status = order.Cancelled
 	assert.Equal(t, expected, resp)
 	mockData.Status = "EXPIRED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected.Status = 0x2000
+	expected.Status = order.Expired
 	assert.Equal(t, expected, resp)
 	mockData.Status = "FAILED"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected.Status = 0x1000
+	expected.Status = order.Rejected
 	assert.Equal(t, expected, resp)
 	mockData.Status = "UNKNOWN_ORDER_STATUS"
 	resp = c.getOrderRespToOrderDetail(mockData, testPairStable, asset.Spot)
-	expected.Status = 0x0
+	expected.Status = order.UnknownStatus
 	assert.Equal(t, expected, resp)
 }
 
@@ -1838,16 +1838,15 @@ func TestStringToStandardAsset(t *testing.T) {
 
 func TestStrategyDecoder(t *testing.T) {
 	t.Parallel()
-	resp1, resp2, _ := strategyDecoder("IMMEDIATE_OR_CANCEL")
-	assert.True(t, resp1)
-	assert.False(t, resp2)
-	resp1, resp2, _ = strategyDecoder("FILL_OR_KILL")
-	assert.False(t, resp1)
-	assert.True(t, resp2)
-	resp1, resp2, _ = strategyDecoder("GOOD_UNTIL_CANCELLED")
-	assert.False(t, resp1)
-	assert.False(t, resp2)
-	_, _, err := strategyDecoder("")
+	resp, _ := strategyDecoder("IMMEDIATE_OR_CANCEL")
+	assert.True(t, resp.Is(order.ImmediateOrCancel))
+	resp, _ = strategyDecoder("FILL_OR_KILL")
+	assert.True(t, resp.Is(order.FillOrKill))
+	resp, _ = strategyDecoder("GOOD_UNTIL_CANCELLED")
+	assert.True(t, resp.Is(order.GoodTillCancel))
+	resp, _ = strategyDecoder("GOOD_UNTIL_DATE_TIME")
+	assert.True(t, resp.Is(order.GoodTillDay|order.GoodTillTime))
+	_, err := strategyDecoder("")
 	assert.ErrorIs(t, err, errUnrecognisedStrategyType)
 }
 

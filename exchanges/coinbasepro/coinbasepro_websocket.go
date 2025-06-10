@@ -259,34 +259,35 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) (*uint64, error) {
 						Err:      err,
 					}
 				}
-				var ioc, fok bool
-				ioc, fok, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce)
+				var tif order.TimeInForce
+				tif, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce)
 				if err != nil {
 					c.Websocket.DataHandler <- order.ClassificationError{
 						Exchange: c.Name,
 						Err:      err,
 					}
 				}
+				if wsUser[i].Orders[j].PostOnly {
+					tif |= order.PostOnly
+				}
 				sliToSend = append(sliToSend, order.Detail{
-					Price:             price.Float64(),
-					ClientOrderID:     wsUser[i].Orders[j].ClientOrderID,
-					ExecutedAmount:    wsUser[i].Orders[j].CumulativeQuantity.Float64(),
-					RemainingAmount:   wsUser[i].Orders[j].LeavesQuantity.Float64(),
-					Amount:            wsUser[i].Orders[j].CumulativeQuantity.Float64() + wsUser[i].Orders[j].LeavesQuantity.Float64(),
-					OrderID:           wsUser[i].Orders[j].OrderID,
-					Side:              oSide,
-					Type:              oType,
-					PostOnly:          wsUser[i].Orders[j].PostOnly,
-					Pair:              wsUser[i].Orders[j].ProductID,
-					AssetType:         asset,
-					Status:            oStatus,
-					TriggerPrice:      wsUser[i].Orders[j].StopPrice.Float64(),
-					ImmediateOrCancel: ioc,
-					FillOrKill:        fok,
-					Fee:               wsUser[i].Orders[j].TotalFees.Float64(),
-					Date:              wsUser[i].Orders[j].CreationTime,
-					CloseTime:         wsUser[i].Orders[j].EndTime,
-					Exchange:          c.Name,
+					Price:           price.Float64(),
+					ClientOrderID:   wsUser[i].Orders[j].ClientOrderID,
+					ExecutedAmount:  wsUser[i].Orders[j].CumulativeQuantity.Float64(),
+					RemainingAmount: wsUser[i].Orders[j].LeavesQuantity.Float64(),
+					Amount:          wsUser[i].Orders[j].CumulativeQuantity.Float64() + wsUser[i].Orders[j].LeavesQuantity.Float64(),
+					OrderID:         wsUser[i].Orders[j].OrderID,
+					Side:            oSide,
+					Type:            oType,
+					Pair:            wsUser[i].Orders[j].ProductID,
+					AssetType:       asset,
+					Status:          oStatus,
+					TriggerPrice:    wsUser[i].Orders[j].StopPrice.Float64(),
+					TimeInForce:     tif,
+					Fee:             wsUser[i].Orders[j].TotalFees.Float64(),
+					Date:            wsUser[i].Orders[j].CreationTime,
+					CloseTime:       wsUser[i].Orders[j].EndTime,
+					Exchange:        c.Name,
 				})
 			}
 			for j := range wsUser[i].Positions.PerpetualFuturesPositions {
@@ -536,16 +537,18 @@ func stringToStandardAsset(str string) (asset.Item, error) {
 }
 
 // strategyDecoder is a helper function that converts a Coinbase Pro time in force string to a few standardised bools
-func strategyDecoder(str string) (ioc, fok bool, err error) {
+func strategyDecoder(str string) (tif order.TimeInForce, err error) {
 	switch str {
 	case "IMMEDIATE_OR_CANCEL":
-		return true, false, nil
+		return order.ImmediateOrCancel, nil
 	case "FILL_OR_KILL":
-		return false, true, nil
-	case "GOOD_UNTIL_CANCELLED", "GOOD_UNTIL_DATE_TIME":
-		return false, false, nil
+		return order.FillOrKill, nil
+	case "GOOD_UNTIL_CANCELLED":
+		return order.GoodTillCancel, nil
+	case "GOOD_UNTIL_DATE_TIME":
+		return order.GoodTillDay | order.GoodTillTime, nil
 	default:
-		return false, false, fmt.Errorf("%w %v", errUnrecognisedStrategyType, str)
+		return order.UnknownTIF, fmt.Errorf("%w %v", errUnrecognisedStrategyType, str)
 	}
 }
 

@@ -305,9 +305,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		Bid:          1338,
 		Ask:          1336,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v but expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	// now test for processing a pair with a different quote currency
 	newPair, err = currency.NewPairFromStrings("BTC", "AUD")

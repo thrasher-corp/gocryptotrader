@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
@@ -45,9 +46,8 @@ func TestExchangeManagerAdd(t *testing.T) {
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	err = m.Add(b)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	err = m.Add(b)
 	if !errors.Is(err, ErrExchangeAlreadyLoaded) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeAlreadyLoaded)
@@ -80,9 +80,8 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	err = m.Add(b)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exchanges, err = m.GetExchanges()
 	if err != nil {
 		t.Error("no exchange manager found")
@@ -115,9 +114,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	b := new(bitfinex.Bitfinex)
 	b.SetDefaults()
 	err = m.Add(b)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = m.RemoveExchange("Bitstamp")
 	if !errors.Is(err, ErrExchangeNotFound) {
@@ -125,9 +122,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	}
 
 	err = m.RemoveExchange("BiTFiNeX")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(m.exchanges) != 0 {
 		t.Error("exchange manager len should be 0")
@@ -137,9 +132,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	brokenExch.SetDefaults()
 
 	err = m.Add(brokenExch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = m.RemoveExchange("BiTFiNeX")
 	if !errors.Is(err, errExpectedTestError) {
@@ -180,9 +173,7 @@ func TestNewExchangeByName(t *testing.T) {
 	load.SetDefaults()
 
 	err = m.Add(load)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	_, err = m.NewExchangeByName("bitfinex")
 	if !errors.Is(err, ErrExchangeAlreadyLoaded) {
@@ -231,20 +222,14 @@ func TestExchangeManagerShutdown(t *testing.T) {
 
 	m = NewExchangeManager()
 	err = m.Shutdown(-1)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	brokenExch := &broken{}
 	brokenExch.SetDefaults()
 
 	err = m.Add(brokenExch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = m.Shutdown(-1)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
