@@ -33,7 +33,7 @@ func TestNumberUnmarshalJSON(t *testing.T) {
 	// Invalid value checking
 	for _, i := range []string{`"MEOW"`, `false`, `true`, `"1337.37`} {
 		err = n.UnmarshalJSON([]byte(i))
-		assert.ErrorIsf(t, err, errInvalidNumberValue, "UnmarshalJSON should error with invalid Value for `%s`", i)
+		assert.ErrorIsf(t, err, errInvalidNumberValue, "UnmarshalJSON should error with invalid Value for %q", i)
 	}
 }
 

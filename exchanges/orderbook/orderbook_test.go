@@ -31,7 +31,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	_, err := SubscribeToExchangeOrderbooks("")
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
-	p := currency.NewPair(currency.BTC, currency.USD)
+	p := currency.NewBTCUSD()
 
 	b := Base{
 		Pair:     p,
@@ -51,7 +51,7 @@ func TestVerify(t *testing.T) {
 	b := Base{
 		Exchange:        "TestExchange",
 		Asset:           asset.Spot,
-		Pair:            currency.NewPair(currency.BTC, currency.USD),
+		Pair:            currency.NewBTCUSD(),
 		VerifyOrderbook: true,
 	}
 
@@ -694,7 +694,23 @@ func TestCheckAlignment(t *testing.T) {
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"
 	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
+	require.NoError(t, err)
+}
+
+// 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
+// 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
+func BenchmarkProcess(b *testing.B) {
+	base := &Base{
+		Pair:     currency.NewBTCUSD(),
+		Asks:     make(Tranches, 100),
+		Bids:     make(Tranches, 100),
+		Exchange: "BenchmarkProcessOrderbook",
+		Asset:    asset.Spot,
+	}
+
+	for b.Loop() {
+		if err := base.Process(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

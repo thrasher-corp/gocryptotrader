@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -47,9 +48,8 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	float14 := float64(14)
 	mappalopalous := make(map[string]any)
 	mappalopalous[mfiPeriodKey] = float14
@@ -57,9 +57,7 @@ func TestSetCustomSettings(t *testing.T) {
 	mappalopalous[mfiHighKey] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	mappalopalous[mfiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
@@ -107,7 +105,7 @@ func TestOnSignals(t *testing.T) {
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -123,13 +121,11 @@ func TestOnSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &kline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
@@ -168,9 +164,8 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	s := Strategy{}
 	s.SetDefaults()
 	_, err := s.selectTopAndBottomPerformers(nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	b := &event.Base{}
 	fundEvents := []mfiFundEvent{
 		{
@@ -215,9 +210,8 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		},
 	}
 	resp, err := s.selectTopAndBottomPerformers(fundEvents, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 5 {
 		t.Error("expected 5 events")
 	}

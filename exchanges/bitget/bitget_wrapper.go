@@ -920,7 +920,7 @@ func (bi *Bitget) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		return nil, err
 	}
 	var IDs *OrderIDStruct
-	strategy, err := strategyTruthTable(s.ImmediateOrCancel, s.FillOrKill, s.PostOnly)
+	strategy, err := strategyTruthTable(s.TimeInForce)
 	if err != nil {
 		return nil, err
 	}
@@ -1169,7 +1169,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		resp.Price = ordInfo.Price
 		resp.Status = statusDecoder(ordInfo.State)
 		resp.Side = sideDecoder(ordInfo.Side)
-		resp.ImmediateOrCancel, resp.FillOrKill, resp.PostOnly = strategyDecoder(ordInfo.Force)
+		resp.TimeInForce = strategyDecoder(ordInfo.Force)
 		resp.SettlementCurrency = ordInfo.MarginCoin
 		resp.LimitPriceUpper = ordInfo.PresetStopSurplusPrice
 		resp.LimitPriceLower = ordInfo.PresetStopLossPrice
@@ -1230,7 +1230,7 @@ func (bi *Bitget) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		resp.Status = statusDecoder(ordInfo.OrderList[0].Status)
 		resp.Amount = ordInfo.OrderList[0].Size
 		resp.QuoteAmount = ordInfo.OrderList[0].QuoteSize
-		resp.ImmediateOrCancel, resp.FillOrKill, resp.PostOnly = strategyDecoder(ordInfo.OrderList[0].Force)
+		resp.TimeInForce = strategyDecoder(ordInfo.OrderList[0].Force)
 		resp.Date = ordInfo.OrderList[0].CreationTime.Time()
 		resp.LastUpdated = ordInfo.OrderList[0].UpdateTime.Time()
 		resp.Trades = make([]order.TradeHistory, len(fillInfo.Fills))
@@ -1397,6 +1397,7 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 						Amount:        genOrds.OrderList[i].Size,
 						Date:          genOrds.OrderList[i].CreationTime.Time(),
 						LastUpdated:   genOrds.OrderList[i].UpdateTime.Time(),
+						TimeInForce:   strategyDecoder(genOrds.OrderList[i].Force),
 					}
 					if !getOrdersRequest.Pairs[x].IsEmpty() {
 						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
@@ -1406,7 +1407,6 @@ func (bi *Bitget) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 							return nil, err
 						}
 					}
-					tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly = strategyDecoder(genOrds.OrderList[i].Force)
 				}
 				resp = append(resp, tempOrds...)
 			}
@@ -1587,6 +1587,7 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 						AverageExecutedPrice: genOrds.OrderList[i].PriceAverage,
 						Date:                 genOrds.OrderList[i].CreationTime.Time(),
 						LastUpdated:          genOrds.OrderList[i].UpdateTime.Time(),
+						TimeInForce:          strategyDecoder(genOrds.OrderList[i].Force),
 					}
 					if !getOrdersRequest.Pairs[x].IsEmpty() {
 						tempOrds[i].Pair = getOrdersRequest.Pairs[x]
@@ -1596,7 +1597,6 @@ func (bi *Bitget) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 							return nil, err
 						}
 					}
-					tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly = strategyDecoder(genOrds.OrderList[i].Force)
 					if len(fillMap[genOrds.OrderList[i].OrderID]) > 0 {
 						tempOrds[i].Trades = fillMap[genOrds.OrderList[i].OrderID]
 					}
@@ -2235,17 +2235,17 @@ func sideDecoder(d string) order.Side {
 }
 
 // StrategyTruthTable is a helper function that returns the appropriate strategy for a given set of booleans
-func strategyTruthTable(ioc, fok, po bool) (string, error) {
-	if (ioc && fok) || (fok && po) || (ioc && po) {
+func strategyTruthTable(tif order.TimeInForce) (string, error) {
+	if tif.Is(order.ImmediateOrCancel) && tif.Is(order.FillOrKill) || tif.Is(order.FillOrKill) && tif.Is(order.PostOnly) || tif.Is(order.ImmediateOrCancel) && tif.Is(order.PostOnly) {
 		return "", errStrategyMutex
 	}
-	if ioc {
+	if tif.Is(order.ImmediateOrCancel) {
 		return "ioc", nil
 	}
-	if fok {
+	if tif.Is(order.FillOrKill) {
 		return "fok", nil
 	}
-	if po {
+	if tif.Is(order.PostOnly) {
 		return "post_only", nil
 	}
 	return "gtc", nil
@@ -2338,17 +2338,17 @@ func statusDecoder(status string) order.Status {
 	return order.UnknownStatus
 }
 
-// StrategyDecoder is a helper function that returns the appropriate strategy bools for a given string
-func strategyDecoder(s string) (ioc, fok, po bool) {
+// StrategyDecoder is a helper function that returns the appropriate TimeInForce for a given string
+func strategyDecoder(s string) order.TimeInForce {
 	switch strings.ToLower(s) {
 	case "ioc":
-		ioc = true
+		return order.ImmediateOrCancel
 	case "fok":
-		fok = true
+		return order.FillOrKill
 	case "post_only":
-		po = true
+		return order.PostOnly
 	}
-	return
+	return order.UnknownTIF
 }
 
 // TypeDecoder is a helper function that returns the appropriate order type for a given string
@@ -2443,6 +2443,7 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 				LastUpdated:          genOrds.EntrustedList[i].UpdateTime.Time(),
 				LimitPriceUpper:      float64(genOrds.EntrustedList[i].PresetStopSurplusPrice),
 				LimitPriceLower:      float64(genOrds.EntrustedList[i].PresetStopLossPrice),
+				TimeInForce:          strategyDecoder(genOrds.EntrustedList[i].Force),
 			}
 			if !pairCan.IsEmpty() {
 				tempOrds[i].Pair = pairCan
@@ -2452,7 +2453,6 @@ func (bi *Bitget) activeFuturesOrderHelper(ctx context.Context, productType stri
 					return nil, err
 				}
 			}
-			tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly = strategyDecoder(genOrds.EntrustedList[i].Force)
 		}
 		resp = append(resp, tempOrds...)
 	}
@@ -2603,6 +2603,7 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType 
 				LastUpdated:          genOrds.EntrustedList[i].UpdateTime.Time(),
 				LimitPriceUpper:      float64(genOrds.EntrustedList[i].PresetStopSurplusPrice),
 				LimitPriceLower:      float64(genOrds.EntrustedList[i].PresetStopLossPrice),
+				TimeInForce:          strategyDecoder(genOrds.EntrustedList[i].Force),
 			}
 			if !pairCan.IsEmpty() {
 				tempOrds[i].Pair = pairCan
@@ -2612,7 +2613,6 @@ func (bi *Bitget) historicalFuturesOrderHelper(ctx context.Context, productType 
 					return nil, err
 				}
 			}
-			tempOrds[i].ImmediateOrCancel, tempOrds[i].FillOrKill, tempOrds[i].PostOnly = strategyDecoder(genOrds.EntrustedList[i].Force)
 			if len(fillMap[genOrds.EntrustedList[i].OrderID]) > 0 {
 				tempOrds[i].Trades = fillMap[genOrds.EntrustedList[i].OrderID]
 			}
@@ -2840,7 +2840,6 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 					return nil, err
 				}
 			}
-			ioc, fok, po := strategyDecoder(genOrds.EntrustedList[i].Force)
 			tempOrds[thisPair] = append(tempOrds[thisPair], order.Detail{
 				Exchange:             bi.Name,
 				Pair:                 thisPair,
@@ -2862,9 +2861,7 @@ func (bi *Bitget) allFuturesOrderHelper(ctx context.Context, productType string,
 				LastUpdated:          genOrds.EntrustedList[i].UpdateTime.Time(),
 				LimitPriceUpper:      float64(genOrds.EntrustedList[i].PresetStopSurplusPrice),
 				LimitPriceLower:      float64(genOrds.EntrustedList[i].PresetStopLossPrice),
-				ImmediateOrCancel:    ioc,
-				FillOrKill:           fok,
-				PostOnly:             po,
+				TimeInForce:          strategyDecoder(genOrds.EntrustedList[i].Force),
 			})
 		}
 	}

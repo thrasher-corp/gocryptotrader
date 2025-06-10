@@ -141,7 +141,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		s := h.Websocket.GetSubscription(ch)
 		if s == nil {
-			return fmt.Errorf("%w: `%s`", subscription.ErrNotFound, ch)
+			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
 		return h.wsHandleChannelMsgs(s, respRaw)
 	}
@@ -400,7 +400,7 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 	}
 	h.Websocket.DataHandler <- d
 	if o.ErrCode != 0 {
-		return fmt.Errorf("error with order `%s`: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
+		return fmt.Errorf("error with order %q: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
 	}
 	return nil
 }

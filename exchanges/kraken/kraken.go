@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,6 +38,8 @@ const (
 // Kraken is the overarching type across the kraken package
 type Kraken struct {
 	exchange.Base
+	wsAuthToken string
+	wsAuthMtx   sync.RWMutex
 }
 
 // GetCurrentServerTime returns current server time
@@ -790,7 +793,7 @@ func (k *Kraken) AddOrder(ctx context.Context, symbol currency.Pair, side, order
 	}
 
 	if args.TimeInForce != "" {
-		params.Set("timeinforce", string(args.TimeInForce))
+		params.Set("timeinforce", args.TimeInForce)
 	}
 
 	var result AddOrderResponse

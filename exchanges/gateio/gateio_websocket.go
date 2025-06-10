@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -17,6 +18,7 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -59,13 +61,13 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
+	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
 	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 }
-
-var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
 	subscription.TickerChannel:    spotTickerChannel,
@@ -163,7 +165,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+func (g *Gateio) WsHandleSpotData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -187,7 +189,7 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	case spotOrderbookTickerChannel:
 		return g.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
-		return g.processOrderbookUpdate(push.Result, push.Time)
+		return g.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return g.processOrderbookSnapshot(push.Result, push.Time)
 	case spotOrdersChannel:
@@ -195,13 +197,13 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 	case spotUserTradesChannel:
 		return g.processUserPersonalTrades(respRaw)
 	case spotBalancesChannel:
-		return g.processSpotBalances(respRaw)
+		return g.processSpotBalances(ctx, respRaw)
 	case marginBalancesChannel:
-		return g.processMarginBalances(respRaw)
+		return g.processMarginBalances(ctx, respRaw)
 	case spotFundingBalanceChannel:
 		return g.processFundingBalances(respRaw)
 	case crossMarginBalanceChannel:
-		return g.processCrossMarginBalance(respRaw)
+		return g.processCrossMarginBalance(ctx, respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
 	case spotPongChannel:
@@ -358,7 +360,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	}
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Exchange:       g.Name,
-		Pair:           data.CurrencyPair,
+		Pair:           data.Pair,
 		Asset:          asset.Spot,
 		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
@@ -367,41 +369,11 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-
-	if len(data.Asks) == 0 && len(data.Bids) == 0 {
-		return nil
-	}
-
-	enabledAssets := make([]asset.Item, 0, len(standardMarginAssetTypes))
-	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			enabledAssets = append(enabledAssets, a)
-		}
-	}
-
-	sPair := data.CurrencyPair.String()
-	if !fetchedCurrencyPairSnapshotOrderbook[sPair] {
-		orderbooks, err := g.UpdateOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
-		if err != nil {
-			return err
-		}
-		// TODO: handle orderbook update synchronisation
-		for _, a := range enabledAssets {
-			assetOrderbook := *orderbooks
-			assetOrderbook.Asset = a
-			err = g.Websocket.Orderbook.LoadSnapshot(&assetOrderbook)
-			if err != nil {
-				return err
-			}
-		}
-		fetchedCurrencyPairSnapshotOrderbook[sPair] = true
-	}
-
 	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
@@ -412,21 +384,16 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-
-	for _, a := range enabledAssets {
-		if err := g.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateTime:     data.UpdateTime.Time(),
-			UpdatePushedAt: updatePushedAt,
-			Pair:           data.CurrencyPair,
-			Asset:          a,
-			Asks:           asks,
-			Bids:           bids,
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
+		UpdateID:       data.LastUpdateID,
+		UpdateTime:     data.UpdateTime.Time(),
+		UpdatePushedAt: updatePushedAt,
+		Pair:           data.Pair,
+		Asset:          asset.Spot,
+		Asks:           asks,
+		Bids:           bids,
+		AllowEmpty:     true,
+	})
 }
 
 func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
@@ -543,7 +510,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	return g.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processSpotBalances(data []byte) error {
+func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64           `json:"time"`
 		Channel string          `json:"channel"`
@@ -554,21 +521,29 @@ func (g *Gateio) processSpotBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp.Result))
-	for x := range resp.Result {
-		code := currency.NewCode(resp.Result[x].Currency)
-		accountChanges[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Spot,
-			Amount:   resp.Result[x].Available.Float64(),
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
+	for i := range resp.Result {
+		changes[i] = account.Change{
+			Account:   resp.Result[i].User,
+			AssetType: asset.Spot,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Result[i].Currency),
+				Total:     resp.Result[i].Total.Float64(),
+				Free:      resp.Result[i].Available.Float64(),
+				Hold:      resp.Result[i].Total.Float64() - resp.Result[i].Available.Float64(),
+				UpdatedAt: resp.Result[i].Timestamp.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChanges
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
-func (g *Gateio) processMarginBalances(data []byte) error {
+func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64             `json:"time"`
 		Channel string            `json:"channel"`
@@ -579,18 +554,25 @@ func (g *Gateio) processMarginBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accountChange := make([]account.Change, len(resp.Result))
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
-		code := currency.NewCode(resp.Result[x].Currency)
-		accountChange[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available.Float64(),
+		changes[x] = account.Change{
+			AssetType: asset.Margin,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
+				Free:      resp.Result[x].Available.Float64(),
+				Hold:      resp.Result[x].Freeze.Float64(),
+				UpdatedAt: resp.Result[x].Timestamp.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChange
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
 func (g *Gateio) processFundingBalances(data []byte) error {
@@ -608,7 +590,7 @@ func (g *Gateio) processFundingBalances(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processCrossMarginBalance(data []byte) error {
+func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    int64                  `json:"time"`
 		Channel string                 `json:"channel"`
@@ -619,19 +601,25 @@ func (g *Gateio) processCrossMarginBalance(data []byte) error {
 	if err != nil {
 		return err
 	}
-	accountChanges := make([]account.Change, len(resp.Result))
+	creds, err := g.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	changes := make([]account.Change, len(resp.Result))
 	for x := range resp.Result {
-		code := currency.NewCode(resp.Result[x].Currency)
-		accountChanges[x] = account.Change{
-			Exchange: g.Name,
-			Currency: code,
-			Asset:    asset.Margin,
-			Amount:   resp.Result[x].Available.Float64(),
-			Account:  resp.Result[x].User,
+		changes[x] = account.Change{
+			Account:   resp.Result[x].User,
+			AssetType: asset.Margin,
+			Balance: &account.Balance{
+				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Total:     resp.Result[x].Total.Float64(),
+				Free:      resp.Result[x].Available.Float64(),
+				UpdatedAt: resp.Result[x].Timestamp.Time(),
+			},
 		}
 	}
-	g.Websocket.DataHandler <- accountChanges
-	return nil
+	g.Websocket.DataHandler <- changes
+	return account.ProcessChange(g.Name, changes, creds)
 }
 
 func (g *Gateio) processCrossMarginLoans(data []byte) error {
@@ -661,9 +649,10 @@ func (g *Gateio) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 		Funcs(template.FuncMap{
 			"channelName":         channelName,
 			"singleSymbolChannel": singleSymbolChannel,
-			"interval":            g.GetIntervalString,
-		}).
-		Parse(subTplText)
+			"orderbookInterval":   orderbookChannelInterval,
+			"candlesInterval":     candlesChannelInterval,
+			"levels":              channelLevels,
+		}).Parse(subTplText)
 }
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
@@ -761,20 +750,166 @@ func singleSymbolChannel(name string) bool {
 	return false
 }
 
+// ValidateSubscriptions implements the subscription.ListValidator interface.
+// It ensures that, for each orderbook pair asset, only one type of subscription (e.g., best bid/ask, orderbook update, or orderbook snapshot)
+// is active at a time. Multiple concurrent subscriptions for the same asset are disallowed to prevent orderbook data corruption.
+func (g *Gateio) ValidateSubscriptions(l subscription.List) error {
+	orderbookGuard := map[key.PairAsset]string{}
+	for _, s := range l {
+		n := channelName(s)
+		if !isSingleOrderbookChannel(n) {
+			continue
+		}
+		for _, p := range s.Pairs {
+			k := key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: s.Asset}
+			existingChanName, ok := orderbookGuard[k]
+			if !ok {
+				orderbookGuard[k] = n
+				continue
+			}
+			if existingChanName != n {
+				return fmt.Errorf("%w for %q %q between %q and %q, please enable only one type", subscription.ErrExclusiveSubscription, k.Pair(), k.Asset, existingChanName, n)
+			}
+		}
+	}
+	return nil
+}
+
+// isSingleOrderbookChannel checks if the specified channel represents a single orderbook subscription.
+// It returns true for channels like orderbook updates, snapshots, or tickers, as multiple subscriptions
+// for the same pair asset could corrupt the stored orderbook data.
+func isSingleOrderbookChannel(name string) bool {
+	switch name {
+	case spotOrderbookUpdateChannel,
+		spotOrderbookChannel,
+		spotOrderbookTickerChannel,
+		futuresOrderbookChannel,
+		futuresOrderbookTickerChannel,
+		futuresOrderbookUpdateChannel,
+		optionsOrderbookChannel,
+		optionsOrderbookTickerChannel,
+		optionsOrderbookUpdateChannel:
+		return true
+	}
+	return false
+}
+
+var channelIntervalsMap = map[asset.Item]map[string][]kline.Interval{
+	asset.Spot: {
+		spotOrderbookTickerChannel: {},
+		spotOrderbookChannel:       {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+		spotOrderbookUpdateChannel: {kline.TwentyMilliseconds, kline.HundredMilliseconds},
+	},
+	asset.Futures: {
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookChannel:       {0},
+		futuresOrderbookUpdateChannel: {kline.TwentyMilliseconds, kline.HundredMilliseconds},
+	},
+	asset.DeliveryFutures: {
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookChannel:       {0},
+		futuresOrderbookUpdateChannel: {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+	},
+	asset.Options: {
+		optionsOrderbookTickerChannel: {},
+		optionsOrderbookChannel:       {0},
+		optionsOrderbookUpdateChannel: {kline.HundredMilliseconds, kline.ThousandMilliseconds},
+	},
+}
+
+func candlesChannelInterval(s *subscription.Subscription) (string, error) {
+	if s.Channel == subscription.CandlesChannel {
+		return getIntervalString(s.Interval)
+	}
+	return "", nil
+}
+
+func orderbookChannelInterval(s *subscription.Subscription, a asset.Item) (string, error) {
+	cName := channelName(s)
+
+	assetChannels, ok := channelIntervalsMap[a]
+	if !ok {
+		return "", nil
+	}
+
+	switch intervals, ok := assetChannels[cName]; {
+	case !ok:
+		return "", nil
+	case len(intervals) == 0:
+		if s.Interval != 0 {
+			return "", fmt.Errorf("%w for %s: %q; interval not supported for channel", subscription.ErrInvalidInterval, cName, s.Interval)
+		}
+		return "", nil
+	case !slices.Contains(intervals, s.Interval):
+		return "", fmt.Errorf("%w for %s: %q; supported: %q", subscription.ErrInvalidInterval, cName, s.Interval, intervals)
+	case cName == futuresOrderbookUpdateChannel && s.Interval == kline.TwentyMilliseconds && s.Levels != 20:
+		return "", fmt.Errorf("%w for %q: 20ms only valid with Levels 20", subscription.ErrInvalidInterval, cName)
+	case s.Interval == 0:
+		return "0", nil // Do not move this into getIntervalString, it's only valid for ws subs
+	}
+
+	return getIntervalString(s.Interval)
+}
+
+var channelLevelsMap = map[asset.Item]map[string][]int{
+	asset.Spot: {
+		spotOrderbookTickerChannel: {},
+		spotOrderbookUpdateChannel: {},
+		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+	},
+	asset.Futures: {
+		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookUpdateChannel: {20, 50, 100},
+	},
+	asset.DeliveryFutures: {
+		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		futuresOrderbookTickerChannel: {},
+		futuresOrderbookUpdateChannel: {5, 10, 20, 50, 100},
+	},
+	asset.Options: {
+		optionsOrderbookTickerChannel: {},
+		optionsOrderbookUpdateChannel: {5, 10, 20, 50},
+		optionsOrderbookChannel:       {5, 10, 20, 50},
+	},
+}
+
+func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
+	cName := channelName(s)
+	assetChannels, ok := channelLevelsMap[a]
+	if !ok {
+		return "", nil
+	}
+
+	switch levels, ok := assetChannels[cName]; {
+	case !ok:
+		return "", nil
+	case len(levels) == 0:
+		if s.Levels != 0 {
+			return "", fmt.Errorf("%w for %s: `%d`; levels not supported for channel", subscription.ErrInvalidLevel, cName, s.Levels)
+		}
+		return "", nil
+	case !slices.Contains(levels, s.Levels):
+		return "", fmt.Errorf("%w for %s: %d; supported: %v", subscription.ErrInvalidLevel, cName, s.Levels, levels)
+	}
+
+	return strconv.Itoa(s.Levels), nil
+}
+
 const subTplText = `
 {{- with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
-				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
+				{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
 				{{- $p }}
-				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}
-				{{- if hasPrefix "spot.order_book" $name -}} , {{- interval $.S.Interval }}{{ end }}
+				{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
+				{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
 				{{- $.PairSeparator }}
 			{{- end }}
 			{{- $.AssetSeparator }}
 		{{- else }}
-			{{- $pairs.Join }}
+		  {{- $pairs.Join }}
 		{{- end }}
 	{{- end }}
 {{- end }}

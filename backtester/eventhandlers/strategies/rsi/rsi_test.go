@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -40,9 +41,8 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	float14 := float64(14)
 	mappalopalous := make(map[string]any)
 	mappalopalous[rsiPeriodKey] = float14
@@ -50,9 +50,7 @@ func TestSetCustomSettings(t *testing.T) {
 	mappalopalous[rsiHighKey] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	mappalopalous[rsiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
@@ -93,7 +91,7 @@ func TestOnSignal(t *testing.T) {
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -110,13 +108,11 @@ func TestOnSignal(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &kline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
@@ -130,9 +126,7 @@ func TestOnSignal(t *testing.T) {
 
 	s.rsiPeriod = decimal.NewFromInt(1)
 	_, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	da.Item = &gctkline.Item{
 		Exchange: exch,
@@ -151,24 +145,18 @@ func TestOnSignal(t *testing.T) {
 		},
 	}
 	err = da.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da.RangeHolder = ranger
 	err = da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	resp, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.GetDirection() != order.DoNothing {
 		t.Error("expected do nothing")
 	}
@@ -184,7 +172,7 @@ func TestOnSignals(t *testing.T) {
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := &data.Base{}
 	err = d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
@@ -200,14 +188,11 @@ func TestOnSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &kline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,

@@ -150,11 +150,8 @@ var (
 // GetServerTime this endpoint returns the exchange server time.
 func (bi *Binanceus) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	var response ServerTime
-	return response.Timestamp,
-		bi.SendHTTPRequest(ctx,
-			exchange.RestSpotSupplementary,
-			serverTime, spotDefaultRate,
-			&response)
+	err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, serverTime, spotDefaultRate, &response)
+	return response.Timestamp.Time(), err
 }
 
 // GetSystemStatus endpoint to fetch whether the system status is normal or under maintenance.
@@ -312,7 +309,7 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 		if !endTime.IsZero() && endTime.Unix() != 0 {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return endTime.Before(additionalTrades[i].TimeStamp)
+				return endTime.Before(additionalTrades[i].TimeStamp.Time())
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID
@@ -1026,7 +1023,7 @@ func (bi *Binanceus) newOrder(ctx context.Context, api string, o *NewOrderReques
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
 	if o.TimeInForce != "" {
-		params.Set("timeInForce", string(o.TimeInForce))
+		params.Set("timeInForce", o.TimeInForce)
 	}
 	if o.NewClientOrderID != "" {
 		params.Set("newClientOrderId", o.NewClientOrderID)

@@ -179,13 +179,18 @@ type Trade struct {
 
 // Kline stores kline data
 type Kline struct {
-	StartTime time.Time
-	Open      float64
-	Close     float64
-	High      float64
-	Low       float64
-	Volume    float64 // Transaction volume
-	Amount    float64 // Transaction amount
+	StartTime types.Time
+	Open      types.Number
+	Close     types.Number
+	High      types.Number
+	Low       types.Number
+	Volume    types.Number // Transaction volume
+	Amount    types.Number // Transaction amount
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into Kline fields.
+func (k *Kline) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.Close, &k.High, &k.Low, &k.Volume, &k.Amount})
 }
 
 // CurrencyBase represents currency code response details

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -23,7 +25,7 @@ func TestLoad(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	tt := time.Now()
 	d := DataFromKline{
 		Base: &data.Base{},
@@ -49,9 +51,7 @@ func TestLoad(t *testing.T) {
 		},
 	}
 	err = d.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestHasDataAtTime(t *testing.T) {
@@ -60,26 +60,18 @@ func TestHasDataAtTime(t *testing.T) {
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
 	has, err := d.HasDataAtTime(time.Now())
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
-	if has {
-		t.Error("expected false")
-	}
+	require.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	assert.False(t, has)
 
 	d.RangeHolder = &gctkline.IntervalRangeHolder{}
 	has, err = d.HasDataAtTime(time.Now())
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if has {
-		t.Error("expected false")
-	}
+	require.NoError(t, err)
+	assert.False(t, has)
 
 	d.Item = &gctkline.Item{
 		Exchange: exch,
@@ -97,58 +89,38 @@ func TestHasDataAtTime(t *testing.T) {
 			},
 		},
 	}
-	if err = d.Load(); err != nil {
-		t.Error(err)
-	}
-
+	require.NoError(t, d.Load(), "Load must not error")
 	has, err = d.HasDataAtTime(dStart)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if has {
-		t.Error("expected false")
-	}
+	require.NoError(t, err)
+	assert.False(t, has)
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	d.RangeHolder = ranger
 	err = d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	has, err = d.HasDataAtTime(dStart)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if !has {
-		t.Error("expected true")
-	}
+	require.NoError(t, err)
+	assert.True(t, has)
+
 	err = d.SetLive(true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	has, err = d.HasDataAtTime(time.Time{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if has {
-		t.Error("expected false")
-	}
+	require.NoError(t, err)
+	assert.False(t, has)
+
 	has, err = d.HasDataAtTime(dStart)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if !has {
-		t.Error("expected true")
-	}
+	require.NoError(t, err)
+	assert.True(t, has)
 }
 
 func TestAppend(t *testing.T) {
 	t.Parallel()
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	tt1 := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	tt2 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	d := DataFromKline{
@@ -192,14 +164,10 @@ func TestAppend(t *testing.T) {
 	item.Asset = a
 
 	err = d.AppendResults(&item)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.AppendResults(&item)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.AppendResults(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -211,17 +179,14 @@ func TestStreamOpen(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamOpen()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if len(bad) > 0 {
-		t.Error("expected no stream")
-	}
+	require.NoError(t, err)
+	assert.Empty(t, bad, "StreamOpen should return an empty slice when no data is set")
+
 	err = d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
@@ -238,34 +203,27 @@ func TestStreamOpen(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	open, err := d.StreamOpen()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if len(open) == 0 {
-		t.Error("expected open")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, open, "open should not be empty")
 }
 
 func TestStreamVolume(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamVol()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -285,34 +243,27 @@ func TestStreamVolume(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	vol, err := d.StreamVol()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if len(vol) == 0 {
-		t.Error("expected volume")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, vol, "StreamVol should return a non-empty slice")
 }
 
 func TestStreamClose(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamClose()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -333,34 +284,27 @@ func TestStreamClose(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	cl, err := d.StreamClose()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if len(cl) == 0 {
-		t.Error("expected close")
-	}
+	require.NoError(t, err)
+	assert.NotEmpty(t, cl, "StreamClose should return a non-empty slice")
 }
 
 func TestStreamHigh(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamHigh()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -381,17 +325,14 @@ func TestStreamHigh(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	high, err := d.StreamHigh()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(high) == 0 {
 		t.Error("expected high")
 	}
@@ -401,15 +342,14 @@ func TestStreamLow(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
 	a := asset.Spot
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	d := DataFromKline{
 		Base:        &data.Base{},
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	bad, err := d.StreamLow()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -430,18 +370,14 @@ func TestStreamLow(t *testing.T) {
 			Volume: elite,
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	low, err := d.StreamLow()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(low) == 0 {
 		t.Error("expected low")
 	}

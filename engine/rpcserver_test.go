@@ -479,7 +479,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -489,9 +489,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	exch, err = em.NewExchangeByName("Binance")
 	if err != nil {
@@ -499,7 +497,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 	}
 	exch.SetDefaults()
 	b = exch.GetBase()
-	cp = currency.NewPair(currency.BTC, currency.USDT)
+	cp = currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -509,9 +507,8 @@ func RPCTestSetup(t *testing.T) *Engine {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	engerino.ExchangeManager = em
 
 	engerino.Config.Database = dbConf
@@ -774,7 +771,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	// error checks
 	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
 	defaultEnd := time.Date(2020, 0, 0, 1, 0, 0, 0, time.UTC)
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	_, err := s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
 		Exchange: "",
 		Pair: &gctrpc.CurrencyPair{
@@ -935,7 +932,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	// no data found response
 	defaultStart := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UTC()
 	defaultEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UTC()
@@ -1037,7 +1034,7 @@ func TestFindMissingSavedCandleIntervals(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	// no data found response
 	defaultStart := time.Date(2020, 0, 0, 0, 0, 0, 0, time.UTC)
 	defaultEnd := time.Date(2020, 0, 0, 4, 0, 0, 0, time.UTC)
@@ -1149,9 +1146,8 @@ func TestSetExchangeTradeProcessing(t *testing.T) {
 		Features: &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{SaveTradeData: false}},
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.SetExchangeTradeProcessing(t.Context(), &gctrpc.SetExchangeTradeProcessingRequest{Exchange: testExchange, Status: true})
 	if err != nil {
@@ -1275,14 +1271,11 @@ func TestGetAccountInfo(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.GetAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
@@ -1303,15 +1296,12 @@ func TestUpdateAccountInfo(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
 	_, err = s.GetAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	if !errors.Is(err, currency.ErrAssetNotFound) {
@@ -1322,9 +1312,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		Exchange:  fakeExchangeName,
 		AssetType: asset.Spot.String(),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrders(t *testing.T) {
@@ -1338,7 +1326,7 @@ func TestGetOrders(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1348,14 +1336,12 @@ func TestGetOrders(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
@@ -1449,7 +1435,7 @@ func TestGetOrder(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1459,18 +1445,15 @@ func TestGetOrder(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
@@ -1536,16 +1519,16 @@ func TestGetOrder(t *testing.T) {
 func TestCheckVars(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
-	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err := checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
 
 	e = &binance.Binance{}
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
 
 	e.SetEnabled(true)
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParams should error correctly")
 
 	b := e.GetBase()
@@ -1566,7 +1549,7 @@ func TestCheckVars(t *testing.T) {
 		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
 	}
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams should error correctly")
 
 	data := []currency.Pair{
@@ -1576,13 +1559,13 @@ func TestCheckVars(t *testing.T) {
 	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
 	require.NoError(t, err, "StorePairs must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
 
 	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
 	require.NoError(t, err, "EnablePair must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
 	require.NoError(t, err, "checkParams must not error")
 }
 
@@ -1658,7 +1641,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USD)
+	cp := currency.NewBTCUSD()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:    currency.Pairs{cp},
@@ -1666,9 +1649,8 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		AssetEnabled: true,
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{Engine: &Engine{dataHistoryManager: m, ExchangeManager: em}}
 	_, err = s.UpsertDataHistoryJob(t.Context(), nil)
 	if !errors.Is(err, errNilRequestData) {
@@ -1699,9 +1681,7 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	}
 
 	_, err = s.UpsertDataHistoryJob(t.Context(), job)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetDataHistoryJobDetails(t *testing.T) {
@@ -1713,15 +1693,13 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 		Nickname:  "TestGetDataHistoryJobDetails",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = s.GetDataHistoryJobDetails(t.Context(), nil)
 	if !errors.Is(err, errNilRequestData) {
@@ -1739,19 +1717,14 @@ func TestGetDataHistoryJobDetails(t *testing.T) {
 	}
 
 	_, err = s.GetDataHistoryJobDetails(t.Context(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobDetails"})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = s.GetDataHistoryJobDetails(t.Context(), &gctrpc.GetDataHistoryJobDetailsRequest{Id: dhj.ID.String()})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	resp, err := s.GetDataHistoryJobDetails(t.Context(), &gctrpc.GetDataHistoryJobDetailsRequest{Nickname: "TestGetDataHistoryJobDetails", FullDetails: true})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, expected %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	if resp == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected job")
 	}
@@ -1769,15 +1742,14 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 		Nickname:  "TestDeleteDataHistoryJob",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
 	err := m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, expected %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	_, err = s.SetDataHistoryJobStatus(t.Context(), nil)
 	if !errors.Is(err, errNilRequestData) {
 		t.Errorf("received %v, expected %v", err, errNilRequestData)
@@ -1795,24 +1767,21 @@ func TestSetDataHistoryJobStatus(t *testing.T) {
 
 	id := dhj.ID
 	_, err = s.SetDataHistoryJobStatus(t.Context(), &gctrpc.SetDataHistoryJobStatusRequest{Nickname: "TestDeleteDataHistoryJob", Status: int64(dataHistoryStatusRemoved)})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	dhj.ID = id
 	j.Status = int64(dataHistoryStatusActive)
 	_, err = s.SetDataHistoryJobStatus(t.Context(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusRemoved)})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = s.SetDataHistoryJobStatus(t.Context(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusActive)})
 	if !errors.Is(err, errBadStatus) {
 		t.Errorf("received %v, expected %v", err, errBadStatus)
 	}
 	j.Status = int64(dataHistoryStatusActive)
 	_, err = s.SetDataHistoryJobStatus(t.Context(), &gctrpc.SetDataHistoryJobStatusRequest{Id: id.String(), Status: int64(dataHistoryStatusPaused)})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if j.Status != int64(dataHistoryStatusPaused) {
 		t.Errorf("received %v, expected %v", dataHistoryStatus(j.Status), dataHistoryStatusPaused)
 	}
@@ -1827,20 +1796,16 @@ func TestGetActiveDataHistoryJobs(t *testing.T) {
 		Nickname:  "TestGetActiveDataHistoryJobs",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
 	}
-
-	if err := m.UpsertJob(dhj, false); !errors.Is(err, nil) {
-		t.Fatalf("received %v, expected %v", err, nil)
-	}
+	require.NoError(t, m.UpsertJob(dhj, false))
 
 	r, err := s.GetActiveDataHistoryJobs(t.Context(), nil)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, expected %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(r.Results) != 1 {
 		t.Fatalf("received %v, expected %v", len(r.Results), 1)
 	}
@@ -1855,7 +1820,7 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 		Nickname:  "GetDataHistoryJobsBetween",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1875,17 +1840,14 @@ func TestGetDataHistoryJobsBetween(t *testing.T) {
 	}
 
 	err = m.UpsertJob(dhj, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received %v, expected %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	r, err := s.GetDataHistoryJobsBetween(t.Context(), &gctrpc.GetDataHistoryJobsBetweenRequest{
 		StartDate: time.Now().Add(-time.Minute).UTC().Format(common.SimpleTimeFormatWithTimezone),
 		EndDate:   time.Now().Add(time.Minute).UTC().Format(common.SimpleTimeFormatWithTimezone),
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(r.Results) != 1 {
 		t.Errorf("received %v, expected %v", len(r.Results), 1)
 	}
@@ -1900,7 +1862,7 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 		Nickname:  "TestGetDataHistoryJobSummary",
 		Exchange:  testExchange,
 		Asset:     asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USD),
+		Pair:      currency.NewBTCUSD(),
 		StartDate: time.Now().UTC().Add(-time.Minute * 2),
 		EndDate:   time.Now().UTC(),
 		Interval:  kline.OneMin,
@@ -1929,7 +1891,7 @@ func TestGetManagedOrders(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewPair(currency.BTC, currency.USDT)
+	cp := currency.NewBTCUSDT()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1939,14 +1901,12 @@ func TestGetManagedOrders(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
@@ -2002,7 +1962,7 @@ func TestGetManagedOrders(t *testing.T) {
 		Side:      order.Sell,
 		Status:    order.New,
 		AssetType: asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 	}
 	err = om.Add(&o)
 	if err != nil {
@@ -2139,17 +2099,13 @@ func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
 	_, err = s.UpdateDataHistoryJobPrerequisite(t.Context(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
 		Nickname: "test456",
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = s.UpdateDataHistoryJobPrerequisite(t.Context(), &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
 		Nickname:                "test456",
 		PrerequisiteJobNickname: "test123",
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCurrencyStateGetAll(t *testing.T) {
@@ -2249,9 +2205,8 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{Engine: &Engine{
 		ExchangeManager:      em,
 		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em},
@@ -2263,9 +2218,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 			Pair:     "btc-usd",
 			Asset:    "spot",
 		})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetFuturesPositionsOrders(t *testing.T) {
@@ -2305,14 +2258,12 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{
 		Engine: &Engine{
@@ -2334,9 +2285,7 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 			Quote:     cp.Quote.String(),
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
@@ -2364,9 +2313,7 @@ func TestGetCollateral(t *testing.T) {
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-usd")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
@@ -2386,9 +2333,8 @@ func TestGetCollateral(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{
 		Engine: &Engine{
 			ExchangeManager: em,
@@ -2425,9 +2371,8 @@ func TestGetCollateral(t *testing.T) {
 		Asset:            asset.Futures.String(),
 		IncludeBreakdown: true,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(r.CurrencyBreakdown) != 3 {
 		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
 	}
@@ -2450,9 +2395,7 @@ func TestGetCollateral(t *testing.T) {
 		IncludeBreakdown: true,
 		CalculateOffline: true,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestShutdown(t *testing.T) {
@@ -2471,9 +2414,7 @@ func TestShutdown(t *testing.T) {
 
 	s.Engine.GRPCShutdownSignal = make(chan struct{}, 1)
 	_, err = s.Shutdown(t.Context(), &gctrpc.ShutdownRequest{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetTechnicalAnalysis(t *testing.T) {
@@ -2489,9 +2430,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-usd")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
@@ -2509,9 +2448,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneDay})
 	err = em.Add(fExchange{IBotExchange: exch})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{
 		Engine: &Engine{
 			ExchangeManager: em,
@@ -2560,9 +2498,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Interval:      int64(kline.OneDay),
 		AlgorithmType: "twap",
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if resp.Signals["TWAP"].Signals[0] != 1337 {
 		t.Fatalf("received: '%v' but expected: '%v'", resp.Signals["TWAP"].Signals[0], 1337)
@@ -2575,9 +2511,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Interval:      int64(kline.OneDay),
 		AlgorithmType: "vwap",
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["VWAP"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["VWAP"].Signals), 33)
@@ -2591,9 +2525,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "atr",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["ATR"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["ATR"].Signals), 33)
@@ -2609,9 +2541,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		StandardDeviationUp:   0.5,
 		StandardDeviationDown: 0.5,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["UPPER"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["UPPER"].Signals), 33)
@@ -2634,9 +2564,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "COCO",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["COCO"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["COCO"].Signals), 33)
@@ -2650,9 +2578,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "sma",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["SMA"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["SMA"].Signals), 33)
@@ -2666,9 +2592,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "ema",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["EMA"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["EMA"].Signals), 33)
@@ -2684,9 +2608,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		FastPeriod:    12,
 		SlowPeriod:    26,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["MACD"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MACD"].Signals), 33)
@@ -2708,9 +2630,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "mfi",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["MFI"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["MFI"].Signals), 33)
@@ -2724,9 +2644,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "obv",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["OBV"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["OBV"].Signals), 33)
@@ -2740,9 +2658,7 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		AlgorithmType: "rsi",
 		Period:        9,
 	})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if len(resp.Signals["RSI"].Signals) != 33 {
 		t.Fatalf("received: '%v' but expected: '%v'", len(resp.Signals["RSI"].Signals), 33)
@@ -2761,9 +2677,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	b.Enabled = true
 
 	cp, err := currency.NewPairFromString("btc-usd")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
@@ -2776,9 +2690,8 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	s := RPCServer{
 		Engine: &Engine{
 			ExchangeManager: em,
@@ -2812,9 +2725,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	request.Currency = "usd"
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	request.GetBorrowRates = true
 	request.GetLendingPayments = true
@@ -2822,9 +2733,8 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	request.GetPredictedRate = true
 	request.IncludeAllRates = true
 	resp, err := s.GetMarginRatesHistory(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp.Rates) == 0 {
 		t.Errorf("received '%v' expected '%v'", len(resp.Rates), 1)
 	}
@@ -2872,9 +2782,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 	}
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	request.Rates = []*gctrpc.MarginRate{
 		{
@@ -2885,9 +2793,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 		},
 	}
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetFundingRates(t *testing.T) {
@@ -2935,14 +2841,12 @@ func TestGetFundingRates(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{
 		Engine: &Engine{
@@ -2993,9 +2897,7 @@ func TestGetFundingRates(t *testing.T) {
 	request.IncludePredicted = true
 	request.IncludePayments = true
 	_, err = s.GetFundingRates(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetLatestFundingRate(t *testing.T) {
@@ -3041,14 +2943,12 @@ func TestGetLatestFundingRate(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{
 		Engine: &Engine{
@@ -3095,9 +2995,7 @@ func TestGetLatestFundingRate(t *testing.T) {
 	}
 	request.IncludePredicted = true
 	_, err = s.GetLatestFundingRate(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetManagedPosition(t *testing.T) {
@@ -3141,14 +3039,12 @@ func TestGetManagedPosition(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{
 		Engine: &Engine{
@@ -3195,9 +3091,8 @@ func TestGetManagedPosition(t *testing.T) {
 
 	request.Asset = asset.Futures.String()
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	s.OrderManager.started = 1
 	s.OrderManager.activelyTrackFuturesPositions = true
 	_, err = s.GetManagedPosition(t.Context(), request)
@@ -3233,13 +3128,10 @@ func TestGetManagedPosition(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = s.GetManagedPosition(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAllManagedPositions(t *testing.T) {
@@ -3283,14 +3175,12 @@ func TestGetAllManagedPositions(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	var wg sync.WaitGroup
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	om.started = 1
 	s := RPCServer{
 		Engine: &Engine{
@@ -3309,9 +3199,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 
 	request := &gctrpc.GetAllManagedPositionsRequest{}
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour, ActivelyTrackFuturesPositions: true})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	s.OrderManager.started = 1
 	_, err = s.GetAllManagedPositions(t.Context(), request)
 	if !errors.Is(err, futures.ErrNoPositionsFound) {
@@ -3340,17 +3229,14 @@ func TestGetAllManagedPositions(t *testing.T) {
 		LastUpdated:          time.Now(),
 		Pair:                 cp2,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	request.IncludePredictedRate = true
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
 	_, err = s.GetAllManagedPositions(t.Context(), request)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrderbookMovement(t *testing.T) {
@@ -3383,9 +3269,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
@@ -3446,9 +3330,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 	req.Amount = 11
 	move, err := s.GetOrderbookMovement(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if move.Bought != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", move.Bought, 1)
@@ -3457,9 +3339,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 	req.Sell = true
 	req.Amount = 1
 	move, err = s.GetOrderbookMovement(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if move.Bought != 10 {
 		t.Fatalf("received: '%v' but expected: '%v'", move.Bought, 10)
@@ -3496,9 +3376,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
@@ -3553,9 +3431,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	}
 
 	nominal, err := s.GetOrderbookAmountByNominal(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if nominal.AmountRequired != 11 {
 		t.Fatalf("received: '%v' but expected: '%v'", nominal.AmountRequired, 11)
@@ -3563,9 +3439,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	req.Sell = true
 	nominal, err = s.GetOrderbookAmountByNominal(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if nominal.AmountRequired != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", nominal.AmountRequired, 1)
@@ -3602,9 +3476,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 
@@ -3660,9 +3532,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	req.ImpactPercentage = 9.090909090909092
 	impact, err := s.GetOrderbookAmountByImpact(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if impact.AmountRequired != 11 {
 		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 11)
@@ -3671,9 +3541,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	req.Sell = true
 	req.ImpactPercentage = 10
 	impact, err = s.GetOrderbookAmountByImpact(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if impact.AmountRequired != 1 {
 		t.Fatalf("received: '%v' but expected: '%v'", impact.AmountRequired, 1)
@@ -3710,9 +3578,7 @@ func TestChangePositionMargin(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.ChangePositionMargin(t.Context(), nil)
@@ -3738,9 +3604,7 @@ func TestChangePositionMargin(t *testing.T) {
 	req.NewAllocatedMargin = 1338
 	req.MarginType = "isolated"
 	_, err = s.ChangePositionMargin(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetLeverage(t *testing.T) {
@@ -3773,9 +3637,7 @@ func TestSetLeverage(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.SetLeverage(t.Context(), nil)
@@ -3804,9 +3666,7 @@ func TestSetLeverage(t *testing.T) {
 	req.MarginType = "isolated"
 	req.Leverage = 1337
 	_, err = s.SetLeverage(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	req.OrderSide = "lol"
 	_, err = s.SetLeverage(t.Context(), req)
@@ -3816,9 +3676,7 @@ func TestSetLeverage(t *testing.T) {
 
 	req.OrderSide = order.Long.String()
 	_, err = s.SetLeverage(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetLeverage(t *testing.T) {
@@ -3851,9 +3709,7 @@ func TestGetLeverage(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.GetLeverage(t.Context(), nil)
@@ -3881,9 +3737,8 @@ func TestGetLeverage(t *testing.T) {
 	req.Asset = asset.USDTMarginedFutures.String()
 	req.MarginType = "isolated"
 	lev, err := s.GetLeverage(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
+
 	if lev.Leverage != 1337 {
 		t.Errorf("received '%v' expected '%v'", lev, 1337)
 	}
@@ -3896,9 +3751,7 @@ func TestGetLeverage(t *testing.T) {
 
 	req.OrderSide = order.Long.String()
 	_, err = s.GetLeverage(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetMarginType(t *testing.T) {
@@ -3931,9 +3784,7 @@ func TestSetMarginType(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.SetMarginType(t.Context(), nil)
@@ -3956,9 +3807,7 @@ func TestSetMarginType(t *testing.T) {
 	req.Asset = asset.USDTMarginedFutures.String()
 	req.MarginType = "isolated"
 	_, err = s.SetMarginType(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetCollateralMode(t *testing.T) {
@@ -3991,9 +3840,7 @@ func TestSetCollateralMode(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.SetCollateralMode(t.Context(), nil)
@@ -4011,9 +3858,7 @@ func TestSetCollateralMode(t *testing.T) {
 	req.Asset = asset.USDTMarginedFutures.String()
 	req.CollateralMode = "single"
 	_, err = s.SetCollateralMode(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCollateralMode(t *testing.T) {
@@ -4036,9 +3881,7 @@ func TestGetCollateralMode(t *testing.T) {
 		IBotExchange: exch,
 	}
 	err = em.Add(fakeExchange)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.GetCollateralMode(t.Context(), nil)
@@ -4055,9 +3898,7 @@ func TestGetCollateralMode(t *testing.T) {
 	req.Exchange = fakeExchangeName
 	req.Asset = asset.USDTMarginedFutures.String()
 	_, err = s.GetCollateralMode(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOpenInterest(t *testing.T) {
@@ -4146,10 +3987,10 @@ func TestStartRPCRESTProxy(t *testing.T) {
 
 	certFile := filepath.Join(tempDirTLS, "cert.pem")
 	caCert, err := os.ReadFile(certFile)
-	require.NoError(t, err, "ReadFile should not error")
+	require.NoError(t, err, "ReadFile must not error")
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(caCert)
-	require.True(t, ok, "AppendCertsFromPEM should return true")
+	require.True(t, ok, "AppendCertsFromPEM must return true")
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}}
 
 	for _, creds := range []struct {
@@ -4166,23 +4007,23 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			t.Parallel()
 
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
-			require.NoError(t, err, "NewRequestWithContext should not error")
+			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
 			resp, err := client.Do(req)
-			require.NoError(t, err, "Do should not error")
+			require.NoError(t, err, "Do must not error")
 			defer resp.Body.Close()
 
 			if creds.username == "bobmarley" && creds.password == "Sup3rdup3rS3cr3t" {
 				var info gctrpc.GetInfoResponse
 				err = json.NewDecoder(resp.Body).Decode(&info)
-				require.NoError(t, err, "Decode should not error")
+				require.NoError(t, err, "Decode must not error")
 
 				uptimeDuration, err := time.ParseDuration(info.Uptime)
-				require.NoError(t, err, "ParseDuration should not error")
+				require.NoError(t, err, "ParseDuration must not error")
 				assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
 			} else {
 				respBody, err := io.ReadAll(resp.Body)
-				require.NoError(t, err, "ReadAll should not error")
+				require.NoError(t, err, "ReadAll must not error")
 				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "HTTP status code should be 401")
 				assert.Equal(t, "Access denied\n", string(respBody), "Response body should be 'Access denied\n'")
 			}
@@ -4225,7 +4066,7 @@ func TestRPCProxyAuthClient(t *testing.T) {
 			t.Parallel()
 
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
-			require.NoError(t, err, "NewRequestWithContext should not error")
+			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
@@ -4254,8 +4095,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  true,
-		Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
-		Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
+		Available:     []currency.Pair{currency.NewBTCUSDT()},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	})

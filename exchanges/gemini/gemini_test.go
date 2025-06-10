@@ -53,7 +53,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	if !pairs.Contains(currency.NewPair(currency.STORJ, currency.USD), false) {
 		t.Error("expected pair STORJ-USD")
 	}
-	if !pairs.Contains(currency.NewPair(currency.BTC, currency.USD), false) {
+	if !pairs.Contains(currency.NewBTCUSD(), false) {
 		t.Error("expected pair BTC-USD")
 	}
 	if !pairs.Contains(currency.NewPair(currency.AAVE, currency.USD), false) {
@@ -430,7 +430,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	orderCancellation := &order.Cancel{
 		OrderID:   "266029865",
 		AssetType: asset.Spot,
-		Pair:      currency.NewPair(currency.BTC, currency.USDT),
+		Pair:      currency.NewBTCUSDT(),
 	}
 
 	err := g.CancelOrder(t.Context(), orderCancellation)
@@ -1293,8 +1293,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	for _, a := range g.GetAssetTypes(false) {
 		pairs, err := g.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := g.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

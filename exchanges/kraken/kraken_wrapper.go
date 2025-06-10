@@ -53,12 +53,12 @@ func (k *Kraken) SetDefaults() {
 			ps.RequestFormat.Delimiter = currency.UnderscoreDelimiter
 		}
 		if err := k.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", k.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", k.Name, a, err)
 		}
 	}
 
 	if err := k.DisableAssetWebsocketSupport(asset.Futures); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", k.Name, asset.Futures, err)
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", k.Name, asset.Futures, err)
 	}
 
 	k.Features = exchange.Features{
@@ -697,9 +697,12 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := RequestParamsTimeGTC
-		if s.ImmediateOrCancel {
-			timeInForce = RequestParamsTimeIOC
+		var timeInForce string
+		switch {
+		case s.TimeInForce.Is(order.GoodTillDay):
+			timeInForce = "GTD"
+		case s.TimeInForce.Is(order.ImmediateOrCancel):
+			timeInForce = "IOC"
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
@@ -745,7 +748,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			"",
 			s.ClientOrderID,
 			"",
-			s.ImmediateOrCancel,
+			s.TimeInForce,
 			s.Amount,
 			s.Price,
 			0,
@@ -1433,10 +1436,12 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 	resp, err := k.GetWebsocketToken(ctx)
-	if resp != "" {
-		authToken = resp
+	if err != nil {
+		return err
 	}
-	return err
+
+	k.setWebsocketAuthToken(resp)
+	return nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper

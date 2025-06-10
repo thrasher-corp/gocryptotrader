@@ -42,8 +42,8 @@ var testExchange = "Bitstamp"
 func CreateTestBot(tb testing.TB) *Engine {
 	tb.Helper()
 	cFormat := &currency.PairFormat{Uppercase: true}
-	cp1 := currency.NewPair(currency.BTC, currency.USD)
-	cp2 := currency.NewPair(currency.BTC, currency.USDT)
+	cp1 := currency.NewBTCUSD()
+	cp2 := currency.NewBTCUSDT()
 
 	pairs1 := map[asset.Item]*currency.PairStore{
 		asset.Spot: {
@@ -112,9 +112,8 @@ func TestGetRPCEndpoints(t *testing.T) {
 	}
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(m) != 4 {
 		t.Fatalf("expected length: %d but received: %d", 4, len(m))
 	}
@@ -377,8 +376,8 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 				CurrencyPairs: &currency.PairsManager{Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
 						AssetEnabled: true,
-						Enabled:      currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
-						Available:    currency.Pairs{currency.NewPair(currency.BTC, currency.USD), currency.NewPair(currency.BTC, c)},
+						Enabled:      currency.Pairs{currency.NewBTCUSD(), currency.NewPair(currency.BTC, c)},
+						Available:    currency.Pairs{currency.NewBTCUSD(), currency.NewPair(currency.BTC, c)},
 						ConfigFormat: &currency.PairFormat{
 							Uppercase: true,
 						},
@@ -390,7 +389,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 	assetType := asset.Spot
 
 	result := e.GetSpecificAvailablePairs(true, true, true, true, assetType)
-	btcUSD := currency.NewPair(currency.BTC, currency.USD)
+	btcUSD := currency.NewBTCUSD()
 	if !result.Contains(btcUSD, true) {
 		t.Error("Unexpected result")
 	}
@@ -682,7 +681,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 	e := CreateTestBot(t)
 
 	pairs := []currency.Pair{
-		currency.NewPair(currency.BTC, currency.USD),
+		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
 
@@ -956,11 +955,11 @@ func createDepositEngine(opts *fakeDepositExchangeOpts) *Engine {
 	ps := currency.PairStore{
 		AssetEnabled: true,
 		Enabled: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 			currency.NewPair(currency.XRP, currency.USDT),
 		},
 		Available: currency.Pairs{
-			currency.NewPair(currency.BTC, currency.USDT),
+			currency.NewBTCUSDT(),
 			currency.NewPair(currency.XRP, currency.USDT),
 		},
 	}
@@ -1094,9 +1093,7 @@ func TestGetExchangeNames(t *testing.T) {
 		if exch != nil {
 			exch.SetDefaults()
 			err = bot.ExchangeManager.Add(exch)
-			if !errors.Is(err, nil) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-			}
+			require.NoError(t, err)
 		}
 	}
 	if e := bot.GetExchangeNames(false); len(e) != len(bot.Config.Exchanges) {

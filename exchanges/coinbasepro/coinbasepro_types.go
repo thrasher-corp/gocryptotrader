@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Product holds product information
@@ -49,12 +51,17 @@ type Trade struct {
 
 // History holds historic rate information
 type History struct {
-	Time   time.Time
+	Time   types.Time
 	Low    float64
 	High   float64
 	Open   float64
 	Close  float64
 	Volume float64
+}
+
+// UnmarshalJSON deserilizes kline data from a JSON array into History fields.
+func (h *History) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&h.Time, &h.Low, &h.High, &h.Open, &h.Close, &h.Volume})
 }
 
 // Stats holds last 24 hr data for coinbasepro
@@ -488,17 +495,6 @@ type wsStatus struct {
 	} `json:"products"`
 	Type string `json:"type"`
 }
-
-// RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
-
-var (
-	// CoinbaseRequestParamsTimeGTC GTC
-	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
-
-	// CoinbaseRequestParamsTimeIOC IOC
-	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
 
 // TransferHistory returns wallet transfer history
 type TransferHistory struct {

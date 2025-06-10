@@ -2673,19 +2673,15 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := bi.SubmitOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, order.ErrSubmissionIsNil)
 	ord = &order.Submit{
-		Exchange:          bi.Name,
-		Pair:              testPair,
-		AssetType:         asset.Binary,
-		Side:              order.Sell,
-		Type:              order.Limit,
-		Amount:            testAmount,
-		Price:             testPrice,
-		ImmediateOrCancel: true,
-		PostOnly:          true,
+		Exchange:    bi.Name,
+		Pair:        testPair,
+		AssetType:   asset.Binary,
+		Side:        order.Sell,
+		Type:        order.Limit,
+		Amount:      testAmount,
+		Price:       testPrice,
+		TimeInForce: order.ImmediateOrCancel,
 	}
-	_, err = bi.SubmitOrder(t.Context(), ord)
-	assert.ErrorIs(t, err, errStrategyMutex)
-	ord.PostOnly = false
 	_, err = bi.SubmitOrder(t.Context(), ord)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	ord.AssetType = asset.Futures
@@ -2696,7 +2692,7 @@ func TestSubmitOrder(t *testing.T) {
 	_, err = bi.SubmitOrder(t.Context(), ord)
 	assert.NoError(t, err)
 	ord.AssetType = asset.CrossMargin
-	ord.ImmediateOrCancel = false
+	ord.TimeInForce = order.UnknownTIF
 	ord.Side = order.Buy
 	ord.Amount = testAmount2
 	ord.Price = testPrice2

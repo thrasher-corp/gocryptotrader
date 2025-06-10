@@ -91,7 +91,7 @@ func TestRetrieve(t *testing.T) {
 	mirrored := reflect.Indirect(reflect.ValueOf(d.options))
 	for n := range mirrored.NumField() {
 		structVal := mirrored.Field(n)
-		assert.Falsef(t, structVal.IsZero(), "struct field '%s' not tested", mirrored.Type().Field(n).Name)
+		assert.Falsef(t, structVal.IsZero(), "struct field %q not tested", mirrored.Type().Field(n).Name)
 	}
 
 	ob, err := d.Retrieve()
@@ -743,7 +743,7 @@ func TestMovementMethods(t *testing.T) {
 						assert.InDeltaf(t, field.Float(), expect.Float(), accuracy10dp, "sub test %d movement %s should be correct", i, meta.Type().Field(j).Name)
 					}
 				}
-				assert.Equal(t, subT.expect.FullBookSideConsumed, move.FullBookSideConsumed, "sub test %d movement FullBookSideConsumed should be correct", i)
+				assert.Equalf(t, subT.expect.FullBookSideConsumed, move.FullBookSideConsumed, "sub test %d movement FullBookSideConsumed should be correct", i)
 			}
 		})
 	}

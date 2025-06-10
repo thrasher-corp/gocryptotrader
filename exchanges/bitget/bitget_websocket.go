@@ -599,7 +599,6 @@ func (bi *Bitget) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) er
 			if err != nil {
 				return err
 			}
-			ioc, fok, po := strategyDecoder(orders[i].Force)
 			var baseAmount, quoteAmount float64
 			side := sideDecoder(orders[i].Side)
 			if side == order.Buy {
@@ -622,9 +621,7 @@ func (bi *Bitget) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) er
 				Amount:               baseAmount,
 				QuoteAmount:          quoteAmount,
 				Type:                 orderType,
-				ImmediateOrCancel:    ioc,
-				FillOrKill:           fok,
-				PostOnly:             po,
+				TimeInForce:          strategyDecoder(orders[i].Force),
 				Side:                 side,
 				AverageExecutedPrice: orders[i].PriceAverage,
 				Status:               statusDecoder(orders[i].Status),
@@ -649,7 +646,6 @@ func (bi *Bitget) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) er
 			if err != nil {
 				return err
 			}
-			ioc, fok, po := strategyDecoder(orders[i].Force)
 			var baseAmount, quoteAmount float64
 			side := sideDecoder(orders[i].Side)
 			if side == order.Buy {
@@ -669,9 +665,7 @@ func (bi *Bitget) genOrderDataHandler(wsResponse *WsResponse, respRaw []byte) er
 				Amount:               baseAmount,
 				QuoteAmount:          quoteAmount,
 				Type:                 orderType,
-				ImmediateOrCancel:    ioc,
-				FillOrKill:           fok,
-				PostOnly:             po,
+				TimeInForce:          strategyDecoder(orders[i].Force),
 				Side:                 side,
 				ExecutedAmount:       orders[i].FilledQuantity,
 				Date:                 orders[i].CreationTime.Time(),
@@ -907,7 +901,6 @@ func (bi *Bitget) marginOrderDataHandler(wsResponse *WsResponse) error {
 		return err
 	}
 	for i := range orders {
-		ioc, fok, po := strategyDecoder(orders[i].Force)
 		resp[i] = order.Detail{
 			Exchange:             bi.Name,
 			Pair:                 pair,
@@ -918,9 +911,7 @@ func (bi *Bitget) marginOrderDataHandler(wsResponse *WsResponse) error {
 			Amount:               orders[i].BaseSize,
 			QuoteAmount:          orders[i].QuoteSize,
 			Type:                 typeDecoder(orders[i].OrderType),
-			ImmediateOrCancel:    ioc,
-			FillOrKill:           fok,
-			PostOnly:             po,
+			TimeInForce:          strategyDecoder(orders[i].Force),
 			Side:                 sideDecoder(orders[i].Side),
 			Status:               statusDecoder(orders[i].Status),
 			Date:                 orders[i].CreationTime.Time(),
@@ -968,6 +959,11 @@ func (bi *Bitget) isolatedAccountDataHandler(wsResponse *WsResponse) error {
 
 // AccountUpdateDataHandler
 func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byte) error {
+	creds, err := bi.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
+	var resp []account.Change
 	switch itemDecoder(wsResponse.Arg.InstrumentType) {
 	case asset.Spot:
 		var acc []WsAccountSpotResponse
@@ -978,10 +974,14 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 		resp := make([]account.Change, len(acc))
 		for i := range acc {
 			resp[i] = account.Change{
-				Exchange: bi.Name,
-				Currency: acc[i].Coin,
-				Asset:    asset.Spot,
-				Amount:   acc[i].Available,
+				AssetType: asset.Spot,
+				Balance: &account.Balance{
+					Currency:  acc[i].Coin,
+					Hold:      acc[i].Frozen + acc[i].Locked,
+					Free:      acc[i].Available,
+					Total:     acc[i].Available + acc[i].Frozen + acc[i].Locked,
+					UpdatedAt: acc[i].UpdateTime.Time(),
+				},
 			}
 		}
 		bi.Websocket.DataHandler <- resp
@@ -994,17 +994,20 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 		resp := make([]account.Change, len(acc))
 		for i := range acc {
 			resp[i] = account.Change{
-				Exchange: bi.Name,
-				Currency: acc[i].MarginCoin,
-				Asset:    asset.Futures,
-				Amount:   acc[i].Available,
+				AssetType: asset.Futures,
+				Balance: &account.Balance{
+					Currency: acc[i].MarginCoin,
+					Hold:     acc[i].Frozen,
+					Free:     acc[i].Available,
+					Total:    acc[i].Available + acc[i].Frozen,
+				},
 			}
 		}
 		bi.Websocket.DataHandler <- resp
 	default:
 		bi.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: bi.Name + websocket.UnhandledMessage + string(respRaw)}
 	}
-	return nil
+	return account.ProcessChange(bi.Name, resp, creds)
 }
 
 // TrancheConstructor turns the exchange's orderbook data into a standardised format for the engine

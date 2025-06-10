@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 )
@@ -46,18 +48,15 @@ func TestGetCredentials(t *testing.T) {
 		Secret: "aGVsbG8gd29ybGQ=",
 	})
 	creds, err := b.GetCredentials(ctx)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
+
 	if creds.Secret != expectedBase64DecodedOutput {
 		t.Fatalf("received: %v but expected: %v", creds.Secret, expectedBase64DecodedOutput)
 	}
 
 	ctx = context.WithValue(t.Context(), account.ContextCredentialsFlag, "pewpew")
 	_, err = b.GetCredentials(ctx)
-	if !errors.Is(err, errContextCredentialsFailure) {
-		t.Fatalf("received: %v but expected: %v", err, errContextCredentialsFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 	fullCred := &account.Credentials{
@@ -71,9 +70,7 @@ func TestGetCredentials(t *testing.T) {
 
 	ctx = account.DeployCredentialsToContext(t.Context(), fullCred)
 	creds, err = b.GetCredentials(ctx)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if creds.Key != "superkey" &&
 		creds.Secret != "supersecret" &&
@@ -105,9 +102,7 @@ func TestGetCredentials(t *testing.T) {
 
 	ctx = context.WithValue(t.Context(), account.ContextSubAccountFlag, "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if overridedSA.Key != "hello" &&
 		overridedSA.Secret != "sir" &&
@@ -117,9 +112,7 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	notOverrided, err := b.GetCredentials(t.Context())
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	if notOverrided.Key != "hello" &&
 		notOverrided.Secret != "sir" &&

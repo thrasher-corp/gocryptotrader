@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -15,13 +16,11 @@ func TestMatchesExchange(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !baseItem.MatchesExchange(quoteItem) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
@@ -37,13 +36,11 @@ func TestMatchesItemCurrency(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
 	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if baseItem.MatchesItemCurrency(quoteItem) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
@@ -72,9 +69,7 @@ func TestReserve(t *testing.T) {
 
 	i.available = elite
 	err = i.Reserve(elite)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = i.Reserve(elite)
 	if !errors.Is(err, errCannotAllocate) {
@@ -91,9 +86,8 @@ func TestIncreaseAvailable(t *testing.T) {
 	t.Parallel()
 	i := Item{}
 	err := i.IncreaseAvailable(elite)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !i.available.Equal(elite) {
 		t.Errorf("expected %v", elite)
 	}
@@ -120,15 +114,11 @@ func TestRelease(t *testing.T) {
 	}
 	i.reserved = elite
 	err = i.Release(elite, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	i.reserved = elite
 	err = i.Release(elite, one)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = i.Release(neg, decimal.Zero)
 	if !errors.Is(err, errZeroAmountReceived) {

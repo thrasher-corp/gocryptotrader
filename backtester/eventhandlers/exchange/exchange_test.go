@@ -108,9 +108,8 @@ func TestReset(t *testing.T) {
 		},
 	}
 	err := e.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(e.CurrencySettings) > 0 {
 		t.Error("expected no entries")
 	}
@@ -134,18 +133,17 @@ func TestSetCurrency(t *testing.T) {
 	cs := &Settings{
 		Exchange:      f,
 		UseRealOrders: true,
-		Pair:          currency.NewPair(currency.BTC, currency.USDT),
+		Pair:          currency.NewBTCUSDT(),
 		Asset:         asset.Spot,
 	}
-	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
-	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewBTCUSDT(), cs)
+	result, err := e.GetCurrencySettings(testExchange, asset.Spot, currency.NewBTCUSDT())
+	assert.NoError(t, err)
+
 	if !result.UseRealOrders {
 		t.Error("expected true")
 	}
-	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewPair(currency.BTC, currency.USDT), cs)
+	e.SetExchangeAssetCurrencySettings(asset.Spot, currency.NewBTCUSDT(), cs)
 	if len(e.CurrencySettings) != 1 {
 		t.Error("expected 1")
 	}
@@ -213,7 +211,7 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	assert.ErrorIs(t, err, gctorder.ErrPairIsEmpty)
 
-	f.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
+	f.CurrencyPair = currency.NewBTCUSDT()
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
 	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
@@ -240,7 +238,7 @@ func TestExecuteOrder(t *testing.T) {
 	err = bot.OrderManager.Start()
 	require.NoError(t, err, "OrderManager.Start must not error")
 
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	a := asset.Spot
 	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(t.Context(), p, a)
@@ -291,13 +289,11 @@ func TestExecuteOrder(t *testing.T) {
 		Item: item,
 	}
 	err = d.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	if !errors.Is(err, errNoCurrencySettingsFound) {
 		t.Error(err)
@@ -314,16 +310,12 @@ func TestExecuteOrder(t *testing.T) {
 
 	o.LiquidatingPosition = true
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v but expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o.AssetType = asset.Futures
 	e.CurrencySettings[0].Asset = asset.Futures
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v but expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	o.LiquidatingPosition = false
 	o.Amount = decimal.Zero
@@ -496,25 +488,22 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
 	resp, err := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !resp.Equal(decimal.NewFromFloat(1.1)) {
 		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1.1))
 	}
 
 	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !resp.Equal(decimal.NewFromFloat(0.9)) {
 		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(0.9))
 	}
 
 	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !resp.Equal(decimal.NewFromFloat(1)) {
 		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1))
 	}
@@ -566,9 +555,8 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		Direction: gctorder.Buy,
 	}
 	err = verifyOrderWithinLimits(f, decimal.Zero, &Settings{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	s := &Settings{
 		BuySide: MinMax{
 			MinimumSize: decimal.NewFromInt(1),

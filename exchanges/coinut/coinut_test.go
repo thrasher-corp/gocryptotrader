@@ -269,7 +269,7 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
-		Pairs:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
+		Pairs:     []currency.Pair{currency.NewBTCUSD()},
 		Side:      order.AnySide,
 	}
 
@@ -311,7 +311,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.BTC, currency.USD)
+	currencyPair := currency.NewBTCUSD()
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
 		AccountID: "1",
@@ -1139,7 +1139,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
-			Pair:      currency.NewPair(currency.BTC, currency.USD),
+			Pair:      currency.NewBTCUSD(),
 		},
 	})
 	if err != nil {
@@ -1152,8 +1152,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, c)
 	for _, a := range c.GetAssetTypes(false) {
 		pairs, err := c.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := c.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

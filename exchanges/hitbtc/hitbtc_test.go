@@ -179,7 +179,7 @@ func TestUpdateTickers(t *testing.T) {
 
 	for j := range enabled {
 		_, err = h.GetCachedTicker(enabled[j], asset.Spot)
-		require.NoErrorf(t, err, "GetCached Ticker must not error for pair `%s`", enabled[j])
+		require.NoErrorf(t, err, "GetCached Ticker must not error for pair %q", enabled[j])
 	}
 }
 
@@ -1055,7 +1055,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
 
-	_, err := h.GetOrderInfo(t.Context(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err := h.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSD(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1073,8 +1073,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, h)
 	for _, a := range h.GetAssetTypes(false) {
 		pairs, err := h.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := h.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

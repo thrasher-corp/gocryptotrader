@@ -950,7 +950,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 		}
 		if !e.Features.Supports.RESTCapabilities.AutoPairUpdates &&
 			!e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-			lastUpdated := convert.UnixTimestampToTime(e.CurrencyPairs.LastUpdated)
+			lastUpdated := time.Unix(e.CurrencyPairs.LastUpdated, 0)
 			lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 			if lastUpdated.Unix() <= time.Now().Unix() {
 				log.Warnf(log.ConfigMgr,
@@ -1428,7 +1428,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 		return configFile, nil
 	}
 	if file.Exists(target) {
-		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configFile)
+		log.Warnf(log.ConfigMgr, "Config file already found in %q; not overwriting, defaulting to %s", target, configFile)
 		return configFile, nil
 	}
 
@@ -1491,7 +1491,7 @@ func (c *Config) readConfig(d io.Reader) error {
 // If they agree, c.EncryptConfig is set to Enabled, the config is encrypted and saved
 // Otherwise, c.EncryptConfig is set to Disabled and the file is resaved
 func (c *Config) saveWithEncryptPrompt(path string) error {
-	if confirm, err := promptForConfigEncryption(); err != nil {
+	if confirm, err := promptForConfigEncryption(os.Stdin); err != nil {
 		return nil //nolint:nilerr // Ignore encryption prompt failures; The user will be prompted again
 	} else if confirm {
 		c.EncryptConfig = fileEncryptionEnabled
@@ -1591,8 +1591,8 @@ func (c *Config) CheckRemoteControlConfig() {
 	defer m.Unlock()
 
 	if c.Webserver != nil {
-		port := common.ExtractPort(c.Webserver.ListenAddress)
-		host := common.ExtractHost(c.Webserver.ListenAddress)
+		port := common.ExtractPortOrDefault(c.Webserver.ListenAddress)
+		host := common.ExtractHostOrDefault(c.Webserver.ListenAddress)
 
 		c.RemoteControl = RemoteControlConfig{
 			Username: c.Webserver.AdminUsername,
