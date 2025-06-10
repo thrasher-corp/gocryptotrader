@@ -1,7 +1,6 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -220,19 +219,13 @@ func TestPurgeColours(t *testing.T) {
 func TestGenerateFileName(t *testing.T) {
 	t.Parallel()
 	_, err := GenerateFileName("", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("hello", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("", "moto")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("hello", "moto")
 	assert.NoError(t, err)
@@ -248,7 +241,5 @@ func TestRegisterBacktesterSubLoggers(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = RegisterBacktesterSubLoggers()
-	if !errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
-		t.Errorf("received '%v' expected '%v'", err, log.ErrSubLoggerAlreadyRegistered)
-	}
+	assert.ErrorIs(t, err, log.ErrSubLoggerAlreadyRegistered)
 }

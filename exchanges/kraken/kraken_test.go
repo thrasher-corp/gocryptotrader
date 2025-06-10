@@ -1511,13 +1511,10 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetFuturesContractDetails(t.Context(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
 	_, err = k.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = k.GetFuturesContractDetails(t.Context(), asset.Futures)
 	assert.NoError(t, err, "GetFuturesContractDetails should not error")
@@ -1538,7 +1535,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	assert.NoError(t, err, "GetLatestFundingRates should not error")
 
 	err = k.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
-	assert.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error")
+	assert.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error: %s", err)
 	_, err = k.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Futures,
 		Pair:                 futuresTestPair,
