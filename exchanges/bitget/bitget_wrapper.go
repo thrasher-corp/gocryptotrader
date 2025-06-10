@@ -393,17 +393,17 @@ func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		if err != nil {
 			return nil, err
 		}
-		if len(tick.SpotCandles) == 0 {
+		if len(tick) == 0 {
 			return nil, errReturnEmpty
 		}
 		tickerPrice = &ticker.Price{
-			High:         tick.SpotCandles[0].High,
-			Low:          tick.SpotCandles[0].Low,
-			Volume:       tick.SpotCandles[0].BaseVolume,
-			QuoteVolume:  tick.SpotCandles[0].QuoteVolume,
-			Open:         tick.SpotCandles[0].Open,
-			Close:        tick.SpotCandles[0].Close,
-			LastUpdated:  tick.SpotCandles[0].Timestamp,
+			High:         tick[0].High.Float64(),
+			Low:          tick[0].Low.Float64(),
+			Volume:       tick[0].BaseVolume.Float64(),
+			QuoteVolume:  tick[0].QuoteVolume.Float64(),
+			Open:         tick[0].Open.Float64(),
+			Close:        tick[0].Close.Float64(),
+			LastUpdated:  tick[0].Timestamp.Time(),
 			ExchangeName: bi.Name,
 			AssetType:    assetType,
 			Pair:         p,
@@ -528,17 +528,17 @@ func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			if err != nil {
 				return err
 			}
-			if len(resp.SpotCandles) == 0 {
+			if len(resp) == 0 {
 				return errReturnEmpty
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				High:         resp.SpotCandles[0].High,
-				Low:          resp.SpotCandles[0].Low,
-				Volume:       resp.SpotCandles[0].BaseVolume,
-				QuoteVolume:  resp.SpotCandles[0].QuoteVolume,
-				Open:         resp.SpotCandles[0].Open,
-				Close:        resp.SpotCandles[0].Close,
-				LastUpdated:  resp.SpotCandles[0].Timestamp,
+				High:         resp[0].High.Float64(),
+				Low:          resp[0].Low.Float64(),
+				Volume:       resp[0].BaseVolume.Float64(),
+				QuoteVolume:  resp[0].QuoteVolume.Float64(),
+				Open:         resp[0].Open.Float64(),
+				Close:        resp[0].Close.Float64(),
+				LastUpdated:  resp[0].Timestamp.Time(),
 				Pair:         p,
 				ExchangeName: bi.Name,
 				AssetType:    assetType,
@@ -1644,15 +1644,15 @@ func (bi *Bitget) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if err != nil {
 			return nil, err
 		}
-		resp = make([]kline.Candle, len(cndl.SpotCandles))
-		for i := range cndl.SpotCandles {
+		resp = make([]kline.Candle, len(cndl))
+		for i := range cndl {
 			resp[i] = kline.Candle{
-				Time:   cndl.SpotCandles[i].Timestamp,
-				Low:    cndl.SpotCandles[i].Low,
-				High:   cndl.SpotCandles[i].High,
-				Open:   cndl.SpotCandles[i].Open,
-				Close:  cndl.SpotCandles[i].Close,
-				Volume: cndl.SpotCandles[i].BaseVolume,
+				Time:   cndl[i].Timestamp.Time(),
+				Low:    cndl[i].Low.Float64(),
+				High:   cndl[i].High.Float64(),
+				Open:   cndl[i].Open.Float64(),
+				Close:  cndl[i].Close.Float64(),
+				Volume: cndl[i].BaseVolume.Float64(),
 			}
 		}
 	case asset.Futures:
@@ -1660,15 +1660,15 @@ func (bi *Bitget) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if err != nil {
 			return nil, err
 		}
-		resp = make([]kline.Candle, len(cndl.FuturesCandles))
-		for i := range cndl.FuturesCandles {
+		resp = make([]kline.Candle, len(cndl))
+		for i := range cndl {
 			resp[i] = kline.Candle{
-				Time:   cndl.FuturesCandles[i].Timestamp,
-				Low:    cndl.FuturesCandles[i].Low,
-				High:   cndl.FuturesCandles[i].High,
-				Open:   cndl.FuturesCandles[i].Entry,
-				Close:  cndl.FuturesCandles[i].Exit,
-				Volume: cndl.FuturesCandles[i].BaseVolume,
+				Time:   cndl[i].Timestamp.Time(),
+				Low:    cndl[i].Low.Float64(),
+				High:   cndl[i].High.Float64(),
+				Open:   cndl[i].Entry.Float64(),
+				Close:  cndl[i].Exit.Float64(),
+				Volume: cndl[i].BaseVolume.Float64(),
 			}
 		}
 	default:
@@ -1691,15 +1691,15 @@ func (bi *Bitget) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			if err != nil {
 				return nil, err
 			}
-			temp := make([]kline.Candle, len(cndl.SpotCandles))
-			for i := range cndl.SpotCandles {
+			temp := make([]kline.Candle, len(cndl))
+			for i := range cndl {
 				temp[i] = kline.Candle{
-					Time:   cndl.SpotCandles[i].Timestamp,
-					Low:    cndl.SpotCandles[i].Low,
-					High:   cndl.SpotCandles[i].High,
-					Open:   cndl.SpotCandles[i].Open,
-					Close:  cndl.SpotCandles[i].Close,
-					Volume: cndl.SpotCandles[i].BaseVolume,
+					Time:   cndl[i].Timestamp.Time(),
+					Low:    cndl[i].Low.Float64(),
+					High:   cndl[i].High.Float64(),
+					Open:   cndl[i].Open.Float64(),
+					Close:  cndl[i].Close.Float64(),
+					Volume: cndl[i].BaseVolume.Float64(),
 				}
 			}
 			resp = append(resp, temp...)
@@ -1708,15 +1708,15 @@ func (bi *Bitget) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			if err != nil {
 				return nil, err
 			}
-			temp := make([]kline.Candle, len(cndl.FuturesCandles))
-			for i := range cndl.FuturesCandles {
+			temp := make([]kline.Candle, len(cndl))
+			for i := range cndl {
 				temp[i] = kline.Candle{
-					Time:   cndl.FuturesCandles[i].Timestamp,
-					Low:    cndl.FuturesCandles[i].Low,
-					High:   cndl.FuturesCandles[i].High,
-					Open:   cndl.FuturesCandles[i].Entry,
-					Close:  cndl.FuturesCandles[i].Exit,
-					Volume: cndl.FuturesCandles[i].BaseVolume,
+					Time:   cndl[i].Timestamp.Time(),
+					Low:    cndl[i].Low.Float64(),
+					High:   cndl[i].High.Float64(),
+					Open:   cndl[i].Entry.Float64(),
+					Close:  cndl[i].Exit.Float64(),
+					Volume: cndl[i].BaseVolume.Float64(),
 				}
 			}
 			resp = append(resp, temp...)

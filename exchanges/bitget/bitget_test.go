@@ -560,7 +560,7 @@ func TestGetSpotCandlestickData(t *testing.T) {
 	assert.NoError(t, err)
 	resp, err := bi.GetSpotCandlestickData(t.Context(), testPair, "1min", time.Time{}, time.Now(), 5, true)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp.SpotCandles)
+	assert.NotEmpty(t, resp)
 }
 
 func TestGetRecentSpotFills(t *testing.T) {
@@ -1090,16 +1090,16 @@ func TestGetFuturesCandlestickData(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	resp, err := bi.GetFuturesCandlestickData(t.Context(), testPair, "USDT-FUTURES", "1m", "", time.Time{}, time.Time{}, 5, CallModeNormal)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp.FuturesCandles)
+	assert.NotEmpty(t, resp)
 	resp, err = bi.GetFuturesCandlestickData(t.Context(), testPair, "COIN-FUTURES", "1m", "", time.Time{}, time.Time{}, 5, CallModeHistory)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp.FuturesCandles)
+	assert.NotEmpty(t, resp)
 	resp, err = bi.GetFuturesCandlestickData(t.Context(), testPair, "USDC-FUTURES", "1m", "", time.Time{}, time.Now(), 5, CallModeIndex)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp.FuturesCandles)
+	assert.NotEmpty(t, resp)
 	resp, err = bi.GetFuturesCandlestickData(t.Context(), testPair, "USDT-FUTURES", "1m", "", time.Time{}, time.Now(), 5, CallModeMark)
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp.FuturesCandles)
+	assert.NotEmpty(t, resp)
 }
 
 func TestGetOpenPositions(t *testing.T) {

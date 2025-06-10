@@ -2,7 +2,6 @@ package bitget
 
 import (
 	"net/url"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -654,31 +653,35 @@ type OrderbookResp struct {
 
 // OneSpotCandle contains a single candle
 type OneSpotCandle struct {
-	Timestamp   time.Time
-	Open        float64
-	High        float64
-	Low         float64
-	Close       float64
-	BaseVolume  float64
-	QuoteVolume float64
-	USDTVolume  float64
+	Timestamp   types.Time
+	Open        types.Number
+	High        types.Number
+	Low         types.Number
+	Close       types.Number
+	BaseVolume  types.Number
+	QuoteVolume types.Number
+	USDTVolume  types.Number
+}
+
+// UnmarshalJSON deserializes kline data from a JSON array into OneSpotCandle fields
+func (c *OneSpotCandle) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[8]any{&c.Timestamp, &c.Open, &c.High, &c.Low, &c.Close, &c.BaseVolume, &c.QuoteVolume, &c.USDTVolume})
 }
 
 // OneFuturesCandle contains a single candle
 type OneFuturesCandle struct {
-	Timestamp   time.Time
-	Entry       float64
-	High        float64
-	Low         float64
-	Exit        float64
-	BaseVolume  float64
-	QuoteVolume float64
+	Timestamp   types.Time
+	Entry       types.Number
+	High        types.Number
+	Low         types.Number
+	Exit        types.Number
+	BaseVolume  types.Number
+	QuoteVolume types.Number
 }
 
-// CandleData contains sorted candle data
-type CandleData struct {
-	SpotCandles    []OneSpotCandle
-	FuturesCandles []OneFuturesCandle
+// UnmarshalJSON deserializes kline data from a JSON array into OneFuturesCandle fields
+func (c *OneFuturesCandle) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.Entry, &c.High, &c.Low, &c.Exit, &c.BaseVolume, &c.QuoteVolume})
 }
 
 // MarketFillsResp contains information on a batch of trades

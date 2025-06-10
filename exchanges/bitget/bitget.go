@@ -256,14 +256,6 @@ var (
 	errAPIKeyEmpty                    = errors.New("apiKey cannot be empty")
 	errFromToMutex                    = errors.New("exactly one of fromAmount and toAmount must be set")
 	errTraceIDEmpty                   = errors.New("traceID cannot be empty")
-	errTypeAssertTimestamp            = errors.New("unable to type assert timestamp")
-	errTypeAssertOpenPrice            = errors.New("unable to type assert opening price")
-	errTypeAssertHighPrice            = errors.New("unable to type assert high price")
-	errTypeAssertLowPrice             = errors.New("unable to type assert low price")
-	errTypeAssertClosePrice           = errors.New("unable to type assert close price")
-	errTypeAssertBaseVolume           = errors.New("unable to type assert base volume")
-	errTypeAssertQuoteVolume          = errors.New("unable to type assert quote volume")
-	errTypeAssertUSDTVolume           = errors.New("unable to type assert USDT volume")
 	errGranEmpty                      = errors.New("granularity cannot be empty")
 	errEndTimeEmpty                   = errors.New("endTime cannot be empty")
 	errSideEmpty                      = fmt.Errorf("%w, empty order side", order.ErrSideIsInvalid)
@@ -281,7 +273,6 @@ var (
 	errToIDEmpty                      = errors.New("toID cannot be empty")
 	errTransferTypeEmpty              = errors.New("transferType cannot be empty")
 	errAddressEmpty                   = errors.New("address cannot be empty")
-	errNoCandleData                   = errors.New("no candle data")
 	errMarginCoinEmpty                = errors.New("marginCoin cannot be empty")
 	errAmountEmpty                    = errors.New("amount cannot be empty")
 	errOpenAmountEmpty                = fmt.Errorf("%w: OpenAmount below minimum", order.ErrAmountBelowMin)
@@ -990,7 +981,7 @@ func (bi *Bitget) GetOrderbookDepth(ctx context.Context, pair currency.Pair, ste
 }
 
 // GetSpotCandlestickData returns candlestick data for a given trading pair
-func (bi *Bitget) GetSpotCandlestickData(ctx context.Context, pair currency.Pair, granularity string, startTime, endTime time.Time, limit uint16, historic bool) (*CandleData, error) {
+func (bi *Bitget) GetSpotCandlestickData(ctx context.Context, pair currency.Pair, granularity string, startTime, endTime time.Time, limit uint16, historic bool) ([]OneSpotCandle, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1013,7 +1004,13 @@ func (bi *Bitget) GetSpotCandlestickData(ctx context.Context, pair currency.Pair
 			return nil, err
 		}
 	}
-	return bi.candlestickHelper(ctx, pair, granularity, path, limit, params)
+	params.Values.Set("symbol", pair.String())
+	params.Values.Set("granularity", granularity)
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+	}
+	var resp []OneSpotCandle
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, params.Values, &resp)
 }
 
 // GetRecentSpotFills returns the most recent trades for a given pair
@@ -2012,7 +2009,7 @@ func (bi *Bitget) GetFuturesMarketTrades(ctx context.Context, pair currency.Pair
 }
 
 // GetFuturesCandlestickData returns candlestick data for a given pair within a particular time range
-func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.Pair, productType, granularity, candleType string, startTime, endTime time.Time, limit uint16, mode CallMode) (*CandleData, error) {
+func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.Pair, productType, granularity, candleType string, startTime, endTime time.Time, limit uint16, mode CallMode) ([]OneFuturesCandle, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -2041,7 +2038,13 @@ func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair currency.P
 	case CallModeMark:
 		path += bitgetHistoryMarkCandles
 	}
-	return bi.candlestickHelper(ctx, pair, granularity, path, limit, params)
+	params.Values.Set("symbol", pair.String())
+	params.Values.Set("granularity", granularity)
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+	}
+	var resp []OneFuturesCandle
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, params.Values, &resp)
 }
 
 // GetOpenPositions returns the total positions of a particular pair
@@ -4944,128 +4947,6 @@ func (o OnOffBool) MarshalJSON() ([]byte, error) {
 		return json.Marshal("on")
 	}
 	return json.Marshal("off")
-}
-
-// CandlestickHelper pulls out common candlestick functionality to avoid repetition
-func (bi *Bitget) candlestickHelper(ctx context.Context, pair currency.Pair, granularity, path string, limit uint16, params Params) (*CandleData, error) {
-	params.Values.Set("symbol", pair.String())
-	params.Values.Set("granularity", granularity)
-	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
-	}
-	var resp [][8]any
-	err := bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, params.Values, &resp)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 0 {
-		return nil, errNoCandleData
-	}
-	var spot bool
-	var data CandleData
-	if resp[0][7] == nil {
-		data.FuturesCandles = make([]OneFuturesCandle, len(resp))
-	} else {
-		spot = true
-		data.SpotCandles = make([]OneSpotCandle, len(resp))
-	}
-	for i := range resp {
-		timeTemp, ok := resp[i][0].(string)
-		if !ok {
-			return nil, errTypeAssertTimestamp
-		}
-		timeTemp = (timeTemp)[1 : len(timeTemp)-1]
-		timeTemp2, err := strconv.ParseInt(timeTemp, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		openTemp, ok := resp[i][1].(string)
-		if !ok {
-			return nil, errTypeAssertOpenPrice
-		}
-		highTemp, ok := resp[i][2].(string)
-		if !ok {
-			return nil, errTypeAssertHighPrice
-		}
-		lowTemp, ok := resp[i][3].(string)
-		if !ok {
-			return nil, errTypeAssertLowPrice
-		}
-		closeTemp, ok := resp[i][4].(string)
-		if !ok {
-			return nil, errTypeAssertClosePrice
-		}
-		baseVolumeTemp, ok := resp[i][5].(string)
-		if !ok {
-			return nil, errTypeAssertBaseVolume
-		}
-		quoteVolumeTemp, ok := resp[i][6].(string)
-		if !ok {
-			return nil, errTypeAssertQuoteVolume
-		}
-		if spot {
-			usdtVolumeTemp, ok := resp[i][7].(string)
-			if !ok {
-				return nil, errTypeAssertUSDTVolume
-			}
-			data.SpotCandles[i].Timestamp = time.UnixMilli(timeTemp2).UTC()
-			data.SpotCandles[i].Open, err = strconv.ParseFloat(openTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.SpotCandles[i].High, err = strconv.ParseFloat(highTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.SpotCandles[i].Low, err = strconv.ParseFloat(lowTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.SpotCandles[i].Close, err = strconv.ParseFloat(closeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.SpotCandles[i].BaseVolume, err = strconv.ParseFloat(baseVolumeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.SpotCandles[i].QuoteVolume, err = strconv.ParseFloat(quoteVolumeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.SpotCandles[i].USDTVolume, err = strconv.ParseFloat(usdtVolumeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			data.FuturesCandles[i].Timestamp = time.UnixMilli(timeTemp2).UTC()
-			data.FuturesCandles[i].Entry, err = strconv.ParseFloat(openTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.FuturesCandles[i].High, err = strconv.ParseFloat(highTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.FuturesCandles[i].Low, err = strconv.ParseFloat(lowTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.FuturesCandles[i].Exit, err = strconv.ParseFloat(closeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.FuturesCandles[i].BaseVolume, err = strconv.ParseFloat(baseVolumeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-			data.FuturesCandles[i].QuoteVolume, err = strconv.ParseFloat(quoteVolumeTemp, 64)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return &data, nil
 }
 
 // spotOrderHelper is a helper function for unmarshalling spot order endpoints
