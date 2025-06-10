@@ -225,15 +225,9 @@ func TestCreateSignals(t *testing.T) {
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 1, "createSignals must return one signal")
-	caseTested = false
-	for i := range resp {
-		if resp[i].GetAssetType() == asset.Spot {
-			assert.Equal(t, gctorder.Buy, resp[i].GetDirection())
-			assert.NotNil(t, resp[i].GetFillDependentEvent())
-			caseTested = true
-		}
-	}
-	require.True(t, caseTested, "Unhandled issue in test scenario")
+	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
+	assert.Equal(t, gctorder.Buy, resp[0].GetDirection())
+	assert.NotNil(t, resp[0].GetFillDependentEvent())
 
 	// targeting default case
 	pos[0].Status = gctorder.UnknownStatus
