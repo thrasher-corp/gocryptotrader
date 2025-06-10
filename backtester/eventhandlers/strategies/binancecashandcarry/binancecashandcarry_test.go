@@ -239,7 +239,7 @@ func TestCreateSignals(t *testing.T) {
 	pos[0].Status = gctorder.UnknownStatus
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
 	require.NoError(t, err, "createSignals must not error")
-	assert.Len(t, resp, 2, "createSignals must return two signals")
+	assert.Len(t, resp, 2, "createSignals should return two signals")
 }
 
 // fakeFunds overrides default implementation
