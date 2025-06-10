@@ -227,7 +227,7 @@ func TestCreateSignals(t *testing.T) {
 	require.Len(t, resp, 1, "createSignals must return one signal")
 	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
 	assert.Equal(t, gctorder.Buy, resp[0].GetDirection())
-	assert.NotNil(t, resp[0].GetFillDependentEvent())
+	assert.NotNil(t, resp[0].GetFillDependentEvent(), "GetFillDependentEvent should not return nil")
 
 	// targeting default case
 	pos[0].Status = gctorder.UnknownStatus
