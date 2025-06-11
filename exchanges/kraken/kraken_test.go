@@ -1742,7 +1742,7 @@ func TestEnforceStandardChannelNames(t *testing.T) {
 
 func TestWebsocketAuthToken(t *testing.T) {
 	t.Parallel()
-	k := new(Kraken)
+	k := new(Exchange)
 	k.setWebsocketAuthToken("meep")
 	const n = 69
 	var wg sync.WaitGroup
@@ -1770,7 +1770,7 @@ func TestWebsocketAuthToken(t *testing.T) {
 
 func TestSetWebsocketAuthToken(t *testing.T) {
 	t.Parallel()
-	k := new(Kraken)
+	k := new(Exchange)
 	k.setWebsocketAuthToken("69420")
 	assert.Equal(t, "69420", k.websocketAuthToken())
 }

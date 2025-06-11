@@ -1408,13 +1408,13 @@ const subTplText = `
 `
 
 // websocketAuthToken retrieves the current websocket session's auth token
-func (k *Kraken) websocketAuthToken() string {
+func (k *Exchange) websocketAuthToken() string {
 	k.wsAuthMtx.RLock()
 	defer k.wsAuthMtx.RUnlock()
 	return k.wsAuthToken
 }
 
-func (k *Kraken) setWebsocketAuthToken(token string) {
+func (k *Exchange) setWebsocketAuthToken(token string) {
 	k.wsAuthMtx.Lock()
 	k.wsAuthToken = token
 	k.wsAuthMtx.Unlock()
