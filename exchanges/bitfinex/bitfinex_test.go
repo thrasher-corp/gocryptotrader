@@ -308,10 +308,9 @@ func checkFundingTick(tb testing.TB, tick *Ticker) {
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetTrades(t.Context(), "tBTCUSD", 5, 0, 0, false)
-	if err != nil {
-		t.Error(err)
-	}
+	r, err := b.GetTrades(t.Context(), "tBTCUSD", 5, time.Time{}, time.Time{}, false)
+	require.NoError(t, err, "GetTrades must not error")
+	assert.NotEmpty(t, r, "GetTrades should return some trades")
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -368,12 +367,9 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	e := time.Now().Add(-time.Hour * 2).Truncate(time.Hour)
-	s := e.Add(-time.Hour * 4)
-	_, err := b.GetCandles(t.Context(), "fUST", "1D", s.UnixMilli(), e.UnixMilli(), 10000, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, err := b.GetCandles(t.Context(), "fUST", "1D", time.Now().AddDate(0, 0, -1), time.Now(), 10000, true)
+	require.NoError(t, err, "GetCandles must not error")
+	assert.NotEmpty(t, c, "GetCandles should return some candles")
 }
 
 func TestGetLeaderboard(t *testing.T) {

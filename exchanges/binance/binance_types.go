@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -306,17 +307,34 @@ type IndexMarkPrice struct {
 
 // CandleStick holds kline data
 type CandleStick struct {
-	OpenTime                 time.Time
-	Open                     float64
-	High                     float64
-	Low                      float64
-	Close                    float64
-	Volume                   float64
-	CloseTime                time.Time
-	QuoteAssetVolume         float64
-	TradeCount               float64
-	TakerBuyAssetVolume      float64
-	TakerBuyQuoteAssetVolume float64
+	OpenTime                 types.Time
+	Open                     types.Number
+	High                     types.Number
+	Low                      types.Number
+	Close                    types.Number
+	Volume                   types.Number
+	CloseTime                types.Time
+	QuoteAssetVolume         types.Number
+	TradeCount               int64
+	TakerBuyAssetVolume      types.Number
+	TakerBuyQuoteAssetVolume types.Number
+}
+
+// UnmarshalJSON unmarshals JSON data into a CandleStick struct
+func (c *CandleStick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[]any{
+		&c.OpenTime,
+		&c.Open,
+		&c.High,
+		&c.Low,
+		&c.Close,
+		&c.Volume,
+		&c.CloseTime,
+		&c.QuoteAssetVolume,
+		&c.TradeCount,
+		&c.TakerBuyAssetVolume,
+		&c.TakerBuyQuoteAssetVolume,
+	})
 }
 
 // AveragePrice holds current average symbol price
@@ -692,16 +710,16 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // DepositHistory stores deposit history info
 type DepositHistory struct {
-	Amount        float64 `json:"amount,string"`
-	Coin          string  `json:"coin"`
-	Network       string  `json:"network"`
-	Status        uint8   `json:"status"`
-	Address       string  `json:"address"`
-	AddressTag    string  `json:"adressTag"`
-	TransactionID string  `json:"txId"`
-	InsertTime    float64 `json:"insertTime"`
-	TransferType  uint8   `json:"transferType"`
-	ConfirmTimes  string  `json:"confirmTimes"`
+	Amount        float64    `json:"amount,string"`
+	Coin          string     `json:"coin"`
+	Network       string     `json:"network"`
+	Status        uint8      `json:"status"`
+	Address       string     `json:"address"`
+	AddressTag    string     `json:"adressTag"`
+	TransactionID string     `json:"txId"`
+	InsertTime    types.Time `json:"insertTime"`
+	TransferType  uint8      `json:"transferType"`
+	ConfirmTimes  string     `json:"confirmTimes"`
 }
 
 // WithdrawResponse contains status of withdrawal request

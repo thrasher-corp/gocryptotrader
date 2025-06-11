@@ -620,10 +620,10 @@ type MarginsData struct {
 
 // MMPConfigData gets the current configuration data for MMP
 type MMPConfigData struct {
-	Currency      string  `json:"currency"`
-	Interval      int64   `json:"interval"`
-	FrozenTime    int64   `json:"frozen_time"`
-	QuantityLimit float64 `json:"quantity_limit"`
+	Currency      string     `json:"currency"`
+	Interval      int64      `json:"interval"`
+	FrozenTime    types.Time `json:"frozen_time"`
+	QuantityLimit float64    `json:"quantity_limit"`
 }
 
 // UserTradesData stores data of user trades
@@ -1097,13 +1097,13 @@ type wsOrderbook struct {
 
 // wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
 type wsCandlestickData struct {
-	Volume float64 `json:"volume"`
-	Tick   int64   `json:"tick"`
-	Open   float64 `json:"open"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Cost   float64 `json:"cost"`
-	Close  float64 `json:"close"`
+	Volume float64    `json:"volume"`
+	Tick   types.Time `json:"tick"`
+	Open   float64    `json:"open"`
+	Low    float64    `json:"low"`
+	High   float64    `json:"high"`
+	Cost   float64    `json:"cost"`
+	Close  float64    `json:"close"`
 }
 
 // wsIndexPrice represents information about current value (price) for Deribit Index
