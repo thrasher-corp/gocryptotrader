@@ -44,11 +44,11 @@ const (
 )
 
 var defacultChannels = []string{
-	// chnlBookTiker,
-	// chnlKlineV3,
+	chnlBookTiker,
+	chnlKlineV3,
 	chnlAggreDealsV3,
-	// chnlAggregateDepthV3,
-	// chnlIncreaseDepthBatchV3,
+	chnlAggregateDepthV3,
+	chnlIncreaseDepthBatchV3,
 }
 
 // orderbookSnapshotLoadedPairs and syncOrderbookPairsLock holds list of symbols and if these instruments snapshot orderbook detail is loaded, and corresponding lock

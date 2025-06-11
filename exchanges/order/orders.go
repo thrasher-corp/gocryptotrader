@@ -1164,7 +1164,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilled, nil
 	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED", "PARTIALLY_CANCELED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil

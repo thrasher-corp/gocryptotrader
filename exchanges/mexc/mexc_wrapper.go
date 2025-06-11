@@ -784,7 +784,7 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		if err != nil {
 			return nil, err
 		}
-		result, err := me.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, 0, s.Price)
+		result, err := me.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, s.QuoteAmount, s.Price)
 		if err != nil {
 			return nil, err
 		}
@@ -800,9 +800,12 @@ func (me *MEXC) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		if err != nil {
 			return nil, err
 		}
-		ordStatus, err := order.StringToOrderStatus(result.Status)
-		if err != nil {
-			return nil, err
+		var ordStatus order.Status
+		if result.Status != "" {
+			ordStatus, err = order.StringToOrderStatus(result.Status)
+			if err != nil {
+				return nil, err
+			}
 		}
 		return &order.SubmitResponse{
 			Pair:                 cp,
@@ -966,9 +969,12 @@ func (me *MEXC) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 		if err != nil {
 			return nil, err
 		}
-		oStatus, err := order.StringToOrderStatus(result.Status)
-		if err != nil {
-			return nil, err
+		var oStatus order.Status
+		if result.Status != "" {
+			oStatus, err = order.StringToOrderStatus(result.Status)
+			if err != nil {
+				return nil, err
+			}
 		}
 		cp, err := currency.NewPairFromString(result.Symbol)
 		if err != nil {
