@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,6 +38,8 @@ const (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kraken
 type Exchange struct {
 	exchange.Base
+	wsAuthToken string
+	wsAuthMtx   sync.RWMutex
 }
 
 // GetCurrentServerTime returns current server time

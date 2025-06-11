@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,9 +10,7 @@ import (
 func TestSetupConnectionManager(t *testing.T) {
 	t.Parallel()
 	_, err := setupConnectionManager(nil)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilConfig)
 
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	assert.NoError(t, err)
@@ -53,22 +50,18 @@ func TestConnectionMonitorStart(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
+
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
 	err := (&connectionManager{started: 1}).Stop()
-	if !errors.Is(err, errConnectionCheckerIsNil) {
-		t.Errorf("error '%v', expected '%v'", err, errConnectionCheckerIsNil)
-	}
+	assert.ErrorIs(t, err, errConnectionCheckerIsNil)
+
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
 	assert.NoError(t, err)
 
@@ -79,14 +72,11 @@ func TestConnectionMonitorStop(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestConnectionMonitorIsOnline(t *testing.T) {

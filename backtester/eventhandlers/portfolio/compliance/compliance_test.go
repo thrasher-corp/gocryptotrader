@@ -1,7 +1,6 @@
 package compliance
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -15,9 +14,7 @@ func TestAddSnapshot(t *testing.T) {
 	m := Manager{}
 	tt := time.Now()
 	err := m.AddSnapshot(&Snapshot{}, true)
-	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
-	}
+	assert.ErrorIs(t, err, errSnapshotNotFound)
 
 	err = m.AddSnapshot(&Snapshot{
 		Timestamp: tt,
@@ -70,9 +67,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	}
 
 	_, err = m.GetSnapshotAtTime(time.Now().Add(time.Hour))
-	if !errors.Is(err, errSnapshotNotFound) {
-		t.Errorf("received: %v, expected: %v", err, errSnapshotNotFound)
-	}
+	assert.ErrorIs(t, err, errSnapshotNotFound)
 }
 
 func TestGetLatestSnapshot(t *testing.T) {
