@@ -357,8 +357,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 			if resp[x].OpenOrders[y].State != 1 {
 				continue
 			}
-
-			orderDetail := order.Detail{
+			orders = append(orders, order.Detail{
 				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				Exchange:        a.Name,
 				ExecutedAmount:  resp[x].OpenOrders[y].QtyTotal - resp[x].OpenOrders[y].QtyRemaining,
@@ -366,12 +365,10 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
-			}
-
-			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
-			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			orders = append(orders, orderDetail)
+				Side:            orderSideMap[resp[x].OpenOrders[y].Side],
+				Date:            resp[x].OpenOrders[y].ReceiveTime.Time(),
+				Type:            orderTypeMap[resp[x].OpenOrders[y].OrderType],
+			})
 		}
 	}
 	return req.Filter(a.Name, orders), nil
@@ -398,7 +395,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 				continue
 			}
 
-			orderDetail := order.Detail{
+			orders = append(orders, order.Detail{
 				Amount:          resp[x].OpenOrders[y].QtyTotal,
 				AccountID:       strconv.FormatInt(int64(resp[x].OpenOrders[y].AccountID), 10),
 				Exchange:        a.Name,
@@ -406,12 +403,10 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 				OrderID:         strconv.FormatInt(int64(resp[x].OpenOrders[y].ServerOrderID), 10),
 				Price:           resp[x].OpenOrders[y].Price,
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
-			}
-
-			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
-			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			orders = append(orders, orderDetail)
+				Side:            orderSideMap[resp[x].OpenOrders[y].Side],
+				Date:            resp[x].OpenOrders[y].ReceiveTime.Time(),
+				Type:            orderTypeMap[resp[x].OpenOrders[y].OrderType],
+			})
 		}
 	}
 	return req.Filter(a.Name, orders), nil

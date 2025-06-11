@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -116,29 +117,46 @@ type RestResponse struct {
 
 // KlineResponse represents a kline item list instance as an array of string.
 type KlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 // KlineItem stores an individual kline data item
 type KlineItem struct {
-	StartTime time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
+	StartTime types.Time
+	Open      types.Number
+	High      types.Number
+	Low       types.Number
+	Close     types.Number
 
 	// not available for mark and index price kline data
-	TradeVolume float64
-	Turnover    float64
+	TradeVolume types.Number
+	Turnover    types.Number
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for KlineItem
+func (k *KlineItem) UnmarshalJSON(data []byte) error {
+	var rawData []json.RawMessage
+	if err := json.Unmarshal(data, &rawData); err != nil {
+		return err
+	}
+
+	switch len(rawData) {
+	case 5:
+		return json.Unmarshal(data, &[5]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close})
+	case 7:
+		return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
+	default:
+		return fmt.Errorf("unexpected kline data length: %d", len(rawData))
+	}
 }
 
 // MarkPriceKlineResponse represents a kline data item.
 type MarkPriceKlineResponse struct {
-	Symbol   string     `json:"symbol"`
-	Category string     `json:"category"`
-	List     [][]string `json:"list"`
+	Symbol   string      `json:"symbol"`
+	Category string      `json:"category"`
+	List     []KlineItem `json:"list"`
 }
 
 func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {

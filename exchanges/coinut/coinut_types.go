@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // GenericResponse is the generic response you will get from coinut
@@ -30,22 +31,22 @@ type Instruments struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	High24                float64 `json:"high24,string"`
-	HighestBuy            float64 `json:"highest_buy,string"`
-	InstrumentID          int     `json:"inst_id"`
-	Last                  float64 `json:"last,string"`
-	Low24                 float64 `json:"low24,string"`
-	LowestSell            float64 `json:"lowest_sell,string"`
-	PreviousTransactionID int64   `json:"prev_trans_id"`
-	PriceChange24         float64 `json:"price_change_24,string"`
-	Reply                 string  `json:"reply"`
-	OpenInterest          float64 `json:"open_interest,string"`
-	Timestamp             int64   `json:"timestamp"`
-	TransactionID         int64   `json:"trans_id"`
-	Volume                float64 `json:"volume,string"`
-	Volume24              float64 `json:"volume24,string"`
-	Volume24Quote         float64 `json:"volume24_quote,string"`
-	VolumeQuote           float64 `json:"volume_quote,string"`
+	High24                float64    `json:"high24,string"`
+	HighestBuy            float64    `json:"highest_buy,string"`
+	InstrumentID          int        `json:"inst_id"`
+	Last                  float64    `json:"last,string"`
+	Low24                 float64    `json:"low24,string"`
+	LowestSell            float64    `json:"lowest_sell,string"`
+	PreviousTransactionID int64      `json:"prev_trans_id"`
+	PriceChange24         float64    `json:"price_change_24,string"`
+	Reply                 string     `json:"reply"`
+	OpenInterest          float64    `json:"open_interest,string"`
+	Timestamp             types.Time `json:"timestamp"`
+	TransactionID         int64      `json:"trans_id"`
+	Volume                float64    `json:"volume,string"`
+	Volume24              float64    `json:"volume24,string"`
+	Volume24Quote         float64    `json:"volume24_quote,string"`
+	VolumeQuote           float64    `json:"volume_quote,string"`
 }
 
 // OrderbookBase is a sub-type holding price and quantity
@@ -67,11 +68,11 @@ type Orderbook struct {
 
 // TradeBase is a sub-type holding information on trades
 type TradeBase struct {
-	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"qty,string"`
-	Side          string  `json:"side"`
-	Timestamp     int64   `json:"timestamp"`
-	TransactionID int64   `json:"trans_id"`
+	Price         float64    `json:"price,string"`
+	Quantity      float64    `json:"qty,string"`
+	Side          string     `json:"side"`
+	Timestamp     types.Time `json:"timestamp"`
+	TransactionID int64      `json:"trans_id"`
 }
 
 // Trades holds the full amount of trades associated with API keys
@@ -112,15 +113,15 @@ type Order struct {
 
 // OrderResponse is a response for orders
 type OrderResponse struct {
-	OrderID       int64   `json:"order_id"`
-	OpenQuantity  float64 `json:"open_qty,string"`
-	Price         float64 `json:"price,string"`
-	Quantity      float64 `json:"qty,string"`
-	InstrumentID  int64   `json:"inst_id"`
-	ClientOrderID int64   `json:"client_ord_id"`
-	Timestamp     int64   `json:"timestamp"`
-	OrderPrice    float64 `json:"order_price,string"`
-	Side          string  `json:"side"`
+	OrderID       int64      `json:"order_id"`
+	OpenQuantity  float64    `json:"open_qty,string"`
+	Price         float64    `json:"price,string"`
+	Quantity      float64    `json:"qty,string"`
+	InstrumentID  int64      `json:"inst_id"`
+	ClientOrderID int64      `json:"client_ord_id"`
+	Timestamp     types.Time `json:"timestamp"`
+	OrderPrice    float64    `json:"order_price,string"`
+	Side          string     `json:"side"`
 }
 
 // Commission holds trade commission structure
@@ -203,9 +204,9 @@ type Option struct {
 
 // OptionChainResponse is the response type for options
 type OptionChainResponse struct {
-	ExpiryTime   int64  `json:"expiry_time"`
-	SecurityType string `json:"sec_type"`
-	Asset        string `json:"asset"`
+	ExpiryTime   types.Time `json:"expiry_time"`
+	SecurityType string     `json:"sec_type"`
+	Asset        string     `json:"asset"`
 	Entries      []struct {
 		Call   Option  `json:"call"`
 		Put    Option  `json:"put"`
@@ -217,10 +218,10 @@ type OptionChainResponse struct {
 type OptionChainUpdate struct {
 	Option
 	GenericResponse
-	Asset        string  `json:"asset"`
-	ExpiryTime   int64   `json:"expiry_time"`
-	SecurityType string  `json:"sec_type"`
-	Volume       float64 `json:"volume,string"`
+	Asset        string     `json:"asset"`
+	ExpiryTime   types.Time `json:"expiry_time"`
+	SecurityType string     `json:"sec_type"`
+	Volume       float64    `json:"volume,string"`
 }
 
 // PositionHistory holds the complete position history
@@ -234,7 +235,7 @@ type PositionHistory struct {
 			FillQuantity  float64    `json:"fill_qty,omitempty"`
 			Position      struct {
 				Commission Commission `json:"commission"`
-				Timestamp  int64      `json:"timestamp"`
+				Timestamp  types.Time `json:"timestamp"`
 				OpenPrice  float64    `json:"open_price,string"`
 				RealizedPL float64    `json:"realized_pl,string"`
 				Quantity   float64    `json:"qty,string"`
@@ -242,16 +243,16 @@ type PositionHistory struct {
 			AssetAtExpiry float64 `json:"asset_at_expiry,string,omitempty"`
 		} `json:"records"`
 		Instrument struct {
-			ExpiryTime     int64   `json:"expiry_time"`
-			ContractSize   float64 `json:"contract_size,string"`
-			ConversionRate float64 `json:"conversion_rate,string"`
-			OptionType     string  `json:"option_type"`
-			InstrumentID   int     `json:"inst_id"`
-			SecType        string  `json:"sec_type"`
-			Asset          string  `json:"asset"`
-			Strike         float64 `json:"strike,string"`
+			ExpiryTime     types.Time `json:"expiry_time"`
+			ContractSize   float64    `json:"contract_size,string"`
+			ConversionRate float64    `json:"conversion_rate,string"`
+			OptionType     string     `json:"option_type"`
+			InstrumentID   int        `json:"inst_id"`
+			SecType        string     `json:"sec_type"`
+			Asset          string     `json:"asset"`
+			Strike         float64    `json:"strike,string"`
 		} `json:"inst"`
-		OpenTimestamp int64 `json:"open_timestamp"`
+		OpenTimestamp types.Time `json:"open_timestamp"`
 	} `json:"positions"`
 	TotalNumber int `json:"total_number"`
 }
@@ -263,7 +264,7 @@ type OpenPosition struct {
 	OpenPrice     float64    `json:"open_price,string"`
 	RealizedPL    float64    `json:"realized_pl,string"`
 	Quantity      float64    `json:"qty,string"`
-	OpenTimestamp int64      `json:"open_timestamp"`
+	OpenTimestamp types.Time `json:"open_timestamp"`
 	InstrumentID  int        `json:"inst_id"`
 }
 
@@ -283,23 +284,23 @@ type wsResponse struct {
 
 // WsTicker defines the resp for ticker updates from the websocket connection
 type WsTicker struct {
-	High24        float64  `json:"high24,string"`
-	HighestBuy    float64  `json:"highest_buy,string"`
-	InstID        int64    `json:"inst_id"`
-	Last          float64  `json:"last,string"`
-	Low24         float64  `json:"low24,string"`
-	LowestSell    float64  `json:"lowest_sell,string"`
-	Nonce         int64    `json:"nonce"`
-	PrevTransID   int64    `json:"prev_trans_id"`
-	PriceChange24 float64  `json:"price_change_24,string"`
-	Reply         string   `json:"reply"`
-	Status        []string `json:"status"`
-	Timestamp     int64    `json:"timestamp"`
-	TransID       int64    `json:"trans_id"`
-	Volume        float64  `json:"volume,string"`
-	Volume24      float64  `json:"volume24,string"`
-	Volume24Quote float64  `json:"volume24_quote,string"`
-	VolumeQuote   float64  `json:"volume_quote,string"`
+	High24        float64    `json:"high24,string"`
+	HighestBuy    float64    `json:"highest_buy,string"`
+	InstID        int64      `json:"inst_id"`
+	Last          float64    `json:"last,string"`
+	Low24         float64    `json:"low24,string"`
+	LowestSell    float64    `json:"lowest_sell,string"`
+	Nonce         int64      `json:"nonce"`
+	PrevTransID   int64      `json:"prev_trans_id"`
+	PriceChange24 float64    `json:"price_change_24,string"`
+	Reply         string     `json:"reply"`
+	Status        []string   `json:"status"`
+	Timestamp     types.Time `json:"timestamp"`
+	TransID       int64      `json:"trans_id"`
+	Volume        float64    `json:"volume,string"`
+	Volume24      float64    `json:"volume24,string"`
+	Volume24Quote float64    `json:"volume24_quote,string"`
+	VolumeQuote   float64    `json:"volume_quote,string"`
 }
 
 // WsOrderbookSnapshot defines the resp for orderbook snapshot updates from
@@ -347,23 +348,23 @@ type WsTradeSnapshot struct {
 
 // WsTradeData defines market trade data
 type WsTradeData struct {
-	InstID    int64   `json:"inst_id"`
-	TransID   int64   `json:"trans_id"`
-	Price     float64 `json:"price,string"`
-	Quantity  float64 `json:"qty,string"`
-	Side      string  `json:"side"`
-	Timestamp int64   `json:"timestamp"`
+	InstID    int64      `json:"inst_id"`
+	TransID   int64      `json:"trans_id"`
+	Price     float64    `json:"price,string"`
+	Quantity  float64    `json:"qty,string"`
+	Side      string     `json:"side"`
+	Timestamp types.Time `json:"timestamp"`
 }
 
 // WsTradeUpdate defines trade update response from the websocket connection
 type WsTradeUpdate struct {
-	InstID    int64   `json:"inst_id"`
-	TransID   int64   `json:"trans_id"`
-	Price     float64 `json:"price,string"`
-	Quantity  float64 `json:"qty,string"`
-	Side      string  `json:"side"`
-	Timestamp int64   `json:"timestamp"`
-	Reply     string  `json:"reply"`
+	InstID    int64      `json:"inst_id"`
+	TransID   int64      `json:"trans_id"`
+	Price     float64    `json:"price,string"`
+	Quantity  float64    `json:"qty,string"`
+	Side      string     `json:"side"`
+	Timestamp types.Time `json:"timestamp"`
+	Reply     string     `json:"reply"`
 }
 
 // WsInstrumentList defines instrument list
@@ -526,21 +527,21 @@ type WsOrderFilledResponse struct {
 	Order         WsOrderData                 `json:"order"`
 	Reply         string                      `json:"reply"`
 	Status        []string                    `json:"status"`
-	Timestamp     int64                       `json:"timestamp"`
+	Timestamp     types.Time                  `json:"timestamp"`
 	TransactionID int64                       `json:"trans_id"`
 }
 
 // WsOrderData ws response data
 type WsOrderData struct {
-	ClientOrderID int64    `json:"client_ord_id"`
-	InstrumentID  int64    `json:"inst_id"`
-	OpenQuantity  float64  `json:"open_qty,string"`
-	OrderID       int64    `json:"order_id"`
-	Price         float64  `json:"price,string"`
-	Quantity      float64  `json:"qty,string"`
-	Side          string   `json:"side"`
-	Timestamp     int64    `json:"timestamp"`
-	Status        []string `json:"status"`
+	ClientOrderID int64      `json:"client_ord_id"`
+	InstrumentID  int64      `json:"inst_id"`
+	OpenQuantity  float64    `json:"open_qty,string"`
+	OrderID       int64      `json:"order_id"`
+	Price         float64    `json:"price,string"`
+	Quantity      float64    `json:"qty,string"`
+	Side          string     `json:"side"`
+	Timestamp     types.Time `json:"timestamp"`
+	Status        []string   `json:"status"`
 }
 
 // WsOrderFilledCommissionData ws response data
@@ -551,19 +552,19 @@ type WsOrderFilledCommissionData struct {
 
 // WsOrderRejectedResponse ws response
 type WsOrderRejectedResponse struct {
-	Nonce         int64    `json:"nonce"`
-	Status        []string `json:"status"`
-	OrderID       int64    `json:"order_id"`
-	OpenQuantity  float64  `json:"open_qty,string"`
-	Price         float64  `json:"price,string"`
-	InstrumentID  int64    `json:"inst_id"`
-	Reasons       []string `json:"reasons"`
-	ClientOrderID int64    `json:"client_ord_id"`
-	Timestamp     int64    `json:"timestamp"`
-	Reply         string   `json:"reply"`
-	Quantity      float64  `json:"qty,string"`
-	Side          string   `json:"side"`
-	TransactionID int64    `json:"trans_id"`
+	Nonce         int64      `json:"nonce"`
+	Status        []string   `json:"status"`
+	OrderID       int64      `json:"order_id"`
+	OpenQuantity  float64    `json:"open_qty,string"`
+	Price         float64    `json:"price,string"`
+	InstrumentID  int64      `json:"inst_id"`
+	Reasons       []string   `json:"reasons"`
+	ClientOrderID int64      `json:"client_ord_id"`
+	Timestamp     types.Time `json:"timestamp"`
+	Reply         string     `json:"reply"`
+	Quantity      float64    `json:"qty,string"`
+	Side          string     `json:"side"`
+	TransactionID int64      `json:"trans_id"`
 }
 
 type wsInstList struct {
@@ -604,7 +605,7 @@ type WsTradeHistoryTradeData struct {
 	Order         WsOrderData                  `json:"order"`
 	FillPrice     float64                      `json:"fill_price,string"`
 	FillQuantity  float64                      `json:"fill_qty,string"`
-	Timestamp     int64                        `json:"timestamp"`
+	Timestamp     types.Time                   `json:"timestamp"`
 	TransactionID int64                        `json:"trans_id"`
 }
 
@@ -619,27 +620,27 @@ type WsLoginReq struct {
 
 // WsLoginResponse ws response data
 type WsLoginResponse struct {
-	APIKey          string   `json:"api_key"`
-	Country         string   `json:"country"`
-	DepositEnabled  bool     `json:"deposit_enabled"`
-	Deposited       bool     `json:"deposited"`
-	Email           string   `json:"email"`
-	FailedTimes     int64    `json:"failed_times"`
-	KycPassed       bool     `json:"kyc_passed"`
-	Language        string   `json:"lang"`
-	Nonce           int64    `json:"nonce"`
-	OTPEnabled      bool     `json:"otp_enabled"`
-	PhoneNumber     string   `json:"phone_number"`
-	ProductsEnabled []string `json:"products_enabled"`
-	Referred        bool     `json:"referred"`
-	Reply           string   `json:"reply"`
-	SessionID       string   `json:"session_id"`
-	Status          []string `json:"status"`
-	Timezone        string   `json:"timezone"`
-	Traded          bool     `json:"traded"`
-	UnverifiedEmail string   `json:"unverified_email"`
-	Username        string   `json:"username"`
-	WithdrawEnabled bool     `json:"withdraw_enabled"`
+	APIKey          string     `json:"api_key"`
+	Country         string     `json:"country"`
+	DepositEnabled  bool       `json:"deposit_enabled"`
+	Deposited       bool       `json:"deposited"`
+	Email           string     `json:"email"`
+	FailedTimes     types.Time `json:"failed_times"`
+	KycPassed       bool       `json:"kyc_passed"`
+	Language        string     `json:"lang"`
+	Nonce           int64      `json:"nonce"`
+	OTPEnabled      bool       `json:"otp_enabled"`
+	PhoneNumber     string     `json:"phone_number"`
+	ProductsEnabled []string   `json:"products_enabled"`
+	Referred        bool       `json:"referred"`
+	Reply           string     `json:"reply"`
+	SessionID       string     `json:"session_id"`
+	Status          []string   `json:"status"`
+	Timezone        string     `json:"timezone"`
+	Traded          bool       `json:"traded"`
+	UnverifiedEmail string     `json:"unverified_email"`
+	Username        string     `json:"username"`
+	WithdrawEnabled bool       `json:"withdraw_enabled"`
 }
 
 // WsNewOrderResponse returns if new_order response fails
@@ -679,31 +680,31 @@ type instrumentMap struct {
 }
 
 type wsOrderContainer struct {
-	OrderID       int64    `json:"order_id"`
-	ClientOrderID int64    `json:"client_ord_id"`
-	InstrumentID  int64    `json:"inst_id"`
-	Nonce         int64    `json:"nonce"`
-	Timestamp     int64    `json:"timestamp"`
-	TransactionID int64    `json:"trans_id"`
-	OpenQuantity  float64  `json:"open_qty,string"`
-	OrderPrice    float64  `json:"order_price,string"`
-	Quantity      float64  `json:"qty,string"`
-	FillPrice     float64  `json:"fill_price,string"`
-	FillQuantity  float64  `json:"fill_qty,string"`
-	Price         float64  `json:"price,string"`
-	Reply         string   `json:"reply"`
-	Side          string   `json:"side"`
-	Status        []string `json:"status"`
-	Reasons       []string `json:"reasons"`
+	OrderID       int64      `json:"order_id"`
+	ClientOrderID int64      `json:"client_ord_id"`
+	InstrumentID  int64      `json:"inst_id"`
+	Nonce         int64      `json:"nonce"`
+	Timestamp     types.Time `json:"timestamp"`
+	TransactionID int64      `json:"trans_id"`
+	OpenQuantity  float64    `json:"open_qty,string"`
+	OrderPrice    float64    `json:"order_price,string"`
+	Quantity      float64    `json:"qty,string"`
+	FillPrice     float64    `json:"fill_price,string"`
+	FillQuantity  float64    `json:"fill_qty,string"`
+	Price         float64    `json:"price,string"`
+	Reply         string     `json:"reply"`
+	Side          string     `json:"side"`
+	Status        []string   `json:"status"`
+	Reasons       []string   `json:"reasons"`
 	Order         struct {
-		ClientOrderID int64   `json:"client_ord_id"`
-		InstrumentID  int64   `json:"inst_id"`
-		OrderID       int64   `json:"order_id"`
-		Timestamp     int64   `json:"timestamp"`
-		Price         float64 `json:"price,string"`
-		Quantity      float64 `json:"qty,string"`
-		OpenQuantity  float64 `json:"open_qty,string"`
-		Side          string  `json:"side"`
+		ClientOrderID int64      `json:"client_ord_id"`
+		InstrumentID  int64      `json:"inst_id"`
+		OrderID       int64      `json:"order_id"`
+		Timestamp     types.Time `json:"timestamp"`
+		Price         float64    `json:"price,string"`
+		Quantity      float64    `json:"qty,string"`
+		OpenQuantity  float64    `json:"open_qty,string"`
+		Side          string     `json:"side"`
 	} `json:"order"`
 	Commission struct {
 		Amount   float64 `json:"amount,string"`

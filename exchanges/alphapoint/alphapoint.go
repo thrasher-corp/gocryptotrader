@@ -94,32 +94,6 @@ func (a *Alphapoint) GetTrades(ctx context.Context, currencyPair string, startIn
 	return response, nil
 }
 
-// GetTradesByDate gets trades by date
-// CurrencyPair - instrument code (ex: “BTCUSD”)
-// StartDate - specifies the starting time in epoch time, type is long
-// EndDate - specifies the end time in epoch time, type is long
-func (a *Alphapoint) GetTradesByDate(ctx context.Context, currencyPair string, startDate, endDate int64) (Trades, error) {
-	req := make(map[string]any)
-	req["ins"] = currencyPair
-	req["startDate"] = startDate
-	req["endDate"] = endDate
-	response := Trades{}
-
-	err := a.SendHTTPRequest(ctx,
-		exchange.RestSpot,
-		http.MethodPost,
-		alphapointTradesByDate,
-		req,
-		&response)
-	if err != nil {
-		return response, err
-	}
-	if !response.IsAccepted {
-		return response, errors.New(response.RejectReason)
-	}
-	return response, nil
-}
-
 // GetOrderbook fetches the current orderbook for a given currency pair
 // CurrencyPair - trade pair (ex: “BTCUSD”)
 func (a *Alphapoint) GetOrderbook(ctx context.Context, currencyPair string) (Orderbook, error) {
