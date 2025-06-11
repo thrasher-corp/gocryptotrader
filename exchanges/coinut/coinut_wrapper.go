@@ -335,7 +335,7 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Ask:          tick.LowestSell,
 		Volume:       tick.Volume24,
 		Pair:         p,
-		LastUpdated:  time.Unix(0, tick.Timestamp),
+		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: c.Name,
 		AssetType:    a,
 	})
@@ -444,7 +444,7 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			Side:         side,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Quantity,
-			Timestamp:    time.Unix(0, tradeData.Trades[i].Timestamp*int64(time.Microsecond)),
+			Timestamp:    tradeData.Trades[i].Timestamp.Time(),
 		}
 	}
 
@@ -824,7 +824,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					OrderID:         strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
 					Pair:            fPair,
 					Side:            side,
-					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
+					Date:            openOrders.Orders[i].Timestamp.Time(),
 					Status:          order.Active,
 					Price:           openOrders.Orders[i].Price,
 					Amount:          openOrders.Orders[i].Quantity,
@@ -886,7 +886,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					Price:    openOrders.Orders[y].Price,
 					Exchange: c.Name,
 					Side:     side,
-					Date:     time.Unix(openOrders.Orders[y].Timestamp, 0),
+					Date:     openOrders.Orders[y].Timestamp.Time(),
 					Pair:     p,
 				})
 			}
@@ -935,7 +935,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 						OrderID:         strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
 						Side:            side,
-						Date:            time.Unix(0, trades.Trades[x].Timestamp),
+						Date:            trades.Trades[x].Timestamp.Time(),
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
 						Amount:          trades.Trades[x].Quantity,
@@ -1006,7 +1006,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 					Price:    orders.Trades[y].Order.Price,
 					Exchange: c.Name,
 					Side:     side,
-					Date:     time.Unix(orders.Trades[y].Order.Timestamp, 0),
+					Date:     orders.Trades[y].Order.Timestamp.Time(),
 					Pair:     p,
 				})
 			}

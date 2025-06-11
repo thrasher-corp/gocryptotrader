@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
@@ -75,4 +77,28 @@ func (t Time) String() string {
 // MarshalJSON serializes the time to json.
 func (t Time) MarshalJSON() ([]byte, error) {
 	return t.Time().MarshalJSON()
+}
+
+// DateTime represents a time.Time object that can be unmarshalled from a string in the format "2006-01-02 15:04:05".
+type DateTime time.Time
+
+// UnmarshalJSON unmarshals json data into a DateTime type.
+func (d *DateTime) UnmarshalJSON(data []byte) error {
+	var ts string
+	if err := json.Unmarshal(data, &ts); err != nil {
+		return fmt.Errorf("error unmarshalling %q into string: %w", data, err)
+	}
+
+	tm, err := time.Parse(time.DateTime, ts)
+	if err != nil {
+		return fmt.Errorf("error parsing %q into DateTime: %w", ts, err)
+	}
+
+	*d = DateTime(tm)
+	return nil
+}
+
+// Time converts DateTime to time.Time
+func (d DateTime) Time() time.Time {
+	return time.Time(d)
 }

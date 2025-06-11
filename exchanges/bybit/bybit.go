@@ -153,48 +153,7 @@ func (by *Bybit) GetKlines(ctx context.Context, category, symbol string, interva
 	if err != nil {
 		return nil, err
 	}
-	return processKlineResponse(resp.List)
-}
-
-func processKlineResponse(in [][]string) ([]KlineItem, error) {
-	klines := make([]KlineItem, len(in))
-	for x := range in {
-		if len(in[x]) < 5 {
-			return nil, errors.New("invalid kline data")
-		}
-		startTimestamp, err := strconv.ParseInt(in[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x] = KlineItem{StartTime: time.UnixMilli(startTimestamp)}
-		klines[x].Open, err = strconv.ParseFloat(in[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x].High, err = strconv.ParseFloat(in[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x].Low, err = strconv.ParseFloat(in[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[x].Close, err = strconv.ParseFloat(in[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		if len(in[x]) == 7 {
-			klines[x].TradeVolume, err = strconv.ParseFloat(in[x][5], 64)
-			if err != nil {
-				return nil, err
-			}
-			klines[x].Turnover, err = strconv.ParseFloat(in[x][6], 64)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	return klines, nil
+	return resp.List, nil
 }
 
 // GetInstrumentInfo retrieves the list of instrument details given the category and symbol.
@@ -244,7 +203,7 @@ func (by *Bybit) GetMarkPriceKline(ctx context.Context, category, symbol string,
 	if err != nil {
 		return nil, err
 	}
-	return processKlineResponse(resp.List)
+	return resp.List, nil
 }
 
 // GetIndexPriceKline query for historical index price klines. Charts are returned in groups based on the requested interval.
@@ -272,7 +231,7 @@ func (by *Bybit) GetIndexPriceKline(ctx context.Context, category, symbol string
 	if err != nil {
 		return nil, err
 	}
-	return processKlineResponse(resp.List)
+	return resp.List, nil
 }
 
 // GetOrderBook retrieves for orderbook depth data.

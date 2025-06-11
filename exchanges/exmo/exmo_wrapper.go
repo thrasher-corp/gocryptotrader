@@ -182,7 +182,7 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Bid:          tick.Buy,
 			Low:          tick.Low,
 			Volume:       tick.Volume,
-			LastUpdated:  time.Unix(tick.Updated, 0),
+			LastUpdated:  tick.Updated.Time(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		})
@@ -272,11 +272,13 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
 func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = e.Name
 	result, err := e.GetUserInfo(ctx)
 	if err != nil {
-		return response, err
+		return account.Holdings{}, err
+	}
+
+	response := account.Holdings{
+		Exchange: e.Name,
 	}
 
 	currencies := make([]account.Balance, 0, len(result.Balances))
@@ -287,15 +289,7 @@ func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 			if z != x {
 				continue
 			}
-			var avail, reserved float64
-			avail, err = strconv.ParseFloat(y, 64)
-			if err != nil {
-				return response, err
-			}
-			reserved, err = strconv.ParseFloat(w, 64)
-			if err != nil {
-				return response, err
-			}
+			avail, reserved := y.Float64(), w.Float64()
 			exchangeCurrency.Total = avail + reserved
 			exchangeCurrency.Hold = reserved
 			exchangeCurrency.Free = avail
@@ -335,7 +329,7 @@ func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 		resp = append(resp, exchange.FundingHistory{
 			Status:     hist.History[i].Status,
 			TransferID: hist.History[i].TXID,
-			Timestamp:  time.Unix(hist.History[i].Timestamp, 0),
+			Timestamp:  hist.History[i].Timestamp.Time(),
 			Currency:   hist.History[i].Currency,
 			Amount:     hist.History[i].Amount,
 			BankFrom:   hist.History[i].Provider,
@@ -358,7 +352,7 @@ func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ ass
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:     hist.History[i].Status,
 			TransferID: hist.History[i].TXID,
-			Timestamp:  time.Unix(hist.History[i].Timestamp, 0),
+			Timestamp:  hist.History[i].Timestamp.Time(),
 			Currency:   hist.History[i].Currency,
 			Amount:     hist.History[i].Amount,
 			CryptoTxID: hist.History[i].TXID,
@@ -396,7 +390,7 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Side:         side,
 			Price:        mapData[i].Price,
 			Amount:       mapData[i].Quantity,
-			Timestamp:    time.Unix(mapData[i].Date, 0),
+			Timestamp:    mapData[i].Date.Time(),
 		}
 	}
 
@@ -596,21 +590,18 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 
 	orders := make([]order.Detail, 0, len(resp))
 	for i := range resp {
-		var symbol currency.Pair
-		symbol, err = currency.NewPairDelimiter(resp[i].Pair, "_")
+		symbol, err := currency.NewPairDelimiter(resp[i].Pair, "_")
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(resp[i].Created, 0)
-		var side order.Side
-		side, err = order.StringToOrderSide(resp[i].Type)
+		side, err := order.StringToOrderSide(resp[i].Type)
 		if err != nil {
 			return nil, err
 		}
 		orders = append(orders, order.Detail{
 			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
-			Date:     orderDate,
+			Date:     resp[i].Created.Time(),
 			Price:    resp[i].Price,
 			Side:     side,
 			Exchange: e.Name,
@@ -654,9 +645,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(allTrades[i].Date, 0)
-		var side order.Side
-		side, err = order.StringToOrderSide(allTrades[i].Type)
+		side, err := order.StringToOrderSide(allTrades[i].Type)
 		if err != nil {
 			return nil, err
 		}
@@ -666,7 +655,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 			ExecutedAmount: allTrades[i].Quantity,
 			Cost:           allTrades[i].Amount,
 			CostAsset:      pair.Quote,
-			Date:           orderDate,
+			Date:           allTrades[i].Date.Time(),
 			Price:          allTrades[i].Price,
 			Side:           side,
 			Exchange:       e.Name,
