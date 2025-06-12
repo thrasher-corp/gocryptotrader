@@ -844,6 +844,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"TAKE PROFIT LIMIT", TakeProfitLimit, nil},
+		{"TAKE_PROFIT_LiMIT", TakeProfitLimit, nil},
 		{"LIMIT_MAKER", LimitMaker, nil},
 		{"LIMIT MAKER", LimitMaker, nil},
 		{"OtO", OTO, nil},

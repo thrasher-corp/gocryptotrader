@@ -396,6 +396,7 @@ const (
 	orderChase                 = "CHASE"
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTakeProfitLimit       = "TAKE PROFIT LIMIT"
 	orderTrailingStop          = "TRAILING_STOP"
 	orderIOS                   = "IOS"
 	orderLiquidation           = "LIQUIDATION"
@@ -404,6 +405,9 @@ const (
 	orderOptimalLimit          = "OPTIMAL_LIMIT"
 	orderMarketMakerProtection = "MMP"
 	orderAnyType               = "ANY"
+	orderOTO                   = "OTO"
+	orderSOR                   = "SOR"
+	orderLimitMaker            = "LIMIT_MAKER"
 )
 
 // Side enforces a standard for order sides across the code base

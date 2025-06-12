@@ -7616,7 +7616,3 @@ func (b *Binance) CreateAPIKey(ctx context.Context, apiName, publicKey, status, 
 	var resp *UserAPIKeyCreationResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v1/api-key/create", params, request.Auth, nil, &resp)
 }
-
-// ---------------------- Auto Invest endpoints --------------------------------------------------------------------------------------
-
-// func (b *Binance) GetAllSourceAssetAndTargetAsset(ctx context.Context)

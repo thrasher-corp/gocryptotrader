@@ -375,9 +375,6 @@ func (b *Binance) uSymbolPriceTicker(ctx context.Context, symbol currency.Pair, 
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(path, params), uFuturesOrderbookTickerAllRate, &resp)
 }
 
-// GetSymbolPriceTicker retrieves latest price for symbol or symbols
-// func (b *Binance) GetSymbolPriceTicker(ctx context.Context, symbol string) ([]USymbolPriceTicker, )
-
 // USymbolOrderbookTicker gets symbol orderbook ticker
 func (b *Binance) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pair) ([]USymbolOrderbookTicker, error) {
 	params := url.Values{}
