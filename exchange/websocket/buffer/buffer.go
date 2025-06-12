@@ -1,9 +1,10 @@
 package buffer
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -121,12 +122,12 @@ func (w *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Up
 	if w.sortBuffer {
 		// sort by last updated to ensure each update is in order
 		if w.sortBufferByUpdateIDs {
-			sort.Slice(holder.buffer, func(i, j int) bool {
-				return holder.buffer[i].UpdateID < holder.buffer[j].UpdateID
+			slices.SortFunc(holder.buffer, func(a, b orderbook.Update) int {
+				return cmp.Compare(a.UpdateID, b.UpdateID)
 			})
 		} else {
-			sort.Slice(holder.buffer, func(i, j int) bool {
-				return holder.buffer[i].UpdateTime.Before(holder.buffer[j].UpdateTime)
+			slices.SortFunc(holder.buffer, func(a, b orderbook.Update) int {
+				return a.UpdateTime.Compare(b.UpdateTime)
 			})
 		}
 	}
