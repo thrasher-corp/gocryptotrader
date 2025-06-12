@@ -116,16 +116,11 @@ func (w Wrapper) QueryOrder(_ context.Context, exch, _ string, _ currency.Pair, 
 		return nil, errTestFailed
 	}
 
-	pair, err := currency.NewPairFromString("BTCAUD")
-	if err != nil {
-		return nil, err
-	}
-
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
 		OrderID:         "1",
-		Pair:            pair,
+		Pair:            currency.NewBTCUSD(),
 		Side:            order.Ask,
 		Type:            order.Limit,
 		Date:            time.Now(),

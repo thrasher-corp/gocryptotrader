@@ -93,7 +93,7 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = b.obm.checkAndProcessUpdate(b.processBooks, pair, recent)
+		err = b.obm.checkAndProcessOrderbookUpdate(b.processBooks, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
@@ -351,7 +351,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Book) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math"
@@ -18,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -154,7 +154,7 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 		return ctx, errors.New("basic not found in authorization header")
 	}
 
-	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
+	decoded, err := base64.StdEncoding.DecodeString(strings.Split(authStr[0], " ")[1])
 	if err != nil {
 		return ctx, errors.New("unable to base64 decode authorization header")
 	}
@@ -235,9 +235,6 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	}
 	if err := cfg.Validate(); err != nil {
 		return nil, err
-	}
-	if cfg == nil {
-		return nil, fmt.Errorf("%w backtester config", gctcommon.ErrNilPointer)
 	}
 
 	if !s.config.Report.GenerateReport {
