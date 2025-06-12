@@ -273,16 +273,16 @@ func (b *Book) GetAveragePrice(buy bool, amount float64) (float64, error) {
 // FindNominalAmount finds the nominal amount spent in terms of the quote
 // If the orderbook doesn't have enough liquidity it returns a non zero
 // remaining amount value
-func (ts Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
+func (l Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
 	remainingAmount = amount
-	for x := range ts {
-		if remainingAmount <= ts[x].Amount {
-			aggNominalAmount += ts[x].Price * remainingAmount
+	for x := range l {
+		if remainingAmount <= l[x].Amount {
+			aggNominalAmount += l[x].Price * remainingAmount
 			remainingAmount = 0
 			break
 		}
-		aggNominalAmount += ts[x].Price * ts[x].Amount
-		remainingAmount -= ts[x].Amount
+		aggNominalAmount += l[x].Price * l[x].Amount
+		remainingAmount -= l[x].Amount
 	}
 	return aggNominalAmount, remainingAmount
 }
