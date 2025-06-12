@@ -943,9 +943,6 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	od := Detail{OrderID: "1"}
 	updated := time.Now()
 
-	pair, err := currency.NewPairFromString("BTCUSD")
-	require.NoError(t, err)
-
 	om := ModifyResponse{
 		TimeInForce:     PostOnly | GoodTillTime,
 		Price:           1,
@@ -958,7 +955,7 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 		Status:          1,
 		AssetType:       1,
 		LastUpdated:     updated,
-		Pair:            pair,
+		Pair:            currency.NewBTCUSD(),
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
@@ -981,19 +978,16 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
-	leet := "1337"
+	t.Parallel()
 
-	updated := time.Now()
-
-	pair, err := currency.NewPairFromString("BTCUSD")
-	require.NoError(t, err)
+	var od *Detail
+	err := od.UpdateOrderFromDetail(nil)
+	require.ErrorIs(t, err, ErrOrderDetailIsNil)
 
 	id, err := uuid.NewV4()
 	require.NoError(t, err)
-
-	var od *Detail
-	err = od.UpdateOrderFromDetail(nil)
-	require.ErrorIs(t, err, ErrOrderDetailIsNil)
+	const leet = "1337"
+	updated := time.Now()
 
 	om := &Detail{
 		TimeInForce:     GoodTillCancel | PostOnly,
@@ -1019,7 +1013,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		Status:          1,
 		AssetType:       1,
 		LastUpdated:     updated,
-		Pair:            pair,
+		Pair:            currency.NewBTCUSD(),
 		Trades:          []TradeHistory{},
 	}
 
@@ -1161,10 +1155,7 @@ func TestValidationOnOrderTypes(t *testing.T) {
 	modifyOrder = new(Modify)
 	require.ErrorIs(t, modifyOrder.Validate(), ErrPairIsEmpty)
 
-	p, err := currency.NewPairFromString("BTC-USD")
-	require.NoError(t, err)
-
-	modifyOrder.Pair = p
+	modifyOrder.Pair = currency.NewBTCUSD()
 	require.ErrorIs(t, modifyOrder.Validate(), ErrAssetNotSet)
 
 	modifyOrder.AssetType = asset.Spot

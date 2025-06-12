@@ -3,6 +3,8 @@ package bitfinex
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -2101,22 +2103,21 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 		maps.Copy(req, params)
 
-		PayloadJSON, err := json.Marshal(req)
+		payloadJSON, err := json.Marshal(req)
 		if err != nil {
 			return nil, err
 		}
 
-		PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-			[]byte(PayloadBase64),
-			[]byte(creds.Secret))
+		payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
+
 		headers := make(map[string]string)
 		headers["X-BFX-APIKEY"] = creds.Key
-		headers["X-BFX-PAYLOAD"] = PayloadBase64
-		headers["X-BFX-SIGNATURE"] = crypto.HexEncodeToString(hmac)
+		headers["X-BFX-PAYLOAD"] = payloadB64
+		headers["X-BFX-SIGNATURE"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        method,
@@ -2161,15 +2162,11 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchan
 		headers["bfx-apikey"] = creds.Key
 		headers["bfx-nonce"] = n
 		sig := "/api" + bitfinexAPIVersion2 + path + n + string(payload)
-		hmac, err := crypto.GetHMAC(
-			crypto.HashSHA512_384,
-			[]byte(sig),
-			[]byte(creds.Secret),
-		)
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(sig), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		headers["bfx-signature"] = crypto.HexEncodeToString(hmac)
+		headers["bfx-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        method,

@@ -3,11 +3,13 @@ package repository
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
 func TestGetSQLDialect(t *testing.T) {
-	testCases := []struct {
+	for _, tc := range []struct {
 		driver         string
 		expectedReturn string
 	}{
@@ -27,22 +29,13 @@ func TestGetSQLDialect(t *testing.T) {
 			"invalid",
 			database.DBInvalidDriver,
 		},
-	}
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.driver, func(t *testing.T) {
+	} {
+		t.Run(tc.driver, func(t *testing.T) {
 			cfg := &database.Config{
-				Driver: test.driver,
+				Driver: tc.driver,
 			}
-			err := database.DB.SetConfig(cfg)
-			if err != nil {
-				t.Error(err)
-			}
-			ret := GetSQLDialect()
-			if ret != test.expectedReturn {
-				t.Fatalf("unexpected return: %v", ret)
-			}
+			require.NoError(t, database.DB.SetConfig(cfg))
+			assert.Equal(t, tc.expectedReturn, GetSQLDialect())
 		})
 	}
 }

@@ -935,7 +935,7 @@ func TestGetOrdersFiltered(t *testing.T) {
 	}
 }
 
-func Test_getFilteredOrders(t *testing.T) {
+func TestGetFilteredOrders(t *testing.T) {
 	m := OrdersSetup(t)
 
 	_, err := m.orderStore.getFilteredOrders(nil)
@@ -1014,7 +1014,7 @@ func TestGetOrdersActive(t *testing.T) {
 	}
 }
 
-func Test_processMatchingOrders(t *testing.T) {
+func TestProcessMatchingOrders(t *testing.T) {
 	m := OrdersSetup(t)
 	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
 	if err != nil {
@@ -1094,7 +1094,7 @@ func TestFetchAndUpdateExchangeOrder(t *testing.T) {
 	}
 }
 
-func Test_getActiveOrders(t *testing.T) {
+func TestGetActiveOrders(t *testing.T) {
 	m := OrdersSetup(t)
 	var err error
 	orders := []order.Detail{

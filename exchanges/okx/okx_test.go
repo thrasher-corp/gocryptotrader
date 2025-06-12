@@ -421,14 +421,14 @@ func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, erro
 			return "", errInvalidInstrumentType
 		}
 		for a := range insts {
-			if insts[a].InstrumentID == instID {
+			if insts[a].InstrumentID.String() == instID {
 				return insts[a].Underlying, nil
 			}
 		}
 	} else {
 		for _, insts := range ok.instrumentsInfoMap {
 			for a := range insts {
-				if insts[a].InstrumentID == instID {
+				if insts[a].InstrumentID.String() == instID {
 					return insts[a].Underlying, nil
 				}
 			}
@@ -4209,7 +4209,7 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency, "expected BTC contract value currency")
 	assert.True(t, i.ExpTime.Time().IsZero(), "expected empty expiry time")
 	assert.Equal(t, "BTC-USDC", i.InstrumentFamily, "expected BTC-USDC instrument family")
-	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID, "expected BTC-USDC-SWAP instrument ID")
+	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID.String(), "expected BTC-USDC-SWAP instrument ID")
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
@@ -6023,14 +6023,14 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 			return "", errInvalidInstrumentType
 		}
 		for a := range insts {
-			if insts[a].InstrumentID == instID {
+			if insts[a].InstrumentID.String() == instID {
 				return insts[a].InstrumentFamily, nil
 			}
 		}
 	} else {
 		for _, insts := range ok.instrumentsInfoMap {
 			for a := range insts {
-				if insts[a].InstrumentID == instID {
+				if insts[a].InstrumentID.String() == instID {
 					return insts[a].InstrumentFamily, nil
 				}
 			}
