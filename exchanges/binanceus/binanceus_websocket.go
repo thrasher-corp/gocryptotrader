@@ -730,7 +730,7 @@ func (bi *Binanceus) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = bi.obm.checkAndProcessUpdate(bi.ProcessOrderbookUpdate, pair, recent)
+		err = bi.obm.checkAndProcessOrderbookUpdate(bi.ProcessOrderbookUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
@@ -985,7 +985,7 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]

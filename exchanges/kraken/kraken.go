@@ -886,9 +886,8 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 		encoded := params.Encode()
 
 		shasum := sha256.Sum256([]byte(nonce + encoded))
-		s := shasum[:]
 		path := "/" + krakenAPIVersion + "/private/" + method
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512, append([]byte(path), s...), []byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, append([]byte(path), shasum[:]...), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}

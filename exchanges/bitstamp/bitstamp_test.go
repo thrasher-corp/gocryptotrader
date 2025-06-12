@@ -864,9 +864,8 @@ func TestWsRequestReconnect(t *testing.T) {
 }
 
 func TestOHLC(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	o, err := b.OHLC(t.Context(), "btcusd", start, end, "60", "10")
+	t.Parallel()
+	o, err := b.OHLC(t.Context(), "btcusd", time.Unix(1546300800, 0), time.Unix(1577836799, 0), "60", "10")
 	require.NoError(t, err, "OHLC must not error")
 	assert.Equal(t, "BTC/USD", o.Data.Pair, "Pair should be correct")
 	for _, req := range o.Data.OHLCV {
@@ -879,9 +878,8 @@ func TestOHLC(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+	t.Parallel()
+	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
 	require.NoError(t, err, "GetHistoricCandles must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -896,10 +894,8 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+	t.Parallel()
+	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
 	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")

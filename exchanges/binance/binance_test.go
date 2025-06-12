@@ -31,6 +31,7 @@ import (
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -661,16 +662,32 @@ func TestGetIndexAndMarkPrice(t *testing.T) {
 
 func TestGetFuturesKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
+	r, err := b.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
+	require.NoError(t, err, "GetFuturesKlineData must not error")
+	if mockTests {
+		require.Len(t, r, 5, "GetFuturesKlineData must return 5 items in mock test")
+		exp := FuturesCandleStick{
+			OpenTime:                types.Time(time.UnixMilli(1596240000000)),
+			Open:                    11785,
+			High:                    12513.6,
+			Low:                     11114.1,
+			Close:                   11663.5,
+			Volume:                  12155433,
+			CloseTime:               types.Time(time.UnixMilli(1598918399999)),
+			BaseAssetVolume:         104142.54608485,
+			NumberOfTrades:          359100,
+			TakerBuyVolume:          6013546,
+			TakerBuyBaseAssetVolume: 51511.95826419,
+		}
+		assert.Equal(t, exp, r[0])
+	} else {
+		assert.NotEmpty(t, r, "GetFuturesKlineData should return data")
 	}
 
 	start, end := getTime()
-	_, err = b.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	r, err = b.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, start, end)
+	require.NoError(t, err, "GetFuturesKlineData must not error")
+	assert.NotEmpty(t, r, "GetFuturesKlineData should return data")
 }
 
 func TestGetContinuousKlineData(t *testing.T) {
@@ -2433,7 +2450,7 @@ func TestFormatChannelLevels(t *testing.T) {
 
 var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":"BTCUSDT","u":7145637297}`)
 
-func TestProcessUpdate(t *testing.T) {
+func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")

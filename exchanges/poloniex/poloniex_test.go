@@ -636,8 +636,7 @@ func TestWsPriceAggregateOrderbook(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	start := time.Unix(1588741402, 0)
-	_, err := p.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.FiveMin, start, time.Unix(1588745003, 0))
+	_, err := p.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
 	assert.NoError(t, err)
 }
 

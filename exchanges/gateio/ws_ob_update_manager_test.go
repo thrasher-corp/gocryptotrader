@@ -15,7 +15,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestProcessUpdate(t *testing.T) {
+func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
 	m := newWsOBUpdateManager(0)

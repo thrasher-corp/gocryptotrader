@@ -1215,7 +1215,7 @@ func (ku *Kucoin) applyBufferUpdate(pair currency.Pair, assetType asset.Item) er
 	}
 
 	if recent != nil {
-		err = ku.obm.CheckAndProcessUpdate(ku.processOrderbookUpdate, pair, assetType, recent)
+		err = ku.obm.checkAndProcessOrderbookUpdate(ku.processOrderbookUpdate, pair, assetType, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
@@ -1511,7 +1511,7 @@ func (o *orderbookManager) FetchBookViaREST(pair currency.Pair, assetType asset.
 	}
 }
 
-func (o *orderbookManager) CheckAndProcessUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, assetType asset.Item, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, assetType asset.Item, recent *orderbook.Base) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][assetType]

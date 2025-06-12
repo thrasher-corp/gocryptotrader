@@ -77,7 +77,7 @@ type FuturesCandleStick struct {
 
 // UnmarshalJSON unmarshals FuturesCandleStick data from JSON
 func (f *FuturesCandleStick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[11]any{f.OpenTime, f.Open, f.High, f.Low, f.Close, f.Volume, f.CloseTime, f.BaseAssetVolume, f.NumberOfTrades, f.TakerBuyVolume, f.TakerBuyBaseAssetVolume})
+	return json.Unmarshal(data, &[11]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.BaseAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume})
 }
 
 // AllLiquidationOrders gets all liquidation orders

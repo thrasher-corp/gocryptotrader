@@ -296,10 +296,6 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 		return err
 	}
 
-	if len(wsOrderBookResp.Data.Asks) == 0 && len(wsOrderBookResp.Data.Bids) == 0 {
-		return errors.New("no orderbook data")
-	}
-
 	obUpdate := &orderbook.Base{
 		Bids:            make(orderbook.Tranches, len(wsOrderBookResp.Data.Bids)),
 		Asks:            make(orderbook.Tranches, len(wsOrderBookResp.Data.Asks)),
