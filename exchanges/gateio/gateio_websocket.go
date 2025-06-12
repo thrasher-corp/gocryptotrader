@@ -359,13 +359,13 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 		return err
 	}
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           data.Pair,
-		Asset:          asset.Spot,
-		LastUpdated:    data.UpdateTime.Time(),
-		UpdatePushedAt: updatePushedAt,
-		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Exchange:    g.Name,
+		Pair:        data.Pair,
+		Asset:       asset.Spot,
+		LastUpdated: data.UpdateTime.Time(),
+		LastPushed:  updatePushedAt,
+		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
@@ -385,14 +385,14 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
 	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
-		UpdateID:       data.LastUpdateID,
-		UpdateTime:     data.UpdateTime.Time(),
-		UpdatePushedAt: updatePushedAt,
-		Pair:           data.Pair,
-		Asset:          asset.Spot,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+		UpdateID:   data.LastUpdateID,
+		UpdateTime: data.UpdateTime.Time(),
+		LastPushed: updatePushedAt,
+		Pair:       data.Pair,
+		Asset:      asset.Spot,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
@@ -416,13 +416,13 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-				Exchange:       g.Name,
-				Pair:           data.CurrencyPair,
-				Asset:          a,
-				LastUpdated:    data.UpdateTime.Time(),
-				UpdatePushedAt: updatePushedAt,
-				Bids:           bids,
-				Asks:           asks,
+				Exchange:    g.Name,
+				Pair:        data.CurrencyPair,
+				Asset:       a,
+				LastUpdated: data.UpdateTime.Time(),
+				LastPushed:  updatePushedAt,
+				Bids:        bids,
+				Asks:        asks,
 			}); err != nil {
 				return err
 			}

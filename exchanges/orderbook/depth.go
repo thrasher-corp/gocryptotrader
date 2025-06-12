@@ -78,7 +78,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 		Asset:                  d.asset,
 		Pair:                   d.pair,
 		LastUpdated:            d.lastUpdated,
-		UpdatePushedAt:         d.updatePushedAt,
+		LastPushed:             d.updatePushedAt,
 		InsertedAt:             d.insertedAt,
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
@@ -387,7 +387,7 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
-	d.updatePushedAt = update.UpdatePushedAt
+	d.updatePushedAt = update.LastPushed
 	d.insertedAt = time.Now()
 	d.Alert()
 }

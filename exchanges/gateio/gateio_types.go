@@ -526,7 +526,7 @@ type OrderbookData struct {
 	Bids    [][2]types.Number `json:"bids"`
 }
 
-// MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
+// MakeOrderbook converts OrderbookData into a Orderbook
 func (a *OrderbookData) MakeOrderbook() *Orderbook {
 	asks := make([]OrderbookItem, len(a.Asks))
 	for x := range a.Asks {

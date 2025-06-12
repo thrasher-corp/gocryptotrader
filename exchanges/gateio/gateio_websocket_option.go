@@ -514,14 +514,14 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Amount = data.Bids[x].Size
 	}
 	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
-		UpdateID:       data.LastUpdatedID,
-		UpdateTime:     data.Timestamp.Time(),
-		UpdatePushedAt: pushTime,
-		Pair:           data.ContractName,
-		Asset:          a,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+		UpdateID:   data.LastUpdatedID,
+		UpdateTime: data.Timestamp.Time(),
+		LastPushed: pushTime,
+		Pair:       data.ContractName,
+		Asset:      a,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
@@ -537,7 +537,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
-			UpdatePushedAt:  updatePushedAt,
+			LastPushed:      updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -591,7 +591,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Exchange:        g.Name,
 			Pair:            currencyPair,
 			LastUpdated:     updatePushedAt,
-			UpdatePushedAt:  updatePushedAt,
+			LastPushed:      updatePushedAt,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {

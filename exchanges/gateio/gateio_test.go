@@ -1809,10 +1809,17 @@ func TestUpdateTickers(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for _, a := range g.GetAssetTypes(false) {
-		o, err := g.UpdateOrderbook(t.Context(), getPair(t, a), a)
-		require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", a)
-		assert.NotEmptyf(t, o.Bids, "UpdateOrderbook should return some bids for %s", a)
-		assert.NotEmptyf(t, o.Asks, "UpdateOrderbook should return some asks for %s", a)
+		pair := getPair(t, a)
+		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
+			t.Parallel()
+			o, err := g.UpdateOrderbook(t.Context(), pair, a)
+			require.NoError(t, err)
+			if a == asset.Options { // Options orderbooks can be empty
+				return
+			}
+			assert.NotEmpty(t, o.Bids)
+			assert.NotEmpty(t, o.Asks)
+		})
 	}
 }
 
