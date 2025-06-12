@@ -707,7 +707,6 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-
 	asks := make([]orderbook.Level, len(result.Asks))
 	for i := range result.Asks {
 		asks[i].Price = result.Asks[i][0].Float64()
