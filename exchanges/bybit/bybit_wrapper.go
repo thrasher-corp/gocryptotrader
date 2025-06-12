@@ -477,7 +477,7 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -506,7 +506,7 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Snapshot{
+	book := &orderbook.Book{
 		Exchange:        by.Name,
 		Pair:            p,
 		Asset:           assetType,

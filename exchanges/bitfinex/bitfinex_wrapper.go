@@ -332,14 +332,14 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	o := &orderbook.Snapshot{
+	o := &orderbook.Book{
 		Exchange:         b.Name,
 		Pair:             p,
 		Asset:            assetType,

@@ -434,7 +434,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 			errTypeAssertionFailure)
 	}
 
-	var book orderbook.Snapshot
+	var book orderbook.Book
 	book.Asks = make(orderbook.Tranches, 0, len(askData))
 	for price, volume := range askData {
 		var p float64

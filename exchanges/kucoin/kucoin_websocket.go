@@ -979,7 +979,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		lastUpdatedTime = time.Now()
 	}
 	for x := range assets {
-		err = ku.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
+		err = ku.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Exchange:    ku.Name,
 			Asks:        asks,
 			Bids:        bids,
@@ -1290,7 +1290,7 @@ func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair, assetType
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
-	newOrderBook := orderbook.Snapshot{
+	newOrderBook := orderbook.Book{
 		Pair:            p,
 		Asset:           assetType,
 		Exchange:        ku.Name,
@@ -1511,7 +1511,7 @@ func (o *orderbookManager) FetchBookViaREST(pair currency.Pair, assetType asset.
 	}
 }
 
-func (o *orderbookManager) CheckAndProcessUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, assetType asset.Item, recent *orderbook.Snapshot) error {
+func (o *orderbookManager) CheckAndProcessUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, assetType asset.Item, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][assetType]
@@ -1545,7 +1545,7 @@ buffer:
 }
 
 // Validate checks for correct update alignment
-func (u *update) Validate(updt *WsOrderbook, recent *orderbook.Snapshot) (bool, error) {
+func (u *update) Validate(updt *WsOrderbook, recent *orderbook.Book) (bool, error) {
 	if updt.SequenceEnd <= recent.LastUpdateID {
 		// Drop any event where u is <= lastUpdateId in the snapshot.
 		return false, nil

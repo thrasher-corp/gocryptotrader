@@ -358,7 +358,7 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
+	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:       g.Name,
 		Pair:           data.Pair,
 		Asset:          asset.Spot,
@@ -415,7 +415,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
+			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:       g.Name,
 				Pair:           data.CurrencyPair,
 				Asset:          a,

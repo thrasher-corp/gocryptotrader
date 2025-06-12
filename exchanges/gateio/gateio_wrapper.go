@@ -649,12 +649,12 @@ func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Snapshot, error) {
+func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	return g.UpdateOrderbookWithLimit(ctx, p, a, 0)
 }
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
-func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Snapshot, error) {
+func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -688,7 +688,7 @@ func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, 
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Snapshot{
+	book := &orderbook.Book{
 		Exchange:        g.Name,
 		Asset:           a,
 		VerifyOrderbook: g.CanVerifyOrderbook,

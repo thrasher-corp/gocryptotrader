@@ -265,7 +265,7 @@ func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, a asset.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -273,7 +273,7 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return nil, err
 	}
 
-	book := &orderbook.Snapshot{
+	book := &orderbook.Book{
 		Exchange:         b.Name,
 		Pair:             p,
 		Asset:            assetType,

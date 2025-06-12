@@ -79,8 +79,8 @@ type Tranche struct {
 	OrderCount        int64
 }
 
-// Snapshot contains a moment in time snapshot from an Depth
-type Snapshot struct {
+// Book contains a moment in time snapshot from an Depth
+type Book struct {
 	Bids Tranches
 	Asks Tranches
 

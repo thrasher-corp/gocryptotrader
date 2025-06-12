@@ -506,7 +506,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 	}
 
 	if isInitial {
-		var newOrderBook orderbook.Snapshot
+		var newOrderBook orderbook.Book
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
 		newOrderBook.Asset = asset.Spot

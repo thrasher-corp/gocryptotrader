@@ -32,14 +32,14 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 	p := currency.NewBTCUSD()
 
-	s := Snapshot{
+	b := Book{
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: "SubscribeToExchangeOrderbooks",
 		Bids:     []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
-	require.NoError(t, s.Process(), "process must not error")
+	require.NoError(t, b.Process(), "process must not error")
 
 	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
 	assert.NoError(t, err, "SubscribeToExchangeOrderbooks should not error")
@@ -47,7 +47,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 func TestVerify(t *testing.T) {
 	t.Parallel()
-	b := Snapshot{
+	b := Book{
 		Exchange:        "TestExchange",
 		Asset:           asset.Spot,
 		Pair:            currency.NewBTCUSD(),
@@ -118,7 +118,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := Snapshot{
+	base := Book{
 		Pair:        curr,
 		Bids:        []Tranche{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
@@ -136,7 +136,7 @@ func TestCalculateTotalAsks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := Snapshot{
+	base := Book{
 		Pair: curr,
 		Asks: []Tranche{{Price: 100, Amount: 10}},
 	}
@@ -153,7 +153,7 @@ func TestGetOrderbook(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 
-	base := &Snapshot{
+	base := &Book{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -194,7 +194,7 @@ func TestGetDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 
-	base := &Snapshot{
+	base := &Book{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -234,7 +234,7 @@ func TestBaseGetDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "UST")
 	require.NoError(t, err, "NewPairFromStrings must not error")
 
-	base := &Snapshot{
+	base := &Book{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -273,7 +273,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := &Snapshot{
+	base := &Book{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -311,7 +311,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := Snapshot{
+	base := Book{
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "ProcessOrderbook",
@@ -446,7 +446,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 			asks := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
 			bids := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
-			base := &Snapshot{
+			base := &Book{
 				Pair:     newPairs,
 				Asks:     asks,
 				Bids:     bids,
@@ -511,7 +511,7 @@ func deployUnorderedSlice() Tranches {
 }
 
 func TestSorting(t *testing.T) {
-	var b Snapshot
+	var b Book
 	b.VerifyOrderbook = true
 
 	b.Asks = deployUnorderedSlice()
@@ -544,7 +544,7 @@ func deploySliceOrdered() Tranches {
 }
 
 func TestReverse(t *testing.T) {
-	s := Snapshot{
+	s := Book{
 		VerifyOrderbook: true,
 	}
 
@@ -668,7 +668,7 @@ func TestCheckAlignment(t *testing.T) {
 // 5572401	       210.9 ns/op	       0 B/op	       0 allocs/op (current)
 // 3748009	       312.7 ns/op	      32 B/op	       1 allocs/op (previous)
 func BenchmarkProcess(b *testing.B) {
-	base := &Snapshot{
+	base := &Book{
 		Pair:     currency.NewBTCUSD(),
 		Asks:     make(Tranches, 100),
 		Bids:     make(Tranches, 100),

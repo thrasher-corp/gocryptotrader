@@ -1777,7 +1777,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
-var testOb = orderbook.Snapshot{
+var testOb = orderbook.Book{
 	Asks: []orderbook.Tranche{
 		{Price: 0.05005, Amount: 0.00000500},
 		{Price: 0.05010, Amount: 0.00000500},

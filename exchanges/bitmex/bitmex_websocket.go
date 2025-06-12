@@ -399,7 +399,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		book := orderbook.Snapshot{
+		book := orderbook.Book{
 			Asks: make(orderbook.Tranches, 0, len(data)),
 			Bids: make(orderbook.Tranches, 0, len(data)),
 		}

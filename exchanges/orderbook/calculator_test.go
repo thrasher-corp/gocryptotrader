@@ -10,8 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-func testSetup() Snapshot {
-	return Snapshot{
+func testSetup() Book {
+	return Book{
 		Exchange: "a",
 		Pair:     currency.NewBTCUSD(),
 		Asks: []Tranche{
@@ -178,7 +178,7 @@ func TestSimulateOrder(t *testing.T) {
 	_, err := b.SimulateOrder(-8000, true)
 	require.ErrorIs(t, err, errQuoteAmountInvalid)
 
-	_, err = (&Snapshot{}).SimulateOrder(1337, true)
+	_, err = (&Book{}).SimulateOrder(1337, true)
 	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
@@ -313,10 +313,10 @@ func TestSimulateOrder(t *testing.T) {
 
 	// Invalid
 
-	_, err = (&Snapshot{}).SimulateOrder(-1, false)
-	require.ErrorIs(t, err, errSnapshotAmountInvalid)
+	_, err = (&Book{}).SimulateOrder(-1, false)
+	require.ErrorIs(t, err, errBaseAmountInvalid)
 
-	_, err = (&Snapshot{}).SimulateOrder(2, false)
+	_, err = (&Book{}).SimulateOrder(2, false)
 	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
@@ -449,14 +449,14 @@ func TestSimulateOrder(t *testing.T) {
 }
 
 func TestGetAveragePrice(t *testing.T) {
-	b := Snapshot{
+	b := Book{
 		Exchange: "Binance",
 		Pair:     currency.NewBTCUSD(),
 	}
 	_, err := b.GetAveragePrice(false, 5)
 	assert.ErrorIs(t, err, errNotEnoughLiquidity)
 
-	b = Snapshot{
+	b = Book{
 		Asks: []Tranche{
 			{Amount: 5, Price: 1},
 			{Amount: 5, Price: 2},

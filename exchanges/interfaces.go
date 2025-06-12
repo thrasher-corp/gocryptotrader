@@ -45,8 +45,8 @@ type IBotExchange interface {
 	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
-	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Snapshot, error)
-	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Snapshot, error)
+	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error)
+	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
 	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)

@@ -214,7 +214,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	}
 	assert.ErrorIs(t, err, classificationError.Err)
 
-	err = m.websocketDataHandler(exchName, &orderbook.Snapshot{
+	err = m.websocketDataHandler(exchName, &orderbook.Book{
 		Exchange: "Bitstamp",
 		Pair:     currency.NewBTCUSD(),
 	})

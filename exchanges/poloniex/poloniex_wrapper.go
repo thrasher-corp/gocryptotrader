@@ -275,14 +275,14 @@ func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair,
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := p.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	callingBook := &orderbook.Snapshot{
+	callingBook := &orderbook.Book{
 		Exchange:        p.Name,
 		Pair:            pair,
 		Asset:           assetType,
@@ -310,7 +310,7 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				continue
 			}
 		}
-		book := &orderbook.Snapshot{
+		book := &orderbook.Book{
 			Exchange:        p.Name,
 			Pair:            enabledPairs[i],
 			Asset:           assetType,

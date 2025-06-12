@@ -203,14 +203,14 @@ func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	callingBook := &orderbook.Snapshot{
+	callingBook := &orderbook.Book{
 		Exchange:        e.Name,
 		Pair:            p,
 		Asset:           assetType,
@@ -232,7 +232,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	for i := range enabledPairs {
-		book := &orderbook.Snapshot{
+		book := &orderbook.Book{
 			Exchange:        e.Name,
 			Pair:            enabledPairs[i],
 			Asset:           assetType,

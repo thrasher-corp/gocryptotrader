@@ -256,14 +256,14 @@ func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Snapshot{
+	book := &orderbook.Book{
 		Exchange:        b.Name,
 		Pair:            p,
 		Asset:           assetType,

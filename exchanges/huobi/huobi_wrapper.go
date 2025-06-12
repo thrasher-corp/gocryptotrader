@@ -547,14 +547,14 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !assetType.IsValid() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	book := &orderbook.Snapshot{
+	book := &orderbook.Book{
 		Exchange:        h.Name,
 		Pair:            p,
 		Asset:           assetType,

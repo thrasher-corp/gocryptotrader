@@ -532,7 +532,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 		if err != nil {
 			return err
 		}
-		base := orderbook.Snapshot{
+		base := orderbook.Book{
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            data.Contract,
@@ -584,7 +584,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Snapshot{
+		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asks:            ab[0],
 			Bids:            ab[1],
 			Asset:           asset.Options,

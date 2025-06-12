@@ -666,7 +666,7 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData []any, levels int) error {
-	base := orderbook.Snapshot{
+	base := orderbook.Book{
 		Pair:                   pair,
 		Asset:                  asset.Spot,
 		VerifyOrderbook:        k.CanVerifyOrderbook,
@@ -906,7 +906,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 	return validateCRC32(book, uint32(token))
 }
 
-func validateCRC32(b *orderbook.Snapshot, token uint32) error {
+func validateCRC32(b *orderbook.Book, token uint32) error {
 	if b == nil {
 		return common.ErrNilPointer
 	}

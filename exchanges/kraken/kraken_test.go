@@ -1370,7 +1370,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades should error")
 }
 
-var testOb = orderbook.Snapshot{
+var testOb = orderbook.Book{
 	Asks: []orderbook.Tranche{
 		// NOTE: 0.00000500 float64 == 0.000005
 		{Price: 0.05005, StrPrice: "0.05005", Amount: 0.00000500, StrAmount: "0.00000500"},

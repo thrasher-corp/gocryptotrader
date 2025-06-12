@@ -1920,7 +1920,7 @@ func (b *Base) GetCachedTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // GetCachedOrderbook returns an orderbook snapshot for the currency pair and asset type
 // NOTE: UpdateOrderbook method must be called first to update the orderbook map
-func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 

@@ -315,7 +315,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 		return errors.New("no orderbooks to process")
 	}
 
-	newOrderBook := orderbook.Snapshot{
+	newOrderBook := orderbook.Book{
 		Bids: make(orderbook.Tranches, len(ob.Params.Bid)),
 		Asks: make(orderbook.Tranches, len(ob.Params.Ask)),
 	}

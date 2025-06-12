@@ -945,7 +945,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestOrderbookZeroBidPrice(t *testing.T) {
 	t.Parallel()
 
-	ob := &orderbook.Snapshot{
+	ob := &orderbook.Book{
 		Exchange: "Bitstamp",
 		Pair:     btcusdPair,
 		Asset:    asset.Spot,

@@ -670,7 +670,7 @@ func parseTime(dateTime string) (time.Time, error) {
 	return time.Parse(bitstampTimeLayout, dateTime)
 }
 
-func filterOrderbookZeroBidPrice(ob *orderbook.Snapshot) {
+func filterOrderbookZeroBidPrice(ob *orderbook.Book) {
 	if len(ob.Bids) == 0 || ob.Bids[len(ob.Bids)-1].Price != 0 {
 		return
 	}

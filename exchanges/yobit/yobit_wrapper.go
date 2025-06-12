@@ -192,14 +192,14 @@ func (y *Yobit) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Snapshot, error) {
+func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := y.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Snapshot{
+	book := &orderbook.Book{
 		Exchange:        y.Name,
 		Pair:            p,
 		Asset:           assetType,

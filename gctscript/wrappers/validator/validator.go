@@ -46,12 +46,12 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 }
 
 // Orderbook validator for test execution/scripts
-func (w Wrapper) Orderbook(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Snapshot, error) {
+func (w Wrapper) Orderbook(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Book, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
 
-	return &orderbook.Snapshot{
+	return &orderbook.Book{
 		Exchange: exch,
 		Asset:    item,
 		Pair:     pair,
