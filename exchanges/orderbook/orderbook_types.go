@@ -79,7 +79,7 @@ type Tranche struct {
 	OrderCount        int64
 }
 
-// Snapshot holds the fields for the orderbook snapshot
+// Snapshot contains a moment in time snapshot from an Depth
 type Snapshot struct {
 	Bids Tranches
 	Asks Tranches
