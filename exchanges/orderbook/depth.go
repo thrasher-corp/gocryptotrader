@@ -63,7 +63,7 @@ func (d *Depth) Publish() {
 	}
 }
 
-// Retrieve returns the orderbook snapshot a copy of the underlying linked list
+// Retrieve returns a snapshot of the orderbook
 // spread
 func (d *Depth) Retrieve() (*Snapshot, error) {
 	d.m.RLock()
