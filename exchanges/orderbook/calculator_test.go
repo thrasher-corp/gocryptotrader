@@ -45,7 +45,7 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
 	}
 
-	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask tranche
+	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask level
 	assert.NoError(t, err)
 
 	if result.Amount != 7000 {
@@ -115,7 +115,7 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
 	}
 
-	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid tranche
+	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid level
 	assert.NoError(t, err)
 
 	if result.Amount != 1 {
@@ -223,7 +223,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
 	}
 
-	// First tranche
+	// First level
 	result, err = b.SimulateOrder(7000, true)
 	require.NoError(t, err)
 
@@ -235,7 +235,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
 	}
 
-	if result.MaximumPrice != 7001 { // A full tranche is wiped out and this one should be preserved.
+	if result.MaximumPrice != 7001 { // A full level is wiped out and this one should be preserved.
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
 	}
 
@@ -275,7 +275,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
 	}
 
-	// Half of second tranche
+	// Half of second level
 	result, err = b.SimulateOrder(14001, true)
 	require.NoError(t, err)
 
@@ -361,7 +361,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
 	}
 
-	// First tranche
+	// First level
 	result, err = b.SimulateOrder(1, false)
 	require.NoError(t, err)
 
@@ -373,7 +373,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
 	}
 
-	if result.MinimumPrice != 6998 { // A full tranche is wiped out and this one should be preserved.
+	if result.MinimumPrice != 6998 { // A full level is wiped out and this one should be preserved.
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
 	}
 
@@ -413,7 +413,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
 	}
 
-	// Half of second tranche
+	// Half of second level
 	result, err = b.SimulateOrder(2, false)
 	require.NoError(t, err)
 

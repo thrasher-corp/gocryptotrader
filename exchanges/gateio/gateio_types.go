@@ -2217,12 +2217,12 @@ type WsFuturesAndOptionsOrderbookUpdate struct {
 	ContractName   currency.Pair `json:"s"`
 	FirstUpdatedID int64         `json:"U"`
 	LastUpdatedID  int64         `json:"u"`
-	Bids           []Tranche     `json:"b"`
-	Asks           []Tranche     `json:"a"`
+	Bids           []Level       `json:"b"`
+	Asks           []Level       `json:"a"`
 }
 
-// Tranche represents a tranche of orderbook data
-type Tranche struct {
+// Level represents a level of orderbook data
+type Level struct {
 	Price types.Number `json:"p"`
 	Size  float64      `json:"s"`
 }
@@ -2232,8 +2232,8 @@ type WsFuturesOrderbookSnapshot struct {
 	Timestamp   types.Time    `json:"t"`
 	Contract    currency.Pair `json:"contract"`
 	OrderbookID int64         `json:"id"`
-	Asks        []Tranche     `json:"asks"`
-	Bids        []Tranche     `json:"bids"`
+	Asks        []Level       `json:"asks"`
+	Bids        []Level       `json:"bids"`
 }
 
 // WsFuturesOrderbookUpdateEvent represents futures orderbook push data with the event 'update'

@@ -58,7 +58,7 @@ var bid = Levels{
 // Display displays depth content for tests
 func (ts Levels) display() {
 	for x := range ts {
-		fmt.Printf("Tranche: %+v %p \n", ts[x], &ts[x])
+		fmt.Printf("Level: %+v %p \n", ts[x], &ts[x])
 	}
 	fmt.Println()
 }
@@ -1214,7 +1214,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 			ExpectedCost:    900,
 		},
 		{
-			Name:            "consume first tranche",
+			Name:            "consume first level",
 			BidLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			BaseAmount:      2,
 			ReferencePrice:  10000,
@@ -1223,7 +1223,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 			ExpectedCost:    0,
 		},
 		{
-			Name:            "consume most of first tranche",
+			Name:            "consume most of first level",
 			BidLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			BaseAmount:      1.5,
 			ReferencePrice:  10000,
@@ -1331,7 +1331,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			},
 		},
 		{
-			Name:            "consume first tranche - take one amount out of second",
+			Name:            "consume first level - take one amount out of second",
 			BidLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			NominalSlippage: 0.33333333333334,
 			ReferencePrice:  10000,
@@ -1451,7 +1451,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 			},
 		},
 		{
-			Name:           "consume first tranche and second tranche",
+			Name:           "consume first level and second level",
 			BidLiquidity:   Levels{{Price: 10000, Amount: 2}, {Price: 9900, Amount: 7}, {Price: 9800, Amount: 3}},
 			ImpactSlippage: 2,
 			ReferencePrice: 10000,
@@ -1537,7 +1537,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 			ExpectedCost:    900,
 		},
 		{
-			Name:            "consume first tranche",
+			Name:            "consume first level",
 			AskLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			QuoteAmount:     20000,
 			ReferencePrice:  10000,
@@ -1546,7 +1546,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 			ExpectedCost:    0,
 		},
 		{
-			Name:            "consume most of first tranche",
+			Name:            "consume most of first level",
 			AskLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			QuoteAmount:     15000,
 			ReferencePrice:  10000,
@@ -1624,7 +1624,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			ExpectedError:   errNoLiquidity,
 		},
 		{
-			Name:            "consume first tranche - one amount on second tranche",
+			Name:            "consume first level - one amount on second level",
 			AskLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 0.33333333333334,
 			ReferencePrice:  10000,
@@ -1638,7 +1638,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			},
 		},
 		{
-			Name:            "last tranche total agg meeting 1 percent nominally",
+			Name:            "last level total agg meeting 1 percent nominally",
 			AskLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 1,
 			ReferencePrice:  10000,
@@ -1652,7 +1652,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			},
 		},
 		{
-			Name:            "take full second tranche",
+			Name:            "take full second level",
 			AskLiquidity:    Levels{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			NominalSlippage: 0.7777777777777738,
 			ReferencePrice:  10000,
@@ -1753,7 +1753,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			},
 		},
 		{
-			Name:           "consume first tranche and second tranche",
+			Name:           "consume first level and second level",
 			AskLiquidity:   Levels{{Price: 10000, Amount: 2}, {Price: 10100, Amount: 7}, {Price: 10200, Amount: 3}},
 			ImpactSlippage: 2,
 			ReferencePrice: 10000,

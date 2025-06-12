@@ -673,23 +673,23 @@ func TestGetLevels(t *testing.T) {
 	_, _, err = depth.GetLevels(-1)
 	assert.ErrorIs(t, err, errInvalidBookDepth, "GetLevels should error correctly")
 
-	askT, bidT, err := depth.GetLevels(0)
+	askL, bidL, err := depth.GetLevels(0)
 	assert.NoError(t, err, "GetLevels should not error")
-	assert.Empty(t, askT, "Ask tranche should be empty")
-	assert.Empty(t, bidT, "Bid tranche should be empty")
+	assert.Empty(t, askL, "Ask level should be empty")
+	assert.Empty(t, bidL, "Bid level should be empty")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), time.Now(), true)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	askT, bidT, err = depth.GetLevels(0)
+	askL, bidL, err = depth.GetLevels(0)
 	assert.NoError(t, err, "GetLevels should not error")
-	assert.Len(t, askT, 20, "asks should have correct number of Levels")
-	assert.Len(t, bidT, 20, "bids should have correct number of Levels")
+	assert.Len(t, askL, 20, "asks should have correct number of Levels")
+	assert.Len(t, bidL, 20, "bids should have correct number of Levels")
 
-	askT, bidT, err = depth.GetLevels(5)
+	askL, bidL, err = depth.GetLevels(5)
 	assert.NoError(t, err, "GetLevels should not error")
-	assert.Len(t, askT, 5, "asks should have correct number of Levels")
-	assert.Len(t, bidT, 5, "bids should have correct number of Levels")
+	assert.Len(t, askL, 5, "asks should have correct number of Levels")
+	assert.Len(t, bidL, 5, "bids should have correct number of Levels")
 }
 
 func getInvalidDepth() *Depth {

@@ -44,18 +44,18 @@ func (b *Book) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 	var percent, minPrice, maxPrice, amount float64
 	if buy {
 		minPrice = action.ReferencePrice
-		maxPrice = action.TranchePositionPrice
+		maxPrice = action.LevelPositionPrice
 		amount = action.QuoteAmount
-		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
-		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
+		percent = math.PercentageChange(action.ReferencePrice, action.LevelPositionPrice)
+		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price level(s). %s",
 			amount, b.Pair.Quote, b.Pair.Base, minPrice, maxPrice,
 			percent, len(action.Levels), warning)
 	} else {
-		minPrice = action.TranchePositionPrice
+		minPrice = action.LevelPositionPrice
 		maxPrice = action.ReferencePrice
 		amount = action.BaseAmount
-		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
-		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
+		percent = math.PercentageChange(action.ReferencePrice, action.LevelPositionPrice)
+		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price level(s). %s",
 			amount, b.Pair.Base, b.Pair.Quote, maxPrice, minPrice,
 			percent, len(action.Levels), warning)
 	}
@@ -85,7 +85,7 @@ func (b *Book) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error)
 		}
 		soldAmount = action.QuoteAmount
 		boughtAmount = action.BaseAmount
-		maximumPrice = action.TranchePositionPrice
+		maximumPrice = action.LevelPositionPrice
 		minimumPrice = action.ReferencePrice
 		sold = b.Pair.Quote
 		bought = b.Pair.Base
@@ -97,7 +97,7 @@ func (b *Book) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error)
 		}
 		soldAmount = action.BaseAmount
 		boughtAmount = action.QuoteAmount
-		minimumPrice = action.TranchePositionPrice
+		minimumPrice = action.LevelPositionPrice
 		maximumPrice = action.ReferencePrice
 		sold = b.Pair.Base
 		bought = b.Pair.Quote
@@ -108,10 +108,10 @@ func (b *Book) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error)
 		warning = fullLiquidityUsageWarning
 	}
 
-	pct := math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
-	status := fmt.Sprintf("%s using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
+	pct := math.PercentageChange(action.ReferencePrice, action.LevelPositionPrice)
+	status := fmt.Sprintf("%s using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price level(s). %s",
 		direction, soldAmount, sold, bought, action.ReferencePrice,
-		action.TranchePositionPrice, pct, len(action.Levels), warning)
+		action.LevelPositionPrice, pct, len(action.Levels), warning)
 	return &WhaleBombResult{
 		Orders:               action.Levels,
 		Amount:               boughtAmount,
@@ -135,14 +135,14 @@ func (b *Book) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 		}
 		for x := range b.Asks {
 			if b.Asks[x].Price >= priceTarget {
-				action.TranchePositionPrice = b.Asks[x].Price
+				action.LevelPositionPrice = b.Asks[x].Price
 				return &action, nil
 			}
 			action.Levels = append(action.Levels, b.Asks[x])
 			action.QuoteAmount += b.Asks[x].Price * b.Asks[x].Amount
 			action.BaseAmount += b.Asks[x].Amount
 		}
-		action.TranchePositionPrice = b.Asks[len(b.Asks)-1].Price
+		action.LevelPositionPrice = b.Asks[len(b.Asks)-1].Price
 		action.FullLiquidityUsed = true
 		return &action, nil
 	}
@@ -157,26 +157,26 @@ func (b *Book) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 	}
 	for x := range b.Bids {
 		if b.Bids[x].Price <= priceTarget {
-			action.TranchePositionPrice = b.Bids[x].Price
+			action.LevelPositionPrice = b.Bids[x].Price
 			return &action, nil
 		}
 		action.Levels = append(action.Levels, b.Bids[x])
 		action.QuoteAmount += b.Bids[x].Price * b.Bids[x].Amount
 		action.BaseAmount += b.Bids[x].Amount
 	}
-	action.TranchePositionPrice = b.Bids[len(b.Bids)-1].Price
+	action.LevelPositionPrice = b.Bids[len(b.Bids)-1].Price
 	action.FullLiquidityUsed = true
 	return &action, nil
 }
 
 // DeploymentAction defines deployment information on a liquidity side.
 type DeploymentAction struct {
-	ReferencePrice       float64
-	TranchePositionPrice float64
-	BaseAmount           float64
-	QuoteAmount          float64
-	Levels               Levels
-	FullLiquidityUsed    bool
+	ReferencePrice     float64
+	LevelPositionPrice float64
+	BaseAmount         float64
+	QuoteAmount        float64
+	Levels             Levels
+	FullLiquidityUsed  bool
 }
 
 func (b *Book) buy(quote float64) (*DeploymentAction, error) {
@@ -188,14 +188,14 @@ func (b *Book) buy(quote float64) (*DeploymentAction, error) {
 	}
 	action := &DeploymentAction{ReferencePrice: b.Asks[0].Price}
 	for x := range b.Asks {
-		action.TranchePositionPrice = b.Asks[x].Price
-		trancheValue := b.Asks[x].Price * b.Asks[x].Amount
-		action.QuoteAmount += trancheValue
-		remaining := quote - trancheValue
+		action.LevelPositionPrice = b.Asks[x].Price
+		levelValue := b.Asks[x].Price * b.Asks[x].Amount
+		action.QuoteAmount += levelValue
+		remaining := quote - levelValue
 		if remaining <= 0 {
 			if remaining == 0 {
 				if len(b.Asks)-1 > x {
-					action.TranchePositionPrice = b.Asks[x+1].Price
+					action.LevelPositionPrice = b.Asks[x+1].Price
 				} else {
 					action.FullLiquidityUsed = true
 				}
@@ -225,12 +225,12 @@ func (b *Book) sell(base float64) (*DeploymentAction, error) {
 	}
 	action := &DeploymentAction{ReferencePrice: b.Bids[0].Price}
 	for x := range b.Bids {
-		action.TranchePositionPrice = b.Bids[x].Price
+		action.LevelPositionPrice = b.Bids[x].Price
 		remaining := base - b.Bids[x].Amount
 		if remaining <= 0 {
 			if remaining == 0 {
 				if len(b.Bids)-1 > x {
-					action.TranchePositionPrice = b.Bids[x+1].Price
+					action.LevelPositionPrice = b.Bids[x+1].Price
 				} else {
 					action.FullLiquidityUsed = true
 				}

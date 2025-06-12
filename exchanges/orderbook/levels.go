@@ -51,26 +51,24 @@ func (l *Levels) load(incoming Levels) {
 }
 
 // updateByID amends price by corresponding ID and returns an error if not found
-func (ts Levels) updateByID(updts []Level) error {
+func (l Levels) updateByID(updts []Level) error {
 updates:
 	for x := range updts {
-		for y := range ts {
-			if updts[x].ID != ts[y].ID { // Filter IDs that don't match
+		for y := range l {
+			if updts[x].ID != l[y].ID { // Filter IDs that don't match
 				continue
 			}
 			if updts[x].Price > 0 {
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
-				ts[y].Price = updts[x].Price
-				ts[y].StrPrice = updts[x].StrPrice
+				l[y].Price = updts[x].Price
+				l[y].StrPrice = updts[x].StrPrice
 			}
-			ts[y].Amount = updts[x].Amount
-			ts[y].StrAmount = updts[x].StrAmount
+			l[y].Amount = updts[x].Amount
+			l[y].StrAmount = updts[x].StrAmount
 			continue updates
 		}
-		return fmt.Errorf("update error: %w ID: %d not found",
-			errIDCannotBeMatched,
-			updts[x].ID)
+		return fmt.Errorf("update error: %w ID: %d not found", errIDCannotBeMatched, updts[x].ID)
 	}
 	return nil
 }
@@ -174,7 +172,7 @@ updates:
 						(*l)[y] = updts[x]
 						continue updates
 					}
-					copy((*l)[y:], (*l)[y+1:]) // RM tranche and shift left
+					copy((*l)[y:], (*l)[y+1:]) // RM level and shift left
 					*l = (*l)[:len(*l)-1]      // Unlink residual element from end of slice
 					y--                        // adjust index
 					popped = true
@@ -198,7 +196,7 @@ updates:
 				// search for ID
 				for z := y + 1; z < len(*l); z++ {
 					if (*l)[z].ID == updts[x].ID {
-						copy((*l)[z:], (*l)[z+1:]) // RM tranche and shift left
+						copy((*l)[z:], (*l)[z+1:]) // RM level and shift left
 						*l = (*l)[:len(*l)-1]      // Unlink residual element from end of slice
 						break
 					}
@@ -270,22 +268,22 @@ func (l Levels) getMovementByQuotation(quote, refPrice float64, swap bool) (*Mov
 
 	m := Movement{StartPrice: refPrice}
 	for x := range l {
-		trancheValue := l[x].Amount * l[x].Price
-		leftover := quote - trancheValue
+		levelValue := l[x].Amount * l[x].Price
+		leftover := quote - levelValue
 		if leftover < 0 {
 			m.Purchased += quote
-			m.Sold += quote / trancheValue * l[x].Amount
-			// This tranche is not consumed so the book shifts to this price.
+			m.Sold += quote / levelValue * l[x].Amount
+			// This level is not consumed so the book shifts to this price.
 			m.EndPrice = l[x].Price
 			quote = 0
 			break
 		}
-		// Full tranche consumed
+		// Full level consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		quote = leftover
 		if leftover == 0 {
-			// Price no longer exists on the book so use next full price tranche
+			// Price no longer exists on the book so use next full price level
 			// to calculate book impact. If available.
 			if x+1 < len(l) {
 				m.EndPrice = l[x+1].Price
@@ -322,17 +320,17 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 		if leftover < 0 {
 			m.Purchased += l[x].Price * base
 			m.Sold += base
-			// This tranche is not consumed so the book shifts to this price.
+			// This level is not consumed so the book shifts to this price.
 			m.EndPrice = l[x].Price
 			base = 0
 			break
 		}
-		// Full tranche consumed
+		// Full level consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		base = leftover
 		if leftover == 0 {
-			// Price no longer exists on the book so use next full price tranche
+			// Price no longer exists on the book so use next full price level
 			// to calculate book impact.
 			if x+1 < len(l) {
 				m.EndPrice = l[x+1].Price
@@ -392,8 +390,8 @@ func (bids *bidLevels) hitBidsByNominalSlippage(slippage, refPrice float64) (*Mo
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeValue, cumulativeAmounts float64
 	for x := range bids.Levels {
-		totalTrancheValue := bids.Levels[x].Price * bids.Levels[x].Amount
-		currentFullValue := totalTrancheValue + cumulativeValue
+		totallevelValue := bids.Levels[x].Price * bids.Levels[x].Amount
+		currentFullValue := totallevelValue + cumulativeValue
 		currentTotalAmounts := cumulativeAmounts + bids.Levels[x].Amount
 
 		nominal.AverageOrderCost = currentFullValue / currentTotalAmounts
@@ -411,11 +409,11 @@ func (bids *bidLevels) hitBidsByNominalSlippage(slippage, refPrice float64) (*Mo
 			}
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - cumulativeValue
-			trancheTargetPriceDiff := bids.Levels[x].Price - targetCost
-			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
+			levelTargetPriceDiff := bids.Levels[x].Price - targetCost
+			levelAmountExpectation := comparativeDiff / levelTargetPriceDiff
 			nominal.NominalPercentage = slippage
-			nominal.Sold = cumulativeAmounts + trancheAmountExpectation
-			nominal.Purchased += trancheAmountExpectation * bids.Levels[x].Price
+			nominal.Sold = cumulativeAmounts + levelAmountExpectation
+			nominal.Purchased += levelAmountExpectation * bids.Levels[x].Price
 			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
 			nominal.EndPrice = bids.Levels[x].Price
 			return nominal, nil
@@ -425,7 +423,7 @@ func (bids *bidLevels) hitBidsByNominalSlippage(slippage, refPrice float64) (*Mo
 		cumulativeValue = currentFullValue
 		nominal.NominalPercentage = percent
 		nominal.Sold += bids.Levels[x].Amount
-		nominal.Purchased += totalTrancheValue
+		nominal.Purchased += totallevelValue
 		cumulativeAmounts = currentTotalAmounts
 		if slippage == percent {
 			nominal.FullBookSideConsumed = x+1 >= len(bids.Levels)
@@ -465,7 +463,7 @@ func (bids *bidLevels) hitBidsByImpactSlippage(slippage, refPrice float64) (*Mov
 		impact.EndPrice = bids.Levels[x].Price
 		impact.ImpactPercentage = percent
 		if slippage <= percent {
-			// Don't include this tranche amount as this consumes the tranche
+			// Don't include this level amount as this consumes the level
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
@@ -521,8 +519,8 @@ func (ask *askLevels) liftAsksByNominalSlippage(slippage, refPrice float64) (*Mo
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeAmounts float64
 	for x := range ask.Levels {
-		totalTrancheValue := ask.Levels[x].Price * ask.Levels[x].Amount
-		currentValue := totalTrancheValue + nominal.Sold
+		totallevelValue := ask.Levels[x].Price * ask.Levels[x].Amount
+		currentValue := totallevelValue + nominal.Sold
 		currentAmounts := cumulativeAmounts + ask.Levels[x].Amount
 
 		nominal.AverageOrderCost = currentValue / currentAmounts
@@ -538,11 +536,11 @@ func (ask *askLevels) liftAsksByNominalSlippage(slippage, refPrice float64) (*Mo
 
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - nominal.Sold
-			trancheTargetPriceDiff := ask.Levels[x].Price - targetCost
-			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
+			levelTargetPriceDiff := ask.Levels[x].Price - targetCost
+			levelAmountExpectation := comparativeDiff / levelTargetPriceDiff
 			nominal.NominalPercentage = slippage
-			nominal.Sold += trancheAmountExpectation * ask.Levels[x].Price
-			nominal.Purchased += trancheAmountExpectation
+			nominal.Sold += levelAmountExpectation * ask.Levels[x].Price
+			nominal.Purchased += levelAmountExpectation
 			nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
 			nominal.EndPrice = ask.Levels[x].Price
 			return nominal, nil
@@ -583,7 +581,7 @@ func (ask *askLevels) liftAsksByImpactSlippage(slippage, refPrice float64) (*Mov
 		impact.ImpactPercentage = percent
 		impact.EndPrice = ask.Levels[x].Price
 		if slippage <= percent {
-			// Don't include this tranche amount as this consumes the tranche
+			// Don't include this level amount as this consumes the level
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
@@ -629,7 +627,7 @@ func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swa
 
 	if !m.FullBookSideConsumed && leftover == 0 {
 		// Impact percentage is how much the orderbook slips from the reference
-		// price to the remaining tranche price.
+		// price to the remaining level price.
 
 		m.ImpactPercentage = math.PercentageChange(m.StartPrice, m.EndPrice)
 		if m.ImpactPercentage < 0 {

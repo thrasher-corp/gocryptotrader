@@ -98,7 +98,7 @@ func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, marketListEPL, "/v1/markets", &resp)
 }
 
-// processOB constructs an orderbook.Tranche instances from slice of numbers.
+// processOB constructs an orderbook.Level instances from slice of numbers.
 func processOB(ob [][2]types.Number) []orderbook.Level {
 	o := make([]orderbook.Level, len(ob))
 	for x := range ob {

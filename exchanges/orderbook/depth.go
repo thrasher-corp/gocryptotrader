@@ -743,7 +743,7 @@ func (d *Depth) GetImbalance() (float64, error) {
 	return (bidVolume - askVolume) / (bidVolume + askVolume), nil
 }
 
-// GetLevels returns the desired tranche for the required depth count. If
+// GetLevels returns the desired level for the required depth count. If
 // count is 0, it will return the entire orderbook. Count == 1 will retrieve the
 // best bid and ask. If the required count exceeds the orderbook depth, it will
 // return the entire orderbook.
