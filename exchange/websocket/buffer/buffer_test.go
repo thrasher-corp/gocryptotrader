@@ -248,19 +248,13 @@ func TestInsertWithIDs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 6, bidLen)
 
-	cp, err = getExclusivePair()
-	require.NoError(t, err)
-
-	holder, _, _, err = createSnapshot(cp, true)
-	require.NoError(t, err)
-
+	holder.obBufferLimit = 1
 	err = holder.Update(&orderbook.Update{
 		UpdateTime: time.Now(),
 		Asset:      asset.Spot,
-		Asks:       []orderbook.Tranche{{Price: 999999}},
 		Pair:       cp,
 	})
-	require.NoError(t, err)
+	assert.ErrorIs(t, err, orderbook.ErrEmptyUpdate)
 }
 
 // TestSortIDs logic test
