@@ -56,9 +56,9 @@ var bid = Levels{
 }
 
 // Display displays depth content for tests
-func (ts Levels) display() {
-	for x := range ts {
-		fmt.Printf("Level: %+v %p \n", ts[x], &ts[x])
+func (l Levels) display() {
+	for x := range l {
+		fmt.Printf("Level: %+v %p \n", l[x], &l[x])
 	}
 	fmt.Println()
 }
@@ -1102,55 +1102,49 @@ func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 	b, isBid := depth.(bidLevels)
 	a, isAsk := depth.(askLevels)
 
-	var ts Levels
+	var l Levels
 	switch {
 	case isBid:
-		ts = b.Levels
+		l = b.Levels
 	case isAsk:
-		ts = a.Levels
+		l = a.Levels
 	default:
 		t.Fatal("value passed in is not of type bids or asks")
 	}
 
-	liquidityTotal, valueTotal := ts.amount()
+	liquidityTotal, valueTotal := l.amount()
 	if liquidityTotal != liquidity {
-		ts.display()
-		t.Fatalf("mismatched liquidity expecting %v but received %v",
-			liquidity,
-			liquidityTotal)
+		l.display()
+		t.Fatalf("mismatched liquidity expecting %v but received %v", liquidity, liquidityTotal)
 	}
 
 	if valueTotal != value {
-		ts.display()
-		t.Fatalf("mismatched total value expecting %v but received %v",
-			value,
-			valueTotal)
+		l.display()
+		t.Fatalf("mismatched total value expecting %v but received %v", value, valueTotal)
 	}
 
-	if len(ts) != expectedLen {
-		ts.display()
-		t.Fatalf("mismatched expected length count expecting %v but received %v",
-			expectedLen,
-			len(ts))
+	if len(l) != expectedLen {
+		l.display()
+		t.Fatalf("mismatched expected length count expecting %v but received %v", expectedLen, len(l))
 	}
 
-	if len(ts) == 0 {
+	if len(l) == 0 {
 		return
 	}
 
 	var price float64
-	for x := range ts {
+	for x := range l {
 		switch {
 		case price == 0:
-			price = ts[x].Price
-		case isBid && price < ts[x].Price:
-			ts.display()
+			price = l[x].Price
+		case isBid && price < l[x].Price:
+			l.display()
 			t.Fatal("Bid pricing out of order should be descending")
-		case isAsk && price > ts[x].Price:
-			ts.display()
+		case isAsk && price > l[x].Price:
+			l.display()
 			t.Fatal("Ask pricing out of order should be ascending")
 		default:
-			price = ts[x].Price
+			price = l[x].Price
 		}
 	}
 }
