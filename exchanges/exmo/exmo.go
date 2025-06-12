@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -323,16 +324,14 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, epath excha
 		vals.Set("nonce", n)
 
 		payload := vals.Encode()
-		hash, err := crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(payload),
-			[]byte(creds.Secret))
+		hash, err := crypto.GetHMAC(crypto.HashSHA512, []byte(payload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
 		headers["Key"] = creds.Key
-		headers["Sign"] = crypto.HexEncodeToString(hash)
+		headers["Sign"] = hex.EncodeToString(hash)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		return &request.Item{

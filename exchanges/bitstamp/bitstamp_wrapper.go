@@ -819,7 +819,7 @@ func (b *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+		timestamp := candles.Data.OHLCV[x].Timestamp.Time()
 		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
@@ -857,13 +857,13 @@ func (b *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			timestamp := candles.Data.OHLCV[i].Timestamp.Time()
 			if timestamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
 				timestamp.After(req.RangeHolder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
+				Time:   timestamp,
 				Open:   candles.Data.OHLCV[i].Open,
 				High:   candles.Data.OHLCV[i].High,
 				Low:    candles.Data.OHLCV[i].Low,

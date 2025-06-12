@@ -291,47 +291,28 @@ func (b *Exchange) handleWSOrderbook(msg []byte) error {
 		return err
 	}
 
-	wsOrderBookResp := websocketOrderBookResponse{}
+	var wsOrderBookResp websocketOrderBookResponse
 	if err := json.Unmarshal(msg, &wsOrderBookResp); err != nil {
 		return err
 	}
-	update := &wsOrderBookResp.Data
-
-	if len(update.Asks) == 0 && len(update.Bids) == 0 {
-		return errors.New("no orderbook data")
-	}
 
 	obUpdate := &orderbook.Base{
-		Bids:            make(orderbook.Tranches, len(update.Bids)),
-		Asks:            make(orderbook.Tranches, len(update.Asks)),
+		Bids:            make(orderbook.Tranches, len(wsOrderBookResp.Data.Bids)),
+		Asks:            make(orderbook.Tranches, len(wsOrderBookResp.Data.Asks)),
 		Pair:            p,
-		LastUpdated:     time.UnixMicro(update.Microtimestamp),
+		LastUpdated:     wsOrderBookResp.Data.Microtimestamp.Time(),
 		Asset:           asset.Spot,
 		Exchange:        b.Name,
 		VerifyOrderbook: b.CanVerifyOrderbook,
 	}
 
-	for i := range update.Asks {
-		target, err := strconv.ParseFloat(update.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		amount, err := strconv.ParseFloat(update.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
-		obUpdate.Asks[i] = orderbook.Tranche{Price: target, Amount: amount}
+	for i := range wsOrderBookResp.Data.Asks {
+		obUpdate.Asks[i].Price = wsOrderBookResp.Data.Asks[i][0].Float64()
+		obUpdate.Asks[i].Amount = wsOrderBookResp.Data.Asks[i][1].Float64()
 	}
-	for i := range update.Bids {
-		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		amount, err := strconv.ParseFloat(update.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
-		obUpdate.Bids[i] = orderbook.Tranche{Price: target, Amount: amount}
+	for i := range wsOrderBookResp.Data.Bids {
+		obUpdate.Bids[i].Price = wsOrderBookResp.Data.Bids[i][0].Float64()
+		obUpdate.Bids[i].Amount = wsOrderBookResp.Data.Bids[i][1].Float64()
 	}
 	filterOrderbookZeroBidPrice(obUpdate)
 	return b.Websocket.Orderbook.LoadSnapshot(obUpdate)
@@ -360,7 +341,7 @@ func (b *Exchange) seedOrderBook(ctx context.Context) error {
 			VerifyOrderbook: b.CanVerifyOrderbook,
 			Bids:            make(orderbook.Tranches, len(orderbookSeed.Bids)),
 			Asks:            make(orderbook.Tranches, len(orderbookSeed.Asks)),
-			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
+			LastUpdated:     orderbookSeed.Timestamp,
 		}
 
 		for i := range orderbookSeed.Asks {

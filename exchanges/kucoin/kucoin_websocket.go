@@ -1159,8 +1159,8 @@ func (ku *Exchange) setupOrderbookManager() {
 	}
 }
 
-// processUpdate processes the websocket orderbook update
-func (ku *Exchange) processUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
+// processOrderbookUpdate processes the websocket orderbook update
+func (ku *Exchange) processOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
 	updateBid := make([]orderbook.Tranche, len(ws.Changes.Bids))
 	for i := range ws.Changes.Bids {
 		var sequence int64
@@ -1215,7 +1215,7 @@ func (ku *Exchange) applyBufferUpdate(pair currency.Pair, assetType asset.Item) 
 	}
 
 	if recent != nil {
-		err = ku.obm.CheckAndProcessUpdate(ku.processUpdate, pair, assetType, recent)
+		err = ku.obm.checkAndProcessOrderbookUpdate(ku.processOrderbookUpdate, pair, assetType, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
@@ -1511,7 +1511,7 @@ func (o *orderbookManager) FetchBookViaREST(pair currency.Pair, assetType asset.
 	}
 }
 
-func (o *orderbookManager) CheckAndProcessUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, assetType asset.Item, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WsOrderbook) error, pair currency.Pair, assetType asset.Item, recent *orderbook.Base) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][assetType]

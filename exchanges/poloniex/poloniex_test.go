@@ -29,6 +29,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+var testPair = currency.NewPair(currency.BTC, currency.LTC)
+
 var p = &Exchange{}
 
 func TestTimestamp(t *testing.T) {
@@ -634,48 +636,29 @@ func TestWsPriceAggregateOrderbook(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	pair, err := currency.NewPairFromString("BTC_LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-	start := time.Unix(1588741402, 0)
-	_, err = p.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.FiveMin, start, time.Unix(1588745003, 0))
-	require.NoError(t, err)
+	_, err := p.GetHistoricCandles(t.Context(), testPair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
+	assert.NoError(t, err)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 
-	pair, err := currency.NewPairFromString("BTC_LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = p.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
+	_, err := p.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.FiveMin, time.Unix(1588741402, 0), time.Unix(1588745003, 0))
 	assert.NoError(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC_XMR")
-	if err != nil {
-		t.Fatal(err)
-	}
 	if mockTests {
 		t.Skip("relies on time.Now()")
 	}
-	_, err = p.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := p.GetRecentTrades(t.Context(), currency.NewPair(currency.BTC, currency.XMR), asset.Spot)
+	assert.NoError(t, err)
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC_XMR")
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 6, 1, 0, 0, 0, time.UTC)
 	if !mockTests {
@@ -683,11 +666,8 @@ func TestGetHistoricTrades(t *testing.T) {
 		tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
 		tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
 	}
-	_, err = p.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, tStart, tEnd)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := p.GetHistoricTrades(t.Context(), currency.NewPair(currency.BTC, currency.XMR), asset.Spot, tStart, tEnd)
+	assert.NoError(t, err)
 }
 
 func TestProcessAccountMarginPosition(t *testing.T) {
@@ -948,14 +928,8 @@ func TestGetCompleteBalances(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = p.UpdateTicker(t.Context(), cp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := p.UpdateTicker(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err)
 }
 
 func TestUpdateTickers(t *testing.T) {

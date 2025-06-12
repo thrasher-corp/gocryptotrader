@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -113,49 +112,27 @@ func (b *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, 
 		rateBudget = uFuturesOrderbook500Rate
 	}
 
-	var data OrderbookData
-	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data)
-	if err != nil {
+	var data *OrderbookData
+	if err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data); err != nil {
 		return nil, err
 	}
 
-	resp := OrderBook{
+	ob := &OrderBook{
 		Symbol:       symbolValue,
 		LastUpdateID: data.LastUpdateID,
 		Bids:         make([]OrderbookItem, len(data.Bids)),
 		Asks:         make([]OrderbookItem, len(data.Asks)),
 	}
 
-	var price, quantity float64
 	for x := range data.Asks {
-		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		resp.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
-		}
+		ob.Asks[x].Price = data.Asks[x][0].Float64()
+		ob.Asks[x].Quantity = data.Asks[x][1].Float64()
 	}
-	for y := range data.Bids {
-		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		resp.Bids[y] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
-		}
+	for x := range data.Bids {
+		ob.Bids[x].Price = data.Bids[x][0].Float64()
+		ob.Bids[x].Quantity = data.Bids[x][1].Float64()
 	}
-	return &resp, nil
+	return ob, nil
 }
 
 // URecentTrades gets recent trades for usdt margined futures
@@ -253,105 +230,11 @@ func (b *Exchange) UKlineData(ctx context.Context, symbol currency.Pair, interva
 		rateBudget = uFuturesKlineMaxRate
 	}
 
-	var data [][10]any
-	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesKlineData+params.Encode(), rateBudget, &data)
-	if err != nil {
+	var resp []FuturesCandleStick
+	if err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesKlineData+params.Encode(), rateBudget, &resp); err != nil {
 		return nil, err
 	}
 
-	resp := make([]FuturesCandleStick, len(data))
-	for x := range data {
-		var tempData FuturesCandleStick
-		var floatData float64
-		var strData string
-		var ok bool
-
-		floatData, ok = data[x][0].(float64)
-		if !ok {
-			return nil, errors.New("type assertion failed for opentime")
-		}
-		tempData.OpenTime, err = convert.TimeFromUnixTimestampFloat(floatData)
-		if err != nil {
-			return nil, err
-		}
-		strData, ok = data[x][1].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for open")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Open = floatData
-		strData, ok = data[x][2].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for high")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.High = floatData
-		strData, ok = data[x][3].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for low")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Low = floatData
-		strData, ok = data[x][4].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for close")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Close = floatData
-		strData, ok = data[x][5].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for volume")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Volume = floatData
-		floatData, ok = data[x][6].(float64)
-		if !ok {
-			return nil, errors.New("type assertion failed for close time")
-		}
-		tempData.CloseTime, err = convert.TimeFromUnixTimestampFloat(floatData)
-		if err != nil {
-			return resp, err
-		}
-		strData, ok = data[x][7].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed base asset volume")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.BaseAssetVolume = floatData
-		floatData, ok = data[x][8].(float64)
-		if !ok {
-			return nil, errors.New("type assertion failed for taker buy volume")
-		}
-		tempData.TakerBuyVolume = floatData
-		strData, ok = data[x][9].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for taker buy base asset volume")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.TakerBuyBaseAssetVolume = floatData
-		resp[x] = tempData
-	}
 	return resp, nil
 }
 

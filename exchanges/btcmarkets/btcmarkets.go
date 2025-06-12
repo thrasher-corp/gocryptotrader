@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -140,53 +142,32 @@ func (b *Exchange) GetOrderbook(ctx context.Context, marketID string, level int6
 	if level != 0 {
 		params.Set("level", strconv.FormatInt(level, 10))
 	}
-	var temp tempOrderbook
-	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketOrderBook+params.Encode(),
-		&temp)
-	if err != nil {
+
+	var resp tempOrderbook
+	if err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketOrderBook+params.Encode(), &resp); err != nil {
 		return nil, err
 	}
 
-	orderbook := Orderbook{
-		MarketID:   temp.MarketID,
-		SnapshotID: temp.SnapshotID,
-		Bids:       make([]OBData, len(temp.Bids)),
-		Asks:       make([]OBData, len(temp.Asks)),
+	ob := &Orderbook{
+		MarketID:   resp.MarketID,
+		SnapshotID: resp.SnapshotID,
+		Bids:       make([]OBData, len(resp.Bids)),
+		Asks:       make([]OBData, len(resp.Asks)),
 	}
 
-	for x := range temp.Asks {
-		price, err := strconv.ParseFloat(temp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(temp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Asks[x] = OBData{
-			Price:  price,
-			Volume: amount,
-		}
+	for x := range resp.Asks {
+		ob.Asks[x].Price = resp.Asks[x][0].Float64()
+		ob.Asks[x].Volume = resp.Asks[x][1].Float64()
 	}
-	for a := range temp.Bids {
-		price, err := strconv.ParseFloat(temp.Bids[a][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(temp.Bids[a][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Bids[a] = OBData{
-			Price:  price,
-			Volume: amount,
-		}
+	for x := range resp.Bids {
+		ob.Bids[x].Price = resp.Bids[x][0].Float64()
+		ob.Bids[x].Volume = resp.Bids[x][1].Float64()
 	}
-	return &orderbook, nil
+	return ob, nil
 }
 
 // GetMarketCandles gets candles for specified currency pair
-func (b *Exchange) GetMarketCandles(ctx context.Context, marketID, timeWindow string, from, to time.Time, before, after, limit int64) (out CandleResponse, err error) {
+func (b *Exchange) GetMarketCandles(ctx context.Context, marketID, timeWindow string, from, to time.Time, before, after, limit int64) (out []CandleResponse, err error) {
 	if (before > 0) && (after >= 0) {
 		return out, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -218,8 +199,12 @@ func (b *Exchange) GetMarketCandles(ctx context.Context, marketID, timeWindow st
 func (b *Exchange) GetTickers(ctx context.Context, marketIDs currency.Pairs) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
+	pFmt, err := b.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
 	for x := range marketIDs {
-		params.Add("marketId", marketIDs[x].String())
+		params.Add("marketId", pFmt.Format(marketIDs[x]))
 	}
 	return tickers, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsTickers+params.Encode(),
 		&tickers)
@@ -227,47 +212,32 @@ func (b *Exchange) GetTickers(ctx context.Context, marketIDs currency.Pairs) ([]
 
 // GetMultipleOrderbooks gets orderbooks
 func (b *Exchange) GetMultipleOrderbooks(ctx context.Context, marketIDs []string) ([]Orderbook, error) {
-	var temp []tempOrderbook
 	params := url.Values{}
 	for x := range marketIDs {
 		params.Add("marketId", marketIDs[x])
 	}
-	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsMultipleOrderbooks+params.Encode(),
-		&temp)
-	if err != nil {
+
+	var resp []tempOrderbook
+	if err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+btcMarketsMultipleOrderbooks+params.Encode(), &resp); err != nil {
 		return nil, err
 	}
-	orderbooks := make([]Orderbook, 0, len(marketIDs))
-	for i := range temp {
-		var tempOB Orderbook
-		var price, volume float64
-		tempOB.MarketID = temp[i].MarketID
-		tempOB.SnapshotID = temp[i].SnapshotID
-		tempOB.Asks = make([]OBData, len(temp[i].Asks))
-		tempOB.Bids = make([]OBData, len(temp[i].Bids))
-		for a := range temp[i].Asks {
-			volume, err = strconv.ParseFloat(temp[i].Asks[a][1], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			price, err = strconv.ParseFloat(temp[i].Asks[a][0], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			tempOB.Asks[a] = OBData{Price: price, Volume: volume}
+
+	orderbooks := make([]Orderbook, len(marketIDs))
+	for i := range resp {
+		orderbooks[i] = Orderbook{
+			MarketID:   resp[i].MarketID,
+			SnapshotID: resp[i].SnapshotID,
+			Asks:       make([]OBData, len(resp[i].Asks)),
+			Bids:       make([]OBData, len(resp[i].Bids)),
 		}
-		for y := range temp[i].Bids {
-			volume, err = strconv.ParseFloat(temp[i].Bids[y][1], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			price, err = strconv.ParseFloat(temp[i].Bids[y][0], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			tempOB.Bids[y] = OBData{Price: price, Volume: volume}
+		for j := range resp[i].Asks {
+			orderbooks[i].Asks[j].Price = resp[i].Asks[j][0].Float64()
+			orderbooks[i].Asks[j].Volume = resp[i].Asks[j][1].Float64()
 		}
-		orderbooks = append(orderbooks, tempOB)
+		for j := range resp[i].Bids {
+			orderbooks[i].Bids[j].Price = resp[i].Bids[j][0].Float64()
+			orderbooks[i].Bids[j].Volume = resp[i].Bids[j][1].Float64()
+		}
 	}
 	return orderbooks, nil
 }
@@ -854,7 +824,7 @@ func (b *Exchange) SendAuthenticatedRequest(ctx context.Context, method, path st
 		headers["Content-Type"] = "application/json"
 		headers["BM-AUTH-APIKEY"] = creds.Key
 		headers["BM-AUTH-TIMESTAMP"] = strTime
-		headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
+		headers["BM-AUTH-SIGNATURE"] = base64.StdEncoding.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        method,
@@ -882,11 +852,7 @@ func (b *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 			return fee, err
 		}
 		for x := range temp.FeeByMarkets {
-			p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
-			if err != nil {
-				return 0, err
-			}
-			if p == feeBuilder.Pair {
+			if temp.FeeByMarkets[x].MarketID.Equal(feeBuilder.Pair) {
 				fee = temp.FeeByMarkets[x].MakerFeeRate
 				if !feeBuilder.IsMaker {
 					fee = temp.FeeByMarkets[x].TakerFeeRate

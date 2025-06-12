@@ -422,7 +422,7 @@ func (g *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 		bids[x].Amount = data.Bids[x].Size
 	}
 
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
+	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:       data.LastUpdatedID,
 		UpdateTime:     data.Timestamp.Time(),
 		UpdatePushedAt: pushTime,

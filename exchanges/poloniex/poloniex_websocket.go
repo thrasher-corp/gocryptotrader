@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -623,16 +624,14 @@ func (p *Exchange) manageSubs(subs subscription.List, op wsOp) error {
 
 func (p *Exchange) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
-		[]byte(nonce),
-		[]byte(secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(nonce), []byte(secret))
 	if err != nil {
 		return err
 	}
 	req := wsAuthorisationRequest{
 		Command: op,
 		Channel: 1000,
-		Sign:    crypto.HexEncodeToString(hmac),
+		Sign:    hex.EncodeToString(hmac),
 		Key:     key,
 		Payload: nonce,
 	}

@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -107,9 +108,13 @@ func (by *Exchange) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (by *Exchange) WsAuth(ctx context.Context) error {
-	var dialer gws.Dialer
-	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	creds, err := by.GetCredentials(ctx)
 	if err != nil {
+		return err
+	}
+
+	var dialer gws.Dialer
+	if err := by.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
 		return err
 	}
 
@@ -121,10 +126,7 @@ func (by *Exchange) WsAuth(ctx context.Context) error {
 
 	by.Websocket.Wg.Add(1)
 	go by.wsReadData(asset.Spot, by.Websocket.AuthConn)
-	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
+
 	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -135,7 +137,7 @@ func (by *Exchange) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	sign := crypto.HexEncodeToString(hmac)
+	sign := hex.EncodeToString(hmac)
 	req := Authenticate{
 		RequestID: strconv.FormatInt(by.Websocket.AuthConn.GenerateMessageID(false), 10),
 		Operation: "auth",
@@ -694,39 +696,29 @@ func (by *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRe
 
 func (by *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsOrderbookDetail
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
+	if len(result.Bids) == 0 && len(result.Asks) == 0 {
+		return nil
+	}
+
 	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
+
 	asks := make([]orderbook.Tranche, len(result.Asks))
 	for i := range result.Asks {
-		asks[i].Price, err = strconv.ParseFloat(result.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		asks[i].Amount, err = strconv.ParseFloat(result.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
+		asks[i].Price = result.Asks[i][0].Float64()
+		asks[i].Amount = result.Asks[i][1].Float64()
 	}
 	bids := make([]orderbook.Tranche, len(result.Bids))
 	for i := range result.Bids {
-		bids[i].Price, err = strconv.ParseFloat(result.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		bids[i].Amount, err = strconv.ParseFloat(result.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
+		bids[i].Price = result.Bids[i][0].Float64()
+		bids[i].Amount = result.Bids[i][1].Float64()
 	}
-	if len(asks) == 0 && len(bids) == 0 {
-		return nil
-	}
+
 	if resp.Type == "snapshot" {
 		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Pair:           cp,

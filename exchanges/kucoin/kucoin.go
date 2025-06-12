@@ -3,6 +3,7 @@ package kucoin
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -2488,21 +2489,20 @@ func (ku *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 			}
 			body = bytes.NewBuffer(payload)
 		}
-		timeStamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		var signHash, passPhraseHash []byte
-		signHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(timeStamp+method+"/api"+path+string(payload)), []byte(creds.Secret))
+		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+		signHash, err := crypto.GetHMAC(crypto.HashSHA256, []byte(ts+method+"/api"+path+string(payload)), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		passPhraseHash, err = crypto.GetHMAC(crypto.HashSHA256, []byte(creds.ClientID), []byte(creds.Secret))
+		passPhraseHash, err := crypto.GetHMAC(crypto.HashSHA256, []byte(creds.ClientID), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 		headers := map[string]string{
 			"KC-API-KEY":         creds.Key,
-			"KC-API-SIGN":        crypto.Base64Encode(signHash),
-			"KC-API-TIMESTAMP":   timeStamp,
-			"KC-API-PASSPHRASE":  crypto.Base64Encode(passPhraseHash),
+			"KC-API-SIGN":        base64.StdEncoding.EncodeToString(signHash),
+			"KC-API-TIMESTAMP":   ts,
+			"KC-API-PASSPHRASE":  base64.StdEncoding.EncodeToString(passPhraseHash),
 			"KC-API-KEY-VERSION": "3",
 			"Content-Type":       "application/json",
 		}

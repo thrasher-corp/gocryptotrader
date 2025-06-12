@@ -3,6 +3,7 @@ package huobi
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -949,16 +950,12 @@ func (h *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			headers["Content-Type"] = "application/json"
 		}
 
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(payload),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
-		values.Set("Signature", crypto.Base64Encode(hmac))
-		urlPath := ePoint + common.EncodeURLValues(endpoint, values)
+		values.Set("Signature", base64.StdEncoding.EncodeToString(hmac))
 
 		var body []byte
 		if data != nil {
@@ -970,7 +967,7 @@ func (h *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 		return &request.Item{
 			Method:        method,
-			Path:          urlPath,
+			Path:          ePoint + common.EncodeURLValues(endpoint, values),
 			Headers:       headers,
 			Body:          bytes.NewReader(body),
 			Result:        &interim,

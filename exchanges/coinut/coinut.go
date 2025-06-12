@@ -3,6 +3,7 @@ package coinut
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -291,7 +292,7 @@ func (c *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 			if err != nil {
 				return nil, err
 			}
-			headers["X-SIGNATURE"] = crypto.HexEncodeToString(hmac)
+			headers["X-SIGNATURE"] = hex.EncodeToString(hmac)
 		}
 		headers["Content-Type"] = "application/json"
 

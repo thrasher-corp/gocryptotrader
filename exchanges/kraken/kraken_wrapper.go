@@ -417,11 +417,6 @@ func (k *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for x := range t.Tickers {
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(t.Tickers[x].Symbol)
-			if err != nil {
-				return err
-			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         t.Tickers[x].Last,
 				Bid:          t.Tickers[x].Bid,
@@ -433,7 +428,7 @@ func (k *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				OpenInterest: t.Tickers[x].OpenInterest,
 				MarkPrice:    t.Tickers[x].MarkPrice,
 				IndexPrice:   t.Tickers[x].IndexPrice,
-				Pair:         cp,
+				Pair:         t.Tickers[x].Symbol,
 				ExchangeName: k.Name,
 				AssetType:    a,
 			})
@@ -1666,15 +1661,11 @@ func (k *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	resp := make([]fundingrate.LatestRateResponse, 0, len(t.Tickers))
 	for i := range t.Tickers {
-		pair, err := currency.NewPairFromString(t.Tickers[i].Symbol)
-		if err != nil {
-			return nil, err
-		}
-		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
+		if !r.Pair.IsEmpty() && !r.Pair.Equal(t.Tickers[i].Symbol) {
 			continue
 		}
 		var isPerp bool
-		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, pair)
+		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, t.Tickers[i].Symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -1684,7 +1675,7 @@ func (k *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		rate := fundingrate.LatestRateResponse{
 			Exchange: k.Name,
 			Asset:    r.Asset,
-			Pair:     pair,
+			Pair:     t.Tickers[i].Symbol,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
 			},
@@ -1721,7 +1712,7 @@ func (k *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 	for i := range futuresTickersData.Tickers {
 		var p currency.Pair
 		var isEnabled bool
-		p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, true)
+		p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}

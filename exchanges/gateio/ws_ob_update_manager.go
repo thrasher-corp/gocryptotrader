@@ -40,8 +40,8 @@ func newWsOBUpdateManager(snapshotSyncDelay time.Duration) *wsOBUpdateManager {
 	return &wsOBUpdateManager{lookup: make(map[key.PairAsset]*updateCache), snapshotSyncDelay: snapshotSyncDelay}
 }
 
-// ProcessUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
-func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Exchange, firstUpdateID int64, update *orderbook.Update) error {
+// ProcessOrderbookUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
+func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Exchange, firstUpdateID int64, update *orderbook.Update) error {
 	cache := m.LoadCache(update.Pair, update.Asset)
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()

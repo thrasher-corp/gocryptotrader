@@ -3,15 +3,14 @@ package hitbtc
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -450,13 +449,11 @@ func (h *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 	headers := make(map[string]string)
-	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(creds.Key+":"+creds.Secret))
-
-	path := fmt.Sprintf("%s/%s", ePoint, endpoint)
+	headers["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(creds.Key+":"+creds.Secret))
 
 	item := &request.Item{
 		Method:        method,
-		Path:          path,
+		Path:          ePoint + "/" + endpoint,
 		Headers:       headers,
 		Result:        result,
 		Verbose:       h.Verbose,
@@ -490,10 +487,7 @@ func (h *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 		if err != nil {
 			return 0, err
 		}
-		fee, err = strconv.ParseFloat(currencyInfo.PayoutFee, 64)
-		if err != nil {
-			return 0, err
-		}
+		fee = currencyInfo.PayoutFee.Float64()
 	case exchange.CryptocurrencyDepositFee:
 		fee = calculateCryptocurrencyDepositFee(feeBuilder.Pair.Base,
 			feeBuilder.Amount)
