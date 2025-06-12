@@ -462,7 +462,7 @@ func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderP
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.OrderType != "conditional" {
+	if arg.OrderType != orderConditional {
 		return nil, fmt.Errorf("%w for TPSL: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.StopLossTriggerPrice <= 0 {
@@ -481,7 +481,7 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.OrderType != "chase" {
+	if arg.OrderType != orderChase {
 		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
 	}
 	if (arg.MaxChaseType == "" || arg.MaxChaseValue == 0) &&
@@ -496,7 +496,7 @@ func (ok *Okx) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) 
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.OrderType != "trigger" {
+	if arg.OrderType != orderTrigger {
 		return nil, fmt.Errorf("%w for Trigger: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.TriggerPrice <= 0 {

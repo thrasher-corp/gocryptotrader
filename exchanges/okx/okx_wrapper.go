@@ -958,7 +958,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
-	case "trigger":
+	case orderTrigger:
 		result, err = ok.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
@@ -970,7 +970,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			TriggerPrice:     s.TriggerPrice,
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "conditional":
+	case orderConditional:
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = ok.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
@@ -984,7 +984,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			StopLossOrderPrice:       s.Price,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "chase":
+	case orderChase:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1002,7 +1002,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			MaxChaseType:  s.TrackingMode.String(),
 			MaxChaseValue: s.TrackingValue,
 		})
-	case "move_order_stop":
+	case orderMoveOrderStop:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1025,7 +1025,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			CallbackSpreadVariance: callbackSpread,
 			ActivePrice:            s.TriggerPrice,
 		})
-	case "twap":
+	case orderTWAP:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1050,7 +1050,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			LimitPrice:    s.Price,
 			TimeInterval:  kline.FifteenMin,
 		})
-	case "oco":
+	case orderOCO:
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
 			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
@@ -1144,7 +1144,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	switch action.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
 			NewQuantity:   action.Amount,
@@ -1248,7 +1248,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		req := CancelOrderRequestParam{
 			InstrumentID:  instrumentID,
 			OrderID:       ord.OrderID,
@@ -1301,7 +1301,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		switch ord.Type {
-		case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
