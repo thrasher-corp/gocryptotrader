@@ -110,15 +110,10 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	}
 }
 
-func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	_, err := c.GetHistoricCandlesExtended(t.Context(),
-		testPair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
 func TestGetStats(t *testing.T) {

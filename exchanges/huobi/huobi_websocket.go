@@ -2,6 +2,7 @@ package huobi
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -580,7 +581,6 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return err
 	}
 
-	c := h.Websocket.AuthConn
 	ts := time.Now().UTC().Format(wsDateTimeFormatting)
 	hmac, err := h.wsGenerateSignature(creds, ts)
 	if err != nil {
@@ -594,12 +594,12 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 			AccessKey:        creds.Key,
 			SignatureMethod:  signatureMethod,
 			SignatureVersion: signatureVersion,
-			Signature:        crypto.Base64Encode(hmac),
+			Signature:        base64.StdEncoding.EncodeToString(hmac),
 			Timestamp:        ts,
 		},
 	}
-	err = c.SendJSONMessage(ctx, request.Unset, req)
-	if err != nil {
+	c := h.Websocket.AuthConn
+	if err := c.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return err
 	}
 	resp := c.ReadMessage()

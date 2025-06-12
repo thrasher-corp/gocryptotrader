@@ -2,6 +2,7 @@ package hitbtc
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -551,9 +552,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	n := strconv.FormatInt(time.Now().Unix(), 10)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(n),
-		[]byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(n), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -564,7 +563,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 			Algo:      "HS256",
 			PKey:      creds.Key,
 			Nonce:     n,
-			Signature: crypto.HexEncodeToString(hmac),
+			Signature: hex.EncodeToString(hmac),
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}

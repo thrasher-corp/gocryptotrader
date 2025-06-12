@@ -3,6 +3,7 @@ package alphapoint
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -597,7 +598,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 		return err
 	}
 
-	data["apiSig"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
+	data["apiSig"] = strings.ToUpper(hex.EncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", endpoint, alphapointAPIVersion, path)
 
 	PayloadJSON, err := json.Marshal(data)

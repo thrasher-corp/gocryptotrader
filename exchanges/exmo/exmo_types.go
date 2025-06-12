@@ -2,6 +2,7 @@ package exmo
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Trades holds trade data
@@ -17,13 +18,13 @@ type Trades struct {
 
 // Orderbook holds the orderbook data
 type Orderbook struct {
-	AskQuantity float64    `json:"ask_quantity,string"`
-	AskAmount   float64    `json:"ask_amount,string"`
-	AskTop      float64    `json:"ask_top,string"`
-	BidQuantity float64    `json:"bid_quantity,string"`
-	BidTop      float64    `json:"bid_top,string"`
-	Ask         [][]string `json:"ask"`
-	Bid         [][]string `json:"bid"`
+	AskQuantity float64           `json:"ask_quantity,string"`
+	AskAmount   float64           `json:"ask_amount,string"`
+	AskTop      float64           `json:"ask_top,string"`
+	BidQuantity float64           `json:"bid_quantity,string"`
+	BidTop      float64           `json:"bid_top,string"`
+	Asks        [][3]types.Number `json:"ask"`
+	Bids        [][3]types.Number `json:"bid"`
 }
 
 // Ticker holds the ticker data

@@ -513,7 +513,7 @@ func TestCompareJobsToData(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
-func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition caused by the DataHistoryJob and it's a big change to fix.
+func TestRunJob(t *testing.T) {
 	t.Parallel()
 	tt := time.Now().Truncate(kline.OneHour.Duration())
 	testCases := []*DataHistoryJob{
@@ -586,24 +586,24 @@ func TestRunJob(t *testing.T) { //nolint:tparallel // There is a race condition 
 	m.tradeSaver = dataHistoryTradeSaver
 	m.candleSaver = dataHistoryCandleSaver
 	m.tradeLoader = dataHistoryTraderLoader
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.Nickname, func(t *testing.T) {
-			err := m.UpsertJob(test, false)
+	for _, tc := range testCases {
+		t.Run(tc.Nickname, func(t *testing.T) {
+			t.Parallel()
+			err := m.UpsertJob(tc, false)
 			assert.NoError(t, err)
 
-			test.Status = dataHistoryIntervalIssuesFound
-			err = m.runJob(test)
+			tc.Status = dataHistoryIntervalIssuesFound
+			err = m.runJob(tc)
 			assert.ErrorIs(t, err, errJobInvalid)
 
-			rh := test.rangeHolder
-			test.Status = dataHistoryStatusActive
-			test.rangeHolder = nil
-			err = m.runJob(test)
+			rh := tc.rangeHolder
+			tc.Status = dataHistoryStatusActive
+			tc.rangeHolder = nil
+			err = m.runJob(tc)
 			assert.ErrorIs(t, err, errJobInvalid)
 
-			test.rangeHolder = rh
-			err = m.runJob(test)
+			tc.rangeHolder = rh
+			err = m.runJob(tc)
 			assert.NoError(t, err)
 		})
 	}

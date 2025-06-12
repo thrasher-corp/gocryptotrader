@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -579,17 +580,17 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	timestampStr := strconv.FormatInt(timestamp, 10)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+timestampStr), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	signature := crypto.HexEncodeToString(hmac)
 
 	req := WebsocketRequest{
 		Command:   "authKeyExpires",
-		Arguments: []any{creds.Key, timestamp, signature},
+		Arguments: []any{creds.Key, timestamp, hex.EncodeToString(hmac)},
 	}
 
 	resp, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Command, req)

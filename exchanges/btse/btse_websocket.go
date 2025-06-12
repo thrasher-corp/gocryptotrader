@@ -2,6 +2,7 @@ package btse
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -77,18 +78,14 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/ws/spot" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte((path)),
-		[]byte(creds.Secret),
-	)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte((path)), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 
-	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
-		Arguments: []string{creds.Key, nonce, sign},
+		Arguments: []string{creds.Key, nonce, hex.EncodeToString(hmac)},
 	}
 	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }

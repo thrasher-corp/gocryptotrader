@@ -1457,34 +1457,25 @@ func TestSetGlobalPairsManager(t *testing.T) {
 	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"60",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"86400",
 		},
-	}
-
-	b := Base{}
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}
 }
@@ -1647,13 +1638,6 @@ func TestKlineIntervalEnabled(t *testing.T) {
 	}
 }
 
-func TestFormatExchangeKlineInterval(t *testing.T) {
-	b := Base{}
-	if b.FormatExchangeKlineInterval(kline.EightHour) != "28800" {
-		t.Fatal("unexpected value")
-	}
-}
-
 func TestSetSaveTradeDataStatus(t *testing.T) {
 	b := Base{
 		Features: Features{
@@ -1765,24 +1749,13 @@ func TestFormatSymbol(t *testing.T) {
 		},
 	}
 	err := b.SetAssetPairStore(asset.Spot, spotStore)
-	if err != nil {
-		t.Error(err)
-	}
-	pair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Error(err)
-	}
-	sym, err := b.FormatSymbol(pair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	if sym != "BTCUSD" {
-		t.Error("formatting failed")
-	}
-	_, err = b.FormatSymbol(pair, asset.Futures)
-	if err == nil {
-		t.Error("expecting an error since asset pair format has not been set")
-	}
+	require.NoError(t, err, "SetAssetPairStore must not error")
+	p := currency.NewBTCUSD().Format(*spotStore.ConfigFormat)
+	sym, err := b.FormatSymbol(p, asset.Spot)
+	require.NoError(t, err, "FormatSymbol must not error")
+	assert.Equal(t, "BTCUSD", sym, "FormatSymbol should format the pair correctly")
+	_, err = b.FormatSymbol(p, asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestSetAPIURL(t *testing.T) {

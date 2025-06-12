@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -2206,22 +2207,20 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 	if err != nil {
 		return err
 	}
-	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, params) + "\n" + "\n"
-	n := d.Requester.GetNonce(nonce.UnixNano).String()
-	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	str2Sign := strTS + "\n" + n + "\n" + reqDataStr
 	creds, err := d.GetCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("%w, %v", request.ErrAuthRequestFailed, err)
 	}
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(str2Sign),
-		[]byte(creds.Secret))
+	req := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, params) + "\n\n"
+	n := d.Requester.GetNonce(nonce.UnixNano).String()
+	ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	tsReq := []byte(ts + "\n" + n + "\n" + req)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, tsReq, []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 	headers := make(map[string]string)
-	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + strTS + ",sig=" + crypto.HexEncodeToString(hmac) + ",nonce=" + n
+	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + ts + ",sig=" + hex.EncodeToString(hmac) + ",nonce=" + n
 	headers["Authorization"] = headerString
 	headers["Content-Type"] = "application/json"
 	var tempData struct {

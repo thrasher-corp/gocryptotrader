@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -25,16 +26,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
 	btcMarketsWSURL = "wss://socket.btcmarkets.net/v2"
 )
 
-var (
-	errTypeAssertionFailure = errors.New("type assertion failure")
-	errChecksumFailure      = errors.New("crc32 checksum failure")
-)
+var errChecksumFailure = errors.New("crc32 checksum failure")
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
@@ -92,45 +91,16 @@ func (b *BTCMarkets) wsReadData(ctx context.Context) {
 
 // UnmarshalJSON implements the unmarshaler interface.
 func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
-	resp := make([][3]any, len(data))
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	var resp [][3]types.Number
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
 	*w = WebsocketOrderbook(make(orderbook.Tranches, len(resp)))
 	for x := range resp {
-		sPrice, ok := resp[x][0].(string)
-		if !ok {
-			return fmt.Errorf("price string %w", errTypeAssertionFailure)
-		}
-		var price float64
-		price, err = strconv.ParseFloat(sPrice, 64)
-		if err != nil {
-			return err
-		}
-
-		sAmount, ok := resp[x][1].(string)
-		if !ok {
-			return fmt.Errorf("amount string %w", errTypeAssertionFailure)
-		}
-
-		var amount float64
-		amount, err = strconv.ParseFloat(sAmount, 64)
-		if err != nil {
-			return err
-		}
-
-		count, ok := resp[x][2].(float64)
-		if !ok {
-			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
-		}
-
-		(*w)[x] = orderbook.Tranche{
-			Amount:     amount,
-			Price:      price,
-			OrderCount: int64(count),
-		}
+		(*w)[x].Price = resp[x][0].Float64()
+		(*w)[x].Amount = resp[x][1].Float64()
+		(*w)[x].OrderCount = resp[x][2].Int64()
 	}
 	return nil
 }
@@ -198,11 +168,6 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(t.Currency)
-		if err != nil {
-			return err
-		}
-
 		side := order.Buy
 		switch {
 		case t.Side.IsLong():
@@ -215,7 +180,7 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 		td := trade.Data{
 			Timestamp:    t.Timestamp,
-			CurrencyPair: p,
+			CurrencyPair: t.MarketID,
 			AssetType:    asset.Spot,
 			Exchange:     b.Name,
 			Price:        t.Price,
@@ -237,11 +202,6 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(tick.Currency)
-		if err != nil {
-			return err
-		}
-
 		b.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: b.Name,
 			Volume:       tick.Volume,
@@ -252,7 +212,7 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			Last:         tick.Last,
 			LastUpdated:  tick.Timestamp,
 			AssetType:    asset.Spot,
-			Pair:         p,
+			Pair:         tick.MarketID,
 		}
 	case fundChange:
 		var transferData WsFundTransfer
@@ -312,15 +272,6 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			}
 		}
 
-		p, err := currency.NewPairFromString(orderData.MarketID)
-		if err != nil {
-			b.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: b.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-
 		clientID := ""
 		if creds, err := b.GetCredentials(ctx); err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
@@ -345,7 +296,7 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			AssetType:       asset.Spot,
 			Date:            orderData.Timestamp,
 			Trades:          trades,
-			Pair:            p,
+			Pair:            orderData.MarketID,
 		}
 	case "error":
 		var wsErr WsError
@@ -425,9 +376,8 @@ func (b *BTCMarkets) signWsReq(ctx context.Context, r *WsSubscribe) error {
 	if err != nil {
 		return err
 	}
-	sign := crypto.Base64Encode(tempSign)
 	r.Key = creds.Key
-	r.Signature = sign
+	r.Signature = base64.StdEncoding.EncodeToString(tempSign)
 	return nil
 }
 
