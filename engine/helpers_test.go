@@ -402,15 +402,10 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 func TestIsRelatablePairs(t *testing.T) {
 	t.Parallel()
 	CreateTestBot(t)
-	xbtusd, err := currency.NewPairFromStrings("XBT", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	btcusd, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	btcusd := currency.NewBTCUSD()
+	xbtusd := currency.NewPair(currency.XBT, currency.USD)
+	xbtusdt := currency.NewPair(currency.XBT, currency.USDT)
 
 	// Test relational pairs with similar names
 	result := IsRelatablePairs(xbtusd, btcusd, false)
@@ -424,20 +419,10 @@ func TestIsRelatablePairs(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	btcusdt, err := currency.NewPairFromStrings("BTC", "USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Test relational pairs with similar names but with Tether support disabled
-	result = IsRelatablePairs(xbtusd, btcusdt, false)
+	result = IsRelatablePairs(xbtusd, currency.NewBTCUSDT(), false)
 	if result {
 		t.Fatal("Unexpected result")
-	}
-
-	xbtusdt, err := currency.NewPairFromStrings("XBT", "USDT")
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	// Test relational pairs with similar names but with Tether support enabled
@@ -505,7 +490,7 @@ func TestIsRelatablePairs(t *testing.T) {
 
 	// Test relationl pairs with similar names, different fiat currencies and
 	// with Tether enabled
-	result = IsRelatablePairs(usdbtc, btcusdt, true)
+	result = IsRelatablePairs(usdbtc, currency.NewBTCUSDT(), true)
 	if !result {
 		t.Fatal("Unexpected result")
 	}

@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -305,26 +306,26 @@ type FuturesEditedOrderData struct {
 
 // FuturesTicker  holds futures ticker data
 type FuturesTicker struct {
-	Tag                   string    `json:"tag"`
-	Pair                  string    `json:"pair"`
-	Symbol                string    `json:"symbol"`
-	MarkPrice             float64   `json:"markPrice"`
-	Bid                   float64   `json:"bid"`
-	BidSize               float64   `json:"bidSize"`
-	Ask                   float64   `json:"ask"`
-	AskSize               float64   `json:"askSize"`
-	Vol24h                float64   `json:"vol24h"`
-	OpenInterest          float64   `json:"openInterest"`
-	Open24H               float64   `json:"open24h"`
-	Last                  float64   `json:"last"`
-	LastTime              time.Time `json:"lastTime"`
-	LastSize              float64   `json:"lastSize"`
-	Suspended             bool      `json:"suspended"`
-	FundingRate           float64   `json:"fundingRate"`
-	FundingRatePrediction float64   `json:"fundingRatePrediction"`
-	IndexPrice            float64   `json:"indexPrice"`
-	PostOnly              bool      `json:"postOnly"`
-	Change24H             float64   `json:"change24h"`
+	Tag                   string        `json:"tag"`
+	Pair                  string        `json:"pair"`
+	Symbol                currency.Pair `json:"symbol"`
+	MarkPrice             float64       `json:"markPrice"`
+	Bid                   float64       `json:"bid"`
+	BidSize               float64       `json:"bidSize"`
+	Ask                   float64       `json:"ask"`
+	AskSize               float64       `json:"askSize"`
+	Vol24h                float64       `json:"vol24h"`
+	OpenInterest          float64       `json:"openInterest"`
+	Open24H               float64       `json:"open24h"`
+	Last                  float64       `json:"last"`
+	LastTime              time.Time     `json:"lastTime"`
+	LastSize              float64       `json:"lastSize"`
+	Suspended             bool          `json:"suspended"`
+	FundingRate           float64       `json:"fundingRate"`
+	FundingRatePrediction float64       `json:"fundingRatePrediction"`
+	IndexPrice            float64       `json:"indexPrice"`
+	PostOnly              bool          `json:"postOnly"`
+	Change24H             float64       `json:"change24h"`
 }
 
 // FuturesSendOrderData stores send order data

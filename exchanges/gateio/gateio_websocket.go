@@ -384,7 +384,7 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
+	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:       data.LastUpdateID,
 		UpdateTime:     data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
