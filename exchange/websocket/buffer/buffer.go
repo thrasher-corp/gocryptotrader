@@ -65,6 +65,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		// Associate orderbook pointer with local exchange depth map
 		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
 		if err != nil {
+			w.m.Unlock()
 			return err
 		}
 		depth.AssignOptions(book)
