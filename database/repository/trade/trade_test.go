@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -54,7 +56,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestTrades(t *testing.T) {
-	testCases := []struct {
+	t.Parallel()
+	for _, tc := range []struct {
 		name   string
 		config *database.Config
 		seedDB func() error
@@ -74,33 +77,22 @@ func TestTrades(t *testing.T) {
 			},
 			seedDB: seedDB,
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !testhelpers.CheckValidConfig(&tc.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-			if err != nil {
-				t.Fatal(err)
-			}
+			dbConn, err := testhelpers.ConnectToDatabase(tc.config)
+			require.NoError(t, err)
 
-			if test.seedDB != nil {
-				err = test.seedDB()
-				if err != nil {
-					t.Error(err)
-				}
+			if tc.seedDB != nil {
+				require.NoError(t, tc.seedDB())
 			}
 
 			tradeSQLTester(t)
-			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoError(t, testhelpers.CloseDatabase(dbConn))
 		})
 	}
 }

@@ -3,6 +3,7 @@ package poloniex
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -939,13 +940,11 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		values.Set("nonce", p.Requester.GetNonce(nonce.UnixNano).String())
 		values.Set("command", endpoint)
 
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(values.Encode()),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(values.Encode()), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		headers["Sign"] = crypto.HexEncodeToString(hmac)
+		headers["Sign"] = hex.EncodeToString(hmac)
 
 		path := fmt.Sprintf("%s/%s", ePoint, poloniexAPITradingEndpoint)
 		return &request.Item{
