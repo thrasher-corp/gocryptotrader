@@ -276,17 +276,17 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Data.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Data.Bids))
 	for i := range orderbookNew.Data.Bids {
-		book.Bids[i] = orderbook.Tranche{
+		book.Bids[i] = orderbook.Level{
 			Amount: orderbookNew.Data.Bids[i].Quantity,
 			Price:  orderbookNew.Data.Bids[i].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Data.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Data.Asks))
 	for i := range orderbookNew.Data.Asks {
-		book.Asks[i] = orderbook.Tranche{
+		book.Asks[i] = orderbook.Level{
 			Amount: orderbookNew.Data.Asks[i].Quantity,
 			Price:  orderbookNew.Data.Asks[i].Price,
 		}

@@ -216,7 +216,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Bids {
 		book.Bids = append(book.Bids,
-			orderbook.Tranche{
+			orderbook.Level{
 				Price:  orderbookNew.Bids[i][0],
 				Amount: orderbookNew.Bids[i][1],
 			})
@@ -224,7 +224,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Asks {
 		book.Asks = append(book.Asks,
-			orderbook.Tranche{
+			orderbook.Level{
 				Price:  orderbookNew.Asks[i][0],
 				Amount: orderbookNew.Asks[i][1],
 			})

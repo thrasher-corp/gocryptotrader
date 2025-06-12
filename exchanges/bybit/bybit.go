@@ -2527,9 +2527,9 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
+func processOB(ob [][2]string) ([]orderbook.Level, error) {
 	var err error
-	o := make([]orderbook.Tranche, len(ob))
+	o := make([]orderbook.Level, len(ob))
 	for x := range ob {
 		o[x].Amount, err = strconv.ParseFloat(ob[x][1], 64)
 		if err != nil {

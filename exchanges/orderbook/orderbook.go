@@ -110,7 +110,7 @@ func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth
 	return ob.Depth, nil
 }
 
-// Retrieve gets orderbook depth data from the stored tranches and returns the
+// Retrieve gets orderbook depth data from the stored Levels and returns the
 // base equivalent copy
 func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Book, error) {
 	if p.IsEmpty() {
@@ -189,10 +189,10 @@ func (b *Book) Verify() error {
 
 // checker defines specific functionality to determine ascending/descending
 // validation
-type checker func(current, previous Tranche) error
+type checker func(current, previous Level) error
 
 // asc specifically defines ascending price check
-var asc = func(current, previous Tranche) error {
+var asc = func(current, previous Level) error {
 	if current.Price < previous.Price {
 		return errPriceOutOfOrder
 	}
@@ -200,7 +200,7 @@ var asc = func(current, previous Tranche) error {
 }
 
 // dsc specifically defines descending price check
-var dsc = func(current, previous Tranche) error {
+var dsc = func(current, previous Level) error {
 	if current.Price > previous.Price {
 		return errPriceOutOfOrder
 	}
@@ -208,7 +208,7 @@ var dsc = func(current, previous Tranche) error {
 }
 
 // checkAlignment validates full orderbook
-func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
+func checkAlignment(depth Levels, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
 			switch {
@@ -278,7 +278,7 @@ func (b *Book) Process() error {
 // using a sort algorithm as the algorithm could be impeded by a worst case time
 // complexity when elements are shifted as opposed to just swapping element
 // values.
-func (ts *Tranches) Reverse() {
+func (ts *Levels) Reverse() {
 	eLen := len(*ts)
 	var target int
 	for i := eLen/2 - 1; i >= 0; i-- {
@@ -290,13 +290,13 @@ func (ts *Tranches) Reverse() {
 // SortAsks sorts ask items to the correct ascending order if pricing values are
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
-func (ts Tranches) SortAsks() {
+func (ts Levels) SortAsks() {
 	sort.Slice(ts, func(i, j int) bool { return ts[i].Price < ts[j].Price })
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
-func (ts Tranches) SortBids() {
+func (ts Levels) SortBids() {
 	sort.Slice(ts, func(i, j int) bool { return ts[i].Price > ts[j].Price })
 }

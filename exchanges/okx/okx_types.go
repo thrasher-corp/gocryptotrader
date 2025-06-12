@@ -4455,8 +4455,8 @@ func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error)
 	}
 	for x := range a.Data {
 		resp.Data[x].Timestamp = a.Data[x].Timestamp.Time()
-		resp.Data[x].Asks = make([]orderbook.Tranche, len(a.Data[x].Asks))
-		resp.Data[x].Bids = make([]orderbook.Tranche, len(a.Data[x].Bids))
+		resp.Data[x].Asks = make([]orderbook.Level, len(a.Data[x].Asks))
+		resp.Data[x].Bids = make([]orderbook.Level, len(a.Data[x].Bids))
 
 		for as := range a.Data[x].Asks {
 			resp.Data[x].Asks[as].Price = a.Data[x].Asks[as][0].Float64()
@@ -4474,8 +4474,8 @@ func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error)
 
 // WsSpreadOrderbookItem represents an orderbook asks and bids details
 type WsSpreadOrderbookItem struct {
-	Asks      []orderbook.Tranche
-	Bids      []orderbook.Tranche
+	Asks      []orderbook.Level
+	Bids      []orderbook.Level
 	Timestamp time.Time
 }
 

@@ -97,7 +97,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*w = WebsocketOrderbook(make(orderbook.Tranches, len(resp)))
+	*w = WebsocketOrderbook(make(orderbook.Levels, len(resp)))
 	for x := range resp {
 		sPrice, ok := resp[x][0].(string)
 		if !ok {
@@ -125,7 +125,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
 		}
 
-		(*w)[x] = orderbook.Tranche{
+		(*w)[x] = orderbook.Level{
 			Amount:     amount,
 			Price:      price,
 			OrderCount: int64(count),
@@ -155,8 +155,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		if ob.Snapshot {
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Pair:            ob.Currency,
-				Bids:            orderbook.Tranches(ob.Bids),
-				Asks:            orderbook.Tranches(ob.Asks),
+				Bids:            orderbook.Levels(ob.Bids),
+				Asks:            orderbook.Levels(ob.Asks),
 				LastUpdated:     ob.Timestamp,
 				LastUpdateID:    ob.SnapshotID,
 				Asset:           asset.Spot,
@@ -168,8 +168,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				UpdateTime: ob.Timestamp,
 				UpdateID:   ob.SnapshotID,
 				Asset:      asset.Spot,
-				Bids:       orderbook.Tranches(ob.Bids),
-				Asks:       orderbook.Tranches(ob.Asks),
+				Bids:       orderbook.Levels(ob.Bids),
+				Asks:       orderbook.Levels(ob.Asks),
 				Pair:       ob.Currency,
 				Checksum:   ob.Checksum,
 			})
@@ -484,7 +484,7 @@ func checksum(ob *orderbook.Book, checksum uint32) error {
 }
 
 // concatOrderbookLiquidity concatenates price and amounts together for checksum processing
-func concatOrderbookLiquidity(liquidity orderbook.Tranches) string {
+func concatOrderbookLiquidity(liquidity orderbook.Levels) string {
 	var c string
 	for x := range min(10, len(liquidity)) {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)

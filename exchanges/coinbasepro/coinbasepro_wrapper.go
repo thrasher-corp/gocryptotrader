@@ -328,17 +328,17 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
 	}
 
-	book.Bids = make(orderbook.Tranches, len(obNew.Bids))
+	book.Bids = make(orderbook.Levels, len(obNew.Bids))
 	for x := range obNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: obNew.Bids[x].Amount,
 			Price:  obNew.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(obNew.Asks))
+	book.Asks = make(orderbook.Levels, len(obNew.Asks))
 	for x := range obNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: obNew.Asks[x].Amount,
 			Price:  obNew.Asks[x].Price,
 		}

@@ -188,17 +188,17 @@ func (a *Alphapoint) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return orderBook, err
 	}
 
-	orderBook.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	orderBook.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		orderBook.Bids[x] = orderbook.Tranche{
+		orderBook.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 
-	orderBook.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	orderBook.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		orderBook.Asks[x] = orderbook.Tranche{
+		orderBook.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}

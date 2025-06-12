@@ -309,22 +309,22 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
-	book.Asks = make(orderbook.Tranches, 0, len(obData.Asks))
+	book.Asks = make(orderbook.Levels, 0, len(obData.Asks))
 	for x := range obData.Asks {
 		if obData.Asks[x][0] == 0 || obData.Asks[x][1] == 0 {
 			continue
 		}
-		book.Asks = append(book.Asks, orderbook.Tranche{
+		book.Asks = append(book.Asks, orderbook.Level{
 			Price:  obData.Asks[x][0],
 			Amount: obData.Asks[x][1],
 		})
 	}
-	book.Bids = make(orderbook.Tranches, 0, len(obData.Bids))
+	book.Bids = make(orderbook.Levels, 0, len(obData.Bids))
 	for x := range obData.Bids {
 		if obData.Bids[x][0] == 0 || obData.Bids[x][1] == 0 {
 			continue
 		}
-		book.Bids = append(book.Bids, orderbook.Tranche{
+		book.Bids = append(book.Bids, orderbook.Level{
 			Price:  obData.Bids[x][0],
 			Amount: obData.Bids[x][1],
 		})

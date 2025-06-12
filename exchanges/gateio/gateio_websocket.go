@@ -364,8 +364,8 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 		Asset:          asset.Spot,
 		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
-		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Bids:           []orderbook.Level{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:           []orderbook.Level{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
@@ -374,12 +374,12 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
 		asks[x].Amount = data.Asks[x][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
@@ -402,12 +402,12 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 		return err
 	}
 
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
 		asks[x].Amount = data.Asks[x][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()

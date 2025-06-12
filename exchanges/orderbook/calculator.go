@@ -21,7 +21,7 @@ type WhaleBombResult struct {
 	MinimumPrice         float64
 	MaximumPrice         float64
 	PercentageGainOrLoss float64
-	Orders               Tranches
+	Orders               Levels
 	Status               string
 }
 
@@ -49,7 +49,7 @@ func (b *Book) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 		status = fmt.Sprintf("Buying using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			amount, b.Pair.Quote, b.Pair.Base, minPrice, maxPrice,
-			percent, len(action.Tranches), warning)
+			percent, len(action.Levels), warning)
 	} else {
 		minPrice = action.TranchePositionPrice
 		maxPrice = action.ReferencePrice
@@ -57,12 +57,12 @@ func (b *Book) WhaleBomb(priceTarget float64, buy bool) (*WhaleBombResult, error
 		percent = math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 		status = fmt.Sprintf("Selling using %.2f %s worth of %s will send the price from %v to %v [%.2f%%] and impact %d price tranche(s). %s",
 			amount, b.Pair.Base, b.Pair.Quote, maxPrice, minPrice,
-			percent, len(action.Tranches), warning)
+			percent, len(action.Levels), warning)
 	}
 
 	return &WhaleBombResult{
 		Amount:               amount,
-		Orders:               action.Tranches,
+		Orders:               action.Levels,
 		MinimumPrice:         minPrice,
 		MaximumPrice:         maxPrice,
 		Status:               status,
@@ -111,9 +111,9 @@ func (b *Book) SimulateOrder(amount float64, buy bool) (*WhaleBombResult, error)
 	pct := math.PercentageChange(action.ReferencePrice, action.TranchePositionPrice)
 	status := fmt.Sprintf("%s using %f %v worth of %v will send the price from %v to %v [%.2f%%] and impact %v price tranche(s). %s",
 		direction, soldAmount, sold, bought, action.ReferencePrice,
-		action.TranchePositionPrice, pct, len(action.Tranches), warning)
+		action.TranchePositionPrice, pct, len(action.Levels), warning)
 	return &WhaleBombResult{
-		Orders:               action.Tranches,
+		Orders:               action.Levels,
 		Amount:               boughtAmount,
 		MinimumPrice:         minimumPrice,
 		MaximumPrice:         maximumPrice,
@@ -138,7 +138,7 @@ func (b *Book) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 				action.TranchePositionPrice = b.Asks[x].Price
 				return &action, nil
 			}
-			action.Tranches = append(action.Tranches, b.Asks[x])
+			action.Levels = append(action.Levels, b.Asks[x])
 			action.QuoteAmount += b.Asks[x].Price * b.Asks[x].Amount
 			action.BaseAmount += b.Asks[x].Amount
 		}
@@ -160,7 +160,7 @@ func (b *Book) findAmount(priceTarget float64, buy bool) (*DeploymentAction, err
 			action.TranchePositionPrice = b.Bids[x].Price
 			return &action, nil
 		}
-		action.Tranches = append(action.Tranches, b.Bids[x])
+		action.Levels = append(action.Levels, b.Bids[x])
 		action.QuoteAmount += b.Bids[x].Price * b.Bids[x].Amount
 		action.BaseAmount += b.Bids[x].Amount
 	}
@@ -175,7 +175,7 @@ type DeploymentAction struct {
 	TranchePositionPrice float64
 	BaseAmount           float64
 	QuoteAmount          float64
-	Tranches             Tranches
+	Levels               Levels
 	FullLiquidityUsed    bool
 }
 
@@ -201,10 +201,7 @@ func (b *Book) buy(quote float64) (*DeploymentAction, error) {
 				}
 			}
 			subAmount := quote / b.Asks[x].Price
-			action.Tranches = append(action.Tranches, Tranche{
-				Price:  b.Asks[x].Price,
-				Amount: subAmount,
-			})
+			action.Levels = append(action.Levels, Level{Price: b.Asks[x].Price, Amount: subAmount})
 			action.BaseAmount += subAmount
 			return action, nil
 		}
@@ -213,7 +210,7 @@ func (b *Book) buy(quote float64) (*DeploymentAction, error) {
 		}
 		quote = remaining
 		action.BaseAmount += b.Asks[x].Amount
-		action.Tranches = append(action.Tranches, b.Asks[x])
+		action.Levels = append(action.Levels, b.Asks[x])
 	}
 
 	return action, nil
@@ -238,10 +235,7 @@ func (b *Book) sell(base float64) (*DeploymentAction, error) {
 					action.FullLiquidityUsed = true
 				}
 			}
-			action.Tranches = append(action.Tranches, Tranche{
-				Price:  b.Bids[x].Price,
-				Amount: base,
-			})
+			action.Levels = append(action.Levels, Level{Price: b.Bids[x].Price, Amount: base})
 			action.BaseAmount += base
 			action.QuoteAmount += base * b.Bids[x].Price
 			return action, nil
@@ -252,7 +246,7 @@ func (b *Book) sell(base float64) (*DeploymentAction, error) {
 		base = remaining
 		action.BaseAmount += b.Bids[x].Amount
 		action.QuoteAmount += b.Bids[x].Amount * b.Bids[x].Price
-		action.Tranches = append(action.Tranches, b.Bids[x])
+		action.Levels = append(action.Levels, b.Bids[x])
 	}
 	return action, nil
 }
@@ -279,7 +273,7 @@ func (b *Book) GetAveragePrice(buy bool, amount float64) (float64, error) {
 // FindNominalAmount finds the nominal amount spent in terms of the quote
 // If the orderbook doesn't have enough liquidity it returns a non zero
 // remaining amount value
-func (ts Tranches) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
+func (ts Levels) FindNominalAmount(amount float64) (aggNominalAmount, remainingAmount float64) {
 	remainingAmount = amount
 	for x := range ts {
 		if remainingAmount <= ts[x].Amount {

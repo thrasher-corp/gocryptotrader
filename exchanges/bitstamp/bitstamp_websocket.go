@@ -302,8 +302,8 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 	}
 
 	obUpdate := &orderbook.Book{
-		Bids:            make(orderbook.Tranches, len(update.Bids)),
-		Asks:            make(orderbook.Tranches, len(update.Asks)),
+		Bids:            make(orderbook.Levels, len(update.Bids)),
+		Asks:            make(orderbook.Levels, len(update.Asks)),
 		Pair:            p,
 		LastUpdated:     time.UnixMicro(update.Microtimestamp),
 		Asset:           asset.Spot,
@@ -320,7 +320,7 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 		if err != nil {
 			return err
 		}
-		obUpdate.Asks[i] = orderbook.Tranche{Price: target, Amount: amount}
+		obUpdate.Asks[i] = orderbook.Level{Price: target, Amount: amount}
 	}
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
@@ -331,7 +331,7 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 		if err != nil {
 			return err
 		}
-		obUpdate.Bids[i] = orderbook.Tranche{Price: target, Amount: amount}
+		obUpdate.Bids[i] = orderbook.Level{Price: target, Amount: amount}
 	}
 	filterOrderbookZeroBidPrice(obUpdate)
 	return b.Websocket.Orderbook.LoadSnapshot(obUpdate)
@@ -358,19 +358,19 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			Asset:           asset.Spot,
 			Exchange:        b.Name,
 			VerifyOrderbook: b.CanVerifyOrderbook,
-			Bids:            make(orderbook.Tranches, len(orderbookSeed.Bids)),
-			Asks:            make(orderbook.Tranches, len(orderbookSeed.Asks)),
+			Bids:            make(orderbook.Levels, len(orderbookSeed.Bids)),
+			Asks:            make(orderbook.Levels, len(orderbookSeed.Asks)),
 			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
 		}
 
 		for i := range orderbookSeed.Asks {
-			newOrderBook.Asks[i] = orderbook.Tranche{
+			newOrderBook.Asks[i] = orderbook.Level{
 				Price:  orderbookSeed.Asks[i].Price,
 				Amount: orderbookSeed.Asks[i].Amount,
 			}
 		}
 		for i := range orderbookSeed.Bids {
-			newOrderBook.Bids[i] = orderbook.Tranche{
+			newOrderBook.Bids[i] = orderbook.Level{
 				Price:  orderbookSeed.Bids[i].Price,
 				Amount: orderbookSeed.Bids[i].Amount,
 			}

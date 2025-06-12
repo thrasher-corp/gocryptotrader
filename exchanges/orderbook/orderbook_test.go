@@ -36,7 +36,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: "SubscribeToExchangeOrderbooks",
-		Bids:     []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
+		Bids:     []Level{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
 	require.NoError(t, b.Process(), "process must not error")
@@ -59,15 +59,15 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %v error but received %v", nil, err)
 	}
 
-	b.Asks = []Tranche{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	b.Asks = []Level{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errIDDuplication)
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errDuplication)
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
 	require.ErrorIs(t, err, errPeriodUnset)
@@ -77,23 +77,23 @@ func TestVerify(t *testing.T) {
 	err = b.Verify()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errAmountInvalid)
 
-	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errPriceNotSet)
 
-	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
+	b.Bids = []Level{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errIDDuplication)
 
-	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errDuplication)
 
-	b.Bids = []Tranche{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = []Level{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
 	require.ErrorIs(t, err, errPeriodUnset)
@@ -103,11 +103,11 @@ func TestVerify(t *testing.T) {
 	err = b.Verify()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
-	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errAmountInvalid)
 
-	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
 	require.ErrorIs(t, err, errPriceNotSet)
 }
@@ -120,7 +120,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	}
 	base := Book{
 		Pair:        curr,
-		Bids:        []Tranche{{Price: 100, Amount: 10}},
+		Bids:        []Level{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
 	}
 
@@ -138,7 +138,7 @@ func TestCalculateTotalAsks(t *testing.T) {
 	}
 	base := Book{
 		Pair: curr,
-		Asks: []Tranche{{Price: 100, Amount: 10}},
+		Asks: []Level{{Price: 100, Amount: 10}},
 	}
 
 	a, b := base.TotalAsksAmount()
@@ -155,8 +155,8 @@ func TestGetOrderbook(t *testing.T) {
 
 	base := &Book{
 		Pair:     c,
-		Asks:     []Tranche{{Price: 100, Amount: 10}},
-		Bids:     []Tranche{{Price: 200, Amount: 10}},
+		Asks:     []Level{{Price: 100, Amount: 10}},
+		Bids:     []Level{{Price: 200, Amount: 10}},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -196,8 +196,8 @@ func TestGetDepth(t *testing.T) {
 
 	base := &Book{
 		Pair:     c,
-		Asks:     []Tranche{{Price: 100, Amount: 10}},
-		Bids:     []Tranche{{Price: 200, Amount: 10}},
+		Asks:     []Level{{Price: 100, Amount: 10}},
+		Bids:     []Level{{Price: 200, Amount: 10}},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -236,8 +236,8 @@ func TestBaseGetDepth(t *testing.T) {
 
 	base := &Book{
 		Pair:     c,
-		Asks:     []Tranche{{Price: 100, Amount: 10}},
-		Bids:     []Tranche{{Price: 200, Amount: 10}},
+		Asks:     []Level{{Price: 100, Amount: 10}},
+		Bids:     []Level{{Price: 200, Amount: 10}},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -275,8 +275,8 @@ func TestCreateNewOrderbook(t *testing.T) {
 	}
 	base := &Book{
 		Pair:     c,
-		Asks:     []Tranche{{Price: 100, Amount: 10}},
-		Bids:     []Tranche{{Price: 200, Amount: 10}},
+		Asks:     []Level{{Price: 100, Amount: 10}},
+		Bids:     []Level{{Price: 200, Amount: 10}},
 		Exchange: "testCreateNewOrderbook",
 		Asset:    asset.Spot,
 	}
@@ -312,8 +312,8 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := Book{
-		Asks:     []Tranche{{Price: 100, Amount: 10}},
-		Bids:     []Tranche{{Price: 200, Amount: 10}},
+		Asks:     []Level{{Price: 100, Amount: 10}},
+		Bids:     []Level{{Price: 200, Amount: 10}},
 		Exchange: "ProcessOrderbook",
 	}
 
@@ -381,7 +381,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
 
-	base.Asks = []Tranche{{Price: 200, Amount: 200}}
+	base.Asks = []Level{{Price: 200, Amount: 200}}
 	base.Asset = asset.Spot
 	err = base.Process()
 	if err != nil {
@@ -398,7 +398,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("TestProcessOrderbook CalculateTotalsAsks incorrect values")
 	}
 
-	base.Bids = []Tranche{{Price: 420, Amount: 200}}
+	base.Bids = []Level{{Price: 420, Amount: 200}}
 	base.Exchange = "Blah"
 	base.Asset = asset.CoinMarginedFutures
 	err = base.Process()
@@ -418,8 +418,8 @@ func TestProcessOrderbook(t *testing.T) {
 	type quick struct {
 		Name string
 		P    currency.Pair
-		Bids []Tranche
-		Asks []Tranche
+		Bids []Level
+		Asks []Level
 	}
 
 	var testArray []quick
@@ -444,8 +444,8 @@ func TestProcessOrderbook(t *testing.T) {
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
 				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypo/rand for testing
 
-			asks := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
-			bids := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			asks := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			bids := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
 			base := &Book{
 				Pair:     newPairs,
 				Asks:     asks,
@@ -502,10 +502,10 @@ func TestProcessOrderbook(t *testing.T) {
 	wg.Wait()
 }
 
-func deployUnorderedSlice() Tranches {
-	ts := make([]Tranche, 1000)
+func deployUnorderedSlice() Levels {
+	ts := make([]Level, 1000)
 	for x := range 1000 {
-		ts[x] = Tranche{Amount: 1, Price: rand.Float64(), ID: rand.Int63()} //nolint:gosec // Not needed in tests
+		ts[x] = Level{Amount: 1, Price: rand.Float64(), ID: rand.Int63()} //nolint:gosec // Not needed in tests
 	}
 	return ts
 }
@@ -535,10 +535,10 @@ func TestSorting(t *testing.T) {
 	}
 }
 
-func deploySliceOrdered() Tranches {
-	ts := make([]Tranche, 1000)
+func deploySliceOrdered() Levels {
+	ts := make([]Level, 1000)
 	for i := range 1000 {
-		ts[i] = Tranche{Amount: 1, Price: float64(i + 1), ID: rand.Int63()} //nolint:gosec // Not needed in tests
+		ts[i] = Level{Amount: 1, Price: float64(i + 1), ID: rand.Int63()} //nolint:gosec // Not needed in tests
 	}
 	return ts
 }
@@ -578,7 +578,7 @@ func BenchmarkReverse(b *testing.B) {
 // 385783	      3000 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
-	bucket := make(Tranches, len(s))
+	bucket := make(Levels, len(s))
 	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
@@ -590,7 +590,7 @@ func BenchmarkSortAsksDecending(b *testing.B) {
 func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
-	bucket := make(Tranches, len(s))
+	bucket := make(Levels, len(s))
 	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
@@ -601,7 +601,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 // 16233	     76951 ns/op	     167 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
-	bucket := make(Tranches, len(s))
+	bucket := make(Levels, len(s))
 	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
@@ -612,7 +612,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 // 15698	     72859 ns/op	     168 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
-	bucket := make(Tranches, len(s))
+	bucket := make(Levels, len(s))
 	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
@@ -623,7 +623,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 // 377113	      3020 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
-	bucket := make(Tranches, len(s))
+	bucket := make(Levels, len(s))
 	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortAsks()
@@ -635,7 +635,7 @@ func BenchmarkSortAsksAscending(b *testing.B) {
 func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
-	bucket := make(Tranches, len(s))
+	bucket := make(Levels, len(s))
 	for b.Loop() {
 		copy(bucket, s)
 		bucket.SortBids()
@@ -644,7 +644,7 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 
 func TestCheckAlignment(t *testing.T) {
 	t.Parallel()
-	itemWithFunding := Tranches{{Amount: 1337, Price: 0, Period: 1337}}
+	itemWithFunding := Levels{{Amount: 1337, Price: 0, Period: 1337}}
 	err := checkAlignment(itemWithFunding, true, true, false, false, dsc, "Bitfinex")
 	if err != nil {
 		t.Error(err)
@@ -670,8 +670,8 @@ func TestCheckAlignment(t *testing.T) {
 func BenchmarkProcess(b *testing.B) {
 	base := &Book{
 		Pair:     currency.NewBTCUSD(),
-		Asks:     make(Tranches, 100),
-		Bids:     make(Tranches, 100),
+		Asks:     make(Levels, 100),
+		Bids:     make(Levels, 100),
 		Exchange: "BenchmarkProcessOrderbook",
 		Asset:    asset.Spot,
 	}
