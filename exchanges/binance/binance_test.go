@@ -665,7 +665,7 @@ func TestGetFuturesKlineData(t *testing.T) {
 	r, err := b.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetFuturesKlineData must not error")
 	if mockTests {
-		require.Len(t, r, 5, "GetFuturesKlineData must return 5 items in mock test")
+		require.Equal(t, 5, len(r), "GetFuturesKlineData must return 5 items in mock test")
 		exp := FuturesCandleStick{
 			OpenTime:                types.Time(time.UnixMilli(1596240000000)),
 			Open:                    11785,
