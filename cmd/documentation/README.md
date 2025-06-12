@@ -29,7 +29,7 @@ Be aware, this tool will:
 - Works off a configuration JSON file located at ``gocryptotrader/cmd/documentation/`` for future use with multiple repositories.
 - Automatically find the directory and file tree for the GoCryptoTrader source code and alert you of undocumented file systems which **need** to be updated.
 - Automatically find the template folder tree.
-- Fetch an updated contributor list and rank on pull request commit amount. Set the `GITHUB_TOKEN` env or use the `ghtoken` command line flag for optional authentication.
+- Fetch an updated contributor list and rank on pull request commit amount. Set the `GITHUB_TOKEN` environment variable or use the `ghtoken` command-line flag for optional authentication.
 - Sets up core folder docs for the root directory tree including **LICENSE** and **CONTRIBUTORS**
 
 ### config.json example
