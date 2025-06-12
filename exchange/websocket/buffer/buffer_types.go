@@ -36,5 +36,5 @@ type Orderbook struct {
 // orderbook depth
 type orderbookHolder struct {
 	ob     *orderbook.Depth
-	buffer *[]orderbook.Update
+	buffer []orderbook.Update
 }

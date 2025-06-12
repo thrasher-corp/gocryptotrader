@@ -483,12 +483,12 @@ func TestFlushBuffer(t *testing.T) {
 	holder, ok := obl.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
 	require.True(t, ok)
 
-	*holder.buffer = make([]orderbook.Update, 0, 10)
-	*holder.buffer = append(*holder.buffer, orderbook.Update{})
+	holder.buffer = make([]orderbook.Update, 0, 10)
+	holder.buffer = append(holder.buffer, orderbook.Update{})
 
 	obl.FlushBuffer()
-	assert.Empty(t, *holder.buffer, 0)
-	assert.Equal(t, 10, cap(*holder.buffer))
+	assert.Empty(t, holder.buffer, 0)
+	assert.Equal(t, 10, cap(holder.buffer))
 }
 
 // TestInsertingSnapShots logic test

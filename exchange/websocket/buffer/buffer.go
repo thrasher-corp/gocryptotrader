@@ -69,8 +69,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 			return err
 		}
 		depth.AssignOptions(book)
-		buffer := make([]orderbook.Update, w.obBufferLimit)
-		holder = &orderbookHolder{ob: depth, buffer: &buffer}
+		holder = &orderbookHolder{ob: depth, buffer: make([]orderbook.Update, 0, w.obBufferLimit)}
 		w.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
 		w.m.Unlock()
 	}
@@ -114,30 +113,30 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 // processBufferUpdate stores update into buffer, when buffer at capacity as
 // defined by w.obBufferLimit it well then sort and apply updates.
 func (w *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Update) (bool, error) {
-	*holder.buffer = append(*holder.buffer, *u)
-	if len(*holder.buffer) < w.obBufferLimit {
+	holder.buffer = append(holder.buffer, *u)
+	if len(holder.buffer) < w.obBufferLimit {
 		return false, nil
 	}
 
 	if w.sortBuffer {
 		// sort by last updated to ensure each update is in order
 		if w.sortBufferByUpdateIDs {
-			sort.Slice(*holder.buffer, func(i, j int) bool {
-				return (*holder.buffer)[i].UpdateID < (*holder.buffer)[j].UpdateID
+			sort.Slice(holder.buffer, func(i, j int) bool {
+				return holder.buffer[i].UpdateID < holder.buffer[j].UpdateID
 			})
 		} else {
-			sort.Slice(*holder.buffer, func(i, j int) bool {
-				return (*holder.buffer)[i].UpdateTime.Before((*holder.buffer)[j].UpdateTime)
+			sort.Slice(holder.buffer, func(i, j int) bool {
+				return holder.buffer[i].UpdateTime.Before(holder.buffer[j].UpdateTime)
 			})
 		}
 	}
 
 	// clear buffer of old updates on all error pathways as any error will invalidate the orderbook and will require
 	// a new snapshot to be loaded
-	defer func() { *holder.buffer = (*holder.buffer)[:0] }()
+	defer func() { holder.buffer = holder.buffer[:0] }()
 
-	for i := range *holder.buffer {
-		if err := holder.ob.ProcessUpdate(&(*holder.buffer)[i]); err != nil {
+	for i := range holder.buffer {
+		if err := holder.ob.ProcessUpdate(&holder.buffer[i]); err != nil {
 			return false, err
 		}
 	}
@@ -184,7 +183,7 @@ func (w *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
 func (w *Orderbook) FlushBuffer() {
 	w.m.Lock()
 	for _, holder := range w.ob {
-		*holder.buffer = (*holder.buffer)[:0]
+		holder.buffer = holder.buffer[:0]
 	}
 	w.m.Unlock()
 }
