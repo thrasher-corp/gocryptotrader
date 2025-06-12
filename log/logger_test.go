@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -102,9 +103,8 @@ func SetupDisabled() error {
 func TestSetGlobalLogConfig(t *testing.T) {
 	t.Parallel()
 	err := SetGlobalLogConfig(nil)
-	if !errors.Is(err, errConfigNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigNil)
-	}
+	require.ErrorIs(t, err, errConfigNil)
+
 	err = SetGlobalLogConfig(testConfigEnabled)
 	require.NoError(t, err)
 }
@@ -112,9 +112,7 @@ func TestSetGlobalLogConfig(t *testing.T) {
 func TestSetLogPath(t *testing.T) {
 	t.Parallel()
 	err := SetLogPath("")
-	if !errors.Is(err, errLogPathIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLogPathIsEmpty)
-	}
+	require.ErrorIs(t, err, errLogPathIsEmpty)
 
 	err = SetLogPath(tempDir)
 	require.NoError(t, err)
@@ -147,9 +145,7 @@ func getFileLoggingState() bool {
 func TestAddWriter(t *testing.T) {
 	t.Parallel()
 	_, err := multiWriter(io.Discard, io.Discard)
-	if !errors.Is(err, errWriterAlreadyLoaded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterAlreadyLoaded)
-	}
+	require.ErrorIs(t, err, errWriterAlreadyLoaded)
 
 	mw, err := multiWriter()
 	require.NoError(t, err)
@@ -168,9 +164,7 @@ func TestAddWriter(t *testing.T) {
 	}
 
 	err = mw.add(nil)
-	if !errors.Is(err, errWriterIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWriterIsNil)
-	}
+	require.ErrorIs(t, err, errWriterIsNil)
 
 	if total := len(mw.writers); total != 3 {
 		t.Errorf("expected m.Writers to be 3 %v", total)
@@ -230,18 +224,15 @@ func TestMultiWriterWrite(t *testing.T) {
 func TestGetWriters(t *testing.T) {
 	t.Parallel()
 	err := getWritersProtected(nil)
-	if !errors.Is(err, errSubloggerConfigIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSubloggerConfigIsNil)
-	}
+	require.ErrorIs(t, err, errSubloggerConfigIsNil)
 
 	outputWriters := "stDout|stderr|filE"
 
 	mu.Lock()
 	fileLoggingConfiguredCorrectly = false
 	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	if !errors.Is(err, errFileLoggingNotConfiguredCorrectly) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errFileLoggingNotConfiguredCorrectly)
-	}
+	require.ErrorIs(t, err, errFileLoggingNotConfiguredCorrectly)
+
 	fileLoggingConfiguredCorrectly = true
 	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
 	require.NoError(t, err)
@@ -250,9 +241,7 @@ func TestGetWriters(t *testing.T) {
 
 	outputWriters = "stdout|stderr|noobs"
 	err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
-	if !errors.Is(err, errUnhandledOutputWriter) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnhandledOutputWriter)
-	}
+	require.ErrorIs(t, err, errUnhandledOutputWriter)
 }
 
 func getWritersProtected(s *SubLoggerConfig) error {
@@ -503,9 +492,7 @@ func TestError(t *testing.T) {
 	}
 	sl.setLevelsProtected(splitLevel("ERROR"))
 	err = sl.setOutputProtected(nil)
-	if !errors.Is(err, errMultiWriterHolderIsNil) {
-		t.Errorf("received: '%v' but expected: '%v'", err, errMultiWriterHolderIsNil)
-	}
+	assert.ErrorIs(t, err, errMultiWriterHolderIsNil)
 
 	err = sl.setOutputProtected(mw)
 	if err != nil {
@@ -579,9 +566,7 @@ func TestSubLoggerName(t *testing.T) {
 func TestNewSubLogger(t *testing.T) {
 	t.Parallel()
 	_, err := NewSubLogger("")
-	if !errors.Is(err, errEmptyLoggerName) {
-		t.Fatalf("received: %v but expected: %v", err, errEmptyLoggerName)
-	}
+	require.ErrorIs(t, err, errEmptyLoggerName)
 
 	sl, err := NewSubLogger("TESTERINOS")
 	require.NoError(t, err)
@@ -589,9 +574,7 @@ func TestNewSubLogger(t *testing.T) {
 	Debugln(sl, "testerinos")
 
 	_, err = NewSubLogger("TESTERINOS")
-	if !errors.Is(err, ErrSubLoggerAlreadyRegistered) {
-		t.Fatalf("received: %v but expected: %v", err, ErrSubLoggerAlreadyRegistered)
-	}
+	require.ErrorIs(t, err, ErrSubLoggerAlreadyRegistered)
 }
 
 func TestRotateWrite(t *testing.T) {
@@ -599,16 +582,12 @@ func TestRotateWrite(t *testing.T) {
 	empty := Rotate{Rotate: convert.BoolPtr(true), FileName: "test.txt"}
 	payload := make([]byte, defaultMaxSize*megabyte+1)
 	_, err := empty.Write(payload)
-	if !errors.Is(err, errExceedsMaxFileSize) {
-		t.Fatalf("received: %v but expected: %v", err, errExceedsMaxFileSize)
-	}
+	require.ErrorIs(t, err, errExceedsMaxFileSize)
 
 	empty.MaxSize = 1
 	payload = make([]byte, 1*megabyte+1)
 	_, err = empty.Write(payload)
-	if !errors.Is(err, errExceedsMaxFileSize) {
-		t.Fatalf("received: %v but expected: %v", err, errExceedsMaxFileSize)
-	}
+	require.ErrorIs(t, err, errExceedsMaxFileSize)
 
 	// test write
 	payload = make([]byte, 1*megabyte-1)
@@ -628,9 +607,7 @@ func TestOpenNew(t *testing.T) {
 	t.Parallel()
 	empty := Rotate{}
 	err := empty.openNew()
-	if !errors.Is(err, errFileNameIsEmpty) {
-		t.Fatalf("received: %v but expected: %v", err, errFileNameIsEmpty)
-	}
+	require.ErrorIs(t, err, errFileNameIsEmpty)
 
 	empty.FileName = "wow.txt"
 	err = empty.openNew()

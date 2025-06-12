@@ -1,7 +1,6 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -192,12 +191,8 @@ func TestLoadDataInvalid(t *testing.T) {
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, false)
-	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
-	}
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, true)
-	if !errors.Is(err, errNoUSDData) {
-		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
-	}
+	assert.ErrorIs(t, err, errNoUSDData)
 }

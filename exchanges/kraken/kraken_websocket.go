@@ -79,7 +79,6 @@ func init() {
 }
 
 var (
-	authToken          string
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -113,22 +112,15 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
-		authToken, err = k.GetWebsocketToken(ctx)
-		if err != nil {
+		if authToken, err := k.GetWebsocketToken(ctx); err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				k.Name,
-				err)
+			log.Errorf(log.ExchangeSys, "%s - authentication failed: %v\n", k.Name, err)
 		} else {
-			err = k.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
-			if err != nil {
+			if err := k.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys,
-					"%v - failed to connect to authenticated endpoint: %v\n",
-					k.Name,
-					err)
+				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 			} else {
+				k.setWebsocketAuthToken(authToken)
 				k.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
@@ -331,7 +323,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders any) error {
 					TID:       key,
 					Type:      oType,
 					Side:      oSide,
-					Timestamp: convert.TimeFromUnixTimestampDecimal(val.Time),
+					Timestamp: val.Time.Time(),
 				}
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
@@ -366,8 +358,8 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders any) error {
 					LimitPriceUpper:      val.LimitPrice,
 					ExecutedAmount:       val.ExecutedVolume,
 					Fee:                  val.Fee,
-					Date:                 convert.TimeFromUnixTimestampDecimal(val.OpenTime).Truncate(time.Microsecond),
-					LastUpdated:          convert.TimeFromUnixTimestampDecimal(val.LastUpdated).Truncate(time.Microsecond),
+					Date:                 val.OpenTime.Time(),
+					LastUpdated:          val.LastUpdated.Time(),
 				}
 
 				if val.Status != "" {
@@ -1094,7 +1086,7 @@ func (k *Kraken) manageSubs(ctx context.Context, op string, subs subscription.Li
 
 	conn := k.Websocket.Conn
 	if s.Authenticated {
-		r.Subscription.Token = authToken
+		r.Subscription.Token = k.websocketAuthToken()
 		conn = k.Websocket.AuthConn
 	}
 
@@ -1308,7 +1300,7 @@ func (k *Kraken) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (string
 	}
 	req.RequestID = k.Websocket.AuthConn.GenerateMessageID(false)
 	req.Event = krakenWsAddOrder
-	req.Token = authToken
+	req.Token = k.websocketAuthToken()
 	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return "", err
@@ -1348,7 +1340,7 @@ func (k *Kraken) wsCancelOrder(ctx context.Context, orderID string) error {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
-		Token:          authToken,
+		Token:          k.websocketAuthToken(),
 		TransactionIDs: []string{orderID},
 		RequestID:      id,
 	}
@@ -1379,7 +1371,7 @@ func (k *Kraken) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderResponse,
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
-		Token:     authToken,
+		Token:     k.websocketAuthToken(),
 		RequestID: id,
 	}
 
@@ -1417,3 +1409,16 @@ const subTplText = `
 	{{- channelName $.S }}
 {{- end }}
 `
+
+// websocketAuthToken retrieves the current websocket session's auth token
+func (k *Kraken) websocketAuthToken() string {
+	k.wsAuthMtx.RLock()
+	defer k.wsAuthMtx.RUnlock()
+	return k.wsAuthToken
+}
+
+func (k *Kraken) setWebsocketAuthToken(token string) {
+	k.wsAuthMtx.Lock()
+	k.wsAuthToken = token
+	k.wsAuthMtx.Unlock()
+}

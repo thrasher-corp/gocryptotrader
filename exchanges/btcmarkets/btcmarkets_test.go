@@ -2,7 +2,6 @@ package btcmarkets
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -203,9 +202,8 @@ func TestSubmitOrder(t *testing.T) {
 		Pair:        currency.NewPair(currency.BTC, currency.AUD),
 		TimeInForce: order.PostOnly,
 	})
-	if !errors.Is(err, order.ErrTypeIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
 	_, err = b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:    b.Name,
 		Price:       100,
@@ -216,9 +214,7 @@ func TestSubmitOrder(t *testing.T) {
 		Pair:        currency.NewPair(currency.BTC, currency.AUD),
 		TimeInForce: order.PostOnly,
 	})
-	if !errors.Is(err, order.ErrSideIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
@@ -882,9 +878,7 @@ func TestChecksum(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = checksum(b, uint32(1223123))
-	if !errors.Is(err, errChecksumFailure) {
-		t.Errorf("received '%v', expected '%v'", err, errChecksumFailure)
-	}
+	assert.ErrorIs(t, err, errChecksumFailure)
 }
 
 func TestTrim(t *testing.T) {
@@ -917,9 +911,7 @@ func TestTrim(t *testing.T) {
 func TestFormatOrderType(t *testing.T) {
 	t.Parallel()
 	_, err := b.formatOrderType(0)
-	if !errors.Is(err, order.ErrTypeIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	r, err := b.formatOrderType(order.Limit)
 	require.NoError(t, err)
@@ -960,9 +952,7 @@ func TestFormatOrderType(t *testing.T) {
 func TestFormatOrderSide(t *testing.T) {
 	t.Parallel()
 	_, err := b.formatOrderSide(255)
-	if !errors.Is(err, order.ErrSideIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	f, err := b.formatOrderSide(order.Bid)
 	require.NoError(t, err)
@@ -994,19 +984,13 @@ func TestGetTimeInForce(t *testing.T) {
 func TestReplaceOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ReplaceOrder(t.Context(), "", "bro", 0, 0)
-	if !errors.Is(err, errInvalidAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
-	}
+	require.ErrorIs(t, err, errInvalidAmount)
 
 	_, err = b.ReplaceOrder(t.Context(), "", "bro", 1, 0)
-	if !errors.Is(err, errInvalidAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
-	}
+	require.ErrorIs(t, err, errInvalidAmount)
 
 	_, err = b.ReplaceOrder(t.Context(), "", "bro", 1, 1)
-	if !errors.Is(err, errIDRequired) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
-	}
+	require.ErrorIs(t, err, errIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
@@ -1017,9 +1001,7 @@ func TestReplaceOrder(t *testing.T) {
 func TestWrapperModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ModifyOrder(t.Context(), &order.Modify{})
-	if !errors.Is(err, order.ErrPairIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrPairIsEmpty)
-	}
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
@@ -1041,9 +1023,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -1060,9 +1040,7 @@ func TestConvertToKlineCandle(t *testing.T) {
 	t.Parallel()
 
 	_, err := convertToKlineCandle(nil)
-	if !errors.Is(err, errFailedToConvertToCandle) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errFailedToConvertToCandle)
-	}
+	require.ErrorIs(t, err, errFailedToConvertToCandle)
 
 	data := [6]string{time.RFC3339[:len(time.RFC3339)-5], "1.0", "2", "3", "4", "5"}
 

@@ -1,10 +1,10 @@
 package config
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -32,9 +32,7 @@ func TestLoadBacktesterConfig(t *testing.T) {
 	}
 
 	_, err = ReadBacktesterConfigFromPath("test")
-	if !errors.Is(err, common.ErrFileNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrFileNotFound)
-	}
+	assert.ErrorIs(t, err, common.ErrFileNotFound)
 }
 
 func TestGenerateDefaultConfig(t *testing.T) {
