@@ -2,6 +2,7 @@ package coinut
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -688,7 +689,7 @@ func (c *COINUT) wsAuthenticate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r.Hmac = crypto.HexEncodeToString(hmac)
+	r.Hmac = hex.EncodeToString(hmac)
 
 	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.Nonce, r)
 	if err != nil {
