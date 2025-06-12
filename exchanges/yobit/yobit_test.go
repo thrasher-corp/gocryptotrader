@@ -30,6 +30,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+var testPair = currency.NewBTCUSD().Format(currency.PairFormat{Delimiter: "_"})
+
 func TestMain(m *testing.M) {
 	y.SetDefaults()
 	yobitConfig := config.GetConfig()
@@ -71,26 +73,20 @@ func TestGetInfo(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTicker(t.Context(), "btc_usd")
-	if err != nil {
-		t.Error("GetTicker() error", err)
-	}
+	_, err := y.GetTicker(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetDepth(t.Context(), "btc_usd")
-	if err != nil {
-		t.Error("GetDepth() error", err)
-	}
+	_, err := y.GetDepth(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetDepth should not error")
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades(t.Context(), "btc_usd")
-	if err != nil {
-		t.Error("GetTrades() error", err)
-	}
+	_, err := y.GetTrades(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetAccountInfo(t *testing.T) {
@@ -507,38 +503,19 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetRecentTrades(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btc_usd")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = y.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := y.GetRecentTrades(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btc_usd")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = y.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := y.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("ETH_BTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = y.UpdateTicker(t.Context(), cp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := y.UpdateTicker(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "UpdateTicker should not error")
 }
 
 func TestUpdateTickers(t *testing.T) {

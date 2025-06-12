@@ -3515,40 +3515,32 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 }
 
-func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"1m",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"1d",
 		},
 		{
-			"OneWeek",
 			kline.OneWeek,
 			"1w",
 		},
 		{
-			"OneMonth",
 			kline.OneMonth,
 			"1M",
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-			require.Equal(t, ret, test.output, "unexpected result return expected: %v received: %v", test.output, ret)
+	} {
+		t.Run(tc.output, func(t *testing.T) {
+			ret := b.FormatExchangeKlineInterval(tc.interval)
+			require.Equal(t, ret, tc.output, "unexpected result return expected: %v received: %v", tc.output, ret)
 		})
 	}
 }
@@ -3626,7 +3618,7 @@ func TestFormatChannelLevels(t *testing.T) {
 
 var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":"BTCUSDT","u":7145637297}`)
 
-func TestProcessUpdate(t *testing.T) {
+func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
@@ -3941,7 +3933,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	_, err = b.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
@@ -3950,7 +3942,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		EndDate:         e,
 		PaymentCurrency: currency.DOGE,
 	})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	r := &fundingrate.HistoricalRatesRequest{
 		Asset:     asset.USDTMarginedFutures,
@@ -4286,6 +4278,7 @@ func TestCryptoLoanRepay(t *testing.T) {
 	t.Parallel()
 	_, err := b.CryptoLoanRepay(t.Context(), 0, 1000, 1, false)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	_, err = b.CryptoLoanRepay(t.Context(), 42069, 0, 1, false)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 

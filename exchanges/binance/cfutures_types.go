@@ -57,10 +57,11 @@ type FuturesCandleStick struct {
 	Open                    types.Number
 	High                    types.Number
 	Low                     types.Number
-	Close                   types.Number // Latest price
+	Close                   types.Number
 	Volume                  types.Number
 	CloseTime               types.Time
-	NumberOfTrades          types.Number
+	BaseAssetVolume         types.Number
+	NumberOfTrades          int64
 	TakerBuyVolume          types.Number
 	TakerBuyBaseAssetVolume types.Number
 }

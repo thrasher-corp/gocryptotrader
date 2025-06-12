@@ -421,14 +421,14 @@ func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, erro
 			return "", errInvalidInstrumentType
 		}
 		for a := range insts {
-			if insts[a].InstrumentID == instID {
+			if insts[a].InstrumentID.String() == instID {
 				return insts[a].Underlying, nil
 			}
 		}
 	} else {
 		for _, insts := range ok.instrumentsInfoMap {
 			for a := range insts {
-				if insts[a].InstrumentID == instID {
+				if insts[a].InstrumentID.String() == instID {
 					return insts[a].Underlying, nil
 				}
 			}
@@ -1222,7 +1222,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 	_, err = ok.PlaceChaseAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "chase"
+	arg.OrderType = orderChase
 	arg.MaxChaseType = "percentage"
 	_, err = ok.PlaceChaseAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errPriceTrackingNotSet)
@@ -1250,7 +1250,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 		AlgoClientOrderID: "681096944655273984",
 		InstrumentID:      mainPair.String(),
 		LimitPrice:        100.22,
-		OrderType:         "chase",
+		OrderType:         orderChase,
 		TradeMode:         "cross",
 		Side:              order.Sell.Lower(),
 		MaxChaseType:      "distance",
@@ -1297,14 +1297,14 @@ func TestPlaceTrailingStopOrder(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2})
 	assert.ErrorIs(t, err, order.ErrTypeIsInvalid)
-	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2, OrderType: "move_order_stop"})
+	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2, OrderType: orderMoveOrderStop})
 	assert.ErrorIs(t, err, errPriceTrackingNotSet)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{
 		AlgoClientOrderID: "681096944655273984", CallbackRatio: 0.01,
-		InstrumentID: mainPair.String(), OrderType: "move_order_stop",
+		InstrumentID: mainPair.String(), OrderType: orderMoveOrderStop,
 		Side: order.Buy.Lower(), TradeMode: "isolated",
 		Size: 2, ActivePrice: 1234,
 	})
@@ -2267,7 +2267,7 @@ func TestSetLeverageRate(t *testing.T) {
 		MarginMode:   "cross",
 		InstrumentID: perpetualSwapPair.String(),
 	})
-	assert.True(t, err == nil || errors.Is(err, common.ErrNoResponse))
+	assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "SetLeverageRate should not error: %s", err)
 }
 
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
@@ -4209,7 +4209,7 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency, "expected BTC contract value currency")
 	assert.True(t, i.ExpTime.Time().IsZero(), "expected empty expiry time")
 	assert.Equal(t, "BTC-USDC", i.InstrumentFamily, "expected BTC-USDC instrument family")
-	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID, "expected BTC-USDC-SWAP instrument ID")
+	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID.String(), "expected BTC-USDC-SWAP instrument ID")
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
@@ -4346,9 +4346,6 @@ func TestGetCollateralMode(t *testing.T) {
 	result, err := ok.GetCollateralMode(contextGenerate(), asset.Spot)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-
-	_, err = ok.GetCollateralMode(contextGenerate(), asset.Futures)
-	assert.True(t, err == nil || errors.Is(err, asset.ErrNotSupported))
 }
 
 func TestSetCollateralMode(t *testing.T) {
@@ -5846,26 +5843,35 @@ func TestOrderTypeString(t *testing.T) {
 		Expected string
 		Error    error
 	}{
-		{OrderType: order.Market, TIF: order.UnknownTIF}:                           {Expected: orderMarket},
-		{OrderType: order.Limit, TIF: order.UnknownTIF}:                            {Expected: orderLimit},
-		{OrderType: order.Limit, TIF: order.PostOnly}:                              {Expected: orderPostOnly},
-		{OrderType: order.Limit, TIF: order.FillOrKill}:                            {Expected: orderFOK},
-		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:                     {Expected: orderIOC},
-		{OrderType: order.OptimalLimitIOC, TIF: order.UnknownTIF}:                  {Expected: orderOptimalLimitIOC},
-		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}:            {Expected: "mmp"},
-		{OrderType: order.MarketMakerProtectionAndPostOnly, TIF: order.UnknownTIF}: {Expected: "mmp_and_post_only"},
-		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:                      {Error: order.ErrUnsupportedOrderType},
-		{OrderType: order.OCO, TIF: order.UnknownTIF}:                              {Expected: "oco"},
-		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:                     {Expected: "move_order_stop"},
-		{OrderType: order.Chase, TIF: order.UnknownTIF}:                            {Expected: "chase"},
-		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                             {Expected: "twap"},
-		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:                  {Expected: "conditional"},
-		{OrderType: order.Trigger, TIF: order.UnknownTIF}:                          {Expected: "trigger"},
+		{OrderType: order.Market, TIF: order.UnknownTIF}:                {Expected: orderMarket},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:                 {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                   {Expected: orderPostOnly},
+		{OrderType: order.Market, TIF: order.FillOrKill}:                {Expected: orderFOK},
+		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:         {Expected: orderIOC},
+		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
+		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}: {Expected: orderMarketMakerProtection},
+		{OrderType: order.MarketMakerProtection, TIF: order.PostOnly}:   {Expected: orderMarketMakerProtectionAndPostOnly},
+		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.OCO, TIF: order.UnknownTIF}:                   {Expected: orderOCO},
+		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:          {Expected: orderMoveOrderStop},
+		{OrderType: order.Chase, TIF: order.UnknownTIF}:                 {Expected: orderChase},
+		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                  {Expected: orderTWAP},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:       {Expected: orderConditional},
+		{OrderType: order.Chase, TIF: order.GoodTillCancel}:             {Expected: orderChase},
+		{OrderType: order.TWAP, TIF: order.ImmediateOrCancel}:           {Expected: orderTWAP},
+		{OrderType: order.ConditionalStop, TIF: order.GoodTillDay}:      {Expected: orderConditional},
+		{OrderType: order.Trigger, TIF: order.UnknownTIF}:               {Expected: orderTrigger},
+		{OrderType: order.UnknownType, TIF: order.PostOnly}:             {Expected: orderPostOnly},
+		{OrderType: order.UnknownType, TIF: order.FillOrKill}:           {Expected: orderFOK},
+		{OrderType: order.UnknownType, TIF: order.ImmediateOrCancel}:    {Expected: orderIOC},
 	}
 	for tc, val := range orderTypesToStringMap {
-		orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
-		require.ErrorIs(t, err, val.Error)
-		assert.Equal(t, val.Expected, orderTypeString)
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
+			t.Parallel()
+			orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, orderTypeString)
+		})
 	}
 }
 
@@ -6017,14 +6023,14 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 			return "", errInvalidInstrumentType
 		}
 		for a := range insts {
-			if insts[a].InstrumentID == instID {
+			if insts[a].InstrumentID.String() == instID {
 				return insts[a].InstrumentFamily, nil
 			}
 		}
 	} else {
 		for _, insts := range ok.instrumentsInfoMap {
 			for a := range insts {
-				if insts[a].InstrumentID == instID {
+				if insts[a].InstrumentID.String() == instID {
 					return insts[a].InstrumentFamily, nil
 				}
 			}
@@ -6130,7 +6136,6 @@ func TestWsProcessSpreadTradesJSON(t *testing.T) {
 
 func TestOrderTypeFromString(t *testing.T) {
 	t.Parallel()
-
 	orderTypeStrings := map[string]struct {
 		OType order.Type
 		TIF   order.TimeInForce
@@ -6142,9 +6147,9 @@ func TestOrderTypeFromString(t *testing.T) {
 		"post_only":         {OType: order.Limit, TIF: order.PostOnly},
 		"fok":               {OType: order.Limit, TIF: order.FillOrKill},
 		"ioc":               {OType: order.Limit, TIF: order.ImmediateOrCancel},
-		"optimal_limit_ioc": {OType: order.OptimalLimitIOC, TIF: order.ImmediateOrCancel},
+		"optimal_limit_ioc": {OType: order.OptimalLimit, TIF: order.ImmediateOrCancel},
 		"mmp":               {OType: order.MarketMakerProtection},
-		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly, TIF: order.PostOnly},
+		"mmp_and_post_only": {OType: order.MarketMakerProtection, TIF: order.PostOnly},
 		"trigger":           {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 		"chase":             {OType: order.Chase},
 		"move_order_stop":   {OType: order.TrailingStop},
@@ -6152,10 +6157,13 @@ func TestOrderTypeFromString(t *testing.T) {
 		"abcd":              {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 	}
 	for s, exp := range orderTypeStrings {
-		oType, tif, err := orderTypeFromString(s)
-		require.ErrorIs(t, err, exp.Error)
-		assert.Equal(t, exp.OType, oType)
-		assert.Equal(t, exp.TIF.String(), tif.String(), s)
+		t.Run(s, func(t *testing.T) {
+			t.Parallel()
+			oType, tif, err := orderTypeFromString(s)
+			require.ErrorIs(t, err, exp.Error)
+			assert.Equal(t, exp.OType, oType)
+			assert.Equal(t, exp.TIF.String(), tif.String())
+		})
 	}
 }
 

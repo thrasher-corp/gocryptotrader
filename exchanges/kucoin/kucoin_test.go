@@ -2226,7 +2226,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.Buy,
 	}
 
-	getOrdersRequest.Type = order.OptimalLimitIOC
+	getOrdersRequest.Type = order.OptimalLimit
 	_, err = ku.GetActiveOrders(t.Context(), &getOrdersRequest)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
@@ -2563,7 +2563,7 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetDepositAddress(t.Context(), currency.BTC, "", "")
-	assert.True(t, err == nil || errors.Is(err, errNoDepositAddress), err)
+	assert.Truef(t, err == nil || errors.Is(err, errNoDepositAddress), "GetDepositAddress should not error: %s", err)
 }
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
@@ -3944,7 +3944,7 @@ func TestGetMarginHFOrderDetailByOrderID(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err = ku.GetMarginHFOrderDetailByOrderID(t.Context(), "243432432423the-order-id", marginTradablePair.String())
-	assert.True(t, errors.Is(err, order.ErrOrderNotFound) || err == nil)
+	assert.Truef(t, errors.Is(err, order.ErrOrderNotFound) || err == nil, "GetMarginHFOrderDetailByOrderID should not error: %s", err)
 }
 
 func TestGetMarginHFOrderDetailByClientOrderID(t *testing.T) {

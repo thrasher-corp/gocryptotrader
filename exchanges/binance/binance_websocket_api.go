@@ -2,6 +2,7 @@ package binance
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -364,7 +365,7 @@ func (b *Binance) SignRequest(params map[string]interface{}) (apiKey, signature 
 	if err != nil {
 		return "", "", err
 	}
-	return creds.Key, crypto.HexEncodeToString(hmacSigned), nil
+	return creds.Key, hex.EncodeToString(hmacSigned), nil
 }
 
 // SortMap gives a slice of sorted keys from the passed map

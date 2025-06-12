@@ -348,7 +348,12 @@ const (
 )
 
 // Type enforces a standard for order types across the code base
-type Type uint32
+type Type uint64
+
+// Is checks to see if the Type contains the Type cmp
+func (t Type) Is(cmp Type) bool {
+	return cmp != 0 && t&cmp == cmp
+}
 
 // Defined package order types
 const (
@@ -357,25 +362,48 @@ const (
 	Market
 	LimitMaker
 	Stop
-	StopLimit
-	StopMarket
 	TakeProfit
-	TakeProfitMarket
-	TakeProfitLimit
 	TrailingStop
 	IOS
 	AnyType
 	Liquidation
 	Trigger
-	OptimalLimitIOC
-	SOR                              // smart-order-routine(SOR) used in Binance
-	OTO                              // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
-	OCO                              // One-cancels-the-other order
-	ConditionalStop                  // One-way stop order
-	MarketMakerProtection            // market-maker-protection used with portfolio margin mode. See https://www.okx.com/docs-v5/en/#order-book-trading-trade-post-place-order
-	MarketMakerProtectionAndPostOnly // market-maker-protection and post-only mode. Used in Okx exchange orders.
-	TWAP                             // time-weighted average price.
-	Chase                            // chase order. See https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
+	SOR             // smart-order-routine(SOR) used in Binance
+	OTO             // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
+	TWAP            // time-weighted average price
+	Chase           // chase limit order
+	OptimalLimit
+	MarketMakerProtection
+
+	// Hybrid order types
+	StopLimit        = Stop | Limit
+	StopMarket       = Stop | Market
+	TakeProfitMarket = TakeProfit | Market
+	TakeProfitLimit  = TakeProfit | Limit
+)
+
+// order-type string representations
+const (
+	orderStopMarket            = "STOP MARKET"
+	orderStopLimit             = "STOP LIMIT"
+	orderLimit                 = "LIMIT"
+	orderMarket                = "MARKET"
+	orderStop                  = "STOP"
+	orderConditionalStop       = "CONDITIONAL"
+	orderTWAP                  = "TWAP"
+	orderChase                 = "CHASE"
+	orderTakeProfit            = "TAKE PROFIT"
+	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTrailingStop          = "TRAILING_STOP"
+	orderIOS                   = "IOS"
+	orderLiquidation           = "LIQUIDATION"
+	orderTrigger               = "TRIGGER"
+	orderOCO                   = "OCO"
+	orderOptimalLimit          = "OPTIMAL_LIMIT"
+	orderMarketMakerProtection = "MMP"
+	orderAnyType               = "ANY"
 )
 
 // Side enforces a standard for order sides across the code base

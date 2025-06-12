@@ -667,52 +667,50 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {
-	case AnyType:
-		return "ANY"
-	case Limit:
-		return "LIMIT"
 	case LimitMaker:
 		return "LIMIT_MAKER"
-	case Market:
-		return "MARKET"
-	case Stop:
-		return "STOP"
-	case ConditionalStop:
-		return "CONDITIONAL"
-	case MarketMakerProtection:
-		return "MMP"
-	case MarketMakerProtectionAndPostOnly:
-		return "MMP_AND_POST_ONLY"
-	case TWAP:
-		return "TWAP"
-	case Chase:
-		return "CHASE"
-	case StopLimit:
-		return "STOP LIMIT"
 	case StopMarket:
-		return "STOP MARKET"
+		return orderStopMarket
+	case StopLimit:
+		return orderStopLimit
+	case Limit:
+		return orderLimit
+	case Market:
+		return orderMarket
+	case Stop:
+		return orderStop
+	case ConditionalStop:
+		return orderConditionalStop
+	case TWAP:
+		return orderTWAP
+	case Chase:
+		return orderChase
 	case TakeProfit:
-		return "TAKE PROFIT"
+		return orderTakeProfit
 	case TakeProfitMarket:
-		return "TAKE PROFIT MARKET"
+		return orderTakeProfitMarket
 	case TakeProfitLimit:
 		return "TAKE PROFIT LIMIT"
 	case TrailingStop:
-		return "TRAILING_STOP"
+		return orderTrailingStop
 	case IOS:
-		return "IOS"
+		return orderIOS
 	case Liquidation:
-		return "LIQUIDATION"
+		return orderLiquidation
 	case Trigger:
-		return "TRIGGER"
-	case OptimalLimitIOC:
-		return "OPTIMAL_LIMIT_IOC"
+		return orderTrigger
 	case OTO:
 		return "OTO"
-	case OCO:
-		return "OCO"
 	case SOR:
 		return "SOR"
+	case OCO:
+		return orderOCO
+	case OptimalLimit:
+		return orderOptimalLimit
+	case MarketMakerProtection:
+		return orderMarketMakerProtection
+	case AnyType:
+		return orderAnyType
 	default:
 		return "UNKNOWN"
 	}
@@ -1110,51 +1108,51 @@ func (s Side) MarshalJSON() ([]byte, error) {
 func StringToOrderType(oType string) (Type, error) {
 	oType = strings.ToUpper(oType)
 	switch oType {
-	case Limit.String(), "EXCHANGE LIMIT":
+	case orderLimit, "EXCHANGE LIMIT":
 		return Limit, nil
 	case LimitMaker.String(), "LIMIT MAKER":
 		return LimitMaker, nil
-	case Market.String(), "EXCHANGE MARKET":
+	case orderMarket, "EXCHANGE MARKET":
 		return Market, nil
-	case Stop.String(), "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
+	case orderStop, "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
 		return Stop, nil
-	case StopLimit.String(), "EXCHANGE STOP LIMIT", "STOP_LIMIT":
+	case orderStopLimit, "EXCHANGE STOP LIMIT", "STOP_LIMIT":
 		return StopLimit, nil
-	case StopMarket.String(), "STOP_MARKET":
+	case orderStopMarket, "STOP_MARKET":
 		return StopMarket, nil
-	case TrailingStop.String(), "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
+	case orderTrailingStop, "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
-	case IOS.String():
+	case orderIOS:
 		return IOS, nil
-	case AnyType.String():
+	case orderAnyType:
 		return AnyType, nil
-	case Trigger.String():
+	case orderTrigger:
 		return Trigger, nil
-	case OptimalLimitIOC.String():
-		return OptimalLimitIOC, nil
 	case OTO.String():
 		return OTO, nil
 	case OCO.String():
 		return OCO, nil
 	case "sor", SOR.String():
 		return SOR, nil
-	case ConditionalStop.String():
+	case orderOptimalLimit:
+		return OptimalLimit, nil
+	case orderOCO:
+		return OCO, nil
+	case orderConditionalStop:
 		return ConditionalStop, nil
-	case MarketMakerProtection.String():
+	case orderMarketMakerProtection:
 		return MarketMakerProtection, nil
-	case MarketMakerProtectionAndPostOnly.String():
-		return MarketMakerProtectionAndPostOnly, nil
-	case TWAP.String():
+	case orderTWAP:
 		return TWAP, nil
-	case Chase.String():
+	case orderChase:
 		return Chase, nil
-	case TakeProfitMarket.String(), "TAKE_PROFIT_MARKET":
+	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
 	case TakeProfitLimit.String(), "TAKE_PROFIT_LIMIT":
 		return TakeProfitLimit, nil
-	case TakeProfit.String(), "TAKE_PROFIT":
+	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
-	case Liquidation.String():
+	case orderLiquidation:
 		return Liquidation, nil
 	default:
 		return UnknownType, fmt.Errorf("'%v' %w", oType, errUnrecognisedOrderType)

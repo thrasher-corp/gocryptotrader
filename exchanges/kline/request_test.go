@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -15,53 +14,35 @@ import (
 func TestCreateKlineRequest(t *testing.T) {
 	t.Parallel()
 	_, err := CreateKlineRequest("", currency.EMPTYPAIR, currency.EMPTYPAIR, 0, 0, 0, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, ErrUnsetName) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrUnsetName)
-	}
+	require.ErrorIs(t, err, ErrUnsetName)
 
 	_, err = CreateKlineRequest("name", currency.EMPTYPAIR, currency.EMPTYPAIR, 0, 0, 0, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v', but expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewBTCUSDT()
 	_, err = CreateKlineRequest("name", pair, currency.EMPTYPAIR, 0, 0, 0, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v', but expected '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair2 := pair.Upper()
 	_, err = CreateKlineRequest("name", pair, pair2, 0, 0, 0, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v', but expected '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, 0, 0, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrInvalidInterval)
-	}
+	require.ErrorIs(t, err, ErrInvalidInterval)
 
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, 0, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, ErrInvalidInterval) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrInvalidInterval)
-	}
+	require.ErrorIs(t, err, ErrInvalidInterval)
 
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, time.Time{}, time.Time{}, 0)
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Fatalf("received: '%v', but expected '%v'", err, common.ErrDateUnset)
-	}
+	require.ErrorIs(t, err, common.ErrDateUnset)
 
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, start, time.Time{}, 0)
-	if !errors.Is(err, common.ErrDateUnset) {
-		t.Fatalf("received: '%v', but expected '%v'", err, common.ErrDateUnset)
-	}
+	require.ErrorIs(t, err, common.ErrDateUnset)
 
 	end := start.AddDate(0, 0, 1)
 	_, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, start, end, 0)
-	if !errors.Is(err, errInvalidSpecificEndpointLimit) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errInvalidSpecificEndpointLimit)
-	}
+	require.ErrorIs(t, err, errInvalidSpecificEndpointLimit)
 
 	r, err := CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, start, end, 1)
 	require.NoError(t, err)
@@ -119,9 +100,7 @@ func TestGetRanges(t *testing.T) {
 
 	var r *Request
 	_, err := r.GetRanges(100)
-	if !errors.Is(err, errNilRequest) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
-	}
+	require.ErrorIs(t, err, errNilRequest)
 
 	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneMin, start, end, 1)
 	require.NoError(t, err)
@@ -195,20 +174,14 @@ func TestRequest_ProcessResponse(t *testing.T) {
 
 	var r *Request
 	_, err := r.ProcessResponse(nil)
-	if !errors.Is(err, errNilRequest) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
-	}
+	require.ErrorIs(t, err, errNilRequest)
 
 	r = &Request{}
 	_, err = r.ProcessResponse(nil)
-	if !errors.Is(err, ErrNoTimeSeriesDataToConvert) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrNoTimeSeriesDataToConvert)
-	}
+	require.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert)
 
 	_, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, end, 0)
-	if !errors.Is(err, errInvalidSpecificEndpointLimit) {
-		t.Fatalf("received: '%v', but expected '%v'", err, nil)
-	}
+	require.ErrorIs(t, err, errInvalidSpecificEndpointLimit)
 
 	// no conversion
 	r, err = CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, end, 1)
@@ -310,15 +283,11 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 
 	var rExt *ExtendedRequest
 	_, err := rExt.ProcessResponse(nil)
-	if !errors.Is(err, errNilRequest) {
-		t.Fatalf("received: '%v', but expected '%v'", err, errNilRequest)
-	}
+	require.ErrorIs(t, err, errNilRequest)
 
 	rExt = &ExtendedRequest{}
 	_, err = rExt.ProcessResponse(nil)
-	if !errors.Is(err, ErrNoTimeSeriesDataToConvert) {
-		t.Fatalf("received: '%v', but expected '%v'", err, ErrNoTimeSeriesDataToConvert)
-	}
+	require.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert)
 
 	// no conversion
 	r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneHour, OneHour, start, end, 1)

@@ -314,28 +314,14 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 				switch streamType[1] {
 				case "trade":
 					saveTradeData := bi.IsSaveTradeDataEnabled()
-
-					if !saveTradeData &&
-						!bi.IsTradeFeedEnabled() {
+					if !saveTradeData && !bi.IsTradeFeedEnabled() {
 						return nil
 					}
+
 					var t TradeStream
 					err = json.Unmarshal(rawData, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
-							bi.Name,
-							err)
-					}
-
-					price, err := strconv.ParseFloat(t.Price, 64)
-					if err != nil {
-						return fmt.Errorf("%v - price conversion error: %s",
-							bi.Name,
-							err)
-					}
-					amount, err := strconv.ParseFloat(t.Quantity, 64)
-					if err != nil {
-						return fmt.Errorf("%v - amount conversion error: %s",
 							bi.Name,
 							err)
 					}
@@ -349,8 +335,8 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 						trade.Data{
 							CurrencyPair: pair,
 							Timestamp:    t.TimeStamp.Time(),
-							Price:        price,
-							Amount:       amount,
+							Price:        t.Price.Float64(),
+							Amount:       t.Quantity.Float64(),
 							Exchange:     bi.Name,
 							AssetType:    asset.Spot,
 							TID:          strconv.FormatInt(t.TradeID, 10),
@@ -668,44 +654,26 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 	}()
 }
 
-// ProcessUpdate processes the websocket orderbook update
-func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
-	for i := range ws.UpdateBids {
-		price := ws.UpdateBids[i][0]
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
-		}
-		amount := ws.UpdateBids[i][1]
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateBid[i] = orderbook.Tranche{Price: p, Amount: a}
+// ProcessOrderbookUpdate processes the websocket orderbook update
+func (bi *Binanceus) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
+	updateBid := make([]orderbook.Tranche, len(wsDSUpdate.UpdateBids))
+	for i := range wsDSUpdate.UpdateBids {
+		updateBid[i].Price = wsDSUpdate.UpdateBids[i][0].Float64()
+		updateBid[i].Amount = wsDSUpdate.UpdateBids[i][1].Float64()
 	}
 
-	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
-	for i := range ws.UpdateAsks {
-		price := ws.UpdateAsks[i][0]
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
-		}
-		amount := ws.UpdateAsks[i][1]
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateAsk[i] = orderbook.Tranche{Price: p, Amount: a}
+	updateAsk := make([]orderbook.Tranche, len(wsDSUpdate.UpdateAsks))
+	for i := range wsDSUpdate.UpdateAsks {
+		updateAsk[i].Price = wsDSUpdate.UpdateAsks[i][0].Float64()
+		updateAsk[i].Amount = wsDSUpdate.UpdateAsks[i][1].Float64()
 	}
 
 	return bi.Websocket.Orderbook.Update(&orderbook.Update{
 		Bids:       updateBid,
 		Asks:       updateAsk,
 		Pair:       cp,
-		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp.Time(),
+		UpdateID:   wsDSUpdate.LastUpdateID,
+		UpdateTime: wsDSUpdate.Timestamp.Time(),
 		Asset:      a,
 	})
 }
@@ -762,7 +730,7 @@ func (bi *Binanceus) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		err = bi.obm.checkAndProcessUpdate(bi.ProcessUpdate, pair, recent)
+		err = bi.obm.checkAndProcessOrderbookUpdate(bi.ProcessOrderbookUpdate, pair, recent)
 		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
@@ -1017,7 +985,7 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]

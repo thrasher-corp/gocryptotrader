@@ -2,6 +2,7 @@ package binance
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -1850,21 +1851,14 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 
 	interim := json.RawMessage{}
 	err = b.SendPayload(ctx, f, func() (*request.Item, error) {
-		fullPath := endpointPath + path
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-		signature := params.Encode()
-		var hmacSigned []byte
-		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(signature),
-			[]byte(creds.Secret))
+		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 		headers := make(map[string]string)
 		headers["X-MBX-APIKEY"] = creds.Key
-		fullPath = common.EncodeURLValues(fullPath, params)
-		fullPath += "&signature=" + hmacSignedStr
+		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
 			Method:        method,
 			Path:          fullPath,
