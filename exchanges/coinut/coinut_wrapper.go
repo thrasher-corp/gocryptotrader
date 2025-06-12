@@ -380,17 +380,17 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Buy))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Buy))
 	for x := range orderbookNew.Buy {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Buy[x].Quantity,
 			Price:  orderbookNew.Buy[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Sell))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Sell))
 	for x := range orderbookNew.Sell {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Sell[x].Quantity,
 			Price:  orderbookNew.Sell[x].Price,
 		}

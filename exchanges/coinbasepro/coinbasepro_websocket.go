@@ -290,8 +290,8 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 
 	base := orderbook.Book{
 		Pair: pair,
-		Bids: make(orderbook.Tranches, len(snapshot.Bids)),
-		Asks: make(orderbook.Tranches, len(snapshot.Asks)),
+		Bids: make(orderbook.Levels, len(snapshot.Bids)),
+		Asks: make(orderbook.Levels, len(snapshot.Asks)),
 	}
 
 	for i := range snapshot.Bids {
@@ -305,7 +305,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		if err != nil {
 			return err
 		}
-		base.Bids[i] = orderbook.Tranche{Price: price, Amount: amount}
+		base.Bids[i] = orderbook.Level{Price: price, Amount: amount}
 	}
 
 	for i := range snapshot.Asks {
@@ -319,7 +319,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		if err != nil {
 			return err
 		}
-		base.Asks[i] = orderbook.Tranche{Price: price, Amount: amount}
+		base.Asks[i] = orderbook.Level{Price: price, Amount: amount}
 	}
 
 	base.Asset = asset.Spot
@@ -341,8 +341,8 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 		return err
 	}
 
-	asks := make(orderbook.Tranches, 0, len(update.Changes))
-	bids := make(orderbook.Tranches, 0, len(update.Changes))
+	asks := make(orderbook.Levels, 0, len(update.Changes))
+	bids := make(orderbook.Levels, 0, len(update.Changes))
 
 	for i := range update.Changes {
 		price, err := strconv.ParseFloat(update.Changes[i][1], 64)
@@ -354,9 +354,9 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 			return err
 		}
 		if update.Changes[i][0] == order.Buy.Lower() {
-			bids = append(bids, orderbook.Tranche{Price: price, Amount: volume})
+			bids = append(bids, orderbook.Level{Price: price, Amount: volume})
 		} else {
-			asks = append(asks, orderbook.Tranche{Price: price, Amount: volume})
+			asks = append(asks, orderbook.Level{Price: price, Amount: volume})
 		}
 	}
 

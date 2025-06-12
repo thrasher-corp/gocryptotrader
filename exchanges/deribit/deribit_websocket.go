@@ -653,7 +653,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
+		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 3 {
 				return errMalformedData
@@ -666,12 +666,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks = append(asks, orderbook.Tranche{
+			asks = append(asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		bids := make(orderbook.Tranches, 0, len(orderbookData.Bids))
+		bids := make(orderbook.Levels, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 3 {
 				return errMalformedData
@@ -686,7 +686,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids = append(bids, orderbook.Tranche{
+			bids = append(bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -722,7 +722,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
+		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 2 {
 				return errMalformedData
@@ -737,12 +737,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks = append(asks, orderbook.Tranche{
+			asks = append(asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		bids := make([]orderbook.Tranche, 0, len(orderbookData.Bids))
+		bids := make([]orderbook.Level, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 2 {
 				return errMalformedData
@@ -757,7 +757,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids = append(bids, orderbook.Tranche{
+			bids = append(bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})

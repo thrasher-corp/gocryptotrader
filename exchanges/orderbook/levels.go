@@ -27,16 +27,16 @@ var (
 	errNoLiquidity                     = errors.New("no liquidity")
 )
 
-// Tranches defines a slice of orderbook Tranche
-type Tranches []Tranche
+// Levels defines a slice of orderbook levels
+type Levels []Level
 
 // comparison defines expected functionality to compare between two reference
 // price levels
 type comparison func(float64, float64) bool
 
-// load iterates across new tranches and refreshes stored slice with this
+// load iterates across new Levels and refreshes stored slice with this
 // incoming snapshot.
-func (ts *Tranches) load(incoming Tranches) {
+func (ts *Levels) load(incoming Levels) {
 	if len(incoming) == 0 {
 		*ts = (*ts)[:0] // Flush
 		return
@@ -46,12 +46,12 @@ func (ts *Tranches) load(incoming Tranches) {
 		*ts = (*ts)[:len(incoming)] // Flush excess
 		return
 	}
-	*ts = make([]Tranche, len(incoming)) // Extend
-	copy(*ts, incoming)                  // Copy
+	*ts = make([]Level, len(incoming)) // Extend
+	copy(*ts, incoming)                // Copy
 }
 
 // updateByID amends price by corresponding ID and returns an error if not found
-func (ts Tranches) updateByID(updts []Tranche) error {
+func (ts Levels) updateByID(updts []Level) error {
 updates:
 	for x := range updts {
 		for y := range ts {
@@ -76,7 +76,7 @@ updates:
 }
 
 // deleteByID deletes reference by ID
-func (ts *Tranches) deleteByID(updts Tranches, bypassErr bool) error {
+func (ts *Levels) deleteByID(updts Levels, bypassErr bool) error {
 updates:
 	for x := range updts {
 		for y := range *ts {
@@ -97,7 +97,7 @@ updates:
 }
 
 // amount returns total depth liquidity and value
-func (ts Tranches) amount() (liquidity, value float64) {
+func (ts Levels) amount() (liquidity, value float64) {
 	for x := range ts {
 		liquidity += ts[x].Amount
 		value += ts[x].Amount * ts[x].Price
@@ -105,21 +105,21 @@ func (ts Tranches) amount() (liquidity, value float64) {
 	return
 }
 
-// retrieve returns a slice of contents from the stored Tranches up to the
+// retrieve returns a slice of contents from the stored Levels up to the
 // count length. If count is zero or greater than the length of the stored
-// Tranches, the entire slice is returned.
-func (ts Tranches) retrieve(count int) Tranches {
+// Levels, the entire slice is returned.
+func (ts Levels) retrieve(count int) Levels {
 	if count == 0 || count >= len(ts) {
 		count = len(ts)
 	}
-	result := make(Tranches, count)
+	result := make(Levels, count)
 	copy(result, ts)
 	return result
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ts *Tranches) updateInsertByPrice(updts Tranches, maxChainLength int, compare func(float64, float64) bool) {
+func (ts *Levels) updateInsertByPrice(updts Levels, maxChainLength int, compare func(float64, float64) bool) {
 updates:
 	for x := range updts {
 		for y := range *ts {
@@ -141,7 +141,7 @@ updates:
 				continue updates
 			case compare((*ts)[y].Price, updts[x].Price):
 				if updts[x].Amount > 0 {
-					*ts = append(*ts, Tranche{}) // Extend
+					*ts = append(*ts, Level{})   // Extend
 					copy((*ts)[y+1:], (*ts)[y:]) // Copy elements from index y onwards one position to the right
 					(*ts)[y] = updts[x]          // Insert updts[x] at index y
 				}
@@ -159,7 +159,7 @@ updates:
 }
 
 // updateInsertByID updates or inserts if not found for a bid or ask depth
-func (ts *Tranches) updateInsertByID(updts Tranches, compare comparison) error {
+func (ts *Levels) updateInsertByID(updts Levels, compare comparison) error {
 updates:
 	for x := range updts {
 		if updts[x].Amount <= 0 {
@@ -187,7 +187,7 @@ updates:
 			}
 
 			if compare((*ts)[y].Price, updts[x].Price) {
-				*ts = append(*ts, Tranche{}) // Extend
+				*ts = append(*ts, Level{})   // Extend
 				copy((*ts)[y+1:], (*ts)[y:]) // Copy elements from index y onwards one position to the right
 				(*ts)[y] = updts[x]          // Insert updts[x] at index y
 
@@ -212,7 +212,7 @@ updates:
 }
 
 // insertUpdates inserts new updates for bids or asks based on price level
-func (ts *Tranches) insertUpdates(updts Tranches, comp comparison) error {
+func (ts *Levels) insertUpdates(updts Levels, comp comparison) error {
 updates:
 	for x := range updts {
 		if len(*ts) == 0 {
@@ -225,7 +225,7 @@ updates:
 			case (*ts)[y].Price == updts[x].Price: // Price already found
 				return fmt.Errorf("%w for price %f", errCollisionDetected, updts[x].Price)
 			case comp((*ts)[y].Price, updts[x].Price): // price at correct spot
-				*ts = append((*ts)[:y], append([]Tranche{updts[x]}, (*ts)[y:]...)...)
+				*ts = append((*ts)[:y], append([]Level{updts[x]}, (*ts)[y:]...)...)
 				continue updates
 			}
 		}
@@ -235,7 +235,7 @@ updates:
 }
 
 // getHeadPriceNoLock gets best/head price
-func (ts Tranches) getHeadPriceNoLock() (float64, error) {
+func (ts Levels) getHeadPriceNoLock() (float64, error) {
 	if len(ts) == 0 {
 		return 0, errNoLiquidity
 	}
@@ -243,7 +243,7 @@ func (ts Tranches) getHeadPriceNoLock() (float64, error) {
 }
 
 // getHeadVolumeNoLock gets best/head volume
-func (ts Tranches) getHeadVolumeNoLock() (float64, error) {
+func (ts Levels) getHeadVolumeNoLock() (float64, error) {
 	if len(ts) == 0 {
 		return 0, errNoLiquidity
 	}
@@ -254,7 +254,7 @@ func (ts Tranches) getHeadVolumeNoLock() (float64, error) {
 // currency as a limiter and returns orderbook movement details. Swap boolean
 // allows the swap of sold and purchased to reduce code so it doesn't need to be
 // specific to bid or ask.
-func (ts Tranches) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
+func (ts Levels) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
 	if quote <= 0 {
 		return nil, errQuoteAmountInvalid
 	}
@@ -302,7 +302,7 @@ func (ts Tranches) getMovementByQuotation(quote, refPrice float64, swap bool) (*
 // as a limiter and returns orderbook movement details. Swap boolean allows the
 // swap of sold and purchased to reduce code so it doesn't need to be specific
 // to bid or ask.
-func (ts Tranches) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
+func (ts Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
 	if base <= 0 {
 		return nil, errBaseAmountInvalid
 	}
@@ -345,8 +345,8 @@ func (ts Tranches) getMovementByBase(base, refPrice float64, swap bool) (*Moveme
 	return m.finalizeFields(m.Purchased, m.Sold, head, base, swap)
 }
 
-// bidTranches bid depth specific functionality
-type bidTranches struct{ Tranches }
+// bidLevels bid depth specific functionality
+type bidLevels struct{ Levels }
 
 // bidCompare ensures price is in correct descending alignment (can inline)
 func bidCompare(left, right float64) bool {
@@ -355,24 +355,24 @@ func bidCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (bids *bidTranches) updateInsertByPrice(updts Tranches, maxChainLength int) {
-	bids.Tranches.updateInsertByPrice(updts, maxChainLength, bidCompare)
+func (bids *bidLevels) updateInsertByPrice(updts Levels, maxChainLength int) {
+	bids.Levels.updateInsertByPrice(updts, maxChainLength, bidCompare)
 }
 
 // updateInsertByID updates or inserts if not found
-func (bids *bidTranches) updateInsertByID(updts Tranches) error {
-	return bids.Tranches.updateInsertByID(updts, bidCompare)
+func (bids *bidLevels) updateInsertByID(updts Levels) error {
+	return bids.Levels.updateInsertByID(updts, bidCompare)
 }
 
 // insertUpdates inserts new updates for bids based on price level
-func (bids *bidTranches) insertUpdates(updts Tranches) error {
-	return bids.Tranches.insertUpdates(updts, bidCompare)
+func (bids *bidLevels) insertUpdates(updts Levels) error {
+	return bids.Levels.insertUpdates(updts, bidCompare)
 }
 
 // hitBidsByNominalSlippage hits the bids by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (bids *bidTranches) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+func (bids *bidLevels) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
 	}
@@ -385,16 +385,16 @@ func (bids *bidTranches) hitBidsByNominalSlippage(slippage, refPrice float64) (*
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(bids.Tranches) == 0 {
+	if len(bids.Levels) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeValue, cumulativeAmounts float64
-	for x := range bids.Tranches {
-		totalTrancheValue := bids.Tranches[x].Price * bids.Tranches[x].Amount
+	for x := range bids.Levels {
+		totalTrancheValue := bids.Levels[x].Price * bids.Levels[x].Amount
 		currentFullValue := totalTrancheValue + cumulativeValue
-		currentTotalAmounts := cumulativeAmounts + bids.Tranches[x].Amount
+		currentTotalAmounts := cumulativeAmounts + bids.Levels[x].Amount
 
 		nominal.AverageOrderCost = currentFullValue / currentTotalAmounts
 		percent := math.PercentageChange(refPrice, nominal.AverageOrderCost)
@@ -411,24 +411,24 @@ func (bids *bidTranches) hitBidsByNominalSlippage(slippage, refPrice float64) (*
 			}
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - cumulativeValue
-			trancheTargetPriceDiff := bids.Tranches[x].Price - targetCost
+			trancheTargetPriceDiff := bids.Levels[x].Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
 			nominal.Sold = cumulativeAmounts + trancheAmountExpectation
-			nominal.Purchased += trancheAmountExpectation * bids.Tranches[x].Price
+			nominal.Purchased += trancheAmountExpectation * bids.Levels[x].Price
 			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
-			nominal.EndPrice = bids.Tranches[x].Price
+			nominal.EndPrice = bids.Levels[x].Price
 			return nominal, nil
 		}
 
-		nominal.EndPrice = bids.Tranches[x].Price
+		nominal.EndPrice = bids.Levels[x].Price
 		cumulativeValue = currentFullValue
 		nominal.NominalPercentage = percent
-		nominal.Sold += bids.Tranches[x].Amount
+		nominal.Sold += bids.Levels[x].Amount
 		nominal.Purchased += totalTrancheValue
 		cumulativeAmounts = currentTotalAmounts
 		if slippage == percent {
-			nominal.FullBookSideConsumed = x+1 >= len(bids.Tranches)
+			nominal.FullBookSideConsumed = x+1 >= len(bids.Levels)
 			return nominal, nil
 		}
 	}
@@ -439,7 +439,7 @@ func (bids *bidTranches) hitBidsByNominalSlippage(slippage, refPrice float64) (*
 // hitBidsByImpactSlippage hits the bids by the required impact slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (bids *bidTranches) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
+func (bids *bidLevels) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage <= 0 {
 		return nil, errInvalidImpactSlippage
 	}
@@ -452,25 +452,25 @@ func (bids *bidTranches) hitBidsByImpactSlippage(slippage, refPrice float64) (*M
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(bids.Tranches) == 0 {
+	if len(bids.Levels) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
-	for x := range bids.Tranches {
-		percent := math.PercentageChange(refPrice, bids.Tranches[x].Price)
+	for x := range bids.Levels {
+		percent := math.PercentageChange(refPrice, bids.Levels[x].Price)
 		if percent != 0 {
 			percent *= -1
 		}
-		impact.EndPrice = bids.Tranches[x].Price
+		impact.EndPrice = bids.Levels[x].Price
 		impact.ImpactPercentage = percent
 		if slippage <= percent {
 			// Don't include this tranche amount as this consumes the tranche
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-		impact.Sold += bids.Tranches[x].Amount
-		impact.Purchased += bids.Tranches[x].Amount * bids.Tranches[x].Price
+		impact.Sold += bids.Levels[x].Amount
+		impact.Purchased += bids.Levels[x].Amount * bids.Levels[x].Price
 		impact.AverageOrderCost = impact.Purchased / impact.Sold
 	}
 	impact.FullBookSideConsumed = true
@@ -478,8 +478,8 @@ func (bids *bidTranches) hitBidsByImpactSlippage(slippage, refPrice float64) (*M
 	return impact, nil
 }
 
-// askTranches ask depth specific functionality
-type askTranches struct{ Tranches }
+// askLevels ask depth specific functionality
+type askLevels struct{ Levels }
 
 // askCompare ensures price is in correct ascending alignment (can inline)
 func askCompare(left, right float64) bool {
@@ -488,24 +488,24 @@ func askCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ask *askTranches) updateInsertByPrice(updts Tranches, maxChainLength int) {
-	ask.Tranches.updateInsertByPrice(updts, maxChainLength, askCompare)
+func (ask *askLevels) updateInsertByPrice(updts Levels, maxChainLength int) {
+	ask.Levels.updateInsertByPrice(updts, maxChainLength, askCompare)
 }
 
 // updateInsertByID updates or inserts if not found
-func (ask *askTranches) updateInsertByID(updts Tranches) error {
-	return ask.Tranches.updateInsertByID(updts, askCompare)
+func (ask *askLevels) updateInsertByID(updts Levels) error {
+	return ask.Levels.updateInsertByID(updts, askCompare)
 }
 
 // insertUpdates inserts new updates for asks based on price level
-func (ask *askTranches) insertUpdates(updts Tranches) error {
-	return ask.Tranches.insertUpdates(updts, askCompare)
+func (ask *askLevels) insertUpdates(updts Levels) error {
+	return ask.Levels.insertUpdates(updts, askCompare)
 }
 
 // liftAsksByNominalSlippage lifts the asks by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ask *askTranches) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+func (ask *askLevels) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
 	}
@@ -514,16 +514,16 @@ func (ask *askTranches) liftAsksByNominalSlippage(slippage, refPrice float64) (*
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(ask.Tranches) == 0 {
+	if len(ask.Levels) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeAmounts float64
-	for x := range ask.Tranches {
-		totalTrancheValue := ask.Tranches[x].Price * ask.Tranches[x].Amount
+	for x := range ask.Levels {
+		totalTrancheValue := ask.Levels[x].Price * ask.Levels[x].Amount
 		currentValue := totalTrancheValue + nominal.Sold
-		currentAmounts := cumulativeAmounts + ask.Tranches[x].Amount
+		currentAmounts := cumulativeAmounts + ask.Levels[x].Amount
 
 		nominal.AverageOrderCost = currentValue / currentAmounts
 		percent := math.PercentageChange(refPrice, nominal.AverageOrderCost)
@@ -538,19 +538,19 @@ func (ask *askTranches) liftAsksByNominalSlippage(slippage, refPrice float64) (*
 
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - nominal.Sold
-			trancheTargetPriceDiff := ask.Tranches[x].Price - targetCost
+			trancheTargetPriceDiff := ask.Levels[x].Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
-			nominal.Sold += trancheAmountExpectation * ask.Tranches[x].Price
+			nominal.Sold += trancheAmountExpectation * ask.Levels[x].Price
 			nominal.Purchased += trancheAmountExpectation
 			nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
-			nominal.EndPrice = ask.Tranches[x].Price
+			nominal.EndPrice = ask.Levels[x].Price
 			return nominal, nil
 		}
 
-		nominal.EndPrice = ask.Tranches[x].Price
+		nominal.EndPrice = ask.Levels[x].Price
 		nominal.Sold = currentValue
-		nominal.Purchased += ask.Tranches[x].Amount
+		nominal.Purchased += ask.Levels[x].Amount
 		nominal.NominalPercentage = percent
 		if slippage == percent {
 			return nominal, nil
@@ -564,7 +564,7 @@ func (ask *askTranches) liftAsksByNominalSlippage(slippage, refPrice float64) (*
 // liftAsksByImpactSlippage lifts the asks by the required impact slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ask *askTranches) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
+func (ask *askLevels) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage <= 0 {
 		return nil, errInvalidImpactSlippage
 	}
@@ -573,22 +573,22 @@ func (ask *askTranches) liftAsksByImpactSlippage(slippage, refPrice float64) (*M
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(ask.Tranches) == 0 {
+	if len(ask.Levels) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
-	for x := range ask.Tranches {
-		percent := math.PercentageChange(refPrice, ask.Tranches[x].Price)
+	for x := range ask.Levels {
+		percent := math.PercentageChange(refPrice, ask.Levels[x].Price)
 		impact.ImpactPercentage = percent
-		impact.EndPrice = ask.Tranches[x].Price
+		impact.EndPrice = ask.Levels[x].Price
 		if slippage <= percent {
 			// Don't include this tranche amount as this consumes the tranche
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-		impact.Sold += ask.Tranches[x].Amount * ask.Tranches[x].Price
-		impact.Purchased += ask.Tranches[x].Amount
+		impact.Sold += ask.Levels[x].Amount * ask.Levels[x].Price
+		impact.Purchased += ask.Levels[x].Amount
 		impact.AverageOrderCost = impact.Sold / impact.Purchased
 	}
 	impact.FullBookSideConsumed = true

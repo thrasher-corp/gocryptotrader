@@ -292,17 +292,17 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(tempResp.Bids))
+	book.Bids = make(orderbook.Levels, len(tempResp.Bids))
 	for x := range tempResp.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: tempResp.Bids[x].Volume,
 			Price:  tempResp.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(tempResp.Asks))
+	book.Asks = make(orderbook.Levels, len(tempResp.Asks))
 	for y := range tempResp.Asks {
-		book.Asks[y] = orderbook.Tranche{
+		book.Asks[y] = orderbook.Level{
 			Amount: tempResp.Asks[y].Volume,
 			Price:  tempResp.Asks[y].Price,
 		}

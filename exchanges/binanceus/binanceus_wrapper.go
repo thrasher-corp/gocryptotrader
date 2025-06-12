@@ -332,16 +332,16 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 	if err != nil {
 		return book, err
 	}
-	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+	book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+	book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}

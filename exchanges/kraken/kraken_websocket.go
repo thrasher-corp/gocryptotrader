@@ -670,8 +670,8 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 		Pair:                   pair,
 		Asset:                  asset.Spot,
 		VerifyOrderbook:        k.CanVerifyOrderbook,
-		Bids:                   make(orderbook.Tranches, len(bidData)),
-		Asks:                   make(orderbook.Tranches, len(askData)),
+		Bids:                   make(orderbook.Levels, len(bidData)),
+		Asks:                   make(orderbook.Levels, len(askData)),
 		MaxDepth:               levels,
 		ChecksumStringRequired: true,
 	}
@@ -711,7 +711,7 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 		if err != nil {
 			return err
 		}
-		base.Asks[i] = orderbook.Tranche{
+		base.Asks[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -756,7 +756,7 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 			return err
 		}
 
-		base.Bids[i] = orderbook.Tranche{
+		base.Bids[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -778,8 +778,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 	update := orderbook.Update{
 		Asset: asset.Spot,
 		Pair:  pair,
-		Bids:  make([]orderbook.Tranche, len(bidData)),
-		Asks:  make([]orderbook.Tranche, len(askData)),
+		Bids:  make([]orderbook.Level, len(bidData)),
+		Asks:  make([]orderbook.Level, len(askData)),
 	}
 
 	// Calculating checksum requires incoming decimal place checks for both
@@ -824,7 +824,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 			return err
 		}
 
-		update.Asks[i] = orderbook.Tranche{
+		update.Asks[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -874,7 +874,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 			return err
 		}
 
-		update.Bids[i] = orderbook.Tranche{
+		update.Bids[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,

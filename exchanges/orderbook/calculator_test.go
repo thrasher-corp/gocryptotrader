@@ -14,14 +14,8 @@ func testSetup() Book {
 	return Book{
 		Exchange: "a",
 		Pair:     currency.NewBTCUSD(),
-		Asks: []Tranche{
-			{Price: 7000, Amount: 1},
-			{Price: 7001, Amount: 2},
-		},
-		Bids: []Tranche{
-			{Price: 6999, Amount: 1},
-			{Price: 6998, Amount: 2},
-		},
+		Asks:     []Level{{Price: 7000, Amount: 1}, {Price: 7001, Amount: 2}},
+		Bids:     []Level{{Price: 6999, Amount: 1}, {Price: 6998, Amount: 2}},
 	}
 }
 
@@ -457,7 +451,7 @@ func TestGetAveragePrice(t *testing.T) {
 	assert.ErrorIs(t, err, errNotEnoughLiquidity)
 
 	b = Book{
-		Asks: []Tranche{
+		Asks: []Level{
 			{Amount: 5, Price: 1},
 			{Amount: 5, Price: 2},
 			{Amount: 5, Price: 3},
@@ -480,7 +474,7 @@ func TestGetAveragePrice(t *testing.T) {
 }
 
 func TestFindNominalAmount(t *testing.T) {
-	b := Tranches{
+	b := Levels{
 		{Amount: 5, Price: 1},
 		{Amount: 5, Price: 2},
 		{Amount: 5, Price: 3},
@@ -490,7 +484,7 @@ func TestFindNominalAmount(t *testing.T) {
 	if nomAmt != 30 && remainingAmt != 0 {
 		t.Errorf("invalid return")
 	}
-	b = Tranches{}
+	b = Levels{}
 	nomAmt, remainingAmt = b.FindNominalAmount(15)
 	if nomAmt != 0 && remainingAmt != 30 {
 		t.Errorf("invalid return")

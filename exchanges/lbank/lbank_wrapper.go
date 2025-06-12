@@ -216,8 +216,8 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: l.CanVerifyOrderbook,
-		Asks:            make(orderbook.Tranches, len(d.Data.Asks)),
-		Bids:            make(orderbook.Tranches, len(d.Data.Bids)),
+		Asks:            make(orderbook.Levels, len(d.Data.Asks)),
+		Bids:            make(orderbook.Levels, len(d.Data.Bids)),
 	}
 
 	for i := range d.Data.Asks {

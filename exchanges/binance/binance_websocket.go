@@ -467,18 +467,18 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 		Exchange:        b.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
+		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
 		LastUpdated:     time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Tranche{
+		newOrderBook.Bids[i] = orderbook.Level{
 			Amount: orderbookNew.Bids[i].Quantity,
 			Price:  orderbookNew.Bids[i].Price,
 		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Tranche{
+		newOrderBook.Asks[i] = orderbook.Level{
 			Amount: orderbookNew.Asks[i].Quantity,
 			Price:  orderbookNew.Asks[i].Price,
 		}
@@ -615,16 +615,16 @@ func (b *Binance) manageSubs(op string, subs subscription.List) error {
 
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
+	updateBid := make([]orderbook.Level, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Tranche{
+		updateBid[i] = orderbook.Level{
 			Price:  ws.UpdateBids[i][0].Float64(),
 			Amount: ws.UpdateBids[i][1].Float64(),
 		}
 	}
-	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
+	updateAsk := make([]orderbook.Level, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Tranche{
+		updateAsk[i] = orderbook.Level{
 			Price:  ws.UpdateAsks[i][0].Float64(),
 			Amount: ws.UpdateAsks[i][1].Float64(),
 		}

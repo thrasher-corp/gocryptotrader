@@ -547,16 +547,16 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}

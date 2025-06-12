@@ -57,8 +57,8 @@ type store struct {
 	m               sync.RWMutex
 }
 
-// Tranche defines a segmented portions of an order or options book
-type Tranche struct {
+// Level defines a segmented portions of an order or options book
+type Level struct {
 	Amount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
 	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
@@ -81,8 +81,8 @@ type Tranche struct {
 
 // Book contains a moment in time snapshot from an Depth
 type Book struct {
-	Bids Tranches
-	Asks Tranches
+	Bids Levels
+	Asks Levels
 
 	Exchange string
 	Pair     currency.Pair
@@ -171,8 +171,8 @@ type Update struct {
 	UpdatePushedAt time.Time
 	Asset          asset.Item
 	Action
-	Bids []Tranche
-	Asks []Tranche
+	Bids []Level
+	Asks []Level
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
@@ -200,7 +200,7 @@ type Movement struct {
 	// Purchases defines the amount of currency purchased.
 	Purchased float64
 	// AverageOrderCost defines the average order cost of position as it slips
-	// through the orderbook tranches.
+	// through the orderbook Levels.
 	AverageOrderCost float64
 	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
 	// by the requested amount. This might not represent the actual book on the
@@ -209,10 +209,10 @@ type Movement struct {
 	FullBookSideConsumed bool
 }
 
-// SideAmounts define the amounts total for the tranches, total value in
+// SideAmounts define the amounts total for the Levels, total value in
 // quotation and the cumulative base amounts.
 type SideAmounts struct {
-	Tranches   int64
+	Levels     int64
 	QuoteValue float64
 	BaseAmount float64
 }
