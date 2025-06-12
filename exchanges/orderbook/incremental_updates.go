@@ -165,7 +165,7 @@ func (d *Depth) updateByIDAndAction(u *Update) error {
 // a specified supplied number
 func (d *Depth) updateBidAskByPrice(update *Update) error {
 	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	d.bidTranches.updateInsertByPrice(update.Bids, d.options.maxDepth)
 	d.askTranches.updateInsertByPrice(update.Asks, d.options.maxDepth)
@@ -176,7 +176,7 @@ func (d *Depth) updateBidAskByPrice(update *Update) error {
 // updateBidAskByID amends details by ID
 func (d *Depth) updateBidAskByID(update *Update) error {
 	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	if err := d.bidTranches.updateByID(update.Bids); err != nil {
 		return err
@@ -191,7 +191,7 @@ func (d *Depth) updateBidAskByID(update *Update) error {
 // deleteBidAskByID deletes a price level by ID
 func (d *Depth) deleteBidAskByID(update *Update, bypassErr bool) error {
 	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	if err := d.bidTranches.deleteByID(update.Bids, bypassErr); err != nil {
 		return err
@@ -206,7 +206,7 @@ func (d *Depth) deleteBidAskByID(update *Update, bypassErr bool) error {
 // insertBidAskByID inserts new updates
 func (d *Depth) insertBidAskByID(update *Update) error {
 	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	if err := d.bidTranches.insertUpdates(update.Bids); err != nil {
 		return err
@@ -221,7 +221,7 @@ func (d *Depth) insertBidAskByID(update *Update) error {
 // updateInsertByID updates or inserts by ID at current price level.
 func (d *Depth) updateInsertByID(update *Update) error {
 	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	if err := d.bidTranches.updateInsertByID(update.Bids); err != nil {
 		return err

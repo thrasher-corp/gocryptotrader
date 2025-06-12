@@ -51,11 +51,11 @@ func TestProcessUpdate(t *testing.T) {
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.ProcessUpdate(&Update{Asks: Tranches{{Price: 1337.5, Amount: 69420, ID: 69420}}})
-	assert.ErrorIs(t, err, errLastUpdatedNotSet)
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.ProcessUpdate(&Update{Action: Insert, Asks: Tranches{{Price: 1337.5, Amount: 69420, ID: 69420}}})
-	assert.ErrorIs(t, err, errLastUpdatedNotSet)
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	d.verifyOrderbook = true
@@ -133,7 +133,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 
 	err = d.updateBidAskByID(updates)
-	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateBidAskByID should error correctly")
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "UpdateBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.updateBidAskByID(updates)
@@ -172,7 +172,7 @@ func TestDeleteBidAskByID(t *testing.T) {
 	}
 
 	err = d.deleteBidAskByID(updates, false)
-	assert.ErrorIs(t, err, errLastUpdatedNotSet, "DeleteBidAskByID should error correctly")
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "DeleteBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.deleteBidAskByID(updates, false)
@@ -215,7 +215,7 @@ func TestInsertBidAskByID(t *testing.T) {
 		Asks: Tranches{{Price: 1337, Amount: 2, ID: 3}},
 	}
 	err = d.insertBidAskByID(updates)
-	assert.ErrorIs(t, err, errLastUpdatedNotSet, "InsertBidAskByID should error correctly")
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "InsertBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 
@@ -261,7 +261,7 @@ func TestUpdateInsertByID(t *testing.T) {
 		Asks: Tranches{{Price: 1336, Amount: 2, ID: 4}},
 	}
 	err = d.updateInsertByID(updates)
-	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateInsertByID should error correctly")
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "UpdateInsertByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.updateInsertByID(updates)
@@ -302,7 +302,7 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	err = d.updateBidAskByPrice(&Update{})
-	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateBidAskByPrice should error correctly")
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "UpdateBidAskByPrice should error correctly")
 
 	err = d.updateBidAskByPrice(&Update{UpdateTime: time.Now()})
 	assert.NoError(t, err, "UpdateBidAskByPrice should not error")

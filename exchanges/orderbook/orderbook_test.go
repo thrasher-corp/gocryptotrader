@@ -93,8 +93,8 @@ func TestVerify(t *testing.T) {
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
+	if !errors.Is(err, ErrPriceNotSet) {
+		t.Fatalf("expecting %s error but received %v", ErrPriceNotSet, err)
 	}
 
 	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
@@ -130,8 +130,8 @@ func TestVerify(t *testing.T) {
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
+	if !errors.Is(err, ErrPriceNotSet) {
+		t.Fatalf("expecting %s error but received %v", ErrPriceNotSet, err)
 	}
 }
 
@@ -279,7 +279,7 @@ func TestDeployDepth(t *testing.T) {
 	c, err := currency.NewPairFromStrings("BTC", "USD")
 	require.NoError(t, err)
 	_, err = DeployDepth("", c, asset.Spot)
-	require.ErrorIs(t, err, errExchangeNameUnset)
+	require.ErrorIs(t, err, ErrExchangeNameUnset)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", c, asset.Empty)
@@ -677,12 +677,12 @@ func TestCheckAlignment(t *testing.T) {
 		t.Error(err)
 	}
 	err = checkAlignment(itemWithFunding, false, true, false, false, dsc, "Bitfinex")
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
+	if !errors.Is(err, ErrPriceNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, ErrPriceNotSet)
 	}
 	err = checkAlignment(itemWithFunding, true, true, false, false, dsc, "Binance")
-	if !errors.Is(err, errPriceNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
+	if !errors.Is(err, ErrPriceNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, ErrPriceNotSet)
 	}
 
 	itemWithFunding[0].Price = 1337

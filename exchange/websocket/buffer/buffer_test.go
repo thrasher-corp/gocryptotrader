@@ -457,6 +457,16 @@ func TestLoadSnapshot(t *testing.T) {
 	var obl Orderbook
 	obl.dataHandler = make(chan any, 100)
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
+
+	err = obl.LoadSnapshot(&orderbook.Base{Asks: []orderbook.Tranche{{Amount: 1}}, VerifyOrderbook: true})
+	require.ErrorIs(t, err, orderbook.ErrPriceNotSet)
+
+	err = obl.LoadSnapshot(&orderbook.Base{Asks: []orderbook.Tranche{{Amount: 1}}})
+	require.ErrorIs(t, err, orderbook.ErrExchangeNameUnset)
+
+	err = obl.LoadSnapshot(&orderbook.Base{Asks: []orderbook.Tranche{{Amount: 1}}, Exchange: "test", Pair: cp, Asset: asset.Spot})
+	require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet)
+
 	var snapShot1 orderbook.Base
 	snapShot1.Exchange = "SnapshotWithOverride"
 	asks := []orderbook.Tranche{{Price: 4000, Amount: 1, ID: 8}}

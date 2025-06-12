@@ -81,7 +81,7 @@ func (s *store) track(b *Base) (book, error) {
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, errExchangeNameUnset
+		return nil, ErrExchangeNameUnset
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -211,7 +211,7 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 			switch {
 			case exch == "Bitfinex" && fundingRate: /* funding rate can be 0 it seems on Bitfinex */
 			default:
-				return errPriceNotSet
+				return ErrPriceNotSet
 			}
 		}
 
@@ -248,7 +248,7 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 // list
 func (b *Base) Process() error {
 	if b.Exchange == "" {
-		return errExchangeNameUnset
+		return ErrExchangeNameUnset
 	}
 
 	if b.Pair.IsEmpty() {

@@ -160,7 +160,7 @@ func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1}}, Asks: Tranches{{Price: 1337, Amount: 10}}, UpdatePushedAt: time.Now()})
-	assert.ErrorIs(t, err, errLastUpdatedNotSet, "LoadSnapshot should error correctly")
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "LoadSnapshot should error correctly")
 
 	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 2}}, Asks: Tranches{{Price: 1338, Amount: 10}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")

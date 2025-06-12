@@ -16,16 +16,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Public errors
 var (
-	// ErrOrderbookInvalid defines an error for when the orderbook is invalid and
-	// should not be trusted
-	ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
-	// ErrInvalidAction defines and error when an action is invalid
-	ErrInvalidAction = errors.New("invalid action")
-
-	errLastUpdatedNotSet = errors.New("last updated not set")
-	errInvalidBookDepth  = errors.New("invalid book depth")
+	ErrOrderbookInvalid  = errors.New("orderbook data integrity compromised")
+	ErrInvalidAction     = errors.New("invalid action")
+	ErrLastUpdatedNotSet = errors.New("last updated not set")
 )
+
+var errInvalidBookDepth = errors.New("invalid book depth")
 
 // Outbound restricts outbound usage of depth. NOTE: Type assert to
 // *orderbook.Depth.
@@ -96,7 +94,7 @@ func (d *Depth) LoadSnapshot(incoming *Base) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if incoming.LastUpdated.IsZero() {
-		return fmt.Errorf("validation error: %s %s %s - %w", d.exchange, d.pair, d.asset, errLastUpdatedNotSet)
+		return fmt.Errorf("validation error: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	d.lastUpdateID = incoming.LastUpdateID
 	d.lastUpdated = incoming.LastUpdated
