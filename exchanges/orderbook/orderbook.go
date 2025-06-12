@@ -278,25 +278,25 @@ func (b *Book) Process() error {
 // using a sort algorithm as the algorithm could be impeded by a worst case time
 // complexity when elements are shifted as opposed to just swapping element
 // values.
-func (ts *Levels) Reverse() {
-	eLen := len(*ts)
+func (l *Levels) Reverse() {
+	eLen := len(*l)
 	var target int
 	for i := eLen/2 - 1; i >= 0; i-- {
 		target = eLen - 1 - i
-		(*ts)[i], (*ts)[target] = (*ts)[target], (*ts)[i]
+		(*l)[i], (*l)[target] = (*l)[target], (*l)[i]
 	}
 }
 
 // SortAsks sorts ask items to the correct ascending order if pricing values are
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
-func (ts Levels) SortAsks() {
-	sort.Slice(ts, func(i, j int) bool { return ts[i].Price < ts[j].Price })
+func (l Levels) SortAsks() {
+	sort.Slice(l, func(i, j int) bool { return l[i].Price < l[j].Price })
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
-func (ts Levels) SortBids() {
-	sort.Slice(ts, func(i, j int) bool { return ts[i].Price > ts[j].Price })
+func (l Levels) SortBids() {
+	sort.Slice(l, func(i, j int) bool { return l[i].Price > l[j].Price })
 }
