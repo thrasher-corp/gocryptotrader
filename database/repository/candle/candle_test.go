@@ -1,13 +1,14 @@
 package candle
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
@@ -245,20 +246,11 @@ func TestSeries(t *testing.T) {
 			}
 
 			_, err = Series("", "", "", 0, "", start, end)
-			if !errors.Is(err, errInvalidInput) {
-				t.Fatal(err)
-			}
+			require.ErrorIs(t, err, errInvalidInput)
 
-			_, err = Series(testExchanges[0].Name,
-				"BTC", "MOON",
-				864000, "spot",
-				start, end)
-			if err != nil && !errors.Is(err, errInvalidInput) && !errors.Is(err, ErrNoCandleDataFound) {
-				t.Fatal(err)
-			}
-			if err = testhelpers.CloseDatabase(dbConn); err != nil {
-				t.Error(err)
-			}
+			_, err = Series(testExchanges[0].Name, "BTC", "MOON", 864000, "spot", start, end)
+			require.ErrorIs(t, err, ErrNoCandleDataFound)
+			assert.NoError(t, testhelpers.CloseDatabase(dbConn))
 		})
 	}
 }
