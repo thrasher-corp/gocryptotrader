@@ -1,7 +1,6 @@
 package datahistoryjob
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -258,9 +257,8 @@ func TestDataHistoryJob(t *testing.T) {
 			assert.NoError(t, err)
 
 			err = db.SetRelationshipByNickname(results[2].Nickname, results[2].Nickname, 0)
-			if !errors.Is(err, errCannotSetSamePrerequisite) {
-				t.Errorf("received %v expected %v", err, errCannotSetSamePrerequisite)
-			}
+			assert.ErrorIs(t, err, errCannotSetSamePrerequisite)
+
 			err = db.SetRelationshipByNickname(results[3].Nickname, results[2].Nickname, 0)
 			assert.NoError(t, err)
 

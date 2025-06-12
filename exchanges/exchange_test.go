@@ -1548,9 +1548,7 @@ func TestCheckTransientError(t *testing.T) {
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
 	err := b.EnableRateLimiter()
-	if !errors.Is(err, request.ErrRequestSystemIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRequestSystemIsNil)
-	}
+	require.ErrorIs(t, err, request.ErrRequestSystemIsNil)
 
 	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {
@@ -1561,17 +1559,13 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 	require.NoError(t, err)
 
 	err = b.DisableRateLimiter()
-	if !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyDisabled)
-	}
+	require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled)
 
 	err = b.EnableRateLimiter()
 	require.NoError(t, err)
 
 	err = b.EnableRateLimiter()
-	if !errors.Is(err, request.ErrRateLimiterAlreadyEnabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, request.ErrRateLimiterAlreadyEnabled)
-	}
+	require.ErrorIs(t, err, request.ErrRateLimiterAlreadyEnabled)
 }
 
 func TestGetWebsocket(t *testing.T) {
@@ -1878,9 +1872,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 
 	err := b.DisableAssetWebsocketSupport(asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("expected error: %v but received: %v", asset.ErrNotSupported, err)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = b.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -1942,9 +1934,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		t.Run(tt.Endpoint, func(t *testing.T) {
 			t.Parallel()
 			u, err := getURLTypeFromString(tt.Endpoint)
-			if !errors.Is(err, tt.Error) {
-				t.Fatalf("received: %v but expected: %v", err, tt.Error)
-			}
+			require.ErrorIs(t, err, tt.Error)
 
 			if u != tt.Expected {
 				t.Fatalf("received: %v but expected: %v", u, tt.Expected)
@@ -1956,41 +1946,36 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetAvailableTransferChains(t.Context(), currency.BTC); !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
-	}
+	_, err := b.GetAvailableTransferChains(t.Context(), currency.BTC)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestCalculatePNL(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculatePNL(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.CalculatePNL(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestScaleCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.ScaleCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.ScaleCollateral(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.CalculateTotalCollateral(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.CalculateTotalCollateral(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestUpdateCurrencyStates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if err := b.UpdateCurrencyStates(t.Context(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	err := b.UpdateCurrencyStates(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestSetTradeFeedStatus(t *testing.T) {
@@ -2032,49 +2017,43 @@ func TestSetFillsFeedStatus(t *testing.T) {
 func TestGetMarginRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetMarginRatesHistory(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetMarginRatesHistory(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionSummary(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetFuturesPositionSummary(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFuturesPositionOrders(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetFuturesPositionOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetHistoricalFundingRates(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetHistoricalFundingRates(t.Context(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.GetHistoricalFundingRates(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSD()); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := b.IsPerpetualFutureCurrency(asset.Spot, currency.NewBTCUSD())
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
@@ -2109,19 +2088,13 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	}
 
 	_, _, err := b.GetPairAndAssetTypeRequestFormatted("")
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	if !errors.Is(err, ErrSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
-	}
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	if !errors.Is(err, ErrSymbolCannotBeMatched) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolCannotBeMatched)
-	}
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)
@@ -2176,18 +2149,14 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetCurrencyForRealisedPNL(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, _, err := b.GetCurrencyForRealisedPNL(asset.Empty, currency.EMPTYPAIR)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
-	}
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestHasAssetTypeAccountSegregation(t *testing.T) {
@@ -2361,63 +2330,50 @@ func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	err := b.SetCollateralMode(t.Context(), asset.Spot, collateral.SingleMode)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, err := b.GetCollateralMode(t.Context(), asset.Spot)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	err := b.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, err := b.ChangePositionMargin(t.Context(), nil)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	err := b.SetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, 1, order.UnknownSide)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	b := Base{}
 	_, err := b.GetLeverage(t.Context(), asset.Spot, currency.NewBTCUSD(), margin.Multi, order.UnknownSide)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
 func TestEnsureOnePairEnabled(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 	err := b.EnsureOnePairEnabled()
-	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
 	b.CurrencyPairs = currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Futures: {},
@@ -2449,15 +2405,11 @@ func TestGetStandardConfig(t *testing.T) {
 
 	var b *Base
 	_, err := b.GetStandardConfig()
-	if !errors.Is(err, errExchangeIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeIsNil)
-	}
+	require.ErrorIs(t, err, errExchangeIsNil)
 
 	b = &Base{}
 	_, err = b.GetStandardConfig()
-	if !errors.Is(err, errSetDefaultsNotCalled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errSetDefaultsNotCalled)
-	}
+	require.ErrorIs(t, err, errSetDefaultsNotCalled)
 
 	b.Name = "test"
 	b.Features.Supports.Websocket = true
@@ -2499,9 +2451,7 @@ func TestMatchSymbolWithAvailablePairs(t *testing.T) {
 	}
 
 	_, err = b.MatchSymbolWithAvailablePairs("sillBillies", asset.Futures, false)
-	if !errors.Is(err, currency.ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	whatIGot, err := b.MatchSymbolWithAvailablePairs("btcusdT", asset.Spot, false)
 	require.NoError(t, err)
@@ -2533,9 +2483,7 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	}
 
 	_, _, err = b.MatchSymbolCheckEnabled("sillBillies", asset.Futures, false)
-	if !errors.Is(err, currency.ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrPairNotFound)
-	}
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	whatIGot, enabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
 	require.NoError(t, err)
@@ -2610,9 +2558,8 @@ func TestIsPairEnabled(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetOpenInterest(t.Context()); !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
-	}
+	_, err := b.GetOpenInterest(t.Context())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetCachedOpenInterest(t *testing.T) {

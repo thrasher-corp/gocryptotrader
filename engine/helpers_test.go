@@ -107,9 +107,7 @@ func TestGetSubsystemsStatus(t *testing.T) {
 
 func TestGetRPCEndpoints(t *testing.T) {
 	_, err := (&Engine{}).GetRPCEndpoints()
-	if !errors.Is(err, errNilConfig) {
-		t.Fatalf("received: %v, but expected: %v", err, errNilConfig)
-	}
+	require.ErrorIs(t, err, errNilConfig)
 
 	m, err := (&Engine{Config: &config.Config{}}).GetRPCEndpoints()
 	require.NoError(t, err)
@@ -220,21 +218,10 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		t.Run(tt.Subsystem, func(t *testing.T) {
 			t.Parallel()
 			err := tt.Engine.SetSubsystem(tt.Subsystem, true)
-			if !errors.Is(err, tt.EnableError) {
-				t.Fatalf(
-					"while enabled %s subsystem received: %#v, but expected: %v",
-					tt.Subsystem,
-					err,
-					tt.EnableError)
-			}
+			require.ErrorIs(t, err, tt.EnableError)
+
 			err = tt.Engine.SetSubsystem(tt.Subsystem, false)
-			if !errors.Is(err, tt.DisableError) {
-				t.Fatalf(
-					"while disabling %s subsystem received: %#v, but expected: %v",
-					tt.Subsystem,
-					err,
-					tt.DisableError)
-			}
+			require.ErrorIs(t, err, tt.DisableError)
 		})
 	}
 }
@@ -998,12 +985,10 @@ func TestGetCryptocurrencyDepositAddressesByExchange(t *testing.T) {
 	const exchName = "fake"
 	e := createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true})
 	_, err := e.GetCryptocurrencyDepositAddressesByExchange(exchName)
-	if err != nil {
-		t.Error(err)
-	}
-	if _, err = e.GetCryptocurrencyDepositAddressesByExchange("non-existent"); !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received %s, expected: %s", err, ErrExchangeNotFound)
-	}
+	assert.NoError(t, err, "GetCryptocurrencyDepositAddressesByExchange should not error")
+	_, err = e.GetCryptocurrencyDepositAddressesByExchange("non-existent")
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
+
 	e.DepositAddressManager = SetupDepositAddressManager()
 	_, err = e.GetCryptocurrencyDepositAddressesByExchange(exchName)
 	if err == nil {
@@ -1087,9 +1072,8 @@ func TestGetExchangeNames(t *testing.T) {
 
 	for i := range bot.Config.Exchanges {
 		exch, err := bot.ExchangeManager.NewExchangeByName(bot.Config.Exchanges[i].Name)
-		if err != nil && !errors.Is(err, ErrExchangeAlreadyLoaded) {
-			t.Fatal(err)
-		}
+		require.Truef(t, err == nil || errors.Is(err, ErrExchangeAlreadyLoaded),
+			"%s NewExchangeByName must not error: %s", bot.Config.Exchanges[i].Name, err)
 		if exch != nil {
 			exch.SetDefaults()
 			err = bot.ExchangeManager.Add(exch)
@@ -1264,9 +1248,7 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 	}
 
 	_, err := NewSupportedExchangeByName("")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestNewExchangeByNameWithDefaults(t *testing.T) {
