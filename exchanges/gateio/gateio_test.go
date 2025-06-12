@@ -1807,11 +1807,10 @@ func TestUpdateOrderbook(t *testing.T) {
 			t.Parallel()
 			o, err := g.UpdateOrderbook(t.Context(), pair, a)
 			require.NoError(t, err)
-			if a == asset.Options { // Options orderbooks can be empty
-				return
+			if a != asset.Options { // Options orderbooks can be empty
+				assert.NotEmpty(t, o.Bids)
+				assert.NotEmpty(t, o.Asks)
 			}
-			assert.NotEmpty(t, o.Bids)
-			assert.NotEmpty(t, o.Asks)
 		})
 	}
 }
