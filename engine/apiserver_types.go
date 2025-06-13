@@ -129,7 +129,7 @@ type AllEnabledExchangeOrderbooks struct {
 // orderbooks
 type EnabledExchangeOrderbooks struct {
 	ExchangeName   string           `json:"exchangeName"`
-	ExchangeValues []orderbook.Base `json:"exchangeValues"`
+	ExchangeValues []orderbook.Book `json:"exchangeValues"`
 }
 
 // AllEnabledExchangeCurrencies holds the enabled exchange currencies

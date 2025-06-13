@@ -45,7 +45,7 @@ func (e Exchange) IsEnabled(exch string) bool {
 }
 
 // Orderbook returns current orderbook requested exchange, pair and asset
-func (e Exchange) Orderbook(ctx context.Context, exch string, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (e Exchange) Orderbook(ctx context.Context, exch string, pair currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
