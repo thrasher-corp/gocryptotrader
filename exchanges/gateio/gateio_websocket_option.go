@@ -525,7 +525,7 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 	})
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -537,7 +537,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
-			LastPushed:      updatePushedAt,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -590,8 +590,8 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     updatePushedAt,
-			LastPushed:      updatePushedAt,
+			LastUpdated:     lastPushed,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {

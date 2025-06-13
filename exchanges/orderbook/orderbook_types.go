@@ -136,7 +136,7 @@ type options struct {
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
-	updatePushedAt         time.Time
+	lastPushed             time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
