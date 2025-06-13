@@ -21,7 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var y = &Yobit{}
+var y = &Exchange{}
 
 // Please supply your own keys for better unit testing
 const (

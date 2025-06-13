@@ -38,13 +38,13 @@ const (
 	privateRedeemCoupon           = "RedeemYobicode"
 )
 
-// Yobit is the overarching type across the Yobit package
-type Yobit struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Yobit
+type Exchange struct {
 	exchange.Base
 }
 
 // GetInfo returns the Yobit info
-func (y *Yobit) GetInfo(ctx context.Context) (Info, error) {
+func (y *Exchange) GetInfo(ctx context.Context) (Info, error) {
 	resp := Info{}
 	path := fmt.Sprintf("/%s/%s/", apiPublicVersion, publicInfo)
 
@@ -52,7 +52,7 @@ func (y *Yobit) GetInfo(ctx context.Context) (Info, error) {
 }
 
 // GetTicker returns a ticker for a specific currency
-func (y *Yobit) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
+func (y *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
 	type Response struct {
 		Data map[string]Ticker
 	}
@@ -64,7 +64,7 @@ func (y *Yobit) GetTicker(ctx context.Context, symbol string) (map[string]Ticker
 }
 
 // GetDepth returns the depth for a specific currency
-func (y *Yobit) GetDepth(ctx context.Context, symbol string) (Orderbook, error) {
+func (y *Exchange) GetDepth(ctx context.Context, symbol string) (Orderbook, error) {
 	type Response struct {
 		Data map[string]Orderbook
 	}
@@ -77,7 +77,7 @@ func (y *Yobit) GetDepth(ctx context.Context, symbol string) (Orderbook, error) 
 }
 
 // GetTrades returns the trades for a specific currency
-func (y *Yobit) GetTrades(ctx context.Context, symbol string) ([]Trade, error) {
+func (y *Exchange) GetTrades(ctx context.Context, symbol string) ([]Trade, error) {
 	type respDataHolder struct {
 		Data map[string][]Trade
 	}
@@ -96,7 +96,7 @@ func (y *Yobit) GetTrades(ctx context.Context, symbol string) ([]Trade, error) {
 }
 
 // GetAccountInformation returns a users account info
-func (y *Yobit) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
+func (y *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
 	result := AccountInfo{}
 
 	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result)
@@ -110,7 +110,7 @@ func (y *Yobit) GetAccountInformation(ctx context.Context) (AccountInfo, error) 
 }
 
 // Trade places an order and returns the order ID if successful or an error
-func (y *Yobit) Trade(ctx context.Context, pair, orderType string, amount, price float64) (int64, error) {
+func (y *Exchange) Trade(ctx context.Context, pair, orderType string, amount, price float64) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", strings.ToLower(orderType))
@@ -130,7 +130,7 @@ func (y *Yobit) Trade(ctx context.Context, pair, orderType string, amount, price
 }
 
 // GetOpenOrders returns the active orders for a specific currency
-func (y *Yobit) GetOpenOrders(ctx context.Context, pair string) (map[string]ActiveOrders, error) {
+func (y *Exchange) GetOpenOrders(ctx context.Context, pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
@@ -140,7 +140,7 @@ func (y *Yobit) GetOpenOrders(ctx context.Context, pair string) (map[string]Acti
 }
 
 // GetOrderInformation returns the order info for a specific order ID
-func (y *Yobit) GetOrderInformation(ctx context.Context, orderID int64) (map[string]OrderInfo, error) {
+func (y *Exchange) GetOrderInformation(ctx context.Context, orderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
@@ -150,7 +150,7 @@ func (y *Yobit) GetOrderInformation(ctx context.Context, orderID int64) (map[str
 }
 
 // CancelExistingOrder cancels an order for a specific order ID
-func (y *Yobit) CancelExistingOrder(ctx context.Context, orderID int64) error {
+func (y *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
@@ -167,7 +167,7 @@ func (y *Yobit) CancelExistingOrder(ctx context.Context, orderID int64) error {
 }
 
 // GetTradeHistory returns the trade history
-func (y *Yobit) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
+func (y *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(tidFrom, 10))
 	req.Add("count", strconv.FormatInt(count, 10))
@@ -192,7 +192,7 @@ func (y *Yobit) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, sin
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency
-func (y *Yobit) GetCryptoDepositAddress(ctx context.Context, coin string, createNew bool) (*DepositAddress, error) {
+func (y *Exchange) GetCryptoDepositAddress(ctx context.Context, coin string, createNew bool) (*DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 	if createNew {
@@ -216,7 +216,7 @@ func (y *Yobit) GetCryptoDepositAddress(ctx context.Context, coin string, create
 }
 
 // WithdrawCoinsToAddress initiates a withdrawal to a specified address
-func (y *Yobit) WithdrawCoinsToAddress(ctx context.Context, coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
+func (y *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -235,7 +235,7 @@ func (y *Yobit) WithdrawCoinsToAddress(ctx context.Context, coin string, amount 
 }
 
 // CreateCoupon creates an exchange coupon for a specific currency
-func (y *Yobit) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
+func (y *Exchange) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
 	req := url.Values{}
 	req.Add("currency", currency)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -253,7 +253,7 @@ func (y *Yobit) CreateCoupon(ctx context.Context, currency string, amount float6
 }
 
 // RedeemCoupon redeems an exchange coupon
-func (y *Yobit) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, error) {
+func (y *Exchange) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, error) {
 	req := url.Values{}
 	req.Add("coupon", coupon)
 
@@ -270,7 +270,7 @@ func (y *Yobit) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, 
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (y *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := y.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -291,7 +291,7 @@ func (y *Yobit) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
-func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result any) (err error) {
+func (y *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result any) (err error) {
 	creds, err := y.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -336,7 +336,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (y *Yobit) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (y *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

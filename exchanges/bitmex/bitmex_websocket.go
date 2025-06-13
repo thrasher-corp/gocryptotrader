@@ -83,7 +83,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect initiates a new websocket connection
-func (b *Bitmex) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -113,7 +113,7 @@ const (
 )
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitmex) wsReadData() {
+func (b *Exchange) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -128,7 +128,7 @@ func (b *Bitmex) wsReadData() {
 	}
 }
 
-func (b *Bitmex) wsHandleData(respRaw []byte) error {
+func (b *Exchange) wsHandleData(respRaw []byte) error {
 	// We don't need to know about errors, since we're looking optimistically into the json
 	op, _ := jsonparser.GetString(respRaw, "request", "op")
 	errMsg, _ := jsonparser.GetString(respRaw, "error")
@@ -393,7 +393,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 }
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.Pair, a asset.Item) error {
+func (b *Exchange) processOrderbook(data []OrderBookL2, action string, p currency.Pair, a asset.Item) error {
 	if len(data) < 1 {
 		return errors.New("no orderbook data")
 	}
@@ -469,7 +469,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 	return nil
 }
 
-func (b *Bitmex) handleWsTrades(msg []byte) error {
+func (b *Exchange) handleWsTrades(msg []byte) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -508,19 +508,19 @@ func (b *Bitmex) handleWsTrades(msg []byte) error {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (b *Bitmex) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Bitmex) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName": channelName,
 	}).Parse(subTplText)
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(subs subscription.List) error {
+func (b *Exchange) Subscribe(subs subscription.List) error {
 	return common.AppendError(
 		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
 		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
@@ -528,14 +528,14 @@ func (b *Bitmex) Subscribe(subs subscription.List) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(subs subscription.List) error {
+func (b *Exchange) Unsubscribe(subs subscription.List) error {
 	return common.AppendError(
 		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
 		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
 	)
 }
 
-func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
+func (b *Exchange) manageSubs(op string, subs subscription.List) error {
 	req := WebsocketRequest{
 		Command: op,
 	}
@@ -573,7 +573,7 @@ func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
 }
 
 // WebsocketSendAuth sends an authenticated subscription
-func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
+func (b *Exchange) websocketSendAuth(ctx context.Context) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -605,7 +605,7 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 }
 
 // GetActionFromString matches a string action to an internal action.
-func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
+func (b *Exchange) GetActionFromString(s string) (orderbook.Action, error) {
 	switch s {
 	case "update":
 		return orderbook.Amend, nil

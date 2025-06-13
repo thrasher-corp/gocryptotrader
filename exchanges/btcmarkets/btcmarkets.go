@@ -94,26 +94,26 @@ const (
 	clientType         = "api"
 )
 
-// BTCMarkets is the overarching type across the BTCMarkets package
-type BTCMarkets struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with BTC Markets
+type Exchange struct {
 	exchange.Base
 }
 
 // GetMarkets returns the BTCMarkets instruments
-func (b *BTCMarkets) GetMarkets(ctx context.Context) ([]Market, error) {
+func (b *Exchange) GetMarkets(ctx context.Context) ([]Market, error) {
 	var resp []Market
 	return resp, b.SendHTTPRequest(ctx, btcMarketsUnauthPath, &resp)
 }
 
 // GetTicker returns a ticker
 // symbol - example "btc" or "ltc"
-func (b *BTCMarkets) GetTicker(ctx context.Context, marketID string) (Ticker, error) {
+func (b *Exchange) GetTicker(ctx context.Context, marketID string) (Ticker, error) {
 	var tick Ticker
 	return tick, b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketsGetTicker, &tick)
 }
 
 // GetTrades returns executed trades on the exchange
-func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, after, limit int64) ([]Trade, error) {
+func (b *Exchange) GetTrades(ctx context.Context, marketID string, before, after, limit int64) ([]Trade, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -137,7 +137,7 @@ func (b *BTCMarkets) GetTrades(ctx context.Context, marketID string, before, aft
 // 0 - Returns the top bids and ask orders only.
 // 1 - Returns top 50 bids and asks.
 // 2 - Returns full orderbook. WARNING: This is cached every 10 seconds.
-func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level int64) (*Orderbook, error) {
+func (b *Exchange) GetOrderbook(ctx context.Context, marketID string, level int64) (*Orderbook, error) {
 	params := url.Values{}
 	if level != 0 {
 		params.Set("level", strconv.FormatInt(level, 10))
@@ -167,7 +167,7 @@ func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level in
 }
 
 // GetMarketCandles gets candles for specified currency pair
-func (b *BTCMarkets) GetMarketCandles(ctx context.Context, marketID, timeWindow string, from, to time.Time, before, after, limit int64) (out []CandleResponse, err error) {
+func (b *Exchange) GetMarketCandles(ctx context.Context, marketID, timeWindow string, from, to time.Time, before, after, limit int64) (out []CandleResponse, err error) {
 	if (before > 0) && (after >= 0) {
 		return out, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -196,7 +196,7 @@ func (b *BTCMarkets) GetMarketCandles(ctx context.Context, marketID, timeWindow 
 }
 
 // GetTickers gets multiple tickers
-func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) ([]Ticker, error) {
+func (b *Exchange) GetTickers(ctx context.Context, marketIDs currency.Pairs) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
 	pFmt, err := b.GetPairFormat(asset.Spot, true)
@@ -211,7 +211,7 @@ func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) (
 }
 
 // GetMultipleOrderbooks gets orderbooks
-func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []string) ([]Orderbook, error) {
+func (b *Exchange) GetMultipleOrderbooks(ctx context.Context, marketIDs []string) ([]Orderbook, error) {
 	params := url.Values{}
 	for x := range marketIDs {
 		params.Add("marketId", marketIDs[x])
@@ -243,14 +243,14 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 }
 
 // GetCurrentServerTime gets time from btcmarkets
-func (b *BTCMarkets) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
+func (b *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var resp TimeResp
 	return resp.Time, b.SendHTTPRequest(ctx, btcMarketsAPIURL+btcMarketsAPIVersion+btcMarketsGetTime,
 		&resp)
 }
 
 // GetAccountBalance returns the full account balance
-func (b *BTCMarkets) GetAccountBalance(ctx context.Context) ([]AccountData, error) {
+func (b *Exchange) GetAccountBalance(ctx context.Context) ([]AccountData, error) {
 	var resp []AccountData
 	return resp,
 		b.SendAuthenticatedRequest(ctx, http.MethodGet,
@@ -261,7 +261,7 @@ func (b *BTCMarkets) GetAccountBalance(ctx context.Context) ([]AccountData, erro
 }
 
 // GetTradingFees returns trading fees for all pairs based on trading activity
-func (b *BTCMarkets) GetTradingFees(ctx context.Context) (TradingFeeResponse, error) {
+func (b *Exchange) GetTradingFees(ctx context.Context) (TradingFeeResponse, error) {
 	var resp TradingFeeResponse
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsTradingFees,
@@ -271,7 +271,7 @@ func (b *BTCMarkets) GetTradingFees(ctx context.Context) (TradingFeeResponse, er
 }
 
 // GetTradeHistory returns trade history
-func (b *BTCMarkets) GetTradeHistory(ctx context.Context, marketID, orderID string, before, after, limit int64) ([]TradeHistoryData, error) {
+func (b *Exchange) GetTradeHistory(ctx context.Context, marketID, orderID string, before, after, limit int64) ([]TradeHistoryData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -300,7 +300,7 @@ func (b *BTCMarkets) GetTradeHistory(ctx context.Context, marketID, orderID stri
 }
 
 // GetTradeByID returns the singular trade of the ID given
-func (b *BTCMarkets) GetTradeByID(ctx context.Context, id string) (TradeHistoryData, error) {
+func (b *Exchange) GetTradeByID(ctx context.Context, id string) (TradeHistoryData, error) {
 	var resp TradeHistoryData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsTradeHistory+"/"+id,
@@ -311,7 +311,7 @@ func (b *BTCMarkets) GetTradeByID(ctx context.Context, id string) (TradeHistoryD
 
 // formatOrderType conforms order type to the exchange acceptable order type
 // strings
-func (b *BTCMarkets) formatOrderType(o order.Type) (string, error) {
+func (b *Exchange) formatOrderType(o order.Type) (string, error) {
 	switch o {
 	case order.Limit:
 		return limit, nil
@@ -330,7 +330,7 @@ func (b *BTCMarkets) formatOrderType(o order.Type) (string, error) {
 
 // formatOrderSide conforms order side to the exchange acceptable order side
 // strings
-func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
+func (b *Exchange) formatOrderSide(o order.Side) (string, error) {
 	switch o {
 	case order.Ask:
 		return askSide, nil
@@ -342,7 +342,7 @@ func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
 }
 
 // getTimeInForce returns a string depending on the options in order.Submit
-func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
+func (b *Exchange) getTimeInForce(s *order.Submit) string {
 	if s.TimeInForce.Is(order.ImmediateOrCancel) || s.TimeInForce.Is(order.FillOrKill) {
 		return s.TimeInForce.String()
 	}
@@ -350,7 +350,7 @@ func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
 }
 
 // NewOrder requests a new order and returns an ID
-func (b *BTCMarkets) NewOrder(ctx context.Context, price, amount, triggerPrice, targetAmount float64, marketID, orderType, side, timeInForce, selfTrade, clientOrderID string, postOnly bool) (OrderData, error) {
+func (b *Exchange) NewOrder(ctx context.Context, price, amount, triggerPrice, targetAmount float64, marketID, orderType, side, timeInForce, selfTrade, clientOrderID string, postOnly bool) (OrderData, error) {
 	req := make(map[string]any)
 	req["marketId"] = marketID
 	if price != 0 {
@@ -386,7 +386,7 @@ func (b *BTCMarkets) NewOrder(ctx context.Context, price, amount, triggerPrice, 
 }
 
 // GetOrders returns current order information on the exchange
-func (b *BTCMarkets) GetOrders(ctx context.Context, marketID string, before, after, limit int64, openOnly bool) ([]OrderData, error) {
+func (b *Exchange) GetOrders(ctx context.Context, marketID string, before, after, limit int64, openOnly bool) ([]OrderData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -415,7 +415,7 @@ func (b *BTCMarkets) GetOrders(ctx context.Context, marketID string, before, aft
 }
 
 // CancelAllOpenOrdersByPairs cancels all open orders unless pairs are specified
-func (b *BTCMarkets) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs []string) ([]CancelOrderResp, error) {
+func (b *Exchange) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs []string) ([]CancelOrderResp, error) {
 	var resp []CancelOrderResp
 	req := make(map[string]any)
 	if len(marketIDs) > 0 {
@@ -433,7 +433,7 @@ func (b *BTCMarkets) CancelAllOpenOrdersByPairs(ctx context.Context, marketIDs [
 }
 
 // FetchOrder finds order based on the provided id
-func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (*OrderData, error) {
+func (b *Exchange) FetchOrder(ctx context.Context, id string) (*OrderData, error) {
 	var resp *OrderData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsOrders+"/"+id,
@@ -443,7 +443,7 @@ func (b *BTCMarkets) FetchOrder(ctx context.Context, id string) (*OrderData, err
 }
 
 // RemoveOrder removes a given order
-func (b *BTCMarkets) RemoveOrder(ctx context.Context, id string) (CancelOrderResp, error) {
+func (b *Exchange) RemoveOrder(ctx context.Context, id string) (CancelOrderResp, error) {
 	var resp CancelOrderResp
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodDelete,
 		btcMarketsOrders+"/"+id,
@@ -453,7 +453,7 @@ func (b *BTCMarkets) RemoveOrder(ctx context.Context, id string) (CancelOrderRes
 }
 
 // ReplaceOrder cancels an order and then places a new order.
-func (b *BTCMarkets) ReplaceOrder(ctx context.Context, id, clientOrderID string, price, amount float64) (*OrderData, error) {
+func (b *Exchange) ReplaceOrder(ctx context.Context, id, clientOrderID string, price, amount float64) (*OrderData, error) {
 	if price <= 0 {
 		return nil, fmt.Errorf("price %w", errInvalidAmount)
 	}
@@ -483,7 +483,7 @@ func (b *BTCMarkets) ReplaceOrder(ctx context.Context, id, clientOrderID string,
 }
 
 // ListWithdrawals lists the withdrawal history
-func (b *BTCMarkets) ListWithdrawals(ctx context.Context, before, after, limit int64) ([]TransferData, error) {
+func (b *Exchange) ListWithdrawals(ctx context.Context, before, after, limit int64) ([]TransferData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -506,7 +506,7 @@ func (b *BTCMarkets) ListWithdrawals(ctx context.Context, before, after, limit i
 }
 
 // GetWithdrawal gets withdrawawl info for a given id
-func (b *BTCMarkets) GetWithdrawal(ctx context.Context, id string) (TransferData, error) {
+func (b *Exchange) GetWithdrawal(ctx context.Context, id string) (TransferData, error) {
 	var resp TransferData
 	if id == "" {
 		return resp, errors.New("id cannot be an empty string")
@@ -519,7 +519,7 @@ func (b *BTCMarkets) GetWithdrawal(ctx context.Context, id string) (TransferData
 }
 
 // ListDeposits lists the deposit history
-func (b *BTCMarkets) ListDeposits(ctx context.Context, before, after, limit int64) ([]TransferData, error) {
+func (b *Exchange) ListDeposits(ctx context.Context, before, after, limit int64) ([]TransferData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -542,7 +542,7 @@ func (b *BTCMarkets) ListDeposits(ctx context.Context, before, after, limit int6
 }
 
 // GetDeposit gets deposit info for a given ID
-func (b *BTCMarkets) GetDeposit(ctx context.Context, id string) (TransferData, error) {
+func (b *Exchange) GetDeposit(ctx context.Context, id string) (TransferData, error) {
 	var resp TransferData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsDeposits+"/"+id,
@@ -552,7 +552,7 @@ func (b *BTCMarkets) GetDeposit(ctx context.Context, id string) (TransferData, e
 }
 
 // ListTransfers lists the past asset transfers
-func (b *BTCMarkets) ListTransfers(ctx context.Context, before, after, limit int64) ([]TransferData, error) {
+func (b *Exchange) ListTransfers(ctx context.Context, before, after, limit int64) ([]TransferData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -575,7 +575,7 @@ func (b *BTCMarkets) ListTransfers(ctx context.Context, before, after, limit int
 }
 
 // GetTransfer gets asset transfer info for a given ID
-func (b *BTCMarkets) GetTransfer(ctx context.Context, id string) (TransferData, error) {
+func (b *Exchange) GetTransfer(ctx context.Context, id string) (TransferData, error) {
 	var resp TransferData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsTransfers+"/"+id,
@@ -585,7 +585,7 @@ func (b *BTCMarkets) GetTransfer(ctx context.Context, id string) (TransferData, 
 }
 
 // FetchDepositAddress gets deposit address for the given asset
-func (b *BTCMarkets) FetchDepositAddress(ctx context.Context, curr currency.Code, before, after, limit int64) (*DepositAddress, error) {
+func (b *Exchange) FetchDepositAddress(ctx context.Context, curr currency.Code, before, after, limit int64) (*DepositAddress, error) {
 	var resp DepositAddress
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
@@ -622,14 +622,14 @@ func (b *BTCMarkets) FetchDepositAddress(ctx context.Context, curr currency.Code
 }
 
 // GetWithdrawalFees gets withdrawal fees for all assets
-func (b *BTCMarkets) GetWithdrawalFees(ctx context.Context) ([]WithdrawalFeeData, error) {
+func (b *Exchange) GetWithdrawalFees(ctx context.Context) ([]WithdrawalFeeData, error) {
 	var resp []WithdrawalFeeData
 	return resp, b.SendHTTPRequest(ctx, btcMarketsAPIURL+btcMarketsAPIVersion+btcMarketsWithdrawalFees,
 		&resp)
 }
 
 // ListAssets lists all available assets
-func (b *BTCMarkets) ListAssets(ctx context.Context) ([]AssetData, error) {
+func (b *Exchange) ListAssets(ctx context.Context) ([]AssetData, error) {
 	var resp []AssetData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsAssets,
@@ -639,7 +639,7 @@ func (b *BTCMarkets) ListAssets(ctx context.Context) ([]AssetData, error) {
 }
 
 // GetTransactions gets trading fees
-func (b *BTCMarkets) GetTransactions(ctx context.Context, assetName string, before, after, limit int64) ([]TransactionData, error) {
+func (b *Exchange) GetTransactions(ctx context.Context, assetName string, before, after, limit int64) ([]TransactionData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -665,7 +665,7 @@ func (b *BTCMarkets) GetTransactions(ctx context.Context, assetName string, befo
 }
 
 // CreateNewReport creates a new report
-func (b *BTCMarkets) CreateNewReport(ctx context.Context, reportType, format string) (CreateReportResp, error) {
+func (b *Exchange) CreateNewReport(ctx context.Context, reportType, format string) (CreateReportResp, error) {
 	var resp CreateReportResp
 	req := make(map[string]any)
 	req["type"] = reportType
@@ -678,7 +678,7 @@ func (b *BTCMarkets) CreateNewReport(ctx context.Context, reportType, format str
 }
 
 // GetReport finds details bout a past report
-func (b *BTCMarkets) GetReport(ctx context.Context, reportID string) (ReportData, error) {
+func (b *Exchange) GetReport(ctx context.Context, reportID string) (ReportData, error) {
 	var resp ReportData
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodGet,
 		btcMarketsReports+"/"+reportID,
@@ -688,7 +688,7 @@ func (b *BTCMarkets) GetReport(ctx context.Context, reportID string) (ReportData
 }
 
 // RequestWithdraw requests withdrawals
-func (b *BTCMarkets) RequestWithdraw(ctx context.Context, assetName string, amount float64,
+func (b *Exchange) RequestWithdraw(ctx context.Context, assetName string, amount float64,
 	toAddress, accountName, accountNumber, bsbNumber, bankName string,
 ) (TransferData, error) {
 	var resp TransferData
@@ -719,7 +719,7 @@ func (b *BTCMarkets) RequestWithdraw(ctx context.Context, assetName string, amou
 }
 
 // BatchPlaceCancelOrders places and cancels batch orders
-func (b *BTCMarkets) BatchPlaceCancelOrders(ctx context.Context, cancelOrders []CancelBatch, placeOrders []PlaceBatch) (*BatchPlaceCancelResponse, error) {
+func (b *Exchange) BatchPlaceCancelOrders(ctx context.Context, cancelOrders []CancelBatch, placeOrders []PlaceBatch) (*BatchPlaceCancelResponse, error) {
 	numActions := len(cancelOrders) + len(placeOrders)
 	if numActions > 4 {
 		return nil, errors.New("BTCMarkets can only handle 4 orders at a time")
@@ -744,7 +744,7 @@ func (b *BTCMarkets) BatchPlaceCancelOrders(ctx context.Context, cancelOrders []
 }
 
 // GetBatchTrades gets batch trades
-func (b *BTCMarkets) GetBatchTrades(ctx context.Context, ids []string) (BatchTradeResponse, error) {
+func (b *Exchange) GetBatchTrades(ctx context.Context, ids []string) (BatchTradeResponse, error) {
 	var resp BatchTradeResponse
 	if len(ids) > 50 {
 		return resp, errors.New("batchtrades can only handle 50 ids at a time")
@@ -758,7 +758,7 @@ func (b *BTCMarkets) GetBatchTrades(ctx context.Context, ids []string) (BatchTra
 }
 
 // CancelBatch cancels given ids
-func (b *BTCMarkets) CancelBatch(ctx context.Context, ids []string) (BatchCancelResponse, error) {
+func (b *Exchange) CancelBatch(ctx context.Context, ids []string) (BatchCancelResponse, error) {
 	var resp BatchCancelResponse
 	marketIDs := strings.Join(ids, ",")
 	return resp, b.SendAuthenticatedRequest(ctx, http.MethodDelete,
@@ -769,7 +769,7 @@ func (b *BTCMarkets) CancelBatch(ctx context.Context, ids []string) (BatchCancel
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result any) error {
+func (b *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
@@ -784,7 +784,7 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result an
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path string, data, result any, f request.EndpointLimit) (err error) {
+func (b *Exchange) SendAuthenticatedRequest(ctx context.Context, method, path string, data, result any, f request.EndpointLimit) (err error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -842,7 +842,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTCMarkets) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {

@@ -28,7 +28,6 @@ const (
 type exchange struct {
 	Name        string
 	CapitalName string
-	Variable    string
 	REST        bool
 	WS          bool
 	FIX         bool
@@ -105,14 +104,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("GoCryptoTrader: Exchange templating tool service complete")
-	fmt.Println("When the exchange code implementation has been completed (REST/Websocket/wrappers and tests), please add the exchange to engine/exchange.go")
-	fmt.Println("Add the exchange config settings to config_example.json (it will automatically be added to testdata/configtest.json)")
-	fmt.Println("Increment the available exchanges counter in config/config_test.go")
-	fmt.Println("Add the exchange name to exchanges/support.go")
-	fmt.Println("Ensure go test ./... -race passes")
-	fmt.Println("Open a pull request")
-	fmt.Println("If help is needed, please post a message in Slack.")
+	fmt.Println(`GoCryptoTrader: Exchange templating tool service complete
+Add appropriate exchange config settings, particularly enabled and available assets and pairs, to config_example.json for proper functionality (it has been automatically be added to testdata/configtest.json)
+When the exchange code implementation has been completed (REST/Websocket/wrappers and tests), please add the exchange to engine/exchange.go
+Increment the available exchanges counter in config/config_test.go
+Add the exchange name to exchanges/support.go
+Ensure go test ./... -race passes
+Open a pull request
+If help is needed, please post a message in Slack.`)
 }
 
 func checkExchangeName(exchName string) error {
@@ -147,7 +146,6 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
 	exch.CapitalName = cases.Title(language.English).String(exch.Name)
-	exch.Variable = exch.Name[0:2]
 	newExchConfig := &config.Exchange{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true

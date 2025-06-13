@@ -44,7 +44,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (bi *Binanceus) WsConnect() error {
+func (bi *Exchange) WsConnect() error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -97,7 +97,7 @@ func (bi *Binanceus) WsConnect() error {
 
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
-func (bi *Binanceus) KeepAuthKeyAlive() {
+func (bi *Exchange) KeepAuthKeyAlive() {
 	defer bi.Websocket.Wg.Done()
 	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
 	defer func() {
@@ -125,7 +125,7 @@ func (bi *Binanceus) KeepAuthKeyAlive() {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (bi *Binanceus) wsReadData() {
+func (bi *Exchange) wsReadData() {
 	defer bi.Websocket.Wg.Done()
 
 	for {
@@ -161,7 +161,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-func (bi *Binanceus) wsHandleData(respRaw []byte) error {
+func (bi *Exchange) wsHandleData(respRaw []byte) error {
 	var multiStreamData map[string]any
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -490,7 +490,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
+func (bi *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	enabledPairs, err := bi.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return false, err
@@ -526,7 +526,7 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (bi *Binanceus) GenerateSubscriptions() (subscription.List, error) {
+func (bi *Exchange) GenerateSubscriptions() (subscription.List, error) {
 	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 
@@ -556,7 +556,7 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
+func (bi *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -580,7 +580,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe subscription.List) error {
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+func (bi *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	payload := WebsocketPayload{
 		Method: "UNSUBSCRIBE",
 	}
@@ -603,7 +603,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe subscription.List) error 
 	return bi.Websocket.RemoveSubscriptions(bi.Websocket.Conn, channelsToUnsubscribe...)
 }
 
-func (bi *Binanceus) setupOrderbookManager() {
+func (bi *Exchange) setupOrderbookManager() {
 	if bi.obm == nil {
 		bi.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
@@ -628,7 +628,7 @@ func (bi *Binanceus) setupOrderbookManager() {
 }
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair asset
-func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
+func (bi *Exchange) SynchroniseWebsocketOrderbook() {
 	bi.Websocket.Wg.Add(1)
 	go func() {
 		defer bi.Websocket.Wg.Done()
@@ -655,7 +655,7 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 }
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
-func (bi *Binanceus) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
+func (bi *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, wsDSUpdate *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Tranche, len(wsDSUpdate.UpdateBids))
 	for i := range wsDSUpdate.UpdateBids {
 		updateBid[i].Price = wsDSUpdate.UpdateBids[i][0].Float64()
@@ -705,7 +705,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (bi *Binanceus) applyBufferUpdate(pair currency.Pair) error {
+func (bi *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	fetching, needsFetching, err := bi.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
@@ -767,7 +767,7 @@ func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
 }
 
 // processJob fetches and processes orderbook updates
-func (bi *Binanceus) processJob(p currency.Pair) error {
+func (bi *Exchange) processJob(p currency.Pair) error {
 	err := bi.SeedLocalCache(context.TODO(), p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
@@ -790,7 +790,7 @@ func (bi *Binanceus) processJob(p currency.Pair) error {
 }
 
 // SeedLocalCache seeds depth data
-func (bi *Binanceus) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+func (bi *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	ob, err := bi.GetOrderBookDepth(ctx,
 		&OrderBookDataRequestParams{
 			Symbol: p,
@@ -803,7 +803,7 @@ func (bi *Binanceus) SeedLocalCache(ctx context.Context, p currency.Pair) error 
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
+func (bi *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Base{
 		Pair:            p,
 		Asset:           asset.Spot,
@@ -856,7 +856,7 @@ func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, nee
 }
 
 // flushAndCleanup flushes orderbook and clean local cache
-func (bi *Binanceus) flushAndCleanup(p currency.Pair) {
+func (bi *Exchange) flushAndCleanup(p currency.Pair) {
 	errClean := bi.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
 	if errClean != nil {
 		log.Errorf(log.WebsocketMgr,

@@ -18,7 +18,7 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	b = new(Bybit)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
 	}

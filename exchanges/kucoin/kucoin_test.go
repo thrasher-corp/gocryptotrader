@@ -45,13 +45,13 @@ const (
 )
 
 var (
-	ku                                                        *Kucoin
+	ku                                                        *Exchange
 	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 	assertToTradablePairMap                                   map[asset.Item]currency.Pair
 )
 
 func TestMain(m *testing.M) {
-	ku = new(Kucoin)
+	ku = new(Exchange)
 	if err := testexch.Setup(ku); err != nil {
 		log.Fatal(err)
 	}
@@ -2490,7 +2490,7 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := &Kucoin{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := &Exchange{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 		Base: exchange.Base{
 			Config: &config.Exchange{
 				Features: &config.FeaturesConfig{
@@ -4076,9 +4076,9 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 }
 
 // testInstance returns a local Kucoin for isolated testing
-func testInstance(tb testing.TB) *Kucoin {
+func testInstance(tb testing.TB) *Exchange {
 	tb.Helper()
-	kucoin := new(Kucoin)
+	kucoin := new(Exchange)
 	require.NoError(tb, testexch.Setup(kucoin), "Test instance Setup must not error")
 	kucoin.obm = &orderbookManager{
 		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),

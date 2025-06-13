@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	e        = &EXMO{}
+	e        = &Exchange{}
 	testPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
 )
 

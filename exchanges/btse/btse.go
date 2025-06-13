@@ -21,8 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// BTSE is the overarching type across this package
-type BTSE struct {
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with BTSE
+type Exchange struct {
 	exchange.Base
 }
 
@@ -60,7 +60,7 @@ const (
 )
 
 // FetchFundingHistory gets funding history
-func (b *BTSE) FetchFundingHistory(ctx context.Context, symbol string) (map[string][]FundingHistoryData, error) {
+func (b *Exchange) FetchFundingHistory(ctx context.Context, symbol string) (map[string][]FundingHistoryData, error) {
 	var resp map[string][]FundingHistoryData
 	params := url.Values{}
 	if symbol != "" {
@@ -71,7 +71,7 @@ func (b *BTSE) FetchFundingHistory(ctx context.Context, symbol string) (map[stri
 
 // GetRawMarketSummary returns an unfiltered list of market pairs
 // Consider using the wrapper function GetMarketSummary instead
-func (b *BTSE) GetRawMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
+func (b *Exchange) GetRawMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
 	var m MarketSummary
 	path := btseMarketOverview
 	if symbol != "" {
@@ -81,7 +81,7 @@ func (b *BTSE) GetRawMarketSummary(ctx context.Context, symbol string, spot bool
 }
 
 // FetchOrderbook gets orderbook data for a given symbol
-func (b *BTSE) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
+func (b *Exchange) FetchOrderbook(ctx context.Context, symbol string, group, limitBids, limitAsks int, spot bool) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -99,7 +99,7 @@ func (b *BTSE) FetchOrderbook(ctx context.Context, symbol string, group, limitBi
 }
 
 // FetchOrderbookL2 retrieve level 2 orderbook for requested symbol and depth
-func (b *BTSE) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
+func (b *Exchange) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (*Orderbook, error) {
 	var o Orderbook
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -109,7 +109,7 @@ func (b *BTSE) FetchOrderbookL2(ctx context.Context, symbol string, depth int) (
 }
 
 // GetTrades returns a list of trades for the specified symbol
-func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
+func (b *Exchange) GetTrades(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld, spot bool) ([]Trade, error) {
 	var t []Trade
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -139,7 +139,7 @@ func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Tim
 }
 
 // GetOHLCV retrieve and return OHLCV candle data for requested symbol
-func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
+func (b *Exchange) GetOHLCV(ctx context.Context, symbol string, start, end time.Time, resolution int, a asset.Item) (OHLCV, error) {
 	var o OHLCV
 	urlValues := url.Values{}
 	urlValues.Add("symbol", symbol)
@@ -162,26 +162,26 @@ func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time
 }
 
 // GetPrice get current price for requested symbol
-func (b *BTSE) GetPrice(ctx context.Context, symbol string) (Price, error) {
+func (b *Exchange) GetPrice(ctx context.Context, symbol string) (Price, error) {
 	var p Price
 	path := btsePrice + "?symbol=" + url.QueryEscape(symbol)
 	return p, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, &p, true, queryFunc)
 }
 
 // GetCurrentServerTime returns the exchanges server time
-func (b *BTSE) GetCurrentServerTime(ctx context.Context) (*ServerTime, error) {
+func (b *Exchange) GetCurrentServerTime(ctx context.Context) (*ServerTime, error) {
 	var s ServerTime
 	return &s, b.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseTime, &s, true, queryFunc)
 }
 
 // GetWalletInformation returns the users account balance
-func (b *BTSE) GetWalletInformation(ctx context.Context) ([]CurrencyBalance, error) {
+func (b *Exchange) GetWalletInformation(ctx context.Context) ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
 	return a, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, btseWallet, true, nil, nil, &a, queryFunc)
 }
 
 // GetFeeInformation retrieve fee's (maker/taker) for requested symbol
-func (b *BTSE) GetFeeInformation(ctx context.Context, symbol string) ([]AccountFees, error) {
+func (b *Exchange) GetFeeInformation(ctx context.Context, symbol string) ([]AccountFees, error) {
 	var resp []AccountFees
 	urlValues := url.Values{}
 	if symbol != "" {
@@ -191,7 +191,7 @@ func (b *BTSE) GetFeeInformation(ctx context.Context, symbol string) ([]AccountF
 }
 
 // GetWalletHistory returns the users account balance
-func (b *BTSE) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count int) (WalletHistory, error) {
+func (b *Exchange) GetWalletHistory(ctx context.Context, symbol string, start, end time.Time, count int) (WalletHistory, error) {
 	var resp WalletHistory
 
 	urlValues := url.Values{}
@@ -212,7 +212,7 @@ func (b *BTSE) GetWalletHistory(ctx context.Context, symbol string, start, end t
 }
 
 // GetWalletAddress returns the users account balance
-func (b *BTSE) GetWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
+func (b *Exchange) GetWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
 	var resp WalletAddress
 
 	urlValues := url.Values{}
@@ -224,7 +224,7 @@ func (b *BTSE) GetWalletAddress(ctx context.Context, currency string) (WalletAdd
 }
 
 // CreateWalletAddress create new deposit address for requested currency
-func (b *BTSE) CreateWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
+func (b *Exchange) CreateWalletAddress(ctx context.Context, currency string) (WalletAddress, error) {
 	var resp WalletAddress
 	req := make(map[string]any, 1)
 	req["currency"] = currency
@@ -251,7 +251,7 @@ func (b *BTSE) CreateWalletAddress(ctx context.Context, currency string) (Wallet
 }
 
 // WalletWithdrawal submit request to withdraw crypto currency
-func (b *BTSE) WalletWithdrawal(ctx context.Context, currency, address, tag, amount string) (WithdrawalResponse, error) {
+func (b *Exchange) WalletWithdrawal(ctx context.Context, currency, address, tag, amount string) (WithdrawalResponse, error) {
 	var resp WithdrawalResponse
 	req := make(map[string]any, 4)
 	req["currency"] = currency
@@ -262,7 +262,7 @@ func (b *BTSE) WalletWithdrawal(ctx context.Context, currency, address, tag, amo
 }
 
 // CreateOrder creates an order
-func (b *BTSE) CreateOrder(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
+func (b *Exchange) CreateOrder(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	req := make(map[string]any)
 	if clOrderID != "" {
 		req["clOrderID"] = clOrderID
@@ -312,7 +312,7 @@ func (b *BTSE) CreateOrder(ctx context.Context, clOrderID string, deviation floa
 }
 
 // GetOrders returns all pending orders
-func (b *BTSE) GetOrders(ctx context.Context, symbol, orderID, clOrderID string) ([]OpenOrder, error) {
+func (b *Exchange) GetOrders(ctx context.Context, symbol, orderID, clOrderID string) ([]OpenOrder, error) {
 	req := url.Values{}
 	if orderID != "" {
 		req.Add("orderID", orderID)
@@ -326,7 +326,7 @@ func (b *BTSE) GetOrders(ctx context.Context, symbol, orderID, clOrderID string)
 }
 
 // CancelExistingOrder cancels an order
-func (b *BTSE) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrderID string) (CancelOrder, error) {
+func (b *Exchange) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrderID string) (CancelOrder, error) {
 	var c CancelOrder
 	req := url.Values{}
 	if orderID != "" {
@@ -341,14 +341,14 @@ func (b *BTSE) CancelExistingOrder(ctx context.Context, orderID, symbol, clOrder
 }
 
 // CancelAllAfter cancels all orders after timeout
-func (b *BTSE) CancelAllAfter(ctx context.Context, timeout int) error {
+func (b *Exchange) CancelAllAfter(ctx context.Context, timeout int) error {
 	req := make(map[string]any)
 	req["timeout"] = timeout
 	return b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseCancelAllAfter, true, url.Values{}, req, nil, orderFunc)
 }
 
 // IndexOrderPeg create peg order that will track a certain percentage above/below the index price
-func (b *BTSE) IndexOrderPeg(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
+func (b *Exchange) IndexOrderPeg(ctx context.Context, clOrderID string, deviation float64, postOnly bool, price float64, side string, size, stealth, stopPrice float64, symbol, timeInForce string, trailValue, triggerPrice float64, txType, orderType string) ([]Order, error) {
 	var o []Order
 	req := make(map[string]any)
 	if clOrderID != "" {
@@ -398,7 +398,7 @@ func (b *BTSE) IndexOrderPeg(ctx context.Context, clOrderID string, deviation fl
 }
 
 // TradeHistory returns previous trades on exchange
-func (b *BTSE) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
+func (b *Exchange) TradeHistory(ctx context.Context, symbol string, start, end time.Time, beforeSerialID, afterSerialID, count int, includeOld bool, clOrderID, orderID string) (TradeHistory, error) {
 	var resp TradeHistory
 	urlValues := url.Values{}
 	if symbol != "" {
@@ -433,7 +433,7 @@ func (b *BTSE) TradeHistory(ctx context.Context, symbol string, start, end time.
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, result any, spotEndpoint bool, f request.EndpointLimit) error {
+func (b *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, result any, spotEndpoint bool, f request.EndpointLimit) error {
 	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -456,7 +456,7 @@ func (b *BTSE) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, end
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]any, result any, f request.EndpointLimit) error {
+func (b *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]any, result any, f request.EndpointLimit) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -534,7 +534,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (b *BTSE) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (b *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 
 	switch feeBuilder.FeeType {
@@ -595,7 +595,7 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 }
 
 // calculateTradingFee return fee based on users current fee tier or default values
-func (b *BTSE) calculateTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) float64 {
+func (b *Exchange) calculateTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) float64 {
 	formattedPair, err := b.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
 	if err != nil {
 		if feeBuilder.IsMaker {

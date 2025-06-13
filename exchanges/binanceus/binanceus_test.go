@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	bi              = &Binanceus{}
+	bi              = &Exchange{}
 	testPairMapping = currency.NewBTCUSDT()
 	// this lock guards against orderbook tests race
 	binanceusOrderBookLock = &sync.Mutex{}

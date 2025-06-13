@@ -54,7 +54,7 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect connects to a websocket feed
-func (b *BTCMarkets) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -73,7 +73,7 @@ func (b *BTCMarkets) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *BTCMarkets) wsReadData() {
+func (b *Exchange) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -104,7 +104,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
+func (b *Exchange) wsHandleData(respRaw []byte) error {
 	var wsResponse WsMessageType
 	err := json.Unmarshal(respRaw, &wsResponse)
 	if err != nil {
@@ -311,17 +311,17 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *BTCMarkets) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(subs subscription.List) error {
+func (b *Exchange) Subscribe(subs subscription.List) error {
 	baseReq := &WsSubscribe{
 		MessageType: subscribe,
 	}
@@ -363,7 +363,7 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 	return errs
 }
 
-func (b *BTCMarkets) signWsReq(r *WsSubscribe) error {
+func (b *Exchange) signWsReq(r *WsSubscribe) error {
 	creds, err := b.GetCredentials(context.TODO())
 	if err != nil {
 		return err
@@ -380,7 +380,7 @@ func (b *BTCMarkets) signWsReq(r *WsSubscribe) error {
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
-func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
+func (b *Exchange) Unsubscribe(subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
 		req := WsSubscribe{
@@ -403,7 +403,7 @@ func (b *BTCMarkets) Unsubscribe(subs subscription.List) error {
 
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes
 // again to fetch a new snapshot in the event of a de-sync event.
-func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
+func (b *Exchange) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	sub := subscription.List{{
 		Channel: wsOrderbookUpdate,
 		Pairs:   currency.Pairs{pair},

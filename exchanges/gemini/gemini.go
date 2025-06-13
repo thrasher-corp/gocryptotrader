@@ -51,17 +51,17 @@ const (
 	geminiTransfers          = "transfers"
 )
 
-// Gemini is the overarching type across the Gemini package, create multiple
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Gemini, create multiple
 // instances with differing APIkeys for segregation of roles for authenticated
 // requests & sessions by appending new sessions to the Session map using
 // AddSession. If sandbox test is needed, append a new session with the same
 // API keys and change the IsSandbox variable to true.
-type Gemini struct {
+type Exchange struct {
 	exchange.Base
 }
 
 // GetSymbols returns all available symbols for trading
-func (g *Gemini) GetSymbols(ctx context.Context) ([]string, error) {
+func (g *Exchange) GetSymbols(ctx context.Context) ([]string, error) {
 	var symbols []string
 	path := fmt.Sprintf("/v%s/%s", geminiAPIVersion, geminiSymbols)
 	return symbols, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &symbols)
@@ -69,7 +69,7 @@ func (g *Gemini) GetSymbols(ctx context.Context) ([]string, error) {
 
 // GetSymbolDetails returns extra symbol details
 // use symbol "all" to get everything
-func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolDetails, error) {
+func (g *Exchange) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolDetails, error) {
 	if symbol == "all" {
 		var details []SymbolDetails
 		return details, g.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+geminiAPIVersion+"/"+geminiSymbolDetails+"/"+symbol, &details)
@@ -83,7 +83,7 @@ func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolD
 }
 
 // GetTicker returns information about recent trading activity for the symbol
-func (g *Gemini) GetTicker(ctx context.Context, currencyPair string) (TickerV2, error) {
+func (g *Exchange) GetTicker(ctx context.Context, currencyPair string) (TickerV2, error) {
 	ticker := TickerV2{}
 	path := "/v2/ticker/" + currencyPair
 	err := g.SendHTTPRequest(ctx, exchange.RestSpot, path, &ticker)
@@ -105,7 +105,7 @@ func (g *Gemini) GetTicker(ctx context.Context, currencyPair string) (TickerV2, 
 //
 // params - limit_bids or limit_asks [OPTIONAL] default 50, 0 returns all Values
 // Type is an integer ie "params.Set("limit_asks", 30)"
-func (g *Gemini) GetOrderbook(ctx context.Context, currencyPair string, params url.Values) (*Orderbook, error) {
+func (g *Exchange) GetOrderbook(ctx context.Context, currencyPair string, params url.Values) (*Orderbook, error) {
 	path := common.EncodeURLValues(
 		fmt.Sprintf("/v%s/%s/%s",
 			geminiAPIVersion,
@@ -126,7 +126,7 @@ func (g *Gemini) GetOrderbook(ctx context.Context, currencyPair string, params u
 // limit_trades	integer	Optional. The maximum number of trades to return.
 // include_breaks	boolean	Optional. Whether to display broken trades. False by
 // default. Can be '1' or 'true' to activate
-func (g *Gemini) GetTrades(ctx context.Context, currencyPair string, since, limit int64, includeBreaks bool) ([]Trade, error) {
+func (g *Exchange) GetTrades(ctx context.Context, currencyPair string, since, limit int64, includeBreaks bool) ([]Trade, error) {
 	params := url.Values{}
 	if since > 0 {
 		params.Add("since", strconv.FormatInt(since, 10))
@@ -144,7 +144,7 @@ func (g *Gemini) GetTrades(ctx context.Context, currencyPair string, since, limi
 }
 
 // GetAuction returns auction information
-func (g *Gemini) GetAuction(ctx context.Context, currencyPair string) (Auction, error) {
+func (g *Exchange) GetAuction(ctx context.Context, currencyPair string) (Auction, error) {
 	path := fmt.Sprintf("/v%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair)
 	auction := Auction{}
 
@@ -168,7 +168,7 @@ func (g *Gemini) GetAuction(ctx context.Context, currencyPair string) (Auction, 
 //	include_indicative - [bool] Whether to include publication of
 //
 // indicative prices and quantities.
-func (g *Gemini) GetAuctionHistory(ctx context.Context, currencyPair string, params url.Values) ([]AuctionHistory, error) {
+func (g *Exchange) GetAuctionHistory(ctx context.Context, currencyPair string, params url.Values) ([]AuctionHistory, error) {
 	path := common.EncodeURLValues(fmt.Sprintf("/v%s/%s/%s/%s", geminiAPIVersion, geminiAuction, currencyPair, geminiAuctionHistory), params)
 	var auctionHist []AuctionHistory
 	return auctionHist, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &auctionHist)
@@ -176,7 +176,7 @@ func (g *Gemini) GetAuctionHistory(ctx context.Context, currencyPair string, par
 
 // NewOrder Only limit orders are supported through the API at present.
 // returns order ID if successful
-func (g *Gemini) NewOrder(ctx context.Context, symbol string, amount, price float64, side, orderType string) (int64, error) {
+func (g *Exchange) NewOrder(ctx context.Context, symbol string, amount, price float64, side, orderType string) (int64, error) {
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
@@ -193,7 +193,7 @@ func (g *Gemini) NewOrder(ctx context.Context, symbol string, amount, price floa
 }
 
 // Transfers returns transfer history ie withdrawals and deposits
-func (g *Gemini) Transfers(ctx context.Context, curr currency.Code, start time.Time, limit int64, account string, showCompletedDeposit bool) ([]TransferResponse, error) {
+func (g *Exchange) Transfers(ctx context.Context, curr currency.Code, start time.Time, limit int64, account string, showCompletedDeposit bool) ([]TransferResponse, error) {
 	req := make(map[string]any)
 	if !curr.IsEmpty() {
 		req["symbol"] = curr.String()
@@ -217,7 +217,7 @@ func (g *Gemini) Transfers(ctx context.Context, curr currency.Code, start time.T
 
 // CancelExistingOrder will cancel an order. If the order is already canceled, the
 // message will succeed but have no effect.
-func (g *Gemini) CancelExistingOrder(ctx context.Context, orderID int64) (Order, error) {
+func (g *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (Order, error) {
 	req := make(map[string]any)
 	req["order_id"] = orderID
 
@@ -237,7 +237,7 @@ func (g *Gemini) CancelExistingOrder(ctx context.Context, orderID int64) (Order,
 // sessions owned by this account, including interactive orders placed through
 // the UI. If sessions = true will only cancel the order that is called on this
 // session associated with the APIKEY
-func (g *Gemini) CancelExistingOrders(ctx context.Context, cancelBySession bool) (OrderResult, error) {
+func (g *Exchange) CancelExistingOrders(ctx context.Context, cancelBySession bool) (OrderResult, error) {
 	path := geminiOrderCancelAll
 	if cancelBySession {
 		path = geminiOrderCancelSession
@@ -255,7 +255,7 @@ func (g *Gemini) CancelExistingOrders(ctx context.Context, cancelBySession bool)
 }
 
 // GetOrderStatus returns the status for an order
-func (g *Gemini) GetOrderStatus(ctx context.Context, orderID int64) (Order, error) {
+func (g *Exchange) GetOrderStatus(ctx context.Context, orderID int64) (Order, error) {
 	req := make(map[string]any)
 	req["order_id"] = orderID
 
@@ -273,7 +273,7 @@ func (g *Gemini) GetOrderStatus(ctx context.Context, orderID int64) (Order, erro
 }
 
 // GetOrders returns active orders in the market
-func (g *Gemini) GetOrders(ctx context.Context) ([]Order, error) {
+func (g *Exchange) GetOrders(ctx context.Context) ([]Order, error) {
 	var response any
 
 	type orders struct {
@@ -297,7 +297,7 @@ func (g *Gemini) GetOrders(ctx context.Context) ([]Order, error) {
 //
 // currencyPair - example "btcusd"
 // timestamp - [optional] Only return trades on or after this timestamp.
-func (g *Gemini) GetTradeHistory(ctx context.Context, currencyPair string, timestamp int64) ([]TradeHistory, error) {
+func (g *Exchange) GetTradeHistory(ctx context.Context, currencyPair string, timestamp int64) ([]TradeHistory, error) {
 	var response []TradeHistory
 	req := make(map[string]any)
 	req["symbol"] = currencyPair
@@ -311,7 +311,7 @@ func (g *Gemini) GetTradeHistory(ctx context.Context, currencyPair string, times
 }
 
 // GetNotionalVolume returns  the volume in price currency that has been traded across all pairs over a period of 30 days
-func (g *Gemini) GetNotionalVolume(ctx context.Context) (NotionalVolume, error) {
+func (g *Exchange) GetNotionalVolume(ctx context.Context) (NotionalVolume, error) {
 	response := NotionalVolume{}
 
 	return response,
@@ -319,7 +319,7 @@ func (g *Gemini) GetNotionalVolume(ctx context.Context) (NotionalVolume, error) 
 }
 
 // GetTradeVolume returns a multi-arrayed volume response
-func (g *Gemini) GetTradeVolume(ctx context.Context) ([][]TradeVolume, error) {
+func (g *Exchange) GetTradeVolume(ctx context.Context) ([][]TradeVolume, error) {
 	var response [][]TradeVolume
 
 	return response,
@@ -327,7 +327,7 @@ func (g *Gemini) GetTradeVolume(ctx context.Context) ([][]TradeVolume, error) {
 }
 
 // GetBalances returns available balances in the supported currencies
-func (g *Gemini) GetBalances(ctx context.Context) ([]Balance, error) {
+func (g *Exchange) GetBalances(ctx context.Context) ([]Balance, error) {
 	var response []Balance
 
 	return response,
@@ -335,7 +335,7 @@ func (g *Gemini) GetBalances(ctx context.Context) ([]Balance, error) {
 }
 
 // GetCryptoDepositAddress returns a deposit address
-func (g *Gemini) GetCryptoDepositAddress(ctx context.Context, depositAddlabel, currency string) (DepositAddress, error) {
+func (g *Exchange) GetCryptoDepositAddress(ctx context.Context, depositAddlabel, currency string) (DepositAddress, error) {
 	response := DepositAddress{}
 	req := make(map[string]any)
 
@@ -354,7 +354,7 @@ func (g *Gemini) GetCryptoDepositAddress(ctx context.Context, depositAddlabel, c
 }
 
 // WithdrawCrypto withdraws crypto currency to a whitelisted address
-func (g *Gemini) WithdrawCrypto(ctx context.Context, address, currency string, amount float64) (WithdrawalAddress, error) {
+func (g *Exchange) WithdrawCrypto(ctx context.Context, address, currency string, amount float64) (WithdrawalAddress, error) {
 	response := WithdrawalAddress{}
 	req := make(map[string]any)
 	req["address"] = address
@@ -372,7 +372,7 @@ func (g *Gemini) WithdrawCrypto(ctx context.Context, address, currency string, a
 
 // PostHeartbeat sends a maintenance heartbeat to the exchange for all heartbeat
 // maintained sessions
-func (g *Gemini) PostHeartbeat(ctx context.Context) (string, error) {
+func (g *Exchange) PostHeartbeat(ctx context.Context) (string, error) {
 	type Response struct {
 		Result  string `json:"result"`
 		Message string `json:"message"`
@@ -390,7 +390,7 @@ func (g *Gemini) PostHeartbeat(ctx context.Context) (string, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (g *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
 	endpoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -412,7 +412,7 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the
 // exchange and returns an error
-func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]any, result any) (err error) {
+func (g *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]any, result any) (err error) {
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -463,7 +463,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (g *Gemini) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (g *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
