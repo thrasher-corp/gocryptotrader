@@ -16,12 +16,13 @@ import (
 
 // WsOptionsConnect connects to options a websocket feed
 func (by *Bybit) WsOptionsConnect() error {
+	ctx := context.TODO()
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Options) {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(optionPublic)
 	var dialer gws.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -37,7 +38,7 @@ func (by *Bybit) WsOptionsConnect() error {
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Options, by.Websocket.Conn)
+	go by.wsReadData(ctx, asset.Options, by.Websocket.Conn)
 	return nil
 }
 
@@ -64,15 +65,17 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 
 // OptionSubscribe sends a subscription message to options public channels.
 func (by *Bybit) OptionSubscribe(channelSubscriptions subscription.List) error {
-	return by.handleOptionsPayloadSubscription("subscribe", channelSubscriptions)
+	ctx := context.TODO()
+	return by.handleOptionsPayloadSubscription(ctx, "subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
 func (by *Bybit) OptionUnsubscribe(channelSubscriptions subscription.List) error {
-	return by.handleOptionsPayloadSubscription("unsubscribe", channelSubscriptions)
+	ctx := context.TODO()
+	return by.handleOptionsPayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
+func (by *Bybit) handleOptionsPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err
@@ -80,7 +83,7 @@ func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubsc
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, payloads[a])
+		err = by.Websocket.Conn.SendJSONMessage(ctx, request.Unset, payloads[a])
 		if err != nil {
 			return err
 		}

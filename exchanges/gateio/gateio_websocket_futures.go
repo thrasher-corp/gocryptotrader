@@ -65,7 +65,7 @@ func (g *Gateio) WsFuturesConnect(ctx context.Context, conn websocket.Connection
 	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
-	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{

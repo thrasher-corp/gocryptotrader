@@ -548,7 +548,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -557,7 +557,7 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.wsSendAuthorisedCommand(creds.Secret, creds.Key, "subscribe")
+	err = p.wsSendAuthorisedCommand(t.Context(), creds.Secret, creds.Key, "subscribe")
 	if err != nil {
 		t.Fatal(err)
 	}
