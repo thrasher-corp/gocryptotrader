@@ -21,13 +21,13 @@ const (
 // Public errors
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+	ErrPriceNotSet       = errors.New("price cannot be zero")
+	ErrExchangeNameUnset = errors.New("orderbook exchange name not set")
 )
 
 var (
-	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
 	errPairNotSet           = errors.New("orderbook currency pair not set")
 	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
-	errPriceNotSet          = errors.New("price cannot be zero")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
 	errIDOutOfOrder         = errors.New("ID out of order")
@@ -146,38 +146,6 @@ type options struct {
 	idAligned              bool
 	checksumStringRequired bool
 	maxDepth               int
-}
-
-// Action defines a set of differing states required to implement an incoming
-// orderbook update used in conjunction with UpdateEntriesByID
-type Action uint8
-
-const (
-	// Amend applies amount adjustment by ID
-	Amend Action = iota + 1
-	// Delete removes price level from book by ID
-	Delete
-	// Insert adds price level to book
-	Insert
-	// UpdateInsert on conflict applies amount adjustment or appends new amount
-	// to book
-	UpdateInsert
-)
-
-// Update and things and stuff
-type Update struct {
-	UpdateID       int64
-	UpdateTime     time.Time
-	UpdatePushedAt time.Time
-	Asset          asset.Item
-	Action
-	Bids []Tranche
-	Asks []Tranche
-	Pair currency.Pair
-	// Checksum defines the expected value when the books have been verified
-	Checksum uint32
-	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data.
-	AllowEmpty bool
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or

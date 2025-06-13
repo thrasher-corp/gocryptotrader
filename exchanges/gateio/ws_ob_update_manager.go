@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -52,7 +51,7 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Gatei
 	}
 
 	lastUpdateID, err := g.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
-	if err != nil && !errors.Is(err, buffer.ErrDepthNotFound) {
+	if err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
 
@@ -60,8 +59,8 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, g *Gatei
 		return applyOrderbookUpdate(g, update)
 	}
 
-	// Orderbook is behind notifications, flush store to prevent trading on stale data
-	if err := g.Websocket.Orderbook.FlushOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, buffer.ErrDepthNotFound) {
+	// Orderbook is behind notifications, therefore Invalidate store
+	if err := g.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}
 

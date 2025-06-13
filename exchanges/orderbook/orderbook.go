@@ -52,7 +52,8 @@ func (s *store) Update(b *Base) error {
 			return err
 		}
 	}
-	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true); err != nil {
+	b.RestSnapshot = true
+	if err := book.Depth.LoadSnapshot(b); err != nil {
 		return err
 	}
 	return s.signalMux.Publish(book.Depth, book.RouterID)
@@ -80,7 +81,7 @@ func (s *store) track(b *Base) (book, error) {
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, errExchangeNameUnset
+		return nil, ErrExchangeNameUnset
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -153,28 +154,23 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// Verify ensures that the orderbook items are correctly sorted prior to being
-// set and will reject any book with incorrect values.
-// Bids should always go from a high price to a low price and
-// Asks should always go from a low price to a higher price
+// Verify ensures that the orderbook items are correctly sorted and all fields are valid
+// Bids should always go from a high price to a low price and Asks should always go from a low price to a higher price
 func (b *Base) Verify() error {
 	if !b.VerifyOrderbook {
 		return nil
 	}
+	return verify(b)
+}
 
+func verify(b *Base) error {
 	// Checking for both ask and bid lengths being zero has been removed and
 	// a warning has been put in place for some exchanges that return zero
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
 	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
-		log.Warnf(log.OrderBook,
-			bookLengthIssue,
-			b.Exchange,
-			b.Pair,
-			b.Asset,
-			len(b.Bids),
-			len(b.Asks))
+		log.Warnf(log.OrderBook, bookLengthIssue, b.Exchange, b.Pair, b.Asset, len(b.Bids), len(b.Asks))
 	}
 	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, dsc, b.Exchange)
 	if err != nil {
@@ -214,7 +210,7 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 			switch {
 			case exch == "Bitfinex" && fundingRate: /* funding rate can be 0 it seems on Bitfinex */
 			default:
-				return errPriceNotSet
+				return ErrPriceNotSet
 			}
 		}
 
@@ -251,7 +247,7 @@ func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, 
 // list
 func (b *Base) Process() error {
 	if b.Exchange == "" {
-		return errExchangeNameUnset
+		return ErrExchangeNameUnset
 	}
 
 	if b.Pair.IsEmpty() {
