@@ -132,7 +132,7 @@ func (w *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Up
 		}
 	}
 
-	// Clears the buffer of old updates across all pathways. If an error occurs, the buffer is cleared to prepare for a new snapshot.
+	// Always empty the buffer after processing, even if there's an error
 	defer func() { holder.buffer = holder.buffer[:0] }()
 
 	for i := range holder.buffer {
