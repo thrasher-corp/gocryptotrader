@@ -460,11 +460,11 @@ type Stats struct {
 
 // StatsHistory stats history
 type StatsHistory struct {
-	Currency   string `json:"currency"`
-	Date       string `json:"date"`
-	RootSymbol string `json:"rootSymbol"`
-	Turnover   int64  `json:"turnover"`
-	Volume     int64  `json:"volume"`
+	Currency   string    `json:"currency"`
+	Date       time.Time `json:"date"`
+	RootSymbol string    `json:"rootSymbol"`
+	Turnover   int64     `json:"turnover"`
+	Volume     int64     `json:"volume"`
 }
 
 // StatsUSD contains summary of exchange stats
