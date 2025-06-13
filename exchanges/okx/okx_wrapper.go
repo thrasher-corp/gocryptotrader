@@ -256,17 +256,12 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		if err != nil {
 			return nil, err
 		}
-		var pair currency.Pair
 		pairs := make([]currency.Pair, 0, len(insts))
 		for x := range insts {
 			if insts[x].State != "live" {
 				continue
 			}
-			pair, err = currency.NewPairDelimiter(insts[x].InstrumentID, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+			pairs = append(pairs, insts[x].InstrumentID.Format(format))
 		}
 		return pairs, nil
 	case asset.Spread:
@@ -280,10 +275,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		}
 		pairs := make(currency.Pairs, len(spreadInstruments))
 		for x := range spreadInstruments {
-			pairs[x], err = currency.NewPairDelimiter(spreadInstruments[x].SpreadID, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
+			pairs[x] = spreadInstruments[x].SpreadID.Format(format)
 		}
 		return pairs, nil
 	default:
@@ -321,12 +313,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		}
 		limits := make([]order.MinMaxLevel, len(insts))
 		for x := range insts {
-			pair, err := currency.NewPairFromString(insts[x].InstrumentID)
-			if err != nil {
-				return err
-			}
 			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
+				Pair:                   insts[x].InstrumentID,
 				Asset:                  a,
 				PriceStepIncrementSize: insts[x].TickSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
@@ -343,12 +331,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		}
 		limits := make([]order.MinMaxLevel, len(insts))
 		for x := range insts {
-			pair, err := currency.NewPairFromString(insts[x].SpreadID)
-			if err != nil {
-				return err
-			}
 			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
+				Pair:                   insts[x].SpreadID,
 				Asset:                  a,
 				PriceStepIncrementSize: insts[x].MinSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinSize.Float64(),
@@ -489,7 +473,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 		}
 
 		for y := range ticks {
-			pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+			pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID.String())
 			if err != nil {
 				return err
 			}
@@ -972,7 +956,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
-	case "trigger":
+	case orderTrigger:
 		result, err = ok.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
@@ -984,7 +968,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			TriggerPrice:     s.TriggerPrice,
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "conditional":
+	case orderConditional:
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = ok.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
@@ -998,7 +982,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			StopLossOrderPrice:       s.Price,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "chase":
+	case orderChase:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1016,7 +1000,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			MaxChaseType:  s.TrackingMode.String(),
 			MaxChaseValue: s.TrackingValue,
 		})
-	case "move_order_stop":
+	case orderMoveOrderStop:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1039,7 +1023,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			CallbackSpreadVariance: callbackSpread,
 			ActivePrice:            s.TriggerPrice,
 		})
-	case "twap":
+	case orderTWAP:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1064,7 +1048,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			LimitPrice:    s.Price,
 			TimeInterval:  kline.FifteenMin,
 		})
-	case "oco":
+	case orderOCO:
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
 			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
@@ -1158,7 +1142,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	switch action.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
 			NewQuantity:   action.Amount,
@@ -1262,7 +1246,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		req := CancelOrderRequestParam{
 			InstrumentID:  instrumentID,
 			OrderID:       ord.OrderID,
@@ -1315,7 +1299,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		switch ord.Type {
-		case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
@@ -2803,11 +2787,6 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			cp, err := currency.NewPairFromString(result[i].InstrumentID)
-			if err != nil {
-				return nil, err
-			}
-
 			var (
 				underlying             currency.Pair
 				settleCurr             currency.Code
@@ -2842,7 +2821,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 
 			resp[i] = futures.Contract{
 				Exchange:       ok.Name,
-				Name:           cp,
+				Name:           result[i].InstrumentID,
 				Underlying:     underlying,
 				Asset:          item,
 				StartDate:      result[i].ListTime.Time(),
@@ -2868,18 +2847,13 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 		resp := make([]futures.Contract, len(results))
 		for s := range results {
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(results[s].SpreadID)
-			if err != nil {
-				return nil, err
-			}
 			contractSettlementType, err := futures.StringToContractSettlementType(results[s].SpreadType)
 			if err != nil {
 				return nil, err
 			}
 			resp[s] = futures.Contract{
 				Exchange:       ok.Name,
-				Name:           cp,
+				Name:           results[s].SpreadID,
 				Asset:          asset.Spread,
 				StartDate:      results[s].ListTime.Time(),
 				EndDate:        results[s].ExpTime.Time(),

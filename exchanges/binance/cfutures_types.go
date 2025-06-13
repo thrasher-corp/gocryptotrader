@@ -1,9 +1,8 @@
 package binance
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -63,17 +62,22 @@ type SymbolOrderBookTicker struct {
 
 // FuturesCandleStick holds kline data
 type FuturesCandleStick struct {
-	OpenTime                time.Time
-	Open                    float64
-	High                    float64
-	Low                     float64
-	Close                   float64
-	Volume                  float64
-	CloseTime               time.Time
-	BaseAssetVolume         float64
+	OpenTime                types.Time
+	Open                    types.Number
+	High                    types.Number
+	Low                     types.Number
+	Close                   types.Number
+	Volume                  types.Number
+	CloseTime               types.Time
+	BaseAssetVolume         types.Number
 	NumberOfTrades          int64
-	TakerBuyVolume          float64
-	TakerBuyBaseAssetVolume float64
+	TakerBuyVolume          types.Number
+	TakerBuyBaseAssetVolume types.Number
+}
+
+// UnmarshalJSON unmarshals FuturesCandleStick data from JSON
+func (f *FuturesCandleStick) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[11]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.BaseAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume})
 }
 
 // AllLiquidationOrders gets all liquidation orders

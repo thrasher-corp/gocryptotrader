@@ -14,11 +14,11 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestProcessUpdate(t *testing.T) {
+func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
 	m := newWsOBUpdateManager(0)
-	err := m.ProcessUpdate(t.Context(), g, 1337, &orderbook.Update{})
+	err := m.ProcessOrderbookUpdate(t.Context(), g, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
@@ -34,7 +34,7 @@ func TestProcessUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = m.ProcessUpdate(t.Context(), g, 1337, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), g, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -44,7 +44,7 @@ func TestProcessUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessUpdate(t.Context(), g, 1340, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), g, 1340, &orderbook.Update{
 		UpdateID:   1341,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -61,7 +61,7 @@ func TestProcessUpdate(t *testing.T) {
 	cache.mtx.Unlock()
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessUpdate(t.Context(), g, 1342, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), g, 1342, &orderbook.Update{
 		UpdateID:   1343,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,

@@ -41,19 +41,22 @@ const (
 	positionSideNet   = "net"
 )
 
+// order types, margin balance types, and instrument types constants
 const (
-	// orderLimit Limit order
-	orderLimit = "limit"
-	// orderMarket Market order
-	orderMarket = "market"
-	// orderPostOnly POST_ONLY order type
-	orderPostOnly = "post_only"
-	// orderFOK fill or kill order type
-	orderFOK = "fok"
-	// orderIOC IOC (immediate or cancel)
-	orderIOC = "ioc"
-	// orderOptimalLimitIOC OPTIMAL_LIMIT_IOC
-	orderOptimalLimitIOC = "optimal_limit_ioc"
+	orderLimit                            = "limit"
+	orderMarket                           = "market"
+	orderPostOnly                         = "post_only"
+	orderFOK                              = "fok"
+	orderIOC                              = "ioc"
+	orderOptimalLimitIOC                  = "optimal_limit_ioc"
+	orderConditional                      = "conditional"
+	orderMoveOrderStop                    = "move_order_stop"
+	orderChase                            = "chase"
+	orderTWAP                             = "twap"
+	orderTrigger                          = "trigger"
+	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
+	orderMarketMakerProtection            = "mmp"
+	orderOCO                              = "oco"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
@@ -181,19 +184,19 @@ type PremiumInfo struct {
 
 // TickerResponse represents the detailed data from the market ticker endpoint.
 type TickerResponse struct {
-	InstrumentType string       `json:"instType"`
-	InstrumentID   string       `json:"instId"`
-	LastTradePrice types.Number `json:"last"`
-	LastTradeSize  types.Number `json:"lastSz"`
-	BestAskPrice   types.Number `json:"askPx"`
-	BestAskSize    types.Number `json:"askSz"`
-	BestBidPrice   types.Number `json:"bidPx"`
-	BestBidSize    types.Number `json:"bidSz"`
-	Open24H        types.Number `json:"open24h"`
-	High24H        types.Number `json:"high24h"`
-	Low24H         types.Number `json:"low24h"`
-	VolCcy24H      types.Number `json:"volCcy24h"`
-	Vol24H         types.Number `json:"vol24h"`
+	InstrumentType string        `json:"instType"`
+	InstrumentID   currency.Pair `json:"instId"`
+	LastTradePrice types.Number  `json:"last"`
+	LastTradeSize  types.Number  `json:"lastSz"`
+	BestAskPrice   types.Number  `json:"askPx"`
+	BestAskSize    types.Number  `json:"askSz"`
+	BestBidPrice   types.Number  `json:"bidPx"`
+	BestBidSize    types.Number  `json:"bidSz"`
+	Open24H        types.Number  `json:"open24h"`
+	High24H        types.Number  `json:"high24h"`
+	Low24H         types.Number  `json:"low24h"`
+	VolCcy24H      types.Number  `json:"volCcy24h"`
+	Vol24H         types.Number  `json:"vol24h"`
 
 	OpenPriceInUTC0          string     `json:"sodUtc0"`
 	OpenPriceInUTC8          string     `json:"sodUtc8"`
@@ -363,34 +366,34 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract
 type Instrument struct {
-	InstrumentType                  string       `json:"instType"`
-	InstrumentID                    string       `json:"instId"`
-	InstrumentFamily                string       `json:"instFamily"`
-	Underlying                      string       `json:"uly"`
-	Category                        string       `json:"category"`
-	BaseCurrency                    string       `json:"baseCcy"`
-	QuoteCurrency                   string       `json:"quoteCcy"`
-	SettlementCurrency              string       `json:"settleCcy"`
-	ContractValue                   types.Number `json:"ctVal"`
-	ContractMultiplier              types.Number `json:"ctMult"`
-	ContractValueCurrency           string       `json:"ctValCcy"`
-	OptionType                      string       `json:"optType"`
-	StrikePrice                     types.Number `json:"stk"`
-	ListTime                        types.Time   `json:"listTime"`
-	ExpTime                         types.Time   `json:"expTime"`
-	MaxLeverage                     types.Number `json:"lever"`
-	TickSize                        types.Number `json:"tickSz"`
-	LotSize                         types.Number `json:"lotSz"`
-	MinimumOrderSize                types.Number `json:"minSz"`
-	ContractType                    string       `json:"ctType"`
-	Alias                           string       `json:"alias"`
-	State                           string       `json:"state"`
-	MaxQuantityOfSpotLimitOrder     types.Number `json:"maxLmtSz"`
-	MaxQuantityOfMarketLimitOrder   types.Number `json:"maxMktSz"`
-	MaxQuantityOfSpotTwapLimitOrder types.Number `json:"maxTwapSz"`
-	MaxSpotIcebergSize              types.Number `json:"maxIcebergSz"`
-	MaxTriggerSize                  types.Number `json:"maxTriggerSz"`
-	MaxStopSize                     types.Number `json:"maxStopSz"`
+	InstrumentType                  string        `json:"instType"`
+	InstrumentID                    currency.Pair `json:"instId"`
+	InstrumentFamily                string        `json:"instFamily"`
+	Underlying                      string        `json:"uly"`
+	Category                        string        `json:"category"`
+	BaseCurrency                    string        `json:"baseCcy"`
+	QuoteCurrency                   string        `json:"quoteCcy"`
+	SettlementCurrency              string        `json:"settleCcy"`
+	ContractValue                   types.Number  `json:"ctVal"`
+	ContractMultiplier              types.Number  `json:"ctMult"`
+	ContractValueCurrency           string        `json:"ctValCcy"`
+	OptionType                      string        `json:"optType"`
+	StrikePrice                     types.Number  `json:"stk"`
+	ListTime                        types.Time    `json:"listTime"`
+	ExpTime                         types.Time    `json:"expTime"`
+	MaxLeverage                     types.Number  `json:"lever"`
+	TickSize                        types.Number  `json:"tickSz"`
+	LotSize                         types.Number  `json:"lotSz"`
+	MinimumOrderSize                types.Number  `json:"minSz"`
+	ContractType                    string        `json:"ctType"`
+	Alias                           string        `json:"alias"`
+	State                           string        `json:"state"`
+	MaxQuantityOfSpotLimitOrder     types.Number  `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   types.Number  `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder types.Number  `json:"maxTwapSz"`
+	MaxSpotIcebergSize              types.Number  `json:"maxIcebergSz"`
+	MaxTriggerSize                  types.Number  `json:"maxTriggerSz"`
+	MaxStopSize                     types.Number  `json:"maxStopSz"`
 }
 
 // DeliveryHistoryDetail holds instrument ID and delivery price information detail
@@ -3063,16 +3066,16 @@ type SpreadTrade struct {
 
 // SpreadInstrument retrieve all available spreads based on the request parameters
 type SpreadInstrument struct {
-	SpreadID      string       `json:"sprdId"`
-	SpreadType    string       `json:"sprdType"`
-	State         string       `json:"state"`
-	BaseCurrency  string       `json:"baseCcy"`
-	SizeCurrency  string       `json:"szCcy"`
-	QuoteCurrency string       `json:"quoteCcy"`
-	TickSize      types.Number `json:"tickSz"`
-	MinSize       types.Number `json:"minSz"`
-	LotSize       types.Number `json:"lotSz"`
-	ListTime      types.Time   `json:"listTime"`
+	SpreadID      currency.Pair `json:"sprdId"`
+	SpreadType    string        `json:"sprdType"`
+	State         string        `json:"state"`
+	BaseCurrency  string        `json:"baseCcy"`
+	SizeCurrency  string        `json:"szCcy"`
+	QuoteCurrency string        `json:"quoteCcy"`
+	TickSize      types.Number  `json:"tickSz"`
+	MinSize       types.Number  `json:"minSz"`
+	LotSize       types.Number  `json:"lotSz"`
+	ListTime      types.Time    `json:"listTime"`
 	Legs          []struct {
 		InstrumentID string `json:"instId"`
 		Side         string `json:"side"`
@@ -3169,12 +3172,12 @@ type WebsocketLoginData struct {
 
 // SubscriptionInfo holds the channel and instrument IDs
 type SubscriptionInfo struct {
-	Channel          string `json:"channel,omitempty"`
-	InstrumentID     string `json:"instId,omitempty"`
-	InstrumentFamily string `json:"instFamily,omitempty"`
-	InstrumentType   string `json:"instType,omitempty"`
-	Underlying       string `json:"uly,omitempty"`
-	UID              string `json:"uid,omitempty"` // user identifier
+	Channel          string        `json:"channel,omitempty"`
+	InstrumentID     currency.Pair `json:"instId,omitzero"`
+	InstrumentFamily string        `json:"instFamily,omitempty"`
+	InstrumentType   string        `json:"instType,omitempty"`
+	Underlying       string        `json:"uly,omitempty"`
+	UID              string        `json:"uid,omitempty"` // user identifier
 
 	// For Algo Orders
 	AlgoID   string `json:"algoId,omitempty"`
@@ -4329,8 +4332,8 @@ type APYItem struct {
 // WsOrderbook5 stores the orderbook data for orderbook 5 websocket
 type WsOrderbook5 struct {
 	Argument struct {
-		Channel      string `json:"channel"`
-		InstrumentID string `json:"instId"`
+		Channel      string        `json:"channel"`
+		InstrumentID currency.Pair `json:"instId"`
 	} `json:"arg"`
 	Data []Book5Data `json:"data"`
 }

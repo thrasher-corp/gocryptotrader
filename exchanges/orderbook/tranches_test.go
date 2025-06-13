@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -320,9 +319,7 @@ func TestUpdateByID(t *testing.T) {
 	err = a.updateByID(Tranches{
 		{Price: 11, Amount: 1, ID: 1337},
 	})
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
-	}
+	require.ErrorIs(t, err, errIDCannotBeMatched)
 
 	err = a.updateByID(Tranches{ // Simulate Bitmex updating
 		{Price: 0, Amount: 1337, ID: 3},
@@ -402,9 +399,7 @@ func TestDeleteByID(t *testing.T) {
 
 	// Intentional error
 	err = a.deleteByID(Tranches{{Price: 11, Amount: 1, ID: 1337}}, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("expecting %s but received %v", errIDCannotBeMatched, err)
-	}
+	require.ErrorIs(t, err, errIDCannotBeMatched)
 
 	// Error bypass
 	err = a.deleteByID(Tranches{{Price: 11, Amount: 1, ID: 1337}}, true)
@@ -1001,9 +996,7 @@ func TestInsertUpdatesBid(t *testing.T) {
 		{Price: 3, Amount: 1, ID: 3},
 		{Price: 1, Amount: 1, ID: 1},
 	})
-	if !errors.Is(err, errCollisionDetected) {
-		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
-	}
+	require.ErrorIs(t, err, errCollisionDetected)
 
 	Check(t, b, 6, 36, 6)
 
@@ -1063,9 +1056,7 @@ func TestInsertUpdatesAsk(t *testing.T) {
 		{Price: 3, Amount: 1, ID: 3},
 		{Price: 1, Amount: 1, ID: 1},
 	})
-	if !errors.Is(err, errCollisionDetected) {
-		t.Fatalf("expected error %s but received %v", errCollisionDetected, err)
-	}
+	require.ErrorIs(t, err, errCollisionDetected)
 
 	Check(t, a, 6, 36, 6)
 
@@ -1260,9 +1251,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 				t.Fatal(err)
 			}
 			movement, err := depth.bidTranches.getMovementByBase(tt.BaseAmount, tt.ReferencePrice, false)
-			if !errors.Is(err, tt.ExpectedError) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
-			}
+			require.ErrorIs(t, err, tt.ExpectedError)
 
 			if movement == nil {
 				return
@@ -1501,9 +1490,8 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 				t.Fatal(err)
 			}
 			base, err := depth.bidTranches.hitBidsByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
-			if !errors.Is(err, tt.ExpectedError) {
-				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
-			}
+			require.ErrorIs(t, err, tt.ExpectedError)
+
 			if !base.IsEqual(tt.ExpectedShift) {
 				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
 					tt.Name, base, tt.ExpectedShift)
@@ -1586,9 +1574,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 				t.Fatal(err)
 			}
 			movement, err := depth.askTranches.getMovementByQuotation(tt.QuoteAmount, tt.ReferencePrice, false)
-			if !errors.Is(err, tt.ExpectedError) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
-			}
+			require.ErrorIs(t, err, tt.ExpectedError)
 
 			if movement == nil {
 				return
@@ -1817,16 +1803,13 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 func TestGetHeadPrice(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
-	if _, err := depth.bidTranches.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	if _, err := depth.askTranches.getHeadPriceNoLock(); !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err := depth.LoadSnapshot(&Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
-	if err != nil {
-		t.Fatalf("failed to load snapshot: %s", err)
-	}
+	_, err := depth.bidTranches.getHeadPriceNoLock()
+	require.ErrorIs(t, err, errNoLiquidity)
+	_, err = depth.askTranches.getHeadPriceNoLock()
+	require.ErrorIs(t, err, errNoLiquidity)
+
+	err = depth.LoadSnapshot(&Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	require.NoError(t, err, "LoadSnapshot must not error")
 
 	val, err := depth.bidTranches.getHeadPriceNoLock()
 	require.NoError(t, err)

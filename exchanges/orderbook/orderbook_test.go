@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"log"
 	"math/rand"
 	"os"
@@ -62,87 +61,61 @@ func TestVerify(t *testing.T) {
 
 	b.Asks = []Tranche{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errIDDuplication) {
-		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
-	}
+	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errDuplication) {
-		t.Fatalf("expecting %s error but received %v", errDuplication, err)
-	}
+	require.ErrorIs(t, err, errDuplication)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
-	if !errors.Is(err, errPeriodUnset) {
-		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
-	}
+	require.ErrorIs(t, err, errPeriodUnset)
+
 	b.IsFundingRate = false
 
 	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
-	if !errors.Is(err, errAmountInvalid) {
-		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
-	}
+	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	if !errors.Is(err, ErrPriceNotSet) {
-		t.Fatalf("expecting %s error but received %v", ErrPriceNotSet, err)
-	}
+	require.ErrorIs(t, err, ErrPriceNotSet)
 
 	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errIDDuplication) {
-		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
-	}
+	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
-	if !errors.Is(err, errDuplication) {
-		t.Fatalf("expecting %s error but received %v", errDuplication, err)
-	}
+	require.ErrorIs(t, err, errDuplication)
 
 	b.Bids = []Tranche{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
-	if !errors.Is(err, errPeriodUnset) {
-		t.Fatalf("expecting %s error but received %v", errPeriodUnset, err)
-	}
+	require.ErrorIs(t, err, errPeriodUnset)
+
 	b.IsFundingRate = false
 
 	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
-	if !errors.Is(err, errAmountInvalid) {
-		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
-	}
+	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	if !errors.Is(err, ErrPriceNotSet) {
-		t.Fatalf("expecting %s error but received %v", ErrPriceNotSet, err)
-	}
+	require.ErrorIs(t, err, ErrPriceNotSet)
 }
 
 func TestCalculateTotalBids(t *testing.T) {
 	t.Parallel()
-	curr, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 	base := Base{
-		Pair:        curr,
+		Pair:        currency.NewBTCUSD(),
 		Bids:        []Tranche{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
 	}
@@ -155,12 +128,8 @@ func TestCalculateTotalBids(t *testing.T) {
 
 func TestCalculateTotalAsks(t *testing.T) {
 	t.Parallel()
-	curr, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 	base := Base{
-		Pair: curr,
+		Pair: currency.NewBTCUSD(),
 		Asks: []Tranche{{Price: 100, Amount: 10}},
 	}
 
@@ -173,9 +142,7 @@ func TestCalculateTotalAsks(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 
-	c, err := currency.NewPairFromStrings("BTC", "USD")
-	require.NoError(t, err, "NewPairFromStrings must not error")
-
+	c := currency.NewBTCUSD()
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -197,9 +164,7 @@ func TestGetOrderbook(t *testing.T) {
 	_, err = Get("Exchange", c, asset.Spot)
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
-	newCurrency, err := currency.NewPairFromStrings("BTC", "AUD")
-	require.NoError(t, err, "NewPairFromStrings must not error")
-
+	newCurrency := currency.NewPair(currency.BTC, currency.AUD)
 	_, err = Get("Exchange", newCurrency, asset.Spot)
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
@@ -214,9 +179,7 @@ func TestGetOrderbook(t *testing.T) {
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
 
-	c, err := currency.NewPairFromStrings("BTC", "USD")
-	require.NoError(t, err, "NewPairFromStrings must not error")
-
+	c := currency.NewBTCUSD()
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -238,9 +201,7 @@ func TestGetDepth(t *testing.T) {
 	_, err = GetDepth("Exchange", c, asset.Spot)
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
-	newCurrency, err := currency.NewPairFromStrings("BTC", "DOGE")
-	require.NoError(t, err, "NewPairFromStrings must not error")
-
+	newCurrency := currency.NewPair(currency.BTC, currency.DOGE)
 	_, err = GetDepth("Exchange", newCurrency, asset.Futures)
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
@@ -254,9 +215,7 @@ func TestGetDepth(t *testing.T) {
 func TestBaseGetDepth(t *testing.T) {
 	t.Parallel()
 
-	c, err := currency.NewPairFromStrings("BTC", "UST")
-	require.NoError(t, err, "NewPairFromStrings must not error")
-
+	c := currency.NewPair(currency.BTC, currency.UST)
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -265,7 +224,7 @@ func TestBaseGetDepth(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 
-	_, err = base.GetDepth()
+	_, err := base.GetDepth()
 	assert.ErrorIs(t, err, ErrOrderbookNotFound)
 
 	require.NoError(t, base.Process(), "Process must not error")
@@ -276,9 +235,8 @@ func TestBaseGetDepth(t *testing.T) {
 }
 
 func TestDeployDepth(t *testing.T) {
-	c, err := currency.NewPairFromStrings("BTC", "USD")
-	require.NoError(t, err)
-	_, err = DeployDepth("", c, asset.Spot)
+	c := currency.NewBTCUSD()
+	_, err := DeployDepth("", c, asset.Spot)
 	require.ErrorIs(t, err, ErrExchangeNameUnset)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
@@ -292,10 +250,7 @@ func TestDeployDepth(t *testing.T) {
 }
 
 func TestCreateNewOrderbook(t *testing.T) {
-	c, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := currency.NewBTCUSD()
 	base := &Base{
 		Pair:     c,
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
@@ -304,10 +259,8 @@ func TestCreateNewOrderbook(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 
-	err = base.Process()
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := base.Process()
+	require.NoError(t, err, "Process must not error")
 
 	result, err := Get("testCreateNewOrderbook", c, asset.Spot)
 	if err != nil {
@@ -330,10 +283,6 @@ func TestCreateNewOrderbook(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	c, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 	base := Base{
 		Asks:     []Tranche{{Price: 100, Amount: 10}},
 		Bids:     []Tranche{{Price: 200, Amount: 10}},
@@ -342,12 +291,11 @@ func TestProcessOrderbook(t *testing.T) {
 
 	// test for empty pair
 	base.Pair = currency.EMPTYPAIR
-	err = base.Process()
-	if err == nil {
-		t.Error("empty pair should throw an err")
-	}
+	err := base.Process()
+	assert.ErrorIs(t, err, errPairNotSet)
 
 	// test for empty asset type
+	c := currency.NewBTCUSD()
 	base.Pair = c
 	err = base.Process()
 	if err == nil {
@@ -539,9 +487,7 @@ func TestSorting(t *testing.T) {
 
 	b.Asks = deployUnorderedSlice()
 	err := b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks.SortAsks()
 	err = b.Verify()
@@ -551,9 +497,7 @@ func TestSorting(t *testing.T) {
 
 	b.Bids = deployUnorderedSlice()
 	err = b.Verify()
-	if !errors.Is(err, errPriceOutOfOrder) {
-		t.Fatalf("error expected %v received %v", errPriceOutOfOrder, err)
-	}
+	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids.SortBids()
 	err = b.Verify()
@@ -677,19 +621,14 @@ func TestCheckAlignment(t *testing.T) {
 		t.Error(err)
 	}
 	err = checkAlignment(itemWithFunding, false, true, false, false, dsc, "Bitfinex")
-	if !errors.Is(err, ErrPriceNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, ErrPriceNotSet)
-	}
+	require.ErrorIs(t, err, ErrPriceNotSet)
+
 	err = checkAlignment(itemWithFunding, true, true, false, false, dsc, "Binance")
-	if !errors.Is(err, ErrPriceNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, ErrPriceNotSet)
-	}
+	require.ErrorIs(t, err, ErrPriceNotSet)
 
 	itemWithFunding[0].Price = 1337
 	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
-	if !errors.Is(err, errChecksumStringNotSet) {
-		t.Fatalf("received: %v but expected: %v", err, errChecksumStringNotSet)
-	}
+	require.ErrorIs(t, err, errChecksumStringNotSet)
 
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"

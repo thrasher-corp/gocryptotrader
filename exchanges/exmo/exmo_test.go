@@ -27,7 +27,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var e = &EXMO{}
+var (
+	e        = &EXMO{}
+	testPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
+)
 
 func TestMain(m *testing.M) {
 	e.SetDefaults()
@@ -53,18 +56,14 @@ func TestMain(m *testing.M) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades(t.Context(), "BTC_USD")
-	if err != nil {
-		t.Errorf("Err: %s", err)
-	}
+	_, err := e.GetTrades(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOrderbook(t.Context(), "BTC_USD")
-	if err != nil {
-		t.Errorf("Err: %s", err)
-	}
+	_, err := e.GetOrderbook(t.Context(), testPair.String())
+	assert.NoError(t, err, "GetOrderbook should not error")
 }
 
 func TestGetTicker(t *testing.T) {
@@ -105,17 +104,15 @@ func TestGetRequiredAmount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.GetRequiredAmount(t.Context(), "BTC_USD", 100)
-	if err != nil {
-		t.Errorf("Err: %s", err)
-	}
+	_, err := e.GetRequiredAmount(t.Context(), testPair.String(), 100)
+	assert.NoError(t, err, "GetRequiredAmount should not error")
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:              1,
 		FeeType:             exchange.CryptocurrencyTradeFee,
-		Pair:                currency.NewPair(currency.BTC, currency.LTC),
+		Pair:                testPair,
 		PurchasePrice:       1,
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
@@ -294,12 +291,8 @@ func TestSubmitOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{
-		Exchange: e.Name,
-		Pair: currency.Pair{
-			Delimiter: "_",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
+		Exchange:  e.Name,
+		Pair:      testPair,
 		Side:      order.Buy,
 		Type:      order.Limit,
 		Price:     1,
@@ -319,11 +312,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
 		AccountID: "1",
-		Pair:      currencyPair,
+		Pair:      testPair,
 		AssetType: asset.Spot,
 	}
 
@@ -340,11 +332,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := &order.Cancel{
 		OrderID:   "1",
 		AccountID: "1",
-		Pair:      currencyPair,
+		Pair:      testPair,
 		AssetType: asset.Spot,
 	}
 
@@ -444,39 +435,20 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC_USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.GetRecentTrades(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC_USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = e.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := e.GetHistoricTrades(t.Context(), testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTC_USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = e.UpdateTicker(t.Context(), cp, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.UpdateTicker(t.Context(), testPair, asset.Spot)
+	assert.NoError(t, err, "UpdateTicker should not error")
 }
 
 func TestUpdateTickers(t *testing.T) {
