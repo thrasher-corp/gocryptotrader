@@ -515,7 +515,7 @@ func deploySliceOrdered() Levels {
 }
 
 func TestReverse(t *testing.T) {
-	s := Book{
+	b := Book{
 		VerifyOrderbook: true,
 	}
 
