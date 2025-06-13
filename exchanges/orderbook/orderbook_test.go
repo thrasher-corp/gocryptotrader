@@ -114,7 +114,7 @@ func TestVerify(t *testing.T) {
 
 func TestCalculateTotalBids(t *testing.T) {
 	t.Parallel()
-	base := Book{
+	b := Book{
 		Pair:        currency.NewBTCUSD(),
 		Bids:        []Level{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
