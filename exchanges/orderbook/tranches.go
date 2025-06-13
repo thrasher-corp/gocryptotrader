@@ -68,7 +68,7 @@ updates:
 			ts[y].StrAmount = updts[x].StrAmount
 			continue updates
 		}
-		return fmt.Errorf("update error: %w ID: %d not found", errIDCannotBeMatched, updts[x].ID)
+		return fmt.Errorf("update error: %w; ID: %d not found", errIDCannotBeMatched, updts[x].ID)
 	}
 	return nil
 }
