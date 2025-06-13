@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -386,7 +387,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 		return nil
 	}
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsOptionsTrades `json:"result"`
@@ -452,7 +453,7 @@ func (g *Gateio) processOptionsContractPushData(incoming []byte) error {
 
 func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 	resp := struct {
-		Time    int64                          `json:"time"`
+		Time    types.Time                     `json:"time"`
 		Channel string                         `json:"channel"`
 		Event   string                         `json:"event"`
 		Result  []WsOptionsContractCandlestick `json:"result"`
@@ -603,7 +604,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 
 func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	resp := struct {
-		Time    int64            `json:"time"`
+		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsOptionsOrder `json:"result"`
@@ -645,7 +646,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 		return nil
 	}
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsOptionsUserTrade `json:"result"`
@@ -671,7 +672,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 
 func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
 	resp := struct {
-		Time    int64                 `json:"time"`
+		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsOptionsLiquidates `json:"result"`
@@ -686,7 +687,7 @@ func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
 
 func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
 	resp := struct {
-		Time    int64                     `json:"time"`
+		Time    types.Time                `json:"time"`
 		Channel string                    `json:"channel"`
 		Event   string                    `json:"event"`
 		Result  []WsOptionsUserSettlement `json:"result"`
@@ -701,7 +702,7 @@ func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) err
 
 func (g *Gateio) processOptionsPositionPushData(data []byte) error {
 	resp := struct {
-		Time    int64               `json:"time"`
+		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
 		Event   string              `json:"event"`
 		Result  []WsOptionsPosition `json:"result"`

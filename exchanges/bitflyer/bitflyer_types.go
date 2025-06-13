@@ -1,35 +1,41 @@
 package bitflyer
 
-import "errors"
+import (
+	"errors"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 var errUnhandledCurrency = errors.New("unhandled currency")
 
 // ChainAnalysisBlock holds block information from the bitcoin network
 type ChainAnalysisBlock struct {
-	BlockHash     string   `json:"block_hash"`
-	Height        int64    `json:"height"`
-	IsMain        bool     `json:"is_main"`
-	Version       float64  `json:"version"`
-	PreviousBlock string   `json:"prev_block"`
-	MerkleRoot    string   `json:"merkle_root"`
-	Timestamp     string   `json:"timestamp"`
-	Bits          int64    `json:"bits"`
-	Nonce         int64    `json:"nonce"`
-	TxNum         int64    `json:"txnum"`
-	TotalFees     float64  `json:"total_fees"`
-	TxHashes      []string `json:"tx_hashes"`
+	BlockHash     string    `json:"block_hash"`
+	Height        int64     `json:"height"`
+	IsMain        bool      `json:"is_main"`
+	Version       float64   `json:"version"`
+	PreviousBlock string    `json:"prev_block"`
+	MerkleRoot    string    `json:"merkle_root"`
+	Timestamp     time.Time `json:"timestamp"`
+	Bits          int64     `json:"bits"`
+	Nonce         int64     `json:"nonce"`
+	TxNum         int64     `json:"txnum"`
+	TotalFees     float64   `json:"total_fees"`
+	TxHashes      []string  `json:"tx_hashes"`
 }
 
 // ChainAnalysisTransaction holds transaction data from the bitcoin network
 type ChainAnalysisTransaction struct {
-	TxHash        string  `json:"tx_hash"`
-	BlockHeight   int64   `json:"block_height"`
-	Confirmations int64   `json:"confirmed"`
-	Fees          float64 `json:"fees"`
-	Size          int64   `json:"size"`
-	ReceivedDate  string  `json:"received_date"`
-	Version       float64 `json:"version"`
-	LockTime      int64   `json:"lock_time"`
+	TxHash        string     `json:"tx_hash"`
+	BlockHeight   int64      `json:"block_height"`
+	Confirmations int64      `json:"confirmed"`
+	Fees          float64    `json:"fees"`
+	Size          int64      `json:"size"`
+	ReceivedDate  string     `json:"received_date"`
+	Version       float64    `json:"version"`
+	LockTime      types.Time `json:"lock_time"`
 	Inputs        []struct {
 		PrevHash  string `json:"prev_hash"`
 		PrevIndex int    `json:"prev_index"`
@@ -75,7 +81,7 @@ type Orderbook struct {
 // Ticker holds ticker information
 type Ticker struct {
 	ProductCode     string  `json:"product_code"`
-	TimeStamp       string  `json:"timestamp"`
+	TimeStamp       Time    `json:"timestamp"`
 	TickID          int64   `json:"tick_id"`
 	BestBid         float64 `json:"best_bid"`
 	BestAsk         float64 `json:"best_ask"`
@@ -94,7 +100,7 @@ type ExecutedTrade struct {
 	Side           string  `json:"side"`
 	Price          float64 `json:"price"`
 	Size           float64 `json:"size"`
-	ExecDate       string  `json:"exec_date"`
+	ExecDate       Time    `json:"exec_date"`
 	BuyAcceptedID  string  `json:"buy_child_order_acceptance_id"`
 	SellAcceptedID string  `json:"sell_child_order_acceptance_id"`
 }
@@ -294,3 +300,23 @@ type NewOrder struct {
 	MinuteToExpire float64 `json:"minute_to_expire"`
 	TimeInForce    string  `json:"time_in_force"`
 }
+
+// Time is a custom type that wraps time.Time to implement json.Unmarshaller
+type Time time.Time
+
+// UnmarshalJSON implements the json.Unmarshaller interface for Time
+func (t *Time) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	parsedTime, err := time.Parse("2006-01-02T15:04:05.999999999", str)
+	if err != nil {
+		return err
+	}
+	*t = Time(parsedTime)
+	return nil
+}
+
+// Time returns the time.Time representation of the DateTime type
+func (t *Time) Time() time.Time { return time.Time(*t) }

@@ -425,28 +425,24 @@ func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
-	var newOrderBook orderbook.Base
-	newOrderBook.Bids = make(orderbook.Tranches, len(o.Data.Bids))
+	ob := &orderbook.Base{
+		Pair:            p,
+		Asset:           asset.Spot,
+		Exchange:        b.Name,
+		LastUpdated:     o.Data.Timestamp.Time(),
+		VerifyOrderbook: b.CanVerifyOrderbook,
+		Bids:            make(orderbook.Tranches, len(o.Data.Bids)),
+		Asks:            make(orderbook.Tranches, len(o.Data.Asks)),
+	}
 	for i := range o.Data.Bids {
-		newOrderBook.Bids[i] = orderbook.Tranche{
-			Amount: o.Data.Bids[i].Quantity,
-			Price:  o.Data.Bids[i].Price,
-		}
+		ob.Bids[i].Price = o.Data.Bids[i].Price
+		ob.Bids[i].Amount = o.Data.Bids[i].Quantity
 	}
-	newOrderBook.Asks = make(orderbook.Tranches, len(o.Data.Asks))
 	for i := range o.Data.Asks {
-		newOrderBook.Asks[i] = orderbook.Tranche{
-			Amount: o.Data.Asks[i].Quantity,
-			Price:  o.Data.Asks[i].Price,
-		}
+		ob.Asks[i].Price = o.Data.Asks[i].Price
+		ob.Asks[i].Amount = o.Data.Asks[i].Quantity
 	}
-
-	newOrderBook.Pair = p
-	newOrderBook.Asset = asset.Spot
-	newOrderBook.Exchange = b.Name
-	newOrderBook.LastUpdated = time.UnixMilli(o.Data.Timestamp)
-	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
-	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	return b.Websocket.Orderbook.LoadSnapshot(ob)
 }
 
 // setNeedsFetchingBook completes the book fetching initiation.

@@ -475,14 +475,14 @@ type ResponseV2 struct {
 
 // SwapMarketsData stores market data for swaps
 type SwapMarketsData struct {
-	Symbol         string  `json:"symbol"`
-	ContractCode   string  `json:"contract_code"`
-	ContractSize   float64 `json:"contract_size"`
-	PriceTick      float64 `json:"price_tick"`
-	SettlementDate string  `json:"settlement_date"`
-	CreateDate     string  `json:"create_date"`
-	DeliveryTime   string  `json:"delivery_time"`
-	ContractStatus int64   `json:"contract_status"`
+	Symbol         string     `json:"symbol"`
+	ContractCode   string     `json:"contract_code"`
+	ContractSize   float64    `json:"contract_size"`
+	PriceTick      float64    `json:"price_tick"`
+	SettlementDate types.Time `json:"settlement_date"`
+	CreateDate     string     `json:"create_date"`
+	DeliveryTime   types.Time `json:"delivery_time"`
+	ContractStatus int64      `json:"contract_status"`
 }
 
 // KlineItem stores a kline item
@@ -580,7 +580,7 @@ type OrderBookDataRequestParams struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	ID         int64        `json:"id"`
-	Timetstamp int64        `json:"ts"`
+	Timetstamp types.Time   `json:"ts"`
 	Bids       [][2]float64 `json:"bids"`
 	Asks       [][2]float64 `json:"asks"`
 }
@@ -678,25 +678,25 @@ type CancelOrderBatch struct {
 
 // OrderInfo stores the order info
 type OrderInfo struct {
-	ID               int64   `json:"id"`
-	Symbol           string  `json:"symbol"`
-	AccountID        int64   `json:"account-id"`
-	Amount           float64 `json:"amount,string"`
-	Price            float64 `json:"price,string"`
-	CreatedAt        int64   `json:"created-at"`
-	Type             string  `json:"type"`
-	FieldAmount      float64 `json:"field-amount,string"`
-	FieldCashAmount  float64 `json:"field-cash-amount,string"`
-	FilledAmount     float64 `json:"filled-amount,string"`
-	FilledCashAmount float64 `json:"filled-cash-amount,string"`
-	FilledFees       float64 `json:"filled-fees,string"`
-	FinishedAt       int64   `json:"finished-at"`
-	UserID           int64   `json:"user-id"`
-	Source           string  `json:"source"`
-	State            string  `json:"state"`
-	CanceledAt       int64   `json:"canceled-at"`
-	Exchange         string  `json:"exchange"`
-	Batch            string  `json:"batch"`
+	ID               int64      `json:"id"`
+	Symbol           string     `json:"symbol"`
+	AccountID        int64      `json:"account-id"`
+	Amount           float64    `json:"amount,string"`
+	Price            float64    `json:"price,string"`
+	CreatedAt        types.Time `json:"created-at"`
+	Type             string     `json:"type"`
+	FieldAmount      float64    `json:"field-amount,string"`
+	FieldCashAmount  float64    `json:"field-cash-amount,string"`
+	FilledAmount     float64    `json:"filled-amount,string"`
+	FilledCashAmount float64    `json:"filled-cash-amount,string"`
+	FilledFees       float64    `json:"filled-fees,string"`
+	FinishedAt       types.Time `json:"finished-at"`
+	UserID           int64      `json:"user-id"`
+	Source           string     `json:"source"`
+	State            string     `json:"state"`
+	CanceledAt       int64      `json:"canceled-at"`
+	Exchange         string     `json:"exchange"`
+	Batch            string     `json:"batch"`
 }
 
 // OrderMatchInfo stores the order match info
