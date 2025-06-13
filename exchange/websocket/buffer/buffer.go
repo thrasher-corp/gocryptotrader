@@ -311,7 +311,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	return nil
 }
 
-// GetOrderbook returns an orderbook copy as orderbook.Base
+// GetOrderbook returns an orderbook copy as orderbook.Book
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
