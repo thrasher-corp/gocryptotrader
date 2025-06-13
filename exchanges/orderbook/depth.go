@@ -94,7 +94,7 @@ func (d *Depth) LoadSnapshot(incoming *Base) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if incoming.LastUpdated.IsZero() {
-		return fmt.Errorf("validation error: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
+		return fmt.Errorf("error loading orderbook snapshot: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
 	d.lastUpdateID = incoming.LastUpdateID
 	d.lastUpdated = incoming.LastUpdated
@@ -108,7 +108,14 @@ func (d *Depth) LoadSnapshot(incoming *Base) error {
 	return nil
 }
 
-// invalidate flushes all values back to zero so as to not allow strategy traversal on compromised data.
+// Invalidate initialises the Depth, with a error to explain why it was invalid
+func (d *Depth) Invalidate(withReason error) error {
+	d.m.Lock()
+	defer d.m.Unlock()
+	return d.invalidate(withReason)
+}
+
+// invalidate initialises the Depth, with a error to explain why it was invalid
 // NOTE: This requires locking.
 func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
@@ -118,13 +125,6 @@ func (d *Depth) invalidate(withReason error) error {
 	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]", d.exchange, d.pair, d.asset, common.AppendError(ErrOrderbookInvalid, withReason))
 	d.Alert()
 	return d.validationError
-}
-
-// Invalidate flushes all values back to zero so as to not allow strategy traversal on compromised data.
-func (d *Depth) Invalidate(withReason error) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	return d.invalidate(withReason)
 }
 
 // IsValid returns if the underlying book is valid.

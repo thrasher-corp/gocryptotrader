@@ -165,7 +165,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				Asks:                       orderbook.Tranches(ob.Asks),
 				Pair:                       ob.Currency,
 				ExpectedChecksum:           ob.Checksum,
-				GenerateChecksum:           generateChecksum,
+				GenerateChecksum:           orderbookChecksum,
 				SkipOutOfOrderLastUpdateID: true,
 			})
 		}
@@ -462,8 +462,8 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	return b.Subscribe(sub)
 }
 
-// generateChecksum provides assurance on current in memory liquidity
-func generateChecksum(ob *orderbook.Base) uint32 {
+// orderbookChecksum calculates a checksum for the orderbook liquidity
+func orderbookChecksum(ob *orderbook.Base) uint32 {
 	return crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 }
 

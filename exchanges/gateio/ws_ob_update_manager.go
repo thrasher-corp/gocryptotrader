@@ -59,7 +59,7 @@ func (m *wsOBUpdateManager) ProcessUpdate(ctx context.Context, g *Gateio, firstU
 		return applyOrderbookUpdate(g, update)
 	}
 
-	// Orderbook is behind notifications, invalidate store to prevent trading on stale data
+	// Orderbook is behind notifications, therefore Invalidate store
 	if err := g.Websocket.Orderbook.InvalidateOrderbook(update.Pair, update.Asset); err != nil && !errors.Is(err, orderbook.ErrDepthNotFound) {
 		return err
 	}

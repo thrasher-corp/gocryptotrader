@@ -197,7 +197,7 @@ func (w *Orderbook) InvalidateOrderbook(p currency.Pair, a asset.Item) error {
 	if !ok {
 		return fmt.Errorf("cannot invalidate orderbook %s %s %s %w", w.exchangeName, p, a, orderbook.ErrDepthNotFound)
 	}
-	// error not needed in this return
+	// error not needed in this return as it is only used to trigger the Invalidate method
 	_ = holder.ob.Invalidate(errOrderbookFlushed)
 	return nil
 }

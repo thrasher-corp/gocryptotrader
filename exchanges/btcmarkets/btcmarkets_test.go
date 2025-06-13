@@ -863,13 +863,13 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
-func TestChecksum(t *testing.T) {
+func TestOrderbookChecksum(t *testing.T) {
 	b := &orderbook.Base{
 		Asks: []orderbook.Tranche{{Price: 0.3965, Amount: 44149.815}, {Price: 0.3967, Amount: 16000.0}},
 		Bids: []orderbook.Tranche{{Price: 0.396, Amount: 51.0}, {Price: 0.396, Amount: 25.0}, {Price: 0.3958, Amount: 18570.0}},
 	}
 
-	require.Equal(t, uint32(3802968298), generateChecksum(b))
+	require.Equal(t, uint32(3802968298), orderbookChecksum(b))
 }
 
 func TestTrim(t *testing.T) {
