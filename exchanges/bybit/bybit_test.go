@@ -97,7 +97,7 @@ func TestGetKlines(t *testing.T) {
 			}
 			require.NoErrorf(t, err, "GetKlines for category %s and pair %s must not error", tc.category, tc.pair)
 			if mockTests {
-				require.Equalf(t, tc.expRespLen, len(r), "GetKlines for category %s and pair %s should return %d items", tc.category, tc.pair, tc.expRespLen)
+				require.Equalf(t, tc.expRespLen, len(r), "GetKlines for category %s and pair %s must return %d items", tc.category, tc.pair, tc.expRespLen)
 
 				switch tc.category {
 				case "spot":
