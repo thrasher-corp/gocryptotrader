@@ -35,7 +35,7 @@ func getExclusivePair() (currency.Pair, error) {
 	return currency.NewPairFromStrings(currency.BTC.String(), currency.USDT.String()+strconv.FormatInt(offset.IncrementAndGet(), 10))
 }
 
-func createSnapshot(pair currency.Pair, bookVerifiy ...bool) (holder *Orderbook, asks, bids orderbook.Tranches, err error) {
+func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook.Tranches, err error) {
 	asks = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 	bids = orderbook.Tranches{{Price: 4000, Amount: 1, ID: 6}}
 
@@ -47,7 +47,6 @@ func createSnapshot(pair currency.Pair, bookVerifiy ...bool) (holder *Orderbook,
 		Pair:             pair,
 		PriceDuplication: true,
 		LastUpdated:      time.Now(),
-		VerifyOrderbook:  len(bookVerifiy) > 0 && bookVerifiy[0],
 		LastUpdateID:     69420,
 	}
 
