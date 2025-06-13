@@ -57,7 +57,7 @@ type store struct {
 	m               sync.RWMutex
 }
 
-// Level defines a segmented portions of an order or options book
+// Level represents a single price level in an orderbook, grouping all orders at that price.
 type Level struct {
 	Amount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
