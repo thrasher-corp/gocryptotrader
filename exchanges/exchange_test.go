@@ -2902,3 +2902,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	_, err := (&Base{}).WebsocketSubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
+
+func TestWebsocketSubmitOrders(t *testing.T) {
+	_, err := (&Base{}).WebsocketSubmitOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
