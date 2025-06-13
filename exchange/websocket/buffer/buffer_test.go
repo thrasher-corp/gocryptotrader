@@ -491,7 +491,7 @@ func TestFlushBuffer(t *testing.T) {
 
 	obl.FlushBuffer()
 	assert.Empty(t, holder.buffer, "FlushBuffer should empty buffer")
-	assert.Equal(t, 10, cap(holder.buffer))
+	assert.Equal(t, 10, cap(holder.buffer), "FlushBuffer should leave the buffer cap to avoid reallocs")
 }
 
 // TestInsertingSnapShots logic test
