@@ -434,7 +434,7 @@ func (g *Gateio) processFuturesOrderbookUpdate(ctx context.Context, incoming []b
 	})
 }
 
-func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
+func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsFuturesOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -446,7 +446,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
-			LastPushed:      updatePushedAt,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -501,8 +501,8 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     updatePushedAt,
-			LastPushed:      updatePushedAt,
+			LastUpdated:     lastPushed,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {

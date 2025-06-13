@@ -353,7 +353,7 @@ func (g *Gateio) processCandlestick(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -363,13 +363,13 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 		Pair:        data.Pair,
 		Asset:       asset.Spot,
 		LastUpdated: data.UpdateTime.Time(),
-		LastPushed:  updatePushedAt,
+		LastPushed:  lastPushed,
 		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
 		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
-func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -387,7 +387,7 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:   data.LastUpdateID,
 		UpdateTime: data.UpdateTime.Time(),
-		LastPushed: updatePushedAt,
+		LastPushed: lastPushed,
 		Pair:       data.Pair,
 		Asset:      asset.Spot,
 		Asks:       asks,
@@ -396,7 +396,7 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, up
 	})
 }
 
-func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOrderbookSnapshot(incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -420,7 +420,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 				Pair:        data.CurrencyPair,
 				Asset:       a,
 				LastUpdated: data.UpdateTime.Time(),
-				LastPushed:  updatePushedAt,
+				LastPushed:  lastPushed,
 				Bids:        bids,
 				Asks:        asks,
 			}); err != nil {
