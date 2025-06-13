@@ -1,7 +1,6 @@
 package bybit
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -137,19 +136,7 @@ type KlineItem struct {
 
 // UnmarshalJSON implements the json.Unmarshaler interface for KlineItem
 func (k *KlineItem) UnmarshalJSON(data []byte) error {
-	var rawData []json.RawMessage
-	if err := json.Unmarshal(data, &rawData); err != nil {
-		return err
-	}
-
-	switch len(rawData) {
-	case 5:
-		return json.Unmarshal(data, &[5]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close})
-	case 7:
-		return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
-	default:
-		return fmt.Errorf("unexpected kline data length: %d", len(rawData))
-	}
+	return json.Unmarshal(data, &[7]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close, &k.TradeVolume, &k.Turnover})
 }
 
 // MarkPriceKlineResponse represents a kline data item.
