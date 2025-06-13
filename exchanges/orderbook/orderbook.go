@@ -154,8 +154,7 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// Verify ensures that the orderbook items are correctly sorted prior to being set and will reject any book with
-// incorrect values.
+// Verify ensures that the orderbook items are correctly sorted and all fields are valid
 // Bids should always go from a high price to a low price and Asks should always go from a low price to a higher price
 func (b *Base) Verify() error {
 	if !b.VerifyOrderbook {
