@@ -490,7 +490,7 @@ func TestFlushBuffer(t *testing.T) {
 	holder.buffer = append(holder.buffer, orderbook.Update{})
 
 	obl.FlushBuffer()
-	assert.Empty(t, holder.buffer, 0)
+	assert.Empty(t, holder.buffer, "FlushBuffer should empty buffer")
 	assert.Equal(t, 10, cap(holder.buffer))
 }
 
