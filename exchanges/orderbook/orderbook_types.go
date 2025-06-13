@@ -79,7 +79,7 @@ type Level struct {
 	OrderCount        int64
 }
 
-// Book contains a moment in time snapshot from an Depth
+// Book stores an orderbook
 type Book struct {
 	Bids Levels
 	Asks Levels
