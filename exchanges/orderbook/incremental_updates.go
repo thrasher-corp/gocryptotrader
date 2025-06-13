@@ -161,8 +161,7 @@ func (d *Depth) updateByIDAndAction(u *Update) error {
 	return nil
 }
 
-// updateBidAskByPrice updates the bid and ask spread by supplied updates, this will trim total length of depth level to
-// a specified supplied number
+// updateBidAskByPrice updates the bid and ask spread and enforces Depth.options.maxDepth
 func (d *Depth) updateBidAskByPrice(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
