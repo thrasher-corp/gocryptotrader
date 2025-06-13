@@ -1173,9 +1173,8 @@ func TestGetSpotKline(t *testing.T) {
 		EndTime:   end,
 	})
 	require.NoError(t, err, "GetSpotKline must not error")
-	assert.NotEmpty(t, r, "GetSpotKline should return data")
 	if mockTests {
-		require.Len(t, r, 24, "GetSpotKline must return 24 items in mock test")
+		require.Equal(t, 24, len(r), "GetSpotKline must return 24 items in mock test")
 		exp := CandleStick{
 			OpenTime:                 types.Time(time.UnixMilli(1577836800000)),
 			Open:                     7195.24,
@@ -1190,6 +1189,8 @@ func TestGetSpotKline(t *testing.T) {
 			TakerBuyQuoteAssetVolume: 235537.29504531,
 		}
 		assert.Equal(t, exp, r[0])
+	} else {
+		assert.NotEmpty(t, r, "GetSpotKline should return data")
 	}
 }
 

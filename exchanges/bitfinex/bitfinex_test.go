@@ -27,6 +27,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply API keys here or in config/testdata.json to test authenticated endpoints
@@ -666,14 +667,45 @@ func TestGetMovementHistory(t *testing.T) {
 	}
 }
 
-func TestGetTradeHistory(t *testing.T) {
+func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetTradeHistory(t.Context(),
-		"BTCUSD", time.Time{}, time.Time{}, 1, 0)
-	if err != nil {
-		t.Error(err)
+	deposit := []byte(`[13105603,"ETH","ETHEREUM",null,null,1569348774000,1569348774000,null,null,"COMPLETED",null,null,0.26300954,-0.00135,null,null,"DESTINATION_ADDRESS",null,null,null,"TRANSACTION_ID",null]`)
+	var result MovementHistory
+	require.NoError(t, json.Unmarshal(deposit, &result))
+	stringPtr := func(s string) *string {
+		return &s
 	}
+	exp := MovementHistory{
+		ID:                 13105603,
+		Currency:           "ETH",
+		CurrencyName:       "ETHEREUM",
+		MTSStarted:         types.Time(time.Unix(1569348774, 0)),
+		MTSUpdated:         types.Time(time.Unix(1569348774, 0)),
+		Status:             "COMPLETED",
+		Amount:             0.26300954,
+		Fees:               -0.00135,
+		DestinationAddress: "DESTINATION_ADDRESS",
+		TransactionID:      stringPtr("TRANSACTION_ID"),
+		TransactionType:    "deposit",
+	}
+	assert.Equal(t, exp, result, "MovementHistory should unmarshal correctly")
+	withdrawal := []byte(`[13293039,"ETH","ETHEREUM",null,null,1574175052000,1574181326000,null,null,"CANCELED",null,null,-0.24,-0.00135,null,null,"DESTINATION_ADDRESS",null,null,null,"TRANSACTION_ID","Purchase of 100 pizzas"]`)
+	require.NoError(t, json.Unmarshal(withdrawal, &result))
+	exp = MovementHistory{
+		ID:                 13293039,
+		Currency:           "ETH",
+		CurrencyName:       "ETHEREUM",
+		MTSStarted:         types.Time(time.Unix(1574175052, 0)),
+		MTSUpdated:         types.Time(time.Unix(1574181326, 0)),
+		Status:             "CANCELED",
+		Amount:             -0.24,
+		Fees:               -0.00135,
+		DestinationAddress: "DESTINATION_ADDRESS",
+		TransactionID:      stringPtr("TRANSACTION_ID"),
+		TransactionNote:    stringPtr("Purchase of 100 pizzas"),
+		TransactionType:    "withdrawal",
+	}
+	assert.Equal(t, exp, result, "MovementHistory should unmarshal correctly")
 }
 
 func TestNewOffer(t *testing.T) {

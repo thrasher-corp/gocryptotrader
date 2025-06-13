@@ -213,7 +213,7 @@ type RecentTradeResponseItem struct {
 
 // UnmarshalJSON unmarshals the recent trade response item
 func (r *RecentTradeResponseItem) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&r.Price, &r.Volume, &r.Time, &r.BuyOrSell, &r.MarketOrLimit, &r.Miscellaneous, &r.TradeID})
+	return json.Unmarshal(data, &[7]any{&r.Price, &r.Volume, &r.Time, &r.BuyOrSell, &r.MarketOrLimit, &r.Miscellaneous, &r.TradeID})
 }
 
 // OrderbookBase stores the orderbook price and amount data
@@ -238,7 +238,7 @@ type SpreadItem struct {
 
 // UnmarshalJSON unmarshals the spread item
 func (s *SpreadItem) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{&s.Time, &s.Bid, &s.Ask})
+	return json.Unmarshal(data, &[3]any{&s.Time, &s.Bid, &s.Ask})
 }
 
 // SpreadResponse holds the spread response data

@@ -322,7 +322,7 @@ type CandleStick struct {
 
 // UnmarshalJSON unmarshals JSON data into a CandleStick struct
 func (c *CandleStick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[]any{
+	return json.Unmarshal(data, &[11]any{
 		&c.OpenTime,
 		&c.Open,
 		&c.High,
