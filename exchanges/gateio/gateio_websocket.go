@@ -353,23 +353,23 @@ func (g *Exchange) processCandlestick(incoming []byte) error {
 	return nil
 }
 
-func (g *Exchange) processOrderbookTicker(incoming []byte, updatePushedAt time.Time) error {
+func (g *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
 	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           data.Pair,
-		Asset:          asset.Spot,
-		LastUpdated:    data.UpdateTime.Time(),
-		UpdatePushedAt: updatePushedAt,
-		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Exchange:    g.Name,
+		Pair:        data.Pair,
+		Asset:       asset.Spot,
+		LastUpdated: data.UpdateTime.Time(),
+		LastPushed:  lastPushed,
+		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
-func (g *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, updatePushedAt time.Time) error {
+func (g *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -385,18 +385,18 @@ func (g *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 		bids[x].Amount = data.Bids[x][1].Float64()
 	}
 	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdateID, &orderbook.Update{
-		UpdateID:       data.LastUpdateID,
-		UpdateTime:     data.UpdateTime.Time(),
-		UpdatePushedAt: updatePushedAt,
-		Pair:           data.Pair,
-		Asset:          asset.Spot,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+		UpdateID:   data.LastUpdateID,
+		UpdateTime: data.UpdateTime.Time(),
+		LastPushed: lastPushed,
+		Pair:       data.Pair,
+		Asset:      asset.Spot,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
-func (g *Exchange) processOrderbookSnapshot(incoming []byte, updatePushedAt time.Time) error {
+func (g *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Time) error {
 	var data WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -416,13 +416,13 @@ func (g *Exchange) processOrderbookSnapshot(incoming []byte, updatePushedAt time
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-				Exchange:       g.Name,
-				Pair:           data.CurrencyPair,
-				Asset:          a,
-				LastUpdated:    data.UpdateTime.Time(),
-				UpdatePushedAt: updatePushedAt,
-				Bids:           bids,
-				Asks:           asks,
+				Exchange:    g.Name,
+				Pair:        data.CurrencyPair,
+				Asset:       a,
+				LastUpdated: data.UpdateTime.Time(),
+				LastPushed:  lastPushed,
+				Bids:        bids,
+				Asks:        asks,
 			}); err != nil {
 				return err
 			}

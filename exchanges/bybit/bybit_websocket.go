@@ -721,24 +721,24 @@ func (by *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResp
 
 	if resp.Type == "snapshot" {
 		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:           cp,
-			Exchange:       by.Name,
-			Asset:          assetType,
-			LastUpdated:    resp.OrderbookLastUpdated.Time(),
-			LastUpdateID:   result.UpdateID,
-			UpdatePushedAt: resp.PushTimestamp.Time(),
-			Asks:           asks,
-			Bids:           bids,
+			Pair:         cp,
+			Exchange:     by.Name,
+			Asset:        assetType,
+			LastUpdated:  resp.OrderbookLastUpdated.Time(),
+			LastUpdateID: result.UpdateID,
+			LastPushed:   resp.PushTimestamp.Time(),
+			Asks:         asks,
+			Bids:         bids,
 		})
 	}
 	return by.Websocket.Orderbook.Update(&orderbook.Update{
-		Pair:           cp,
-		Asks:           asks,
-		Bids:           bids,
-		Asset:          assetType,
-		UpdateID:       result.UpdateID,
-		UpdateTime:     resp.OrderbookLastUpdated.Time(),
-		UpdatePushedAt: resp.PushTimestamp.Time(),
+		Pair:       cp,
+		Asks:       asks,
+		Bids:       bids,
+		Asset:      assetType,
+		UpdateID:   result.UpdateID,
+		UpdateTime: resp.OrderbookLastUpdated.Time(),
+		LastPushed: resp.PushTimestamp.Time(),
 	})
 }
 

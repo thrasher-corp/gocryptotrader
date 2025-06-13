@@ -423,18 +423,18 @@ func (g *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 	}
 
 	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
-		UpdateID:       data.LastUpdatedID,
-		UpdateTime:     data.Timestamp.Time(),
-		UpdatePushedAt: pushTime,
-		Pair:           data.ContractName,
-		Asset:          a,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+		UpdateID:   data.LastUpdatedID,
+		UpdateTime: data.Timestamp.Time(),
+		LastPushed: pushTime,
+		Pair:       data.ContractName,
+		Asset:      a,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
-func (g *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, updatePushedAt time.Time) error {
+func (g *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsFuturesOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -446,7 +446,7 @@ func (g *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
-			UpdatePushedAt:  updatePushedAt,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -501,8 +501,8 @@ func (g *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 			Asset:           assetType,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     updatePushedAt,
-			UpdatePushedAt:  updatePushedAt,
+			LastUpdated:     lastPushed,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {
