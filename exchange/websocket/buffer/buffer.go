@@ -81,7 +81,7 @@ func (w *Orderbook) validate(u *orderbook.Update) error {
 }
 
 // Update updates a stored pointer to an orderbook.Depth struct containing
-// bid and ask Levels, this switches between the usage of a buffered update
+// bid and ask levels, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *orderbook.Update) error {
 	if err := w.validate(u); err != nil {
 		return err
