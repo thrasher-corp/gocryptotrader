@@ -1178,7 +1178,7 @@ Please test all `pair` commands to disable and enable different assets types to 
 - `get` to ensure correct enabled and disabled pairs for a supported asset type.
 - `disableasset` to ensure disabling of entire asset class and associated unsubscriptions.
 - `enableasset` to ensure correct enabling of entire asset class and associated subscriptions.
-- `disable` to ensure correct disabling of pair(s) and associated unsubscriptions.
+- `disable` to ensure correct disabling of pair(s) and associated subscriptions.
 - `enable` to ensure correct enabling of pair(s) and associated subscriptions.
 - `enableall` to ensure correct enabling of all pairs for an asset type and associated subscriptions.
 - `disableall` to ensure correct disabling of all pairs for an asset type and associated unsubscriptions.
