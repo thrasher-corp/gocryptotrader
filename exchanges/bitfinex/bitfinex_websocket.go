@@ -803,8 +803,9 @@ func (b *Bitfinex) handleWSAllCandleUpdates(c *subscription.Subscription, respRa
 		wsCandles = []Candle{wsCandle}
 	}
 
+	klines := make([]websocket.KlineData, len(wsCandles))
 	for i := range wsCandles {
-		b.Websocket.DataHandler <- websocket.KlineData{
+		klines[i] = websocket.KlineData{
 			Exchange:   b.Name,
 			AssetType:  c.Asset,
 			Pair:       c.Pairs[0],
@@ -816,6 +817,7 @@ func (b *Bitfinex) handleWSAllCandleUpdates(c *subscription.Subscription, respRa
 			Volume:     wsCandles[i].Volume.Float64(),
 		}
 	}
+	b.Websocket.DataHandler <- klines
 	return nil
 }
 
