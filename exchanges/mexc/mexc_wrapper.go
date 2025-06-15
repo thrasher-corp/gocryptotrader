@@ -31,10 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	websocketResponseMaxLimit = time.Second * 3
-)
-
 // SetDefaults sets the basic defaults for Mexc
 func (me *MEXC) SetDefaults() {
 	me.Name = "MEXC"
@@ -151,12 +147,13 @@ func (me *MEXC) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err := me.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	err = me.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  wsURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     websocketResponseMaxLimit,
+		ResponseMaxLimit:     time.Second * 3,
 		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	return nil

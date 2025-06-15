@@ -1365,7 +1365,7 @@ type WsSubscriptionResponse struct {
 // BatchOrdersCancelationResponseItem represents futures order cancellation response
 type BatchOrdersCancelationResponseItem struct {
 	OrderID   int64  `json:"orderId"`
-	ErrorCode int    `json:"errorCode"`
+	ErrorCode int64  `json:"errorCode"`
 	ErrorMsg  string `json:"errorMsg"`
 }
 

@@ -2,6 +2,7 @@ package mexc
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -106,7 +107,7 @@ func (me *MEXC) wsAuth() error {
 	if err != nil {
 		return err
 	}
-	param.Signature = crypto.HexEncodeToString(hmac)
+	param.Signature = base64.StdEncoding.EncodeToString(hmac)
 	data, err := me.Websocket.Conn.SendMessageReturnResponse(context.Background(), request.Auth, "rs.login", &WsSubscriptionPayload{
 		Param:  param,
 		Method: cnlLogin,
