@@ -513,19 +513,19 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
-	return g.wsOBUpdateMgr.ProcessUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
-		UpdateID:       data.LastUpdatedID,
-		UpdateTime:     data.Timestamp.Time(),
-		UpdatePushedAt: pushTime,
-		Pair:           data.ContractName,
-		Asset:          a,
-		Asks:           asks,
-		Bids:           bids,
-		AllowEmpty:     true,
+	return g.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, g, data.FirstUpdatedID, &orderbook.Update{
+		UpdateID:   data.LastUpdatedID,
+		UpdateTime: data.Timestamp.Time(),
+		LastPushed: pushTime,
+		Pair:       data.ContractName,
+		Asset:      a,
+		Asks:       asks,
+		Bids:       bids,
+		AllowEmpty: true,
 	})
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, updatePushedAt time.Time) error {
+func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -537,7 +537,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Exchange:        g.Name,
 			Pair:            data.Contract,
 			LastUpdated:     data.Timestamp.Time(),
-			UpdatePushedAt:  updatePushedAt,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
 		base.Asks = make([]orderbook.Tranche, len(data.Asks))
@@ -590,8 +590,8 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            currencyPair,
-			LastUpdated:     updatePushedAt,
-			UpdatePushedAt:  updatePushedAt,
+			LastUpdated:     lastPushed,
+			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		})
 		if err != nil {

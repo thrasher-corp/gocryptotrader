@@ -1,13 +1,14 @@
 package withdraw
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -159,11 +160,7 @@ func withdrawHelper(t *testing.T) {
 	seedWithdrawData()
 
 	_, err := GetEventByUUID(withdraw.DryRunID.String())
-	if err != nil {
-		if !errors.Is(err, common.ErrNoResults) {
-			t.Fatal(err)
-		}
-	}
+	require.ErrorIs(t, err, common.ErrNoResults)
 
 	v, err := GetEventsByExchange(testExchanges[0].Name, 10)
 	if err != nil {
@@ -182,9 +179,7 @@ func withdrawHelper(t *testing.T) {
 	if len(v) > 0 {
 		_, err = GetEventByUUID(v[0].ID.String())
 		if err != nil {
-			if !errors.Is(err, common.ErrNoResults) {
-				t.Error(err)
-			}
+			assert.ErrorIs(t, err, common.ErrNoResults)
 		}
 	}
 

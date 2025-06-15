@@ -3,6 +3,8 @@ package bithumb
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -565,26 +567,21 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 	var intermediary json.RawMessage
 	err = b.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		// This is time window sensitive
-		tnMS := time.Now().UnixMilli()
-		n := strconv.FormatInt(tnMS, 10)
+		n := strconv.FormatInt(time.Now().UnixMilli(), 10)
 
 		params.Set("endpoint", path)
 
 		payload := params.Encode()
 		hmacPayload := path + string('\x00') + payload + string('\x00') + n
 
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(hmacPayload),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(hmacPayload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		hmacStr := crypto.HexEncodeToString(hmac)
 
 		headers := make(map[string]string)
 		headers["Api-Key"] = creds.Key
-		headers["Api-Sign"] = crypto.Base64Encode([]byte(hmacStr))
+		headers["Api-Sign"] = base64.StdEncoding.EncodeToString(([]byte(hex.EncodeToString(hmac))))
 		headers["Api-Nonce"] = n
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 

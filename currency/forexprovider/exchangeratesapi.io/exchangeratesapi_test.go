@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 )
 
@@ -23,7 +25,7 @@ func TestMain(t *testing.M) {
 		APIKey:    apiKey,
 		APIKeyLvl: apiKeyLevel,
 	})
-	if err != nil && !errors.Is(err, errAPIKeyNotSet) {
+	if err != nil && !(errors.Is(err, errAPIKeyNotSet)) {
 		log.Fatal(err)
 	}
 	os.Exit(t.Run())
@@ -71,9 +73,7 @@ func TestGetLatestRates(t *testing.T) {
 
 	if e.APIKeyLvl <= apiKeyFree {
 		_, err = e.GetLatestRates("USD", "")
-		if !errors.Is(err, errCannotSetBaseCurrencyOnFreePlan) {
-			t.Errorf("expected: %s, got %s", errCannotSetBaseCurrencyOnFreePlan, err)
-		}
+		assert.ErrorIs(t, err, errCannotSetBaseCurrencyOnFreePlan)
 	}
 
 	result, err = e.GetLatestRates("EUR", "AUD")
@@ -102,9 +102,7 @@ func TestGetHistoricalRates(t *testing.T) {
 
 	if e.APIKeyLvl <= apiKeyFree {
 		_, err = e.GetHistoricalRates(time.Now(), "USD", []string{"AUD"})
-		if !errors.Is(err, errCannotSetBaseCurrencyOnFreePlan) {
-			t.Errorf("expected: %s, got %s", errCannotSetBaseCurrencyOnFreePlan, err)
-		}
+		assert.ErrorIs(t, err, errCannotSetBaseCurrencyOnFreePlan)
 	}
 
 	_, err = e.GetHistoricalRates(time.Now(), "EUR", []string{"AUD,USD"})
@@ -120,9 +118,8 @@ func TestConvertCurrency(t *testing.T) {
 
 	if e.APIKeyLvl <= apiKeyFree {
 		_, err := e.ConvertCurrency("USD", "AUD", 1000, time.Time{})
-		if !errors.Is(err, errAPIKeyLevelRestrictedAccess) {
-			t.Errorf("expected: %s, got %s", errAPIKeyLevelRestrictedAccess, err)
-		}
+		assert.ErrorIs(t, err, errAPIKeyLevelRestrictedAccess)
+
 		return
 	}
 
@@ -144,22 +141,17 @@ func TestGetTimeSeriesRates(t *testing.T) {
 
 	if e.APIKeyLvl <= apiKeyFree {
 		_, err := e.GetTimeSeriesRates(time.Time{}, time.Time{}, "EUR", []string{"EUR,USD"})
-		if !errors.Is(err, errAPIKeyLevelRestrictedAccess) {
-			t.Errorf("expected %s, got %s", errAPIKeyLevelRestrictedAccess, err)
-		}
+		assert.ErrorIs(t, err, errAPIKeyLevelRestrictedAccess)
+
 		return
 	}
 
 	_, err := e.GetTimeSeriesRates(time.Time{}, time.Time{}, "USD", []string{"EUR", "USD"})
-	if !errors.Is(err, errStartEndDatesInvalid) {
-		t.Fatalf("received '%v' expected '%v'", err, errStartEndDatesInvalid)
-	}
+	require.ErrorIs(t, err, errStartEndDatesInvalid)
 
 	tmNow := time.Now()
 	_, err = e.GetTimeSeriesRates(tmNow.AddDate(0, 1, 0), tmNow, "USD", []string{"EUR", "USD"})
-	if !errors.Is(err, errStartAfterEnd) {
-		t.Fatalf("received '%v' expected '%v'", err, errStartAfterEnd)
-	}
+	require.ErrorIs(t, err, errStartAfterEnd)
 
 	_, err = e.GetTimeSeriesRates(tmNow.AddDate(0, -1, 0), tmNow, "EUR", []string{"AUD,USD"})
 	if err != nil {
@@ -174,9 +166,8 @@ func TestGetFluctuation(t *testing.T) {
 
 	if e.APIKeyLvl <= apiKeyFree {
 		_, err := e.GetFluctuations(time.Time{}, time.Time{}, "EUR", "")
-		if !errors.Is(err, errAPIKeyLevelRestrictedAccess) {
-			t.Errorf("expected: %s, got %s", errAPIKeyLevelRestrictedAccess, err)
-		}
+		assert.ErrorIs(t, err, errAPIKeyLevelRestrictedAccess)
+
 		return
 	}
 

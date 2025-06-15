@@ -52,7 +52,7 @@ func (s *store) Update(b *Base) error {
 			return err
 		}
 	}
-	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.UpdatePushedAt, true); err != nil {
+	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.LastPushed, true); err != nil {
 		return err
 	}
 	return s.signalMux.Publish(book.Depth, book.RouterID)

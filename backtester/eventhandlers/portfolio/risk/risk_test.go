@@ -1,7 +1,6 @@
 package risk
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -56,9 +55,8 @@ func TestEvaluateOrder(t *testing.T) {
 	t.Parallel()
 	r := Risk{}
 	_, err := r.EvaluateOrder(nil, nil, compliance.Snapshot{})
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	p := currency.NewBTCUSDT()
 	e := "binance"
 	a := asset.Spot
@@ -72,9 +70,7 @@ func TestEvaluateOrder(t *testing.T) {
 	h := []holdings.Holding{}
 	r.CurrencySettings = make(map[key.ExchangePairAsset]*CurrencySettings)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errNoCurrencySettings) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errNoCurrencySettings)
 
 	r.CurrencySettings[key.ExchangePairAsset{
 		Exchange: e,
@@ -105,14 +101,11 @@ func TestEvaluateOrder(t *testing.T) {
 		Asset:    a,
 	}].MaximumHoldingRatio = decimal.Zero
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errLeverageNotAllowed) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errLeverageNotAllowed)
+
 	r.CanUseLeverage = true
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errCannotPlaceLeverageOrder) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[key.ExchangePairAsset{
@@ -141,9 +134,7 @@ func TestEvaluateOrder(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, errCannotPlaceLeverageOrder) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 
 	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
 	r.CurrencySettings[key.ExchangePairAsset{
@@ -157,7 +148,5 @@ func TestEvaluateOrder(t *testing.T) {
 
 	h = append(h, holdings.Holding{Pair: currency.NewPair(currency.DOGE, currency.LTC), BaseValue: decimal.NewFromInt(1337)})
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
-	if !errors.Is(err, errCannotPlaceLeverageOrder) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errCannotPlaceLeverageOrder)
 }

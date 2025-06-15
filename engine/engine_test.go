@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"os"
 	"slices"
 	"strings"
@@ -158,9 +157,7 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 func TestGetExchangeByName(t *testing.T) {
 	t.Parallel()
 	_, err := (*ExchangeManager)(nil).GetExchangeByName("tehehe")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received: %v expected: %v", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -190,9 +187,7 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 
 	_, err = e.GetExchangeByName("Asdasd")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received: %v expected: %v", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestUnloadExchange(t *testing.T) {
@@ -211,9 +206,7 @@ func TestUnloadExchange(t *testing.T) {
 		Config:          &config.Config{Exchanges: []config.Exchange{{Name: testExchange}}},
 	}
 	err = e.UnloadExchange("asdf")
-	if !errors.Is(err, config.ErrExchangeNotFound) {
-		t.Errorf("error '%v', expected '%v'", err, config.ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, config.ErrExchangeNotFound)
 
 	err = e.UnloadExchange(testExchange)
 	if err != nil {
@@ -222,9 +215,7 @@ func TestUnloadExchange(t *testing.T) {
 	}
 
 	err = e.UnloadExchange(testExchange)
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("error '%v', expected '%v'", err, ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
@@ -317,9 +308,7 @@ func TestRegisterWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
 	var e *Engine
 	err := e.RegisterWebsocketDataHandler(nil, false)
-	if !errors.Is(err, errNilBot) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
-	}
+	require.ErrorIs(t, err, errNilBot)
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.RegisterWebsocketDataHandler(func(_ string, _ any) error { return nil }, false)
@@ -330,9 +319,7 @@ func TestSetDefaultWebsocketDataHandler(t *testing.T) {
 	t.Parallel()
 	var e *Engine
 	err := e.SetDefaultWebsocketDataHandler()
-	if !errors.Is(err, errNilBot) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNilBot)
-	}
+	require.ErrorIs(t, err, errNilBot)
 
 	e = &Engine{WebsocketRoutineManager: &WebsocketRoutineManager{}}
 	err = e.SetDefaultWebsocketDataHandler()
