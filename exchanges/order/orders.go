@@ -695,6 +695,8 @@ func (t Type) String() string {
 		return orderLiquidation
 	case Trigger:
 		return orderTrigger
+	case LimitMaker:
+		return orderLimitMaker
 	case OCO:
 		return orderOCO
 	case OptimalLimit:
@@ -1116,6 +1118,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return IOS, nil
 	case orderAnyType:
 		return AnyType, nil
+	case orderLimitMaker:
+		return LimitMaker, nil
 	case orderTrigger:
 		return Trigger, nil
 	case orderOptimalLimit:
