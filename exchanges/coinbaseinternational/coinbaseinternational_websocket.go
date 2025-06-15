@@ -2,6 +2,7 @@ package coinbaseinternational
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -403,7 +404,7 @@ func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credenti
 	}
 	body.Key = creds.Key
 	body.Passphrase = creds.ClientID
-	body.Signature = crypto.Base64Encode(hmac)
+	body.Signature = hex.EncodeToString(hmac)
 	return nil
 }
 

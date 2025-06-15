@@ -56,7 +56,21 @@ func TestMain(m *testing.M) {
 	if err := co.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
+	setupWs()
 	os.Exit(m.Run())
+}
+
+func setupWs() {
+	if !co.Websocket.IsEnabled() {
+		return
+	}
+	if !sharedtestvalues.AreAPICredentialsSet(co) {
+		co.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	err := co.WsConnect()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (co *CoinbaseInternational) populateTradablePairs() error {

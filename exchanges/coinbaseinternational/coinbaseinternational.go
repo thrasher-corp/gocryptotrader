@@ -3,6 +3,7 @@ package coinbaseinternational
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -954,7 +955,7 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 			if err != nil {
 				return nil, err
 			}
-			headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+			headers["CB-ACCESS-SIGN"] = hex.EncodeToString(hmac)
 		}
 		return &request.Item{
 			Method:        method,
