@@ -2,6 +2,7 @@ package cryptodotcom
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -192,7 +193,7 @@ func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 		return err
 	}
 	req.APIKey = creds.Key
-	req.Signature = crypto.HexEncodeToString(hmac)
+	req.Signature = hex.EncodeToString(hmac)
 	payload, err = cr.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
 	if err != nil {
 		return err

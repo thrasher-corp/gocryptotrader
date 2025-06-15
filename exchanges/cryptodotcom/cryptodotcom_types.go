@@ -28,6 +28,10 @@ var (
 	errContingencyTypeRequired         = errors.New("contingency type is required")
 )
 
+const (
+	stopLimit = "STOP_LIMIT"
+)
+
 // OrderbookDetail public order book detail.
 type OrderbookDetail struct {
 	Depth int64 `json:"depth"`
@@ -360,7 +364,7 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountBelowMin, arg.OrderType, arg.Side)
 			}
 		}
-	case order.StopLoss, order.TakeProfit:
+	case order.Stop, order.TakeProfit:
 		if arg.Side == order.Sell {
 			if arg.Quantity <= 0 {
 				return nil, fmt.Errorf("%w order type: %v and order side: %v", order.ErrAmountBelowMin, arg.OrderType, arg.Side)

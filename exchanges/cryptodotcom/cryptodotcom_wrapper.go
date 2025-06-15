@@ -642,7 +642,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 	}
 	var notional float64
 	switch s.Type {
-	case order.Market, order.StopLoss, order.TakeProfit:
+	case order.Market, order.Stop, order.TakeProfit:
 		// For MARKET (BUY), STOP_LOSS (BUY), TAKE_PROFIT (BUY) orders only: Amount to spend
 		notional = s.Amount
 	}

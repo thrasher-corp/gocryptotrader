@@ -3,6 +3,7 @@ package cryptodotcom
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -963,7 +964,7 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 			APIKey:    creds.Key,
 			Nonce:     timestamp.UnixMilli(),
 			Params:    arg,
-			Signature: crypto.HexEncodeToString(hmac),
+			Signature: hex.EncodeToString(hmac),
 		}
 		var payload []byte
 		payload, err = json.Marshal(req)
@@ -1047,21 +1048,14 @@ func OrderTypeToString(orderType order.Type) string {
 // StringToOrderType returns an order.Type representation from string
 func StringToOrderType(orderType string) (order.Type, error) {
 	orderType = strings.ToUpper(orderType)
-	switch orderType {
-	case "STOP_LIMIT":
-		return order.StopLimit, nil
-	case "TAKE_PROFIT":
-		return order.TakeProfit, nil
-	default:
-		oType, err := order.StringToOrderType(orderType)
-		if err != nil {
-			return order.UnknownType, fmt.Errorf("%w, %v", order.ErrTypeIsInvalid, err)
-		}
-		if oType == order.UnknownType || oType == order.AnyType {
-			return order.UnknownType, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, orderType)
-		}
-		return oType, nil
+	oType, err := order.StringToOrderType(orderType)
+	if err != nil {
+		return order.UnknownType, fmt.Errorf("%w, %v", order.ErrTypeIsInvalid, err)
 	}
+	if oType == order.UnknownType || oType == order.AnyType {
+		return order.UnknownType, fmt.Errorf("%w, Order Type: %v", order.ErrTypeIsInvalid, orderType)
+	}
+	return oType, nil
 }
 
 func translateWithdrawalStatus(status string) string {

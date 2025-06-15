@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -294,7 +295,7 @@ func TestCreateOrder(t *testing.T) {
 	_, err = cr.CreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
-	arg.OrderType = order.StopLoss
+	arg.OrderType = order.Stop
 	_, err = cr.CreateOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
@@ -1053,17 +1054,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	}
 }
 
-var pushDataMap = map[string]string{
-	"Orderbook":     `{ "id": -1, "code": 0, "method": "subscribe", "result": { "channel": "book", "subscription": "book.RSR_USDT", "instrument_name": "RSR_USDT", "depth": 150, "data": [ { "asks": [ [ "0.0041045", "164840", "1" ], [ "0.0041057", "273330", "1" ], [ "0.0041116", "6440", "1" ], [ "0.0041159", "29490", "1" ], [ "0.0041185", "21940", "1" ], [ "0.0041238", "191790", "2" ], [ "0.0041317", "495840", "2" ], [ "0.0041396", "1117990", "1" ], [ "0.0041475", "1430830", "1" ], [ "0.0041528", "785220", "1" ], [ "0.0041554", "1409330", "1" ], [ "0.0041633", "1710820", "1" ], [ "0.0041712", "2399680", "1" ], [ "0.0041791", "2355400", "1" ], [ "0.0042500", "1500", "1" ], [ "0.0044000", "1000", "1" ], [ "0.0045000", "1000", "1" ], [ "0.0046600", "85770", "1" ], [ "0.0049230", "20660", "1" ], [ "0.0049380", "88520", "2" ], [ "0.0050000", "1120", "1" ], [ "0.0050203", "304960", "2" ], [ "0.0051026", "509200", "2" ], [ "0.0051849", "3452290", "1" ], [ "0.0052672", "10928750", "1" ], [ "0.0206000", "730", "1" ], [ "0.0406000", "370", "1" ] ], "bids": [ [ "0.0041013", "273330", "1" ], [ "0.0040975", "3750", "1" ], [ "0.0040974", "174120", "1" ], [ "0.0040934", "6440", "1" ], [ "0.0040922", "32200", "1" ], [ "0.0040862", "21940", "1" ], [ "0.0040843", "187900", "2" ], [ "0.0040764", "483650", "3" ], [ "0.0040686", "12280", "1" ], [ "0.0040685", "813180", "3" ], [ "0.0040607", "16020", "1" ], [ "0.0040606", "1123210", "3" ], [ "0.0040527", "1432240", "3" ], [ "0.0040482", "642210", "1" ], [ "0.0040448", "1441580", "2" ], [ "0.0040369", "2071370", "2" ], [ "0.0040290", "1453600", "1" ], [ "0.0037500", "29390", "1" ], [ "0.0033776", "80", "1" ], [ "0.0033740", "29630", "1" ], [ "0.0033000", "50", "1" ], [ "0.0032797", "30990", "1" ], [ "0.0032097", "175720", "2" ], [ "0.0032000", "50", "1" ], [ "0.0031274", "511460", "2" ], [ "0.0031000", "50", "1" ], [ "0.0030451", "793150", "2" ], [ "0.0030400", "750000", "1" ], [ "0.0030000", "100", "1" ], [ "0.0029628", "5620050", "2" ], [ "0.0029000", "50", "1" ], [ "0.0028805", "20567780", "2" ], [ "0.0018000", "500", "1" ], [ "0.0014500", "500", "1" ] ], "t": 1679082891435, "tt": 1679082890266, "u": 27043535761920, "cs": 723295208 } ] } }`,
-	"Ticker":        `{ "id": -1, "code": 0, "method": "subscribe", "result": { "channel": "ticker", "instrument_name": "RSR_USDT", "subscription": "ticker.RSR_USDT", "id": -1, "data": [ { "h": "0.0041622", "l": "0.0037959", "a": "0.0040738", "c": "0.0721", "b": "0.0040738", "bs": "3680", "k": "0.0040796", "ks": "179780", "i": "RSR_USDT", "v": "45133400", "vv": "181223.95", "oi": "0","t": 1679087156318}]}}`,
-	"Trade":         `{"id": 140466243, "code": 0, "method": "subscribe", "result": { "channel": "trade", "subscription": "trade.RSR_USDT", "instrument_name": "RSR_USDT", "data": [ { "d": "4611686018428182866", "t": 1679085786004, "p": "0.0040604", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182865", "t": 1679085717204, "p": "0.0040671", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182864", "t": 1679085672504, "p": "0.0040664", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182863", "t": 1679085638806, "p": "0.0040674", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182862", "t": 1679085568762, "p": "0.0040689", "q": "20", "s": "BUY", "i": "RSR_USDT" } ] } }`,
-	"Candlestick":   `{"id": -1, "code": 0, "method": "subscribe", "result": { "channel": "candlestick", "instrument_name": "RSR_USDT", "subscription": "candlestick.5m.RSR_USDT", "interval": "5m", "data": [ { "o": "0.0040838", "h": "0.0040920", "l": "0.0040838", "c": "0.0040920", "v": "60.0000", "t": 1679087700000, "ut": 1679087959106 } ] } }`,
-	"User Balance":  `{"id":3397447550047468012,"method":"subscribe","code":0,"result":{"subscription":"user.balance","channel":"user.balance","data":[{"stake":0,"balance":7.26648846,"available":7.26648846,"currency":"BOSON","order":0},{"stake":0,"balance":15.2782122,"available":15.2782122,"currency":"EFI","order":0},{"stake":0,"balance":90.63857968,"available":90.63857968,"currency":"ZIL","order":0},{"stake":0,"balance":16790279.87929312,"available":16790279.87929312,"currency":"SHIB","order":0},{"stake":0,"balance":1.79673318,"available":1.79673318,"currency":"NEAR","order":0},{"stake":0,"balance":307.29679422,"available":307.29679422,"currency":"DOGE","order":0},{"stake":0,"balance":0.00109125,"available":0.00109125,"currency":"BTC","order":0},{"stake":0,"balance":18634.17320776,"available":18634.17320776,"currency":"CRO-STAKE","order":0},{"stake":0,"balance":0.4312475,"available":0.4312475,"currency":"DOT","order":0},{"stake":0,"balance":924.07197632,"available":924.07197632,"currency":"CRO","order":0}]}}`,
-	"User Order":    `{"method": "subscribe", "result": { "instrument_name": "ETH_CRO", "subscription": "user.order.ETH_CRO", "channel": "user.order", "data": [ { "status": "ACTIVE", "side": "BUY", "price": 1, "quantity": 1, "order_id": "366455245775097673", "client_oid": "my_order_0002", "create_time": 1588758017375, "update_time": 1588758017411, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 0, "cumulative_value": 0, "avg_price": 0, "fee_currency": "CRO", "time_in_force":"GOOD_TILL_CANCEL" } ], "channel": "user.order.ETH_CRO"}}`,
-	"User Trade":    `{"method": "subscribe", "code": 0, "result": { "instrument_name": "ETH_CRO", "subscription": "user.trade.ETH_CRO", "channel": "user.trade", "data": [ { "side": "SELL", "instrument_name": "ETH_CRO", "fee": 0.014, "trade_id": "367107655537806900", "create_time": "1588777459755", "traded_price": 7, "traded_quantity": 1, "fee_currency": "CRO", "order_id": "367107623521528450" } ], "channel": "user.trade.ETH_CRO" }}`,
-	"OTC Orderbook": `{ "id": 1, "code": 0, "method": "subscribe", "result": { "channel": "otc_book", "subscription": "otc_book.BTC_USDT", "instrument_name": "BTC_USDT", "t": 1667800910315, "data": [ { "asks": [ ["8944.4", "1", "1", 1672502400000, 1510419685596942874], ["8955.1", "3", "1", 1672502400000, 1510419685596942875] ], "bids": [ ["8940.5", "1", "1", 1672502400000, 1510419685596942876], ["8918.7", "3", "1", 1672502400000, 1510419685596942877]]}]}}`,
-}
-
 const (
 	getWithdrawalHistory    = `{ "withdrawal_list": [ { "currency": "XRP", "client_wid": "my_withdrawal_002", "fee": 1.0, "create_time": 1607063412000, "id": "2220", "update_time": 1607063460000, "amount": 100, "address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf?1234567890", "status": "1", "txid": "", "network_id": null }]}`
 	getPrivateTrades        = `{ "trade_list": [ { "side": "SELL", "instrument_name": "ETH_CRO", "fee": 0.014, "trade_id": "367107655537806900", "create_time": 1588777459755, "traded_price": 7, "traded_quantity": 1, "fee_currency": "CRO", "order_id": "367107623521528450"}]}`
@@ -1078,9 +1068,22 @@ const (
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
-	for x := range pushDataMap {
-		err := cr.WsHandleData([]byte(pushDataMap[x]), true)
-		assert.NoErrorf(t, err, "Received unexpected error: %v for asset type: %s", err, x)
+	pushDataMap := map[string]string{
+		"Orderbook":     `{ "id": -1, "code": 0, "method": "subscribe", "result": { "channel": "book", "subscription": "book.RSR_USDT", "instrument_name": "RSR_USDT", "depth": 150, "data": [ { "asks": [ [ "0.0041045", "164840", "1" ], [ "0.0041057", "273330", "1" ], [ "0.0041116", "6440", "1" ], [ "0.0041159", "29490", "1" ], [ "0.0041185", "21940", "1" ], [ "0.0041238", "191790", "2" ], [ "0.0041317", "495840", "2" ], [ "0.0041396", "1117990", "1" ], [ "0.0041475", "1430830", "1" ], [ "0.0041528", "785220", "1" ], [ "0.0041554", "1409330", "1" ], [ "0.0041633", "1710820", "1" ], [ "0.0041712", "2399680", "1" ], [ "0.0041791", "2355400", "1" ], [ "0.0042500", "1500", "1" ], [ "0.0044000", "1000", "1" ], [ "0.0045000", "1000", "1" ], [ "0.0046600", "85770", "1" ], [ "0.0049230", "20660", "1" ], [ "0.0049380", "88520", "2" ], [ "0.0050000", "1120", "1" ], [ "0.0050203", "304960", "2" ], [ "0.0051026", "509200", "2" ], [ "0.0051849", "3452290", "1" ], [ "0.0052672", "10928750", "1" ], [ "0.0206000", "730", "1" ], [ "0.0406000", "370", "1" ] ], "bids": [ [ "0.0041013", "273330", "1" ], [ "0.0040975", "3750", "1" ], [ "0.0040974", "174120", "1" ], [ "0.0040934", "6440", "1" ], [ "0.0040922", "32200", "1" ], [ "0.0040862", "21940", "1" ], [ "0.0040843", "187900", "2" ], [ "0.0040764", "483650", "3" ], [ "0.0040686", "12280", "1" ], [ "0.0040685", "813180", "3" ], [ "0.0040607", "16020", "1" ], [ "0.0040606", "1123210", "3" ], [ "0.0040527", "1432240", "3" ], [ "0.0040482", "642210", "1" ], [ "0.0040448", "1441580", "2" ], [ "0.0040369", "2071370", "2" ], [ "0.0040290", "1453600", "1" ], [ "0.0037500", "29390", "1" ], [ "0.0033776", "80", "1" ], [ "0.0033740", "29630", "1" ], [ "0.0033000", "50", "1" ], [ "0.0032797", "30990", "1" ], [ "0.0032097", "175720", "2" ], [ "0.0032000", "50", "1" ], [ "0.0031274", "511460", "2" ], [ "0.0031000", "50", "1" ], [ "0.0030451", "793150", "2" ], [ "0.0030400", "750000", "1" ], [ "0.0030000", "100", "1" ], [ "0.0029628", "5620050", "2" ], [ "0.0029000", "50", "1" ], [ "0.0028805", "20567780", "2" ], [ "0.0018000", "500", "1" ], [ "0.0014500", "500", "1" ] ], "t": 1679082891435, "tt": 1679082890266, "u": 27043535761920, "cs": 723295208 } ] } }`,
+		"Ticker":        `{ "id": -1, "code": 0, "method": "subscribe", "result": { "channel": "ticker", "instrument_name": "RSR_USDT", "subscription": "ticker.RSR_USDT", "id": -1, "data": [ { "h": "0.0041622", "l": "0.0037959", "a": "0.0040738", "c": "0.0721", "b": "0.0040738", "bs": "3680", "k": "0.0040796", "ks": "179780", "i": "RSR_USDT", "v": "45133400", "vv": "181223.95", "oi": "0","t": 1679087156318}]}}`,
+		"Trade":         `{"id": 140466243, "code": 0, "method": "subscribe", "result": { "channel": "trade", "subscription": "trade.RSR_USDT", "instrument_name": "RSR_USDT", "data": [ { "d": "4611686018428182866", "t": 1679085786004, "p": "0.0040604", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182865", "t": 1679085717204, "p": "0.0040671", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182864", "t": 1679085672504, "p": "0.0040664", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182863", "t": 1679085638806, "p": "0.0040674", "q": "10", "s": "BUY", "i": "RSR_USDT" }, { "d": "4611686018428182862", "t": 1679085568762, "p": "0.0040689", "q": "20", "s": "BUY", "i": "RSR_USDT" } ] } }`,
+		"Candlestick":   `{"id": -1, "code": 0, "method": "subscribe", "result": { "channel": "candlestick", "instrument_name": "RSR_USDT", "subscription": "candlestick.5m.RSR_USDT", "interval": "5m", "data": [ { "o": "0.0040838", "h": "0.0040920", "l": "0.0040838", "c": "0.0040920", "v": "60.0000", "t": 1679087700000, "ut": 1679087959106 } ] } }`,
+		"User Balance":  `{"id":3397447550047468012,"method":"subscribe","code":0,"result":{"subscription":"user.balance","channel":"user.balance","data":[{"stake":0,"balance":7.26648846,"available":7.26648846,"currency":"BOSON","order":0},{"stake":0,"balance":15.2782122,"available":15.2782122,"currency":"EFI","order":0},{"stake":0,"balance":90.63857968,"available":90.63857968,"currency":"ZIL","order":0},{"stake":0,"balance":16790279.87929312,"available":16790279.87929312,"currency":"SHIB","order":0},{"stake":0,"balance":1.79673318,"available":1.79673318,"currency":"NEAR","order":0},{"stake":0,"balance":307.29679422,"available":307.29679422,"currency":"DOGE","order":0},{"stake":0,"balance":0.00109125,"available":0.00109125,"currency":"BTC","order":0},{"stake":0,"balance":18634.17320776,"available":18634.17320776,"currency":"CRO-STAKE","order":0},{"stake":0,"balance":0.4312475,"available":0.4312475,"currency":"DOT","order":0},{"stake":0,"balance":924.07197632,"available":924.07197632,"currency":"CRO","order":0}]}}`,
+		"User Order":    `{"method": "subscribe", "result": { "instrument_name": "ETH_CRO", "subscription": "user.order.ETH_CRO", "channel": "user.order", "data": [ { "status": "ACTIVE", "side": "BUY", "price": 1, "quantity": 1, "order_id": "366455245775097673", "client_oid": "my_order_0002", "create_time": 1588758017375, "update_time": 1588758017411, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 0, "cumulative_value": 0, "avg_price": 0, "fee_currency": "CRO", "time_in_force":"GOOD_TILL_CANCEL" } ], "channel": "user.order.ETH_CRO"}}`,
+		"User Trade":    `{"method": "subscribe", "code": 0, "result": { "instrument_name": "ETH_CRO", "subscription": "user.trade.ETH_CRO", "channel": "user.trade", "data": [ { "side": "SELL", "instrument_name": "ETH_CRO", "fee": 0.014, "trade_id": "367107655537806900", "create_time": "1588777459755", "traded_price": 7, "traded_quantity": 1, "fee_currency": "CRO", "order_id": "367107623521528450" } ], "channel": "user.trade.ETH_CRO" }}`,
+		"OTC Orderbook": `{ "id": 1, "code": 0, "method": "subscribe", "result": { "channel": "otc_book", "subscription": "otc_book.BTC_USDT", "instrument_name": "BTC_USDT", "t": 1667800910315, "data": [ { "asks": [ ["8944.4", "1", "1", 1672502400000, 1510419685596942874], ["8955.1", "3", "1", 1672502400000, 1510419685596942875] ], "bids": [ ["8940.5", "1", "1", 1672502400000, 1510419685596942876], ["8918.7", "3", "1", 1672502400000, 1510419685596942877]]}]}}`,
+	}
+	for key, val := range pushDataMap {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			err := cr.WsHandleData([]byte(val), true)
+			assert.NoErrorf(t, err, "Received unexpected error: %v for asset type: %s", err, val)
+		})
 	}
 }
 
@@ -1267,15 +1270,18 @@ func TestOrderTypeString(t *testing.T) {
 	orderTypeStringMap := map[order.Type]string{
 		order.Market:          "MARKET",
 		order.Limit:           "LIMIT",
-		order.StopLoss:        "STOP_LOSS",
+		order.Stop:            "STOP_LOSS",
 		order.StopLimit:       "STOP_LIMIT",
 		order.TakeProfit:      "TAKE_PROFIT",
 		order.TakeProfitLimit: "TAKE_PROFIT_LIMIT",
 		order.OCO:             "OCO",
 	}
 	for k, v := range orderTypeStringMap {
-		oTypeString := OrderTypeToString(k)
-		assert.Equal(t, oTypeString, v)
+		t.Run(v, func(t *testing.T) {
+			t.Parallel()
+			oTypeString := OrderTypeToString(k)
+			assert.Equal(t, oTypeString, v)
+		})
 	}
 }
 
@@ -1403,37 +1409,46 @@ func TestGetInsurance(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-var timesInForceList = []struct {
-	String   string
-	PostOnly bool
-	TIF      order.TimeInForce
-}{
-	{"GOOD_TILL_CANCEL", true, order.GoodTillCancel | order.PostOnly},
-	{"GOOD_TILL_CANCEL", false, order.GoodTillCancel},
-	{"IMMEDIATE_OR_CANCEL", false, order.ImmediateOrCancel},
-	{"FILL_OR_KILL", false, order.FillOrKill},
-	{"", true, order.PostOnly},
-	{"", false, order.UnknownTIF},
-}
-
 func TestTimeInForceFromString(t *testing.T) {
 	t.Parallel()
-	for i := range timesInForceList {
-		tif := timeInForceFromString(timesInForceList[i].String, timesInForceList[i].PostOnly)
-		assert.Equal(t, timesInForceList[i].TIF, tif)
+	timesInForceList := []struct {
+		String   string
+		PostOnly bool
+		TIF      order.TimeInForce
+	}{
+		{"GOOD_TILL_CANCEL", true, order.GoodTillCancel | order.PostOnly},
+		{"GOOD_TILL_CANCEL", false, order.GoodTillCancel},
+		{"IMMEDIATE_OR_CANCEL", false, order.ImmediateOrCancel},
+		{"FILL_OR_KILL", false, order.FillOrKill},
+		{"", true, order.PostOnly},
+		{"", false, order.UnknownTIF},
 	}
-}
-
-var intervalsList = []struct {
-	String   string
-	Interval kline.Interval
-	Err      error
-}{
-	{"5m", kline.FiveMin, nil}, {"15m", kline.FifteenMin, nil}, {"30m", kline.ThirtyMin, nil}, {"1h", kline.OneHour, nil}, {"4h", kline.FourHour, nil}, {"6h", kline.SixHour, nil}, {"12h", kline.TwelveHour, nil}, {"abcd", 0, kline.ErrUnsupportedInterval}, {"", 0, kline.ErrUnsupportedInterval},
+	for i, v := range timesInForceList {
+		t.Run(v.String+"#"+strconv.FormatBool(v.PostOnly), func(t *testing.T) {
+			t.Parallel()
+			tif := timeInForceFromString(timesInForceList[i].String, timesInForceList[i].PostOnly)
+			assert.Equal(t, timesInForceList[i].TIF, tif)
+		})
+	}
 }
 
 func TestStringToInterval(t *testing.T) {
 	t.Parallel()
+	intervalsList := []struct {
+		String   string
+		Interval kline.Interval
+		Err      error
+	}{
+		{"5m", kline.FiveMin, nil},
+		{"15m", kline.FifteenMin, nil},
+		{"30m", kline.ThirtyMin, nil},
+		{"1h", kline.OneHour, nil},
+		{"4h", kline.FourHour, nil},
+		{"6h", kline.SixHour, nil},
+		{"12h", kline.TwelveHour, nil},
+		{"abcd", 0, kline.ErrUnsupportedInterval},
+		{"", 0, kline.ErrUnsupportedInterval},
+	}
 	for i := range intervalsList {
 		t.Run(intervalsList[i].String, func(t *testing.T) {
 			t.Parallel()
