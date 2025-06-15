@@ -53,7 +53,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// setupWS()
 	os.Exit(m.Run())
 }
 
@@ -958,19 +957,6 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func setupWS() {
-	if !cr.Websocket.IsEnabled() {
-		return
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(cr) {
-		cr.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	err := cr.WsConnect()
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {

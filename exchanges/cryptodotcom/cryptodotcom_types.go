@@ -28,10 +28,6 @@ var (
 	errContingencyTypeRequired         = errors.New("contingency type is required")
 )
 
-const (
-	stopLimit = "STOP_LIMIT"
-)
-
 // OrderbookDetail public order book detail.
 type OrderbookDetail struct {
 	Depth int64 `json:"depth"`
