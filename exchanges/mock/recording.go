@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +15,6 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -115,7 +115,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 	case textPlain:
 		payload := res.Request.Header.Get("X-Gemini-Payload")
-		j, dErr := crypto.Base64Decode(payload)
+		j, dErr := base64.StdEncoding.DecodeString(payload)
 		if dErr != nil {
 			return dErr
 		}

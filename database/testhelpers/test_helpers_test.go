@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
@@ -31,11 +33,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestDatabaseConnect(t *testing.T) {
-	testCases := []struct {
-		name   string
-		config *database.Config
-		closer func(dbConn *database.Instance) error
-		output any
+	for _, tc := range []struct {
+		name     string
+		config   *database.Config
+		closer   func(dbConn *database.Instance) error
+		expError error
 	}{
 		{
 			"SQLite",
@@ -60,35 +62,18 @@ func TestDatabaseConnect(t *testing.T) {
 		{
 			name:   "Postgres",
 			config: PostgresTestDatabase,
-			output: nil,
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			if !CheckValidConfig(&test.config.ConnectionDetails) {
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if !CheckValidConfig(&tc.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := ConnectToDatabase(test.config)
-			if err != nil {
-				switch v := test.output.(type) {
-				case error:
-					if v.Error() != err.Error() {
-						t.Fatal(err)
-					}
-					return
-				default:
-					break
-				}
-			}
+			dbConn, err := ConnectToDatabase(tc.config)
+			require.ErrorIs(t, err, tc.expError)
 
-			if test.closer != nil {
-				err = test.closer(dbConn)
-				if err != nil {
-					t.Log(err)
-				}
+			if tc.closer != nil {
+				assert.NoError(t, tc.closer(dbConn))
 			}
 		})
 	}

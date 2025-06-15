@@ -1,7 +1,6 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -143,7 +142,7 @@ func TestDataTypeConversion(t *testing.T) {
 
 func TestFitStringToLimit(t *testing.T) {
 	t.Parallel()
-	for _, ti := range []struct {
+	for _, tc := range []struct {
 		str      string
 		sep      string
 		limit    int
@@ -188,13 +187,9 @@ func TestFitStringToLimit(t *testing.T) {
 			expected: "h",
 		},
 	} {
-		test := ti
-		t.Run(test.str, func(t *testing.T) {
+		t.Run(tc.str, func(t *testing.T) {
 			t.Parallel()
-			result := FitStringToLimit(test.str, test.sep, test.limit, test.upper)
-			if result != test.expected {
-				t.Errorf("received '%v' expected '%v'", result, test.expected)
-			}
+			assert.Equal(t, tc.expected, FitStringToLimit(tc.str, tc.sep, tc.limit, tc.upper))
 		})
 	}
 }
@@ -220,19 +215,13 @@ func TestPurgeColours(t *testing.T) {
 func TestGenerateFileName(t *testing.T) {
 	t.Parallel()
 	_, err := GenerateFileName("", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("hello", "")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("", "moto")
-	if !errors.Is(err, errCannotGenerateFileName) {
-		t.Errorf("received '%v' expected '%v'", err, errCannotGenerateFileName)
-	}
+	assert.ErrorIs(t, err, errCannotGenerateFileName)
 
 	_, err = GenerateFileName("hello", "moto")
 	assert.NoError(t, err)
@@ -248,7 +237,5 @@ func TestRegisterBacktesterSubLoggers(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = RegisterBacktesterSubLoggers()
-	if !errors.Is(err, log.ErrSubLoggerAlreadyRegistered) {
-		t.Errorf("received '%v' expected '%v'", err, log.ErrSubLoggerAlreadyRegistered)
-	}
+	assert.ErrorIs(t, err, log.ErrSubLoggerAlreadyRegistered)
 }

@@ -3,6 +3,7 @@ package bybit
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Bybit is the overarching type across this package
@@ -49,45 +51,44 @@ const (
 )
 
 var (
-	errCategoryNotSet                          = errors.New("category not set")
-	errBaseNotSet                              = errors.New("base coin not set when category is option")
-	errInvalidTriggerDirection                 = errors.New("invalid trigger direction")
-	errInvalidTriggerPriceType                 = errors.New("invalid trigger price type")
-	errNilArgument                             = errors.New("nil argument")
-	errMissingUserID                           = errors.New("sub user id missing")
-	errMissingUsername                         = errors.New("username is missing")
-	errInvalidMemberType                       = errors.New("invalid member type")
-	errMissingTransferID                       = errors.New("transfer ID is required")
-	errMemberIDRequired                        = errors.New("member ID is required")
-	errNonePointerArgument                     = errors.New("argument must be pointer")
-	errEitherOrderIDOROrderLinkIDRequired      = errors.New("either orderId or orderLinkId required")
-	errNoOrderPassed                           = errors.New("no order passed")
-	errSymbolOrSettleCoinRequired              = errors.New("provide symbol or settleCoin at least one")
-	errInvalidTradeModeValue                   = errors.New("invalid trade mode value")
-	errTakeProfitOrStopLossModeMissing         = errors.New("TP/SL mode missing")
-	errMissingAccountType                      = errors.New("account type not specified")
-	errMembersIDsNotSet                        = errors.New("members IDs not set")
-	errMissingChainType                        = errors.New("missing chain type is empty")
-	errMissingChainInformation                 = errors.New("missing transfer chain")
-	errMissingAddressInfo                      = errors.New("address is required")
-	errMissingWithdrawalID                     = errors.New("missing withdrawal id")
-	errTimeWindowRequired                      = errors.New("time window is required")
-	errFrozenPeriodRequired                    = errors.New("frozen period required")
-	errQuantityLimitRequired                   = errors.New("quantity limit required")
-	errInvalidPushData                         = errors.New("invalid push data")
-	errInvalidLeverage                         = errors.New("leverage can't be zero or less then it")
-	errInvalidPositionMode                     = errors.New("position mode is invalid")
-	errInvalidMode                             = errors.New("mode can't be empty or missing")
-	errInvalidOrderFilter                      = errors.New("invalid order filter")
-	errInvalidCategory                         = errors.New("invalid category")
-	errEitherSymbolOrCoinRequired              = errors.New("either symbol or coin required")
-	errOrderLinkIDMissing                      = errors.New("order link id missing")
-	errSymbolMissing                           = errors.New("symbol missing")
-	errInvalidAutoAddMarginValue               = errors.New("invalid add auto margin value")
-	errDisconnectTimeWindowNotSet              = errors.New("disconnect time window not set")
-	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
-	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
-	errInvalidContractLength                   = errors.New("contract length cannot be less than or equal to zero")
+	errCategoryNotSet                     = errors.New("category not set")
+	errBaseNotSet                         = errors.New("base coin not set when category is option")
+	errInvalidTriggerDirection            = errors.New("invalid trigger direction")
+	errInvalidTriggerPriceType            = errors.New("invalid trigger price type")
+	errNilArgument                        = errors.New("nil argument")
+	errMissingUserID                      = errors.New("sub user id missing")
+	errMissingUsername                    = errors.New("username is missing")
+	errInvalidMemberType                  = errors.New("invalid member type")
+	errMissingTransferID                  = errors.New("transfer ID is required")
+	errMemberIDRequired                   = errors.New("member ID is required")
+	errNonePointerArgument                = errors.New("argument must be pointer")
+	errEitherOrderIDOROrderLinkIDRequired = errors.New("either orderId or orderLinkId required")
+	errNoOrderPassed                      = errors.New("no order passed")
+	errSymbolOrSettleCoinRequired         = errors.New("provide symbol or settleCoin at least one")
+	errInvalidTradeModeValue              = errors.New("invalid trade mode value")
+	errTakeProfitOrStopLossModeMissing    = errors.New("TP/SL mode missing")
+	errMissingAccountType                 = errors.New("account type not specified")
+	errMembersIDsNotSet                   = errors.New("members IDs not set")
+	errMissingChainType                   = errors.New("missing chain type is empty")
+	errMissingChainInformation            = errors.New("missing transfer chain")
+	errMissingAddressInfo                 = errors.New("address is required")
+	errMissingWithdrawalID                = errors.New("missing withdrawal id")
+	errTimeWindowRequired                 = errors.New("time window is required")
+	errFrozenPeriodRequired               = errors.New("frozen period required")
+	errQuantityLimitRequired              = errors.New("quantity limit required")
+	errInvalidPushData                    = errors.New("invalid push data")
+	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
+	errInvalidPositionMode                = errors.New("position mode is invalid")
+	errInvalidMode                        = errors.New("mode can't be empty or missing")
+	errInvalidOrderFilter                 = errors.New("invalid order filter")
+	errInvalidCategory                    = errors.New("invalid category")
+	errEitherSymbolOrCoinRequired         = errors.New("either symbol or coin required")
+	errOrderLinkIDMissing                 = errors.New("order link id missing")
+	errSymbolMissing                      = errors.New("symbol missing")
+	errInvalidAutoAddMarginValue          = errors.New("invalid add auto margin value")
+	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
+	errAPIKeyIsNotUnified                 = errors.New("api key is not unified")
+	errInvalidContractLength              = errors.New("contract length cannot be less than or equal to zero")
 )
 
 var (
@@ -2528,20 +2529,13 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
-	var err error
+func processOB(ob [][2]types.Number) []orderbook.Tranche {
 	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
-		o[x].Amount, err = strconv.ParseFloat(ob[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		o[x].Price, err = strconv.ParseFloat(ob[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
+		o[x].Price = ob[x][0].Float64()
+		o[x].Amount = ob[x][1].Float64()
 	}
-	return o, nil
+	return o
 }
 
 // SendHTTPRequest sends an unauthenticated request
@@ -2700,7 +2694,7 @@ func getSign(sign, secret string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return crypto.HexEncodeToString(hmacSigned), nil
+	return hex.EncodeToString(hmacSigned), nil
 }
 
 // FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.

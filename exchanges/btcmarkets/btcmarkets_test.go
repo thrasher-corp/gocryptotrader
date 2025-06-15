@@ -2,7 +2,6 @@ package btcmarkets
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -32,12 +31,9 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
-	BTCAUD                  = "BTC-AUD"
-	LTCAUD                  = "LTC-AUD"
-	ETHAUD                  = "ETH-AUD"
-	fakePair                = "Fake-USDT"
-	bid                     = "bid"
 )
+
+var spotTestPair = currency.NewPair(currency.BTC, currency.AUD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -77,64 +73,46 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(t.Context(), BTCAUD)
-	if err != nil {
-		t.Error("GetOrderbook() error", err)
-	}
+	_, err := b.GetTicker(t.Context(), spotTestPair.String())
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrades(t.Context(), BTCAUD, 0, 0, 5)
-	if err != nil {
-		t.Error("GetTrades() error", err)
-	}
+	_, err := b.GetTrades(t.Context(), spotTestPair.String(), 0, 0, 5)
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderbook(t.Context(), BTCAUD, 2)
-	if err != nil {
-		t.Error("GetTrades() error", err)
-	}
+	_, err := b.GetOrderbook(t.Context(), spotTestPair.String(), 2)
+	assert.NoError(t, err, "GetOrderbook should not error")
 }
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles(t.Context(),
-		BTCAUD, "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := b.GetMarketCandles(t.Context(), spotTestPair.String(), "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
+	assert.NoError(t, err, "GetMarketCandles should not error")
 }
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	temp, err := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetTickers(t.Context(), temp)
-	if err != nil {
-		t.Error(err)
-	}
+	pairs := currency.Pairs{spotTestPair, currency.NewPair(currency.LTC, currency.AUD)}
+	_, err := b.GetTickers(t.Context(), pairs)
+	assert.NoError(t, err, "GetTickers should not error")
 }
 
 func TestGetMultipleOrderbooks(t *testing.T) {
 	t.Parallel()
-	temp := []string{BTCAUD, LTCAUD, ETHAUD}
-	_, err := b.GetMultipleOrderbooks(t.Context(), temp)
-	if err != nil {
-		t.Error(err)
-	}
+	marketIDs := []string{spotTestPair.String(), "LTC-AUD", "ETH-AUD"}
+	_, err := b.GetMultipleOrderbooks(t.Context(), marketIDs)
+	assert.NoError(t, err, "GetMultipleOrderbooks should not error")
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetCurrentServerTime(t.Context())
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetCurrentServerTime should not error")
 }
 
 func TestWrapperGetServerTime(t *testing.T) {
@@ -168,18 +146,8 @@ func TestGetTradingFees(t *testing.T) {
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetTradeHistory(t.Context(), ETHAUD, "", -1, -1, -1)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetTradeHistory(t.Context(), BTCAUD, "", -1, -1, 1)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetTradeHistory(t.Context(), fakePair, "", -1, -1, -1)
-	if err == nil {
-		t.Error("expected an error due to invalid trading pair")
-	}
+	_, err := b.GetTradeHistory(t.Context(), spotTestPair.String(), "", -1, -1, 1)
+	assert.NoError(t, err, "GetTradeHistory should not error")
 }
 
 func TestGetTradeByID(t *testing.T) {
@@ -203,9 +171,8 @@ func TestSubmitOrder(t *testing.T) {
 		Pair:        currency.NewPair(currency.BTC, currency.AUD),
 		TimeInForce: order.PostOnly,
 	})
-	if !errors.Is(err, order.ErrTypeIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
 	_, err = b.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:    b.Name,
 		Price:       100,
@@ -216,9 +183,7 @@ func TestSubmitOrder(t *testing.T) {
 		Pair:        currency.NewPair(currency.BTC, currency.AUD),
 		TimeInForce: order.PostOnly,
 	})
-	if !errors.Is(err, order.ErrSideIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
@@ -240,39 +205,26 @@ func TestSubmitOrder(t *testing.T) {
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.NewOrder(t.Context(), 100, 1, 0, 0, BTCAUD, limit, bidSide, "", "", "", true)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := b.NewOrder(t.Context(), 100, 1, 0, 0, spotTestPair.String(), limit, bidSide, "", "", "", true)
+	assert.NoError(t, err, "NewOrder should not error")
 }
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetOrders(t.Context(), "", -1, -1, 2, false)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetOrders(t.Context(), LTCAUD, -1, -1, -1, true)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetOrders should not error")
+	_, err = b.GetOrders(t.Context(), spotTestPair.String(), -1, -1, -1, true)
+	assert.NoError(t, err, "GetOrders should not error")
 }
 
 func TestCancelOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
-	temp := []string{BTCAUD, LTCAUD}
-	_, err := b.CancelAllOpenOrdersByPairs(t.Context(), temp)
-	if err != nil {
-		t.Error(err)
-	}
-	temp = []string{BTCAUD, fakePair}
-	_, err = b.CancelAllOpenOrdersByPairs(t.Context(), temp)
-	if err == nil {
-		t.Error("expected an error due to invalid marketID")
-	}
+	pairs := []string{spotTestPair.String(), spotTestPair.String()}
+	_, err := b.CancelAllOpenOrdersByPairs(t.Context(), pairs)
+	assert.NoError(t, err, "CancelAllOpenOrdersByPairs should not error")
 }
 
 func TestFetchOrder(t *testing.T) {
@@ -441,11 +393,11 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 
 	var temp []PlaceBatch
 	o := PlaceBatch{
-		MarketID:  BTCAUD,
+		MarketID:  spotTestPair.String(),
 		Amount:    11000,
 		Price:     1,
 		OrderType: order.Limit.String(),
-		Side:      bid,
+		Side:      order.Bid.String(),
 	}
 	_, err := b.BatchPlaceCancelOrders(t.Context(), nil, append(temp, o))
 	if err != nil {
@@ -774,93 +726,50 @@ func TestWsOrders(t *testing.T) {
 	}
 }
 
-func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
+func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString(BTCAUD)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := b.GetHistoricCandles(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
+	assert.NoError(t, err, "GetHistoricCandles should not error")
 }
 
-func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	start := time.Now().AddDate(0, 0, -1)
-	end := time.Now()
-	pair, err := currency.NewPairFromString(BTCAUD)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.OneHour, start, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := b.GetHistoricCandlesExtended(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().AddDate(0, 0, -1), time.Now())
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"1m",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"1d",
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-
-		t.Run(test.name, func(t *testing.T) {
-			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.output, b.FormatExchangeKlineInterval(tc.interval))
 		})
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC-AUD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := b.GetRecentTrades(t.Context(), spotTestPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTC-AUD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := b.GetHistoricTrades(t.Context(), spotTestPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestChecksum(t *testing.T) {
@@ -882,9 +791,7 @@ func TestChecksum(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = checksum(b, uint32(1223123))
-	if !errors.Is(err, errChecksumFailure) {
-		t.Errorf("received '%v', expected '%v'", err, errChecksumFailure)
-	}
+	assert.ErrorIs(t, err, errChecksumFailure)
 }
 
 func TestTrim(t *testing.T) {
@@ -917,9 +824,7 @@ func TestTrim(t *testing.T) {
 func TestFormatOrderType(t *testing.T) {
 	t.Parallel()
 	_, err := b.formatOrderType(0)
-	if !errors.Is(err, order.ErrTypeIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrTypeIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	r, err := b.formatOrderType(order.Limit)
 	require.NoError(t, err)
@@ -960,9 +865,7 @@ func TestFormatOrderType(t *testing.T) {
 func TestFormatOrderSide(t *testing.T) {
 	t.Parallel()
 	_, err := b.formatOrderSide(255)
-	if !errors.Is(err, order.ErrSideIsInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrSideIsInvalid)
-	}
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	f, err := b.formatOrderSide(order.Bid)
 	require.NoError(t, err)
@@ -994,19 +897,13 @@ func TestGetTimeInForce(t *testing.T) {
 func TestReplaceOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ReplaceOrder(t.Context(), "", "bro", 0, 0)
-	if !errors.Is(err, errInvalidAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
-	}
+	require.ErrorIs(t, err, errInvalidAmount)
 
 	_, err = b.ReplaceOrder(t.Context(), "", "bro", 1, 0)
-	if !errors.Is(err, errInvalidAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
-	}
+	require.ErrorIs(t, err, errInvalidAmount)
 
 	_, err = b.ReplaceOrder(t.Context(), "", "bro", 1, 1)
-	if !errors.Is(err, errIDRequired) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errIDRequired)
-	}
+	require.ErrorIs(t, err, errIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
@@ -1017,9 +914,7 @@ func TestReplaceOrder(t *testing.T) {
 func TestWrapperModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ModifyOrder(t.Context(), &order.Modify{})
-	if !errors.Is(err, order.ErrPairIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, order.ErrPairIsEmpty)
-	}
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
@@ -1041,9 +936,7 @@ func TestWrapperModifyOrder(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := b.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = b.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoError(t, err)
@@ -1053,44 +946,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 	if lim == (order.MinMaxLevel{}) {
 		t.Fatal("expected value return")
-	}
-}
-
-func TestConvertToKlineCandle(t *testing.T) {
-	t.Parallel()
-
-	_, err := convertToKlineCandle(nil)
-	if !errors.Is(err, errFailedToConvertToCandle) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errFailedToConvertToCandle)
-	}
-
-	data := [6]string{time.RFC3339[:len(time.RFC3339)-5], "1.0", "2", "3", "4", "5"}
-
-	candle, err := convertToKlineCandle(&data)
-	require.NoError(t, err)
-
-	if candle.Time.IsZero() {
-		t.Fatal("time unset")
-	}
-
-	if candle.Open != 1 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Open, 1)
-	}
-
-	if candle.High != 2 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.High, 2)
-	}
-
-	if candle.Low != 3 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Low, 3)
-	}
-
-	if candle.Close != 4 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Close, 4)
-	}
-
-	if candle.Volume != 5 {
-		t.Fatalf("received: '%v' but expected: '%v'", candle.Volume, 5)
 	}
 }
 

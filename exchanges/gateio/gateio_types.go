@@ -519,57 +519,32 @@ type Ticker struct {
 
 // OrderbookData holds orderbook ask and bid datas.
 type OrderbookData struct {
-	ID      int64       `json:"id"`
-	Current types.Time  `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time  `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Asks    [][2]string `json:"asks"`
-	Bids    [][2]string `json:"bids"`
+	ID      int64             `json:"id"`
+	Current types.Time        `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  types.Time        `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Asks    [][2]types.Number `json:"asks"`
+	Bids    [][2]types.Number `json:"bids"`
 }
 
-// MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
-func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
-	ob := &Orderbook{
-		ID:      a.ID,
-		Current: a.Current,
-		Update:  a.Update,
-	}
-	ob.Asks = make([]OrderbookItem, len(a.Asks))
-	ob.Bids = make([]OrderbookItem, len(a.Bids))
+// MakeOrderbook converts OrderbookData into an Orderbook
+func (a *OrderbookData) MakeOrderbook() *Orderbook {
+	asks := make([]OrderbookItem, len(a.Asks))
 	for x := range a.Asks {
-		price, err := strconv.ParseFloat(a.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Asks[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
-		}
+		asks[x].Price = a.Asks[x][0]
+		asks[x].Amount = a.Asks[x][1]
 	}
+	bids := make([]OrderbookItem, len(a.Bids))
 	for x := range a.Bids {
-		price, err := strconv.ParseFloat(a.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Bids[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
-		}
+		bids[x].Price = a.Bids[x][0]
+		bids[x].Amount = a.Bids[x][1]
 	}
-	return ob, nil
+	return &Orderbook{ID: a.ID, Current: a.Current, Update: a.Update, Asks: asks, Bids: bids}
 }
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
 	Price  types.Number `json:"p"`
-	Amount float64      `json:"s"`
+	Amount types.Number `json:"s"`
 }
 
 // Orderbook stores the orderbook data
