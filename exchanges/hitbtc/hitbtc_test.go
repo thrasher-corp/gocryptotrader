@@ -39,6 +39,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+var spotPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true})
+
 func TestMain(m *testing.M) {
 	h.SetDefaults()
 	cfg := config.GetConfig()
@@ -69,54 +71,36 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	_, err := h.GetOrderbook(t.Context(), "BTCUSD", 50)
-	if err != nil {
-		t.Error("Test failed - HitBTC GetOrderbook() error", err)
-	}
+	_, err := h.GetOrderbook(t.Context(), spotPair.String(), 50)
+	assert.NoError(t, err, "GetOrderbook should not error")
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := h.GetTrades(t.Context(), "BTCUSD", "", "", 0, 0, 0, 0)
-	if err != nil {
-		t.Error("Test failed - HitBTC GetTradeHistory() error", err)
-	}
+	_, err := h.GetTrades(t.Context(), spotPair.String(), "", "", 0, 0, 0, 0)
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := h.GetCandles(t.Context(),
-		"BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
-	if err != nil {
-		t.Error("Test failed - HitBTC GetChartData() error", err)
-	}
+	_, err := h.GetCandles(t.Context(), spotPair.String(), "", "D1", time.Now().Add(-24*time.Hour), time.Now())
+	assert.NoError(t, err, "GetCandles should not error")
 }
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	pair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 	startTime := time.Now().Add(-time.Hour * 6)
 	end := time.Now()
-	_, err = h.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneMin, startTime, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := h.GetHistoricCandles(t.Context(), spotPair, asset.Spot, kline.OneMin, startTime, end)
+	assert.NoError(t, err, "GetHistoricCandles should not error")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err = h.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.OneHour, startTime, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := h.GetHistoricCandlesExtended(t.Context(), spotPair, asset.Spot, kline.OneHour, startTime, end)
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
 func TestGetCurrencies(t *testing.T) {
@@ -179,7 +163,7 @@ func TestUpdateTickers(t *testing.T) {
 
 	for j := range enabled {
 		_, err = h.GetCachedTicker(enabled[j], asset.Spot)
-		require.NoErrorf(t, err, "GetCached Ticker must not error for pair `%s`", enabled[j])
+		require.NoErrorf(t, err, "GetCached Ticker must not error for pair %q", enabled[j])
 	}
 }
 
@@ -191,10 +175,8 @@ func TestGetAllTickers(t *testing.T) {
 }
 
 func TestGetSingularTicker(t *testing.T) {
-	_, err := h.GetTicker(t.Context(), "BTCUSD")
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := h.GetTicker(t.Context(), spotPair.String())
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetFee(t *testing.T) {
@@ -964,81 +946,51 @@ func TestWsTrades(t *testing.T) {
 	}
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
-	testCases := []struct {
-		name     string
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"M1",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"D1",
 		},
 		{
-			"SevenDay",
 			kline.SevenDay,
 			"D7",
 		},
 		{
-			"OneMonth",
 			kline.OneMonth,
 			"1M",
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
-			ret, err := formatExchangeKlineInterval(test.interval)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+			ret, err := formatExchangeKlineInterval(tc.interval)
+			require.NoError(t, err)
+			assert.Equal(t, tc.output, ret)
 		})
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = h.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := h.GetRecentTrades(t.Context(), spotPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = h.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := h.GetHistoricTrades(t.Context(), spotPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.NoError(t, err, "GetHistoricTrades should not error")
 	// longer term
-	_, err = h.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot,
-		time.Now().Add(-time.Minute*60*200),
-		time.Now().Add(-time.Minute*60*199))
-	if err != nil {
-		t.Error(err)
-	}
+	_, err = h.GetHistoricTrades(t.Context(), spotPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	assert.NoError(t, err, "GetHistoricTrades should not error")
 }
 
 func TestGetActiveOrderByClientOrderID(t *testing.T) {
@@ -1073,8 +1025,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, h)
 	for _, a := range h.GetAssetTypes(false) {
 		pairs, err := h.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := h.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

@@ -24,48 +24,64 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	case orderIOC:
 		return order.Limit, order.ImmediateOrCancel, nil
 	case orderOptimalLimitIOC:
-		return order.OptimalLimitIOC, order.ImmediateOrCancel, nil
-	case "mmp":
+		return order.OptimalLimit, order.ImmediateOrCancel, nil
+	case orderMarketMakerProtection:
 		return order.MarketMakerProtection, order.UnknownTIF, nil
-	case "mmp_and_post_only":
-		return order.MarketMakerProtectionAndPostOnly, order.PostOnly, nil
-	case "twap":
+	case orderMarketMakerProtectionAndPostOnly:
+		return order.MarketMakerProtection, order.PostOnly, nil
+	case orderTWAP:
 		return order.TWAP, order.UnknownTIF, nil
-	case "move_order_stop":
-		return order.TrailingStop, 0, nil
-	case "chase":
+	case orderMoveOrderStop:
+		return order.TrailingStop, order.UnknownTIF, nil
+	case orderChase:
 		return order.Chase, order.UnknownTIF, nil
 	default:
-		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, orderType)
+		return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w %q", order.ErrTypeIsInvalid, orderType)
 	}
 }
 
 // orderTypeString returns a string representation of order.Type instance
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
-	switch tif {
-	case order.PostOnly:
-		return orderPostOnly, nil
-	case order.FillOrKill:
-		return orderFOK, nil
-	case order.ImmediateOrCancel:
-		return orderIOC, nil
-	}
 	switch orderType {
-	case order.Market, order.Limit,
-		order.Trigger,
-		order.OptimalLimitIOC,
-		order.MarketMakerProtection,
-		order.MarketMakerProtectionAndPostOnly,
+	case order.MarketMakerProtection:
+		if tif == order.PostOnly {
+			return orderMarketMakerProtectionAndPostOnly, nil
+		}
+		return orderMarketMakerProtection, nil
+	case order.OptimalLimit:
+		return orderOptimalLimitIOC, nil
+	case order.Limit:
+		if tif == order.PostOnly {
+			return orderPostOnly, nil
+		}
+		return orderLimit, nil
+	case order.Market:
+		switch tif {
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
+		return orderMarket, nil
+	case order.Trigger,
 		order.Chase,
 		order.TWAP,
 		order.OCO:
 		return orderType.Lower(), nil
 	case order.ConditionalStop:
-		return "conditional", nil
+		return orderConditional, nil
 	case order.TrailingStop:
-		return "move_order_stop", nil
+		return orderMoveOrderStop, nil
 	default:
-		return "", fmt.Errorf("%w: `%v`", order.ErrUnsupportedOrderType, orderType)
+		switch tif {
+		case order.PostOnly:
+			return orderPostOnly, nil
+		case order.FillOrKill:
+			return orderFOK, nil
+		case order.ImmediateOrCancel:
+			return orderIOC, nil
+		}
+		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
 }
 
@@ -85,7 +101,7 @@ func (ok *Okx) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, err
 	}
 	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
-		return nil, fmt.Errorf("%w: `%s`", err, instrumentID)
+		return nil, fmt.Errorf("%w: %q", err, instrumentID)
 	}
 	switch {
 	case len(splitSymbol) == 2:
@@ -151,15 +167,15 @@ func assetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
 func assetTypeString(assetType asset.Item) (string, error) {
 	switch assetType {
 	case asset.Spot:
-		return "SPOT", nil
+		return instTypeSpot, nil
 	case asset.Margin:
-		return "MARGIN", nil
+		return instTypeMargin, nil
 	case asset.Futures:
-		return "FUTURES", nil
+		return instTypeFutures, nil
 	case asset.Options:
-		return "OPTION", nil
+		return instTypeOption, nil
 	case asset.PerpetualSwap:
-		return "SWAP", nil
+		return instTypeSwap, nil
 	default:
 		return "", asset.ErrNotSupported
 	}

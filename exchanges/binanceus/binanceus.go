@@ -2,6 +2,7 @@ package binanceus
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -150,11 +151,8 @@ var (
 // GetServerTime this endpoint returns the exchange server time.
 func (bi *Binanceus) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	var response ServerTime
-	return response.Timestamp,
-		bi.SendHTTPRequest(ctx,
-			exchange.RestSpotSupplementary,
-			serverTime, spotDefaultRate,
-			&response)
+	err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, serverTime, spotDefaultRate, &response)
+	return response.Timestamp.Time(), err
 }
 
 // GetSystemStatus endpoint to fetch whether the system status is normal or under maintenance.
@@ -312,7 +310,7 @@ func (bi *Binanceus) batchAggregateTrades(ctx context.Context, arg *AggregatedTr
 		if !endTime.IsZero() && endTime.Unix() != 0 {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return endTime.Before(additionalTrades[i].TimeStamp)
+				return endTime.Before(additionalTrades[i].TimeStamp.Time())
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID
@@ -338,47 +336,26 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(arg.Limit, 10))
-	var resp OrderBookData
-	if err := bi.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		common.EncodeURLValues(orderBookDepth, params),
-		orderbookLimit(arg.Limit), &resp); err != nil {
+
+	var resp *OrderBookData
+	if err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(arg.Limit), &resp); err != nil {
 		return nil, err
 	}
-	orderbook := OrderBook{
+
+	ob := &OrderBook{
 		Bids:         make([]OrderbookItem, len(resp.Bids)),
 		Asks:         make([]OrderbookItem, len(resp.Asks)),
 		LastUpdateID: resp.LastUpdateID,
 	}
 	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Bids[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
+		ob.Bids[x].Price = resp.Bids[x][0].Float64()
+		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
 	}
 	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
+		ob.Asks[x].Price = resp.Asks[x][0].Float64()
+		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
 	}
-	return &orderbook, nil
+	return ob, nil
 }
 
 // GetIntervalEnum allowed interval params by Binanceus
@@ -1807,21 +1784,14 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 	}
 	interim := json.RawMessage{}
 	err = bi.SendPayload(ctx, f, func() (*request.Item, error) {
-		fullPath := endpointPath + path
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-		signature := params.Encode()
-		var hmacSigned []byte
-		hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
-			[]byte(signature),
-			[]byte(creds.Secret))
+		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-		hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
 		headers := make(map[string]string)
 		headers["X-MBX-APIKEY"] = creds.Key
-		fullPath = common.EncodeURLValues(fullPath, params)
-		fullPath += "&signature=" + hmacSignedStr
+		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
 		return &request.Item{
 			Method:        method,
 			Path:          fullPath,

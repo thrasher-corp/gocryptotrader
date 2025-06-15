@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/md5" //nolint:gosec // Used for this exchange
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -16,7 +20,8 @@ import (
 	"strings"
 	"time"
 
-	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -61,10 +66,16 @@ const (
 	lbankTimestamp               = "timestamp.do"
 )
 
+var (
+	errPEMBlockIsNil           = errors.New("pem block is nil")
+	errUnableToParsePrivateKey = errors.New("unable to parse private key")
+	errPrivateKeyNotLoaded     = errors.New("private key not loaded")
+)
+
 // GetTicker returns a ticker for the specified symbol
 // symbol: eth_btc
-func (l *Lbank) GetTicker(ctx context.Context, symbol string) (TickerResponse, error) {
-	var t TickerResponse
+func (l *Lbank) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
+	var t *TickerResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankTicker, params.Encode())
@@ -79,7 +90,7 @@ func (l *Lbank) GetTimestamp(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(resp.Timestamp), nil
+	return resp.Timestamp.Time(), nil
 }
 
 // GetTickers returns all tickers
@@ -100,39 +111,39 @@ func (l *Lbank) GetCurrencyPairs(ctx context.Context) ([]string, error) {
 }
 
 // GetMarketDepths returns arrays of asks, bids and timestamp
-func (l *Lbank) GetMarketDepths(ctx context.Context, symbol, size, merge string) (*MarketDepthResponse, error) {
+func (l *Lbank) GetMarketDepths(ctx context.Context, symbol string, size uint64) (*MarketDepthResponse, error) {
 	var m MarketDepthResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("size", size)
-	params.Set("merge", merge)
+	params.Set("size", strconv.FormatUint(size, 10))
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion2, lbankMarketDepths, params.Encode())
 	return &m, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
 }
 
 // GetTrades returns an array of available trades regarding a particular exchange
-func (l *Lbank) GetTrades(ctx context.Context, symbol string, limit, time int64) ([]TradeResponse, error) {
+// The time parameter is optional, if provided it will return trades after the given time
+func (l *Lbank) GetTrades(ctx context.Context, symbol string, limit uint64, tm time.Time) ([]TradeResponse, error) {
 	var g []TradeResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if limit > 0 {
-		params.Set("size", strconv.FormatInt(limit, 10))
+		params.Set("size", strconv.FormatUint(limit, 10))
 	}
-	if time > 0 {
-		params.Set("time", strconv.FormatInt(time, 10))
+	if !tm.IsZero() {
+		params.Set("time", strconv.FormatInt(tm.Unix(), 10))
 	}
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankTrades, params.Encode())
 	return g, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &g)
 }
 
 // GetKlines returns kline data
-func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType, tm string) ([]KlineResponse, error) {
+func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType string, tm time.Time) ([]KlineResponse, error) {
 	var klineTemp [][]float64
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("size", size)
 	params.Set("type", klineType)
-	params.Set("time", tm)
+	params.Set("time", strconv.FormatInt(tm.Unix(), 10))
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankKlines, params.Encode())
 	err := l.SendHTTPRequest(ctx, exchange.RestSpot, path, &klineTemp)
 	if err != nil {
@@ -147,7 +158,7 @@ func (l *Lbank) GetKlines(ctx context.Context, symbol, size, klineType, tm strin
 		k[x] = KlineResponse{
 			TimeStamp:     time.Unix(int64(klineTemp[x][0]), 0).UTC(),
 			OpenPrice:     klineTemp[x][1],
-			HigestPrice:   klineTemp[x][2],
+			HighestPrice:  klineTemp[x][2],
 			LowestPrice:   klineTemp[x][3],
 			ClosePrice:    klineTemp[x][4],
 			TradingVolume: klineTemp[x][5],
@@ -175,18 +186,17 @@ func (l *Lbank) GetUserInfo(ctx context.Context) (InfoFinalResponse, error) {
 // CreateOrder creates an order
 func (l *Lbank) CreateOrder(ctx context.Context, pair, side string, amount, price float64) (CreateOrderResponse, error) {
 	var resp CreateOrderResponse
-	if !strings.EqualFold(side, order.Buy.String()) &&
-		!strings.EqualFold(side, order.Sell.String()) {
-		return resp, errors.New("side type invalid can only be 'buy' or 'sell'")
+	if !strings.EqualFold(side, order.Buy.String()) && !strings.EqualFold(side, order.Sell.String()) {
+		return resp, order.ErrSideIsInvalid
 	}
 	if amount <= 0 {
-		return resp, errors.New("amount can't be smaller than or equal to 0")
+		return resp, order.ErrAmountBelowMin
 	}
 	if price <= 0 {
-		return resp, errors.New("price can't be smaller than or equal to 0")
+		return resp, order.ErrPriceBelowMin
 	}
-	params := url.Values{}
 
+	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("type", strings.ToLower(side))
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
@@ -384,10 +394,10 @@ func (l *Lbank) USD2RMBRate(ctx context.Context) (ExchangeRateResponse, error) {
 }
 
 // GetWithdrawConfig gets information about withdrawals
-func (l *Lbank) GetWithdrawConfig(ctx context.Context, assetCode string) ([]WithdrawConfigResponse, error) {
+func (l *Lbank) GetWithdrawConfig(ctx context.Context, c currency.Code) ([]WithdrawConfigResponse, error) {
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
-	params.Set("assetCode", assetCode)
+	params.Set("assetCode", c.Lower().String())
 	path := fmt.Sprintf("/v%s/%s?%s", lbankAPIVersion1, lbankWithdrawConfig, params.Encode())
 	return resp, l.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
@@ -506,40 +516,33 @@ func (l *Lbank) loadPrivKey(ctx context.Context) error {
 
 	block, _ := pem.Decode([]byte(key))
 	if block == nil {
-		return errors.New("pem block is nil")
+		return errPEMBlockIsNil
 	}
 
 	p, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return fmt.Errorf("unable to decode priv key: %s", err)
+		return fmt.Errorf("%w: %w", errUnableToParsePrivateKey, err)
 	}
 
 	var ok bool
 	l.privateKey, ok = p.(*rsa.PrivateKey)
 	if !ok {
-		return errors.New("unable to parse RSA private key")
+		return common.GetTypeAssertError("*rsa.PrivateKey", p)
 	}
 	return nil
 }
 
 func (l *Lbank) sign(data string) (string, error) {
 	if l.privateKey == nil {
-		return "", errors.New("private key not loaded")
+		return "", errPrivateKeyNotLoaded
 	}
-	md5hash, err := gctcrypto.GetMD5([]byte(data))
+	md5sum := md5.Sum([]byte(data)) //nolint:gosec // Used for this exchange
+	shasum := sha256.Sum256([]byte(strings.ToUpper(hex.EncodeToString(md5sum[:]))))
+	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, shasum[:])
 	if err != nil {
 		return "", err
 	}
-	m := strings.ToUpper(gctcrypto.HexEncodeToString(md5hash))
-	s, err := gctcrypto.GetSHA256([]byte(m))
-	if err != nil {
-		return "", err
-	}
-	r, err := rsa.SignPKCS1v15(rand.Reader, l.privateKey, crypto.SHA256, s)
-	if err != nil {
-		return "", err
-	}
-	return gctcrypto.Base64Encode(r), nil
+	return base64.StdEncoding.EncodeToString(r), nil
 }
 
 // SendAuthHTTPRequest sends an authenticated request

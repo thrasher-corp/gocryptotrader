@@ -69,13 +69,13 @@ func (b *Binance) SetDefaults() {
 
 	for a, ps := range defaultAssetPairStores {
 		if err := b.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
 		}
 	}
 
 	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		if err := b.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", b.Name, a, err)
 		}
 	}
 
@@ -1674,12 +1674,12 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].OpenTime.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	case asset.CoinMarginedFutures:
@@ -1695,12 +1695,12 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].OpenTime.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	default:
@@ -1755,12 +1755,12 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 			for i := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[i].OpenTime,
-					Open:   candles[i].Open,
-					High:   candles[i].High,
-					Low:    candles[i].Low,
-					Close:  candles[i].Close,
-					Volume: candles[i].Volume,
+					Time:   candles[i].OpenTime.Time(),
+					Open:   candles[i].Open.Float64(),
+					High:   candles[i].High.Float64(),
+					Low:    candles[i].Low.Float64(),
+					Close:  candles[i].Close.Float64(),
+					Volume: candles[i].Volume.Float64(),
 				})
 			}
 		case asset.CoinMarginedFutures:
@@ -1776,12 +1776,12 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 			for i := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[i].OpenTime,
-					Open:   candles[i].Open,
-					High:   candles[i].High,
-					Low:    candles[i].Low,
-					Close:  candles[i].Close,
-					Volume: candles[i].Volume,
+					Time:   candles[i].OpenTime.Time(),
+					Open:   candles[i].Open.Float64(),
+					High:   candles[i].High.Float64(),
+					Low:    candles[i].Low.Float64(),
+					Close:  candles[i].Close.Float64(),
+					Volume: candles[i].Volume.Float64(),
 				})
 			}
 		default:

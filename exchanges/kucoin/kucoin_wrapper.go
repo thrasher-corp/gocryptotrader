@@ -55,7 +55,7 @@ func (ku *Kucoin) SetDefaults() {
 			ps.ConfigFormat.Delimiter = currency.UnderscoreDelimiter
 		}
 		if err := ku.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", ku.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", ku.Name, a, err)
 		}
 	}
 
@@ -1742,7 +1742,7 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		for x := range candles {
 			timeseries = append(
 				timeseries, kline.Candle{
-					Time:   candles[x].StartTime,
+					Time:   candles[x].StartTime.Time(),
 					Open:   candles[x].Open,
 					High:   candles[x].High,
 					Low:    candles[x].Low,
@@ -1763,12 +1763,12 @@ func (ku *Kucoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		for x := range candles {
 			timeseries = append(
 				timeseries, kline.Candle{
-					Time:   candles[x].StartTime,
-					Open:   candles[x].Open,
-					High:   candles[x].High,
-					Low:    candles[x].Low,
-					Close:  candles[x].Close,
-					Volume: candles[x].Volume,
+					Time:   candles[x].StartTime.Time(),
+					Open:   candles[x].Open.Float64(),
+					High:   candles[x].High.Float64(),
+					Low:    candles[x].Low.Float64(),
+					Close:  candles[x].Close.Float64(),
+					Volume: candles[x].Volume.Float64(),
 				})
 		}
 	default:
@@ -1796,7 +1796,7 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			for y := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[y].StartTime,
+						Time:   candles[y].StartTime.Time(),
 						Open:   candles[y].Open,
 						High:   candles[y].High,
 						Low:    candles[y].Low,
@@ -1821,12 +1821,12 @@ func (ku *Kucoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			for x := range candles {
 				timeSeries = append(
 					timeSeries, kline.Candle{
-						Time:   candles[x].StartTime,
-						Open:   candles[x].Open,
-						High:   candles[x].High,
-						Low:    candles[x].Low,
-						Close:  candles[x].Close,
-						Volume: candles[x].Volume,
+						Time:   candles[x].StartTime.Time(),
+						Open:   candles[x].Open.Float64(),
+						High:   candles[x].High.Float64(),
+						Low:    candles[x].Low.Float64(),
+						Close:  candles[x].Close.Float64(),
+						Volume: candles[x].Volume.Float64(),
 					})
 			}
 		}
@@ -2456,7 +2456,7 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	}
 }
 
-// StringToTimeInForce returns an order.TimeInForder instance from string
+// StringToTimeInForce returns an order.TimeInForce instance from string
 func StringToTimeInForce(tif string, postOnly bool) order.TimeInForce {
 	tif = strings.ToUpper(tif)
 	var out order.TimeInForce

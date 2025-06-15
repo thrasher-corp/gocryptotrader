@@ -1,11 +1,12 @@
 package report
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -22,9 +23,8 @@ import (
 func TestCreateUSDTotalsChart(t *testing.T) {
 	t.Parallel()
 	_, err := createUSDTotalsChart(nil, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	tt := time.Now()
 	items := []statistics.ValueAtTime{
 		{
@@ -34,9 +34,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 		},
 	}
 	_, err = createUSDTotalsChart(items, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	stats := []statistics.FundingItemStatistics{
 		{
 			ReportItem: &funding.ReportItem{
@@ -50,9 +49,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 		},
 	}
 	resp, err := createUSDTotalsChart(items, stats)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if len(resp.Data) == 0 {
 		t.Fatal("expected not nil")
 	}
@@ -67,9 +65,8 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 func TestCreateHoldingsOverTimeChart(t *testing.T) {
 	t.Parallel()
 	_, err := createHoldingsOverTimeChart(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+
 	tt := time.Now()
 	items := []statistics.FundingItemStatistics{
 		{
@@ -90,9 +87,7 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 		},
 	}
 	resp, err := createHoldingsOverTimeChart(items)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !resp.ShowZeroDisclaimer {
 		t.Error("expected ShowZeroDisclaimer")
@@ -102,9 +97,7 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 func TestCreatePNLCharts(t *testing.T) {
 	t.Parallel()
 	_, err := createPNLCharts(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	tt := time.Now()
 	var d Data
@@ -149,26 +142,19 @@ func TestCreatePNLCharts(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	t.Parallel()
 	_, err := createFuturesSpotDiffChart(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	tt := time.Now()
 	cp := currency.NewBTCUSD()
@@ -229,9 +215,8 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	}
 
 	charty, err := createFuturesSpotDiffChart(d.Statistics.ExchangeAssetPairStatistics)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(charty.Data) == 0 {
 		t.Error("expected data")
 	}

@@ -41,7 +41,7 @@ type Depth struct {
 	alert.Notice
 
 	mux *dispatch.Mux
-	_ID uuid.UUID
+	id  uuid.UUID
 
 	options
 
@@ -53,12 +53,12 @@ type Depth struct {
 
 // NewDepth returns a new orderbook depth
 func NewDepth(id uuid.UUID) *Depth {
-	return &Depth{_ID: id, mux: service.Mux}
+	return &Depth{id: id, mux: s.signalMux}
 }
 
 // Publish alerts any subscribed routines using a dispatch mux
 func (d *Depth) Publish() {
-	if err := d.mux.Publish(Outbound(d), d._ID); err != nil {
+	if err := d.mux.Publish(Outbound(d), d.id); err != nil {
 		log.Errorf(log.ExchangeSys, "Cannot publish orderbook update to mux %v", err)
 	}
 }
@@ -78,7 +78,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 		Asset:                  d.asset,
 		Pair:                   d.pair,
 		LastUpdated:            d.lastUpdated,
-		UpdatePushedAt:         d.updatePushedAt,
+		LastPushed:             d.lastPushed,
 		InsertedAt:             d.insertedAt,
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
@@ -92,7 +92,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated, updatePushedAt time.Time, updateByREST bool) error {
+func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated, lastPushed time.Time, updateByREST bool) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	if lastUpdated.IsZero() {
@@ -104,7 +104,7 @@ func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdat
 	}
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
-	d.updatePushedAt = updatePushedAt
+	d.lastPushed = lastPushed
 	d.insertedAt = time.Now()
 	d.restSnapshot = updateByREST
 	d.bidTranches.load(bids)
@@ -387,7 +387,7 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
-	d.updatePushedAt = update.UpdatePushedAt
+	d.lastPushed = update.LastPushed
 	d.insertedAt = time.Now()
 	d.Alert()
 }

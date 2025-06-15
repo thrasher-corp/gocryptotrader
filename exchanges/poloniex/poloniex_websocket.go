@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"slices"
@@ -140,7 +141,7 @@ func (p *Poloniex) wsAuthConn() error {
 			Key:             creds.Key,
 			SignatureMethod: "hmacSHA256",
 			SignTimestamp:   timestamp.UnixMilli(),
-			Signature:       crypto.Base64Encode(hmac),
+			Signature:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
 	data, err := p.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.UnAuth, cnlAuth, auth)

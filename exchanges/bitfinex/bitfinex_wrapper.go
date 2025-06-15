@@ -51,13 +51,13 @@ func (b *Bitfinex) SetDefaults() {
 			ps.ConfigFormat.Delimiter = ":"
 		}
 		if err := b.SetAssetPairStore(a, ps); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", b.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", b.Name, a, err)
 		}
 	}
 
 	// Margin WS Currently not fully implemented and causes subscription collisions with spot
 	if err := b.DisableAssetWebsocketSupport(asset.Margin); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error disabling `%s` asset type websocket support: %s", b.Name, asset.Margin, err)
+		log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", b.Name, asset.Margin, err)
 	}
 
 	// TODO: Implement Futures and Securities asset types.
@@ -700,29 +700,16 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	var timestamp float64
-	timestamp, err = strconv.ParseFloat(o.Timestamp, 64)
-	if err != nil {
-		log.Warnf(log.ExchangeSys,
-			"%s Unable to convert timestamp '%s', leaving blank",
-			b.Name, o.Timestamp)
-	}
-
-	var pair currency.Pair
-	pair, err = currency.NewPairFromString(o.Symbol)
-	if err != nil {
-		return nil, err
-	}
 
 	orderDetail := &order.Detail{
 		Amount:          o.OriginalAmount,
-		Date:            time.Unix(int64(timestamp), 0),
+		Date:            o.Timestamp.Time(),
 		Exchange:        b.Name,
 		OrderID:         strconv.FormatInt(o.ID, 10),
 		Side:            side,
 		Price:           o.Price,
 		RemainingAmount: o.RemainingAmount,
-		Pair:            pair,
+		Pair:            o.Symbol,
 		ExecutedAmount:  o.ExecutedAmount,
 	}
 

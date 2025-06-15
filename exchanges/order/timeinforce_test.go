@@ -9,6 +9,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
+func TestTimeInForceIs(t *testing.T) {
+	t.Parallel()
+	tifValuesMap := map[TimeInForce][]TimeInForce{
+		GoodTillCancel | PostOnly:   {GoodTillCancel, PostOnly},
+		GoodTillCancel:              {GoodTillCancel},
+		GoodTillCrossing | PostOnly: {GoodTillCrossing, PostOnly},
+		GoodTillDay:                 {GoodTillDay},
+		GoodTillTime:                {GoodTillTime},
+		GoodTillTime | PostOnly:     {GoodTillTime, PostOnly},
+		ImmediateOrCancel:           {ImmediateOrCancel},
+		FillOrKill:                  {FillOrKill},
+		PostOnly:                    {PostOnly},
+		GoodTillCrossing:            {GoodTillCrossing},
+	}
+	for tif, exps := range tifValuesMap {
+		for _, v := range exps {
+			assert.Truef(t, tif.Is(v), "%s should be %s", tif, v)
+		}
+	}
+}
+
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	timeInForceValidityMap := map[TimeInForce]bool{
@@ -30,9 +51,8 @@ func TestIsValid(t *testing.T) {
 		GoodTillCancel | PostOnly:          true,
 		UnknownTIF:                         true,
 	}
-	var tif TimeInForce
-	for tif = range timeInForceValidityMap {
-		assert.Equalf(t, timeInForceValidityMap[tif], tif.IsValid(), "got %v, expected %v for %v with id %d", tif.IsValid(), timeInForceValidityMap[tif], tif, tif)
+	for tif, value := range timeInForceValidityMap {
+		assert.Equal(t, value, tif.IsValid())
 	}
 }
 
@@ -107,19 +127,19 @@ func TestUnmarshalJSON(t *testing.T) {
 		GoodTillCancel | PostOnly | ImmediateOrCancel, GoodTillCancel | PostOnly, GoodTillCancel, UnknownTIF, PostOnly | ImmediateOrCancel,
 		GoodTillCancel, GoodTillCancel, PostOnly, PostOnly, ImmediateOrCancel, GoodTillDay, GoodTillDay, GoodTillTime, FillOrKill, FillOrKill,
 	}
-	data := `{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	data := []byte(`{"tifs": ["GTC,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`)
 	target := &struct {
 		TIFs []TimeInForce `json:"tifs"`
 	}{}
-	err := json.Unmarshal([]byte(data), &target)
+	err := json.Unmarshal(data, &target)
 	require.NoError(t, err)
 	require.Equal(t, targets, target.TIFs)
 
-	data = `{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`
+	data = []byte(`{"tifs": ["abcd,POSTONLY,IOC", "GTC,POSTONLY", "GTC", "", "POSTONLY,IOC", "GoodTilCancel", "GoodTILLCANCEL", "POST_ONLY", "POC","IOC", "GTD", "gtd","gtt", "fok", "fillOrKill"]}`)
 	target = &struct {
 		TIFs []TimeInForce `json:"tifs"`
 	}{}
-	err = json.Unmarshal([]byte(data), &target)
+	err = json.Unmarshal(data, &target)
 	require.ErrorIs(t, err, ErrInvalidTimeInForce)
 }
 

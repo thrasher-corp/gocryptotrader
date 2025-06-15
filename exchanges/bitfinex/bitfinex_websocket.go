@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -962,7 +963,7 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 			return fmt.Errorf("%w `tradesSnapshot`: %w", common.ErrParsingWSField, err)
 		}
 	default:
-		return fmt.Errorf("%w `tradesUpdate[1]`: %w `%s`", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
+		return fmt.Errorf("%w `tradesUpdate[1]`: %w %q", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
 	}
 	trades := make([]trade.Data, len(wsTrades))
 	for _, w := range wsTrades {
@@ -1846,25 +1847,19 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().Unix(), 10)
 	payload := "AUTH" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte(payload),
-		[]byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payload), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, WsAuthRequest{
+
+	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, WsAuthRequest{
 		Event:         "auth",
 		APIKey:        creds.Key,
 		AuthPayload:   payload,
-		AuthSig:       crypto.HexEncodeToString(hmac),
+		AuthSig:       hex.EncodeToString(hmac),
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	})
-	if err != nil {
-		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return err
-	}
-	return nil
 }
 
 // WsNewOrder authenticated new order request

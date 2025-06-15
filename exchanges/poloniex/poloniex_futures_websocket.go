@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -141,7 +142,7 @@ func (p *Poloniex) AuthConnect() error {
 		Params: map[string]any{
 			"key":           creds.Key,
 			"signTimestamp": timestamp,
-			"signature":     crypto.Base64Encode(hmac),
+			"signature":     base64.StdEncoding.EncodeToString(hmac),
 		},
 	})
 	if err != nil {
@@ -454,14 +455,14 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 			continue
 		}
 		err = p.Websocket.Orderbook.Update(&orderbook.Update{
-			UpdateID:       resp[x].ID.Int64(),
-			UpdateTime:     resp[x].CreationTime.Time(),
-			UpdatePushedAt: resp[x].Timestamp.Time(),
-			Asset:          asset.Futures,
-			Action:         orderbook.UpdateInsert,
-			Bids:           bids,
-			Asks:           asks,
-			Pair:           pair,
+			UpdateID:   resp[x].ID.Int64(),
+			UpdateTime: resp[x].CreationTime.Time(),
+			LastPushed: resp[x].Timestamp.Time(),
+			Asset:      asset.Futures,
+			Action:     orderbook.UpdateInsert,
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       pair,
 		})
 		if err != nil {
 			return err

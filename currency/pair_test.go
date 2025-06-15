@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"errors"
 	"strconv"
 	"testing"
 
@@ -543,9 +542,8 @@ func TestRandomPairFromPairs(t *testing.T) {
 	// Test that an empty pairs array returns an empty currency pair
 	var emptyPairs Pairs
 	result, err := emptyPairs.GetRandomPair()
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
+	require.ErrorIs(t, err, ErrCurrencyPairsEmpty)
+
 	if !result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
 	}
@@ -554,9 +552,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	var pairs Pairs
 	pairs = append(pairs, NewBTCUSD())
 	result, err = pairs.GetRandomPair()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	if result.IsEmpty() {
 		t.Error("TestRandomPairFromPairs: Unexpected values")
@@ -568,9 +564,8 @@ func TestRandomPairFromPairs(t *testing.T) {
 	expectedResults := make(map[string]bool)
 	for range 50 {
 		result, err = pairs.GetRandomPair()
-		if !errors.Is(err, nil) {
-			t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-		}
+		require.NoError(t, err)
+
 		expectedResults[result.String()] = true
 	}
 
@@ -742,9 +737,8 @@ func TestOther(t *testing.T) {
 	if !received.Equal(DAI) {
 		t.Fatal("unexpected value")
 	}
-	if _, err := NewPair(DAI, XRP).Other(BTC); !errors.Is(err, ErrCurrencyCodeEmpty) {
-		t.Fatal("unexpected value")
-	}
+	_, err = NewPair(DAI, XRP).Other(BTC)
+	require.ErrorIs(t, err, ErrCurrencyCodeEmpty)
 }
 
 func TestIsPopulated(t *testing.T) {
@@ -804,10 +798,7 @@ func TestGetOrderParameters(t *testing.T) {
 			case !tc.market && !tc.selling:
 				resp, err = tc.Pair.LimitBuyOrderParameters(tc.currency)
 			}
-
-			if !errors.Is(err, tc.expectedError) {
-				t.Fatalf("received %v, expected %v", err, tc.expectedError)
-			}
+			require.ErrorIs(t, err, tc.expectedError)
 
 			if tc.expectedParams == nil {
 				if resp != nil {

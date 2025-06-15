@@ -1,11 +1,12 @@
 package engine
 
 import (
-	"errors"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -32,9 +33,8 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 		t.Fatal(err)
 	}
 	err = em.Add(b)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {
 		t.Fatal(err)
@@ -80,17 +80,14 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	if !errors.Is(err, common.ErrFunctionNotSupported) {
-		t.Errorf("received %v, expected %v", err, common.ErrFunctionNotSupported)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
 	req.Type = withdraw.Crypto
 	req.Currency = currency.BTC
 	req.Crypto.Address = "1337"
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	if !errors.Is(err, withdraw.ErrStrAddressNotWhiteListed) {
-		t.Errorf("received %v, expected %v", err, withdraw.ErrStrAddressNotWhiteListed)
-	}
+	assert.ErrorIs(t, err, withdraw.ErrStrAddressNotWhiteListed)
+
 	var wg sync.WaitGroup
 	err = pm.Start(&wg)
 	if err != nil {
@@ -102,30 +99,21 @@ func TestSubmitWithdrawal(t *testing.T) {
 	}
 	adds := pm.GetAddresses()
 	adds[0].WhiteListed = true
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	if !errors.Is(err, withdraw.ErrStrExchangeNotSupportedByAddress) {
-		t.Errorf("received %v, expected %v", err, withdraw.ErrStrExchangeNotSupportedByAddress)
-	}
+	assert.ErrorIs(t, err, withdraw.ErrStrExchangeNotSupportedByAddress)
 
 	adds[0].SupportedExchanges = withdrawManagerTestExchangeName
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	if !errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
-		t.Errorf("received '%v', expected '%v'", err, exchange.ErrAuthenticationSupportNotEnabled)
-	}
+	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 
 	_, err = m.SubmitWithdrawal(t.Context(), nil)
-	if !errors.Is(err, withdraw.ErrRequestCannotBeNil) {
-		t.Errorf("received %v, expected %v", err, withdraw.ErrRequestCannotBeNil)
-	}
+	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
 
 	m.isDryRun = true
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestWithdrawEventByID(t *testing.T) {
@@ -139,15 +127,12 @@ func TestWithdrawEventByID(t *testing.T) {
 		ID: withdraw.DryRunID,
 	}
 	_, err = m.WithdrawalEventByID(withdraw.DryRunID.String())
-	if !errors.Is(err, ErrWithdrawRequestNotFound) {
-		t.Errorf("received %v, expected %v", err, ErrWithdrawRequestNotFound)
-	}
+	assert.ErrorIs(t, err, ErrWithdrawRequestNotFound)
 
 	withdraw.Cache.Add(withdraw.DryRunID.String(), tempResp)
 	v, err := m.WithdrawalEventByID(withdraw.DryRunID.String())
-	if !errors.Is(err, nil) {
-		t.Errorf("expected %v, received %v", nil, err)
-	}
+	assert.NoError(t, err)
+
 	if v == nil {
 		t.Error("expected WithdrawalEventByID() to return data from cache")
 	}
@@ -162,18 +147,10 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 	}
 
 	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchange("xxx", 0)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received: %v but expected: %v",
-			err,
-			ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	_, err = m.WithdrawalEventByExchange("xxx", 0)
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received: %v but expected: %v",
-			err,
-			ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
@@ -185,18 +162,10 @@ func TestWithdrawEventByDate(t *testing.T) {
 	}
 
 	_, err = (*WithdrawManager)(nil).WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received: %v but expected: %v",
-			err,
-			ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	_, err = m.WithdrawEventByDate("xxx", time.Now(), time.Now(), 1)
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received: %v but expected: %v",
-			err,
-			ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
@@ -208,16 +177,8 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 	}
 
 	_, err = (*WithdrawManager)(nil).WithdrawalEventByExchangeID("xxx", "xxx")
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("received: %v but expected: %v",
-			err,
-			ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	_, err = m.WithdrawalEventByExchangeID("xxx", "xxx")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Errorf("received: %v but expected: %v",
-			err,
-			ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNotFound)
 }

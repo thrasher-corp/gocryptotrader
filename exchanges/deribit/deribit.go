@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -289,28 +290,8 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var data [][2]any
-	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getHistoricalVolatility, params), &data)
-	if err != nil {
-		return nil, err
-	}
-	resp := make([]HistoricalVolatilityData, len(data))
-	for x := range data {
-		timeData, ok := data[x][0].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][0], "time data")
-		}
-		val, ok := data[x][1].(float64)
-		if !ok {
-			return resp, common.GetTypeAssertError("float64", data[x][1], "volatility value")
-		}
-		resp[x] = HistoricalVolatilityData{
-			Timestamp: timeData,
-			Value:     val,
-		}
-	}
-	return resp, nil
+	var data []HistoricalVolatilityData
+	return data, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
@@ -2226,22 +2207,20 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 	if err != nil {
 		return err
 	}
-	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, params) + "\n" + "\n"
-	n := d.Requester.GetNonce(nonce.UnixNano).String()
-	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	str2Sign := strTS + "\n" + n + "\n" + reqDataStr
 	creds, err := d.GetCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("%w, %v", request.ErrAuthRequestFailed, err)
 	}
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(str2Sign),
-		[]byte(creds.Secret))
+	req := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, params) + "\n\n"
+	n := d.Requester.GetNonce(nonce.UnixNano).String()
+	ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	tsReq := []byte(ts + "\n" + n + "\n" + req)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, tsReq, []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 	headers := make(map[string]string)
-	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + strTS + ",sig=" + crypto.HexEncodeToString(hmac) + ",nonce=" + n
+	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + ts + ",sig=" + hex.EncodeToString(hmac) + ",nonce=" + n
 	headers["Authorization"] = headerString
 	headers["Content-Type"] = "application/json"
 	var tempData struct {

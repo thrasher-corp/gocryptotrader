@@ -1,11 +1,12 @@
 package binancecashandcarry
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -54,38 +55,29 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	float14 := float64(14)
 	mappalopalous := make(map[string]any)
 	mappalopalous[openShortDistancePercentageString] = float14
 	mappalopalous[closeShortDistancePercentageString] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 
 	mappalopalous[closeShortDistancePercentageString] = float14
 	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 
 	mappalopalous[closeShortDistancePercentageString] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
+	assert.ErrorIs(t, err, base.ErrInvalidCustomSettings)
 }
 
 func TestOnSignal(t *testing.T) {
@@ -94,9 +86,7 @@ func TestOnSignal(t *testing.T) {
 		openShortDistancePercentage: decimal.NewFromInt(14),
 	}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
-	}
+	assert.ErrorIs(t, err, base.ErrSimultaneousProcessingOnly)
 }
 
 func TestSetDefaults(t *testing.T) {
@@ -132,22 +122,18 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da := &datakline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = sortSignals([]data.Handler{da})
-	if !errors.Is(err, errNotSetup) {
-		t.Errorf("received: %v, expected: %v", err, errNotSetup)
-	}
+	assert.ErrorIs(t, err, errNotSetup)
 
 	d2 := &data.Base{}
 	err = d2.SetStream([]data.Event{&eventkline.Kline{
@@ -165,56 +151,40 @@ func TestSortSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = d2.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected  '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	da2 := &datakline.DataFromKline{
 		Item:        &gctkline.Item{},
 		Base:        d2,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = sortSignals([]data.Handler{da, da2})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	expectedError := gctcommon.ErrNilPointer
 	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	spotSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Spot},
 	}
 	_, err = s.createSignals(nil, spotSignal, nil, decimal.Zero, false)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	// targeting first case
-	expectedError = nil
 	futuresSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Futures},
 	}
 	resp, err := s.createSignals(nil, spotSignal, futuresSignal, decimal.Zero, false)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
-	if len(resp) != 1 {
-		t.Errorf("received '%v' expected '%v", len(resp), 1)
-	}
-	if resp[0].GetAssetType() != asset.Spot {
-		t.Errorf("received '%v' expected '%v", resp[0].GetAssetType(), asset.Spot)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 1, "createSignals must return one signal")
+	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
 
 	// targeting second case:
 	pos := []futures.Position{
@@ -223,80 +193,47 @@ func TestCreateSignals(t *testing.T) {
 		},
 	}
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, false)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 2, "createSignals must return two signals")
 	caseTested := false
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != gctorder.ClosePosition {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.ClosePosition)
-			}
+			assert.Equal(t, gctorder.ClosePosition, resp[i].GetDirection())
 			caseTested = true
+			break
 		}
 	}
-	if !caseTested {
-		t.Fatal("unhandled issue in test scenario")
-	}
+	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting third case
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, true)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 2, "createSignals must return two signals")
+
 	caseTested = false
 	for i := range resp {
 		if resp[i].GetAssetType().IsFutures() {
-			if resp[i].GetDirection() != gctorder.ClosePosition {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.ClosePosition)
-			}
+			assert.Equal(t, gctorder.ClosePosition, resp[i].GetDirection())
 			caseTested = true
+			break
 		}
 	}
-	if !caseTested {
-		t.Fatal("unhandled issue in test scenario")
-	}
+	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting first case after a cash and carry is completed, have a new one opened
 	pos[0].Status = gctorder.Closed
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
-	if len(resp) != 1 {
-		t.Errorf("received '%v' expected '%v", len(resp), 1)
-	}
-	caseTested = false
-	for i := range resp {
-		if resp[i].GetAssetType() == asset.Spot {
-			if resp[i].GetDirection() != gctorder.Buy {
-				t.Errorf("received '%v' expected '%v", resp[i].GetDirection(), gctorder.Buy)
-			}
-			if resp[i].GetFillDependentEvent() == nil {
-				t.Errorf("received '%v' expected '%v'", nil, "fill dependent event")
-			}
-			caseTested = true
-		}
-	}
-	if !caseTested {
-		t.Fatal("unhandled issue in test scenario")
-	}
+	require.NoError(t, err, "createSignals must not error")
+	require.Len(t, resp, 1, "createSignals must return one signal")
+	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
+	assert.Equal(t, gctorder.Buy, resp[0].GetDirection())
+	assert.NotNil(t, resp[0].GetFillDependentEvent(), "GetFillDependentEvent should not return nil")
 
 	// targeting default case
 	pos[0].Status = gctorder.UnknownStatus
 	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
-	if !errors.Is(err, expectedError) {
-		t.Errorf("received '%v' expected '%v", err, expectedError)
-	}
-	if len(resp) != 2 {
-		t.Errorf("received '%v' expected '%v", len(resp), 2)
-	}
+	require.NoError(t, err, "createSignals must not error")
+	assert.Len(t, resp, 2, "createSignals should return two signals")
 }
 
 // fakeFunds overrides default implementation
@@ -332,9 +269,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSimultaneousSignals(nil, nil, nil)
-	if !errors.Is(err, base.ErrNoDataToProcess) {
-		t.Errorf("received '%v' expected '%v", err, base.ErrNoDataToProcess)
-	}
+	assert.ErrorIs(t, err, base.ErrNoDataToProcess)
 
 	cp := currency.NewBTCUSD()
 	d := &datakline.DataFromKline{
@@ -361,29 +296,21 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = d.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	signals := []data.Handler{
 		d,
 	}
 	f := &fakeFunds{}
 	_, err = s.OnSimultaneousSignals(signals, f, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	p := &portfolerino{}
 	_, err = s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, errNotSetup) {
-		t.Errorf("received '%v' expected '%v", err, errNotSetup)
-	}
+	assert.ErrorIs(t, err, errNotSetup)
 
 	d2 := &datakline.DataFromKline{
 		Base: &data.Base{},
@@ -409,31 +336,26 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		High:   decimal.NewFromInt(1337),
 		Volume: decimal.NewFromInt(1337),
 	}})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = d2.Next()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	signals = []data.Handler{
 		d,
 		d2,
 	}
 	resp, err := s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 2 {
 		t.Errorf("received '%v' expected '%v", len(resp), 2)
 	}
 
 	f.hasBeenLiquidated = true
 	resp, err = s.OnSimultaneousSignals(signals, f, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(resp) != 2 {
 		t.Fatalf("received '%v' expected '%v", len(resp), 2)
 	}
@@ -446,9 +368,8 @@ func TestCloseAllPositions(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.CloseAllPositions(nil, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	leet := decimal.NewFromInt(1337)
 	cp := currency.NewBTCUSD()
 	h := []holdings.Holding{
@@ -511,9 +432,8 @@ func TestCloseAllPositions(t *testing.T) {
 		},
 	}
 	positionsToClose, err := s.CloseAllPositions(h, p)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(positionsToClose) != 2 {
 		t.Errorf("received '%v' expected '%v", len(positionsToClose), 2)
 	}

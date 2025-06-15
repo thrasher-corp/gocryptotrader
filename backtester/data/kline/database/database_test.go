@@ -1,13 +1,14 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -85,14 +86,10 @@ func TestLoadDataCandles(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
@@ -115,14 +112,10 @@ func TestLoadDataCandles(t *testing.T) {
 		},
 	}
 	_, err = gctkline.StoreInDatabase(data, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataCandle, p, a, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if err = conn.SQL.Close(); err != nil {
 		t.Error(err)
@@ -160,9 +153,7 @@ func TestLoadDataTrades(t *testing.T) {
 	database.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	testhelpers.MigrationDir = filepath.Join("..", "..", "..", "..", "database", "migrations")
 	conn, err := testhelpers.ConnectToDatabase(&dbConfg)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	err = exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}})
 	if err != nil {
@@ -183,14 +174,10 @@ func TestLoadDataTrades(t *testing.T) {
 		Side:      gctorder.Buy.String(),
 		Timestamp: dInsert,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, common.DataTrade, p, a, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if err = conn.SQL.Close(); err != nil {
 		t.Error(err)
@@ -204,12 +191,8 @@ func TestLoadDataInvalid(t *testing.T) {
 	dStart := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	dEnd := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err := LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, false)
-	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
-	}
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 
 	_, err = LoadData(dStart, dEnd, gctkline.FifteenMin.Duration(), exch, -1, p, a, true)
-	if !errors.Is(err, errNoUSDData) {
-		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
-	}
+	assert.ErrorIs(t, err, errNoUSDData)
 }

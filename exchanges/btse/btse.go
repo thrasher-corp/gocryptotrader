@@ -3,6 +3,7 @@ package btse
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -516,7 +517,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 				host += "?" + values.Encode()
 			}
 		}
-		headers["btse-sign"] = crypto.HexEncodeToString(hmac)
+		headers["btse-sign"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        method,

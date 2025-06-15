@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"sync/atomic"
 	"testing"
 
@@ -17,19 +16,14 @@ import (
 func TestSetupEventManager(t *testing.T) {
 	t.Parallel()
 	_, err := setupEventManager(nil, nil, 0, false)
-	if !errors.Is(err, errNilComManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilComManager)
-	}
+	assert.ErrorIs(t, err, errNilComManager)
 
 	_, err = setupEventManager(&CommunicationManager{}, nil, 0, false)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if m == nil { //nolint:staticcheck,nolintlint // SA5011 Ignore the nil warnings
 		t.Fatal("expected manager")
 	}
@@ -40,36 +34,27 @@ func TestSetupEventManager(t *testing.T) {
 
 func TestEventManagerStart(t *testing.T) {
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
-	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.NoError(t, err)
+
+	err = m.Start()
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
 	m = nil
 	err = m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestEventManagerIsRunning(t *testing.T) {
 	t.Parallel()
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -86,60 +71,47 @@ func TestEventManagerIsRunning(t *testing.T) {
 func TestEventManagerStop(t *testing.T) {
 	t.Parallel()
 	m, err := setupEventManager(&CommunicationManager{}, &ExchangeManager{}, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	m = nil
 	err = m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
 func TestEventManagerAdd(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.Add("", "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	_, err = m.Add("", "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, errExchangeDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errExchangeDisabled)
-	}
+	assert.ErrorIs(t, err, errExchangeDisabled)
+
 	exch, err := em.NewExchangeByName(testExchange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	_, err = m.Add(testExchange, "", EventConditionParams{}, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, errInvalidItem) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidItem)
-	}
+	assert.ErrorIs(t, err, errInvalidItem)
 
 	cond := EventConditionParams{
 		Condition:       ConditionGreaterThan,
@@ -147,36 +119,28 @@ func TestEventManagerAdd(t *testing.T) {
 		OrderbookAmount: 1337,
 	}
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, "")
-	if !errors.Is(err, errInvalidAction) {
-		t.Errorf("error '%v', expected '%v'", err, errInvalidAction)
-	}
+	assert.ErrorIs(t, err, errInvalidAction)
 
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, ActionTest)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	action := ActionSMSNotify + "," + ActionTest
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestEventManagerRemove(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.Remove(0) {
 		t.Error("expected false")
 	}
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.Remove(0) {
 		t.Error("expected false")
 	}
@@ -192,13 +156,10 @@ func TestEventManagerRemove(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	id, err := m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if !m.Remove(id) {
 		t.Error("expected true")
@@ -209,17 +170,15 @@ func TestGetEventCounter(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m, err := setupEventManager(&CommunicationManager{}, em, 0, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	total, executed := m.getEventCounter()
 	if total != 0 && executed != 0 {
 		t.Error("expected 0")
 	}
 	err = m.Start()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	total, executed = m.getEventCounter()
 	if total != 0 && executed != 0 {
 		t.Error("expected 0")
@@ -236,13 +195,10 @@ func TestGetEventCounter(t *testing.T) {
 	}
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	_, err = m.Add(testExchange, ItemPrice, cond, currency.NewPair(currency.BTC, currency.USDC), asset.Spot, action)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	total, _ = m.getEventCounter()
 	if total == 0 {

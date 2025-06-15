@@ -387,11 +387,11 @@ func TestGetOrderStatus(t *testing.T) {
 	if !mockTests {
 		assert.ErrorContains(t, err, "Order not found")
 	} else {
-		require.NoError(t, err, "TestGetOrderStatus must not error")
+		require.NoError(t, err, "GetOrderStatus must not error")
 		assert.Equal(t, "2022-01-31 14:43:15", o.DateTime, "DateTime should match")
 		assert.Equal(t, "1458532827766784", o.ID, "OrderID should match")
 		assert.Equal(t, 200.00, o.AmountRemaining, "AmountRemaining should match")
-		assert.Equal(t, 0, o.Type, "Type should match")
+		assert.Equal(t, int64(0), o.Type, "Type should match")
 		assert.Equal(t, "0.50000000", o.ClientOrderID, "ClientOrderID should match")
 		assert.Equal(t, "BTC/USD", o.Market, "Market should match")
 		for _, tr := range o.Transactions {
@@ -399,7 +399,7 @@ func TestGetOrderStatus(t *testing.T) {
 			assert.Equal(t, 50.00, tr.Price, "Price should match")
 			assert.Equal(t, 101.00, tr.FromCurrency, "FromCurrency should match")
 			assert.Equal(t, 1.0, tr.ToCurrency, "ToCurrency should match")
-			assert.Equal(t, 0, o.Type, "Type should match")
+			assert.Equal(t, int64(0), o.Type, "Type should match")
 		}
 	}
 }
@@ -576,9 +576,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	resp, err := b.CancelAllOrders(t.Context(),
-		&order.Cancel{AssetType: asset.Spot})
-	require.NoError(t, err, "TestCancelAllExchangeOrders must not error")
+	resp, err := b.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	require.NoError(t, err, "CancelAllOrders must not error")
 	if len(resp.Status) > 0 {
 		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
@@ -864,11 +863,10 @@ func TestWsRequestReconnect(t *testing.T) {
 	require.NoError(t, err, "WsRequestReconnect must not error")
 }
 
-func TestBitstamp_OHLC(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	o, err := b.OHLC(t.Context(), "btcusd", start, end, "60", "10")
-	require.NoError(t, err, "TestBitstamp_OHLC must not error")
+func TestOHLC(t *testing.T) {
+	t.Parallel()
+	o, err := b.OHLC(t.Context(), "btcusd", time.Unix(1546300800, 0), time.Unix(1577836799, 0), "60", "10")
+	require.NoError(t, err, "OHLC must not error")
 	assert.Equal(t, "BTC/USD", o.Data.Pair, "Pair should be correct")
 	for _, req := range o.Data.OHLCV {
 		assert.Positive(t, req.Low, "Low should be positive")
@@ -879,10 +877,9 @@ func TestBitstamp_OHLC(t *testing.T) {
 	}
 }
 
-func TestBitstamp_GetHistoricCandles(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
 	require.NoError(t, err, "GetHistoricCandles must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -896,11 +893,9 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
 	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -1031,8 +1026,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := b.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

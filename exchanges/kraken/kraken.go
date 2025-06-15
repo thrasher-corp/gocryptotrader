@@ -2,12 +2,15 @@ package kraken
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,6 +40,8 @@ const (
 // Kraken is the overarching type across the kraken package
 type Kraken struct {
 	exchange.Base
+	wsAuthToken string
+	wsAuthMtx   sync.RWMutex
 }
 
 // GetCurrentServerTime returns current server time
@@ -873,32 +878,23 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if err != nil {
 		return err
 	}
-	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 
 	interim := json.RawMessage{}
 	err = k.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		nonce := k.Requester.GetNonce(nonce.UnixNano).String()
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
-		var shasum []byte
-		shasum, err = crypto.GetSHA256([]byte(nonce + encoded))
+
+		shasum := sha256.Sum256([]byte(nonce + encoded))
+		path := "/" + krakenAPIVersion + "/private/" + method
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, append([]byte(path), shasum[:]...), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
-
-		var hmac []byte
-		hmac, err = crypto.GetHMAC(crypto.HashSHA512,
-			append([]byte(path), shasum...),
-			[]byte(creds.Secret))
-		if err != nil {
-			return nil, err
-		}
-
-		signature := crypto.Base64Encode(hmac)
 
 		headers := make(map[string]string)
 		headers["API-Key"] = creds.Key
-		headers["API-Sign"] = signature
+		headers["API-Sign"] = base64.StdEncoding.EncodeToString(hmac)
 
 		return &request.Item{
 			Method:        http.MethodPost,

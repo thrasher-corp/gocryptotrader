@@ -53,9 +53,7 @@ func TestSendHTTPRequest(t *testing.T) {
 	}
 
 	err = SetHTTPUserAgent("GCTbot/1337.69 (+http://www.lol.com/)")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 
 	_, err = SendHTTPRequest(t.Context(),
 		methodDelete, "https://www.google.com", headers,
@@ -83,40 +81,28 @@ func TestSendHTTPRequest(t *testing.T) {
 func TestSetHTTPClientWithTimeout(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPClientWithTimeout(-0)
-	if !errors.Is(err, errCannotSetInvalidTimeout) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotSetInvalidTimeout)
-	}
+	require.ErrorIs(t, err, errCannotSetInvalidTimeout)
 
 	err = SetHTTPClientWithTimeout(time.Second * 15)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPUserAgent(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPUserAgent("")
-	if !errors.Is(err, errUserAgentInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errUserAgentInvalid)
-	}
+	require.ErrorIs(t, err, errUserAgentInvalid)
 
 	err = SetHTTPUserAgent("testy test")
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestSetHTTPClient(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPClient(nil)
-	if !errors.Is(err, errHTTPClientInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errHTTPClientInvalid)
-	}
+	require.ErrorIs(t, err, errHTTPClientInvalid)
 
 	err = SetHTTPClient(new(http.Client))
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	require.NoError(t, err)
 }
 
 func TestIsEnabled(t *testing.T) {
@@ -227,48 +213,19 @@ func TestEncodeURLValues(t *testing.T) {
 	}
 }
 
-func TestExtractHost(t *testing.T) {
+func TestExtractHostOrDefault(t *testing.T) {
 	t.Parallel()
-	address := "localhost:1337"
-	addresstwo := ":1337"
-	expectedOutput := "localhost"
-	actualResult := ExtractHost(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
-	actualResultTwo := ExtractHost(addresstwo)
-	if expectedOutput != actualResultTwo {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
 
-	address = "192.168.1.100:1337"
-	expectedOutput = "192.168.1.100"
-	actualResult = ExtractHost(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%s'. Actual '%s'.", expectedOutput, actualResult)
-	}
+	assert.Equal(t, "localhost", ExtractHostOrDefault("localhost:1337"))
+	assert.Equal(t, "localhost", ExtractHostOrDefault(":1337"))
+	assert.Equal(t, "192.168.1.100", ExtractHostOrDefault("192.168.1.100:1337"))
 }
 
-func TestExtractPort(t *testing.T) {
+func TestExtractPortOrDefault(t *testing.T) {
 	t.Parallel()
-	address := "localhost:1337"
-	expectedOutput := 1337
-	actualResult := ExtractPort(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
-	}
 
-	address = "localhost"
-	expectedOutput = 80
-	actualResult = ExtractPort(address)
-	if expectedOutput != actualResult {
-		t.Errorf(
-			"Expected '%d'. Actual '%d'.", expectedOutput, actualResult)
-	}
+	assert.Equal(t, 1337, ExtractPortOrDefault("localhost:1337"))
+	assert.Equal(t, 80, ExtractPortOrDefault("localhost"))
 }
 
 func TestGetURIPath(t *testing.T) {
@@ -280,11 +237,7 @@ func TestGetURIPath(t *testing.T) {
 		"http://www.google.com/accounts?!@#$%;^^":       "",
 	}
 	for testInput, expectedOutput := range testTable {
-		actualOutput := GetURIPath(testInput)
-		if actualOutput != expectedOutput {
-			t.Errorf("Expected '%s'. Actual '%s'.",
-				expectedOutput, actualOutput)
-		}
+		assert.Equal(t, expectedOutput, GetURIPath(testInput))
 	}
 }
 
@@ -523,7 +476,7 @@ func TestErrors(t *testing.T) {
 	assert.NotErrorIs(t, ExcludeError(err, e5), e5, "e4 should be excluded")
 
 	// Formatting retention
-	err = AppendError(e1, fmt.Errorf("%w: Run out of `%s`: %w", e3, "sausages", e5))
+	err = AppendError(e1, fmt.Errorf("%w: Run out of %q: %w", e3, "sausages", e5))
 	assert.ErrorIs(t, err, e1, "Should be an e1")
 	assert.ErrorIs(t, err, e3, "Should be an e3")
 	assert.ErrorIs(t, err, e5, "Should be an e5")
@@ -538,44 +491,28 @@ func TestParseStartEndDate(t *testing.T) {
 	nt := time.Time{}
 
 	err := StartEndTimeCheck(nt, nt)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, nt)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, zeroValueUnix)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(zeroValueUnix, et)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, et)
-	if !errors.Is(err, ErrStartEqualsEnd) {
-		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
-	}
+	assert.ErrorIs(t, err, ErrStartEqualsEnd)
 
 	err = StartEndTimeCheck(et, pt)
-	if !errors.Is(err, ErrStartAfterEnd) {
-		t.Errorf("received %v, expected %v", err, ErrStartAfterEnd)
-	}
+	assert.ErrorIs(t, err, ErrStartAfterEnd)
 
 	err = StartEndTimeCheck(ft, ft.Add(time.Hour))
-	if !errors.Is(err, ErrStartAfterTimeNow) {
-		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
-	}
+	assert.ErrorIs(t, err, ErrStartAfterTimeNow)
 
 	err = StartEndTimeCheck(pt, et)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v, expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAssertError(t *testing.T) {
@@ -590,9 +527,7 @@ func TestGetAssertError(t *testing.T) {
 	}
 
 	err = GetTypeAssertError("bruh", struct{}{})
-	if !errors.Is(err, ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, ErrTypeAssertFailure)
 
 	err = GetTypeAssertError("string", struct{}{})
 	if err.Error() != "type assert failure from struct {} to string" {
@@ -683,7 +618,7 @@ func TestBatch(t *testing.T) {
 	assert.Len(t, b[3], 1)
 
 	b[0][0] = 42
-	assert.Equal(t, 1, s[0], "Changing the batches must not change the source")
+	assert.Equal(t, 1, s[0], "Changing the batches should not change the source")
 
 	require.NotPanics(t, func() { Batch(s, -1) }, "Must not panic on negative batch size")
 	done := make(chan any, 1)
@@ -692,7 +627,7 @@ func TestBatch(t *testing.T) {
 
 	for _, i := range []int{-1, 0, 50} {
 		b = Batch(s, i)
-		require.Lenf(t, b, 1, "A batch size of %v should produce a single batch", i)
+		require.Lenf(t, b, 1, "A batch size of %v must produce a single batch", i)
 		assert.Lenf(t, b[0], len(s), "A batch size of %v should produce a single batch", i)
 	}
 }
@@ -742,5 +677,5 @@ func TestNilGuard(t *testing.T) {
 	assert.ErrorIs(t, NilGuard(nil), ErrNilPointer, "Unusual input of an untyped nil should still error correctly")
 
 	err = NilGuard()
-	require.NoError(t, err, "NilGuard with no arguments should not panic")
+	require.NoError(t, err, "NilGuard with no arguments must not error")
 }

@@ -1,11 +1,11 @@
 package statistics
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -41,18 +41,15 @@ func TestReset(t *testing.T) {
 		TotalOrders: 1,
 	}
 	err := s.Reset()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if s.TotalOrders != 0 {
 		t.Error("expected 0")
 	}
 
 	s = nil
 	err = s.Reset()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestAddDataEventForTime(t *testing.T) {
@@ -63,9 +60,8 @@ func TestAddDataEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -80,9 +76,8 @@ func TestAddDataEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if s.ExchangeAssetPairStatistics == nil {
 		t.Error("expected not nil")
 	}
@@ -104,21 +99,18 @@ func TestAddSignalEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&signal.Signal{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: b,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	b.Exchange = exch
 	b.Time = tt
 	b.Interval = gctkline.OneDay
@@ -132,17 +124,14 @@ func TestAddSignalEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.SetEventForOffset(&signal.Signal{
 		Base:       b,
 		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddExchangeEventForTime(t *testing.T) {
@@ -153,13 +142,11 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&order.Order{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 
@@ -176,9 +163,8 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.SetEventForOffset(&order.Order{
 		Base:       b,
 		ID:         "elite",
@@ -189,9 +175,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		OrderType:  gctorder.Stop,
 		Leverage:   eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddFillEventForTime(t *testing.T) {
@@ -202,21 +186,17 @@ func TestAddFillEventForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&fill.Fill{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&fill.Fill{
 		Base: b,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	b.Exchange = exch
 	b.Time = tt
@@ -232,9 +212,8 @@ func TestAddFillEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.SetEventForOffset(&fill.Fill{
 		Base:                b,
 		Direction:           gctorder.Buy,
@@ -245,9 +224,7 @@ func TestAddFillEventForTime(t *testing.T) {
 		ExchangeFee:         eleet,
 		Slippage:            eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddHoldingsForTime(t *testing.T) {
@@ -258,14 +235,11 @@ func TestAddHoldingsForTime(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	s := Statistic{}
 	err := s.AddHoldingsForTime(&holdings.Holding{})
-	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
-	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
 
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
@@ -281,9 +255,8 @@ func TestAddHoldingsForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.AddHoldingsForTime(&holdings.Holding{
 		Pair:                         p,
 		Asset:                        a,
@@ -304,9 +277,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 		TotalValueLostToSlippage:     eleet,
 		TotalValueLost:               eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAddComplianceSnapshotForTime(t *testing.T) {
@@ -318,24 +289,19 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	s := Statistic{}
 
 	err := s.AddComplianceSnapshotForTime(nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.AddComplianceSnapshotForTime(nil, &fill.Fill{})
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{})
-	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
+
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{Base: b})
-	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
+
 	b.Exchange = exch
 	b.Time = tt
 	b.Interval = gctkline.OneDay
@@ -349,17 +315,14 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{
 		Timestamp: tt,
 	}, &fill.Fill{
 		Base: b,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSerialise(t *testing.T) {
@@ -502,9 +465,8 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewBTCUSDT()
 	err := s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -519,9 +481,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = s.SetEventForOffset(&fill.Fill{
 		Base: &event.Base{
@@ -539,9 +499,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		ExchangeFee:         eleet,
 		Slippage:            eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
@@ -554,9 +512,7 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	s.PrintAllEventsChronologically()
 }
@@ -565,9 +521,7 @@ func TestCalculateTheResults(t *testing.T) {
 	t.Parallel()
 	s := Statistic{}
 	err := s.CalculateAllResults()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
 	tt2 := time.Now().Add(-gctkline.OneDay.Duration() * 6)
@@ -576,9 +530,8 @@ func TestCalculateTheResults(t *testing.T) {
 	p := currency.NewBTCUSDT()
 	p2 := currency.NewPair(currency.XRP, currency.DOGE)
 	err = s.SetEventForOffset(nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
-	}
+	assert.ErrorIs(t, err, common.ErrNilEvent)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -594,9 +547,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -613,9 +565,8 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleet,
 		Direction:  gctorder.Buy,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -631,9 +582,7 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleeb,
 		Volume: eleeb,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
@@ -651,9 +600,7 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleet,
 		Direction:  gctorder.Buy,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
@@ -670,9 +617,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleeb,
 		Volume: eleeb,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -689,9 +635,7 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleeb,
 		Direction:  gctorder.Buy,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = s.SetEventForOffset(&kline.Kline{
 		Base: &event.Base{
@@ -708,9 +652,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleeb,
 		Volume: eleeb,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	signal4 := &signal.Signal{
 		Base: &event.Base{
 			Exchange:     exch,
@@ -728,9 +671,7 @@ func TestCalculateTheResults(t *testing.T) {
 		Direction:  gctorder.Buy,
 	}
 	err = s.SetEventForOffset(signal4)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	mapKey1 := key.ExchangePairAsset{
 		Exchange: exch,
@@ -750,74 +691,54 @@ func TestCalculateTheResults(t *testing.T) {
 	s.ExchangeAssetPairStatistics[mapKey2].Events[1].Holdings.TotalValue = eleeet
 
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(pBase, pQuote)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = funds.AddPair(pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	pair2, err := funding.CreatePair(pBase2, pQuote2)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = funds.AddPair(pair2)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	s.FundManager = funds
 	err = s.CalculateAllResults()
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
+
 	err = s.CalculateAllResults()
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
 
 	funds, err = funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = funds.AddPair(pair)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = funds.AddPair(pair2)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	s.FundManager = funds
 	err = s.CalculateAllResults()
-	if !errors.Is(err, errMissingSnapshots) {
-		t.Errorf("received '%v' expected '%v'", err, errMissingSnapshots)
-	}
+	assert.ErrorIs(t, err, errMissingSnapshots)
 
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{Timestamp: tt2}, signal4)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestCalculateBiggestEventDrawdown(t *testing.T) {
@@ -899,14 +820,11 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	})
 
 	_, err := CalculateBiggestEventDrawdown(nil)
-	if !errors.Is(err, errReceivedNoData) {
-		t.Errorf("received %v expected %v", err, errReceivedNoData)
-	}
+	assert.ErrorIs(t, err, errReceivedNoData)
 
 	resp, err := CalculateBiggestEventDrawdown(events)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
 		t.Error("unexpected max drawdown")
 	}
@@ -925,37 +843,27 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 		},
 	}
 	_, err = CalculateBiggestEventDrawdown(bogusEvent)
-	if !errors.Is(err, gctcommon.ErrDateUnset) {
-		t.Errorf("received %v expected %v", err, gctcommon.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 }
 
 func TestCalculateBiggestValueAtTimeDrawdown(t *testing.T) {
 	var interval gctkline.Interval
 	_, err := CalculateBiggestValueAtTimeDrawdown(nil, interval)
-	if !errors.Is(err, errReceivedNoData) {
-		t.Errorf("received %v expected %v", err, errReceivedNoData)
-	}
+	assert.ErrorIs(t, err, errReceivedNoData)
 
 	_, err = CalculateBiggestValueAtTimeDrawdown(nil, interval)
-	if !errors.Is(err, errReceivedNoData) {
-		t.Errorf("received %v expected %v", err, errReceivedNoData)
-	}
+	assert.ErrorIs(t, err, errReceivedNoData)
 }
 
 func TestAddPNLForTime(t *testing.T) {
 	t.Parallel()
 	s := &Statistic{}
 	err := s.AddPNLForTime(nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	sum := &portfolio.PNLSummary{}
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
-		t.Errorf("received %v expected %v", err, errExchangeAssetPairStatsUnset)
-	}
+	assert.ErrorIs(t, err, errExchangeAssetPairStatsUnset)
 
 	tt := time.Now().Add(-gctkline.OneDay.Duration() * 7)
 	exch := testExchange
@@ -976,26 +884,18 @@ func TestAddPNLForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, errCurrencyStatisticsUnset) {
-		t.Errorf("received %v expected %v", err, errCurrencyStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errCurrencyStatisticsUnset)
 
 	sum.Exchange = exch
 	sum.Asset = a
 	sum.Pair = p
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, errNoDataAtOffset) {
-		t.Errorf("received %v expected %v", err, errNoDataAtOffset)
-	}
+	assert.ErrorIs(t, err, errNoDataAtOffset)
 
 	sum.Offset = 1
 	err = s.AddPNLForTime(sum)
-	if !errors.Is(err, nil) {
-		t.Errorf("received %v expected %v", err, nil)
-	}
+	assert.NoError(t, err)
 }

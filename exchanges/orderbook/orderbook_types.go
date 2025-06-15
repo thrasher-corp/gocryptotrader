@@ -38,23 +38,23 @@ var (
 	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
-var service = Service{
-	books: make(map[string]Exchange),
-	Mux:   dispatch.GetNewMux(nil),
+var s = store{
+	orderbooks:      make(map[key.ExchangePairAsset]book),
+	exchangeRouters: make(map[string]uuid.UUID),
+	signalMux:       dispatch.GetNewMux(nil),
 }
 
-// Service provides a store for difference exchange orderbooks
-type Service struct {
-	books map[string]Exchange
-	*dispatch.Mux
-	mu sync.Mutex
+type book struct {
+	RouterID uuid.UUID
+	Depth    *Depth
 }
 
-// Exchange defines a holder for the exchange specific depth items with a
-// specific ID associated with that exchange
-type Exchange struct {
-	m  map[key.PairAsset]*Depth
-	ID uuid.UUID
+// store provides a centralised store for orderbooks
+type store struct {
+	orderbooks      map[key.ExchangePairAsset]book
+	exchangeRouters map[string]uuid.UUID
+	signalMux       *dispatch.Mux
+	m               sync.RWMutex
 }
 
 // Tranche defines a segmented portions of an order or options book
@@ -94,15 +94,15 @@ type Base struct {
 	// which could be stale if there have been no recent changes.
 	LastUpdated time.Time
 
-	// UpdatePushedAt is the time the exchange pushed this update. This helps
+	// LastPushed is the time the exchange pushed this update. This helps
 	// determine factors like distance from exchange (latency) and routing
 	// time, which can affect the time it takes for an update to reach the user
 	// from the exchange.
-	UpdatePushedAt time.Time
+	LastPushed time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
-	// processing delays, e.g., InsertedAt.Sub(UpdatePushedAt) represents the
+	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
 	// total processing time including network latency.
 	InsertedAt time.Time
 
@@ -136,7 +136,7 @@ type options struct {
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
-	updatePushedAt         time.Time
+	lastPushed             time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
@@ -166,16 +166,18 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID       int64 // Used when no time is provided
-	UpdateTime     time.Time
-	UpdatePushedAt time.Time
-	Asset          asset.Item
+	UpdateID   int64
+	UpdateTime time.Time
+	LastPushed time.Time
+	Asset      asset.Item
 	Action
 	Bids []Tranche
 	Asks []Tranche
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32
+	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data.
+	AllowEmpty bool
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -20,7 +21,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -102,7 +102,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		return ctx, errors.New("basic not found in authorization header")
 	}
 
-	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
+	decoded, err := base64.StdEncoding.DecodeString(strings.Split(authStr[0], " ")[1])
 	if err != nil {
 		return ctx, errors.New("unable to base64 decode authorization header")
 	}
@@ -5145,7 +5145,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		}
 		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
-		return nil, fmt.Errorf("%w '%s'", errInvalidStrategy, r.AlgorithmType)
+		return nil, fmt.Errorf("%w %q", errInvalidStrategy, r.AlgorithmType)
 	}
 
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil

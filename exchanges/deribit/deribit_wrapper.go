@@ -44,11 +44,11 @@ func (d *Deribit) SetDefaults() {
 	dashFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	underscoreFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
 	if err := d.SetAssetPairStore(asset.Spot, currency.PairStore{AssetEnabled: true, RequestFormat: underscoreFormat, ConfigFormat: underscoreFormat}); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, asset.Spot, err)
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", d.Name, asset.Spot, err)
 	}
 	for _, a := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
 		if err := d.SetAssetPairStore(a, currency.PairStore{AssetEnabled: true, RequestFormat: dashFormat, ConfigFormat: dashFormat}); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error storing `%s` default asset formats: %s", d.Name, a, err)
+			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", d.Name, a, err)
 		}
 	}
 
@@ -774,12 +774,9 @@ func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 		}
 	}
 	var tif order.TimeInForce
-	tif, err = order.StringToTimeInForce(orderInfo.TimeInForce)
+	tif, err = timeInForceFromString(orderInfo.TimeInForce, orderInfo.PostOnly)
 	if err != nil {
 		return nil, err
-	}
-	if orderInfo.PostOnly {
-		tif |= order.PostOnly
 	}
 	return &order.Detail{
 		AssetType:       assetType,
@@ -904,14 +901,10 @@ func (d *Deribit) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			}
 
 			var tif order.TimeInForce
-			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
+			tif, err = timeInForceFromString(ordersData[y].TimeInForce, ordersData[y].PostOnly)
 			if err != nil {
 				return nil, err
 			}
-			if ordersData[y].PostOnly {
-				tif |= order.PostOnly
-			}
-
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
 				Exchange:        d.Name,
@@ -983,12 +976,9 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			}
 
 			var tif order.TimeInForce
-			tif, err = order.StringToTimeInForce(ordersData[y].TimeInForce)
+			tif, err = timeInForceFromString(ordersData[y].TimeInForce, ordersData[y].PostOnly)
 			if err != nil {
 				return nil, err
-			}
-			if ordersData[y].PostOnly {
-				tif |= order.PostOnly
 			}
 			resp = append(resp, order.Detail{
 				AssetType:       getOrdersRequest.AssetType,
@@ -1457,7 +1447,7 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, err
 	}
 	if !isPerpetual {
-		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
+		return nil, fmt.Errorf("%w %q", futures.ErrNotPerpetualFuture, r.Pair)
 	}
 	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
@@ -1581,4 +1571,15 @@ func (d *Deribit) formatPairString(assetType asset.Item, pair currency.Pair) str
 		return d.optionPairToString(pair)
 	}
 	return pair.String()
+}
+
+func timeInForceFromString(timeInForceString string, postOnly bool) (order.TimeInForce, error) {
+	tif, err := order.StringToTimeInForce(timeInForceString)
+	if err != nil {
+		return order.UnknownTIF, err
+	}
+	if postOnly {
+		tif |= order.PostOnly
+	}
+	return tif, nil
 }

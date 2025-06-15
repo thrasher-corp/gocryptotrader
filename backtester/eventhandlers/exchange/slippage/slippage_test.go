@@ -33,5 +33,5 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	price, amount, err := CalculateSlippageByOrderbook(ob, gctorder.Buy, amountOfFunds, feeRate)
 	require.NoError(t, err, "CalculateSlippageByOrderbook must not error")
 	orderSize := price.Mul(amount).Add(price.Mul(amount).Mul(feeRate))
-	assert.True(t, orderSize.LessThan(amountOfFunds), "order size must be less than funds")
+	assert.True(t, orderSize.LessThan(amountOfFunds), "order size should be less than funds")
 }

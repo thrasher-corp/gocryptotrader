@@ -3,6 +3,7 @@ package poloniex
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -1071,7 +1072,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 
 		headers["signatureMethod"] = "hmacSHA256"
-		headers["signature"] = crypto.Base64Encode(hmac)
+		headers["signature"] = base64.StdEncoding.EncodeToString(hmac)
 		headers["signTimestamp"] = strconv.FormatInt(timestamp.UnixMilli(), 10)
 		values.Del("signTimestamp")
 		resp := result

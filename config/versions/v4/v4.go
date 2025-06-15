@@ -41,11 +41,11 @@ func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 			case vT == jsonparser.Null, errors.Is(err, jsonparser.KeyPathNotFoundError):
 				e, err = jsonparser.Set(e, []byte(`false`), "currencyPairs", "pairs", asset, "assetEnabled")
 			case err == nil && vT != jsonparser.Boolean:
-				err = fmt.Errorf("assetEnabled: %w (`%s`)", jsonparser.UnknownValueTypeError, vT)
+				err = fmt.Errorf("assetEnabled: %w (%q)", jsonparser.UnknownValueTypeError, vT)
 			}
 		}
 		if err != nil {
-			err = fmt.Errorf("%w for asset `%s`", err, asset)
+			err = fmt.Errorf("%w for asset %q", err, asset)
 		}
 		return err
 	}

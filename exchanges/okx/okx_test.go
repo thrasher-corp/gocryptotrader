@@ -421,14 +421,14 @@ func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, erro
 			return "", errInvalidInstrumentType
 		}
 		for a := range insts {
-			if insts[a].InstrumentID == instID {
+			if insts[a].InstrumentID.String() == instID {
 				return insts[a].Underlying, nil
 			}
 		}
 	} else {
 		for _, insts := range ok.instrumentsInfoMap {
 			for a := range insts {
-				if insts[a].InstrumentID == instID {
+				if insts[a].InstrumentID.String() == instID {
 					return insts[a].Underlying, nil
 				}
 			}
@@ -692,9 +692,24 @@ func TestGetOpenInterestAndVolumeStrike(t *testing.T) {
 	_, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Time{}, kline.OneDay)
 	require.ErrorIs(t, err, errMissingExpiryTimeParameter)
 
-	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, time.Now(), kline.OneDay)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
+	instruments, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+		InstrumentType: instTypeOption,
+		Underlying:     optionsPair.String(),
+	})
+	require.NoErrorf(t, err, "GetInstruments for options (underlying: %s) must not error", optionsPair)
+	require.NotEmptyf(t, instruments, "GetInstruments for options (underlying: %s) must return at least one instrument", optionsPair)
+	var selectedExpTime time.Time
+	for _, inst := range instruments {
+		if inst.ExpTime.Time().IsZero() {
+			continue
+		}
+		selectedExpTime = inst.ExpTime.Time()
+		break
+	}
+	require.NotZero(t, selectedExpTime, "GetInstruments must return an instrument with a non-zero expiry time")
+	result, err := ok.GetOpenInterestAndVolumeStrike(contextGenerate(), currency.BTC, selectedExpTime, kline.OneDay)
+	require.NoErrorf(t, err, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s must not error", selectedExpTime, currency.BTC)
+	assert.NotNilf(t, result, "GetOpenInterestAndVolumeStrike with expiry %s for currency %s should return a non-nil result", selectedExpTime, currency.BTC)
 }
 
 func TestGetTakerFlow(t *testing.T) {
@@ -1207,7 +1222,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 	_, err = ok.PlaceChaseAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
-	arg.OrderType = "chase"
+	arg.OrderType = orderChase
 	arg.MaxChaseType = "percentage"
 	_, err = ok.PlaceChaseAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errPriceTrackingNotSet)
@@ -1235,7 +1250,7 @@ func TestPlaceChaseAlgoOrder(t *testing.T) {
 		AlgoClientOrderID: "681096944655273984",
 		InstrumentID:      mainPair.String(),
 		LimitPrice:        100.22,
-		OrderType:         "chase",
+		OrderType:         orderChase,
 		TradeMode:         "cross",
 		Side:              order.Sell.Lower(),
 		MaxChaseType:      "distance",
@@ -1282,14 +1297,14 @@ func TestPlaceTrailingStopOrder(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2})
 	assert.ErrorIs(t, err, order.ErrTypeIsInvalid)
-	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2, OrderType: "move_order_stop"})
+	_, err = ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{Size: 2, OrderType: orderMoveOrderStop})
 	assert.ErrorIs(t, err, errPriceTrackingNotSet)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	result, err := ok.PlaceTrailingStopOrder(contextGenerate(), &AlgoOrderParams{
 		AlgoClientOrderID: "681096944655273984", CallbackRatio: 0.01,
-		InstrumentID: mainPair.String(), OrderType: "move_order_stop",
+		InstrumentID: mainPair.String(), OrderType: orderMoveOrderStop,
 		Side: order.Buy.Lower(), TradeMode: "isolated",
 		Size: 2, ActivePrice: 1234,
 	})
@@ -2252,7 +2267,7 @@ func TestSetLeverageRate(t *testing.T) {
 		MarginMode:   "cross",
 		InstrumentID: perpetualSwapPair.String(),
 	})
-	assert.True(t, err == nil || errors.Is(err, common.ErrNoResponse))
+	assert.Truef(t, err == nil || errors.Is(err, common.ErrNoResponse), "SetLeverageRate should not error: %s", err)
 }
 
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
@@ -3910,46 +3925,46 @@ func TestOrderPushData(t *testing.T) {
 		case *order.Detail:
 			switch len(ok.Websocket.DataHandler) {
 			case 3:
-				require.Equal(t, "452197707845865472", v.OrderID, "OrderID")
-				require.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
-				require.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				require.Equal(t, order.Sell, v.Side, "Side")
-				require.Equal(t, order.Filled, v.Status, "Status")
-				require.Equal(t, order.Limit, v.Type, "Type")
-				require.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
-				require.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
-				require.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
-				require.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
-				require.Equal(t, 0.001, v.Amount, "Amount")
-				require.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
-				require.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
-				require.Equal(t, 31527.1, v.Price, "Price")
-				require.Equal(t, 0.02522168, v.Fee, "Fee")
-				require.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
+				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, order.Limit, v.Type, "Type")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
+				assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
+				assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
+				assert.Equal(t, 0.001, v.Amount, "Amount")
+				assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 31527.1, v.Price, "Price")
+				assert.Equal(t, 0.02522168, v.Fee, "Fee")
+				assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
 			case 2:
-				require.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				require.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				require.Equal(t, order.Market, v.Type, "Type")
-				require.Equal(t, order.Sell, v.Side, "Side")
-				require.Equal(t, order.Active, v.Status, "Status")
-				require.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
-				require.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Market, v.Type, "Type")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Active, v.Status, "Status")
+				assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
 			case 1:
-				require.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				require.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				require.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
-				require.Equal(t, 0.010000249968, v.Fee, "Fee")
-				require.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-				require.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-				require.Equal(t, order.PartiallyFilled, v.Status, "Status")
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
 			case 0:
-				require.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-				require.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				require.Equal(t, 0.010000249968, v.Fee, "Fee")
-				require.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-				require.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-				require.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
-				require.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
+				assert.Equal(t, order.Filled, v.Status, "Status")
 			}
 		case error:
 			t.Error(v)
@@ -4101,7 +4116,7 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	for _, assetType := range assets {
-		require.Len(t, trades[assetType], len(exp), "Must have received %d trades for asset %v", len(exp), assetType)
+		require.Lenf(t, trades[assetType], len(exp), "Must have received %d trades for asset %v", len(exp), assetType)
 		slices.SortFunc(trades[assetType], func(a, b trade.Data) int {
 			return strings.Compare(a.TID, b.TID)
 		})
@@ -4110,7 +4125,7 @@ func TestWSProcessTrades(t *testing.T) {
 			expected.AssetType = assetType
 			expected.Exchange = ok.Name
 			expected.CurrencyPair = p
-			require.Equal(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
+			require.Equalf(t, expected, tradeData, "Trade %d (TID: %s) for asset %v must match expected data", i, tradeData.TID, assetType)
 		}
 	}
 }
@@ -4194,7 +4209,7 @@ func TestInstrument(t *testing.T) {
 	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency, "expected BTC contract value currency")
 	assert.True(t, i.ExpTime.Time().IsZero(), "expected empty expiry time")
 	assert.Equal(t, "BTC-USDC", i.InstrumentFamily, "expected BTC-USDC instrument family")
-	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID, "expected BTC-USDC-SWAP instrument ID")
+	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID.String(), "expected BTC-USDC-SWAP instrument ID")
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
@@ -4287,7 +4302,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		default:
 			require.Len(t, assets, 1)
 		}
-		assert.Contains(t, assets, a, "Should contain asset: %s", a)
+		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
 	_, err = ok.getAssetsFromInstrumentID("test")
@@ -4331,9 +4346,6 @@ func TestGetCollateralMode(t *testing.T) {
 	result, err := ok.GetCollateralMode(contextGenerate(), asset.Spot)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-
-	_, err = ok.GetCollateralMode(contextGenerate(), asset.Futures)
-	assert.True(t, errors.Is(err, nil) || errors.Is(err, asset.ErrNotSupported))
 }
 
 func TestSetCollateralMode(t *testing.T) {
@@ -4455,13 +4467,13 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	require.NoError(t, err)
 
 	required := currency.NewPairWithDelimiter("OKB", "USDT", "-")
-	got, err := orderbook.Get("okx", required, asset.Spot)
+	got, err := orderbook.Get(ok.Name, required, asset.Spot)
 	require.NoError(t, err)
 
 	require.Len(t, got.Asks, 5)
 	require.Len(t, got.Bids, 5)
 	// Book replicated to margin
-	got, err = orderbook.Get("okx", required, asset.Margin)
+	got, err = orderbook.Get(ok.Name, required, asset.Margin)
 	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
@@ -5538,9 +5550,9 @@ func TestGetOptionsTickBands(t *testing.T) {
 
 func TestExtractIndexCandlestick(t *testing.T) {
 	t.Parallel()
-	data := `[ [ "1597026383085", "3.721", "3.743", "3.677", "3.708", "1" ], [ "1597026383085", "3.731", "3.799", "3.494", "3.72", "1" ]]`
+	data := []byte(`[ [ "1597026383085", "3.721", "3.743", "3.677", "3.708", "1" ], [ "1597026383085", "3.731", "3.799", "3.494", "3.72", "1" ]]`)
 	var resp []CandlestickHistoryItem
-	err := json.Unmarshal([]byte(data), &resp)
+	err := json.Unmarshal(data, &resp)
 	require.NoError(t, err)
 	require.Len(t, resp, 2)
 	require.Equal(t, 3.743, resp[0].HighestPrice.Float64())
@@ -5831,26 +5843,35 @@ func TestOrderTypeString(t *testing.T) {
 		Expected string
 		Error    error
 	}{
-		{OrderType: order.Market, TIF: order.UnknownTIF}:                           {Expected: orderMarket},
-		{OrderType: order.Limit, TIF: order.UnknownTIF}:                            {Expected: orderLimit},
-		{OrderType: order.Limit, TIF: order.PostOnly}:                              {Expected: orderPostOnly},
-		{OrderType: order.Limit, TIF: order.FillOrKill}:                            {Expected: orderFOK},
-		{OrderType: order.Limit, TIF: order.ImmediateOrCancel}:                     {Expected: orderIOC},
-		{OrderType: order.OptimalLimitIOC, TIF: order.UnknownTIF}:                  {Expected: orderOptimalLimitIOC},
-		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}:            {Expected: "mmp"},
-		{OrderType: order.MarketMakerProtectionAndPostOnly, TIF: order.UnknownTIF}: {Expected: "mmp_and_post_only"},
-		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:                      {Error: order.ErrUnsupportedOrderType},
-		{OrderType: order.OCO, TIF: order.UnknownTIF}:                              {Expected: "oco"},
-		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:                     {Expected: "move_order_stop"},
-		{OrderType: order.Chase, TIF: order.UnknownTIF}:                            {Expected: "chase"},
-		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                             {Expected: "twap"},
-		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:                  {Expected: "conditional"},
-		{OrderType: order.Trigger, TIF: order.UnknownTIF}:                          {Expected: "trigger"},
+		{OrderType: order.Market, TIF: order.UnknownTIF}:                {Expected: orderMarket},
+		{OrderType: order.Limit, TIF: order.UnknownTIF}:                 {Expected: orderLimit},
+		{OrderType: order.Limit, TIF: order.PostOnly}:                   {Expected: orderPostOnly},
+		{OrderType: order.Market, TIF: order.FillOrKill}:                {Expected: orderFOK},
+		{OrderType: order.Market, TIF: order.ImmediateOrCancel}:         {Expected: orderIOC},
+		{OrderType: order.OptimalLimit, TIF: order.ImmediateOrCancel}:   {Expected: orderOptimalLimitIOC},
+		{OrderType: order.MarketMakerProtection, TIF: order.UnknownTIF}: {Expected: orderMarketMakerProtection},
+		{OrderType: order.MarketMakerProtection, TIF: order.PostOnly}:   {Expected: orderMarketMakerProtectionAndPostOnly},
+		{OrderType: order.Liquidation, TIF: order.UnknownTIF}:           {Error: order.ErrUnsupportedOrderType},
+		{OrderType: order.OCO, TIF: order.UnknownTIF}:                   {Expected: orderOCO},
+		{OrderType: order.TrailingStop, TIF: order.UnknownTIF}:          {Expected: orderMoveOrderStop},
+		{OrderType: order.Chase, TIF: order.UnknownTIF}:                 {Expected: orderChase},
+		{OrderType: order.TWAP, TIF: order.UnknownTIF}:                  {Expected: orderTWAP},
+		{OrderType: order.ConditionalStop, TIF: order.UnknownTIF}:       {Expected: orderConditional},
+		{OrderType: order.Chase, TIF: order.GoodTillCancel}:             {Expected: orderChase},
+		{OrderType: order.TWAP, TIF: order.ImmediateOrCancel}:           {Expected: orderTWAP},
+		{OrderType: order.ConditionalStop, TIF: order.GoodTillDay}:      {Expected: orderConditional},
+		{OrderType: order.Trigger, TIF: order.UnknownTIF}:               {Expected: orderTrigger},
+		{OrderType: order.UnknownType, TIF: order.PostOnly}:             {Expected: orderPostOnly},
+		{OrderType: order.UnknownType, TIF: order.FillOrKill}:           {Expected: orderFOK},
+		{OrderType: order.UnknownType, TIF: order.ImmediateOrCancel}:    {Expected: orderIOC},
 	}
 	for tc, val := range orderTypesToStringMap {
-		orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
-		require.ErrorIs(t, err, val.Error)
-		assert.Equal(t, val.Expected, orderTypeString)
+		t.Run(tc.OrderType.String()+"/"+tc.TIF.String(), func(t *testing.T) {
+			t.Parallel()
+			orderTypeString, err := orderTypeString(tc.OrderType, tc.TIF)
+			require.ErrorIs(t, err, val.Error)
+			assert.Equal(t, val.Expected, orderTypeString)
+		})
 	}
 }
 
@@ -5900,6 +5921,7 @@ func TestGetAnnouncementTypes(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetAnnouncementTypes(contextGenerate())
 	assert.NoError(t, err)
+	// No tests of contents of resp because currently in US based github actions announcement-types returns empty
 }
 
 func TestGetDepositOrderDetail(t *testing.T) {
@@ -6001,14 +6023,14 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 			return "", errInvalidInstrumentType
 		}
 		for a := range insts {
-			if insts[a].InstrumentID == instID {
+			if insts[a].InstrumentID.String() == instID {
 				return insts[a].InstrumentFamily, nil
 			}
 		}
 	} else {
 		for _, insts := range ok.instrumentsInfoMap {
 			for a := range insts {
-				if insts[a].InstrumentID == instID {
+				if insts[a].InstrumentID.String() == instID {
 					return insts[a].InstrumentFamily, nil
 				}
 			}
@@ -6126,9 +6148,9 @@ func TestOrderTypeFromString(t *testing.T) {
 		"post_only":         {OType: order.Limit, TIF: order.PostOnly},
 		"fok":               {OType: order.Limit, TIF: order.FillOrKill},
 		"ioc":               {OType: order.Limit, TIF: order.ImmediateOrCancel},
-		"optimal_limit_ioc": {OType: order.OptimalLimitIOC, TIF: order.ImmediateOrCancel},
+		"optimal_limit_ioc": {OType: order.OptimalLimit, TIF: order.ImmediateOrCancel},
 		"mmp":               {OType: order.MarketMakerProtection},
-		"mmp_and_post_only": {OType: order.MarketMakerProtectionAndPostOnly, TIF: order.PostOnly},
+		"mmp_and_post_only": {OType: order.MarketMakerProtection, TIF: order.PostOnly},
 		"trigger":           {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 		"chase":             {OType: order.Chase},
 		"move_order_stop":   {OType: order.TrailingStop},
@@ -6136,10 +6158,13 @@ func TestOrderTypeFromString(t *testing.T) {
 		"abcd":              {OType: order.UnknownType, Error: order.ErrTypeIsInvalid},
 	}
 	for s, exp := range orderTypeStrings {
-		oType, tif, err := orderTypeFromString(s)
-		require.ErrorIs(t, err, exp.Error)
-		assert.Equal(t, exp.OType, oType)
-		assert.Equal(t, exp.TIF.String(), tif.String(), s)
+		t.Run(s, func(t *testing.T) {
+			t.Parallel()
+			oType, tif, err := orderTypeFromString(s)
+			require.ErrorIs(t, err, exp.Error)
+			assert.Equal(t, exp.OType, oType)
+			assert.Equal(t, exp.TIF.String(), tif.String())
+		})
 	}
 }
 

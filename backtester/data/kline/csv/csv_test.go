@@ -1,10 +1,10 @@
 package csv
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,9 +25,7 @@ func TestLoadDataCandles(t *testing.T) {
 		p,
 		a,
 		false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestLoadDataTrades(t *testing.T) {
@@ -42,9 +40,7 @@ func TestLoadDataTrades(t *testing.T) {
 		p,
 		a,
 		false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestLoadDataInvalid(t *testing.T) {
@@ -59,9 +55,7 @@ func TestLoadDataInvalid(t *testing.T) {
 		p,
 		a,
 		false)
-	if !errors.Is(err, common.ErrInvalidDataType) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrInvalidDataType)
-	}
+	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 
 	_, err = LoadData(
 		-1,
@@ -71,7 +65,5 @@ func TestLoadDataInvalid(t *testing.T) {
 		p,
 		a,
 		true)
-	if !errors.Is(err, errNoUSDData) {
-		t.Errorf("received: %v, expected: %v", err, errNoUSDData)
-	}
+	assert.ErrorIs(t, err, errNoUSDData)
 }

@@ -1,9 +1,9 @@
 package account
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -27,32 +27,24 @@ func TestIsEmpty(t *testing.T) {
 func TestParseCredentialsMetadata(t *testing.T) {
 	t.Parallel()
 	_, err := ParseCredentialsMetadata(t.Context(), nil)
-	if !errors.Is(err, errMetaDataIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMetaDataIsNil)
-	}
+	require.ErrorIs(t, err, errMetaDataIsNil)
 
 	_, err = ParseCredentialsMetadata(t.Context(), metadata.MD{})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	ctx := metadata.AppendToOutgoingContext(t.Context(),
 		string(ContextCredentialsFlag), "wow", string(ContextCredentialsFlag), "wow2")
 	nortyMD, _ := metadata.FromOutgoingContext(ctx)
 
 	_, err = ParseCredentialsMetadata(t.Context(), nortyMD)
-	if !errors.Is(err, errInvalidCredentialMetaDataLength) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCredentialMetaDataLength)
-	}
+	require.ErrorIs(t, err, errInvalidCredentialMetaDataLength)
 
 	ctx = metadata.AppendToOutgoingContext(t.Context(),
 		string(ContextCredentialsFlag), "brokenstring")
 	nortyMD, _ = metadata.FromOutgoingContext(ctx)
 
 	_, err = ParseCredentialsMetadata(t.Context(), nortyMD)
-	if !errors.Is(err, errMissingInfo) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMissingInfo)
-	}
+	require.ErrorIs(t, err, errMissingInfo)
 
 	beforeCreds := Credentials{
 		Key:             "superkey",
@@ -68,9 +60,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	lovelyMD, _ := metadata.FromOutgoingContext(ctx)
 
 	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	store, ok := ctx.Value(ContextCredentialsFlag).(*ContextCredentialsStore)
 	if !ok {
@@ -98,9 +88,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
 
 	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	sa, ok := ctx.Value(ContextSubAccountFlag).(string)
 	if !ok {

@@ -1,21 +1,20 @@
 package engine
 
 import (
-	"errors"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSetupPortfolioManager(t *testing.T) {
 	_, err := setupPortfolioManager(nil, 0, nil)
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m == nil {
 		t.Error("expected manager")
 	}
@@ -28,9 +27,8 @@ func TestIsPortfolioManagerRunning(t *testing.T) {
 	}
 
 	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
@@ -48,73 +46,51 @@ func TestPortfolioManagerStart(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Start(nil)
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start(nil)
-	if !errors.Is(err, errNilWaitGroup) {
-		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
-	}
+	assert.ErrorIs(t, err, errNilWaitGroup)
 
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = m.Start(&wg)
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
 
 func TestPortfolioManagerStop(t *testing.T) {
 	var m *portfolioManager
 	var wg sync.WaitGroup
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start(&wg)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = m.Stop()
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 }
 
 func TestProcessPortfolio(t *testing.T) {
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName("Bitstamp")
-	if !errors.Is(err, nil) {
-		t.Fatalf("error '%v', expected '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	exch.SetDefaults()
 	err = em.Add(exch)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	m, err := setupPortfolioManager(em, 0, nil)
-	if !errors.Is(err, nil) {
-		t.Errorf("error '%v', expected '%v'", err, nil)
-	}
+	assert.NoError(t, err)
 
 	m.processPortfolio()
 }

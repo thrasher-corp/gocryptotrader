@@ -1,11 +1,11 @@
 package report
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -322,22 +322,17 @@ func TestEnhanceCandles(t *testing.T) {
 	tt := time.Now()
 	var d Data
 	err := d.enhanceCandles()
-	if !errors.Is(err, errNoCandles) {
-		t.Errorf("received: %v, expected: %v", err, errNoCandles)
-	}
+	assert.ErrorIs(t, err, errNoCandles)
+
 	err = d.SetKlineData(&gctkline.Item{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
-	if !errors.Is(err, errStatisticsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errStatisticsUnset)
+
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
@@ -363,13 +358,10 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.SetKlineData(&gctkline.Item{
 		Exchange: testExchange,
@@ -395,14 +387,10 @@ func TestEnhanceCandles(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
@@ -422,9 +410,7 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
@@ -447,9 +433,7 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
@@ -472,9 +456,7 @@ func TestEnhanceCandles(t *testing.T) {
 		Timestamp: tt,
 	}
 	err = d.enhanceCandles()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
 
 	if len(d.EnhancedCandles) == 0 {
 		t.Error("expected enhanced candles")
@@ -492,9 +474,8 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(d.OriginalCandles) != 1 {
 		t.Fatal("expected Original Candles len of 1")
 	}
@@ -508,9 +489,8 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(d.OriginalCandles[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
@@ -522,9 +502,8 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
+	assert.NoError(t, err)
+
 	if len(d.OriginalCandles[0].Candles) != 2 {
 		t.Error("expected two candles")
 	}

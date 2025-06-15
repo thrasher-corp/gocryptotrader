@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -155,9 +156,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 	n := d.Requester.GetNonce(nonce.UnixNano).String()
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := strTS + "\n" + n + "\n"
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(str2Sign),
-		[]byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(str2Sign), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -171,7 +170,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
 			"nonce":      n,
-			"signature":  crypto.HexEncodeToString(hmac),
+			"signature":  hex.EncodeToString(hmac),
 		},
 	}
 	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
@@ -855,7 +854,7 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 	}
 
 	for key := range subAck {
-		err = common.AppendError(err, fmt.Errorf("unexpected channel `%s` in result", key))
+		err = common.AppendError(err, fmt.Errorf("unexpected channel %q in result", key))
 	}
 
 	return err

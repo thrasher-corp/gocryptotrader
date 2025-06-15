@@ -29,6 +29,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -246,6 +247,8 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	var resp []MarkPriceHistory
 	err := json.Unmarshal([]byte(`[[1608142381229,0.5165791606037885],[1608142380231,0.5165737855432504],[1608142379227,0.5165768236356326]]`), &resp)
 	require.NoError(t, err)
+	assert.Len(t, resp, 3)
+
 	_, err = d.GetMarkPriceHistory(t.Context(), "", time.Now().Add(-5*time.Minute), time.Now())
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
@@ -455,6 +458,19 @@ func TestWSRetrieveFundingRateValue(t *testing.T) {
 	result, err := d.WSRetrieveFundingRateValue(btcPerpInstrument, time.Now().Add(-time.Hour*8), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestHistoricalVolatilityDataUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	data := []byte(`[[1746532800000,33.926694663144644],[1746536400000,33.86888345738641],[1746540000000,33.87689653120242],[1746543600000,33.92229949556179],[1746547200000,33.35430439982866],[1746550800000,33.405720857822644],[1746554400000,33.041661194903895],[1746558000000,33.026907604467596],[1746561600000,33.147012362654635],[1746565200000,32.948314953334105],[1746568800000,32.97264616801311],[1746572400000,32.97051874896058],[1746576000000,33.94405253940284],[1746579600000,34.01745935786804],[1746583200000,34.133772136604854],[1746586800000,33.89032454069847],[1746590400000,34.008502172420556],[1746594000000,34.01444591222428],[1746597600000,34.01154352323321],[1746601200000,33.97800061398224],[1746604800000,33.980501315033024]]`)
+	var targets []HistoricalVolatilityData
+	err := json.Unmarshal(data, &targets)
+	require.NoError(t, err)
+	require.Len(t, targets, 21)
+	assert.Equal(t, HistoricalVolatilityData{
+		Timestamp: types.Time(time.UnixMilli(1746532800000)),
+		Value:     33.926694663144644,
+	}, targets[0])
 }
 
 func TestGetHistoricalVolatility(t *testing.T) {
@@ -4117,7 +4133,7 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 	}
 	for x := range pairs {
 		result := getValidatedCurrencyCode(x)
-		require.Equal(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
+		require.Equalf(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
 	}
 }
 
@@ -4129,8 +4145,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	for _, a := range d.GetAssetTypes(false) {
 		var pairs currency.Pairs
 		pairs, err = d.CurrencyPairs.GetPairs(a, false)
-		require.NoError(t, err, "cannot get pairs for %s", a)
-		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		var resp string
 		resp, err = d.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
@@ -4157,4 +4173,29 @@ func TestFormatChannelPair(t *testing.T) {
 	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
 	pair.Delimiter = "-"
 	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
+}
+
+var timeInForceList = []struct {
+	String   string
+	PostOnly bool
+	TIF      order.TimeInForce
+	Error    error
+}{
+	{"good_til_cancelled", false, order.GoodTillCancel, nil},
+	{"good_til_cancelled", true, order.GoodTillCancel | order.PostOnly, nil},
+	{"good_til_day", false, order.GoodTillDay, nil},
+	{"good_til_day", true, order.GoodTillDay | order.PostOnly, nil},
+	{"fill_or_kill", false, order.FillOrKill, nil},
+	{"immediate_or_cancel", false, order.ImmediateOrCancel, nil},
+	{"abcd", false, order.UnknownTIF, order.ErrInvalidTimeInForce},
+	{"", false, order.UnknownTIF, nil},
+}
+
+func TestTimeInForceFromString(t *testing.T) {
+	t.Parallel()
+	for i := range timeInForceList {
+		result, err := timeInForceFromString(timeInForceList[i].String, timeInForceList[i].PostOnly)
+		assert.Equalf(t, timeInForceList[i].TIF, result, "expected  %s, got %s", timeInForceList[i].TIF.String(), result.String())
+		require.ErrorIs(t, err, timeInForceList[i].Error)
+	}
 }

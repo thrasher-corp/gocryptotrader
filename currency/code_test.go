@@ -1,9 +1,9 @@
 package currency
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -252,9 +252,7 @@ func TestBaseCode(t *testing.T) {
 		Symbol:   "BTC",
 		ID:       1337,
 	})
-	if !errors.Is(err, errRoleUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errRoleUnset)
-	}
+	require.ErrorIs(t, err, errRoleUnset)
 
 	err = main.UpdateCurrency(&Item{
 		FullName: "Bitcoin",
@@ -330,14 +328,10 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	err = main.LoadItem(nil)
-	if !errors.Is(err, errItemIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsNil)
-	}
+	require.ErrorIs(t, err, errItemIsNil)
 
 	err = main.LoadItem(&Item{})
-	if !errors.Is(err, errItemIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errItemIsEmpty)
-	}
+	require.ErrorIs(t, err, errItemIsEmpty)
 
 	err = main.LoadItem(&Item{
 		ID:       0,
@@ -640,11 +634,7 @@ func TestItemString(t *testing.T) {
 		AssocChain: "Silly",
 	}
 
-	if expected := "HWORLD"; newItem.String() != expected {
-		t.Errorf("Currency String() error expected '%s' but received '%s'",
-			expected,
-			&newItem)
-	}
+	assert.Equal(t, "HWORLD", newItem.String())
 }
 
 // 28848025	        40.84 ns/op	       8 B/op	       1 allocs/op // Current

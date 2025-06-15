@@ -2,6 +2,7 @@ package yobit
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -310,16 +311,14 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 		params.Set("method", path)
 
 		encoded := params.Encode()
-		hmac, err := crypto.GetHMAC(crypto.HashSHA512,
-			[]byte(encoded),
-			[]byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(encoded), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
 
 		headers := make(map[string]string)
 		headers["Key"] = creds.Key
-		headers["Sign"] = crypto.HexEncodeToString(hmac)
+		headers["Sign"] = hex.EncodeToString(hmac)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		return &request.Item{

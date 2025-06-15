@@ -2,6 +2,7 @@ package huobi
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -141,7 +142,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		s := h.Websocket.GetSubscription(ch)
 		if s == nil {
-			return fmt.Errorf("%w: `%s`", subscription.ErrNotFound, ch)
+			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
 		return h.wsHandleChannelMsgs(s, respRaw)
 	}
@@ -400,7 +401,7 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 	}
 	h.Websocket.DataHandler <- d
 	if o.ErrCode != 0 {
-		return fmt.Errorf("error with order `%s`: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
+		return fmt.Errorf("error with order %q: %s (%v)", o.ClientOrderID, o.ErrMessage, o.ErrCode)
 	}
 	return nil
 }
@@ -579,7 +580,6 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return err
 	}
 
-	c := h.Websocket.AuthConn
 	ts := time.Now().UTC().Format(wsDateTimeFormatting)
 	hmac, err := h.wsGenerateSignature(creds, ts)
 	if err != nil {
@@ -593,12 +593,12 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 			AccessKey:        creds.Key,
 			SignatureMethod:  signatureMethod,
 			SignatureVersion: signatureVersion,
-			Signature:        crypto.Base64Encode(hmac),
+			Signature:        base64.StdEncoding.EncodeToString(hmac),
 			Timestamp:        ts,
 		},
 	}
-	err = c.SendJSONMessage(context.Background(), request.Unset, req)
-	if err != nil {
+	c := h.Websocket.AuthConn
+	if err := c.SendJSONMessage(context.Background(), request.Unset, req); err != nil {
 		return err
 	}
 	resp := c.ReadMessage()

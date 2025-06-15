@@ -1,9 +1,9 @@
 package strategies
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -16,19 +16,13 @@ import (
 func TestAddStrategies(t *testing.T) {
 	t.Parallel()
 	err := addStrategies(nil)
-	if !errors.Is(err, errNoStrategies) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, errNoStrategies)
 
 	err = addStrategies([]strategies.Handler{&dollarcostaverage.Strategy{}})
-	if !errors.Is(err, strategies.ErrStrategyAlreadyExists) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, strategies.ErrStrategyAlreadyExists)
 
 	err = addStrategies([]strategies.Handler{&CustomStrategy{}})
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 type CustomStrategy struct {
