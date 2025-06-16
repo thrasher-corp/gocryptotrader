@@ -112,7 +112,7 @@ func TestVerify(t *testing.T) {
 	require.ErrorIs(t, err, errPriceNotSet)
 }
 
-func TestTotalBidsAmount(t *testing.T) {;
+func TestTotalBidsAmount(t *testing.T) {
 	t.Parallel()
 	b := Book{Pair: currency.NewBTCUSD(), Bids: []Level{{Price: 100, Amount: 10}}, LastUpdated: time.Now()}
 	ac, total := b.TotalBidsAmount()
@@ -238,31 +238,6 @@ func TestDeployDepth(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestCreateNewOrderbook(t *testing.T) {
-	pair := currency.NewBTCUSD()
-	b := &Book{
-		Pair:     pair,
-		Asks:     []Level{{Price: 100, Amount: 10}},
-		Bids:     []Level{{Price: 200, Amount: 10}},
-		Exchange: "testCreateNewOrderbook",
-		Asset:    asset.Spot,
-	}
-
-	require.NoError(t, b.Process(), "Process must not error")
-
-	result, err := Get("testCreateNewOrderbook", pair, asset.Spot)
-	require.NoError(t, err, "Get must not error")
-	assert.True(t, result.Pair.Equal(pair))
-
-	ac, total := result.TotalAsksAmount()
-	assert.Equal(t, 10.0, ac, "TotalAsksAmount should return 10")
-	assert.Equal(t, 1000.0, total, "TotalAsksAmount should return 1000")
-
-	ac, total = result.TotalBidsAmount()
-	assert.Equal(t, 10.0, ac, "TotalBidsAmount should return 10")
-	assert.Equal(t, 2000.0, total, "TotalBidsAmount should return 2000")
-}
-
 func TestProcessOrderbook(t *testing.T) {
 	b := Book{
 		Asks:     []Level{{Price: 100, Amount: 10}},
@@ -282,7 +257,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 	// now process a valid orderbook
 	b.Asset = asset.Spot
-	require.NoError(t, b.Process(), ", "Process must not error")
+	require.NoError(t, b.Process(), "Process must not error")
 
 	result, err := Get("ProcessOrderbook", currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err, "Get must not error")
@@ -463,8 +438,7 @@ func levelsFixture() Levels {
 }
 
 func TestReverse(t *testing.T) {
-	b := Book{VerifyOrderbook: true, Bids: deploySliceOrdered()}
-	require.Len(t, b.Bids, 1000)
+	b := Book{VerifyOrderbook: true, Bids: levelsFixture()}
 	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
 
 	b.Bids.Reverse()
@@ -479,7 +453,7 @@ func TestReverse(t *testing.T) {
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkReverse(b *testing.B) {
-	lvls := deploySliceOrdered()
+	lvls := levelsFixture()
 	if len(lvls) != 1000 {
 		b.Fatal("incorrect length")
 	}
@@ -492,7 +466,7 @@ func BenchmarkReverse(b *testing.B) {
 // 361266	      3556 ns/op	      24 B/op	       1 allocs/op (old)
 // 385783	      3000 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksDecending(b *testing.B) {
-	lvls := deploySliceOrdered()
+	lvls := levelsFixture()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
 		copy(bucket, lvls)
@@ -503,7 +477,7 @@ func BenchmarkSortAsksDecending(b *testing.B) {
 // 266998	      4292 ns/op	      40 B/op	       2 allocs/op (old)
 // 372396	      3001 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsAscending(b *testing.B) {
-	lvls := deploySliceOrdered()
+	lvls := levelsFixture()
 	lvls.Reverse()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
@@ -537,7 +511,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 // 376708	      3559 ns/op	      24 B/op 		   1 allocs/op (old)
 // 377113	      3020 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksAscending(b *testing.B) {
-	lvls := deploySliceOrdered()
+	lvls := levelsFixture()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
 		copy(bucket, lvls)
@@ -548,7 +522,7 @@ func BenchmarkSortAsksAscending(b *testing.B) {
 // 262874	      4364 ns/op	      40 B/op	       2 allocs/op (old)
 // 401788	      3348 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsDescending(b *testing.B) {
-	lvls := deploySliceOrdered()
+	lvls := levelsFixture()
 	lvls.Reverse()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
