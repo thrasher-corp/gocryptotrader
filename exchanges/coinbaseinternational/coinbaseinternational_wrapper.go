@@ -291,7 +291,7 @@ func (co *CoinbaseInternational) FetchTicker(ctx context.Context, p currency.Pai
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (co *CoinbaseInternational) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (co *CoinbaseInternational) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	ob, err := orderbook.Get(co.Name, pair, assetType)
 	if err != nil {
 		return co.UpdateOrderbook(ctx, pair, assetType)
@@ -300,11 +300,11 @@ func (co *CoinbaseInternational) FetchOrderbook(ctx context.Context, pair curren
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if !co.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        co.Name,
 		Pair:            pair,
 		Asset:           assetType,
@@ -321,11 +321,11 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 	if err != nil {
 		return book, err
 	}
-	book.Bids = orderbook.Tranches{{
+	book.Bids = orderbook.Levels{{
 		Amount: orderbookNew.BestBidSize.Float64(),
 		Price:  orderbookNew.BestBidPrice.Float64(),
 	}}
-	book.Asks = orderbook.Tranches{{
+	book.Asks = orderbook.Levels{{
 		Amount: orderbookNew.BestAskSize.Float64(),
 		Price:  orderbookNew.BestAskPrice.Float64(),
 	}}

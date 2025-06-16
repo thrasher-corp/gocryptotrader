@@ -167,12 +167,12 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		asks := make([]orderbook.Tranche, len(resp[x].Asks))
+		asks := make([]orderbook.Level, len(resp[x].Asks))
 		for a := range resp[x].Asks {
 			asks[a].Price = resp[x].Asks[a][0].Float64()
 			asks[a].Amount = resp[x].Asks[a][1].Float64()
 		}
-		bids := make([]orderbook.Tranche, len(resp[x].Bids))
+		bids := make([]orderbook.Level, len(resp[x].Bids))
 		for b := range resp[x].Bids {
 			bids[b].Price = resp[x].Bids[b][0].Float64()
 			bids[b].Amount = resp[x].Bids[b][1].Float64()
@@ -191,7 +191,7 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 				return err
 			}
 		}
-		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Bids:         bids,
 			Asks:         asks,
 			Pair:         pair,
@@ -225,21 +225,21 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 				UpdateTime: resp[x].Time,
 				Action:     orderbook.Amend,
 				UpdateID:   resp[x].Sequence,
-				Asks:       []orderbook.Tranche{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-				Bids:       []orderbook.Tranche{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+				Asks:       []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+				Bids:       []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
 			})
 			if err != nil {
 				return err
 			}
 		}
-		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         pair,
 			Exchange:     co.Name,
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
 			LastUpdateID: resp[x].Sequence,
-			Asks:         []orderbook.Tranche{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-			Bids:         []orderbook.Tranche{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+			Asks:         []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+			Bids:         []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
 		})
 		if err != nil {
 			return err
