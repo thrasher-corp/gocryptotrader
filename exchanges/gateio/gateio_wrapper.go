@@ -2590,7 +2590,7 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 	return currency.EMPTYCODE, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 }
 
-// WebsocketSubmitOrders submits multiple orders to the exchange through the websocket
+// WebsocketSubmitOrders submits orders to the exchange through the websocket
 func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	var a asset.Item
 	for x := range orders {
