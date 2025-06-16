@@ -76,50 +76,50 @@ func TestProcessUpdate(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdateByIDAndAction(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err := d.updateByIDAndAction(&Update{})
-	assert.ErrorIs(t, err, errInvalidAction, "UpdateByIDAndAction should error correctly")
+	err := d.update(&Update{})
+	assert.ErrorIs(t, err, errInvalidAction, "update should error correctly")
 
-	err = d.updateByIDAndAction(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 69420, ID: 69420}}})
-	assert.ErrorIs(t, err, errUpdateFailed, "UpdateByIDAndAction should error correctly")
+	err = d.update(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 69420, ID: 69420}}})
+	assert.ErrorIs(t, err, errUpdateFailed, "update should error correctly")
 	assert.ErrorContains(t, err, "Update")
-	err = d.updateByIDAndAction(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 69420, ID: 21}}})
-	assert.NoError(t, err, "UpdateByIDAndAction should not error")
+	err = d.update(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 69420, ID: 21}}})
+	assert.NoError(t, err, "update should not error")
 	ob, err := d.Retrieve()
 	require.NoError(t, err)
 	assert.Equal(t, 69420.0, ob.Asks[0].Amount, "First ask amount should be correct")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.updateByIDAndAction(&Update{Action: DeleteAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 1, ID: 69420}}})
-	assert.ErrorIs(t, err, errDeleteFailed, "UpdateByIDAndAction should error correctly")
+	err = d.update(&Update{Action: DeleteAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 1, ID: 69420}}})
+	assert.ErrorIs(t, err, errDeleteFailed, "update should error correctly")
 	assert.ErrorContains(t, err, "Delete")
-	err = d.updateByIDAndAction(&Update{Action: DeleteAction, UpdateTime: time.Now(), Asks: Tranches{{ID: 21}}})
-	assert.NoError(t, err, "UpdateByIDAndAction should not error")
+	err = d.update(&Update{Action: DeleteAction, UpdateTime: time.Now(), Asks: Tranches{{ID: 21}}})
+	assert.NoError(t, err, "update should not error")
 	ob, err = d.Retrieve()
 	require.NoError(t, err)
 	assert.NotEqual(t, 21, ob.Asks[0].ID, "Ask element should be deleted")
 	assert.Len(t, ob.Asks, 19, "Asks length should be correct")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.updateByIDAndAction(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 1, ID: 21}}})
-	assert.ErrorIs(t, err, errUpdateFailed, "UpdateByIDAndAction should error correctly")
+	err = d.update(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 1, ID: 21}}})
+	assert.ErrorIs(t, err, errUpdateFailed, "update should error correctly")
 	assert.ErrorContains(t, err, "Insert")
-	err = d.updateByIDAndAction(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 1, ID: 69420}}})
-	assert.NoError(t, err, "UpdateByIDAndAction should not error")
+	err = d.update(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 1, ID: 69420}}})
+	assert.NoError(t, err, "update should not error")
 	ob, err = d.Retrieve()
 	require.NoError(t, err)
 	assert.Equal(t, int64(69420), ob.Asks[0].ID, "First ask ID should be correct")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.updateByIDAndAction(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 0, ID: 21}}})
-	assert.ErrorIs(t, err, errUpdateFailed, "UpdateByIDAndAction should error correctly")
+	err = d.update(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 0, ID: 21}}})
+	assert.ErrorIs(t, err, errUpdateFailed, "update should error correctly")
 	assert.ErrorContains(t, err, "UpdateOrInsert")
-	err = d.updateByIDAndAction(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 1, ID: 69420}}})
-	assert.NoError(t, err, "UpdateByIDAndAction should not error")
+	err = d.update(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 1, ID: 69420}}})
+	assert.NoError(t, err, "update should not error")
 	ob, err = d.Retrieve()
 	require.NoError(t, err)
 	assert.Equal(t, int64(69420), ob.Asks[0].ID, "First ask ID should be correct")
@@ -164,7 +164,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 	assert.ErrorIs(t, err, errIDCannotBeMatched, "UpdateBidAskByID should error correctly")
 }
 
-func TestDeleteBidAskByID(t *testing.T) {
+func TestDelete(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
@@ -175,12 +175,12 @@ func TestDeleteBidAskByID(t *testing.T) {
 		Asks: Tranches{{Price: 1337, Amount: 2, ID: 2}},
 	}
 
-	err = d.deleteBidAskByID(updates, false)
-	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "DeleteBidAskByID should error correctly")
+	err = d.delete(updates, false)
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "delete should error correctly")
 
 	updates.UpdateTime = time.Now()
-	err = d.deleteBidAskByID(updates, false)
-	assert.NoError(t, err, "DeleteBidAskByID should not error")
+	err = d.delete(updates, false)
+	assert.NoError(t, err, "delete should not error")
 
 	ob, err := d.Retrieve()
 	assert.NoError(t, err, "Retrieve should not error")
@@ -191,25 +191,25 @@ func TestDeleteBidAskByID(t *testing.T) {
 		Bids:       Tranches{{Price: 1337, Amount: 2, ID: 1}},
 		UpdateTime: time.Now(),
 	}
-	err = d.deleteBidAskByID(updates, false)
-	assert.ErrorIs(t, err, errIDCannotBeMatched, "DeleteBidAskByID should error correctly")
+	err = d.delete(updates, false)
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "delete should error correctly")
 
 	updates = &Update{
 		Asks:       Tranches{{Price: 1337, Amount: 2, ID: 2}},
 		UpdateTime: time.Now(),
 	}
-	err = d.deleteBidAskByID(updates, false)
-	assert.ErrorIs(t, err, errIDCannotBeMatched, "DeleteBidAskByID should error correctly")
+	err = d.delete(updates, false)
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "delete should error correctly")
 
 	updates = &Update{
 		Asks:       Tranches{{Price: 1337, Amount: 2, ID: 2}},
 		UpdateTime: time.Now(),
 	}
-	err = d.deleteBidAskByID(updates, true)
-	assert.NoError(t, err, "DeleteBidAskByID should not error")
+	err = d.delete(updates, true)
+	assert.NoError(t, err, "delete should not error")
 }
 
-func TestInsertBidAskByID(t *testing.T) {
+func TestInsert(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
@@ -218,13 +218,13 @@ func TestInsertBidAskByID(t *testing.T) {
 	updates := &Update{
 		Asks: Tranches{{Price: 1337, Amount: 2, ID: 3}},
 	}
-	err = d.insertBidAskByID(updates)
-	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "InsertBidAskByID should error correctly")
+	err = d.insert(updates)
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "insert should error correctly")
 
 	updates.UpdateTime = time.Now()
 
-	err = d.insertBidAskByID(updates)
-	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
+	err = d.insert(updates)
+	assert.ErrorIs(t, err, errCollisionDetected, "insert should error correctly on collision")
 
 	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
@@ -234,8 +234,8 @@ func TestInsertBidAskByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 
-	err = d.insertBidAskByID(updates)
-	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
+	err = d.insert(updates)
+	assert.ErrorIs(t, err, errCollisionDetected, "insert should error correctly on collision")
 
 	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
@@ -245,7 +245,7 @@ func TestInsertBidAskByID(t *testing.T) {
 		Asks:       Tranches{{Price: 1336, Amount: 2, ID: 4}},
 		UpdateTime: time.Now(),
 	}
-	err = d.insertBidAskByID(updates)
+	err = d.insert(updates)
 	assert.NoError(t, err, "InsertBidAskByID should not error")
 
 	ob, err := d.Retrieve()
@@ -254,7 +254,7 @@ func TestInsertBidAskByID(t *testing.T) {
 	assert.Len(t, ob.Bids, 2, "Should have correct Bids")
 }
 
-func TestUpdateInsertByID(t *testing.T) {
+func TestUpdateOrInsert(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
@@ -264,12 +264,12 @@ func TestUpdateInsertByID(t *testing.T) {
 		Bids: Tranches{{Price: 1338, Amount: 0, ID: 3}},
 		Asks: Tranches{{Price: 1336, Amount: 2, ID: 4}},
 	}
-	err = d.updateInsertByID(updates)
-	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "UpdateInsertByID should error correctly")
+	err = d.updateOrInsert(updates)
+	assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "updateOrInsert should error correctly")
 
 	updates.UpdateTime = time.Now()
-	err = d.updateInsertByID(updates)
-	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "UpdateInsertByID should error correctly")
+	err = d.updateOrInsert(updates)
+	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "updateOrInsert should error correctly")
 
 	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
@@ -279,8 +279,8 @@ func TestUpdateInsertByID(t *testing.T) {
 		Asks:       Tranches{{Price: 1336, Amount: 0, ID: 4}},
 		UpdateTime: time.Now(),
 	}
-	err = d.updateInsertByID(updates)
-	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "UpdateInsertByID should error correctly")
+	err = d.updateOrInsert(updates)
+	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "updateOrInsert should error correctly")
 
 	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
@@ -290,8 +290,8 @@ func TestUpdateInsertByID(t *testing.T) {
 		Asks:       Tranches{{Price: 1336, Amount: 2, ID: 4}},
 		UpdateTime: time.Now(),
 	}
-	err = d.updateInsertByID(updates)
-	assert.NoError(t, err, "UpdateInsertByID should not error")
+	err = d.updateOrInsert(updates)
+	assert.NoError(t, err, "updateOrInsert should not error")
 
 	ob, err := d.Retrieve()
 	assert.NoError(t, err, "Retrieve should not error")

@@ -87,8 +87,8 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		return d.invalidate(errRESTSnapshot)
 	}
 
-	if u.Action != 0 {
-		if err := d.updateByIDAndAction(u); err != nil {
+	if u.Action != UnknownAction {
+		if err := d.update(u); err != nil {
 			return d.invalidate(err)
 		}
 	} else {
@@ -128,9 +128,9 @@ func (d *Depth) snapshot() *Base {
 	}
 }
 
-// updateByIDAndAction will receive an action to execute against the orderbook it will then match by IDs instead of
+// update will receive an action to execute against the orderbook it will then match by IDs instead of
 // price to perform the action
-func (d *Depth) updateByIDAndAction(u *Update) error {
+func (d *Depth) update(u *Update) error {
 	switch u.Action {
 	case UpdateAction:
 		if err := d.updateBidAskByID(u); err != nil {
@@ -139,15 +139,15 @@ func (d *Depth) updateByIDAndAction(u *Update) error {
 	case DeleteAction:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := d.options.exchange == "Bitfinex" && d.options.isFundingRate // TODO: Confirm this is still correct
-		if err := d.deleteBidAskByID(u, bypassErr); err != nil {
+		if err := d.delete(u, bypassErr); err != nil {
 			return fmt.Errorf("%w for %q: %w", errDeleteFailed, u.Action, err)
 		}
 	case InsertAction:
-		if err := d.insertBidAskByID(u); err != nil {
+		if err := d.insert(u); err != nil {
 			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
 		}
 	case UpdateOrInsertAction:
-		if err := d.updateInsertByID(u); err != nil {
+		if err := d.updateOrInsert(u); err != nil {
 			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
 		}
 	default:
@@ -182,8 +182,8 @@ func (d *Depth) updateBidAskByID(update *Update) error {
 	return nil
 }
 
-// deleteBidAskByID deletes a price level by ID
-func (d *Depth) deleteBidAskByID(update *Update, bypassErr bool) error {
+// delete deletes a price level by ID
+func (d *Depth) delete(update *Update, bypassErr bool) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
@@ -197,8 +197,8 @@ func (d *Depth) deleteBidAskByID(update *Update, bypassErr bool) error {
 	return nil
 }
 
-// insertBidAskByID inserts new updates
-func (d *Depth) insertBidAskByID(update *Update) error {
+// insert inserts new updates
+func (d *Depth) insert(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
@@ -212,8 +212,8 @@ func (d *Depth) insertBidAskByID(update *Update) error {
 	return nil
 }
 
-// updateInsertByID updates or inserts by ID at current price level.
-func (d *Depth) updateInsertByID(update *Update) error {
+// updateOrInsert updates or inserts by ID at current price level.
+func (d *Depth) updateOrInsert(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
