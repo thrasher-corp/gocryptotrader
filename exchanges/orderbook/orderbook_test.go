@@ -282,10 +282,10 @@ func TestProcessOrderbook(t *testing.T) {
 
 	// now process a valid orderbook
 	b.Asset = asset.Spot
-	require.NoError(t, b.Process(), "Process must not error")
+	require.NoError(t, b.Process(), ", "Process must not error")
 
 	result, err := Get("ProcessOrderbook", currency.NewBTCUSD(), asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "Get must not error")
 	assert.True(t, result.Pair.Equal(pair))
 
 	// now test for processing a pair with a different quote currency
