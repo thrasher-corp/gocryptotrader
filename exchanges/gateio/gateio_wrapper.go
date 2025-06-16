@@ -2604,7 +2604,7 @@ func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Subm
 		}
 
 		if a != orders[x].AssetType {
-			return nil, fmt.Errorf("%w %v", errSingleAssetRequired, a)
+			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, orders[x].AssetType)
 		}
 	}
 
