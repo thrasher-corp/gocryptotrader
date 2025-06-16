@@ -83,7 +83,7 @@ func TestVerify(t *testing.T) {
 
 	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	require.ErrorIs(t, err, ErrPriceNotSet)
+	require.ErrorIs(t, err, ErrPriceZero)
 
 	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
 	err = b.Verify()
@@ -109,7 +109,7 @@ func TestVerify(t *testing.T) {
 
 	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
-	require.ErrorIs(t, err, ErrPriceNotSet)
+	require.ErrorIs(t, err, ErrPriceZero)
 }
 
 func TestCalculateTotalBids(t *testing.T) {
@@ -237,7 +237,7 @@ func TestBaseGetDepth(t *testing.T) {
 func TestDeployDepth(t *testing.T) {
 	c := currency.NewBTCUSD()
 	_, err := DeployDepth("", c, asset.Spot)
-	require.ErrorIs(t, err, ErrExchangeNameUnset)
+	require.ErrorIs(t, err, ErrExchangeNameEmpty)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", c, asset.Empty)
@@ -621,10 +621,10 @@ func TestCheckAlignment(t *testing.T) {
 		t.Error(err)
 	}
 	err = checkAlignment(itemWithFunding, false, true, false, false, dsc, "Bitfinex")
-	require.ErrorIs(t, err, ErrPriceNotSet)
+	require.ErrorIs(t, err, ErrPriceZero)
 
 	err = checkAlignment(itemWithFunding, true, true, false, false, dsc, "Binance")
-	require.ErrorIs(t, err, ErrPriceNotSet)
+	require.ErrorIs(t, err, ErrPriceZero)
 
 	itemWithFunding[0].Price = 1337
 	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")

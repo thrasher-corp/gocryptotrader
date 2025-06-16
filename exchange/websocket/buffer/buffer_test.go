@@ -452,10 +452,10 @@ func TestLoadSnapshot(t *testing.T) {
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 
 	err = obl.LoadSnapshot(&orderbook.Base{Asks: []orderbook.Tranche{{Amount: 1}}, VerifyOrderbook: true})
-	require.ErrorIs(t, err, orderbook.ErrPriceNotSet)
+	require.ErrorIs(t, err, orderbook.ErrPriceZero)
 
 	err = obl.LoadSnapshot(&orderbook.Base{Asks: []orderbook.Tranche{{Amount: 1}}})
-	require.ErrorIs(t, err, orderbook.ErrExchangeNameUnset)
+	require.ErrorIs(t, err, orderbook.ErrExchangeNameEmpty)
 
 	err = obl.LoadSnapshot(&orderbook.Base{Asks: []orderbook.Tranche{{Amount: 1}}, Exchange: "test", Pair: cp, Asset: asset.Spot})
 	require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet)

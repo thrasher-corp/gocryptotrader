@@ -21,8 +21,8 @@ const (
 // Public errors
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
-	ErrPriceNotSet       = errors.New("price cannot be zero")
-	ErrExchangeNameUnset = errors.New("orderbook exchange name not set")
+	ErrPriceZero         = errors.New("price cannot be zero")
+	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 )
 
 var (
