@@ -2621,15 +2621,11 @@ func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Subm
 				return nil, err
 			}
 		}
-		got, err := g.WebsocketSpotSubmitOrders(ctx, reqs...)
+		resp, err := g.WebsocketSpotSubmitOrders(ctx, reqs...)
 		if err != nil {
 			return nil, err
 		}
-		resps, err := g.deriveSpotWebsocketOrderResponses(got)
-		if err != nil {
-			return nil, err
-		}
-		return resps, nil
+		return g.deriveSpotWebsocketOrderResponses(resp)
 	default:
 		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
 	}
