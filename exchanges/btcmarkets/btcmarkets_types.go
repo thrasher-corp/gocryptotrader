@@ -456,4 +456,4 @@ func (c *CandleResponse) UnmarshalJSON(data []byte) error {
 
 // WebsocketOrderbook defines a specific websocket orderbook type to directly
 // unmarshal json.
-type WebsocketOrderbook orderbook.Tranches
+type WebsocketOrderbook orderbook.Levels

@@ -29,7 +29,7 @@ var Wrapper GCTExchange
 type GCTExchange interface {
 	Exchanges(enabledOnly bool) []string
 	IsEnabled(exch string) bool
-	Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
+	Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Book, error)
 	Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
 	QueryOrder(ctx context.Context, exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
