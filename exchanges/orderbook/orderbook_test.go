@@ -408,7 +408,7 @@ func TestSorting(t *testing.T) {
 	var b Book
 	b.VerifyOrderbook = true
 
-	b.Asks = deployUnorderedSlice()
+	b.Asks = levelsFixtureRandom()
 	err := b.Verify()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
@@ -418,7 +418,7 @@ func TestSorting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.Bids = deployUnorderedSlice()
+	b.Bids = levelsFixtureRandom()
 	err = b.Verify()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
@@ -489,7 +489,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 // 22119	     46532 ns/op	      35 B/op	       1 allocs/op (old)
 // 16233	     76951 ns/op	     167 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksStandard(b *testing.B) {
-	lvls := deployUnorderedSlice()
+	lvls := levelsFixtureRandom()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
 		copy(bucket, lvls)
@@ -500,7 +500,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 // 19504	     62518 ns/op	      53 B/op	       2 allocs/op (old)
 // 15698	     72859 ns/op	     168 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsStandard(b *testing.B) {
-	lvls := deployUnorderedSlice()
+	lvls := levelsFixtureRandom()
 	bucket := make(Levels, len(lvls))
 	for b.Loop() {
 		copy(bucket, lvls)
