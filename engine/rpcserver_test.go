@@ -3144,7 +3144,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "depth.LoadSnapshot must not error")
 
 	_, err = s.GetOrderbookMovement(t.Context(), req)
@@ -3237,7 +3237,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "depth.LoadSnapshot must not error")
 
 	nominal, err := s.GetOrderbookAmountByNominal(t.Context(), req)
@@ -3323,7 +3323,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "depth.LoadSnapshot must not error")
 
 	req.ImpactPercentage = 9.090909090909092
