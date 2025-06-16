@@ -301,7 +301,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 
 	holder.updateID = book.LastUpdateID
 
-	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.UpdatePushedAt, false)
+	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.LastPushed, false)
 	if err != nil {
 		return err
 	}

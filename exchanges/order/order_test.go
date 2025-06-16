@@ -297,12 +297,74 @@ func TestTitle(t *testing.T) {
 	require.Equal(t, "Limit", orderType.Title())
 }
 
+func TestOrderIs(t *testing.T) {
+	t.Parallel()
+	orderComparisonList := []struct {
+		Type    Type
+		Targets []Type
+	}{
+		{Type: Limit | TakeProfit, Targets: []Type{TakeProfit, Limit}},
+		{Type: IOS, Targets: []Type{IOS}},
+		{Type: Stop, Targets: []Type{Stop}},
+		{Type: AnyType, Targets: []Type{AnyType}},
+		{Type: StopLimit, Targets: []Type{Stop, Limit}},
+		{Type: TakeProfit, Targets: []Type{TakeProfit}},
+		{Type: StopMarket, Targets: []Type{Stop, Market}},
+		{Type: TrailingStop, Targets: []Type{TrailingStop}},
+		{Type: UnknownType | Limit, Targets: []Type{Limit}},
+		{Type: TakeProfitMarket, Targets: []Type{TakeProfit, Market}},
+	}
+	for _, oType := range orderComparisonList {
+		t.Run(oType.Type.String(), func(t *testing.T) {
+			t.Parallel()
+			for _, target := range oType.Targets {
+				assert.Truef(t, oType.Type.Is(target), "expected %v, got %q", target, oType.Type.String())
+			}
+		})
+	}
+}
+
 func TestOrderTypes(t *testing.T) {
 	t.Parallel()
 	var orderType Type
 	assert.Equal(t, "UNKNOWN", orderType.String())
 	assert.Equal(t, "unknown", orderType.Lower())
 	assert.Equal(t, "Unknown", orderType.Title())
+}
+
+func TestOrderTypeToString(t *testing.T) {
+	t.Parallel()
+	orderToToStringsList := []struct {
+		OrderType Type
+		String    string
+	}{
+		{StopMarket, "STOP MARKET"},
+		{StopLimit, "STOP LIMIT"},
+		{Limit, "LIMIT"},
+		{Market, "MARKET"},
+		{Stop, "STOP"},
+		{ConditionalStop, "CONDITIONAL"},
+		{TWAP, "TWAP"},
+		{Chase, "CHASE"},
+		{TakeProfit, "TAKE PROFIT"},
+		{TakeProfitMarket, "TAKE PROFIT MARKET"},
+		{TrailingStop, "TRAILING_STOP"},
+		{IOS, "IOS"},
+		{Liquidation, "LIQUIDATION"},
+		{Trigger, "TRIGGER"},
+		{OCO, "OCO"},
+		{OptimalLimit, "OPTIMAL_LIMIT"},
+		{MarketMakerProtection, "MMP"},
+		{AnyType, "ANY"},
+		{UnknownType | Limit, "LIMIT"},
+		{StopMarket | ConditionalStop, "UNKNOWN"},
+	}
+	for _, tt := range orderToToStringsList {
+		t.Run(tt.String, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.String, tt.OrderType.String())
+		})
+	}
 }
 
 func TestInferCostsAndTimes(t *testing.T) {
@@ -736,6 +798,7 @@ func BenchmarkStringToOrderSide(b *testing.B) {
 }
 
 func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		in  string
 		out Type
@@ -766,14 +829,12 @@ func TestStringToOrderType(t *testing.T) {
 		{"conDitiOnal", ConditionalStop, nil},
 		{"oCo", OCO, nil},
 		{"mMp", MarketMakerProtection, nil},
-		{"Mmp_And_Post_oNly", MarketMakerProtectionAndPostOnly, nil},
 		{"tWaP", TWAP, nil},
 		{"TWAP", TWAP, nil},
 		{"woahMan", UnknownType, errUnrecognisedOrderType},
 		{"chase", Chase, nil},
 		{"MOVE_ORDER_STOP", TrailingStop, nil},
 		{"mOVe_OrdeR_StoP", TrailingStop, nil},
-		{"optimal_limit_IoC", OptimalLimitIOC, nil},
 		{"Stop_market", StopMarket, nil},
 		{"liquidation", Liquidation, nil},
 		{"LiQuidation", Liquidation, nil},
@@ -781,10 +842,13 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"optimal_limit", OptimalLimit, nil},
+		{"OPTIMAL_LIMIT", OptimalLimit, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
 		t.Run(testData.in, func(t *testing.T) {
+			t.Parallel()
 			out, err := StringToOrderType(testData.in)
 			require.ErrorIs(t, err, testData.err)
 			assert.Equal(t, testData.out, out)

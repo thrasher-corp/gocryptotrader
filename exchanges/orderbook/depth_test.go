@@ -74,7 +74,7 @@ func TestRetrieve(t *testing.T) {
 		pair:                   currency.NewPair(currency.THETA, currency.USD),
 		asset:                  asset.DownsideProfitContract,
 		lastUpdated:            time.Now(),
-		updatePushedAt:         time.Now(),
+		lastPushed:             time.Now(),
 		insertedAt:             time.Now(),
 		lastUpdateID:           1337,
 		priceDuplication:       true,
@@ -102,7 +102,7 @@ func TestRetrieve(t *testing.T) {
 	assert.Equal(t, currency.NewPair(currency.THETA, currency.USD), ob.Pair, "Should have correct Pair")
 	assert.Equal(t, asset.DownsideProfitContract, ob.Asset, "Should have correct Asset")
 	assert.Equal(t, d.options.lastUpdated, ob.LastUpdated, "Should have correct LastUpdated")
-	assert.Equal(t, d.options.updatePushedAt, ob.UpdatePushedAt, "Should have correct UpdatePushedAt")
+	assert.Equal(t, d.options.lastPushed, ob.LastPushed, "Should have correct LastPushed")
 	assert.Equal(t, d.options.insertedAt, ob.InsertedAt, "Should have correct InsertedAt")
 	assert.EqualValues(t, 1337, ob.LastUpdateID, "Should have correct LastUpdateID")
 	assert.True(t, ob.PriceDuplication, "Should have correct PriceDuplication")

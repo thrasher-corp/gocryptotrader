@@ -695,18 +695,19 @@ func (g *Gateio) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, 
 		Pair:            p.Upper(),
 		LastUpdateID:    o.ID,
 		LastUpdated:     o.Update.Time(),
+		LastPushed:      o.Current.Time(),
 	}
 	book.Bids = make(orderbook.Levels, len(o.Bids))
 	for x := range o.Bids {
 		book.Bids[x] = orderbook.Level{
-			Amount: o.Bids[x].Amount,
+			Amount: o.Bids[x].Amount.Float64(),
 			Price:  o.Bids[x].Price.Float64(),
 		}
 	}
 	book.Asks = make(orderbook.Levels, len(o.Asks))
 	for x := range o.Asks {
 		book.Asks[x] = orderbook.Level{
-			Amount: o.Asks[x].Amount,
+			Amount: o.Asks[x].Amount.Float64(),
 			Price:  o.Asks[x].Price.Float64(),
 		}
 	}
