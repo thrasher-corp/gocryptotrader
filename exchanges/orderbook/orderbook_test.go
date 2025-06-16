@@ -112,7 +112,7 @@ func TestVerify(t *testing.T) {
 	require.ErrorIs(t, err, errPriceNotSet)
 }
 
-func TestCalculateTotalBids(t *testing.T) {
+func TestTotalBidsAmount(t *testing.T) {;
 	t.Parallel()
 	b := Book{Pair: currency.NewBTCUSD(), Bids: []Level{{Price: 100, Amount: 10}}, LastUpdated: time.Now()}
 	ac, total := b.TotalBidsAmount()
