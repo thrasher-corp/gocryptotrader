@@ -484,15 +484,15 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	newOrderBook := orderbook.Base{
+	newOrderBook := orderbook.Book{
 		Pair:            p,
 		Asset:           asset.Spot,
 		Exchange:        b.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,
 		LastUpdated:     time.Now(), // Time not provided in REST book.
-		Bids:            orderbook.Tranches(orderbookNew.Bids),
-		Asks:            orderbook.Tranches(orderbookNew.Asks),
+		Bids:            orderbook.Levels(orderbookNew.Bids),
+		Asks:            orderbook.Levels(orderbookNew.Asks),
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -916,7 +916,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -950,7 +950,7 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (bool, error) {
+func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Book) (bool, error) {
 	if updt.LastUpdateID <= recent.LastUpdateID {
 		// Drop any event where u is <= lastUpdateId in the snapshot.
 		return false, nil

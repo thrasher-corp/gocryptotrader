@@ -652,7 +652,7 @@ func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType as
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(ctx, p, assetType)
@@ -661,9 +661,11 @@ func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	err := b.CurrencyPairs.IsAssetEnabled(assetType)
-	if err != nil {
+func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	p = p.Upper()
@@ -671,7 +673,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if !isEnabled || err != nil {
 		return nil, fmt.Errorf("%w pair: %v", currency.ErrPairNotEnabled, p)
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        b.Name,
 		Pair:            p,
 		Asset:           assetType,
@@ -696,8 +698,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = orderbook.Tranches(resp.Bids)
-		book.Asks = orderbook.Tranches(resp.Asks)
+		book.Bids = orderbook.Levels(resp.Bids)
+		book.Asks = orderbook.Levels(resp.Asks)
 		orderbookPopulated = true
 	default:
 		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
@@ -706,8 +708,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 	if !orderbookPopulated {
-		book.Bids = orderbook.Tranches(orderbookNew.Bids)
-		book.Asks = orderbook.Tranches(orderbookNew.Asks)
+		book.Bids = orderbook.Levels(orderbookNew.Bids)
+		book.Asks = orderbook.Levels(orderbookNew.Asks)
 	}
 
 	err = book.Process()

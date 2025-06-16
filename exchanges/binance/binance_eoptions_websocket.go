@@ -355,14 +355,14 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 	}
 	okay := orderbookSnapshotLoadedPairsMap[resp.OptionSymbol]
 	if !okay {
-		err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         pair,
 			Exchange:     b.Name,
 			Asset:        asset.Options,
 			LastUpdated:  resp.TransactionTime.Time(),
 			LastUpdateID: resp.UpdateID,
-			Asks:         orderbook.Tranches(resp.Asks),
-			Bids:         orderbook.Tranches(resp.Bids),
+			Asks:         orderbook.Levels(resp.Asks),
+			Bids:         orderbook.Levels(resp.Bids),
 		})
 		if err != nil {
 			return err
@@ -370,8 +370,8 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 	} else {
 		err = b.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       pair,
-			Asks:       orderbook.Tranches(resp.Asks),
-			Bids:       orderbook.Tranches(resp.Bids),
+			Asks:       orderbook.Levels(resp.Asks),
+			Bids:       orderbook.Levels(resp.Bids),
 			Asset:      asset.Options,
 			UpdateID:   resp.UpdateID,
 			UpdateTime: resp.TransactionTime.Time(),

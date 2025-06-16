@@ -451,14 +451,14 @@ func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := k.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        k.Name,
 		Pair:            p,
 		Asset:           assetType,
@@ -472,16 +472,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+		book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Amount: orderbookNew.Bids[x].Amount.Float64(),
 				Price:  orderbookNew.Bids[x].Price.Float64(),
 			}
 		}
-		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+		book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks[y] = orderbook.Tranche{
+			book.Asks[y] = orderbook.Level{
 				Amount: orderbookNew.Asks[y].Amount.Float64(),
 				Price:  orderbookNew.Asks[y].Price.Float64(),
 			}
@@ -492,16 +492,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Asks = make([]orderbook.Tranche, len(futuresOB.Orderbook.Asks))
+		book.Asks = make([]orderbook.Level, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			}
 		}
-		book.Bids = make([]orderbook.Tranche, len(futuresOB.Orderbook.Bids))
+		book.Bids = make([]orderbook.Level, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids[y] = orderbook.Tranche{
+			book.Bids[y] = orderbook.Level{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}

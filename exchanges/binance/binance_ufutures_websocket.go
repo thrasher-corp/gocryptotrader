@@ -220,8 +220,8 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.It
 	if err != nil {
 		return err
 	}
-	asks := make(orderbook.Tranches, len(resp.Asks))
-	bids := make(orderbook.Tranches, len(resp.Bids))
+	asks := make(orderbook.Levels, len(resp.Asks))
+	bids := make(orderbook.Levels, len(resp.Bids))
 	for a := range resp.Asks {
 		asks[a].Price, err = strconv.ParseFloat(resp.Asks[a][0], 64)
 		if err != nil {
@@ -246,7 +246,7 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.It
 	defer bookTickerSymbolsLock.Unlock()
 	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
 		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
-		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Bids:         bids,
 			Asks:         asks,
 			Exchange:     b.Name,
@@ -447,12 +447,12 @@ func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error 
 	defer bookTickerSymbolsLock.Unlock()
 	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
 		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
-		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Bids: orderbook.Tranches{{
+		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Bids: orderbook.Levels{{
 				Amount: resp.BestBidQty.Float64(),
 				Price:  resp.BestBidPrice.Float64(),
 			}},
-			Asks: []orderbook.Tranche{{
+			Asks: []orderbook.Level{{
 				Amount: resp.BestAskQty.Float64(),
 				Price:  resp.BestAskPrice.Float64(),
 			}},
@@ -468,11 +468,11 @@ func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error 
 		UpdateTime: resp.TransactionTime.Time(),
 		Asset:      assetType,
 		Action:     orderbook.Amend,
-		Bids: []orderbook.Tranche{{
+		Bids: []orderbook.Level{{
 			Amount: resp.BestBidQty.Float64(),
 			Price:  resp.BestBidPrice.Float64(),
 		}},
-		Asks: []orderbook.Tranche{{
+		Asks: []orderbook.Level{{
 			Amount: resp.BestAskQty.Float64(),
 			Price:  resp.BestAskPrice.Float64(),
 		}},

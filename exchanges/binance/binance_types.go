@@ -383,7 +383,7 @@ type OrderBookDataRequestParams struct {
 }
 
 // OrderbookTranches stores an orderbook.Tranches unmarshaled from a slice of bytes.
-type OrderbookTranches orderbook.Tranches
+type OrderbookTranches orderbook.Levels
 
 // UnmarshalJSON deserializes a byte slice into a OrderOrder OrderbookTranches
 func (o *OrderbookTranches) UnmarshalJSON(data []byte) error {
@@ -392,7 +392,7 @@ func (o *OrderbookTranches) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	tranches := make(orderbook.Tranches, len(target))
+	tranches := make(orderbook.Levels, len(target))
 	for a := range target {
 		tranches[a].Price = target[a][0].Float64()
 		tranches[a].Amount = target[a][1].Float64()
