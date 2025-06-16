@@ -2609,7 +2609,7 @@ func (g *Gateio) WebsocketSubmitOrders(ctx context.Context, orders []*order.Subm
 	}
 
 	if !g.CurrencyPairs.IsAssetSupported(a) {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
 
 	switch a {
