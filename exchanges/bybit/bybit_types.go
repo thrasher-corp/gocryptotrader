@@ -1741,8 +1741,8 @@ type ServerTime struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	UpdateID       int64
-	Bids           []orderbook.Tranche
-	Asks           []orderbook.Tranche
+	Bids           []orderbook.Level
+	Asks           []orderbook.Level
 	Symbol         string
 	GenerationTime time.Time
 }
