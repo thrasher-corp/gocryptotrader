@@ -79,7 +79,7 @@ type Level struct {
 	OrderCount        int64
 }
 
-// Book stores an orderbook
+// Book contains an orderbook
 type Book struct {
 	Bids Levels
 	Asks Levels
