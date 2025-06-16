@@ -120,7 +120,7 @@ func TestTotalBidsAmount(t *testing.T) {;
 	require.Equal(t, 1000.0, total)
 }
 
-func TestCalculateTotalAsks(t *testing.T) {
+func TestTotalAsksAmount(t *testing.T) {
 	t.Parallel()
 	b := Book{Pair: currency.NewBTCUSD(), Asks: []Level{{Price: 100, Amount: 10}}}
 	ac, total := b.TotalAsksAmount()
