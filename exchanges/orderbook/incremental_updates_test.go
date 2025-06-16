@@ -85,7 +85,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidAction, "UpdateByIDAndAction should error correctly")
 
 	err = d.updateByIDAndAction(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 69420, ID: 69420}}})
-	assert.ErrorIs(t, err, errAmendFailure, "UpdateByIDAndAction should error correctly")
+	assert.ErrorIs(t, err, errUpdateFailed, "UpdateByIDAndAction should error correctly")
+	assert.ErrorContains(t, err, "Update")
 	err = d.updateByIDAndAction(&Update{Action: UpdateAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 69420, ID: 21}}})
 	assert.NoError(t, err, "UpdateByIDAndAction should not error")
 	ob, err := d.Retrieve()
@@ -94,7 +95,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.updateByIDAndAction(&Update{Action: DeleteAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 1, ID: 69420}}})
-	assert.ErrorIs(t, err, errDeleteFailure, "UpdateByIDAndAction should error correctly")
+	assert.ErrorIs(t, err, errDeleteFailed, "UpdateByIDAndAction should error correctly")
+	assert.ErrorContains(t, err, "Delete")
 	err = d.updateByIDAndAction(&Update{Action: DeleteAction, UpdateTime: time.Now(), Asks: Tranches{{ID: 21}}})
 	assert.NoError(t, err, "UpdateByIDAndAction should not error")
 	ob, err = d.Retrieve()
@@ -104,7 +106,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.updateByIDAndAction(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 1, ID: 21}}})
-	assert.ErrorIs(t, err, errInsertFailure, "UpdateByIDAndAction should error correctly")
+	assert.ErrorIs(t, err, errUpdateFailed, "UpdateByIDAndAction should error correctly")
+	assert.ErrorContains(t, err, "Insert")
 	err = d.updateByIDAndAction(&Update{Action: InsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 1, ID: 69420}}})
 	assert.NoError(t, err, "UpdateByIDAndAction should not error")
 	ob, err = d.Retrieve()
@@ -113,7 +116,8 @@ func TestUpdateByIDAndAction(t *testing.T) {
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.updateByIDAndAction(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1338, Amount: 0, ID: 21}}})
-	assert.ErrorIs(t, err, errUpdateInsertFailure, "UpdateByIDAndAction should error correctly")
+	assert.ErrorIs(t, err, errUpdateFailed, "UpdateByIDAndAction should error correctly")
+	assert.ErrorContains(t, err, "UpdateOrInsert")
 	err = d.updateByIDAndAction(&Update{Action: UpdateOrInsertAction, UpdateTime: time.Now(), Asks: Tranches{{Price: 1337.5, Amount: 1, ID: 69420}}})
 	assert.NoError(t, err, "UpdateByIDAndAction should not error")
 	ob, err = d.Retrieve()
@@ -337,4 +341,24 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	bidLen, err := d.GetBidLength()
 	assert.NoError(t, err, "GetBidLength should not error")
 	assert.Zero(t, bidLen, "Bid Length should be correct")
+}
+
+func TestString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		action   ActionType
+		expected string
+	}{
+		{action: UpdateAction, expected: "Update"},
+		{action: InsertAction, expected: "Insert"},
+		{action: UpdateOrInsertAction, expected: "UpdateOrInsert"},
+		{action: DeleteAction, expected: "Delete"},
+		{action: UnknownAction, expected: "Unknown"},
+		{action: ActionType(69), expected: "Unknown(69)"},
+	} {
+		t.Run(tc.expected, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, tc.action.String(), "String representation should match")
+		})
+	}
 }

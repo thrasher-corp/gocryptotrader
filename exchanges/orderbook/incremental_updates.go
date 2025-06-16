@@ -29,10 +29,8 @@ var (
 
 var (
 	errInvalidAction          = errors.New("invalid action")
-	errAmendFailure           = errors.New("amend update failure")
-	errDeleteFailure          = errors.New("delete update failure")
-	errInsertFailure          = errors.New("insert update failure")
-	errUpdateInsertFailure    = errors.New("update/insert update failure")
+	errUpdateFailed           = errors.New("orderbook update failed")
+	errDeleteFailed           = errors.New("orderbook update delete failed")
 	errRESTSnapshot           = errors.New("cannot update REST protocol loaded snapshot")
 	errChecksumMismatch       = errors.New("checksum mismatch")
 	errChecksumGeneratorUnset = errors.New("checksum generator unset")
@@ -136,24 +134,24 @@ func (d *Depth) updateByIDAndAction(u *Update) error {
 	switch u.Action {
 	case UpdateAction:
 		if err := d.updateBidAskByID(u); err != nil {
-			return fmt.Errorf("%w %w", errAmendFailure, err)
+			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
 		}
 	case DeleteAction:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := d.options.exchange == "Bitfinex" && d.options.isFundingRate // TODO: Confirm this is still correct
 		if err := d.deleteBidAskByID(u, bypassErr); err != nil {
-			return fmt.Errorf("%w %w", errDeleteFailure, err)
+			return fmt.Errorf("%w for %q: %w", errDeleteFailed, u.Action, err)
 		}
 	case InsertAction:
 		if err := d.insertBidAskByID(u); err != nil {
-			return fmt.Errorf("%w %w", errInsertFailure, err)
+			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
 		}
 	case UpdateOrInsertAction:
 		if err := d.updateInsertByID(u); err != nil {
-			return fmt.Errorf("%w %w", errUpdateInsertFailure, err)
+			return fmt.Errorf("%w for %q: %w", errUpdateFailed, u.Action, err)
 		}
 	default:
-		return fmt.Errorf("%w [%d]", errInvalidAction, u.Action)
+		return fmt.Errorf("%w [%s]", errInvalidAction, u.Action)
 	}
 	return nil
 }
@@ -227,4 +225,22 @@ func (d *Depth) updateInsertByID(update *Update) error {
 	}
 	d.updateAndAlert(update)
 	return nil
+}
+
+// String returns a string representation of the ActionType
+func (a ActionType) String() string {
+	switch a {
+	case UnknownAction:
+		return "Unknown"
+	case InsertAction:
+		return "Insert"
+	case UpdateOrInsertAction:
+		return "UpdateOrInsert"
+	case UpdateAction:
+		return "Update"
+	case DeleteAction:
+		return "Delete"
+	default:
+		return fmt.Sprintf("Unknown(%d)", a)
+	}
 }
