@@ -124,8 +124,8 @@ func TestTotalAsksAmount(t *testing.T) {
 	t.Parallel()
 	b := Book{Pair: currency.NewBTCUSD(), Asks: []Level{{Price: 100, Amount: 10}}}
 	ac, total := b.TotalAsksAmount()
-	require.Equal(t, 10.0, ac, "TotalAsksAmount must return 10")
-	require.Equal(t, 1000.0, total, "TotalAsksAmount must return 1000")
+	assert.Equal(t, 10.0, ac, "should return correct amount")
+	assert.Equal(t, 1000.0, total, "should return correct total")
 }
 
 func TestGetOrderbook(t *testing.T) {
