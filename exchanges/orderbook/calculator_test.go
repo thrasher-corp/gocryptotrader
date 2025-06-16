@@ -10,18 +10,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-func testSetup() Base {
-	return Base{
+func testSetup() Book {
+	return Book{
 		Exchange: "a",
 		Pair:     currency.NewBTCUSD(),
-		Asks: []Tranche{
-			{Price: 7000, Amount: 1},
-			{Price: 7001, Amount: 2},
-		},
-		Bids: []Tranche{
-			{Price: 6999, Amount: 1},
-			{Price: 6998, Amount: 2},
-		},
+		Asks:     []Level{{Price: 7000, Amount: 1}, {Price: 7001, Amount: 2}},
+		Bids:     []Level{{Price: 6999, Amount: 1}, {Price: 6998, Amount: 2}},
 	}
 }
 
@@ -51,7 +45,7 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
 	}
 
-	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask tranche
+	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask level
 	assert.NoError(t, err)
 
 	if result.Amount != 7000 {
@@ -121,7 +115,7 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
 	}
 
-	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid tranche
+	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid level
 	assert.NoError(t, err)
 
 	if result.Amount != 1 {
@@ -178,7 +172,7 @@ func TestSimulateOrder(t *testing.T) {
 	_, err := b.SimulateOrder(-8000, true)
 	require.ErrorIs(t, err, errQuoteAmountInvalid)
 
-	_, err = (&Base{}).SimulateOrder(1337, true)
+	_, err = (&Book{}).SimulateOrder(1337, true)
 	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
@@ -229,7 +223,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
 	}
 
-	// First tranche
+	// First level
 	result, err = b.SimulateOrder(7000, true)
 	require.NoError(t, err)
 
@@ -241,7 +235,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
 	}
 
-	if result.MaximumPrice != 7001 { // A full tranche is wiped out and this one should be preserved.
+	if result.MaximumPrice != 7001 { // A full level is wiped out and this one should be preserved.
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
 	}
 
@@ -281,7 +275,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
 	}
 
-	// Half of second tranche
+	// Half of second level
 	result, err = b.SimulateOrder(14001, true)
 	require.NoError(t, err)
 
@@ -313,10 +307,10 @@ func TestSimulateOrder(t *testing.T) {
 
 	// Invalid
 
-	_, err = (&Base{}).SimulateOrder(-1, false)
+	_, err = (&Book{}).SimulateOrder(-1, false)
 	require.ErrorIs(t, err, errBaseAmountInvalid)
 
-	_, err = (&Base{}).SimulateOrder(2, false)
+	_, err = (&Book{}).SimulateOrder(2, false)
 	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
@@ -367,7 +361,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
 	}
 
-	// First tranche
+	// First level
 	result, err = b.SimulateOrder(1, false)
 	require.NoError(t, err)
 
@@ -379,7 +373,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
 	}
 
-	if result.MinimumPrice != 6998 { // A full tranche is wiped out and this one should be preserved.
+	if result.MinimumPrice != 6998 { // A full level is wiped out and this one should be preserved.
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
 	}
 
@@ -419,7 +413,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
 	}
 
-	// Half of second tranche
+	// Half of second level
 	result, err = b.SimulateOrder(2, false)
 	require.NoError(t, err)
 
@@ -449,15 +443,15 @@ func TestSimulateOrder(t *testing.T) {
 }
 
 func TestGetAveragePrice(t *testing.T) {
-	b := Base{
+	b := Book{
 		Exchange: "Binance",
 		Pair:     currency.NewBTCUSD(),
 	}
 	_, err := b.GetAveragePrice(false, 5)
 	assert.ErrorIs(t, err, errNotEnoughLiquidity)
 
-	b = Base{
-		Asks: []Tranche{
+	b = Book{
+		Asks: []Level{
 			{Amount: 5, Price: 1},
 			{Amount: 5, Price: 2},
 			{Amount: 5, Price: 3},
@@ -480,7 +474,7 @@ func TestGetAveragePrice(t *testing.T) {
 }
 
 func TestFindNominalAmount(t *testing.T) {
-	b := Tranches{
+	b := Levels{
 		{Amount: 5, Price: 1},
 		{Amount: 5, Price: 2},
 		{Amount: 5, Price: 3},
@@ -490,7 +484,7 @@ func TestFindNominalAmount(t *testing.T) {
 	if nomAmt != 30 && remainingAmt != 0 {
 		t.Errorf("invalid return")
 	}
-	b = Tranches{}
+	b = Levels{}
 	nomAmt, remainingAmt = b.FindNominalAmount(15)
 	if nomAmt != 0 && remainingAmt != 30 {
 		t.Errorf("invalid return")

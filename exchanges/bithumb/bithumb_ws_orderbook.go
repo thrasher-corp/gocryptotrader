@@ -25,10 +25,10 @@ const (
 )
 
 func (b *Bithumb) processBooks(updates *WsOrderbooks) error {
-	bids := make([]orderbook.Tranche, 0, len(updates.List))
-	asks := make([]orderbook.Tranche, 0, len(updates.List))
+	bids := make([]orderbook.Level, 0, len(updates.List))
+	asks := make([]orderbook.Level, 0, len(updates.List))
 	for x := range updates.List {
-		i := orderbook.Tranche{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
+		i := orderbook.Level{Price: updates.List[x].Price, Amount: updates.List[x].Quantity}
 		if updates.List[x].OrderSide == "bid" {
 			bids = append(bids, i)
 			continue
@@ -351,7 +351,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(*WsOrderbooks) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -382,7 +382,7 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func (u *update) validate(updt *WsOrderbooks, recent *orderbook.Base) bool {
+func (u *update) validate(updt *WsOrderbooks, recent *orderbook.Book) bool {
 	return updt.DateTime.Time().After(recent.LastUpdated)
 }
 
@@ -425,17 +425,17 @@ func (b *Bithumb) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Bithumb) SeedLocalCacheWithBook(p currency.Pair, o *Orderbook) error {
-	var newOrderBook orderbook.Base
-	newOrderBook.Bids = make(orderbook.Tranches, len(o.Data.Bids))
+	var newOrderBook orderbook.Book
+	newOrderBook.Bids = make(orderbook.Levels, len(o.Data.Bids))
 	for i := range o.Data.Bids {
-		newOrderBook.Bids[i] = orderbook.Tranche{
+		newOrderBook.Bids[i] = orderbook.Level{
 			Amount: o.Data.Bids[i].Quantity,
 			Price:  o.Data.Bids[i].Price,
 		}
 	}
-	newOrderBook.Asks = make(orderbook.Tranches, len(o.Data.Asks))
+	newOrderBook.Asks = make(orderbook.Levels, len(o.Data.Asks))
 	for i := range o.Data.Asks {
-		newOrderBook.Asks[i] = orderbook.Tranche{
+		newOrderBook.Asks[i] = orderbook.Level{
 			Amount: o.Data.Asks[i].Quantity,
 			Price:  o.Data.Asks[i].Price,
 		}

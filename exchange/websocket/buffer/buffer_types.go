@@ -22,7 +22,7 @@ type Config struct {
 	// prior ID. This will skip processing and not error.
 	UpdateIDProgression bool
 	// Checksum is a package defined checksum calculation for updated books.
-	Checksum func(state *orderbook.Base, checksum uint32) error
+	Checksum func(state *orderbook.Book, checksum uint32) error
 }
 
 // Orderbook defines a local cache of orderbooks for amending, appending
@@ -42,7 +42,7 @@ type Orderbook struct {
 	// prior ID. This will skip processing and not error.
 	updateIDProgression bool
 	// checksum is a package defined checksum calculation for updated books.
-	checksum func(state *orderbook.Base, checksum uint32) error
+	checksum func(state *orderbook.Book, checksum uint32) error
 	// TODO: sync.RWMutex. For the moment we process the orderbook in a single
 	// thread. In future when there are workers directly involved this can be
 	// can be improved with RW mechanics which will allow updates to occur at

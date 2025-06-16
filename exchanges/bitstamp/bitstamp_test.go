@@ -941,14 +941,14 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestOrderbookZeroBidPrice(t *testing.T) {
 	t.Parallel()
 
-	ob := &orderbook.Base{
+	ob := &orderbook.Book{
 		Exchange: "Bitstamp",
 		Pair:     btcusdPair,
 		Asset:    asset.Spot,
 	}
 	filterOrderbookZeroBidPrice(ob)
 
-	ob.Bids = orderbook.Tranches{
+	ob.Bids = orderbook.Levels{
 		{Price: 69, Amount: 1337},
 		{Price: 0, Amount: 69},
 	}
@@ -957,7 +957,7 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 		t.Error("invalid orderbook bid values")
 	}
 
-	ob.Bids = orderbook.Tranches{
+	ob.Bids = orderbook.Levels{
 		{Price: 59, Amount: 1337},
 		{Price: 42, Amount: 8595},
 	}
