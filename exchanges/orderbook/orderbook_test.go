@@ -251,7 +251,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 	require.NoError(t, b.Process(), "Process must not error")
 
 	result, err := Get("testCreateNewOrderbook", pair, asset.Spot)
-	require.NoError(t, err)
+	require.NoError(t, err, "Get must not error")
 	assert.True(t, result.Pair.Equal(pair))
 
 	ac, total := result.TotalAsksAmount()
