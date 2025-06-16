@@ -376,11 +376,11 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		Asset:                      asset.Spot,
 		SkipOutOfOrderLastUpdateID: true,
 	})
-	require.NoError(t, err)
+	require.NoError(t, err, "Out of sequence Update must not error")
 
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
-	require.NoError(t, err)
-	assert.Equal(t, int64(len(itemArray)+69420), ob.LastUpdateID)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Equal(t, int64(len(itemArray)+69420), ob.LastUpdateID, "Out of sequence Update should not change LastUpdateID")
 }
 
 // TestRunUpdateWithoutSnapshot logic test
@@ -479,12 +479,12 @@ func TestFlushBuffer(t *testing.T) {
 	require.NoError(t, err)
 
 	obl, _, _, err := createSnapshot(cp)
-	require.NoError(t, err)
+	require.NoError(t, err, "createSnapshot must not error")
+	require.NotEmpty(t, obl.ob, "createSnapshot must not return empty")
 
-	assert.NotEmpty(t, obl.ob)
-
-	holder, ok := obl.ob[key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}]
-	require.True(t, ok)
+	k := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
+	holder, ok := obl.ob[k]
+	require.Truef(t, ok, "createSnapshot must return a orderbook for %v", k)
 
 	holder.buffer = make([]orderbook.Update, 0, 10)
 	holder.buffer = append(holder.buffer, orderbook.Update{})
