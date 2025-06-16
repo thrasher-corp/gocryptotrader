@@ -9,19 +9,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Action defines a set of differing states required to implement an incoming orderbook update used in conjunction with
-// UpdateEntriesByID
-type Action uint8
+// ActionType defines the behaviour of an orderbook update
+type ActionType uint8
 
+// ActionType constants for use with ProcessUpdate
 const (
-	// Amend applies amount adjustment by ID
-	Amend Action = iota + 1
-	// Delete removes price level from book by ID
-	Delete
-	// Insert adds price level to book
-	Insert
-	// UpdateInsert on conflict applies amount adjustment or appends new amount to book
-	UpdateInsert
+	UnknownAction ActionType = iota
+	InsertAction
+	UpdateOrInsertAction
+	UpdateAction
+	DeleteAction
 )
 
 // Public error vars
@@ -59,7 +56,7 @@ type Update struct {
 	AllowEmpty bool
 	// Action defines the action to be performed on the orderbook e.g. amend, delete, insert, update/insert
 	// Orderbook IDs are used to identify the orderbook level to be updated, deleted or inserted
-	Action Action
+	Action ActionType
 
 	SkipOutOfOrderLastUpdateID bool
 }
@@ -137,21 +134,21 @@ func (d *Depth) snapshot() *Base {
 // price to perform the action
 func (d *Depth) updateByIDAndAction(u *Update) error {
 	switch u.Action {
-	case Amend:
+	case UpdateAction:
 		if err := d.updateBidAskByID(u); err != nil {
 			return fmt.Errorf("%w %w", errAmendFailure, err)
 		}
-	case Delete:
+	case DeleteAction:
 		// edge case for Bitfinex as their streaming endpoint duplicates deletes
 		bypassErr := d.options.exchange == "Bitfinex" && d.options.isFundingRate // TODO: Confirm this is still correct
 		if err := d.deleteBidAskByID(u, bypassErr); err != nil {
 			return fmt.Errorf("%w %w", errDeleteFailure, err)
 		}
-	case Insert:
+	case InsertAction:
 		if err := d.insertBidAskByID(u); err != nil {
 			return fmt.Errorf("%w %w", errInsertFailure, err)
 		}
-	case UpdateInsert:
+	case UpdateOrInsertAction:
 		if err := d.updateInsertByID(u); err != nil {
 			return fmt.Errorf("%w %w", errUpdateInsertFailure, err)
 		}

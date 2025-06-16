@@ -1592,7 +1592,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 		}
 
 		if book[i].Price > 0 {
-			orderbookUpdate.Action = orderbook.UpdateInsert
+			orderbookUpdate.Action = orderbook.UpdateOrInsertAction
 			if fundingRate {
 				if book[i].Amount < 0 {
 					item.Amount *= -1
@@ -1609,7 +1609,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 				}
 			}
 		} else {
-			orderbookUpdate.Action = orderbook.Delete
+			orderbookUpdate.Action = orderbook.DeleteAction
 			if fundingRate {
 				if book[i].Amount == 1 {
 					// delete bid

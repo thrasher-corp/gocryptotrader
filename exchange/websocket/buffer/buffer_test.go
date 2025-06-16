@@ -233,7 +233,7 @@ func TestInsertWithIDs(t *testing.T) {
 			Pair:       cp,
 			UpdateTime: time.Now(),
 			Asset:      asset.Spot,
-			Action:     orderbook.UpdateInsert,
+			Action:     orderbook.UpdateOrInsertAction,
 		})
 		require.NoError(t, err)
 	}

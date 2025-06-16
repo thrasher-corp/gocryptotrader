@@ -605,16 +605,16 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 }
 
 // GetActionFromString matches a string action to an internal action.
-func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
+func (b *Bitmex) GetActionFromString(s string) (orderbook.ActionType, error) {
 	switch s {
 	case "update":
-		return orderbook.Amend, nil
+		return orderbook.UpdateAction, nil
 	case "delete":
-		return orderbook.Delete, nil
+		return orderbook.DeleteAction, nil
 	case "insert":
-		return orderbook.Insert, nil
+		return orderbook.InsertAction, nil
 	case "update/insert":
-		return orderbook.UpdateInsert, nil
+		return orderbook.UpdateOrInsertAction, nil
 	}
 	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }
