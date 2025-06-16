@@ -560,19 +560,19 @@ func (cr *Cryptodotcom) processOTCOrderbook(resp *WsResult) error {
 		return err
 	}
 	for x := range data {
-		book := orderbook.Base{
+		book := orderbook.Book{
 			Exchange:        cr.Name,
 			Pair:            cp,
 			Asset:           asset.OTC,
 			VerifyOrderbook: cr.CanVerifyOrderbook,
 			LastUpdated:     resp.Timestamp.Time(),
 		}
-		book.Asks = make([]orderbook.Tranche, len(data[x].Asks))
+		book.Asks = make([]orderbook.Level, len(data[x].Asks))
 		for i := range data[x].Asks {
 			book.Asks[i].Price = data[x].Asks[i][0].Float64()
 			book.Asks[i].Amount = data[x].Asks[i][1].Float64()
 		}
-		book.Bids = make([]orderbook.Tranche, len(data[x].Bids))
+		book.Bids = make([]orderbook.Level, len(data[x].Bids))
 		for i := range data[x].Bids {
 			book.Bids[i].Price = data[x].Bids[i][0].Float64()
 			book.Bids[i].Amount = data[x].Bids[i][1].Float64()
@@ -693,7 +693,7 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 		return err
 	}
 	for x := range data {
-		book := orderbook.Base{
+		book := orderbook.Book{
 			Exchange:        cr.Name,
 			Pair:            cp,
 			Asset:           asset.Spot,
@@ -701,12 +701,12 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 			LastUpdateID:    data[x].UpdateSequence,
 			VerifyOrderbook: cr.CanVerifyOrderbook,
 		}
-		book.Asks = make([]orderbook.Tranche, len(data[x].Asks))
+		book.Asks = make([]orderbook.Level, len(data[x].Asks))
 		for i := range data[x].Asks {
 			book.Asks[i].Price = data[x].Asks[i][0].Float64()
 			book.Asks[i].Amount = data[x].Asks[i][1].Float64()
 		}
-		book.Bids = make([]orderbook.Tranche, len(data[x].Bids))
+		book.Bids = make([]orderbook.Level, len(data[x].Bids))
 		for i := range data[x].Bids {
 			book.Bids[i].Price = data[x].Bids[i][0].Float64()
 			book.Bids[i].Amount = data[x].Bids[i][1].Float64()

@@ -337,7 +337,7 @@ func (cr *Cryptodotcom) FetchTicker(ctx context.Context, p currency.Pair, assetT
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (cr *Cryptodotcom) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (cr *Cryptodotcom) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if !cr.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
@@ -349,7 +349,7 @@ func (cr *Cryptodotcom) FetchOrderbook(ctx context.Context, pair currency.Pair, 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if !cr.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
@@ -361,7 +361,7 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        cr.Name,
 		Pair:            pair,
 		Asset:           assetType,
@@ -370,16 +370,16 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	if len(orderbookNew.Data) == 0 {
 		return nil, fmt.Errorf("%w, missing orderbook data", orderbook.ErrOrderbookInvalid)
 	}
-	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Data[0].Bids))
+	book.Bids = make([]orderbook.Level, len(orderbookNew.Data[0].Bids))
 	for x := range orderbookNew.Data[0].Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Data[0].Bids[x][1].Float64(),
 			Price:  orderbookNew.Data[0].Bids[x][0].Float64(),
 		}
 	}
-	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Data[0].Asks))
+	book.Asks = make([]orderbook.Level, len(orderbookNew.Data[0].Asks))
 	for x := range orderbookNew.Data[0].Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Data[0].Asks[x][1].Float64(),
 			Price:  orderbookNew.Data[0].Asks[x][0].Float64(),
 		}
