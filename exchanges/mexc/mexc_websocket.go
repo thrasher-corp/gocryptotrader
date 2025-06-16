@@ -278,7 +278,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		body := result.GetPublicAggreBookTicker()
-		ask := orderbook.Tranche{}
+		ask := orderbook.Level{}
 		ask.Price, err = strconv.ParseFloat(body.AskPrice, 64)
 		if err != nil {
 			return err
@@ -287,7 +287,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		bid := orderbook.Tranche{}
+		bid := orderbook.Level{}
 		bid.Price, err = strconv.ParseFloat(body.BidPrice, 64)
 		if err != nil {
 			return err
@@ -301,11 +301,11 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    me.Name,
 				Asset:       asset.Spot,
-				Asks:        []orderbook.Tranche{ask},
-				Bids:        []orderbook.Tranche{bid},
+				Asks:        []orderbook.Level{ask},
+				Bids:        []orderbook.Level{bid},
 				Pair:        cp,
 				LastUpdated: time.Now(),
 			})
@@ -320,8 +320,8 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		return me.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       cp,
 			Asset:      asset.Spot,
-			Asks:       []orderbook.Tranche{ask},
-			Bids:       []orderbook.Tranche{bid},
+			Asks:       []orderbook.Level{ask},
+			Bids:       []orderbook.Level{bid},
 			UpdateTime: time.Now(),
 		})
 	case chnlAggregateDepthV3:
@@ -341,7 +341,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, len(depths.Asks))
+		asks := make(orderbook.Levels, len(depths.Asks))
 		for a := range depths.Asks {
 			asks[a].Price, err = strconv.ParseFloat(depths.Asks[a].Price, 64)
 			if err != nil {
@@ -352,7 +352,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		bids := make(orderbook.Tranches, len(depths.Bids))
+		bids := make(orderbook.Levels, len(depths.Bids))
 		for b := range depths.Bids {
 			bids[b].Price, err = strconv.ParseFloat(depths.Bids[b].Price, 64)
 			if err != nil {
@@ -365,7 +365,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		}
 
 		if !orderbookSnapshotLoadedPairs[*result.Symbol] {
-			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    me.Name,
 				Asset:       asset.Spot,
 				Asks:        asks,
@@ -487,7 +487,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 		}
 		body := result.GetPublicIncreaseDepthsBatch()
 		for ob := range body.Items {
-			asks := make(orderbook.Tranches, len(body.Items[ob].Asks))
+			asks := make(orderbook.Levels, len(body.Items[ob].Asks))
 			for a := range body.Items[ob].Asks {
 				asks[a].Price, err = strconv.ParseFloat(body.Items[ob].Asks[a].Price, 64)
 				if err != nil {
@@ -498,7 +498,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 					return err
 				}
 			}
-			bids := make(orderbook.Tranches, len(body.Items[ob].Bids))
+			bids := make(orderbook.Levels, len(body.Items[ob].Bids))
 			for b := range body.Items[ob].Bids {
 				bids[b].Price, err = strconv.ParseFloat(body.Items[ob].Bids[b].Price, 64)
 				if err != nil {
@@ -510,7 +510,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 				}
 			}
 			if ok := orderbookSnapshotLoadedPairs[dataSplit[2]]; !ok {
-				err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				err = me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 					Exchange:    me.Name,
 					Pair:        cp,
 					Asks:        asks,
@@ -549,7 +549,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 			return err
 		}
 		body := result.GetPublicLimitDepths()
-		asks := make(orderbook.Tranches, len(body.Asks))
+		asks := make(orderbook.Levels, len(body.Asks))
 		for a := range body.Asks {
 			asks[a].Price, err = strconv.ParseFloat(body.Asks[a].Price, 64)
 			if err != nil {
@@ -560,7 +560,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		bids := make(orderbook.Tranches, len(body.Bids))
+		bids := make(orderbook.Levels, len(body.Bids))
 		for b := range body.Bids {
 			bids[b].Price, err = strconv.ParseFloat(body.Bids[b].Price, 64)
 			if err != nil {
@@ -571,7 +571,7 @@ func (me *MEXC) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:       asset.Spot,
 			Bids:        bids,
 			Asks:        asks,

@@ -533,23 +533,23 @@ func (me *MEXC) processOrderbookDepth(data []byte, symbol string) error {
 	if err != nil {
 		return err
 	}
-	asks := make(orderbook.Tranches, len(resp.Asks))
+	asks := make(orderbook.Levels, len(resp.Asks))
 	for a := range resp.Asks {
-		asks[a] = orderbook.Tranche{
+		asks[a] = orderbook.Level{
 			Price:      resp.Asks[a][0],
 			Amount:     resp.Asks[a][1],
 			OrderCount: int64(resp.Asks[a][2]),
 		}
 	}
-	bids := make(orderbook.Tranches, len(resp.Bids))
+	bids := make(orderbook.Levels, len(resp.Bids))
 	for b := range resp.Bids {
-		bids[b] = orderbook.Tranche{
+		bids[b] = orderbook.Level{
 			Price:      resp.Bids[b][0],
 			Amount:     resp.Bids[b][1],
 			OrderCount: int64(resp.Bids[b][2]),
 		}
 	}
-	return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+	return me.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Bids:        bids,
 		Asks:        asks,
 		Exchange:    me.Name,

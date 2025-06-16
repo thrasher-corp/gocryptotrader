@@ -810,7 +810,7 @@ type ContractOrderbook struct {
 }
 
 // OrderbookData holds orderbook depth detail
-type OrderbookData orderbook.Tranche
+type OrderbookData orderbook.Level
 
 // UnmarshalJSON deserializes slice of byte data into OrderbookData
 func (od *OrderbookData) UnmarshalJSON(data []byte) error {
@@ -830,7 +830,7 @@ type ContractOrderbookWithDepth struct {
 }
 
 // OrderbookDataWithDepth holds orderbook data with the depth
-type OrderbookDataWithDepth orderbook.Tranche
+type OrderbookDataWithDepth orderbook.Level
 
 // UnmarshalJSON deserializes slice of byte data into OrderbookDataWithDepth
 func (od *OrderbookDataWithDepth) UnmarshalJSON(data []byte) error {

@@ -384,7 +384,7 @@ func (me *MEXC) FetchTicker(ctx context.Context, p currency.Pair, assetType asse
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (me *MEXC) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (me *MEXC) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	ob, err := orderbook.Get(me.Name, pair, assetType)
 	if err != nil {
 		return me.UpdateOrderbook(ctx, pair, assetType)
@@ -393,7 +393,7 @@ func (me *MEXC) FetchOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -401,7 +401,7 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        me.Name,
 		Pair:            pair,
 		Asset:           assetType,
@@ -414,16 +414,16 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 			return book, err
 		}
 
-		book.Bids = make([]orderbook.Tranche, len(result.Bids))
+		book.Bids = make([]orderbook.Level, len(result.Bids))
 		for x := range result.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Price:  result.Bids[x][0].Float64(),
 				Amount: result.Bids[x][1].Float64(),
 			}
 		}
-		book.Asks = make([]orderbook.Tranche, len(result.Asks))
+		book.Asks = make([]orderbook.Level, len(result.Asks))
 		for x := range result.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Price:  result.Asks[x][0].Float64(),
 				Amount: result.Asks[x][1].Float64(),
 			}
@@ -437,16 +437,16 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = make([]orderbook.Tranche, len(result.Bids))
+		book.Bids = make([]orderbook.Level, len(result.Bids))
 		for x := range result.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Price:  result.Bids[x].Price,
 				Amount: result.Bids[x].Amount,
 			}
 		}
-		book.Asks = make([]orderbook.Tranche, len(result.Asks))
+		book.Asks = make([]orderbook.Level, len(result.Asks))
 		for x := range result.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Price:  result.Asks[x].Price,
 				Amount: result.Asks[x].Amount,
 			}
