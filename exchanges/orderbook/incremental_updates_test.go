@@ -10,11 +10,11 @@ import (
 
 func newSnapshot(length int) *Base {
 	return &Base{
-		Bids:           newBids(length),
-		Asks:           newAsks(length, length),
-		LastUpdated:    time.Now(),
-		UpdatePushedAt: time.Now(),
-		LastUpdateID:   1,
+		Bids:         newBids(length),
+		Asks:         newAsks(length, length),
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1,
 	}
 }
 
@@ -128,7 +128,7 @@ func TestUpdate(t *testing.T) {
 func TestUpdateBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -167,7 +167,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 func TestDelete(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -212,7 +212,7 @@ func TestDelete(t *testing.T) {
 func TestInsert(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -226,7 +226,7 @@ func TestInsert(t *testing.T) {
 	err = d.insert(updates)
 	assert.ErrorIs(t, err, errCollisionDetected, "insert should error correctly on collision")
 
-	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -237,7 +237,7 @@ func TestInsert(t *testing.T) {
 	err = d.insert(updates)
 	assert.ErrorIs(t, err, errCollisionDetected, "insert should error correctly on collision")
 
-	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -257,7 +257,7 @@ func TestInsert(t *testing.T) {
 func TestUpdateOrInsert(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
@@ -271,7 +271,7 @@ func TestUpdateOrInsert(t *testing.T) {
 	err = d.updateOrInsert(updates)
 	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "updateOrInsert should error correctly")
 
-	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -282,7 +282,7 @@ func TestUpdateOrInsert(t *testing.T) {
 	err = d.updateOrInsert(updates)
 	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "updateOrInsert should error correctly")
 
-	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err = d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1337, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
@@ -302,7 +302,7 @@ func TestUpdateOrInsert(t *testing.T) {
 func TestUpdateBidAskByPrice(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1338, Amount: 10, ID: 2}}, LastUpdated: time.Now(), UpdatePushedAt: time.Now()})
+	err := d.LoadSnapshot(&Base{Bids: Tranches{{Price: 1337, Amount: 1, ID: 1}}, Asks: Tranches{{Price: 1338, Amount: 10, ID: 2}}, LastUpdated: time.Now(), LastPushed: time.Now()})
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	err = d.updateBidAskByPrice(&Update{})

@@ -94,15 +94,15 @@ type Base struct {
 	// which could be stale if there have been no recent changes.
 	LastUpdated time.Time
 
-	// UpdatePushedAt is the time the exchange pushed this update. This helps
+	// LastPushed is the time the exchange pushed this update. This helps
 	// determine factors like distance from exchange (latency) and routing
 	// time, which can affect the time it takes for an update to reach the user
 	// from the exchange.
-	UpdatePushedAt time.Time
+	LastPushed time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
-	// processing delays, e.g., InsertedAt.Sub(UpdatePushedAt) represents the
+	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
 	// total processing time including network latency.
 	InsertedAt time.Time
 
@@ -136,7 +136,7 @@ type options struct {
 	pair                   currency.Pair
 	asset                  asset.Item
 	lastUpdated            time.Time
-	updatePushedAt         time.Time
+	lastPushed             time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool

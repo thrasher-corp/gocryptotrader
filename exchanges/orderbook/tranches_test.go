@@ -1246,7 +1246,7 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			err := depth.LoadSnapshot(&Base{Bids: tt.BidLiquidity, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+			err := depth.LoadSnapshot(&Base{Bids: tt.BidLiquidity, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1378,7 +1378,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			err := depth.LoadSnapshot(&Base{Bids: tt.BidLiquidity, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+			err := depth.LoadSnapshot(&Base{Bids: tt.BidLiquidity, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 			assert.NoError(t, err, "LoadSnapshot should not error")
 
 			base, err := depth.bidTranches.hitBidsByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
@@ -1485,7 +1485,7 @@ func TestGetBaseAmountFromImpact(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			err := depth.LoadSnapshot(&Base{Bids: tt.BidLiquidity, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+			err := depth.LoadSnapshot(&Base{Bids: tt.BidLiquidity, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1569,7 +1569,7 @@ func TestGetMovementByQuoteAmount(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			err := depth.LoadSnapshot(&Base{Asks: tt.AskLiquidity, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+			err := depth.LoadSnapshot(&Base{Asks: tt.AskLiquidity, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1699,7 +1699,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			err := depth.LoadSnapshot(&Base{Asks: tt.AskLiquidity, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+			err := depth.LoadSnapshot(&Base{Asks: tt.AskLiquidity, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 			assert.NoError(t, err, "LoadSnapshot should not error")
 
 			quote, err := depth.askTranches.liftAsksByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
@@ -1787,7 +1787,7 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
-			err := depth.LoadSnapshot(&Base{Asks: tt.AskLiquidity, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+			err := depth.LoadSnapshot(&Base{Asks: tt.AskLiquidity, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 			assert.NoError(t, err, "LoadSnapshot should not error")
 
 			quote, err := depth.askTranches.liftAsksByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
@@ -1808,7 +1808,7 @@ func TestGetHeadPrice(t *testing.T) {
 	_, err = depth.askTranches.getHeadPriceNoLock()
 	require.ErrorIs(t, err, errNoLiquidity)
 
-	err = depth.LoadSnapshot(&Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), UpdatePushedAt: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "LoadSnapshot must not error")
 
 	val, err := depth.bidTranches.getHeadPriceNoLock()
