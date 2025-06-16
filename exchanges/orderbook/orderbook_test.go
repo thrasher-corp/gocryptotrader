@@ -396,7 +396,7 @@ func TestProcessOrderbook(t *testing.T) {
 	wg.Wait()
 }
 
-func deployUnorderedSlice() Levels {
+func levelsFixtureRandom() Levels {
 	lvls := make([]Level, 1000)
 	for x := range 1000 {
 		lvls[x] = Level{Amount: 1, Price: rand.Float64(), ID: rand.Int63()} //nolint:gosec // Not needed in tests
