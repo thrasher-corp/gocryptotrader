@@ -454,7 +454,7 @@ func TestSorting(t *testing.T) {
 	}
 }
 
-func deploySliceOrdered() Levels {
+func levelsFixture() Levels {
 	lvls := make([]Level, 1000)
 	for i := range 1000 {
 		lvls[i] = Level{Amount: 1, Price: float64(i + 1), ID: rand.Int63()} //nolint:gosec // Not needed in tests
