@@ -116,8 +116,8 @@ func TestTotalBidsAmount(t *testing.T) {;
 	t.Parallel()
 	b := Book{Pair: currency.NewBTCUSD(), Bids: []Level{{Price: 100, Amount: 10}}, LastUpdated: time.Now()}
 	ac, total := b.TotalBidsAmount()
-	require.Equal(t, 10.0, ac)
-	require.Equal(t, 1000.0, total)
+	assert.Equal(t, 10.0, ac, "should return amount")
+	assert.Equal(t, 1000.0, total, "should return total")
 }
 
 func TestTotalAsksAmount(t *testing.T) {
