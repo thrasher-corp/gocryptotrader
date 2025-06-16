@@ -400,13 +400,13 @@ func (b *Exchange) processOrderbook(data []OrderBookL2, action string, p currenc
 
 	switch action {
 	case bitmexActionInitialData:
-		book := orderbook.Base{
-			Asks: make(orderbook.Tranches, 0, len(data)),
-			Bids: make(orderbook.Tranches, 0, len(data)),
+		book := orderbook.Book{
+			Asks: make(orderbook.Levels, 0, len(data)),
+			Bids: make(orderbook.Levels, 0, len(data)),
 		}
 
 		for i := range data {
-			item := orderbook.Tranche{
+			item := orderbook.Level{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
@@ -439,10 +439,10 @@ func (b *Exchange) processOrderbook(data []OrderBookL2, action string, p currenc
 			return err
 		}
 
-		asks := make([]orderbook.Tranche, 0, len(data))
-		bids := make([]orderbook.Tranche, 0, len(data))
+		asks := make([]orderbook.Level, 0, len(data))
+		bids := make([]orderbook.Level, 0, len(data))
 		for i := range data {
-			nItem := orderbook.Tranche{
+			nItem := orderbook.Level{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,

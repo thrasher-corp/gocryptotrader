@@ -649,12 +649,12 @@ func (g *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (g *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	return g.UpdateOrderbookWithLimit(ctx, p, a, 0)
 }
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
-func (g *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Base, error) {
+func (g *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
 	p, err := g.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -688,7 +688,7 @@ func (g *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        g.Name,
 		Asset:           a,
 		VerifyOrderbook: g.CanVerifyOrderbook,
@@ -697,16 +697,16 @@ func (g *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		LastUpdated:     o.Update.Time(),
 		LastPushed:      o.Current.Time(),
 	}
-	book.Bids = make(orderbook.Tranches, len(o.Bids))
+	book.Bids = make(orderbook.Levels, len(o.Bids))
 	for x := range o.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: o.Bids[x].Amount.Float64(),
 			Price:  o.Bids[x].Price.Float64(),
 		}
 	}
-	book.Asks = make(orderbook.Tranches, len(o.Asks))
+	book.Asks = make(orderbook.Levels, len(o.Asks))
 	for x := range o.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: o.Asks[x].Amount.Float64(),
 			Price:  o.Asks[x].Price.Float64(),
 		}

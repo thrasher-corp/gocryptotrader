@@ -666,12 +666,12 @@ func (k *Exchange) wsProcessOrderBook(c string, response []any, pair currency.Pa
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Exchange) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData []any, levels int) error {
-	base := orderbook.Base{
+	base := orderbook.Book{
 		Pair:                   pair,
 		Asset:                  asset.Spot,
 		VerifyOrderbook:        k.CanVerifyOrderbook,
-		Bids:                   make(orderbook.Tranches, len(bidData)),
-		Asks:                   make(orderbook.Tranches, len(askData)),
+		Bids:                   make(orderbook.Levels, len(bidData)),
+		Asks:                   make(orderbook.Levels, len(askData)),
 		MaxDepth:               levels,
 		ChecksumStringRequired: true,
 	}
@@ -711,7 +711,7 @@ func (k *Exchange) wsProcessOrderBookPartial(pair currency.Pair, askData, bidDat
 		if err != nil {
 			return err
 		}
-		base.Asks[i] = orderbook.Tranche{
+		base.Asks[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -756,7 +756,7 @@ func (k *Exchange) wsProcessOrderBookPartial(pair currency.Pair, askData, bidDat
 			return err
 		}
 
-		base.Bids[i] = orderbook.Tranche{
+		base.Bids[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -778,8 +778,8 @@ func (k *Exchange) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData
 	update := orderbook.Update{
 		Asset: asset.Spot,
 		Pair:  pair,
-		Bids:  make([]orderbook.Tranche, len(bidData)),
-		Asks:  make([]orderbook.Tranche, len(askData)),
+		Bids:  make([]orderbook.Level, len(bidData)),
+		Asks:  make([]orderbook.Level, len(askData)),
 	}
 
 	// Calculating checksum requires incoming decimal place checks for both
@@ -824,7 +824,7 @@ func (k *Exchange) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData
 			return err
 		}
 
-		update.Asks[i] = orderbook.Tranche{
+		update.Asks[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -874,7 +874,7 @@ func (k *Exchange) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData
 			return err
 		}
 
-		update.Bids[i] = orderbook.Tranche{
+		update.Bids[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -906,7 +906,7 @@ func (k *Exchange) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData
 	return validateCRC32(book, uint32(token))
 }
 
-func validateCRC32(b *orderbook.Base, token uint32) error {
+func validateCRC32(b *orderbook.Book, token uint32) error {
 	if b == nil {
 		return common.ErrNilPointer
 	}

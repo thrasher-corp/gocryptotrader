@@ -477,7 +477,7 @@ func (by *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (by *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (by *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -506,22 +506,22 @@ func (by *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetT
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        by.Name,
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Tranche, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Tranche, len(orderbookNew.Asks)),
+		Bids:            make([]orderbook.Level, len(orderbookNew.Bids)),
+		Asks:            make([]orderbook.Level, len(orderbookNew.Asks)),
 	}
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}

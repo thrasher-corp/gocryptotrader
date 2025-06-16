@@ -824,10 +824,10 @@ func (ku *Exchange) GetFuturesTransferOutList(ctx context.Context, ccy currency.
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTransferOutListEPL, http.MethodGet, common.EncodeURLValues("/v1/transfer-list", params), nil, &resp)
 }
 
-func processFuturesOB(ob [][2]float64) []orderbook.Tranche {
-	o := make([]orderbook.Tranche, len(ob))
+func processFuturesOB(ob [][2]float64) []orderbook.Level {
+	o := make([]orderbook.Level, len(ob))
 	for x := range ob {
-		o[x] = orderbook.Tranche{
+		o[x] = orderbook.Level{
 			Price:  ob[x][0],
 			Amount: ob[x][1],
 		}

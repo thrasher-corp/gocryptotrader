@@ -95,7 +95,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*w = WebsocketOrderbook(make(orderbook.Tranches, len(resp)))
+	*w = WebsocketOrderbook(make(orderbook.Levels, len(resp)))
 	for x := range resp {
 		(*w)[x].Price = resp[x][0].Float64()
 		(*w)[x].Amount = resp[x][1].Float64()
@@ -123,10 +123,10 @@ func (b *Exchange) wsHandleData(respRaw []byte) error {
 		}
 
 		if ob.Snapshot {
-			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Pair:            ob.Currency,
-				Bids:            orderbook.Tranches(ob.Bids),
-				Asks:            orderbook.Tranches(ob.Asks),
+				Bids:            orderbook.Levels(ob.Bids),
+				Asks:            orderbook.Levels(ob.Asks),
 				LastUpdated:     ob.Timestamp,
 				LastUpdateID:    ob.SnapshotID,
 				Asset:           asset.Spot,
@@ -138,8 +138,8 @@ func (b *Exchange) wsHandleData(respRaw []byte) error {
 				UpdateTime: ob.Timestamp,
 				UpdateID:   ob.SnapshotID,
 				Asset:      asset.Spot,
-				Bids:       orderbook.Tranches(ob.Bids),
-				Asks:       orderbook.Tranches(ob.Asks),
+				Bids:       orderbook.Levels(ob.Bids),
+				Asks:       orderbook.Levels(ob.Asks),
 				Pair:       ob.Currency,
 				Checksum:   ob.Checksum,
 			})
@@ -418,7 +418,7 @@ func (b *Exchange) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 }
 
 // checksum provides assurance on current in memory liquidity
-func checksum(ob *orderbook.Base, checksum uint32) error {
+func checksum(ob *orderbook.Book, checksum uint32) error {
 	check := crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 	if check != checksum {
 		return fmt.Errorf("%s %s %s ID: %v expected: %v but received: %v %w",
@@ -434,7 +434,7 @@ func checksum(ob *orderbook.Base, checksum uint32) error {
 }
 
 // concatOrderbookLiquidity concatenates price and amounts together for checksum processing
-func concatOrderbookLiquidity(liquidity orderbook.Tranches) string {
+func concatOrderbookLiquidity(liquidity orderbook.Levels) string {
 	var c string
 	for x := range min(10, len(liquidity)) {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)

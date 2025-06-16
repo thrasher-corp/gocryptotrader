@@ -296,7 +296,7 @@ func (h *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 	if err := json.Unmarshal(respRaw, &update); err != nil {
 		return err
 	}
-	bids := make(orderbook.Tranches, len(update.Tick.Bids))
+	bids := make(orderbook.Levels, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
 		price, ok := update.Tick.Bids[i][0].(float64)
 		if !ok {
@@ -306,13 +306,13 @@ func (h *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 		if !ok {
 			return errors.New("unable to type assert bid amount")
 		}
-		bids[i] = orderbook.Tranche{
+		bids[i] = orderbook.Level{
 			Price:  price,
 			Amount: amount,
 		}
 	}
 
-	asks := make(orderbook.Tranches, len(update.Tick.Asks))
+	asks := make(orderbook.Levels, len(update.Tick.Asks))
 	for i := range update.Tick.Asks {
 		price, ok := update.Tick.Asks[i][0].(float64)
 		if !ok {
@@ -322,13 +322,13 @@ func (h *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []
 		if !ok {
 			return errors.New("unable to type assert ask amount")
 		}
-		asks[i] = orderbook.Tranche{
+		asks[i] = orderbook.Level{
 			Price:  price,
 			Amount: amount,
 		}
 	}
 
-	var newOrderBook orderbook.Base
+	var newOrderBook orderbook.Book
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = s.Pairs[0]

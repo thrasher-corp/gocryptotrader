@@ -1767,8 +1767,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
-var testOb = orderbook.Base{
-	Asks: []orderbook.Tranche{
+var testOb = orderbook.Book{
+	Asks: []orderbook.Level{
 		{Price: 0.05005, Amount: 0.00000500},
 		{Price: 0.05010, Amount: 0.00000500},
 		{Price: 0.05015, Amount: 0.00000500},
@@ -1780,7 +1780,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, Amount: 0.00000500},
 		{Price: 0.05050, Amount: 0.00000500},
 	},
-	Bids: []orderbook.Tranche{
+	Bids: []orderbook.Level{
 		{Price: 0.05000, Amount: 0.00000500},
 		{Price: 0.04995, Amount: 0.00000500},
 		{Price: 0.04990, Amount: 0.00000500},
@@ -1802,7 +1802,7 @@ func TestChecksum(t *testing.T) {
 }
 
 func TestReOrderbyID(t *testing.T) {
-	asks := []orderbook.Tranche{
+	asks := []orderbook.Level{
 		{ID: 4, Price: 100, Amount: 0.00000500},
 		{ID: 3, Price: 100, Amount: 0.00000500},
 		{ID: 2, Price: 100, Amount: 0.00000500},
@@ -1822,7 +1822,7 @@ func TestReOrderbyID(t *testing.T) {
 		}
 	}
 
-	bids := []orderbook.Tranche{
+	bids := []orderbook.Level{
 		{ID: 4, Price: 100, Amount: 0.00000500},
 		{ID: 3, Price: 100, Amount: 0.00000500},
 		{ID: 2, Price: 100, Amount: 0.00000500},

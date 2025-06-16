@@ -503,12 +503,12 @@ func (g *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x].Price.Float64()
 		asks[x].Amount = data.Asks[x].Size
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
@@ -532,7 +532,7 @@ func (g *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		if err != nil {
 			return err
 		}
-		base := orderbook.Base{
+		base := orderbook.Book{
 			Asset:           asset.Options,
 			Exchange:        g.Name,
 			Pair:            data.Contract,
@@ -540,12 +540,12 @@ func (g *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 			LastPushed:      lastPushed,
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Asks = make([]orderbook.Tranche, len(data.Asks))
+		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Tranche, len(data.Bids))
+		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
@@ -557,18 +557,18 @@ func (g *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 	if err != nil {
 		return err
 	}
-	dataMap := map[string][2][]orderbook.Tranche{}
+	dataMap := map[string][2][]orderbook.Level{}
 	for x := range data {
 		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
-			ab = [2][]orderbook.Tranche{}
+			ab = [2][]orderbook.Level{}
 		}
 		if data[x].Amount > 0 {
-			ab[1] = append(ab[1], orderbook.Tranche{
+			ab[1] = append(ab[1], orderbook.Level{
 				Price: data[x].Price.Float64(), Amount: data[x].Amount,
 			})
 		} else {
-			ab[0] = append(ab[0], orderbook.Tranche{
+			ab[0] = append(ab[0], orderbook.Level{
 				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
 			})
 		}
@@ -584,7 +584,7 @@ func (g *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		if err != nil {
 			return err
 		}
-		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asks:            ab[0],
 			Bids:            ab[1],
 			Asset:           asset.Options,
