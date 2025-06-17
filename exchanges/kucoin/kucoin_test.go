@@ -64,14 +64,12 @@ func TestMain(m *testing.M) {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	ctx := context.Background()
-	getFirstTradablePairOfAssets(ctx)
+	getFirstTradablePairOfAssets(context.Background())
 	assertToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:    spotTradablePair,
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	ku.setupOrderbookManager(ctx)
 	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
@@ -2976,6 +2974,7 @@ func TestProcessOrderbook(t *testing.T) {
 	response := &WsOrderbook{}
 	err := json.Unmarshal([]byte(wsOrderbookData), &response)
 	assert.NoError(t, err)
+	ku.setupOrderbookManager(context.Background())
 	result, err := ku.updateLocalBuffer(response, asset.Spot)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

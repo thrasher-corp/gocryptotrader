@@ -1,7 +1,6 @@
 package binanceus
 
 import (
-	"context"
 	"log"
 	"os"
 	reflects "reflect"
@@ -51,7 +50,6 @@ func TestMain(m *testing.M) {
 	}
 
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	bi.setupOrderbookManager(context.Background())
 	os.Exit(m.Run())
 }
 
