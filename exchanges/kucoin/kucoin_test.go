@@ -2974,7 +2974,7 @@ func TestProcessOrderbook(t *testing.T) {
 	response := &WsOrderbook{}
 	err := json.Unmarshal([]byte(wsOrderbookData), &response)
 	assert.NoError(t, err)
-	ku.setupOrderbookManager(context.Background())
+	ku.setupOrderbookManager(t.Context())
 	result, err := ku.updateLocalBuffer(response, asset.Spot)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
