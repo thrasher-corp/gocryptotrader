@@ -85,21 +85,13 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 
 	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	if err != nil {
-		log.Errorf(
-			log.WebsocketMgr,
-			"%s error fetching recent orderbook when applying updates: %s\n",
-			b.Name,
-			err)
+		log.Errorf(log.WebsocketMgr, "%s error fetching recent orderbook when applying updates: %s\n", b.Name, err)
 	}
 
 	if recent != nil {
 		err = b.obm.checkAndProcessOrderbookUpdate(b.processBooks, pair, recent)
 		if err != nil {
-			log.Errorf(
-				log.WebsocketMgr,
-				"%s error processing update - initiating new orderbook sync via REST: %s\n",
-				b.Name,
-				err)
+			log.Errorf(log.WebsocketMgr, "%s error processing update - initiating new orderbook sync via REST: %s\n", b.Name, err)
 			err = b.obm.setNeedsFetchingBook(pair)
 			if err != nil {
 				return err
@@ -112,7 +104,7 @@ func (b *Bithumb) applyBufferUpdate(pair currency.Pair) error {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Bithumb) SynchroniseWebsocketOrderbook() {
+func (b *Bithumb) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	b.Websocket.Wg.Add(1)
 	go func() {
 		defer b.Websocket.Wg.Done()
@@ -127,11 +119,9 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 					}
 				}
 			case j := <-b.obm.jobs:
-				err := b.processJob(j.Pair)
+				err := b.processJob(ctx, j.Pair)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s processing websocket orderbook error %v",
-						b.Name, err)
+					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error %v", b.Name, err)
 				}
 			}
 		}
@@ -139,8 +129,8 @@ func (b *Bithumb) SynchroniseWebsocketOrderbook() {
 }
 
 // processJob fetches and processes orderbook updates
-func (b *Bithumb) processJob(p currency.Pair) error {
-	err := b.SeedLocalCache(context.TODO(), p)
+func (b *Bithumb) processJob(ctx context.Context, p currency.Pair) error {
+	err := b.SeedLocalCache(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
@@ -178,7 +168,7 @@ func (b *Bithumb) flushAndCleanup(p currency.Pair) {
 	}
 }
 
-func (b *Bithumb) setupOrderbookManager() {
+func (b *Bithumb) setupOrderbookManager(ctx context.Context) {
 	if b.obm.state == nil {
 		b.obm.state = make(map[currency.Code]map[currency.Code]map[asset.Item]*update)
 		b.obm.jobs = make(chan job, maxWSOrderbookJobs)
@@ -197,7 +187,7 @@ func (b *Bithumb) setupOrderbookManager() {
 
 	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
-		b.SynchroniseWebsocketOrderbook()
+		b.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 

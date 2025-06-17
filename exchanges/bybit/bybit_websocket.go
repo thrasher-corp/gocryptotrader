@@ -81,7 +81,7 @@ var subscriptionNames = map[string]string{
 
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -198,7 +198,7 @@ func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 	}).Parse(subTplText)
 }
 
-func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset.Item) error {
+func (by *Bybit) wsHandleData(_ context.Context, assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -243,7 +243,7 @@ func (by *Bybit) wsHandleData(_ context.Context, respRaw []byte, assetType asset
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
-func (by *Bybit) wsHandleAuthenticatedData(_ context.Context, respRaw []byte) error {
+func (by *Bybit) wsHandleAuthenticatedData(ctx context.Context, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -283,7 +283,7 @@ func (by *Bybit) wsHandleAuthenticatedData(_ context.Context, respRaw []byte) er
 		}
 		return by.wsProcessOrder(&result)
 	case chanWallet:
-		return by.wsProcessWalletPushData(respRaw)
+		return by.wsProcessWalletPushData(ctx, respRaw)
 	case chanGreeks:
 		return by.wsProcessGreeks(respRaw)
 	case chanDCP:
@@ -302,12 +302,12 @@ func (by *Bybit) wsProcessGreeks(resp []byte) error {
 	return nil
 }
 
-func (by *Bybit) wsProcessWalletPushData(resp []byte) error {
+func (by *Bybit) wsProcessWalletPushData(ctx context.Context, resp []byte) error {
 	var result WebsocketWallet
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	creds, err := by.GetCredentials(context.TODO())
+	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}

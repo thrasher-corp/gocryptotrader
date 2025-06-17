@@ -4031,7 +4031,7 @@ func TestPushData(t *testing.T) {
 			ok.API.AuthenticatedSupport = false
 			ok.API.AuthenticatedWebsocketSupport = false
 		}
-		err = ok.WsHandleData([]byte(pushDataMap[x]))
+		err = ok.WsHandleData(t.Context(), []byte(pushDataMap[x]))
 		require.NoErrorf(t, err, "Okx %s error %s", x, err)
 	}
 }
@@ -4045,7 +4045,7 @@ func TestPushDataDynamic(t *testing.T) {
 	}
 	var err error
 	for x := range dataMap {
-		err = ok.WsHandleData([]byte(dataMap[x]))
+		err = ok.WsHandleData(t.Context(), []byte(dataMap[x]))
 		require.NoError(t, err)
 	}
 }

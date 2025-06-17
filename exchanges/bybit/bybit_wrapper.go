@@ -243,7 +243,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: func() (subscription.List, error) { return by.generateSubscriptions() },
 		Subscriber:            by.Subscribe,
 		Unsubscriber:          by.Unsubscribe,
-		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Spot) },
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, asset.Spot, resp) },
 		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
@@ -259,7 +259,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: by.GenerateOptionsDefaultSubscriptions,
 		Subscriber:            by.OptionSubscribe,
 		Unsubscriber:          by.OptionUnsubscribe,
-		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, resp, asset.Options) },
+		Handler:               func(ctx context.Context, resp []byte) error { return by.wsHandleData(ctx, asset.Options, resp) },
 		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
@@ -278,7 +278,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Subscriber:   by.LinearSubscribe,
 		Unsubscriber: by.LinearUnsubscribe,
 		Handler: func(ctx context.Context, resp []byte) error {
-			return by.wsHandleData(ctx, resp, asset.USDTMarginedFutures)
+			return by.wsHandleData(ctx, asset.USDTMarginedFutures, resp)
 		},
 		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
 		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
@@ -299,7 +299,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Subscriber:   by.LinearSubscribe,
 		Unsubscriber: by.LinearUnsubscribe,
 		Handler: func(ctx context.Context, resp []byte) error {
-			return by.wsHandleData(ctx, resp, asset.USDCMarginedFutures)
+			return by.wsHandleData(ctx, asset.USDCMarginedFutures, resp)
 		},
 		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
 		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
@@ -318,7 +318,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		Subscriber:            by.InverseSubscribe,
 		Unsubscriber:          by.InverseUnsubscribe,
 		Handler: func(ctx context.Context, resp []byte) error {
-			return by.wsHandleData(ctx, resp, asset.CoinMarginedFutures)
+			return by.wsHandleData(ctx, asset.CoinMarginedFutures, resp)
 		},
 		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
 	}); err != nil {
