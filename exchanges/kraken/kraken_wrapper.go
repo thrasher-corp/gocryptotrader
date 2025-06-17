@@ -506,6 +506,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
 		}
+		book.Bids.Reverse()
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
