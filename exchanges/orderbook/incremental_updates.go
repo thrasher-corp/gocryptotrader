@@ -97,6 +97,10 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		}
 	}
 
+	if !d.verifyOrderbook {
+		return nil
+	}
+
 	if u.ExpectedChecksum != 0 {
 		if u.GenerateChecksum == nil {
 			return d.invalidate(errChecksumGeneratorUnset)
@@ -104,10 +108,10 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		if checksum := u.GenerateChecksum(d.snapshot()); checksum != u.ExpectedChecksum {
 			return d.invalidate(fmt.Errorf("%s %s %s %w: expected '%d', got '%d'", d.exchange, d.pair, d.asset, errChecksumMismatch, u.ExpectedChecksum, checksum))
 		}
-	} else if d.verifyOrderbook {
-		if err := validate(d.snapshot()); err != nil {
-			return d.invalidate(err)
-		}
+	}
+
+	if err := validate(d.snapshot()); err != nil {
+		return d.invalidate(err)
 	}
 
 	return nil

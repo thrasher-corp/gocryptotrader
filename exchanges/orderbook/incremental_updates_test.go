@@ -64,6 +64,10 @@ func TestProcessUpdate(t *testing.T) {
 	assert.ErrorIs(t, err, errAmountInvalid)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
+	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}})
+	require.NoError(t, err)
+
+	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}, ExpectedChecksum: 1337})
 	require.ErrorIs(t, err, errChecksumGeneratorUnset)
 
@@ -74,6 +78,12 @@ func TestProcessUpdate(t *testing.T) {
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}, ExpectedChecksum: 1337, GenerateChecksum: func(*Book) uint32 { return 1337 }})
 	require.NoError(t, err)
+
+	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
+	d.askLevels.Levels[0].Amount = 0
+	d.verifyOrderbook = false // Disable verification
+	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}, ExpectedChecksum: 1337, GenerateChecksum: func(*Book) uint32 { return 1337 }})
+	require.NoError(t, err, "must not error when verifyOrderbook is false")
 }
 
 func TestUpdate(t *testing.T) {
