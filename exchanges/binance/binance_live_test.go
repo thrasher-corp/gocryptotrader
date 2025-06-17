@@ -41,11 +41,9 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	ctx := context.Background()
-	b.setupOrderbookManager(ctx)
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	if err := b.UpdateTradablePairs(ctx, true); err != nil {
+	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
 	}
 
