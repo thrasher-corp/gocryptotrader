@@ -42,10 +42,10 @@ var (
 
 // OrderbookData stores ob data for umargined and cmargined futures
 type OrderbookData struct {
-	LastUpdateID int64       `json:"lastUpdateID"`
-	Timestamp    int64       `json:"T"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateID"`
+	Timestamp    int64             `json:"T"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // UPublicTradesData stores trade data

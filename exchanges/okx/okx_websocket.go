@@ -3,6 +3,7 @@ package okx
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -291,23 +292,22 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 	})
 
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timeUnix := time.Now()
+	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(timeUnix.UTC().Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
 	}
-	base64Sign := crypto.Base64Encode(hmac)
 
 	args := []WebsocketLoginData{
 		{
 			APIKey:     creds.Key,
 			Passphrase: creds.ClientID,
-			Timestamp:  timeUnix.Unix(),
-			Sign:       base64Sign,
+			Timestamp:  ts,
+			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
 
@@ -720,10 +720,6 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
 
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -732,7 +728,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -741,7 +737,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	for i := range response.Data {
 		candlesData := response.Data[i]
 		myCandle := websocket.KlineData{
-			Pair:       pair,
+			Pair:       response.Argument.InstrumentID,
 			Exchange:   ok.Name,
 			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
 			Interval:   candleInterval,
@@ -838,7 +834,7 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:           asset.Spread,
 			Asks:            extractedResponse.Data[x].Asks,
 			Bids:            extractedResponse.Data[x].Bids,
@@ -865,35 +861,31 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 	if len(resp.Data) != 1 {
 		return fmt.Errorf("%s - no data returned", ok.Name)
 	}
-	assets, err := ok.getAssetsFromInstrumentID(resp.Argument.InstrumentID)
+
+	assets, err := ok.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
 	if err != nil {
 		return err
 	}
 
-	pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
-
-	asks := make([]orderbook.Tranche, len(resp.Data[0].Asks))
+	asks := make([]orderbook.Level, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
 		asks[x].Price = resp.Data[0].Asks[x][0].Float64()
 		asks[x].Amount = resp.Data[0].Asks[x][1].Float64()
 	}
 
-	bids := make([]orderbook.Tranche, len(resp.Data[0].Bids))
+	bids := make([]orderbook.Level, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
 		bids[x].Price = resp.Data[0].Bids[x][0].Float64()
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
 
 	for x := range assets {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:           assets[x],
 			Asks:            asks,
 			Bids:            bids,
 			LastUpdated:     resp.Data[0].Timestamp.Time(),
-			Pair:            pair,
+			Pair:            resp.Argument.InstrumentID,
 			Exchange:        ok.Name,
 			VerifyOrderbook: ok.CanVerifyOrderbook,
 		})
@@ -956,27 +948,23 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
 	}
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
-	if !pair.IsPopulated() {
+	if !response.Argument.InstrumentID.IsPopulated() {
 		return currency.ErrCurrencyPairsEmpty
 	}
-	pair.Delimiter = currency.DashDelimiter
+	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == wsOrderbookSnapshot {
-			err = ok.WsProcessSnapshotOrderBook(&response.Data[i], pair, assets)
+			err = ok.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			err = ok.WsProcessUpdateOrderbook(&response.Data[i], pair, assets)
+			err = ok.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
@@ -984,7 +972,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 					{
 						Channel: response.Argument.Channel,
 						Asset:   assets[0],
-						Pairs:   currency.Pairs{pair},
+						Pairs:   currency.Pairs{response.Argument.InstrumentID},
 					},
 				})
 				if err != nil {
@@ -996,10 +984,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 	}
 	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s passed checksum for pair %v",
-			ok.Name, pair,
-		)
+		log.Debugf(log.ExchangeSys, "%s passed checksum for pair %s", ok.Name, response.Argument.InstrumentID)
 	}
 	return nil
 }
@@ -1028,7 +1013,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 		return err
 	}
 	for i := range assets {
-		newOrderBook := orderbook.Base{
+		newOrderBook := orderbook.Book{
 			Asset:           assets[i],
 			Asks:            asks,
 			Bids:            bids,
@@ -1075,10 +1060,10 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tranches, error) {
-	items := make(orderbook.Tranches, len(entries))
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
+	items := make(orderbook.Levels, len(entries))
 	for j := range entries {
-		items[j] = orderbook.Tranche{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
+		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
 	return items, nil
 }
@@ -1088,7 +1073,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tran
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
+func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book, checksumVal uint32) error {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1181,7 +1166,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1324,10 +1309,6 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
-	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
-	if err != nil {
-		return err
-	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -1336,7 +1317,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+		assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 		if err != nil {
 			return err
 		}
@@ -1346,7 +1327,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		for j := range assets {
 			ok.Websocket.DataHandler <- websocket.KlineData{
 				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
-				Pair:       pair,
+				Pair:       response.Argument.InstrumentID,
 				AssetType:  assets[j],
 				Exchange:   ok.Name,
 				Interval:   candleInterval,
@@ -1377,14 +1358,10 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID)
+			assets, err = ok.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
 			if err != nil {
 				return err
 			}
-		}
-		c, err := currency.NewPairFromString(response.Data[i].InstrumentID)
-		if err != nil {
-			return err
 		}
 		var baseVolume float64
 		var quoteVolume float64
@@ -1409,7 +1386,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 				AskSize:      response.Data[i].BestAskSize.Float64(),
 				Last:         response.Data[i].LastTradePrice.Float64(),
 				AssetType:    assets[j],
-				Pair:         c,
+				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
 			}
 			ok.Websocket.DataHandler <- tickData

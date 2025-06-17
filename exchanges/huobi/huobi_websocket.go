@@ -2,6 +2,7 @@ package huobi
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -295,7 +296,7 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 	if err := json.Unmarshal(respRaw, &update); err != nil {
 		return err
 	}
-	bids := make(orderbook.Tranches, len(update.Tick.Bids))
+	bids := make(orderbook.Levels, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
 		price, ok := update.Tick.Bids[i][0].(float64)
 		if !ok {
@@ -305,13 +306,13 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 		if !ok {
 			return errors.New("unable to type assert bid amount")
 		}
-		bids[i] = orderbook.Tranche{
+		bids[i] = orderbook.Level{
 			Price:  price,
 			Amount: amount,
 		}
 	}
 
-	asks := make(orderbook.Tranches, len(update.Tick.Asks))
+	asks := make(orderbook.Levels, len(update.Tick.Asks))
 	for i := range update.Tick.Asks {
 		price, ok := update.Tick.Asks[i][0].(float64)
 		if !ok {
@@ -321,13 +322,13 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 		if !ok {
 			return errors.New("unable to type assert ask amount")
 		}
-		asks[i] = orderbook.Tranche{
+		asks[i] = orderbook.Level{
 			Price:  price,
 			Amount: amount,
 		}
 	}
 
-	var newOrderBook orderbook.Base
+	var newOrderBook orderbook.Book
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = s.Pairs[0]
@@ -579,7 +580,6 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return err
 	}
 
-	c := h.Websocket.AuthConn
 	ts := time.Now().UTC().Format(wsDateTimeFormatting)
 	hmac, err := h.wsGenerateSignature(creds, ts)
 	if err != nil {
@@ -593,12 +593,12 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 			AccessKey:        creds.Key,
 			SignatureMethod:  signatureMethod,
 			SignatureVersion: signatureVersion,
-			Signature:        crypto.Base64Encode(hmac),
+			Signature:        base64.StdEncoding.EncodeToString(hmac),
 			Timestamp:        ts,
 		},
 	}
-	err = c.SendJSONMessage(context.Background(), request.Unset, req)
-	if err != nil {
+	c := h.Websocket.AuthConn
+	if err := c.SendJSONMessage(context.Background(), request.Unset, req); err != nil {
 		return err
 	}
 	resp := c.ReadMessage()

@@ -79,7 +79,6 @@ func init() {
 }
 
 var (
-	authToken          string
 	errCancellingOrder = errors.New("error cancelling order")
 	errSubPairMissing  = errors.New("pair missing from subscription response")
 	errInvalidChecksum = errors.New("invalid checksum")
@@ -112,22 +111,15 @@ func (k *Kraken) WsConnect() error {
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
-		authToken, err = k.GetWebsocketToken(context.TODO())
-		if err != nil {
+		if authToken, err := k.GetWebsocketToken(context.TODO()); err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				k.Name,
-				err)
+			log.Errorf(log.ExchangeSys, "%s - authentication failed: %v\n", k.Name, err)
 		} else {
-			err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
-			if err != nil {
+			if err := k.Websocket.AuthConn.Dial(&dialer, http.Header{}); err != nil {
 				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys,
-					"%v - failed to connect to authenticated endpoint: %v\n",
-					k.Name,
-					err)
+				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 			} else {
+				k.setWebsocketAuthToken(authToken)
 				k.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				k.Websocket.Wg.Add(1)
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
@@ -330,7 +322,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders any) error {
 					TID:       key,
 					Type:      oType,
 					Side:      oSide,
-					Timestamp: convert.TimeFromUnixTimestampDecimal(val.Time),
+					Timestamp: val.Time.Time(),
 				}
 				k.Websocket.DataHandler <- &order.Detail{
 					Exchange: k.Name,
@@ -365,8 +357,8 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders any) error {
 					LimitPriceUpper:      val.LimitPrice,
 					ExecutedAmount:       val.ExecutedVolume,
 					Fee:                  val.Fee,
-					Date:                 convert.TimeFromUnixTimestampDecimal(val.OpenTime).Truncate(time.Microsecond),
-					LastUpdated:          convert.TimeFromUnixTimestampDecimal(val.LastUpdated).Truncate(time.Microsecond),
+					Date:                 val.OpenTime.Time(),
+					LastUpdated:          val.LastUpdated.Time(),
 				}
 
 				if val.Status != "" {
@@ -674,12 +666,12 @@ func (k *Kraken) wsProcessOrderBook(c string, response []any, pair currency.Pair
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData []any, levels int) error {
-	base := orderbook.Base{
+	base := orderbook.Book{
 		Pair:                   pair,
 		Asset:                  asset.Spot,
 		VerifyOrderbook:        k.CanVerifyOrderbook,
-		Bids:                   make(orderbook.Tranches, len(bidData)),
-		Asks:                   make(orderbook.Tranches, len(askData)),
+		Bids:                   make(orderbook.Levels, len(bidData)),
+		Asks:                   make(orderbook.Levels, len(askData)),
 		MaxDepth:               levels,
 		ChecksumStringRequired: true,
 	}
@@ -719,7 +711,7 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 		if err != nil {
 			return err
 		}
-		base.Asks[i] = orderbook.Tranche{
+		base.Asks[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -764,7 +756,7 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 			return err
 		}
 
-		base.Bids[i] = orderbook.Tranche{
+		base.Bids[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -786,8 +778,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 	update := orderbook.Update{
 		Asset: asset.Spot,
 		Pair:  pair,
-		Bids:  make([]orderbook.Tranche, len(bidData)),
-		Asks:  make([]orderbook.Tranche, len(askData)),
+		Bids:  make([]orderbook.Level, len(bidData)),
+		Asks:  make([]orderbook.Level, len(askData)),
 	}
 
 	// Calculating checksum requires incoming decimal place checks for both
@@ -832,7 +824,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 			return err
 		}
 
-		update.Asks[i] = orderbook.Tranche{
+		update.Asks[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -882,7 +874,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 			return err
 		}
 
-		update.Bids[i] = orderbook.Tranche{
+		update.Bids[i] = orderbook.Level{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -914,7 +906,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(pair currency.Pair, askData, bidData [
 	return validateCRC32(book, uint32(token))
 }
 
-func validateCRC32(b *orderbook.Base, token uint32) error {
+func validateCRC32(b *orderbook.Book, token uint32) error {
 	if b == nil {
 		return common.ErrNilPointer
 	}
@@ -1091,7 +1083,7 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 
 	conn := k.Websocket.Conn
 	if s.Authenticated {
-		r.Subscription.Token = authToken
+		r.Subscription.Token = k.websocketAuthToken()
 		conn = k.Websocket.AuthConn
 	}
 
@@ -1305,7 +1297,7 @@ func (k *Kraken) wsAddOrder(req *WsAddOrderRequest) (string, error) {
 	}
 	req.RequestID = k.Websocket.AuthConn.GenerateMessageID(false)
 	req.Event = krakenWsAddOrder
-	req.Token = authToken
+	req.Token = k.websocketAuthToken()
 	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
 	if err != nil {
 		return "", err
@@ -1345,7 +1337,7 @@ func (k *Kraken) wsCancelOrder(orderID string) error {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
-		Token:          authToken,
+		Token:          k.websocketAuthToken(),
 		TransactionIDs: []string{orderID},
 		RequestID:      id,
 	}
@@ -1376,7 +1368,7 @@ func (k *Kraken) wsCancelAllOrders() (*WsCancelOrderResponse, error) {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
-		Token:     authToken,
+		Token:     k.websocketAuthToken(),
 		RequestID: id,
 	}
 
@@ -1414,3 +1406,16 @@ const subTplText = `
 	{{- channelName $.S }}
 {{- end }}
 `
+
+// websocketAuthToken retrieves the current websocket session's auth token
+func (k *Kraken) websocketAuthToken() string {
+	k.wsAuthMtx.RLock()
+	defer k.wsAuthMtx.RUnlock()
+	return k.wsAuthToken
+}
+
+func (k *Kraken) setWebsocketAuthToken(token string) {
+	k.wsAuthMtx.Lock()
+	k.wsAuthToken = token
+	k.wsAuthMtx.Unlock()
+}

@@ -2,6 +2,7 @@ package btse
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -76,18 +77,14 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/ws/spot" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte((path)),
-		[]byte(creds.Secret),
-	)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte((path)), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 
-	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
-		Arguments: []string{creds.Key, nonce, sign},
+		Arguments: []string{creds.Key, nonce, hex.EncodeToString(hmac)},
 	}
 	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
@@ -289,9 +286,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		newOB := orderbook.Base{
-			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
-			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
+		newOB := orderbook.Book{
+			Bids: make(orderbook.Levels, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Levels, 0, len(t.Data.SellQuote)),
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
@@ -308,7 +305,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
+			newOB.Asks = append(newOB.Asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -327,7 +324,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
+			newOB.Bids = append(newOB.Bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})

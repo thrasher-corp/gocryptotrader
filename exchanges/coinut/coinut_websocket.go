@@ -2,6 +2,7 @@ package coinut
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -498,23 +499,23 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
-	bids := make([]orderbook.Tranche, len(ob.Buy))
+	bids := make([]orderbook.Level, len(ob.Buy))
 	for i := range ob.Buy {
-		bids[i] = orderbook.Tranche{
+		bids[i] = orderbook.Level{
 			Amount: ob.Buy[i].Volume,
 			Price:  ob.Buy[i].Price,
 		}
 	}
 
-	asks := make([]orderbook.Tranche, len(ob.Sell))
+	asks := make([]orderbook.Level, len(ob.Sell))
 	for i := range ob.Sell {
-		asks[i] = orderbook.Tranche{
+		asks[i] = orderbook.Level{
 			Amount: ob.Sell[i].Volume,
 			Price:  ob.Sell[i].Price,
 		}
 	}
 
-	var newOrderBook orderbook.Base
+	var newOrderBook orderbook.Book
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.VerifyOrderbook = c.CanVerifyOrderbook
@@ -571,9 +572,9 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		UpdateTime: time.Now(), // No time sent
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
-		bufferUpdate.Bids = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Bids = []orderbook.Level{{Price: update.Price, Amount: update.Volume}}
 	} else {
-		bufferUpdate.Asks = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Asks = []orderbook.Level{{Price: update.Price, Amount: update.Volume}}
 	}
 	return c.Websocket.Orderbook.Update(bufferUpdate)
 }
@@ -688,7 +689,7 @@ func (c *COINUT) wsAuthenticate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r.Hmac = crypto.HexEncodeToString(hmac)
+	r.Hmac = hex.EncodeToString(hmac)
 
 	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.Nonce, r)
 	if err != nil {

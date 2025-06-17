@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,8 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
-
-var errFailedToConvertToCandle = errors.New("cannot convert time series data to kline.Candle, insufficient data")
 
 // SetDefaults sets basic defaults
 func (b *BTCMarkets) SetDefaults() {
@@ -190,12 +187,7 @@ func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (curr
 	}
 	pairs := make([]currency.Pair, len(markets))
 	for x := range markets {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(markets[x].MarketID)
-		if err != nil {
-			return nil, err
-		}
-		pairs[x] = pair
+		pairs[x] = markets[x].MarketID
 	}
 	return pairs, nil
 }
@@ -231,14 +223,8 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 
 	for x := range tickers {
-		var newP currency.Pair
-		newP, err = currency.NewPairFromString(tickers[x].MarketID)
-		if err != nil {
-			return err
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         newP,
+		if err := ticker.ProcessTicker(&ticker.Price{
+			Pair:         tickers[x].MarketID,
 			Last:         tickers[x].LastPrice,
 			High:         tickers[x].High24h,
 			Low:          tickers[x].Low24h,
@@ -248,8 +234,7 @@ func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 			LastUpdated:  time.Now(),
 			ExchangeName: b.Name,
 			AssetType:    a,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -265,7 +250,7 @@ func (b *BTCMarkets) UpdateTicker(ctx context.Context, p currency.Pair, a asset.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -273,7 +258,7 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return nil, err
 	}
 
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:         b.Name,
 		Pair:             p,
 		Asset:            assetType,
@@ -292,17 +277,17 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(tempResp.Bids))
+	book.Bids = make(orderbook.Levels, len(tempResp.Bids))
 	for x := range tempResp.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: tempResp.Bids[x].Volume,
 			Price:  tempResp.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(tempResp.Asks))
+	book.Asks = make(orderbook.Levels, len(tempResp.Asks))
 	for y := range tempResp.Asks {
-		book.Asks[y] = orderbook.Tranche{
+		book.Asks[y] = orderbook.Level{
 			Amount: tempResp.Asks[y].Volume,
 			Price:  tempResp.Asks[y].Price,
 		}
@@ -508,10 +493,7 @@ func (b *BTCMarkets) ModifyOrder(ctx context.Context, action *order.Modify) (*or
 	if err != nil {
 		return nil, err
 	}
-	mod.Pair, err = currency.NewPairFromString(resp.MarketID)
-	if err != nil {
-		return nil, err
-	}
+	mod.Pair = resp.MarketID
 	mod.Side, err = order.StringToOrderSide(resp.Side)
 	if err != nil {
 		return nil, err
@@ -610,14 +592,9 @@ func (b *BTCMarkets) GetOrderInfo(ctx context.Context, orderID string, _ currenc
 		return nil, err
 	}
 
-	p, err := currency.NewPairFromString(o.MarketID)
-	if err != nil {
-		return nil, err
-	}
-
 	resp.Exchange = b.Name
 	resp.OrderID = orderID
-	resp.Pair = p
+	resp.Pair = o.MarketID
 	resp.Price = o.Price
 	resp.Date = o.CreationTime
 	resp.ExecutedAmount = o.Amount - o.OpenAmount
@@ -867,13 +844,8 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 				continue
 			}
 
-			p, err := currency.NewPairFromString(tempData.Orders[c].MarketID)
-			if err != nil {
-				return nil, err
-			}
-
 			tempResp.Exchange = b.Name
-			tempResp.Pair = p
+			tempResp.Pair = tempData.Orders[c].MarketID
 			tempResp.Side = order.Bid
 			if tempData.Orders[c].Side == ask {
 				tempResp.Side = order.Ask
@@ -958,9 +930,13 @@ func (b *BTCMarkets) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
-		timeSeries[x], err = convertToKlineCandle(&candles[x])
-		if err != nil {
-			return nil, err
+		timeSeries[x] = kline.Candle{
+			Time:   candles[x].Timestamp,
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -975,7 +951,7 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		var candles CandleResponse
+		var candles []CandleResponse
 		candles, err = b.GetMarketCandles(ctx,
 			req.RequestFormatted.String(),
 			b.FormatExchangeKlineInterval(req.ExchangeInterval),
@@ -989,11 +965,14 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(ctx context.Context, pair curren
 		}
 
 		for i := range candles {
-			elem, err := convertToKlineCandle(&candles[i])
-			if err != nil {
-				return nil, err
-			}
-			timeSeries = append(timeSeries, elem)
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   candles[i].Timestamp,
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
+			})
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -1033,39 +1012,6 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		}
 	}
 	return b.LoadLimits(limits)
-}
-
-func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {
-	var elem kline.Candle
-	if candle == nil {
-		return elem, errFailedToConvertToCandle
-	}
-	var err error
-	elem.Time, err = time.Parse(time.RFC3339, candle[0])
-	if err != nil {
-		return elem, err
-	}
-	elem.Open, err = strconv.ParseFloat(candle[1], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.High, err = strconv.ParseFloat(candle[2], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.Low, err = strconv.ParseFloat(candle[3], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.Close, err = strconv.ParseFloat(candle[4], 64)
-	if err != nil {
-		return elem, err
-	}
-	elem.Volume, err = strconv.ParseFloat(candle[5], 64)
-	if err != nil {
-		return elem, err
-	}
-	return elem, nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

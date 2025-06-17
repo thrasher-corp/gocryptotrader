@@ -391,7 +391,7 @@ func TestGetOrderStatus(t *testing.T) {
 		assert.Equal(t, "2022-01-31 14:43:15", o.DateTime, "DateTime should match")
 		assert.Equal(t, "1458532827766784", o.ID, "OrderID should match")
 		assert.Equal(t, 200.00, o.AmountRemaining, "AmountRemaining should match")
-		assert.Equal(t, 0, o.Type, "Type should match")
+		assert.Equal(t, int64(0), o.Type, "Type should match")
 		assert.Equal(t, "0.50000000", o.ClientOrderID, "ClientOrderID should match")
 		assert.Equal(t, "BTC/USD", o.Market, "Market should match")
 		for _, tr := range o.Transactions {
@@ -399,7 +399,7 @@ func TestGetOrderStatus(t *testing.T) {
 			assert.Equal(t, 50.00, tr.Price, "Price should match")
 			assert.Equal(t, 101.00, tr.FromCurrency, "FromCurrency should match")
 			assert.Equal(t, 1.0, tr.ToCurrency, "ToCurrency should match")
-			assert.Equal(t, 0, o.Type, "Type should match")
+			assert.Equal(t, int64(0), o.Type, "Type should match")
 		}
 	}
 }
@@ -863,11 +863,10 @@ func TestWsRequestReconnect(t *testing.T) {
 	require.NoError(t, err, "WsRequestReconnect must not error")
 }
 
-func TestBitstamp_OHLC(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	o, err := b.OHLC(t.Context(), "btcusd", start, end, "60", "10")
-	require.NoError(t, err, "TestBitstamp_OHLC must not error")
+func TestOHLC(t *testing.T) {
+	t.Parallel()
+	o, err := b.OHLC(t.Context(), "btcusd", time.Unix(1546300800, 0), time.Unix(1577836799, 0), "60", "10")
+	require.NoError(t, err, "OHLC must not error")
 	assert.Equal(t, "BTC/USD", o.Data.Pair, "Pair should be correct")
 	for _, req := range o.Data.OHLCV {
 		assert.Positive(t, req.Low, "Low should be positive")
@@ -878,10 +877,9 @@ func TestBitstamp_OHLC(t *testing.T) {
 	}
 }
 
-func TestBitstamp_GetHistoricCandles(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	c, err := b.GetHistoricCandles(t.Context(), btcusdPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
 	require.NoError(t, err, "GetHistoricCandles must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -895,11 +893,9 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, start, end)
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	c, err := b.GetHistoricCandlesExtended(t.Context(), btcusdPair, asset.Spot, kline.OneDay, time.Unix(1546300800, 0), time.Unix(1577836799, 0))
 	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
 	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
@@ -945,14 +941,14 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestOrderbookZeroBidPrice(t *testing.T) {
 	t.Parallel()
 
-	ob := &orderbook.Base{
+	ob := &orderbook.Book{
 		Exchange: "Bitstamp",
 		Pair:     btcusdPair,
 		Asset:    asset.Spot,
 	}
 	filterOrderbookZeroBidPrice(ob)
 
-	ob.Bids = orderbook.Tranches{
+	ob.Bids = orderbook.Levels{
 		{Price: 69, Amount: 1337},
 		{Price: 0, Amount: 69},
 	}
@@ -961,7 +957,7 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 		t.Error("invalid orderbook bid values")
 	}
 
-	ob.Bids = orderbook.Tranches{
+	ob.Bids = orderbook.Levels{
 		{Price: 59, Amount: 1337},
 		{Price: 42, Amount: 8595},
 	}

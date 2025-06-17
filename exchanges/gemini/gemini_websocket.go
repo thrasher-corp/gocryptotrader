@@ -4,6 +4,8 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -140,7 +142,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 		Request: "/v1/" + geminiWsOrderEvents,
 		Nonce:   time.Now().UnixNano(),
 	}
-	PayloadJSON, err := json.Marshal(payload)
+	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
@@ -149,10 +151,8 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 		return err
 	}
 	endpoint := wsEndpoint + geminiWsOrderEvents
-	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte(PayloadBase64),
-		[]byte(creds.Secret))
+	payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -160,9 +160,9 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	headers := http.Header{}
 	headers.Add("Content-Length", "0")
 	headers.Add("Content-Type", "text/plain")
-	headers.Add("X-GEMINI-PAYLOAD", PayloadBase64)
+	headers.Add("X-GEMINI-PAYLOAD", payloadB64)
 	headers.Add("X-GEMINI-APIKEY", creds.Key)
-	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
+	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
 	err = g.Websocket.AuthConn.Dial(dialer, headers)
@@ -482,8 +482,8 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return err
 	}
 
-	bids := make([]orderbook.Tranche, 0, len(result.Changes))
-	asks := make([]orderbook.Tranche, 0, len(result.Changes))
+	bids := make([]orderbook.Level, 0, len(result.Changes))
+	asks := make([]orderbook.Level, 0, len(result.Changes))
 
 	for x := range result.Changes {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)
@@ -494,7 +494,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if err != nil {
 			return err
 		}
-		obItem := orderbook.Tranche{
+		obItem := orderbook.Level{
 			Amount: amount,
 			Price:  price,
 		}
@@ -506,7 +506,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 	}
 
 	if isInitial {
-		var newOrderBook orderbook.Base
+		var newOrderBook orderbook.Book
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
 		newOrderBook.Asset = asset.Spot

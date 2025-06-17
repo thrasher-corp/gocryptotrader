@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"bufio"
-	"errors"
 	"log"
 	"os"
 	"strconv"
@@ -130,9 +129,7 @@ func TestGetPairs(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetPairs(t.Context(), asset.Binary)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	assets := b.GetAssetTypes(false)
 	for x := range assets {
@@ -1697,57 +1694,43 @@ func TestFixCasing(t *testing.T) {
 	}
 
 	_, err = b.fixCasing(currency.NewPair(currency.EMPTYCODE, currency.BTC), asset.MarginFunding)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = b.fixCasing(currency.NewPair(currency.BTC, currency.EMPTYCODE), asset.MarginFunding)
 	require.NoError(t, err)
 
 	_, err = b.fixCasing(currency.EMPTYPAIR, asset.MarginFunding)
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
+func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"1m",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"1D",
 		},
 		{
-			"OneWeek",
 			kline.OneWeek,
 			"7D",
 		},
 		{
-			"TwoWeeks",
 			kline.OneWeek * 2,
 			"14D",
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			ret, err := b.FormatExchangeKlineInterval(test.interval)
-			if err != nil {
-				t.Error(err)
-			}
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
+			t.Parallel()
+			ret, err := b.FormatExchangeKlineInterval(tc.interval)
+			require.NoError(t, err, "FormatExchangeKlineInterval must not error")
+			assert.Equal(t, tc.output, ret)
 		})
 	}
 }
@@ -1784,8 +1767,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
-var testOb = orderbook.Base{
-	Asks: []orderbook.Tranche{
+var testOb = orderbook.Book{
+	Asks: []orderbook.Level{
 		{Price: 0.05005, Amount: 0.00000500},
 		{Price: 0.05010, Amount: 0.00000500},
 		{Price: 0.05015, Amount: 0.00000500},
@@ -1797,7 +1780,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, Amount: 0.00000500},
 		{Price: 0.05050, Amount: 0.00000500},
 	},
-	Bids: []orderbook.Tranche{
+	Bids: []orderbook.Level{
 		{Price: 0.05000, Amount: 0.00000500},
 		{Price: 0.04995, Amount: 0.00000500},
 		{Price: 0.04990, Amount: 0.00000500},
@@ -1819,7 +1802,7 @@ func TestChecksum(t *testing.T) {
 }
 
 func TestReOrderbyID(t *testing.T) {
-	asks := []orderbook.Tranche{
+	asks := []orderbook.Level{
 		{ID: 4, Price: 100, Amount: 0.00000500},
 		{ID: 3, Price: 100, Amount: 0.00000500},
 		{ID: 2, Price: 100, Amount: 0.00000500},
@@ -1839,7 +1822,7 @@ func TestReOrderbyID(t *testing.T) {
 		}
 	}
 
-	bids := []orderbook.Tranche{
+	bids := []orderbook.Level{
 		{ID: 4, Price: 100, Amount: 0.00000500},
 		{ID: 3, Price: 100, Amount: 0.00000500},
 		{ID: 2, Price: 100, Amount: 0.00000500},
@@ -1931,9 +1914,7 @@ func TestGetSiteListConfigData(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetSiteListConfigData(t.Context(), "")
-	if !errors.Is(err, errSetCannotBeEmpty) {
-		t.Fatalf("received: %v, expected: %v", err, errSetCannotBeEmpty)
-	}
+	require.ErrorIs(t, err, errSetCannotBeEmpty)
 
 	pairs, err := b.GetSiteListConfigData(t.Context(), bitfinexSecuritiesPairs)
 	require.NoError(t, err)

@@ -411,11 +411,10 @@ func (g *Gateio) GetOrderbook(ctx context.Context, pairString, interval string, 
 	}
 	params.Set("with_id", strconv.FormatBool(withOrderbookID))
 	var response *OrderbookData
-	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookSpotEPL, common.EncodeURLValues(gateioSpotOrderbook, params), &response)
-	if err != nil {
+	if err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookSpotEPL, common.EncodeURLValues(gateioSpotOrderbook, params), &response); err != nil {
 		return nil, err
 	}
-	return response.MakeOrderbook()
+	return response.MakeOrderbook(), nil
 }
 
 // GetMarketTrades retrieve market trades

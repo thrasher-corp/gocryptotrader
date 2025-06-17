@@ -250,8 +250,8 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(ctx context.Context, assetT
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	book := &orderbook.Book{
 		Exchange: {{.Variable}}.Name, 
 		Pair: pair, 
 		Asset: assetType,
@@ -265,17 +265,17 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 		return book, err
 	}
 
-	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+	book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Quantity, 
 			Price: orderbookNew.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+	book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderBookNew.Asks[x].Quantity,
 			Price: orderBookNew.Asks[x].Price,
 		}

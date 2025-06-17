@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -1528,11 +1529,11 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	if len(books) == 0 {
 		return errors.New("no orderbooks submitted")
 	}
-	var book orderbook.Base
-	book.Bids = make(orderbook.Tranches, 0, len(books))
-	book.Asks = make(orderbook.Tranches, 0, len(books))
+	var book orderbook.Book
+	book.Bids = make(orderbook.Levels, 0, len(books))
+	book.Asks = make(orderbook.Levels, 0, len(books))
 	for i := range books {
-		item := orderbook.Tranche{
+		item := orderbook.Level{
 			ID:     books[i].ID,
 			Amount: books[i].Amount,
 			Price:  books[i].Price,
@@ -1577,13 +1578,13 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 	orderbookUpdate := orderbook.Update{
 		Asset:      assetType,
 		Pair:       p,
-		Bids:       make([]orderbook.Tranche, 0, len(book)),
-		Asks:       make([]orderbook.Tranche, 0, len(book)),
+		Bids:       make([]orderbook.Level, 0, len(book)),
+		Asks:       make([]orderbook.Level, 0, len(book)),
 		UpdateTime: time.Now(), // Not included in update
 	}
 
 	for i := range book {
-		item := orderbook.Tranche{
+		item := orderbook.Level{
 			ID:     book[i].ID,
 			Amount: book[i].Amount,
 			Price:  book[i].Price,
@@ -1846,25 +1847,19 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().Unix(), 10)
 	payload := "AUTH" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte(payload),
-		[]byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payload), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, WsAuthRequest{
+
+	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, WsAuthRequest{
 		Event:         "auth",
 		APIKey:        creds.Key,
 		AuthPayload:   payload,
-		AuthSig:       crypto.HexEncodeToString(hmac),
+		AuthSig:       hex.EncodeToString(hmac),
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	})
-	if err != nil {
-		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return err
-	}
-	return nil
 }
 
 // WsNewOrder authenticated new order request
@@ -2082,14 +2077,14 @@ func makeRequestInterface(channelName string, data any) []any {
 	return []any{0, channelName, nil, data}
 }
 
-func validateCRC32(book *orderbook.Base, token uint32) error {
+func validateCRC32(book *orderbook.Book, token uint32) error {
 	// Order ID's need to be sub-sorted in ascending order, this needs to be
 	// done on the main book to ensure that we do not cut price levels out below
 	reOrderByID(book.Bids)
 	reOrderByID(book.Asks)
 
 	// R0 precision calculation is based on order ID's and amount values
-	var bids, asks []orderbook.Tranche
+	var bids, asks []orderbook.Level
 	for i := range 25 {
 		if i < len(book.Bids) {
 			bids = append(bids, book.Bids[i])
@@ -2143,10 +2138,10 @@ func validateCRC32(book *orderbook.Base, token uint32) error {
 // reOrderByID sub sorts orderbook items by its corresponding ID when price
 // levels are the same. TODO: Deprecate and shift to buffer level insertion
 // based off ascending ID.
-func reOrderByID(depth []orderbook.Tranche) {
+func reOrderByID(depth []orderbook.Level) {
 subSort:
 	for x := 0; x < len(depth); {
-		var subset []orderbook.Tranche
+		var subset []orderbook.Level
 		// Traverse forward elements
 		for y := x + 1; y < len(depth); y++ {
 			if depth[x].Price == depth[y].Price &&

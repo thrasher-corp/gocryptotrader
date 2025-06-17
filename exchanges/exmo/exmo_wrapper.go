@@ -203,14 +203,14 @@ func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	callingBook := &orderbook.Base{
+	callingBook := &orderbook.Book{
 		Exchange:        e.Name,
 		Pair:            p,
 		Asset:           assetType,
@@ -232,7 +232,7 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	for i := range enabledPairs {
-		book := &orderbook.Base{
+		book := &orderbook.Book{
 			Exchange:        e.Name,
 			Pair:            enabledPairs[i],
 			Asset:           assetType,
@@ -249,42 +249,16 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			continue
 		}
 
-		book.Asks = make(orderbook.Tranches, len(data.Ask))
-		for y := range data.Ask {
-			var price, amount float64
-			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
-			if err != nil {
-				return book, err
-			}
-
-			amount, err = strconv.ParseFloat(data.Ask[y][1], 64)
-			if err != nil {
-				return book, err
-			}
-
-			book.Asks[y] = orderbook.Tranche{
-				Price:  price,
-				Amount: amount,
-			}
+		book.Asks = make(orderbook.Levels, len(data.Asks))
+		for y := range data.Asks {
+			book.Asks[y].Price = data.Asks[y][0].Float64()
+			book.Asks[y].Amount = data.Asks[y][1].Float64()
 		}
 
-		book.Bids = make(orderbook.Tranches, len(data.Bid))
-		for y := range data.Bid {
-			var price, amount float64
-			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
-			if err != nil {
-				return book, err
-			}
-
-			amount, err = strconv.ParseFloat(data.Bid[y][1], 64)
-			if err != nil {
-				return book, err
-			}
-
-			book.Bids[y] = orderbook.Tranche{
-				Price:  price,
-				Amount: amount,
-			}
+		book.Bids = make(orderbook.Levels, len(data.Bids))
+		for y := range data.Bids {
+			book.Bids[y].Price = data.Bids[y][0].Float64()
+			book.Bids[y].Amount = data.Bids[y][1].Float64()
 		}
 
 		err = book.Process()

@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -399,13 +400,13 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		book := orderbook.Base{
-			Asks: make(orderbook.Tranches, 0, len(data)),
-			Bids: make(orderbook.Tranches, 0, len(data)),
+		book := orderbook.Book{
+			Asks: make(orderbook.Levels, 0, len(data)),
+			Bids: make(orderbook.Levels, 0, len(data)),
 		}
 
 		for i := range data {
-			item := orderbook.Tranche{
+			item := orderbook.Level{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
@@ -438,10 +439,10 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			return err
 		}
 
-		asks := make([]orderbook.Tranche, 0, len(data))
-		bids := make([]orderbook.Tranche, 0, len(data))
+		asks := make([]orderbook.Level, 0, len(data))
+		bids := make([]orderbook.Level, 0, len(data))
 		for i := range data {
-			nItem := orderbook.Tranche{
+			nItem := orderbook.Level{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
@@ -577,17 +578,17 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	timestampStr := strconv.FormatInt(timestamp, 10)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+timestampStr), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	signature := crypto.HexEncodeToString(hmac)
 
 	req := WebsocketRequest{
 		Command:   "authKeyExpires",
-		Arguments: []any{creds.Key, timestamp, signature},
+		Arguments: []any{creds.Key, timestamp, hex.EncodeToString(hmac)},
 	}
 
 	resp, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Command, req)
