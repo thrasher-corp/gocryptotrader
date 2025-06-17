@@ -66,7 +66,7 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		return d.Invalidate(ErrEmptyUpdate)
 	}
 
-	// TODO: Enforce UpdatePushedAt set to determine server latency
+	// TODO: Enforce LastPushed set to determine server latency
 
 	d.m.Lock()
 	defer d.m.Unlock()
