@@ -2019,11 +2019,11 @@ type GreeksResponse struct {
 	Topic        string     `json:"topic"`
 	CreationTime types.Time `json:"creationTime"`
 	Data         []struct {
-		BaseCoin   string       `json:"baseCoin"`
-		TotalDelta types.Number `json:"totalDelta"`
-		TotalGamma types.Number `json:"totalGamma"`
-		TotalVega  types.Number `json:"totalVega"`
-		TotalTheta types.Number `json:"totalTheta"`
+		BaseCoin   currency.Code `json:"baseCoin"`
+		TotalDelta types.Number  `json:"totalDelta"`
+		TotalGamma types.Number  `json:"totalGamma"`
+		TotalVega  types.Number  `json:"totalVega"`
+		TotalTheta types.Number  `json:"totalTheta"`
 	} `json:"data"`
 }
 

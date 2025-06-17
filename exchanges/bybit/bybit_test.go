@@ -1,14 +1,13 @@
 package bybit
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
 	"net/http"
 	"slices"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -3202,23 +3202,169 @@ func TestPushDataPublic(t *testing.T) {
 	}
 }
 
-var pushDataPrivateMap = map[string]string{
-	"Private Position": `{"id": "59232430b58efe-5fc5-4470-9337-4ce293b68edd", "topic": "position", "creationTime": 1672364174455, "data": [ { "positionIdx": 0, "tradeMode": 0, "riskId": 41, "riskLimitValue": "200000", "symbol": "XRPUSDT", "side": "Buy", "size": "75", "entryPrice": "0.3615", "leverage": "10", "positionValue": "27.1125", "positionBalance": "0", "markPrice": "0.3374", "positionIM": "2.72589075", "positionMM": "0.28576575", "takeProfit": "0", "stopLoss": "0", "trailingStop": "0", "unrealisedPnl": "-1.8075", "cumRealisedPnl": "0.64782276", "createdTime": "1672121182216", "updatedTime": "1672364174449", "tpslMode": "Full", "liqPrice": "", "bustPrice": "", "category": "linear","positionStatus":"Normal","adlRankIndicator":2}]}`,
-	"Private Order":    `{ "id": "5923240c6880ab-c59f-420b-9adb-3639adc9dd90", "topic": "order", "creationTime": 1672364262474, "data": [ { "symbol": "%s", "orderId": "5cf98598-39a7-459e-97bf-76ca765ee020", "side": "Sell", "orderType": "Market", "cancelType": "UNKNOWN", "price": "72.5", "qty": "1", "orderIv": "", "timeInForce": "IOC", "orderStatus": "Filled", "orderLinkId": "", "lastPriceOnCreated": "", "reduceOnly": false, "leavesQty": "", "leavesValue": "", "cumExecQty": "1", "cumExecValue": "75", "avgPrice": "75", "blockTradeId": "", "positionIdx": 0, "cumExecFee": "0.358635", "createdTime": "1672364262444", "updatedTime": "1672364262457", "rejectReason": "EC_NoError", "stopOrderType": "", "tpslMode": "", "triggerPrice": "", "takeProfit": "", "stopLoss": "", "tpTriggerBy": "", "slTriggerBy": "", "tpLimitPrice": "", "slLimitPrice": "", "triggerDirection": 0, "triggerBy": "", "closeOnTrigger": false, "category": "option", "placeType": "price", "smpType": "None", "smpGroup": 0, "smpOrderId": "" } ] }`,
-	"Private Wallet":   `{ "id": "5923242c464be9-25ca-483d-a743-c60101fc656f", "topic": "wallet", "creationTime": 1672364262482, "data": [ { "accountIMRate": "0.016", "accountMMRate": "0.003", "totalEquity": "12837.78330098", "totalWalletBalance": "12840.4045924", "totalMarginBalance": "12837.78330188", "totalAvailableBalance": "12632.05767702", "totalPerpUPL": "-2.62129051", "totalInitialMargin": "205.72562486", "totalMaintenanceMargin": "39.42876721", "coin": [ { "coin": "USDC", "equity": "200.62572554", "usdValue": "200.62572554", "walletBalance": "201.34882644", "availableToWithdraw": "0", "availableToBorrow": "1500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "202.99874213", "totalPositionMM": "39.14289747", "unrealisedPnl": "74.2768991", "cumRealisedPnl": "-209.1544627", "bonus": "0" }, { "coin": "BTC", "equity": "0.06488393", "usdValue": "1023.08402268", "walletBalance": "0.06488393", "availableToWithdraw": "0.06488393", "availableToBorrow": "2.5", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "ETH", "equity": "0", "usdValue": "0", "walletBalance": "0", "availableToWithdraw": "0", "availableToBorrow": "26", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "USDT", "equity": "11726.64664904", "usdValue": "11613.58597018", "walletBalance": "11728.54414904", "availableToWithdraw": "11723.92075829", "availableToBorrow": "2500000", "borrowAmount": "0", "accruedInterest": "0", "totalOrderIM": "0", "totalPositionIM": "2.72589075", "totalPositionMM": "0.28576575", "unrealisedPnl": "-1.8975", "cumRealisedPnl": "0.64782276", "bonus": "0" }, { "coin": "EOS3L", "equity": "215.0570412", "usdValue": "0", "walletBalance": "215.0570412", "availableToWithdraw": "215.0570412", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" }, { "coin": "BIT", "equity": "1.82", "usdValue": "0.48758257", "walletBalance": "1.82", "availableToWithdraw": "1.82", "availableToBorrow": "0", "borrowAmount": "0", "accruedInterest": "", "totalOrderIM": "0", "totalPositionIM": "0", "totalPositionMM": "0", "unrealisedPnl": "0", "cumRealisedPnl": "0", "bonus": "0" } ], "accountType": "UNIFIED", "accountLTV": "0.017" } ] }`,
-	"Private Greek":    `{ "id": "592324fa945a30-2603-49a5-b865-21668c29f2a6", "topic": "greeks", "creationTime": 1672364262482, "data": [ { "baseCoin": "ETH", "totalDelta": "0.06999986", "totalGamma": "-0.00000001", "totalVega": "-0.00000024", "totalTheta": "0.00001314" } ] }`,
-	"Execution":        `{"id": "592324803b2785-26fa-4214-9963-bdd4727f07be", "topic": "execution", "creationTime": 1672364174455, "data": [ { "category": "linear", "symbol": "XRPUSDT", "execFee": "0.005061", "execId": "7e2ae69c-4edf-5800-a352-893d52b446aa", "execPrice": "0.3374", "execQty": "25", "execType": "Trade", "execValue": "8.435", "isMaker": false, "feeRate": "0.0006", "tradeIv": "", "markIv": "", "blockTradeId": "", "markPrice": "0.3391", "indexPrice": "", "underlyingPrice": "", "leavesQty": "0", "orderId": "f6e324ff-99c2-4e89-9739-3086e47f9381", "orderLinkId": "", "orderPrice": "0.3207", "orderQty":"25","orderType":"Market","stopOrderType":"UNKNOWN","side":"Sell","execTime":"1672364174443","isLeverage": "0","closedSize": "","seq":4688002127}]}`,
-}
-
-func TestPushDataPrivate(t *testing.T) {
+func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
-	for _, payload := range pushDataPrivateMap {
-		if strings.Contains(payload, "%s") {
-			payload = fmt.Sprintf(payload, optionsTradablePair.String())
+	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	b.API.AuthenticatedSupport = true
+	b.API.AuthenticatedWebsocketSupport = true
+	b.SetCredentials("test", "test", "", "", "", "")
+	testexch.FixtureToDataHandler(t, "testdata/wsAuth.json", func(r []byte) error {
+		if bytes.Contains(r, []byte("%s")) {
+			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
 		}
-		err := b.wsHandleAuthenticatedData(t.Context(), []byte(payload))
-		assert.NoError(t, err, "wsHandleData should not error")
+		return b.wsHandleAuthenticatedData(t.Context(), r)
+	})
+	close(b.Websocket.DataHandler)
+	require.Len(t, b.Websocket.DataHandler, 6, "Should see correct number of private messages")
+
+	i := 0
+	for data := range b.Websocket.DataHandler {
+		i++
+		switch v := data.(type) {
+		case WsPositions:
+			require.Len(t, v, 1, "must see 1 position")
+			assert.Zero(t, v[0].PositionIdx, "PositionIdx should be 0")
+			assert.Zero(t, v[0].TradeMode, "TradeMode should be 0")
+			assert.Equal(t, int64(41), v[0].RiskID, "RiskID should match")
+			assert.Equal(t, 200000.0, v[0].RiskLimitValue.Float64(), "RiskLimitValue should match")
+			assert.Equal(t, "XRPUSDT", v[0].Symbol, "Symbol should match")
+			assert.Equal(t, "Buy", v[0].Side, "Side should match")
+			assert.Equal(t, 75.0, v[0].Size.Float64(), "Size should match")
+			assert.Equal(t, 0.3615, v[0].EntryPrice.Float64(), "Entry price should match")
+			assert.Equal(t, 10.0, v[0].Leverage.Float64(), "Leverage should match")
+			assert.Equal(t, 27.1125, v[0].PositionValue.Float64(), "Position value should match")
+			assert.Zero(t, 0.0, v[0].PositionBalance.Float64(), "Position balance should be 0")
+			assert.Equal(t, 0.3374, v[0].MarkPrice.Float64(), "Mark price should match")
+			assert.Equal(t, 2.72589075, v[0].PositionIM.Float64(), "Position IM should match")
+			assert.Equal(t, 0.28576575, v[0].PositionMM.Float64(), "Position MM should match")
+			assert.Zero(t, v[0].TakeProfit.Float64(), "Take profit should be 0")
+			assert.Zero(t, v[0].StopLoss.Float64(), "Stop loss should be 0")
+			assert.Zero(t, v[0].TrailingStop.Float64(), "Trailing stop should be 0")
+			assert.Equal(t, -1.8075, v[0].UnrealisedPnl.Float64(), "Unrealised PnL should match")
+			assert.Equal(t, 0.64782276, v[0].CumRealisedPnl.Float64(), "Cum realised PnL should match")
+			assert.Equal(t, time.UnixMilli(1672121182216), v[0].CreatedTime.Time(), "Creation time should match")
+			assert.Equal(t, time.UnixMilli(1672364174449), v[0].UpdatedTime.Time(), "Updated time should match")
+			assert.Equal(t, "Full", v[0].TpslMode, "TPSL mode should match")
+			assert.Zero(t, v[0].LiqPrice.Float64(), "Liq price should be 0")
+			assert.Zero(t, v[0].BustPrice.Float64(), "Bust price should be 0")
+			assert.Equal(t, "linear", v[0].Category, "Category should match")
+			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should match")
+			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should match")
+		case []order.Detail:
+			if i == 6 {
+				require.Len(t, v, 1)
+				assert.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", v[0].OrderID)
+				assert.Equal(t, "BTC_USDT", v[0].Pair.String())
+				assert.Equal(t, order.Sell, v[0].Side)
+				assert.Equal(t, order.Filled, v[0].Status)
+				assert.Equal(t, 1.7, v[0].Amount)
+				assert.Equal(t, 4.033, v[0].Price)
+				assert.Equal(t, 4.24, v[0].AverageExecutedPrice)
+				assert.Equal(t, 0.0, v[0].RemainingAmount)
+				assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType)
+				continue
+			}
+			require.Len(t, v, 1, "must see 1 order")
+			assert.True(t, optionsTradablePair.Equal(v[0].Pair), "Pair should match")
+			assert.Equal(t, "5cf98598-39a7-459e-97bf-76ca765ee020", v[0].OrderID, "Order ID should match")
+			assert.Equal(t, order.Sell, v[0].Side, "Side should match")
+			assert.Equal(t, order.Market, v[0].Type, "Order type should match")
+			assert.Equal(t, 72.5, v[0].Price, "Price should match")
+			assert.Equal(t, 1.0, v[0].Amount, "Amount should match")
+			assert.Equal(t, order.ImmediateOrCancel, v[0].TimeInForce, "Time in force should match")
+			assert.Equal(t, order.Filled, v[0].Status, "Order status should match")
+			assert.Zero(t, v[0].ClientOrderID, "client order ID should be empty")
+			assert.False(t, v[0].ReduceOnly, "Reduce only should be false")
+			assert.Equal(t, 1.0, v[0].ExecutedAmount, "Cum exec qty should match")
+			assert.Equal(t, 75.0, v[0].AverageExecutedPrice, "Avg price should match")
+			assert.Equal(t, 0.358635, v[0].Fee, "Cum exec fee should match")
+			assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should match")
+			assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should match")
+		case []account.Change:
+			require.Len(t, v, 6, "must see 6 items")
+			for i, change := range v {
+				assert.Empty(t, change.Account, "Account type should be empty")
+				assert.Equal(t, asset.Spot, change.AssetType, "Asset type should be Spot")
+				require.NotNil(t, change.Balance, "balance must not be nil")
+				switch i {
+				case 0:
+					assert.True(t, currency.USDC.Equal(change.Balance.Currency), "currency should match")
+					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should zero")
+					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
+					assert.Equal(t, 201.34882644, change.Balance.Free, "Free should match")
+					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
+					assert.Equal(t, 201.34882644, change.Balance.Total, "Total should match")
+					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should match")
+				case 1:
+					assert.True(t, currency.BTC.Equal(change.Balance.Currency), "currency should match")
+					assert.Equal(t, 0.06488393, change.Balance.Free, "Free should match")
+					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should zero")
+					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
+					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
+					assert.Equal(t, 0.06488393, change.Balance.Total, "Total should match")
+					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should match")
+				case 2:
+					assert.True(t, currency.ETH.Equal(change.Balance.Currency), "currency should match")
+					assert.Zero(t, change.Balance.Free, "Free should be 0")
+					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should zero")
+					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
+					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
+					assert.Zero(t, change.Balance.Total, "Total should be 0")
+					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should match")
+				case 3:
+					assert.True(t, currency.USDT.Equal(change.Balance.Currency), "currency should match")
+					assert.Equal(t, 11728.54414904, change.Balance.Free, "Free should match")
+					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should be 0")
+					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
+					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
+					assert.Equal(t, 11728.54414904, change.Balance.Total, "Total should match")
+					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should match")
+				case 4:
+					assert.True(t, currency.NewCode("EOS3L").Equal(change.Balance.Currency), "currency should match")
+					assert.Equal(t, 215.0570412, change.Balance.Free, "Free should match")
+					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should be 0")
+					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
+					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
+					assert.Equal(t, 215.0570412, change.Balance.Total, "Total should match")
+					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should match")
+				case 5:
+					assert.True(t, currency.BIT.Equal(change.Balance.Currency), "currency should match")
+					assert.Equal(t, 1.82, change.Balance.Free, "Free should match")
+					assert.Zero(t, change.Balance.AvailableWithoutBorrow, "AvailableWithoutBorrow should be 0")
+					assert.Zero(t, change.Balance.Borrowed, "Borrowed should be 0")
+					assert.Zero(t, change.Balance.Hold, "Hold should be 0")
+					assert.Equal(t, 1.82, change.Balance.Total, "Total should match")
+					assert.Equal(t, time.UnixMilli(1672364262482), change.Balance.UpdatedAt, "Last updated should match")
+				}
+			}
+		case *GreeksResponse:
+			assert.Equal(t, "592324fa945a30-2603-49a5-b865-21668c29f2a6", v.ID, "ID should match")
+			assert.Equal(t, "greeks", v.Topic, "Topic should match")
+			assert.Equal(t, time.UnixMilli(1672364262482), v.CreationTime.Time(), "Creation time should match")
+			require.Len(t, v.Data, 1, "must see 1 greek")
+			assert.Equal(t, "ETH", v.Data[0].BaseCoin.String(), "Base coin should match")
+			assert.Equal(t, 0.06999986, v.Data[0].TotalDelta.Float64(), "Total delta should match")
+			assert.Equal(t, -0.00000001, v.Data[0].TotalGamma.Float64(), "Total gamma should match")
+			assert.Equal(t, -0.00000024, v.Data[0].TotalVega.Float64(), "Total vega should match")
+			assert.Equal(t, 0.00001314, v.Data[0].TotalTheta.Float64(), "Total theta should match")
+		case []fill.Data:
+			require.Len(t, v, 1, "must see 1 fill")
+			assert.Equal(t, "7e2ae69c-4edf-5800-a352-893d52b446aa", v[0].ID, "ID should match")
+			assert.Equal(t, time.UnixMilli(1672364174443), v[0].Timestamp, "time should match")
+			assert.Equal(t, b.Name, v[0].Exchange, "Exchange name should match")
+			assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "Asset type should match")
+			assert.Equal(t, "XRP_USDT", v[0].CurrencyPair.String(), "Symbol should match")
+			assert.Equal(t, order.Sell, v[0].Side, "Side should match")
+			assert.Equal(t, "f6e324ff-99c2-4e89-9739-3086e47f9381", v[0].OrderID, "Order ID should match")
+			assert.Zero(t, v[0].ClientOrderID, "Client order ID should be empty")
+			assert.Zero(t, v[0].TradeID, "Trade ID should be empty")
+			assert.Equal(t, 0.3374, v[0].Price, "price should match")
+			assert.Equal(t, 25.0, v[0].Amount, "amount should match")
+		default:
+			t.Errorf("Unexpected data type received: %T", v)
+		}
 	}
 }
 
@@ -3798,13 +3944,13 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, b.authSubscribe(t.Context(), &DummyConnection{}, subscription.List{}))
 
 	authsubs, err := b.generateAuthSubscriptions()
-	require.NoError(t, err)
-	require.Empty(t, authsubs)
+	require.NoError(t, err, "generateAuthSubscriptions must not error")
+	require.Empty(t, authsubs, "generateAuthSubscriptions must not return subs")
 
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	authsubs, err = b.generateAuthSubscriptions()
-	require.NoError(t, err)
-	require.NotEmpty(t, authsubs)
+	require.NoError(t, err, "generateAuthSubscriptions must not error")
+	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
 
 	require.NoError(t, b.authSubscribe(t.Context(), &DummyConnection{}, authsubs))
 	require.NoError(t, b.authUnsubscribe(t.Context(), &DummyConnection{}, authsubs))
@@ -3885,44 +4031,6 @@ func TestTransformSymbol(t *testing.T) {
 			assert.Equal(t, tests[i].expectedSymbol, ii.transformSymbol(tests[i].item), "expected symbols to match")
 		})
 	}
-}
-
-func TestWswsProcessOrder(t *testing.T) {
-	t.Parallel()
-	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.Setup(b))
-
-	var wsOrderResponse WebsocketResponse
-	err := b.wsProcessOrder(&wsOrderResponse)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unexpected end of JSON input")
-
-	wsOrderResponse = WebsocketResponse{
-		Data: []byte(`[{"category":"linear","symbol":"BTCUSDT","orderId":"c1956690-b731-4191-97c0-94b00422231b","orderLinkId":"","blockTradeId":"","side":"Sell","positionIdx":0,"orderStatus":"Filled","cancelType":"UNKNOWN","rejectReason":"EC_NoError","timeInForce":"IOC","isLeverage":"","price":"4.033","qty":"1.7","avgPrice":"4.24","leavesQty":"0","leavesValue":"0","cumExecQty":"1.7","cumExecValue":"7.2086","cumExecFee":"0.00288344","orderType":"Market","stopOrderType":"","orderIv":"","triggerPrice":"","takeProfit":"","stopLoss":"","triggerBy":"","tpTriggerBy":"","slTriggerBy":"","triggerDirection":0,"placeType":"","lastPriceOnCreated":"4.245","closeOnTrigger":false,"reduceOnly":false,"smpGroup":0,"smpType":"None","smpOrderId":"","slLimitPrice":"0","tpLimitPrice":"0","tpslMode":"UNKNOWN","createType":"CreateByUser","marketUnit":"","createdTime":"1733778525913","updatedTime":"1733778525917","feeCurrency":"","closedPnl":"0"}]`),
-	}
-
-	var o []order.Detail
-	var wg sync.WaitGroup
-	var ok bool
-	wg.Add(1)
-	go func() {
-		data := <-b.Websocket.DataHandler
-		o, ok = data.([]order.Detail)
-		wg.Done()
-	}()
-	require.NoError(t, b.wsProcessOrder(&wsOrderResponse))
-	wg.Wait()
-	require.True(t, ok)
-	require.Len(t, o, 1)
-	require.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", o[0].OrderID)
-	require.Equal(t, "BTC_USDT", o[0].Pair.String())
-	require.Equal(t, order.Sell, o[0].Side)
-	require.Equal(t, order.Filled, o[0].Status)
-	require.Equal(t, 1.7, o[0].Amount)
-	require.Equal(t, 4.033, o[0].Price)
-	require.Equal(t, 4.24, o[0].AverageExecutedPrice)
-	require.Equal(t, 0., o[0].RemainingAmount)
-	require.Equal(t, asset.USDTMarginedFutures, o[0].AssetType)
 }
 
 func TestGetPairFromCategory(t *testing.T) {

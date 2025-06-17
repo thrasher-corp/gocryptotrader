@@ -348,7 +348,12 @@ func (by *Bybit) wsProcessOrder(resp *WebsocketResponse) error {
 		if err != nil {
 			return err
 		}
+		tif, err := order.StringToTimeInForce(result[x].TimeInForce)
+		if err != nil {
+			return err
+		}
 		execution[x] = order.Detail{
+			TimeInForce:          tif,
 			Amount:               result[x].Qty.Float64(),
 			Exchange:             by.Name,
 			OrderID:              result[x].OrderID,
@@ -357,6 +362,7 @@ func (by *Bybit) wsProcessOrder(resp *WebsocketResponse) error {
 			Type:                 orderType,
 			Pair:                 cp,
 			Cost:                 result[x].CumExecQty.Float64() * result[x].AvgPrice.Float64(),
+			Fee:                  result[x].CumExecFee.Float64(),
 			AssetType:            a,
 			Status:               StringToOrderStatus(result[x].OrderStatus),
 			Price:                result[x].Price.Float64(),
@@ -749,11 +755,17 @@ func hasPotentialDelimiter(a asset.Item) bool {
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (by *Bybit) submitSubscriptionNonTemplate(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
-	payloads, err := by.handleSubscriptionsNonTemplate(conn, a, operation, channelsToSubscribe)
+func (by *Bybit) submitDirectSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
+	payloads, err := by.directSubscriptionPayload(conn, a, operation, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
+
+	op := by.Websocket.AddSubscriptions
+	if operation == "unsubscribe" {
+		op = by.Websocket.RemoveSubscriptions
+	}
+
 	for _, payload := range payloads {
 		if a == asset.Options {
 			// The options connection does not send the subscription request id back with the subscription notification payload
@@ -774,12 +786,7 @@ func (by *Bybit) submitSubscriptionNonTemplate(ctx context.Context, conn websock
 				return fmt.Errorf("%s with request ID %s msg: %s", resp.Operation, resp.RequestID, resp.RetMsg)
 			}
 		}
-		if operation == "unsubscribe" {
-			err = by.Websocket.RemoveSubscriptions(conn, payload.associatedSubs...)
-		} else {
-			err = by.Websocket.AddSubscriptions(conn, payload.associatedSubs...)
-		}
-		if err != nil {
+		if err := op(conn, payload.associatedSubs...); err != nil {
 			return err
 		}
 	}
@@ -787,7 +794,7 @@ func (by *Bybit) submitSubscriptionNonTemplate(ctx context.Context, conn websock
 }
 
 // TODO: Remove this function when template expansion is across all assets
-func (by *Bybit) handleSubscriptionsNonTemplate(conn websocket.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
+func (by *Bybit) directSubscriptionPayload(conn websocket.Connection, assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
@@ -802,7 +809,7 @@ func (by *Bybit) handleSubscriptionsNonTemplate(conn websocket.Connection, asset
 	}
 
 	chanMap := map[string]bool{}
-	pairFormat, err := by.GetPairFormat(assetType, true)
+	pairFmt, err := by.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -816,17 +823,17 @@ func (by *Bybit) handleSubscriptionsNonTemplate(conn websocket.Connection, asset
 		}
 		switch s.Channel {
 		case chanOrderbook:
-			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pair.Format(pairFormat).String()))
+			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pairFmt.Format(pair)))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
-			arg.Arguments = append(arg.Arguments, s.Channel+"."+pair.Format(pairFormat).String())
+			arg.Arguments = append(arg.Arguments, s.Channel+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanKline, chanLeverageTokenKline:
 			interval, err := intervalToString(kline.FiveMin)
 			if err != nil {
 				return nil, err
 			}
-			arg.Arguments = append(arg.Arguments, s.Channel+"."+interval+"."+pair.Format(pairFormat).String())
+			arg.Arguments = append(arg.Arguments, s.Channel+"."+interval+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
 			if chanMap[s.Channel] {
@@ -872,12 +879,12 @@ func (by *Bybit) generateAuthSubscriptions() (subscription.List, error) {
 
 // LinearSubscribe sends a subscription message to linear public channels.
 func (by *Bybit) authSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitSubscriptionNonTemplate(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
+	return by.submitDirectSubscription(ctx, conn, asset.Spot, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
 func (by *Bybit) authUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitSubscriptionNonTemplate(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
+	return by.submitDirectSubscription(ctx, conn, asset.Spot, "unsubscribe", channelSubscriptions)
 }
 
 // getPairFromCategory returns the currency pair and asset type based on the category and symbol. Used with a dedicated
