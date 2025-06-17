@@ -42,14 +42,14 @@ type Update struct {
 	UpdateTime time.Time
 	LastPushed time.Time
 	Asset      asset.Item
-	Bids       []Tranche
-	Asks       []Tranche
+	Bids       Levels
+	Asks       Levels
 	Pair       currency.Pair
 
 	// ExpectedChecksum defines the expected value when the books have been verified
 	ExpectedChecksum uint32
 	// GenerateChecksum is a function that will be called to generate a checksum from the stored orderbook post update
-	GenerateChecksum func(snapshot *Base) uint32
+	GenerateChecksum func(snapshot *Book) uint32
 	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data
 	AllowEmpty bool
 	// Action defines the action to be performed on the orderbook e.g. amend, delete, insert, update/insert
@@ -114,10 +114,10 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 }
 
 // // TODO: Confirm no alloc as it shouldn't escape
-func (d *Depth) snapshot() *Base {
-	return &Base{
-		Bids:                   d.bidTranches.Tranches,
-		Asks:                   d.askTranches.Tranches,
+func (d *Depth) snapshot() *Book {
+	return &Book{
+		Bids:                   d.bidLevels.Levels,
+		Asks:                   d.askLevels.Levels,
 		Exchange:               d.options.exchange,
 		Pair:                   d.pair,
 		Asset:                  d.asset,
@@ -161,8 +161,8 @@ func (d *Depth) updateBidAskByPrice(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
-	d.bidTranches.updateInsertByPrice(update.Bids, d.options.maxDepth)
-	d.askTranches.updateInsertByPrice(update.Asks, d.options.maxDepth)
+	d.bidLevels.updateInsertByPrice(update.Bids, d.options.maxDepth)
+	d.askLevels.updateInsertByPrice(update.Asks, d.options.maxDepth)
 	d.updateAndAlert(update)
 	return nil
 }
@@ -172,10 +172,10 @@ func (d *Depth) updateBidAskByID(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
-	if err := d.bidTranches.updateByID(update.Bids); err != nil {
+	if err := d.bidLevels.updateByID(update.Bids); err != nil {
 		return err
 	}
-	if err := d.askTranches.updateByID(update.Asks); err != nil {
+	if err := d.askLevels.updateByID(update.Asks); err != nil {
 		return err
 	}
 	d.updateAndAlert(update)
@@ -187,10 +187,10 @@ func (d *Depth) delete(update *Update, bypassErr bool) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
-	if err := d.bidTranches.deleteByID(update.Bids, bypassErr); err != nil {
+	if err := d.bidLevels.deleteByID(update.Bids, bypassErr); err != nil {
 		return err
 	}
-	if err := d.askTranches.deleteByID(update.Asks, bypassErr); err != nil {
+	if err := d.askLevels.deleteByID(update.Asks, bypassErr); err != nil {
 		return err
 	}
 	d.updateAndAlert(update)
@@ -202,10 +202,10 @@ func (d *Depth) insert(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
-	if err := d.bidTranches.insertUpdates(update.Bids); err != nil {
+	if err := d.bidLevels.insertUpdates(update.Bids); err != nil {
 		return err
 	}
-	if err := d.askTranches.insertUpdates(update.Asks); err != nil {
+	if err := d.askLevels.insertUpdates(update.Asks); err != nil {
 		return err
 	}
 	d.updateAndAlert(update)
@@ -217,10 +217,10 @@ func (d *Depth) updateOrInsert(update *Update) error {
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
-	if err := d.bidTranches.updateInsertByID(update.Bids); err != nil {
+	if err := d.bidLevels.updateInsertByID(update.Bids); err != nil {
 		return err
 	}
-	if err := d.askTranches.updateInsertByID(update.Asks); err != nil {
+	if err := d.askLevels.updateInsertByID(update.Asks); err != nil {
 		return err
 	}
 	d.updateAndAlert(update)

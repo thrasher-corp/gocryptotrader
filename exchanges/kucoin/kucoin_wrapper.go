@@ -371,7 +371,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return nil, err
@@ -393,7 +393,7 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		return nil, err
 	}
 
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        ku.Name,
 		Pair:            pair,
 		Asset:           assetType,

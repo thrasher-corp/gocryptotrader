@@ -3132,19 +3132,19 @@ func TestGetOrderbookMovement(t *testing.T) {
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.METAL), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
 
-	bid := []orderbook.Tranche{
+	bid := []orderbook.Level{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Tranche{
+	ask := []orderbook.Level{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&orderbook.Book{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "depth.LoadSnapshot must not error")
 
 	_, err = s.GetOrderbookMovement(t.Context(), req)
@@ -3225,19 +3225,19 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MEME), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
 
-	bid := []orderbook.Tranche{
+	bid := []orderbook.Level{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Tranche{
+	ask := []orderbook.Level{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&orderbook.Book{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "depth.LoadSnapshot must not error")
 
 	nominal, err := s.GetOrderbookAmountByNominal(t.Context(), req)
@@ -3311,19 +3311,19 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MAD), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
 
-	bid := []orderbook.Tranche{
+	bid := []orderbook.Level{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Tranche{
+	ask := []orderbook.Level{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
 		{Price: 14, Amount: 1},
 	}
-	err = depth.LoadSnapshot(&orderbook.Base{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
+	err = depth.LoadSnapshot(&orderbook.Book{Bids: bid, Asks: ask, LastUpdated: time.Now(), LastPushed: time.Now(), RestSnapshot: true})
 	require.NoError(t, err, "depth.LoadSnapshot must not error")
 
 	req.ImpactPercentage = 9.090909090909092

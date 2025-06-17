@@ -91,7 +91,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*w = WebsocketOrderbook(make(orderbook.Tranches, len(resp)))
+	*w = WebsocketOrderbook(make(orderbook.Levels, len(resp)))
 	for x := range resp {
 		(*w)[x].Price = resp[x][0].Float64()
 		(*w)[x].Amount = resp[x][1].Float64()
@@ -119,10 +119,10 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 
 		if ob.Snapshot {
-			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Pair:            ob.Currency,
-				Bids:            orderbook.Tranches(ob.Bids),
-				Asks:            orderbook.Tranches(ob.Asks),
+				Bids:            orderbook.Levels(ob.Bids),
+				Asks:            orderbook.Levels(ob.Asks),
 				LastUpdated:     ob.Timestamp,
 				LastUpdateID:    ob.SnapshotID,
 				Asset:           asset.Spot,
@@ -134,8 +134,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				UpdateTime:                 ob.Timestamp,
 				UpdateID:                   ob.SnapshotID,
 				Asset:                      asset.Spot,
-				Bids:                       orderbook.Tranches(ob.Bids),
-				Asks:                       orderbook.Tranches(ob.Asks),
+				Bids:                       orderbook.Levels(ob.Bids),
+				Asks:                       orderbook.Levels(ob.Asks),
 				Pair:                       ob.Currency,
 				ExpectedChecksum:           ob.Checksum,
 				GenerateChecksum:           orderbookChecksum,
@@ -416,12 +416,12 @@ func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 }
 
 // orderbookChecksum calculates a checksum for the orderbook liquidity
-func orderbookChecksum(ob *orderbook.Base) uint32 {
+func orderbookChecksum(ob *orderbook.Book) uint32 {
 	return crc32.ChecksumIEEE([]byte(concatOrderbookLiquidity(ob.Bids) + concatOrderbookLiquidity(ob.Asks)))
 }
 
 // concatOrderbookLiquidity concatenates price and amounts together for checksum processing
-func concatOrderbookLiquidity(liquidity orderbook.Tranches) string {
+func concatOrderbookLiquidity(liquidity orderbook.Levels) string {
 	var c string
 	for x := range min(10, len(liquidity)) {
 		c += trim(liquidity[x].Price) + trim(liquidity[x].Amount)

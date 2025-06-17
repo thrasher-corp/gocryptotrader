@@ -53,7 +53,7 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
-func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
+func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	if err := book.Verify(); err != nil {
 		return err
 	}
@@ -144,8 +144,8 @@ func (w *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Up
 	return true, nil
 }
 
-// GetOrderbook returns an orderbook copy as orderbook.Base
-func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+// GetOrderbook returns an orderbook copy as orderbook.Book
+func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

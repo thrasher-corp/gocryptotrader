@@ -834,7 +834,7 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:           asset.Spread,
 			Asks:            extractedResponse.Data[x].Asks,
 			Bids:            extractedResponse.Data[x].Bids,
@@ -867,20 +867,20 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		return err
 	}
 
-	asks := make([]orderbook.Tranche, len(resp.Data[0].Asks))
+	asks := make([]orderbook.Level, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
 		asks[x].Price = resp.Data[0].Asks[x][0].Float64()
 		asks[x].Amount = resp.Data[0].Asks[x][1].Float64()
 	}
 
-	bids := make([]orderbook.Tranche, len(resp.Data[0].Bids))
+	bids := make([]orderbook.Level, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
 		bids[x].Price = resp.Data[0].Bids[x][0].Float64()
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
 
 	for x := range assets {
-		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:           assets[x],
 			Asks:            asks,
 			Bids:            bids,
@@ -1013,7 +1013,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 		return err
 	}
 	for i := range assets {
-		newOrderBook := orderbook.Base{
+		newOrderBook := orderbook.Book{
 			Asset:           assets[i],
 			Asks:            asks,
 			Bids:            bids,
@@ -1059,10 +1059,10 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tranches, error) {
-	items := make(orderbook.Tranches, len(entries))
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
+	items := make(orderbook.Levels, len(entries))
 	for j := range entries {
-		items[j] = orderbook.Tranche{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
+		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
 	return items, nil
 }
@@ -1072,7 +1072,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tran
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func generateOrderbookChecksum(orderbookData *orderbook.Base) uint32 {
+func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
