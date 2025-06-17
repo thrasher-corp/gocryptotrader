@@ -751,7 +751,7 @@ func (b *Binance) processJob(p currency.Pair) error {
 // invalidateAndCleanupOrderbook invalidaates orderbook and cleans local cache
 func (b *Binance) invalidateAndCleanupOrderbook(p currency.Pair) {
 	if err := b.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
-		log.Errorf(log.WebsocketMgr, "error invalidating %s websocket orderbook: %v", b.Name, err)
+		log.Errorf(log.WebsocketMgr, "%s error invalidating websocket orderbook: %v", b.Name, err)
 	}
 	if err := b.obm.cleanup(p); err != nil {
 		log.Errorf(log.WebsocketMgr, "error during %s websocket orderbook cleanup: %v", b.Name, err)
