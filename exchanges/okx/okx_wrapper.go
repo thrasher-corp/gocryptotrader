@@ -258,17 +258,12 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		if err != nil {
 			return nil, err
 		}
-		var pair currency.Pair
 		pairs := make([]currency.Pair, 0, len(insts))
 		for x := range insts {
 			if insts[x].State != "live" {
 				continue
 			}
-			pair, err = currency.NewPairDelimiter(insts[x].InstrumentID, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+			pairs = append(pairs, insts[x].InstrumentID.Format(format))
 		}
 		return pairs, nil
 	case asset.Spread:
@@ -282,10 +277,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		}
 		pairs := make(currency.Pairs, len(spreadInstruments))
 		for x := range spreadInstruments {
-			pairs[x], err = currency.NewPairDelimiter(spreadInstruments[x].SpreadID, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
+			pairs[x] = spreadInstruments[x].SpreadID.Format(format)
 		}
 		return pairs, nil
 	default:
@@ -323,12 +315,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		}
 		limits := make([]order.MinMaxLevel, len(insts))
 		for x := range insts {
-			pair, err := currency.NewPairFromString(insts[x].InstrumentID)
-			if err != nil {
-				return err
-			}
 			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
+				Pair:                   insts[x].InstrumentID,
 				Asset:                  a,
 				PriceStepIncrementSize: insts[x].TickSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
@@ -345,12 +333,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		}
 		limits := make([]order.MinMaxLevel, len(insts))
 		for x := range insts {
-			pair, err := currency.NewPairFromString(insts[x].SpreadID)
-			if err != nil {
-				return err
-			}
 			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
+				Pair:                   insts[x].SpreadID,
 				Asset:                  a,
 				PriceStepIncrementSize: insts[x].MinSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinSize.Float64(),
@@ -491,7 +475,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 		}
 
 		for y := range ticks {
-			pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+			pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID.String())
 			if err != nil {
 				return err
 			}
@@ -530,7 +514,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -550,31 +534,31 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, err
 		}
 		for y := range spreadOrderbook {
-			book := &orderbook.Base{
+			book := &orderbook.Book{
 				Exchange:        ok.Name,
 				Pair:            pair,
 				Asset:           assetType,
 				VerifyOrderbook: ok.CanVerifyOrderbook,
 			}
-			book.Bids = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Bids))
+			book.Bids = make(orderbook.Levels, 0, len(spreadOrderbook[y].Bids))
 			for b := range spreadOrderbook[y].Bids {
 				// Skip order book bid depths where the price value is zero.
 				if spreadOrderbook[y].Bids[b][0].Float64() == 0 {
 					continue
 				}
-				book.Bids = append(book.Bids, orderbook.Tranche{
+				book.Bids = append(book.Bids, orderbook.Level{
 					Price:      spreadOrderbook[y].Bids[b][0].Float64(),
 					Amount:     spreadOrderbook[y].Bids[b][1].Float64(),
 					OrderCount: spreadOrderbook[y].Bids[b][2].Int64(),
 				})
 			}
-			book.Asks = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Asks))
+			book.Asks = make(orderbook.Levels, 0, len(spreadOrderbook[y].Asks))
 			for a := range spreadOrderbook[y].Asks {
 				// Skip order book ask depths where the price value is zero.
 				if spreadOrderbook[y].Asks[a][0].Float64() == 0 {
 					continue
 				}
-				book.Asks = append(book.Asks, orderbook.Tranche{
+				book.Asks = append(book.Asks, orderbook.Level{
 					Price:      spreadOrderbook[y].Asks[a][0].Float64(),
 					Amount:     spreadOrderbook[y].Asks[a][1].Float64(),
 					OrderCount: spreadOrderbook[y].Asks[a][2].Int64(),
@@ -599,7 +583,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		instrumentID = pairFormat.Format(pair)
-		book := &orderbook.Base{
+		book := &orderbook.Book{
 			Exchange:        ok.Name,
 			Pair:            pair,
 			Asset:           assetType,
@@ -611,16 +595,16 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return book, err
 		}
 
-		book.Bids = make(orderbook.Tranches, len(orderBookD.Bids))
+		book.Bids = make(orderbook.Levels, len(orderBookD.Bids))
 		for x := range orderBookD.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Amount: orderBookD.Bids[x].Amount.Float64(),
 				Price:  orderBookD.Bids[x].DepthPrice.Float64(),
 			}
 		}
-		book.Asks = make(orderbook.Tranches, len(orderBookD.Asks))
+		book.Asks = make(orderbook.Levels, len(orderBookD.Asks))
 		for x := range orderBookD.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Amount: orderBookD.Asks[x].Amount.Float64(),
 				Price:  orderBookD.Asks[x].DepthPrice.Float64(),
 			}
@@ -974,7 +958,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(placeOrderResponse.OrderID)
-	case "trigger":
+	case orderTrigger:
 		result, err = ok.PlaceTriggerAlgoOrder(ctx, &AlgoOrderParams{
 			InstrumentID:     pairString,
 			TradeMode:        tradeMode,
@@ -986,7 +970,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			TriggerPrice:     s.TriggerPrice,
 			TriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "conditional":
+	case orderConditional:
 		// Trigger Price and type are used as a stop losss trigger price and type.
 		result, err = ok.PlaceTakeProfitStopLossOrder(ctx, &AlgoOrderParams{
 			InstrumentID:             pairString,
@@ -1000,7 +984,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			StopLossOrderPrice:       s.Price,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
-	case "chase":
+	case orderChase:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1018,7 +1002,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			MaxChaseType:  s.TrackingMode.String(),
 			MaxChaseValue: s.TrackingValue,
 		})
-	case "move_order_stop":
+	case orderMoveOrderStop:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1041,7 +1025,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			CallbackSpreadVariance: callbackSpread,
 			ActivePrice:            s.TriggerPrice,
 		})
-	case "twap":
+	case orderTWAP:
 		if s.TrackingMode == order.UnknownTrackingMode {
 			return nil, fmt.Errorf("%w, tracking mode unset", order.ErrUnknownTrackingMode)
 		}
@@ -1066,7 +1050,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			LimitPrice:    s.Price,
 			TimeInterval:  kline.FifteenMin,
 		})
-	case "oco":
+	case orderOCO:
 		switch {
 		case s.RiskManagementModes.TakeProfit.Price <= 0:
 			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
@@ -1160,7 +1144,7 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	switch action.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
 			NewQuantity:   action.Amount,
@@ -1264,7 +1248,7 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		req := CancelOrderRequestParam{
 			InstrumentID:  instrumentID,
 			OrderID:       ord.OrderID,
@@ -1317,7 +1301,7 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		switch ord.Type {
-		case order.UnknownType, order.Market, order.Limit, order.OptimalLimitIOC, order.MarketMakerProtection, order.MarketMakerProtectionAndPostOnly:
+		case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
@@ -2129,7 +2113,7 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 
 // getInstrumentsForOptions returns the instruments for options asset type
 func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, error) {
-	underlyings, err := ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+	underlyings, err := ok.GetPublicUnderlyings(ctx, instTypeOption)
 	if err != nil {
 		return nil, err
 	}
@@ -2805,11 +2789,6 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			cp, err := currency.NewPairFromString(result[i].InstrumentID)
-			if err != nil {
-				return nil, err
-			}
-
 			var (
 				underlying             currency.Pair
 				settleCurr             currency.Code
@@ -2844,7 +2823,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 
 			resp[i] = futures.Contract{
 				Exchange:       ok.Name,
-				Name:           cp,
+				Name:           result[i].InstrumentID,
 				Underlying:     underlying,
 				Asset:          item,
 				StartDate:      result[i].ListTime.Time(),
@@ -2870,18 +2849,13 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		}
 		resp := make([]futures.Contract, len(results))
 		for s := range results {
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(results[s].SpreadID)
-			if err != nil {
-				return nil, err
-			}
 			contractSettlementType, err := futures.StringToContractSettlementType(results[s].SpreadType)
 			if err != nil {
 				return nil, err
 			}
 			resp[s] = futures.Contract{
 				Exchange:       ok.Name,
-				Name:           cp,
+				Name:           results[s].SpreadID,
 				Asset:          asset.Spread,
 				StartDate:      results[s].ListTime.Time(),
 				EndDate:        results[s].ExpTime.Time(),
@@ -2922,7 +2896,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			switch instType {
 			case instTypeOption:
 				var underlyings []string
-				underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+				underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 				if err != nil {
 					return nil, err
 				}
@@ -2987,7 +2961,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
 		var underlyings []string
-		underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+		underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 		if err != nil {
 			return nil, err
 		}

@@ -1,9 +1,10 @@
 package fill
 
 import (
-	"errors"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestSetup tests the setup function of the Fills struct
@@ -28,9 +29,7 @@ func TestUpdateDisabledFeed(t *testing.T) {
 
 	// Send a test data to the Update function
 	testData := Data{Timestamp: time.Now(), Price: 15.2, Amount: 3.2}
-	if err := fill.Update(testData); !errors.Is(err, ErrFeedDisabled) {
-		t.Errorf("Expected ErrFeedDisabled, got %v", err)
-	}
+	assert.ErrorIs(t, fill.Update(testData), ErrFeedDisabled)
 
 	select {
 	case <-channel:

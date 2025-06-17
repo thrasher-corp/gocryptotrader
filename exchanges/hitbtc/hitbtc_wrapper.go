@@ -261,14 +261,14 @@ func (h *HitBTC) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if c.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := h.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        h.Name,
 		Pair:            c,
 		Asset:           assetType,
@@ -284,16 +284,16 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -439,7 +439,7 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 	status := order.New
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
-		response, err = h.wsPlaceOrder(o.Pair, o.Side.String(), o.Amount, o.Price)
+		response, err = h.wsPlaceOrder(ctx, o.Pair, o.Side.String(), o.Amount, o.Price)
 		if err != nil {
 			return nil, err
 		}

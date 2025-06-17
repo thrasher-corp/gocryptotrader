@@ -4,6 +4,8 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -57,12 +59,13 @@ var comms = make(chan websocket.Response)
 
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
+	ctx := context.TODO()
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 
 	var dialer gws.Dialer
-	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := g.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -72,7 +75,7 @@ func (g *Gemini) WsConnect() error {
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		err := g.WsAuth(context.TODO(), &dialer)
+		err := g.WsAuth(ctx, &dialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - websocket authentication failed: %v\n", g.Name, err)
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -96,15 +99,17 @@ func (g *Gemini) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gemini) Subscribe(subs subscription.List) error {
-	return g.manageSubs(subs, wsSubscribeOp)
+	ctx := context.TODO()
+	return g.manageSubs(ctx, subs, wsSubscribeOp)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gemini) Unsubscribe(subs subscription.List) error {
-	return g.manageSubs(subs, wsUnsubscribeOp)
+	ctx := context.TODO()
+	return g.manageSubs(ctx, subs, wsUnsubscribeOp)
 }
 
-func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
+func (g *Gemini) manageSubs(ctx context.Context, subs subscription.List, op wsSubOp) error {
 	req := wsSubscribeRequest{
 		Type:          op,
 		Subscriptions: make([]wsSubscriptions, 0, len(subs)),
@@ -116,7 +121,7 @@ func (g *Gemini) manageSubs(subs subscription.List, op wsSubOp) error {
 		})
 	}
 
-	if err := g.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req); err != nil {
+	if err := g.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return err
 	}
 
@@ -140,7 +145,7 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 		Request: "/v1/" + geminiWsOrderEvents,
 		Nonce:   time.Now().UnixNano(),
 	}
-	PayloadJSON, err := json.Marshal(payload)
+	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
@@ -149,10 +154,8 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 		return err
 	}
 	endpoint := wsEndpoint + geminiWsOrderEvents
-	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte(PayloadBase64),
-		[]byte(creds.Secret))
+	payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -160,12 +163,12 @@ func (g *Gemini) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	headers := http.Header{}
 	headers.Add("Content-Length", "0")
 	headers.Add("Content-Type", "text/plain")
-	headers.Add("X-GEMINI-PAYLOAD", PayloadBase64)
+	headers.Add("X-GEMINI-PAYLOAD", payloadB64)
 	headers.Add("X-GEMINI-APIKEY", creds.Key)
-	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
+	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = g.Websocket.AuthConn.Dial(dialer, headers)
+	err = g.Websocket.AuthConn.Dial(ctx, dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
@@ -482,8 +485,8 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return err
 	}
 
-	bids := make([]orderbook.Tranche, 0, len(result.Changes))
-	asks := make([]orderbook.Tranche, 0, len(result.Changes))
+	bids := make([]orderbook.Level, 0, len(result.Changes))
+	asks := make([]orderbook.Level, 0, len(result.Changes))
 
 	for x := range result.Changes {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)
@@ -494,7 +497,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if err != nil {
 			return err
 		}
-		obItem := orderbook.Tranche{
+		obItem := orderbook.Level{
 			Amount: amount,
 			Price:  price,
 		}
@@ -506,7 +509,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 	}
 
 	if isInitial {
-		var newOrderBook orderbook.Base
+		var newOrderBook orderbook.Book
 		newOrderBook.Asks = asks
 		newOrderBook.Bids = bids
 		newOrderBook.Asset = asset.Spot

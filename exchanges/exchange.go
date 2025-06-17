@@ -1769,7 +1769,7 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 }
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
+func (b *Base) ParallelChanOp(ctx context.Context, channels subscription.List, m func(context.Context, subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
 
@@ -1777,7 +1777,7 @@ func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.Li
 		wg.Add(1)
 		go func(c subscription.List) {
 			defer wg.Done()
-			if err := m(c); err != nil {
+			if err := m(ctx, c); err != nil {
 				errC <- err
 			}
 		}(b)
@@ -1914,9 +1914,9 @@ func (b *Base) GetCachedTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
-// GetCachedOrderbook returns orderbook base on the currency pair and asset type
+// GetCachedOrderbook returns an orderbook snapshot for the currency pair and asset type
 // NOTE: UpdateOrderbook method must be called first to update the orderbook map
-func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 

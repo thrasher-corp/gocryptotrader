@@ -81,9 +81,7 @@ func TestSendHTTPRequest(t *testing.T) {
 func TestSetHTTPClientWithTimeout(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPClientWithTimeout(-0)
-	if !errors.Is(err, errCannotSetInvalidTimeout) {
-		t.Fatalf("received: %v but expected: %v", err, errCannotSetInvalidTimeout)
-	}
+	require.ErrorIs(t, err, errCannotSetInvalidTimeout)
 
 	err = SetHTTPClientWithTimeout(time.Second * 15)
 	require.NoError(t, err)
@@ -92,9 +90,7 @@ func TestSetHTTPClientWithTimeout(t *testing.T) {
 func TestSetHTTPUserAgent(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPUserAgent("")
-	if !errors.Is(err, errUserAgentInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errUserAgentInvalid)
-	}
+	require.ErrorIs(t, err, errUserAgentInvalid)
 
 	err = SetHTTPUserAgent("testy test")
 	require.NoError(t, err)
@@ -103,9 +99,7 @@ func TestSetHTTPUserAgent(t *testing.T) {
 func TestSetHTTPClient(t *testing.T) {
 	t.Parallel()
 	err := SetHTTPClient(nil)
-	if !errors.Is(err, errHTTPClientInvalid) {
-		t.Fatalf("received: %v but expected: %v", err, errHTTPClientInvalid)
-	}
+	require.ErrorIs(t, err, errHTTPClientInvalid)
 
 	err = SetHTTPClient(new(http.Client))
 	require.NoError(t, err)
@@ -497,39 +491,25 @@ func TestParseStartEndDate(t *testing.T) {
 	nt := time.Time{}
 
 	err := StartEndTimeCheck(nt, nt)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, nt)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, ZeroValueUnix)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(ZeroValueUnix, et)
-	if !errors.Is(err, ErrDateUnset) {
-		t.Errorf("received %v, expected %v", err, ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, et)
-	if !errors.Is(err, ErrStartEqualsEnd) {
-		t.Errorf("received %v, expected %v", err, ErrStartEqualsEnd)
-	}
+	assert.ErrorIs(t, err, ErrStartEqualsEnd)
 
 	err = StartEndTimeCheck(et, pt)
-	if !errors.Is(err, ErrStartAfterEnd) {
-		t.Errorf("received %v, expected %v", err, ErrStartAfterEnd)
-	}
+	assert.ErrorIs(t, err, ErrStartAfterEnd)
 
 	err = StartEndTimeCheck(ft, ft.Add(time.Hour))
-	if !errors.Is(err, ErrStartAfterTimeNow) {
-		t.Errorf("received %v, expected %v", err, ErrStartAfterTimeNow)
-	}
+	assert.ErrorIs(t, err, ErrStartAfterTimeNow)
 
 	err = StartEndTimeCheck(pt, et)
 	assert.NoError(t, err)
@@ -547,9 +527,7 @@ func TestGetAssertError(t *testing.T) {
 	}
 
 	err = GetTypeAssertError("bruh", struct{}{})
-	if !errors.Is(err, ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, ErrTypeAssertFailure)
 
 	err = GetTypeAssertError("string", struct{}{})
 	if err.Error() != "type assert failure from struct {} to string" {

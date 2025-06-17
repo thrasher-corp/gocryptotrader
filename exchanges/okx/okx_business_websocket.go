@@ -2,6 +2,7 @@ package okx
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -43,7 +44,7 @@ var (
 )
 
 // WsConnectBusiness connects to a business websocket channel.
-func (ok *Okx) WsConnectBusiness() error {
+func (ok *Okx) WsConnectBusiness(ctx context.Context) error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -52,12 +53,12 @@ func (ok *Okx) WsConnectBusiness() error {
 	dialer.WriteBufferSize = 8192
 
 	ok.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
+	go ok.wsReadData(ctx, ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -68,7 +69,7 @@ func (ok *Okx) WsConnectBusiness() error {
 		Delay:       time.Second * 20,
 	})
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.WsSpreadAuth(context.TODO())
+		err = ok.WsSpreadAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -87,22 +88,21 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 		return err
 	}
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timeUnix := time.Now()
+	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(timeUnix.Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(ts, 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
 	}
-	base64Sign := crypto.Base64Encode(hmac)
 	args := []WebsocketLoginData{
 		{
 			APIKey:     creds.Key,
 			Passphrase: creds.ClientID,
-			Timestamp:  timeUnix.Unix(),
-			Sign:       base64Sign,
+			Timestamp:  ts,
+			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
 	return ok.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
@@ -158,18 +158,18 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscripti
 }
 
 // BusinessSubscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) BusinessSubscribe(channelsToSubscribe subscription.List) error {
-	return ok.handleBusinessSubscription(operationSubscribe, channelsToSubscribe)
+func (ok *Okx) BusinessSubscribe(ctx context.Context, channelsToSubscribe subscription.List) error {
+	return ok.handleBusinessSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // BusinessUnsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) BusinessUnsubscribe(channelsToUnsubscribe subscription.List) error {
-	return ok.handleBusinessSubscription(operationUnsubscribe, channelsToUnsubscribe)
+func (ok *Okx) BusinessUnsubscribe(ctx context.Context, channelsToUnsubscribe subscription.List) error {
+	return ok.handleBusinessSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscription.List) error {
+func (ok *Okx) handleBusinessSubscription(ctx context.Context, operation string, subscriptions subscription.List) error {
 	wsSubscriptionReq := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
 	var authChannels subscription.List
@@ -178,7 +178,8 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 		arg := SubscriptionInfo{
 			Channel: subscriptions[i].Channel,
 		}
-		var instrumentID, instrumentFamily, spreadID string
+		var instrumentFamily, spreadID string
+		var instrumentID currency.Pair
 		switch arg.Channel {
 		case okxSpreadOrders,
 			okxSpreadTrades,
@@ -189,7 +190,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 			spreadID = subscriptions[i].Pairs[0].String()
 		case channelPublicBlockTrades,
 			channelBlockTickers:
-			instrumentID = subscriptions[i].Pairs[0].String()
+			instrumentID = subscriptions[i].Pairs[0]
 		}
 		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
 		if okay {
@@ -209,7 +210,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 		}
 		if len(chunk) > maxConnByteLen {
 			i--
-			err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, wsSubscriptionReq)
+			err = ok.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
 			if err != nil {
 				return err
 			}
@@ -226,7 +227,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscr
 			continue
 		}
 	}
-	err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, wsSubscriptionReq)
+	err = ok.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
 	if err != nil {
 		return err
 	}

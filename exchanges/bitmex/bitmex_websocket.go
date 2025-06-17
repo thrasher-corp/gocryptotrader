@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -87,8 +88,9 @@ func (b *Bitmex) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 
+	ctx := context.TODO()
 	var dialer gws.Dialer
-	if err := b.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
+	if err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 
@@ -96,7 +98,6 @@ func (b *Bitmex) WsConnect() error {
 	go b.wsReadData()
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		ctx := context.TODO()
 		if err := b.websocketSendAuth(ctx); err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -399,13 +400,13 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 	switch action {
 	case bitmexActionInitialData:
-		book := orderbook.Base{
-			Asks: make(orderbook.Tranches, 0, len(data)),
-			Bids: make(orderbook.Tranches, 0, len(data)),
+		book := orderbook.Book{
+			Asks: make(orderbook.Levels, 0, len(data)),
+			Bids: make(orderbook.Levels, 0, len(data)),
 		}
 
 		for i := range data {
-			item := orderbook.Tranche{
+			item := orderbook.Level{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
@@ -438,10 +439,10 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			return err
 		}
 
-		asks := make([]orderbook.Tranche, 0, len(data))
-		bids := make([]orderbook.Tranche, 0, len(data))
+		asks := make([]orderbook.Level, 0, len(data))
+		bids := make([]orderbook.Level, 0, len(data))
 		for i := range data {
-			nItem := orderbook.Tranche{
+			nItem := orderbook.Level{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
@@ -520,21 +521,23 @@ func (b *Bitmex) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 
 // Subscribe subscribes to a websocket channel
 func (b *Bitmex) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Private(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeOp, l) }, len(subs)),
 	)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Private(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeOp, l) }, len(subs)),
 	)
 }
 
-func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
+func (b *Bitmex) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	req := WebsocketRequest{
 		Command: op,
 	}
@@ -547,7 +550,7 @@ func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
 	if err != nil {
 		return err
 	}
-	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(context.TODO(), request.Unset, string(reqJSON), req, len(subs))
+	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(ctx, request.Unset, string(reqJSON), req, len(subs))
 	for _, resp := range resps {
 		if errMsg, _ := jsonparser.GetString(resp, "error"); errMsg != "" {
 			errs = common.AppendError(errs, errors.New(errMsg))
@@ -577,17 +580,17 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	timestampStr := strconv.FormatInt(timestamp, 10)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("GET/realtime"+timestampStr), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-	signature := crypto.HexEncodeToString(hmac)
 
 	req := WebsocketRequest{
 		Command:   "authKeyExpires",
-		Arguments: []any{creds.Key, timestamp, signature},
+		Arguments: []any{creds.Key, timestamp, hex.EncodeToString(hmac)},
 	}
 
 	resp, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Command, req)

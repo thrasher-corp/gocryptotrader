@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -123,24 +124,25 @@ var (
 
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
+	ctx := context.TODO()
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := d.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := d.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	d.Websocket.Wg.Add(1)
-	go d.wsReadData()
+	go d.wsReadData(ctx)
 	if d.Websocket.CanUseAuthenticatedEndpoints() {
-		err = d.wsLogin(context.TODO())
+		err = d.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", d.Name, err)
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, setHeartBeatMessage)
+	return d.Websocket.Conn.SendJSONMessage(ctx, request.Unset, setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -155,9 +157,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 	n := d.Requester.GetNonce(nonce.UnixNano).String()
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	str2Sign := strTS + "\n" + n + "\n"
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(str2Sign),
-		[]byte(creds.Secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(str2Sign), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
@@ -171,10 +171,10 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
 			"nonce":      n,
-			"signature":  crypto.HexEncodeToString(hmac),
+			"signature":  hex.EncodeToString(hmac),
 		},
 	}
-	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := d.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -191,7 +191,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (d *Deribit) wsReadData() {
+func (d *Deribit) wsReadData(ctx context.Context) {
 	defer d.Websocket.Wg.Done()
 
 	for {
@@ -200,21 +200,21 @@ func (d *Deribit) wsReadData() {
 			return
 		}
 
-		err := d.wsHandleData(resp.Raw)
+		err := d.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			d.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (d *Deribit) wsHandleData(respRaw []byte) error {
+func (d *Deribit) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var response WsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, pingMessage)
+		return d.Websocket.Conn.SendJSONMessage(ctx, request.Unset, pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
@@ -653,7 +653,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
+		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 3 {
 				return errMalformedData
@@ -666,12 +666,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks = append(asks, orderbook.Tranche{
+			asks = append(asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		bids := make(orderbook.Tranches, 0, len(orderbookData.Bids))
+		bids := make(orderbook.Levels, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 3 {
 				return errMalformedData
@@ -686,7 +686,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids = append(bids, orderbook.Tranche{
+			bids = append(bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -697,7 +697,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 
 		switch orderbookData.Type {
 		case "snapshot":
-			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
 				LastUpdated:     orderbookData.Timestamp.Time(),
@@ -722,7 +722,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
+		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 2 {
 				return errMalformedData
@@ -737,12 +737,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks = append(asks, orderbook.Tranche{
+			asks = append(asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		bids := make([]orderbook.Tranche, 0, len(orderbookData.Bids))
+		bids := make([]orderbook.Level, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 2 {
 				return errMalformedData
@@ -757,7 +757,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids = append(bids, orderbook.Tranche{
+			bids = append(bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -765,7 +765,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asks:         asks,
 			Bids:         bids,
 			Pair:         cp,
@@ -796,21 +796,19 @@ func (d *Deribit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 
 // Subscribe sends a websocket message to receive data from the channel
 func (d *Deribit) Subscribe(subs subscription.List) error {
-	errs := d.handleSubscription("public/subscribe", subs.Public())
-	return common.AppendError(errs,
-		d.handleSubscription("private/subscribe", subs.Private()),
-	)
+	ctx := context.TODO()
+	errs := d.handleSubscription(ctx, "public/subscribe", subs.Public())
+	return common.AppendError(errs, d.handleSubscription(ctx, "private/subscribe", subs.Private()))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (d *Deribit) Unsubscribe(subs subscription.List) error {
-	errs := d.handleSubscription("public/unsubscribe", subs.Public())
-	return common.AppendError(errs,
-		d.handleSubscription("private/unsubscribe", subs.Private()),
-	)
+	ctx := context.TODO()
+	errs := d.handleSubscription(ctx, "public/unsubscribe", subs.Public())
+	return common.AppendError(errs, d.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
 }
 
-func (d *Deribit) handleSubscription(method string, subs subscription.List) error {
+func (d *Deribit) handleSubscription(ctx context.Context, method string, subs subscription.List) error {
 	var err error
 	subs, err = subs.ExpandTemplates(d)
 	if err != nil || len(subs) == 0 {
@@ -824,7 +822,7 @@ func (d *Deribit) handleSubscription(method string, subs subscription.List) erro
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
 
-	data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.ID, r)
+	data, err := d.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"hash/crc32"
 	"net/http"
@@ -102,7 +103,7 @@ func (bi *Bitget) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := bi.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := bi.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	if !bi.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v %w", bi.Name, errAuthenticatedWebsocketDisabled)
 	}
-	err := bi.Websocket.AuthConn.Dial(dialer, http.Header{})
+	err := bi.Websocket.AuthConn.Dial(context.TODO(), dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -155,7 +156,7 @@ func (bi *Bitget) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	if err != nil {
 		return err
 	}
-	base64Sign := crypto.Base64Encode(hmac)
+	base64Sign := base64.StdEncoding.EncodeToString(hmac)
 	payload := WsLogin{
 		Operation: "login",
 		Arguments: []WsLoginArgument{
@@ -434,16 +435,16 @@ func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 	if len(ob) == 0 {
 		return errReturnEmpty
 	}
-	bids, err := trancheConstructor(ob[0].Bids)
+	bids, err := levelConstructor(ob[0].Bids)
 	if err != nil {
 		return err
 	}
-	asks, err := trancheConstructor(ob[0].Asks)
+	asks, err := levelConstructor(ob[0].Asks)
 	if err != nil {
 		return err
 	}
 	if wsResponse.Action[0] == 's' {
-		orderbook := orderbook.Base{
+		orderbook := orderbook.Book{
 			Pair:                   pair,
 			Asset:                  itemDecoder(wsResponse.Arg.InstrumentType),
 			Bids:                   bids,
@@ -996,10 +997,11 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 			resp[i] = account.Change{
 				AssetType: asset.Futures,
 				Balance: &account.Balance{
-					Currency: acc[i].MarginCoin,
-					Hold:     acc[i].Frozen,
-					Free:     acc[i].Available,
-					Total:    acc[i].Available + acc[i].Frozen,
+					Currency:  acc[i].MarginCoin,
+					Hold:      acc[i].Frozen,
+					Free:      acc[i].Available,
+					Total:     acc[i].Available + acc[i].Frozen,
+					UpdatedAt: time.Now(),
 				},
 			}
 		}
@@ -1010,12 +1012,12 @@ func (bi *Bitget) accountUpdateDataHandler(wsResponse *WsResponse, respRaw []byt
 	return account.ProcessChange(bi.Name, resp, creds)
 }
 
-// TrancheConstructor turns the exchange's orderbook data into a standardised format for the engine
-func trancheConstructor(data [][2]string) ([]orderbook.Tranche, error) {
-	resp := make([]orderbook.Tranche, len(data))
+// LevelConstructor turns the exchange's orderbook data into a standardised format for the engine
+func levelConstructor(data [][2]string) ([]orderbook.Level, error) {
+	resp := make([]orderbook.Level, len(data))
 	var err error
 	for i := range data {
-		resp[i] = orderbook.Tranche{
+		resp[i] = orderbook.Level{
 			StrPrice:  data[i][0],
 			StrAmount: data[i][1],
 		}
@@ -1032,7 +1034,7 @@ func trancheConstructor(data [][2]string) ([]orderbook.Tranche, error) {
 }
 
 // CalculateUpdateOrderbookChecksum calculates the checksum of the orderbook data
-func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, checksumVal uint32) error {
+func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book, checksumVal uint32) error {
 	var builder strings.Builder
 	for i := range 25 {
 		if len(orderbookData.Bids) > i {

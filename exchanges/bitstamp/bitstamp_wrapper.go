@@ -288,14 +288,14 @@ func (b *Bitstamp) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
+	book := &orderbook.Book{
 		Exchange:        b.Name,
 		Pair:            p,
 		Asset:           assetType,
@@ -311,9 +311,9 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
@@ -321,9 +321,9 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 	filterOrderbookZeroBidPrice(book)
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -819,7 +819,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+		timestamp := candles.Data.OHLCV[x].Timestamp.Time()
 		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
@@ -857,13 +857,13 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			timestamp := candles.Data.OHLCV[i].Timestamp.Time()
 			if timestamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
 				timestamp.After(req.RangeHolder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
+				Time:   timestamp,
 				Open:   candles.Data.OHLCV[i].Open,
 				High:   candles.Data.OHLCV[i].High,
 				Low:    candles.Data.OHLCV[i].Low,

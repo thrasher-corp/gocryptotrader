@@ -1,7 +1,6 @@
 package alert
 
 import (
-	"errors"
 	"log"
 	"sync"
 	"testing"
@@ -124,9 +123,7 @@ func getSize() int {
 func TestSetPreAllocationCommsBuffer(t *testing.T) {
 	t.Parallel()
 	err := SetPreAllocationCommsBuffer(-1)
-	if !errors.Is(err, errInvalidBufferSize) {
-		t.Fatalf("received: '%v' but expected '%v'", err, errInvalidBufferSize)
-	}
+	require.ErrorIs(t, err, errInvalidBufferSize)
 
 	if getSize() != 5 {
 		t.Fatal("unexpected amount")

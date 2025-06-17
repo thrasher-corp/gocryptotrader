@@ -64,13 +64,14 @@ func TestMain(m *testing.M) {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	getFirstTradablePairOfAssets()
+	ctx := context.Background()
+	getFirstTradablePairOfAssets(ctx)
 	assertToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:    spotTradablePair,
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	ku.setupOrderbookManager()
+	ku.setupOrderbookManager(ctx)
 	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
@@ -2065,7 +2066,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	var result *orderbook.Base
+	var result *orderbook.Book
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.UpdateOrderbook(t.Context(), tp, assetType)
@@ -2226,7 +2227,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.Buy,
 	}
 
-	getOrdersRequest.Type = order.OptimalLimitIOC
+	getOrdersRequest.Type = order.OptimalLimit
 	_, err = ku.GetActiveOrders(t.Context(), &getOrdersRequest)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
@@ -2563,7 +2564,7 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetDepositAddress(t.Context(), currency.BTC, "", "")
-	assert.True(t, err == nil || errors.Is(err, errNoDepositAddress), err)
+	assert.Truef(t, err == nil || errors.Is(err, errNoDepositAddress), "GetDepositAddress should not error: %s", err)
 }
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
@@ -2932,8 +2933,8 @@ func TestGetFundingHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func getFirstTradablePairOfAssets() {
-	if err := ku.UpdateTradablePairs(context.Background(), true); err != nil {
+func getFirstTradablePairOfAssets(ctx context.Context) {
+	if err := ku.UpdateTradablePairs(ctx, true); err != nil {
 		log.Fatalf("Kucoin error while updating tradable pairs. %v", err)
 	}
 	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)
@@ -2981,7 +2982,7 @@ func TestProcessOrderbook(t *testing.T) {
 	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	err = ku.wsHandleData([]byte(orderbookLevel5PushData))
+	err = ku.wsHandleData(t.Context(), []byte(orderbookLevel5PushData))
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3944,7 +3945,7 @@ func TestGetMarginHFOrderDetailByOrderID(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err = ku.GetMarginHFOrderDetailByOrderID(t.Context(), "243432432423the-order-id", marginTradablePair.String())
-	assert.True(t, errors.Is(err, order.ErrOrderNotFound) || err == nil)
+	assert.Truef(t, errors.Is(err, order.ErrOrderNotFound) || err == nil, "GetMarginHFOrderDetailByOrderID should not error: %s", err)
 }
 
 func TestGetMarginHFOrderDetailByClientOrderID(t *testing.T) {

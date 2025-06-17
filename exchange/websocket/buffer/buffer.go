@@ -80,8 +80,8 @@ func (w *Orderbook) validate(u *orderbook.Update) error {
 	return nil
 }
 
-// Update updates a stored pointer to an orderbook.Depth struct containing a
-// bid and ask Tranches, this switches between the usage of a buffered update
+// Update updates a stored pointer to an orderbook.Depth struct containing
+// bid and ask levels, this switches between the usage of a buffered update
 func (w *Orderbook) Update(u *orderbook.Update) error {
 	if err := w.validate(u); err != nil {
 		return err
@@ -275,7 +275,7 @@ func (o *orderbookHolder) updateByIDAndAction(updts *orderbook.Update) error {
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
-func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
+func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	// Checks if book can deploy to depth
 	err := book.Verify()
 	if err != nil {
@@ -301,7 +301,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 
 	holder.updateID = book.LastUpdateID
 
-	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.UpdatePushedAt, false)
+	err = holder.ob.LoadSnapshot(book.Bids, book.Asks, book.LastUpdateID, book.LastUpdated, book.LastPushed, false)
 	if err != nil {
 		return err
 	}
@@ -311,8 +311,8 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 	return nil
 }
 
-// GetOrderbook returns an orderbook copy as orderbook.Base
-func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+// GetOrderbook returns an orderbook copy as orderbook.Book
+func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

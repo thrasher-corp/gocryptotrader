@@ -98,7 +98,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	var dialer gws.Dialer
-	err = bi.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = bi.Websocket.Conn.Dial(context.TODO(), &dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1450,6 +1450,7 @@ func TestGetFuturesOrderFillHistory(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	// Keeps getting "Parameter verification failed" error and I can't figure out why
+	// Now it's "Parameter verification failed 500"
 	resp, err := bi.GetFuturesOrderFillHistory(t.Context(), currency.Pair{}, testFiat2.String()+"-FUTURES", 0, 1<<62, 5, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	if len(resp.FillList) == 0 {
@@ -3050,14 +3051,14 @@ func TestGetOpenInterest(t *testing.T) {
 
 func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
-	ord := orderbook.Base{
-		Asks: orderbook.Tranches{
+	ord := orderbook.Book{
+		Asks: orderbook.Levels{
 			{
 				StrPrice:  "3",
 				StrAmount: "1",
 			},
 		},
-		Bids: orderbook.Tranches{
+		Bids: orderbook.Levels{
 			{
 				StrPrice:  "4",
 				StrAmount: "1",
@@ -3068,10 +3069,10 @@ func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidChecksum)
 	err = bi.CalculateUpdateOrderbookChecksum(&ord, 892106381)
 	assert.NoError(t, err)
-	ord.Asks = make(orderbook.Tranches, 26)
+	ord.Asks = make(orderbook.Levels, 26)
 	data := "3141592653589793238462643383279502884197169399375105"
 	for i := range ord.Asks {
-		ord.Asks[i] = orderbook.Tranche{
+		ord.Asks[i] = orderbook.Level{
 			StrPrice:  string(data[i*2]),
 			StrAmount: string(data[i*2+1]),
 		}
@@ -3770,7 +3771,7 @@ func TestAccountUpdateDataHandler(t *testing.T) {
 	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[[]]}`)
 	err = bi.wsHandleData(mockJSON)
 	assert.ErrorContains(t, err, errUnmarshalArray)
-	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[{}]}`)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[{"uTime":"1750142570"}]}`)
 	err = bi.wsHandleData(mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"futures"},"data":[[]]}`)

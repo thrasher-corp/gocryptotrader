@@ -2,6 +2,7 @@ package btse
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -40,11 +41,12 @@ var defaultSubscriptions = subscription.List{
 
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
+	ctx := context.TODO()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -54,10 +56,10 @@ func (b *BTSE) WsConnect() error {
 	})
 
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(ctx)
 
 	if b.IsWebsocketAuthenticationSupported() {
-		err = b.WsAuthenticate(context.TODO())
+		err = b.WsAuthenticate(ctx)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -76,18 +78,14 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	path := "/ws/spot" + nonce
 
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
-		[]byte((path)),
-		[]byte(creds.Secret),
-	)
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte((path)), []byte(creds.Secret))
 	if err != nil {
 		return err
 	}
 
-	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
-		Arguments: []string{creds.Key, nonce, sign},
+		Arguments: []string{creds.Key, nonce, hex.EncodeToString(hmac)},
 	}
 	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
@@ -114,7 +112,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *BTSE) wsReadData() {
+func (b *BTSE) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -122,14 +120,14 @@ func (b *BTSE) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *BTSE) wsHandleData(respRaw []byte) error {
+func (b *BTSE) wsHandleData(_ context.Context, respRaw []byte) error {
 	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
@@ -289,9 +287,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		newOB := orderbook.Base{
-			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
-			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
+		newOB := orderbook.Book{
+			Bids: make(orderbook.Levels, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Levels, 0, len(t.Data.SellQuote)),
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
@@ -308,7 +306,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
+			newOB.Asks = append(newOB.Asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -327,7 +325,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
+			newOB.Bids = append(newOB.Bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -388,11 +386,12 @@ func (b *BTSE) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (b *BTSE) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	req := wsSub{Operation: "subscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	err := b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 	if err == nil {
 		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subs...)
 	}
@@ -401,11 +400,12 @@ func (b *BTSE) Subscribe(subs subscription.List) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
 func (b *BTSE) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	req := wsSub{Operation: "unsubscribe"}
 	for _, s := range subs {
 		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	err := b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 	if err == nil {
 		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
 	}

@@ -18,11 +18,11 @@ var validCategory = []string{"spot", "linear", "inverse", "option"}
 var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
 
 type orderbookResponse struct {
-	Symbol    string      `json:"s"`
-	Asks      [][2]string `json:"a"`
-	Bids      [][2]string `json:"b"`
-	Timestamp types.Time  `json:"ts"`
-	UpdateID  int64       `json:"u"`
+	Symbol    string            `json:"s"`
+	Asks      [][2]types.Number `json:"a"`
+	Bids      [][2]types.Number `json:"b"`
+	Timestamp types.Time        `json:"ts"`
+	UpdateID  int64             `json:"u"`
 }
 
 // Authenticate stores authentication variables required
@@ -142,23 +142,14 @@ type MarkPriceKlineResponse struct {
 }
 
 func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Symbol:         o.Symbol,
-			UpdateID:       o.UpdateID,
-			GenerationTime: o.Timestamp.Time(),
-		}
-		err error
-	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
+	s := Orderbook{
+		Symbol:         o.Symbol,
+		UpdateID:       o.UpdateID,
+		GenerationTime: o.Timestamp.Time(),
 	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
+	s.Bids = processOB(o.Bids)
+	s.Asks = processOB(o.Asks)
+	return &s, nil
 }
 
 // TickerData represents a list of ticker detailed information.
@@ -1750,19 +1741,19 @@ type ServerTime struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	UpdateID       int64
-	Bids           []orderbook.Tranche
-	Asks           []orderbook.Tranche
+	Bids           []orderbook.Level
+	Asks           []orderbook.Level
 	Symbol         string
 	GenerationTime time.Time
 }
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol   string     `json:"s"`
-	Bids     [][]string `json:"b"`
-	Asks     [][]string `json:"a"`
-	UpdateID int64      `json:"u"`
-	Sequence int64      `json:"seq"`
+	Symbol   string            `json:"s"`
+	Bids     [][2]types.Number `json:"b"`
+	Asks     [][2]types.Number `json:"a"`
+	UpdateID int64             `json:"u"`
+	Sequence int64             `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.

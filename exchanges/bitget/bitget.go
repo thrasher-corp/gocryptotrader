@@ -3,6 +3,7 @@ package bitget
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -4779,7 +4780,7 @@ func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 		}
 		headers := make(map[string]string)
 		headers["ACCESS-KEY"] = creds.Key
-		headers["ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+		headers["ACCESS-SIGN"] = base64.StdEncoding.EncodeToString(hmac)
 		headers["ACCESS-TIMESTAMP"] = t
 		headers["ACCESS-PASSPHRASE"] = creds.ClientID
 		headers["Content-Type"] = "application/json"

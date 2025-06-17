@@ -936,7 +936,7 @@ type AssetData struct {
 
 // SubaccountAssetsResp contains information on assets in a user's sub-accounts
 type SubaccountAssetsResp struct {
-	UserID     uint64      `json:"userId,string"`
+	UserID     uint64      `json:"userId"`
 	AssetsList []AssetData `json:"assetsList"`
 }
 

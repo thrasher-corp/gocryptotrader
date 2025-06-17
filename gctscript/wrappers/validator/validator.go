@@ -46,22 +46,22 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 }
 
 // Orderbook validator for test execution/scripts
-func (w Wrapper) Orderbook(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+func (w Wrapper) Orderbook(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Book, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
 
-	return &orderbook.Base{
+	return &orderbook.Book{
 		Exchange: exch,
 		Asset:    item,
 		Pair:     pair,
-		Bids: []orderbook.Tranche{
+		Bids: []orderbook.Level{
 			{
 				Amount: 1,
 				Price:  1,
 			},
 		},
-		Asks: []orderbook.Tranche{
+		Asks: []orderbook.Level{
 			{
 				Amount: 1,
 				Price:  1,
@@ -116,16 +116,11 @@ func (w Wrapper) QueryOrder(_ context.Context, exch, _ string, _ currency.Pair, 
 		return nil, errTestFailed
 	}
 
-	pair, err := currency.NewPairFromString("BTCAUD")
-	if err != nil {
-		return nil, err
-	}
-
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
 		OrderID:         "1",
-		Pair:            pair,
+		Pair:            currency.NewBTCUSD(),
 		Side:            order.Ask,
 		Type:            order.Limit,
 		Date:            time.Now(),

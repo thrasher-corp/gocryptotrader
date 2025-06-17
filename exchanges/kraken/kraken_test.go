@@ -1172,7 +1172,7 @@ func TestWsAddOrder(t *testing.T) {
 
 	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
-	id, err := k.wsAddOrder(&WsAddOrderRequest{
+	id, err := k.wsAddOrder(t.Context(), &WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
 		Pair:      "XBT/USD",
@@ -1189,20 +1189,20 @@ func TestWsCancelOrders(t *testing.T) {
 	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 
-	err := k.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
+	err := k.wsCancelOrders(t.Context(), []string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
 	assert.ErrorIs(t, err, errCancellingOrder, "Should error cancelling order")
 	assert.ErrorContains(t, err, "BATFISH", "Should error containing txn id")
 	assert.ErrorContains(t, err, "CATFISH", "Should error containing txn id")
 	assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
 
-	err = k.wsCancelOrders([]string{"RABBIT", "SQUIRREL", "MOUSE"})
+	err = k.wsCancelOrders(t.Context(), []string{"RABBIT", "SQUIRREL", "MOUSE"})
 	assert.NoError(t, err, "Should not error with valid ids")
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 	testexch.SetupWs(t, k)
-	_, err := k.wsCancelAllOrders()
+	_, err := k.wsCancelAllOrders(t.Context())
 	require.NoError(t, err, "wsCancelAllOrders must not error")
 }
 
@@ -1283,7 +1283,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, order.Pending, v.Status, "order status")
 				assert.Equal(t, 0.0, v.Price, "price")
 				assert.Equal(t, 0.0001, v.Amount, "amount")
-				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date, "Date")
+				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date.UTC(), "Date")
 			case 4:
 				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
 				assert.Equal(t, order.Open, v.Status, "order status")
@@ -1300,7 +1300,7 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
 				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
 				assert.Equal(t, 0.00687, v.Fee, "Fee")
-				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated.UTC(), "LastUpdated")
 			case 1:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
@@ -1310,7 +1310,7 @@ func TestWsOpenOrders(t *testing.T) {
 			case 0:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated, "LastUpdated")
+				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated.UTC(), "LastUpdated")
 				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
 				assert.Equal(t, 0.001, v.Fee, "Fee")
 				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
@@ -1340,7 +1340,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricCandlesExtended should error correctly")
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		interval kline.Interval
@@ -1370,8 +1370,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades should error")
 }
 
-var testOb = orderbook.Base{
-	Asks: []orderbook.Tranche{
+var testOb = orderbook.Book{
+	Asks: []orderbook.Level{
 		// NOTE: 0.00000500 float64 == 0.000005
 		{Price: 0.05005, StrPrice: "0.05005", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05010, StrPrice: "0.05010", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -1384,7 +1384,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, StrPrice: "0.05045", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05050, StrPrice: "0.05050", Amount: 0.00000500, StrAmount: "0.00000500"},
 	},
-	Bids: []orderbook.Tranche{
+	Bids: []orderbook.Level{
 		{Price: 0.05000, StrPrice: "0.05000", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04995, StrPrice: "0.04995", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04990, StrPrice: "0.04990", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -1424,7 +1424,7 @@ func TestGetCharts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Candles)
 
-	end := time.UnixMilli(resp.Candles[0].Time)
+	end := resp.Candles[0].Time.Time()
 	_, err = k.GetFuturesCharts(t.Context(), "1d", "spot", futuresTestPair, end.Add(-time.Hour*24*7), end)
 	require.NoError(t, err)
 }
@@ -1486,15 +1486,15 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 	}
 
 	for x := range websocketXDGUSDOrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
+		err := k.wsHandleData(t.Context(), []byte(websocketXDGUSDOrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
+		err := k.wsHandleData(t.Context(), []byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
-		// in the orderbook.Tranche struct.
+		// in the orderbook.Level struct.
 		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
 		if x != len(websocketLUNAEUROrderbookUpdates)-1 {
 			require.NoError(t, err, "wsHandleData must not error")
@@ -1503,7 +1503,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
+		err := k.wsHandleData(t.Context(), []byte(websocketGSTEUROrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 }
@@ -1511,13 +1511,10 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := k.GetFuturesContractDetails(t.Context(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
 	_, err = k.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = k.GetFuturesContractDetails(t.Context(), asset.Futures)
 	assert.NoError(t, err, "GetFuturesContractDetails should not error")
@@ -1538,7 +1535,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	assert.NoError(t, err, "GetLatestFundingRates should not error")
 
 	err = k.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
-	assert.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error")
+	assert.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error: %s", err)
 	_, err = k.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Futures,
 		Pair:                 futuresTestPair,

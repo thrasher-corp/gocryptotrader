@@ -332,14 +332,14 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	o := &orderbook.Base{
+	o := &orderbook.Book{
 		Exchange:         b.Name,
 		Pair:             p,
 		Asset:            assetType,
@@ -366,18 +366,18 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
-		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Tranche{
+			o.Asks[x] = orderbook.Level{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
 			}
 		}
-		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Tranche{
+			o.Bids[x] = orderbook.Level{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -385,17 +385,17 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			}
 		}
 	} else {
-		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Tranche{
+			o.Asks[x] = orderbook.Level{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
 			}
 		}
-		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Tranche{
+			o.Bids[x] = orderbook.Level{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -588,7 +588,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			// All v2 apis use negatives for Short side
 			req.Amount *= -1
 		}
-		orderID, err = b.WsNewOrder(req)
+		orderID, err = b.WsNewOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +644,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if action.Side.IsShort() && action.Amount > 0 {
 			wsRequest.Amount *= -1
 		}
-		err = b.WsModifyOrder(&wsRequest)
+		err = b.WsModifyOrder(ctx, &wsRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -669,7 +669,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err = b.WsCancelOrder(orderIDInt)
+		err = b.WsCancelOrder(ctx, orderIDInt)
 	} else {
 		_, err = b.CancelExistingOrder(ctx, orderIDInt)
 	}
@@ -688,7 +688,7 @@ func (b *Bitfinex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err = b.WsCancelAllOrders()
+		err = b.WsCancelAllOrders(ctx)
 	} else {
 		_, err = b.CancelAllExistingOrders(ctx)
 	}
@@ -700,27 +700,16 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	var timestamp float64
-	timestamp, err = strconv.ParseFloat(o.Timestamp, 64)
-	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s Unable to convert timestamp %q, leaving blank", b.Name, o.Timestamp)
-	}
-
-	var pair currency.Pair
-	pair, err = currency.NewPairFromString(o.Symbol)
-	if err != nil {
-		return nil, err
-	}
 
 	orderDetail := &order.Detail{
 		Amount:          o.OriginalAmount,
-		Date:            time.Unix(int64(timestamp), 0),
+		Date:            o.Timestamp.Time(),
 		Exchange:        b.Name,
 		OrderID:         strconv.FormatInt(o.ID, 10),
 		Side:            side,
 		Price:           o.Price,
 		RemainingAmount: o.RemainingAmount,
-		Pair:            pair,
+		Pair:            o.Symbol,
 		ExecutedAmount:  o.ExecutedAmount,
 	}
 
