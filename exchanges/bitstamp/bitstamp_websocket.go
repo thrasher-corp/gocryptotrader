@@ -299,9 +299,9 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 		return err
 	}
 
-	obUpdate := &orderbook.Base{
-		Bids:            make(orderbook.Tranches, len(wsOrderBookResp.Data.Bids)),
-		Asks:            make(orderbook.Tranches, len(wsOrderBookResp.Data.Asks)),
+	obUpdate := &orderbook.Book{
+		Bids:            make(orderbook.Levels, len(wsOrderBookResp.Data.Bids)),
+		Asks:            make(orderbook.Levels, len(wsOrderBookResp.Data.Asks)),
 		Pair:            p,
 		LastUpdated:     wsOrderBookResp.Data.Microtimestamp.Time(),
 		Asset:           asset.Spot,
@@ -337,24 +337,24 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			return err
 		}
 
-		newOrderBook := &orderbook.Base{
+		newOrderBook := &orderbook.Book{
 			Pair:            p[x],
 			Asset:           asset.Spot,
 			Exchange:        b.Name,
 			VerifyOrderbook: b.CanVerifyOrderbook,
-			Bids:            make(orderbook.Tranches, len(orderbookSeed.Bids)),
-			Asks:            make(orderbook.Tranches, len(orderbookSeed.Asks)),
+			Bids:            make(orderbook.Levels, len(orderbookSeed.Bids)),
+			Asks:            make(orderbook.Levels, len(orderbookSeed.Asks)),
 			LastUpdated:     orderbookSeed.Timestamp,
 		}
 
 		for i := range orderbookSeed.Asks {
-			newOrderBook.Asks[i] = orderbook.Tranche{
+			newOrderBook.Asks[i] = orderbook.Level{
 				Price:  orderbookSeed.Asks[i].Price,
 				Amount: orderbookSeed.Asks[i].Amount,
 			}
 		}
 		for i := range orderbookSeed.Bids {
-			newOrderBook.Bids[i] = orderbook.Tranche{
+			newOrderBook.Bids[i] = orderbook.Level{
 				Price:  orderbookSeed.Bids[i].Price,
 				Amount: orderbookSeed.Bids[i].Amount,
 			}

@@ -1802,8 +1802,16 @@ func TestUpdateTickers(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for _, a := range g.GetAssetTypes(false) {
-		_, err := g.UpdateOrderbook(t.Context(), getPair(t, a), a)
-		assert.NoErrorf(t, err, "UpdateOrderbook should not error for %s", a)
+		pair := getPair(t, a)
+		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
+			t.Parallel()
+			o, err := g.UpdateOrderbook(t.Context(), pair, a)
+			require.NoError(t, err)
+			if a != asset.Options { // Options orderbooks can be empty
+				assert.NotEmpty(t, o.Bids)
+				assert.NotEmpty(t, o.Asks)
+			}
+		})
 	}
 }
 

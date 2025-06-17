@@ -462,24 +462,24 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	newOrderBook := orderbook.Base{
+	newOrderBook := orderbook.Book{
 		Pair:            p,
 		Asset:           asset.Spot,
 		Exchange:        b.Name,
 		LastUpdateID:    orderbookNew.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
+		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
 		LastUpdated:     time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Tranche{
+		newOrderBook.Bids[i] = orderbook.Level{
 			Amount: orderbookNew.Bids[i].Quantity,
 			Price:  orderbookNew.Bids[i].Price,
 		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Tranche{
+		newOrderBook.Asks[i] = orderbook.Level{
 			Amount: orderbookNew.Asks[i].Quantity,
 			Price:  orderbookNew.Asks[i].Price,
 		}
@@ -618,16 +618,16 @@ func (b *Binance) manageSubs(ctx context.Context, op string, subs subscription.L
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
 func (b *Binance) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
-	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
+	updateBid := make([]orderbook.Level, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Tranche{
+		updateBid[i] = orderbook.Level{
 			Price:  ws.UpdateBids[i][0].Float64(),
 			Amount: ws.UpdateBids[i][1].Float64(),
 		}
 	}
-	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
+	updateAsk := make([]orderbook.Level, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Tranche{
+		updateAsk[i] = orderbook.Level{
 			Price:  ws.UpdateAsks[i][0].Float64(),
 			Amount: ws.UpdateAsks[i][1].Float64(),
 		}
@@ -922,7 +922,7 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
 	}
 }
 
-func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
+func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
@@ -956,7 +956,7 @@ buffer:
 }
 
 // validate checks for correct update alignment
-func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (bool, error) {
+func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Book) (bool, error) {
 	if updt.LastUpdateID <= recent.LastUpdateID {
 		// Drop any event where u is <= lastUpdateId in the snapshot.
 		return false, nil

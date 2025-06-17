@@ -436,8 +436,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 			errTypeAssertionFailure)
 	}
 
-	var book orderbook.Base
-	book.Asks = make(orderbook.Tranches, 0, len(askData))
+	var book orderbook.Book
+	book.Asks = make(orderbook.Levels, 0, len(askData))
 	for price, volume := range askData {
 		var p float64
 		p, err = strconv.ParseFloat(price, 64)
@@ -454,10 +454,10 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 		if err != nil {
 			return err
 		}
-		book.Asks = append(book.Asks, orderbook.Tranche{Price: p, Amount: a})
+		book.Asks = append(book.Asks, orderbook.Level{Price: p, Amount: a})
 	}
 
-	book.Bids = make(orderbook.Tranches, 0, len(bidData))
+	book.Bids = make(orderbook.Levels, 0, len(bidData))
 	for price, volume := range bidData {
 		var p float64
 		p, err = strconv.ParseFloat(price, 64)
@@ -474,7 +474,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 		if err != nil {
 			return err
 		}
-		book.Bids = append(book.Bids, orderbook.Tranche{Price: p, Amount: a})
+		book.Bids = append(book.Bids, orderbook.Level{Price: p, Amount: a})
 	}
 
 	// Both sides are completely out of order - sort needs to be used
@@ -536,9 +536,9 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []any, 
 		UpdateTime: time.UnixMilli(tsMilli),
 	}
 	if bs == 1 {
-		update.Bids = []orderbook.Tranche{{Price: price, Amount: volume}}
+		update.Bids = []orderbook.Level{{Price: price, Amount: volume}}
 	} else {
-		update.Asks = []orderbook.Tranche{{Price: price, Amount: volume}}
+		update.Asks = []orderbook.Level{{Price: price, Amount: volume}}
 	}
 	return p.Websocket.Orderbook.Update(update)
 }

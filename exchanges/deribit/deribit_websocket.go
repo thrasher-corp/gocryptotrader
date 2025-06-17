@@ -653,7 +653,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
+		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 3 {
 				return errMalformedData
@@ -666,12 +666,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks = append(asks, orderbook.Tranche{
+			asks = append(asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		bids := make(orderbook.Tranches, 0, len(orderbookData.Bids))
+		bids := make(orderbook.Levels, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 3 {
 				return errMalformedData
@@ -686,7 +686,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids = append(bids, orderbook.Tranche{
+			bids = append(bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -697,7 +697,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 
 		switch orderbookData.Type {
 		case "snapshot":
-			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
 				LastUpdated:     orderbookData.Timestamp.Time(),
@@ -722,7 +722,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
+		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
 		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 2 {
 				return errMalformedData
@@ -737,12 +737,12 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks = append(asks, orderbook.Tranche{
+			asks = append(asks, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		bids := make([]orderbook.Tranche, 0, len(orderbookData.Bids))
+		bids := make([]orderbook.Level, 0, len(orderbookData.Bids))
 		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 2 {
 				return errMalformedData
@@ -757,7 +757,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids = append(bids, orderbook.Tranche{
+			bids = append(bids, orderbook.Level{
 				Price:  price,
 				Amount: amount,
 			})
@@ -765,7 +765,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asks:         asks,
 			Bids:         bids,
 			Pair:         cp,

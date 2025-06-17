@@ -710,38 +710,37 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-
-	asks := make([]orderbook.Tranche, len(result.Asks))
+	asks := make([]orderbook.Level, len(result.Asks))
 	for i := range result.Asks {
 		asks[i].Price = result.Asks[i][0].Float64()
 		asks[i].Amount = result.Asks[i][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(result.Bids))
+	bids := make([]orderbook.Level, len(result.Bids))
 	for i := range result.Bids {
 		bids[i].Price = result.Bids[i][0].Float64()
 		bids[i].Amount = result.Bids[i][1].Float64()
 	}
 
 	if resp.Type == "snapshot" {
-		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:           cp,
-			Exchange:       by.Name,
-			Asset:          assetType,
-			LastUpdated:    resp.OrderbookLastUpdated.Time(),
-			LastUpdateID:   result.UpdateID,
-			UpdatePushedAt: resp.PushTimestamp.Time(),
-			Asks:           asks,
-			Bids:           bids,
+		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Pair:         cp,
+			Exchange:     by.Name,
+			Asset:        assetType,
+			LastUpdated:  resp.OrderbookLastUpdated.Time(),
+			LastUpdateID: result.UpdateID,
+			LastPushed:   resp.PushTimestamp.Time(),
+			Asks:         asks,
+			Bids:         bids,
 		})
 	}
 	return by.Websocket.Orderbook.Update(&orderbook.Update{
-		Pair:           cp,
-		Asks:           asks,
-		Bids:           bids,
-		Asset:          assetType,
-		UpdateID:       result.UpdateID,
-		UpdateTime:     resp.OrderbookLastUpdated.Time(),
-		UpdatePushedAt: resp.PushTimestamp.Time(),
+		Pair:       cp,
+		Asks:       asks,
+		Bids:       bids,
+		Asset:      assetType,
+		UpdateID:   result.UpdateID,
+		UpdateTime: resp.OrderbookLastUpdated.Time(),
+		LastPushed: resp.PushTimestamp.Time(),
 	})
 }
 

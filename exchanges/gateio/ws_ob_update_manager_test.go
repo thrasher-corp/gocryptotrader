@@ -23,15 +23,15 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
-	err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           pair,
-		Asset:          asset.USDTMarginedFutures,
-		Bids:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		Asks:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		LastUpdated:    time.Now(),
-		UpdatePushedAt: time.Now(),
-		LastUpdateID:   1336,
+	err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     g.Name,
+		Pair:         pair,
+		Asset:        asset.USDTMarginedFutures,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1336,
 	})
 	require.NoError(t, err)
 
@@ -145,15 +145,15 @@ func TestApplyPendingUpdates(t *testing.T) {
 
 	m := newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
 	pair := currency.NewPair(currency.LTC, currency.USDT)
-	err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:       g.Name,
-		Pair:           pair,
-		Asset:          asset.USDTMarginedFutures,
-		Bids:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		Asks:           []orderbook.Tranche{{Price: 1, Amount: 1}},
-		LastUpdated:    time.Now(),
-		UpdatePushedAt: time.Now(),
-		LastUpdateID:   1335,
+	err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     g.Name,
+		Pair:         pair,
+		Asset:        asset.USDTMarginedFutures,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1335,
 	})
 	require.NoError(t, err)
 
