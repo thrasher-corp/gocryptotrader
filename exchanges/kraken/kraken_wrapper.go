@@ -232,10 +232,10 @@ func (k *Exchange) Setup(exch *config.Exchange) error {
 }
 
 // Bootstrap provides initialisation for an exchange
-func (k *Exchange) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (k *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
-	if err = k.SeedAssets(context.TODO()); err != nil {
+	if err = k.SeedAssets(ctx); err != nil {
 		err = fmt.Errorf("failed to Seed Assets: %w", err)
 	}
 
@@ -700,7 +700,7 @@ func (k *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			timeInForce = "IOC"
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
+			orderID, err = k.wsAddOrder(ctx, &WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
 				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
@@ -781,7 +781,7 @@ func (k *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{o.OrderID})
+			return k.wsCancelOrders(ctx, []string{o.OrderID})
 		}
 		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
@@ -798,7 +798,7 @@ func (k *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Exchange) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (k *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -811,7 +811,7 @@ func (k *Exchange) CancelBatchOrders(_ context.Context, o []order.Cancel) (*orde
 		ordersList[i] = o[i].OrderID
 	}
 
-	err := k.wsCancelOrders(ordersList)
+	err := k.wsCancelOrders(ctx, ordersList)
 	return nil, err
 }
 
@@ -826,7 +826,7 @@ func (k *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 	switch req.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := k.wsCancelAllOrders()
+			resp, err := k.wsCancelAllOrders(ctx)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -843,7 +843,7 @@ func (k *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 		for orderID := range openOrders.Open {
 			var err error
 			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				err = k.wsCancelOrders([]string{orderID})
+				err = k.wsCancelOrders(ctx, []string{orderID})
 			} else {
 				_, err = k.CancelExistingOrder(ctx, orderID)
 			}

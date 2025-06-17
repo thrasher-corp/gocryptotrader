@@ -173,11 +173,11 @@ func (h *Exchange) SetDefaults() {
 }
 
 // Bootstrap ensures that future contract expiry codes are loaded if AutoPairUpdates is not enabled
-func (h *Exchange) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (h *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
 	if !h.GetEnabledFeatures().AutoPairUpdates && h.SupportsAsset(asset.Futures) {
-		_, err = h.FetchTradablePairs(context.Background(), asset.Futures)
+		_, err = h.FetchTradablePairs(ctx, asset.Futures)
 	}
 
 	return

@@ -1172,7 +1172,7 @@ func TestWsAddOrder(t *testing.T) {
 
 	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
-	id, err := k.wsAddOrder(&WsAddOrderRequest{
+	id, err := k.wsAddOrder(t.Context(), &WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
 		Pair:      "XBT/USD",
@@ -1189,20 +1189,20 @@ func TestWsCancelOrders(t *testing.T) {
 	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 
-	err := k.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
+	err := k.wsCancelOrders(t.Context(), []string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
 	assert.ErrorIs(t, err, errCancellingOrder, "Should error cancelling order")
 	assert.ErrorContains(t, err, "BATFISH", "Should error containing txn id")
 	assert.ErrorContains(t, err, "CATFISH", "Should error containing txn id")
 	assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
 
-	err = k.wsCancelOrders([]string{"RABBIT", "SQUIRREL", "MOUSE"})
+	err = k.wsCancelOrders(t.Context(), []string{"RABBIT", "SQUIRREL", "MOUSE"})
 	assert.NoError(t, err, "Should not error with valid ids")
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 	testexch.SetupWs(t, k)
-	_, err := k.wsCancelAllOrders()
+	_, err := k.wsCancelAllOrders(t.Context())
 	require.NoError(t, err, "wsCancelAllOrders must not error")
 }
 
@@ -1486,12 +1486,12 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 	}
 
 	for x := range websocketXDGUSDOrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
+		err := k.wsHandleData(t.Context(), []byte(websocketXDGUSDOrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
+		err := k.wsHandleData(t.Context(), []byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
 		// in the orderbook.Level struct.
@@ -1503,7 +1503,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
+		err := k.wsHandleData(t.Context(), []byte(websocketGSTEUROrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 }

@@ -160,7 +160,7 @@ func (c *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 	var resp Instruments
 	var err error
 	if c.Websocket.IsConnected() {
-		resp, err = c.WsGetInstruments()
+		resp, err = c.WsGetInstruments(ctx)
 	} else {
 		resp, err = c.GetInstruments(ctx)
 	}
@@ -206,7 +206,7 @@ func (c *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *UserBalance
-		resp, err = c.wsGetAccountBalance()
+		resp, err = c.wsGetAccountBalance(ctx)
 		if err != nil {
 			return info, err
 		}
@@ -307,7 +307,7 @@ func (c *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	if !c.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func (c *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		Asset:           assetType,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return book, err
 	}
@@ -470,15 +470,14 @@ func (c *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	}
 
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
-		return nil, fmt.Errorf("%s - ClientID must be a number, received: %s",
-			c.Name, o.ClientID)
+		return nil, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
 	}
 
 	var orderID string
 	status := order.New
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *order.Detail
-		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
+		response, err = c.wsSubmitOrder(ctx, &WsSubmitOrderParameters{
 			Currency: o.Pair,
 			Side:     o.Side,
 			Amount:   o.Amount,
@@ -489,7 +488,7 @@ func (c *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 		}
 		orderID = response.OrderID
 	} else {
-		err = c.loadInstrumentsIfNotLoaded()
+		err = c.loadInstrumentsIfNotLoaded(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -566,7 +565,7 @@ func (c *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return err
 	}
@@ -584,10 +583,7 @@ func (c *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
-		resp, err = c.wsCancelOrder(&WsCancelOrderParameters{
-			Currency: o.Pair,
-			OrderID:  orderIDInt,
-		})
+		resp, err = c.wsCancelOrder(ctx, &WsCancelOrderParameters{Currency: o.Pair, OrderID: orderIDInt})
 		if err != nil {
 			return err
 		}
@@ -654,13 +650,13 @@ func (c *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 	}
 
 	var cancelAllOrdersResponse order.CancelAllResponse
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		openOrders, err := c.wsGetOpenOrders(details.Pair.String())
+		openOrders, err := c.wsGetOpenOrders(ctx, details.Pair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -678,7 +674,7 @@ func (c *Exchange) CancelAllOrders(ctx context.Context, details *order.Cancel) (
 				})
 			}
 		}
-		resp, err := c.wsCancelOrders(ordersToCancel)
+		resp, err := c.wsCancelOrders(ctx, ordersToCancel)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -777,7 +773,7 @@ func (c *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 
-	err = c.loadInstrumentsIfNotLoaded()
+	err = c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -800,7 +796,7 @@ func (c *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {
 			var openOrders *WsUserOpenOrdersResponse
-			openOrders, err = c.wsGetOpenOrders(currenciesToCheck[x])
+			openOrders, err = c.wsGetOpenOrders(ctx, currenciesToCheck[x])
 			if err != nil {
 				return nil, err
 			}
@@ -907,7 +903,7 @@ func (c *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 
-	err = c.loadInstrumentsIfNotLoaded()
+	err = c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -916,7 +912,7 @@ func (c *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		for i := range req.Pairs {
 			for j := int64(0); ; j += 100 {
 				var trades *WsTradeHistoryResponse
-				trades, err = c.wsGetTradeHistory(req.Pairs[i], j, 100)
+				trades, err = c.wsGetTradeHistory(ctx, req.Pairs[i], j, 100)
 				if err != nil {
 					return allOrders, err
 				}
@@ -1024,15 +1020,15 @@ func (c *Exchange) AuthenticateWebsocket(ctx context.Context) error {
 	return c.wsAuthenticate(ctx)
 }
 
-func (c *Exchange) loadInstrumentsIfNotLoaded() error {
+func (c *Exchange) loadInstrumentsIfNotLoaded(ctx context.Context) error {
 	if !c.instrumentMap.IsLoaded() {
 		if c.Websocket.IsConnected() {
-			_, err := c.WsGetInstruments()
+			_, err := c.WsGetInstruments(ctx)
 			if err != nil {
 				return err
 			}
 		} else {
-			err := c.SeedInstruments(context.TODO())
+			err := c.SeedInstruments(ctx)
 			if err != nil {
 				return err
 			}

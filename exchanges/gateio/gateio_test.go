@@ -2089,8 +2089,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	g := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error {
-		ctx := t.Context()
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{Key: "test", Secret: "test"})
 		}

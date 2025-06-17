@@ -41,27 +41,28 @@ var channels map[string]chan []byte
 
 // WsConnect initiates a websocket connection
 func (c *Exchange) WsConnect() error {
+	ctx := context.TODO()
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
 	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	go c.wsReadData(ctx)
 
 	if !c.instrumentMap.IsLoaded() {
-		_, err = c.WsGetInstruments()
+		_, err = c.WsGetInstruments(ctx)
 		if err != nil {
 			return err
 		}
 	}
 
 	if c.IsWebsocketAuthenticationSupported() {
-		if err = c.wsAuthenticate(context.TODO()); err != nil {
+		if err = c.wsAuthenticate(ctx); err != nil {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorln(log.WebsocketMgr, c.Name+" "+err.Error())
 		}
@@ -75,10 +76,8 @@ func (c *Exchange) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *Exchange) wsReadData() {
+func (c *Exchange) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
-
-	ctx := context.TODO()
 
 	for {
 		resp := c.Websocket.Conn.ReadMessage()
@@ -473,14 +472,14 @@ func (c *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 }
 
 // WsGetInstruments fetches instrument list and propagates a local cache
-func (c *Exchange) WsGetInstruments() (Instruments, error) {
+func (c *Exchange) WsGetInstruments(ctx context.Context) (Instruments, error) {
 	var list Instruments
 	req := wsRequest{
 		Request:      "inst_list",
 		SecurityType: strings.ToUpper(asset.Spot.String()),
 		Nonce:        getNonce(),
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.Nonce, req)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Nonce, req)
 	if err != nil {
 		return list, err
 	}
@@ -601,6 +600,7 @@ func (c *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *Exchange) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	var errs error
 	for _, s := range subs {
 		if len(s.Pairs) != 1 {
@@ -618,7 +618,7 @@ func (c *Exchange) Subscribe(subs subscription.List) error {
 			Subscribe:    true,
 			Nonce:        getNonce(),
 		}
-		err = c.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, subscribe)
+		err = c.Websocket.Conn.SendJSONMessage(ctx, request.Unset, subscribe)
 		if err == nil {
 			err = c.Websocket.AddSuccessfulSubscriptions(c.Websocket.Conn, s)
 		}
@@ -631,6 +631,7 @@ func (c *Exchange) Subscribe(subs subscription.List) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
+	ctx := context.TODO()
 	var errs error
 	for _, s := range channelToUnsubscribe {
 		if len(s.Pairs) != 1 {
@@ -648,7 +649,7 @@ func (c *Exchange) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			Subscribe:    false,
 			Nonce:        getNonce(),
 		}
-		resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, subscribe.Nonce, subscribe)
+		resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, subscribe.Nonce, subscribe)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -691,7 +692,7 @@ func (c *Exchange) wsAuthenticate(ctx context.Context) error {
 	}
 	r.Hmac = hex.EncodeToString(hmac)
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.Nonce, r)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.Nonce, r)
 	if err != nil {
 		return err
 	}
@@ -706,7 +707,7 @@ func (c *Exchange) wsAuthenticate(ctx context.Context) error {
 	return nil
 }
 
-func (c *Exchange) wsGetAccountBalance() (*UserBalance, error) {
+func (c *Exchange) wsGetAccountBalance(ctx context.Context) (*UserBalance, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
@@ -714,7 +715,7 @@ func (c *Exchange) wsGetAccountBalance() (*UserBalance, error) {
 		Request: "user_balance",
 		Nonce:   getNonce(),
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, accBalance.Nonce, accBalance)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, accBalance.Nonce, accBalance)
 	if err != nil {
 		return nil, err
 	}
@@ -729,7 +730,7 @@ func (c *Exchange) wsGetAccountBalance() (*UserBalance, error) {
 	return &response, nil
 }
 
-func (c *Exchange) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error) {
+func (c *Exchange) wsSubmitOrder(ctx context.Context, o *WsSubmitOrderParameters) (*order.Detail, error) {
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
@@ -750,7 +751,7 @@ func (c *Exchange) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, err
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
 	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, orderSubmissionRequest.Nonce, orderSubmissionRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, orderSubmissionRequest.Nonce, orderSubmissionRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -767,7 +768,7 @@ func (c *Exchange) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, err
 	return ord, nil
 }
 
-func (c *Exchange) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detail, []error) {
+func (c *Exchange) wsSubmitOrders(ctx context.Context, orders []WsSubmitOrderParameters) ([]order.Detail, []error) {
 	var errs []error
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		errs = append(errs, fmt.Errorf("%v not authorised to submit orders",
@@ -793,7 +794,7 @@ func (c *Exchange) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Det
 
 	orderRequest.Nonce = getNonce()
 	orderRequest.Request = "new_orders"
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, orderRequest.Nonce, orderRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, orderRequest.Nonce, orderRequest)
 	if err != nil {
 		errs = append(errs, err)
 		return nil, errs
@@ -818,7 +819,7 @@ func (c *Exchange) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Det
 	return ordersResponse, errs
 }
 
-func (c *Exchange) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error) {
+func (c *Exchange) wsGetOpenOrders(ctx context.Context, curr string) (*WsUserOpenOrdersResponse, error) {
 	var response *WsUserOpenOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get open orders",
@@ -829,7 +830,7 @@ func (c *Exchange) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, erro
 	openOrdersRequest.Nonce = getNonce()
 	openOrdersRequest.InstrumentID = c.instrumentMap.LookupID(curr)
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, openOrdersRequest.Nonce, openOrdersRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, openOrdersRequest.Nonce, openOrdersRequest)
 	if err != nil {
 		return response, err
 	}
@@ -845,7 +846,7 @@ func (c *Exchange) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, erro
 	return response, nil
 }
 
-func (c *Exchange) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOrdersResponse, error) {
+func (c *Exchange) wsCancelOrder(ctx context.Context, cancellation *WsCancelOrderParameters) (*CancelOrdersResponse, error) {
 	var response *CancelOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to cancel order", c.Name)
@@ -862,7 +863,7 @@ func (c *Exchange) wsCancelOrder(cancellation *WsCancelOrderParameters) (*Cancel
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = getNonce()
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, cancellationRequest.Nonce, cancellationRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, cancellationRequest.Nonce, cancellationRequest)
 	if err != nil {
 		return response, err
 	}
@@ -880,7 +881,7 @@ func (c *Exchange) wsCancelOrder(cancellation *WsCancelOrderParameters) (*Cancel
 	return response, nil
 }
 
-func (c *Exchange) wsCancelOrders(cancellations []WsCancelOrderParameters) (*CancelOrdersResponse, error) {
+func (c *Exchange) wsCancelOrders(ctx context.Context, cancellations []WsCancelOrderParameters) (*CancelOrdersResponse, error) {
 	var err error
 	var response *CancelOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
@@ -903,7 +904,7 @@ func (c *Exchange) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Can
 
 	cancelOrderRequest.Request = "cancel_orders"
 	cancelOrderRequest.Nonce = getNonce()
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, cancelOrderRequest.Nonce, cancelOrderRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, cancelOrderRequest.Nonce, cancelOrderRequest)
 	if err != nil {
 		return response, err
 	}
@@ -914,7 +915,7 @@ func (c *Exchange) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Can
 	return response, err
 }
 
-func (c *Exchange) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
+func (c *Exchange) wsGetTradeHistory(ctx context.Context, p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
 	var response *WsTradeHistoryResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get trade history",
@@ -933,7 +934,7 @@ func (c *Exchange) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTr
 	req.Start = start
 	req.Limit = limit
 
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.Nonce, req)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.Nonce, req)
 	if err != nil {
 		return response, err
 	}

@@ -84,7 +84,7 @@ func (g *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
+	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}

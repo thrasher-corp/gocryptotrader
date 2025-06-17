@@ -118,6 +118,7 @@ var defaultSubscriptions = subscription.List{
 
 // WsConnect creates a new websocket connection.
 func (ku *Exchange) WsConnect() error {
+	ctx := context.TODO()
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -128,19 +129,19 @@ func (ku *Exchange) WsConnect() error {
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var instances *WSInstanceServers
-	_, err := ku.GetCredentials(context.Background())
+	_, err := ku.GetCredentials(ctx)
 	if err != nil {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
-		instances, err = ku.GetAuthenticatedInstanceServers(context.Background())
+		instances, err = ku.GetAuthenticatedInstanceServers(ctx)
 		if err != nil {
 			ku.Websocket.DataHandler <- err
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	if instances == nil {
-		instances, err = ku.GetInstanceServers(context.Background())
+		instances, err = ku.GetInstanceServers(ctx)
 		if err != nil {
 			return err
 		}
@@ -149,19 +150,19 @@ func (ku *Exchange) WsConnect() error {
 		return errors.New("no websocket instance server found")
 	}
 	ku.Websocket.Conn.SetURL(instances.InstanceServers[0].Endpoint + "?token=" + instances.Token)
-	err = ku.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = ku.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", ku.Name, err)
 	}
 	ku.Websocket.Wg.Add(1)
-	go ku.wsReadData()
+	go ku.wsReadData(ctx)
 	ku.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
 	})
 
-	ku.setupOrderbookManager()
+	ku.setupOrderbookManager(ctx)
 	return nil
 }
 
@@ -201,14 +202,14 @@ func (ku *Exchange) GetAuthenticatedInstanceServers(ctx context.Context) (*WSIns
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (ku *Exchange) wsReadData() {
+func (ku *Exchange) wsReadData(ctx context.Context) {
 	defer ku.Websocket.Wg.Done()
 	for {
 		resp := ku.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := ku.wsHandleData(resp.Raw)
+		err := ku.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			ku.Websocket.DataHandler <- err
 		}
@@ -216,7 +217,7 @@ func (ku *Exchange) wsReadData() {
 }
 
 // wsHandleData processes a websocket incoming data.
-func (ku *Exchange) wsHandleData(respData []byte) error {
+func (ku *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 	resp := WsPushData{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -257,7 +258,7 @@ func (ku *Exchange) wsHandleData(respData []byte) error {
 	case privateSpotTradeOrders:
 		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
 	case accountBalanceChannel:
-		return ku.processAccountBalanceChange(resp.Data)
+		return ku.processAccountBalanceChange(ctx, resp.Data)
 	case marginPositionChannel:
 		if resp.Subject == "debt.ratio" {
 			var response WsDebtRatioChange
@@ -279,13 +280,13 @@ func (ku *Exchange) wsHandleData(respData []byte) error {
 		var response WsFuturesExecutionData
 		return ku.processData(resp.Data, &response)
 	case futuresOrderbookChannel:
-		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
+		if err := ku.ensureFuturesOrderbookSnapshotLoaded(ctx, topicInfo[1]); err != nil {
 			return err
 		}
-		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
+		return ku.processFuturesOrderbookLevel2(ctx, resp.Data, topicInfo[1])
 	case futuresOrderbookDepth5Channel,
 		futuresOrderbookDepth50Channel:
-		if err := ku.ensureFuturesOrderbookSnapshotLoaded(topicInfo[1]); err != nil {
+		if err := ku.ensureFuturesOrderbookSnapshotLoaded(ctx, topicInfo[1]); err != nil {
 			return err
 		}
 		return ku.processFuturesOrderbookSnapshot(resp.Data, topicInfo[1])
@@ -310,7 +311,7 @@ func (ku *Exchange) wsHandleData(respData []byte) error {
 			var response WsFuturesOrderMarginEvent
 			return ku.processData(resp.Data, &response)
 		case "availableBalance.change":
-			return ku.processFuturesAccountBalanceEvent(resp.Data)
+			return ku.processFuturesAccountBalanceEvent(ctx, resp.Data)
 		case "withdrawHold.change":
 			var response WsFuturesWithdrawalAmountAndTransferOutAmountEvent
 			return ku.processData(resp.Data, &response)
@@ -353,12 +354,12 @@ func (ku *Exchange) processData(respData []byte, resp any) error {
 }
 
 // processFuturesAccountBalanceEvent used to process futures account balance change incoming data.
-func (ku *Exchange) processFuturesAccountBalanceEvent(respData []byte) error {
+func (ku *Exchange) processFuturesAccountBalanceEvent(ctx context.Context, respData []byte) error {
 	resp := WsFuturesAvailableBalance{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	creds, err := ku.GetCredentials(context.TODO())
+	creds, err := ku.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -507,7 +508,7 @@ func (ku *Exchange) processFuturesMarkPriceAndIndexPrice(respData []byte, instru
 }
 
 // ensureFuturesOrderbookSnapshotLoaded makes sure an initial futures orderbook snapshot is loaded
-func (ku *Exchange) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
+func (ku *Exchange) ensureFuturesOrderbookSnapshotLoaded(ctx context.Context, symbol string) error {
 	fetchedFuturesOrderbookMutex.Lock()
 	defer fetchedFuturesOrderbookMutex.Unlock()
 	if fetchedFuturesOrderbook[symbol] {
@@ -522,7 +523,7 @@ func (ku *Exchange) ensureFuturesOrderbookSnapshotLoaded(symbol string) error {
 	if err != nil {
 		return err
 	}
-	orderbooks, err := ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
+	orderbooks, err := ku.UpdateOrderbook(ctx, cp, asset.Futures)
 	if err != nil {
 		return err
 	}
@@ -555,12 +556,12 @@ func (ku *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument 
 }
 
 // ProcessFuturesOrderbookLevel2 processes a V2 futures account orderbook data.
-func (ku *Exchange) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
+func (ku *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
 	resp := WsFuturesOrderbookInfo{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	detail, err := ku.GetFuturesPartOrderbook100(context.Background(), instrument)
+	detail, err := ku.GetFuturesPartOrderbook100(ctx, instrument)
 	if err != nil {
 		return err
 	}
@@ -686,13 +687,13 @@ func (ku *Exchange) processMarginLendingTradeOrderEvent(respData []byte) error {
 }
 
 // processAccountBalanceChange processes an account balance change
-func (ku *Exchange) processAccountBalanceChange(respData []byte) error {
+func (ku *Exchange) processAccountBalanceChange(ctx context.Context, respData []byte) error {
 	response := WsAccountBalance{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
 		return err
 	}
-	creds, err := ku.GetCredentials(context.TODO())
+	creds, err := ku.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -1032,15 +1033,17 @@ func (ku *Exchange) processMarketSnapshot(respData []byte, topic string) error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (ku *Exchange) Subscribe(subscriptions subscription.List) error {
-	return ku.manageSubscriptions(subscriptions, "subscribe")
+	ctx := context.TODO()
+	return ku.manageSubscriptions(ctx, subscriptions, "subscribe")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (ku *Exchange) Unsubscribe(subscriptions subscription.List) error {
-	return ku.manageSubscriptions(subscriptions, "unsubscribe")
+	ctx := context.TODO()
+	return ku.manageSubscriptions(ctx, subscriptions, "unsubscribe")
 }
 
-func (ku *Exchange) manageSubscriptions(subs subscription.List, operation string) error {
+func (ku *Exchange) manageSubscriptions(ctx context.Context, subs subscription.List, operation string) error {
 	var errs error
 	for _, s := range subs {
 		msgID := strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10)
@@ -1051,7 +1054,7 @@ func (ku *Exchange) manageSubscriptions(subs subscription.List, operation string
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "msgID:"+msgID, req); err != nil {
+		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, "msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
@@ -1131,7 +1134,7 @@ type job struct {
 }
 
 // setupOrderbookManager sets up the orderbook manager for websocket orderbook data handling.
-func (ku *Exchange) setupOrderbookManager() {
+func (ku *Exchange) setupOrderbookManager(ctx context.Context) {
 	locker.Lock()
 	defer locker.Unlock()
 	if ku.obm == nil {
@@ -1155,7 +1158,7 @@ func (ku *Exchange) setupOrderbookManager() {
 	}
 	for range maxWSOrderbookWorkers {
 		// 10 workers for synchronising book
-		ku.SynchroniseWebsocketOrderbook()
+		ku.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 
@@ -1248,7 +1251,7 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair, assetType as
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (ku *Exchange) SynchroniseWebsocketOrderbook() {
+func (ku *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	ku.Websocket.Wg.Add(1)
 	go func() {
 		defer ku.Websocket.Wg.Done()
@@ -1263,7 +1266,7 @@ func (ku *Exchange) SynchroniseWebsocketOrderbook() {
 					}
 				}
 			case j := <-ku.obm.jobs:
-				err := ku.processJob(j.Pair, j.AssetType)
+				err := ku.processJob(ctx, j.Pair, j.AssetType)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%s processing websocket orderbook error %v",
@@ -1316,8 +1319,8 @@ func (ku *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderb
 }
 
 // processJob fetches and processes orderbook updates
-func (ku *Exchange) processJob(p currency.Pair, assetType asset.Item) error {
-	err := ku.SeedLocalCache(context.TODO(), p, assetType)
+func (ku *Exchange) processJob(ctx context.Context, p currency.Pair, assetType asset.Item) error {
+	err := ku.SeedLocalCache(ctx, p, assetType)
 	if err != nil {
 		err = ku.obm.StopFetchingBook(p, assetType)
 		if err != nil {

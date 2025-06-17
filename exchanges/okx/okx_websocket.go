@@ -237,6 +237,7 @@ var subscriptionNames = map[string]string{
 
 // WsConnect initiates a websocket connection
 func (ok *Exchange) WsConnect() error {
+	ctx := context.TODO()
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -244,12 +245,12 @@ func (ok *Exchange) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
+	go ok.wsReadData(ctx, ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -260,7 +261,7 @@ func (ok *Exchange) WsConnect() error {
 		Delay:       time.Second * 20,
 	})
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.WsAuth(context.TODO())
+		err = ok.WsAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -279,12 +280,12 @@ func (ok *Exchange) WsAuth(ctx context.Context) error {
 		return err
 	}
 	var dialer gws.Dialer
-	err = ok.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = ok.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.AuthConn)
+	go ok.wsReadData(ctx, ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
@@ -315,14 +316,14 @@ func (ok *Exchange) WsAuth(ctx context.Context) error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (ok *Exchange) wsReadData(ws websocket.Connection) {
+func (ok *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		if err := ok.WsHandleData(resp.Raw); err != nil {
+		if err := ok.WsHandleData(ctx, resp.Raw); err != nil {
 			ok.Websocket.DataHandler <- err
 		}
 	}
@@ -330,17 +331,19 @@ func (ok *Exchange) wsReadData(ws websocket.Connection) {
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
 func (ok *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
-	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
+	ctx := context.TODO()
+	return ok.handleSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
 func (ok *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
+	ctx := context.TODO()
+	return ok.handleSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Exchange) handleSubscription(operation string, subs subscription.List) error {
+func (ok *Exchange) handleSubscription(ctx context.Context, operation string, subs subscription.List) error {
 	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
@@ -364,7 +367,7 @@ func (ok *Exchange) handleSubscription(operation string, subs subscription.List)
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests)
+				err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests)
 				if err != nil {
 					return err
 				}
@@ -388,7 +391,7 @@ func (ok *Exchange) handleSubscription(operation string, subs subscription.List)
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs)
+				err = ok.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs)
 				if err != nil {
 					return err
 				}
@@ -408,13 +411,13 @@ func (ok *Exchange) handleSubscription(operation string, subs subscription.List)
 	}
 
 	if len(reqs.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs); err != nil {
+		if err := ok.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests); err != nil {
+		if err := ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests); err != nil {
 			return err
 		}
 	}
@@ -427,7 +430,7 @@ func (ok *Exchange) handleSubscription(operation string, subs subscription.List)
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (ok *Exchange) WsHandleData(respRaw []byte) error {
+func (ok *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, _ := jsonparser.GetString(respRaw, "id"); id != "" {
 		return ok.Websocket.Match.RequireMatchWithData(id, respRaw)
 	}
@@ -491,7 +494,7 @@ func (ok *Exchange) WsHandleData(respRaw []byte) error {
 		var response WsPositionResponse
 		return ok.wsProcessPushData(respRaw, &response)
 	case channelBalanceAndPosition:
-		return ok.wsProcessBalanceAndPosition(respRaw)
+		return ok.wsProcessBalanceAndPosition(ctx, respRaw)
 	case channelOrders:
 		return ok.wsProcessOrders(respRaw)
 	case channelAlgoOrders:
@@ -1442,12 +1445,12 @@ func (ok *Exchange) wsProcessBlockPublicTrades(data []byte) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (ok *Exchange) wsProcessBalanceAndPosition(data []byte) error {
+func (ok *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte) error {
 	var resp WsBalanceAndPosition
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := ok.GetCredentials(context.TODO())
+	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}

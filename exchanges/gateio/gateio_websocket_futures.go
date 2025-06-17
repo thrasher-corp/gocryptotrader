@@ -65,7 +65,7 @@ func (g *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
-	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{

@@ -41,7 +41,7 @@ func (g *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 	if err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
-	if err := conn.DialContext(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
@@ -64,7 +64,8 @@ func (g *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 // TODO: Update to use the new subscription template system
 func (g *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
-	_, err := g.GetCredentials(context.Background())
+	ctx := context.TODO()
+	_, err := g.GetCredentials(ctx)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}

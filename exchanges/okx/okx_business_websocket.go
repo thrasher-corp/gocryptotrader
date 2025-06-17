@@ -44,7 +44,7 @@ var (
 )
 
 // WsConnectBusiness connects to a business websocket channel.
-func (ok *Exchange) WsConnectBusiness() error {
+func (ok *Exchange) WsConnectBusiness(ctx context.Context) error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -53,12 +53,12 @@ func (ok *Exchange) WsConnectBusiness() error {
 	dialer.WriteBufferSize = 8192
 
 	ok.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
+	go ok.wsReadData(ctx, ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -69,7 +69,7 @@ func (ok *Exchange) WsConnectBusiness() error {
 		Delay:       time.Second * 20,
 	})
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.WsSpreadAuth(context.TODO())
+		err = ok.WsSpreadAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -158,18 +158,18 @@ func (ok *Exchange) GenerateDefaultBusinessSubscriptions() ([]subscription.Subsc
 }
 
 // BusinessSubscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Exchange) BusinessSubscribe(channelsToSubscribe subscription.List) error {
-	return ok.handleBusinessSubscription(operationSubscribe, channelsToSubscribe)
+func (ok *Exchange) BusinessSubscribe(ctx context.Context, channelsToSubscribe subscription.List) error {
+	return ok.handleBusinessSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // BusinessUnsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Exchange) BusinessUnsubscribe(channelsToUnsubscribe subscription.List) error {
-	return ok.handleBusinessSubscription(operationUnsubscribe, channelsToUnsubscribe)
+func (ok *Exchange) BusinessUnsubscribe(ctx context.Context, channelsToUnsubscribe subscription.List) error {
+	return ok.handleBusinessSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Exchange) handleBusinessSubscription(operation string, subscriptions subscription.List) error {
+func (ok *Exchange) handleBusinessSubscription(ctx context.Context, operation string, subscriptions subscription.List) error {
 	wsSubscriptionReq := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
 	var authChannels subscription.List
@@ -210,7 +210,7 @@ func (ok *Exchange) handleBusinessSubscription(operation string, subscriptions s
 		}
 		if len(chunk) > maxConnByteLen {
 			i--
-			err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, wsSubscriptionReq)
+			err = ok.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
 			if err != nil {
 				return err
 			}
@@ -227,7 +227,7 @@ func (ok *Exchange) handleBusinessSubscription(operation string, subscriptions s
 			continue
 		}
 	}
-	err = ok.Websocket.Conn.SendJSONMessage(context.Background(), request.UnAuth, wsSubscriptionReq)
+	err = ok.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
 	if err != nil {
 		return err
 	}

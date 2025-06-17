@@ -123,11 +123,12 @@ var subscriptionNames = map[string]string{
 
 // WsConnect starts a new websocket connection
 func (b *Exchange) WsConnect() error {
+	ctx := context.TODO()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
 			b.Name,
@@ -137,7 +138,7 @@ func (b *Exchange) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(b.Websocket.Conn)
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
+		err = b.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",
@@ -147,7 +148,7 @@ func (b *Exchange) WsConnect() error {
 		}
 		b.Websocket.Wg.Add(1)
 		go b.wsReadData(b.Websocket.AuthConn)
-		err = b.WsSendAuth(context.TODO())
+		err = b.WsSendAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -158,8 +159,8 @@ func (b *Exchange) WsConnect() error {
 	}
 
 	b.Websocket.Wg.Add(1)
-	go b.WsDataHandler()
-	return b.ConfigureWS()
+	go b.WsDataHandler(ctx)
+	return b.ConfigureWS(ctx)
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -175,14 +176,14 @@ func (b *Exchange) wsReadData(ws websocket.Connection) {
 }
 
 // WsDataHandler handles data from wsReadData
-func (b *Exchange) WsDataHandler() {
+func (b *Exchange) WsDataHandler(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 	for {
 		select {
 		case <-b.Websocket.ShutdownC:
 			select {
 			case resp := <-comms:
-				err := b.wsHandleData(resp.Raw)
+				err := b.wsHandleData(ctx, resp.Raw)
 				if err != nil {
 					select {
 					case b.Websocket.DataHandler <- err:
@@ -197,7 +198,7 @@ func (b *Exchange) WsDataHandler() {
 			if resp.Type != gws.TextMessage {
 				continue
 			}
-			err := b.wsHandleData(resp.Raw)
+			err := b.wsHandleData(ctx, resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -205,7 +206,7 @@ func (b *Exchange) WsDataHandler() {
 	}
 }
 
-func (b *Exchange) wsHandleData(respRaw []byte) error {
+func (b *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	var result any
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -1709,8 +1710,8 @@ func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 }
 
 // ConfigureWS to send checksums and sequence numbers
-func (b *Exchange) ConfigureWS() error {
-	return b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, map[string]any{
+func (b *Exchange) ConfigureWS(ctx context.Context) error {
+	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, map[string]any{
 		"event": "conf",
 		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
 	})
@@ -1718,25 +1719,27 @@ func (b *Exchange) ConfigureWS() error {
 
 // Subscribe sends a websocket message to receive data from channels
 func (b *Exchange) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	var err error
 	if subs, err = subs.ExpandTemplates(b); err != nil {
 		return err
 	}
-	return b.ParallelChanOp(subs, b.subscribeToChan, 1)
+	return b.ParallelChanOp(ctx, subs, b.subscribeToChan, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
 func (b *Exchange) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	var err error
 	if subs, err = subs.ExpandTemplates(b); err != nil {
 		return err
 	}
-	return b.ParallelChanOp(subs, b.unsubscribeFromChan, 1)
+	return b.ParallelChanOp(ctx, subs, b.unsubscribeFromChan, 1)
 }
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
-func (b *Exchange) subscribeToChan(subs subscription.List) error {
+func (b *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -1766,7 +1769,7 @@ func (b *Exchange) subscribeToChan(subs subscription.List) error {
 		_ = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, s)
 	}()
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "subscribe:"+subID, req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, "subscribe:"+subID, req)
 	if err != nil {
 		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
@@ -1781,7 +1784,7 @@ func (b *Exchange) subscribeToChan(subs subscription.List) error {
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (b *Exchange) unsubscribeFromChan(subs subscription.List) error {
+func (b *Exchange) unsubscribeFromChan(ctx context.Context, subs subscription.List) error {
 	if len(subs) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
@@ -1796,7 +1799,7 @@ func (b *Exchange) unsubscribeFromChan(subs subscription.List) error {
 		"chanId": chanID,
 	}
 
-	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, "unsubscribe:"+strconv.Itoa(chanID), req)
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, "unsubscribe:"+strconv.Itoa(chanID), req)
 	if err != nil {
 		return err
 	}
@@ -1863,10 +1866,10 @@ func (b *Exchange) WsSendAuth(ctx context.Context) error {
 }
 
 // WsNewOrder authenticated new order request
-func (b *Exchange) WsNewOrder(data *WsNewOrderRequest) (string, error) {
+func (b *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
 	data.CustomID = b.Websocket.AuthConn.GenerateMessageID(false)
 	req := makeRequestInterface(wsOrderNew, data)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, data.CustomID, req)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.CustomID, req)
 	if err != nil {
 		return "", err
 	}
@@ -1921,9 +1924,9 @@ func (b *Exchange) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 }
 
 // WsModifyOrder authenticated modify order request
-func (b *Exchange) WsModifyOrder(data *WsUpdateOrderRequest) error {
+func (b *Exchange) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest) error {
 	req := makeRequestInterface(wsOrderUpdate, data)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, data.OrderID, req)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.OrderID, req)
 	if err != nil {
 		return err
 	}
@@ -1963,21 +1966,21 @@ func (b *Exchange) WsModifyOrder(data *WsUpdateOrderRequest) error {
 }
 
 // WsCancelMultiOrders authenticated cancel multi order request
-func (b *Exchange) WsCancelMultiOrders(orderIDs []int64) error {
+func (b *Exchange) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) error {
 	cancel := WsCancelGroupOrdersRequest{
 		OrderID: orderIDs,
 	}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsCancelOrder authenticated cancel order request
-func (b *Exchange) WsCancelOrder(orderID int64) error {
+func (b *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsOrderCancel, cancel)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, orderID, req)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, orderID, req)
 	if err != nil {
 		return err
 	}
@@ -2016,25 +2019,25 @@ func (b *Exchange) WsCancelOrder(orderID int64) error {
 }
 
 // WsCancelAllOrders authenticated cancel all orders request
-func (b *Exchange) WsCancelAllOrders() error {
+func (b *Exchange) WsCancelAllOrders(ctx context.Context) error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsNewOffer authenticated new offer request
-func (b *Exchange) WsNewOffer(data *WsNewOfferRequest) error {
+func (b *Exchange) WsNewOffer(ctx context.Context, data *WsNewOfferRequest) error {
 	req := makeRequestInterface(wsFundingOfferNew, data)
-	return b.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsCancelOffer authenticated cancel offer request
-func (b *Exchange) WsCancelOffer(orderID int64) error {
+func (b *Exchange) WsCancelOffer(ctx context.Context, orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsFundingOfferCancel, cancel)
-	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, orderID, req)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, orderID, req)
 	if err != nil {
 		return err
 	}

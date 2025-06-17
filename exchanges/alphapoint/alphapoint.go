@@ -542,7 +542,7 @@ func (a *Exchange) GetOrderFee(ctx context.Context, symbol, side string, quantit
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (a *Exchange) SendHTTPRequest(_ context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
+func (a *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
 	endpoint, err := a.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -566,7 +566,7 @@ func (a *Exchange) SendHTTPRequest(_ context.Context, ep exchange.URL, method, p
 		HTTPRecording: a.HTTPRecording,
 	}
 
-	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return a.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
 	}, request.UnauthenticatedRequest)
@@ -617,7 +617,7 @@ func (a *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		HTTPRecording: a.HTTPRecording,
 	}
 
-	return a.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+	return a.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
 	}, request.AuthenticatedRequest)

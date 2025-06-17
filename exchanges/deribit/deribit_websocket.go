@@ -124,24 +124,25 @@ var (
 
 // WsConnect starts a new connection with the websocket API
 func (d *Exchange) WsConnect() error {
+	ctx := context.TODO()
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := d.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := d.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	d.Websocket.Wg.Add(1)
-	go d.wsReadData()
+	go d.wsReadData(ctx)
 	if d.Websocket.CanUseAuthenticatedEndpoints() {
-		err = d.wsLogin(context.TODO())
+		err = d.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", d.Name, err)
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, setHeartBeatMessage)
+	return d.Websocket.Conn.SendJSONMessage(ctx, request.Unset, setHeartBeatMessage)
 }
 
 func (d *Exchange) wsLogin(ctx context.Context) error {
@@ -173,7 +174,7 @@ func (d *Exchange) wsLogin(ctx context.Context) error {
 			"signature":  hex.EncodeToString(hmac),
 		},
 	}
-	resp, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ID, req)
+	resp, err := d.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -190,7 +191,7 @@ func (d *Exchange) wsLogin(ctx context.Context) error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (d *Exchange) wsReadData() {
+func (d *Exchange) wsReadData(ctx context.Context) {
 	defer d.Websocket.Wg.Done()
 
 	for {
@@ -199,21 +200,21 @@ func (d *Exchange) wsReadData() {
 			return
 		}
 
-		err := d.wsHandleData(resp.Raw)
+		err := d.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			d.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (d *Exchange) wsHandleData(respRaw []byte) error {
+func (d *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var response WsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", d.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		return d.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, pingMessage)
+		return d.Websocket.Conn.SendJSONMessage(ctx, request.Unset, pingMessage)
 	}
 	if response.ID > 2 {
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
@@ -795,21 +796,19 @@ func (d *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // Subscribe sends a websocket message to receive data from the channel
 func (d *Exchange) Subscribe(subs subscription.List) error {
-	errs := d.handleSubscription("public/subscribe", subs.Public())
-	return common.AppendError(errs,
-		d.handleSubscription("private/subscribe", subs.Private()),
-	)
+	ctx := context.TODO()
+	errs := d.handleSubscription(ctx, "public/subscribe", subs.Public())
+	return common.AppendError(errs, d.handleSubscription(ctx, "private/subscribe", subs.Private()))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (d *Exchange) Unsubscribe(subs subscription.List) error {
-	errs := d.handleSubscription("public/unsubscribe", subs.Public())
-	return common.AppendError(errs,
-		d.handleSubscription("private/unsubscribe", subs.Private()),
-	)
+	ctx := context.TODO()
+	errs := d.handleSubscription(ctx, "public/unsubscribe", subs.Public())
+	return common.AppendError(errs, d.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
 }
 
-func (d *Exchange) handleSubscription(method string, subs subscription.List) error {
+func (d *Exchange) handleSubscription(ctx context.Context, method string, subs subscription.List) error {
 	var err error
 	subs, err = subs.ExpandTemplates(d)
 	if err != nil || len(subs) == 0 {
@@ -823,7 +822,7 @@ func (d *Exchange) handleSubscription(method string, subs subscription.List) err
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
 
-	data, err := d.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, r.ID, r)
+	data, err := d.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}
