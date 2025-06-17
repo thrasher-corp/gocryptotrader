@@ -48,6 +48,7 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 		PriceDuplication: true,
 		LastUpdated:      time.Now(),
 		LastUpdateID:     69420,
+		VerifyOrderbook:  true,
 	}
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
