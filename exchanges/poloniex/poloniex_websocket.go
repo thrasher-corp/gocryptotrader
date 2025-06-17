@@ -56,16 +56,17 @@ var (
 
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
+	ctx := context.TODO()
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	err = p.loadCurrencyDetails(context.TODO())
+	err = p.loadCurrencyDetails(ctx)
 	if err != nil {
 		return err
 	}
@@ -573,19 +574,21 @@ func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(subs subscription.List) error {
-	return p.manageSubs(subs, wsSubscribeOp)
+	ctx := context.TODO()
+	return p.manageSubs(ctx, subs, wsSubscribeOp)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(subs subscription.List) error {
-	return p.manageSubs(subs, wsUnsubscribeOp)
+	ctx := context.TODO()
+	return p.manageSubs(ctx, subs, wsUnsubscribeOp)
 }
 
-func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
+func (p *Poloniex) manageSubs(ctx context.Context, subs subscription.List, op wsOp) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
-		creds, err = p.GetCredentials(context.TODO())
+		creds, err = p.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -595,7 +598,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 	for _, s := range subs {
 		var err error
 		if creds != nil && strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), s.Channel) {
-			err = p.wsSendAuthorisedCommand(creds.Secret, creds.Key, op)
+			err = p.wsSendAuthorisedCommand(ctx, creds.Secret, creds.Key, op)
 		} else {
 			req := wsCommand{Command: op}
 			if strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), s.Channel) {
@@ -606,7 +609,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 				}
 				req.Channel = s.Pairs[0].String()
 			}
-			err = p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+			err = p.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 		}
 		if err == nil {
 			if op == wsSubscribeOp {
@@ -622,7 +625,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 	return errs
 }
 
-func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
+func (p *Poloniex) wsSendAuthorisedCommand(ctx context.Context, secret, key string, op wsOp) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(nonce), []byte(secret))
 	if err != nil {
@@ -635,7 +638,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	return p.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []any) error {
