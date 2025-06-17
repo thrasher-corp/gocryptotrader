@@ -86,6 +86,12 @@ type Contributor struct {
 	Contributions int    `json:"contributions"`
 }
 
+// ghError defines a GitHub error response
+type ghError struct {
+	Message string `json:"message"`
+	Status  string `json:"status"`
+}
+
 // Config defines the running config to deploy documentation across a github
 // repository including exclusion lists for files and directories
 type Config struct {
@@ -176,8 +182,7 @@ func main() {
 		}
 		contributors, err = GetContributorList(context.TODO(), config.GithubRepo, verbose)
 		if err != nil {
-			log.Fatalf("Documentation Generation Tool - GetContributorList error %s",
-				err)
+			log.Fatalf("Documentation Generation Tool - GetContributorList error: %s", err)
 		}
 
 		// Github API missing/deleted user contributors
@@ -368,6 +373,11 @@ func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contr
 		contents, err := common.SendHTTPRequest(ctx, http.MethodGet, common.EncodeURLValues(repo+GithubAPIEndpoint, vals), headers, nil, verbose)
 		if err != nil {
 			return nil, err
+		}
+
+		var g ghError
+		if err := json.Unmarshal(contents, &g); err == nil && g.Message != "" {
+			return nil, fmt.Errorf("GitHub server error message: %s Status: %s", g.Message, g.Status)
 		}
 
 		var resp []Contributor
