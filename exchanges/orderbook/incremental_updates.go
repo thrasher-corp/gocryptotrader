@@ -105,7 +105,7 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 			return d.invalidate(fmt.Errorf("%s %s %s %w: expected '%d', got '%d'", d.exchange, d.pair, d.asset, errChecksumMismatch, u.ExpectedChecksum, checksum))
 		}
 	} else if d.verifyOrderbook {
-		if err := verify(d.snapshot()); err != nil {
+		if err := validate(d.snapshot()); err != nil {
 			return d.invalidate(err)
 		}
 	}

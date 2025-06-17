@@ -54,7 +54,7 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
-	if err := book.Verify(); err != nil {
+	if err := book.Validate(); err != nil {
 		return err
 	}
 

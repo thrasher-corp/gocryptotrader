@@ -45,7 +45,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	assert.NoError(t, err, "SubscribeToExchangeOrderbooks should not error")
 }
 
-func TestVerify(t *testing.T) {
+func TestValidate(t *testing.T) {
 	t.Parallel()
 	b := Book{
 		Exchange:        "TestExchange",
@@ -54,61 +54,58 @@ func TestVerify(t *testing.T) {
 		VerifyOrderbook: true,
 	}
 
-	err := b.Verify()
-	if err != nil {
-		t.Fatalf("expecting %v error but received %v", nil, err)
-	}
+	require.NoError(t, b.Validate())
 
 	b.Asks = []Level{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
-	err = b.Verify()
+	err := b.Validate()
 	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errDuplication)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	b.IsFundingRate = true
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPeriodUnset)
 
 	b.IsFundingRate = false
 
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, ErrPriceZero)
 
 	b.Bids = []Level{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errDuplication)
 
 	b.Bids = []Level{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
 	b.IsFundingRate = true
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPeriodUnset)
 
 	b.IsFundingRate = false
 
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, ErrPriceZero)
 }
 
@@ -409,24 +406,20 @@ func TestSorting(t *testing.T) {
 	b.VerifyOrderbook = true
 
 	b.Asks = levelsFixtureRandom()
-	err := b.Verify()
+	err := b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks.SortAsks()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = b.Validate()
+	require.NoError(t, err)
 
 	b.Bids = levelsFixtureRandom()
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids.SortBids()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = b.Validate()
+	require.NoError(t, err)
 }
 
 func levelsFixture() Levels {
@@ -439,16 +432,16 @@ func levelsFixture() Levels {
 
 func TestReverse(t *testing.T) {
 	b := Book{VerifyOrderbook: true, Bids: levelsFixture()}
-	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
+	assert.ErrorIs(t, b.Validate(), errPriceOutOfOrder)
 
 	b.Bids.Reverse()
-	assert.NoError(t, b.Verify())
+	assert.NoError(t, b.Validate())
 
 	b.Asks = slices.Clone(b.Bids)
-	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
+	assert.ErrorIs(t, b.Validate(), errPriceOutOfOrder)
 
 	b.Asks.Reverse()
-	assert.NoError(t, b.Verify())
+	assert.NoError(t, b.Validate())
 }
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op
