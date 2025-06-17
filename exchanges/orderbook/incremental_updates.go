@@ -113,7 +113,6 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 	return nil
 }
 
-// // TODO: Confirm no alloc as it shouldn't escape
 func (d *Depth) snapshot() *Book {
 	return &Book{
 		Bids:                   d.bidLevels.Levels,
