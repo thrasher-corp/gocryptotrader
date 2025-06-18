@@ -68,7 +68,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		Unsubscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleUnsubConn(multi)(ctx, c, s)
 		},
-		Handler: func(context.Context, []byte) error { return nil },
+		Handler: func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
