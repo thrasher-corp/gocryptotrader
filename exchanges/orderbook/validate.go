@@ -51,7 +51,7 @@ func validate(b *Book) error {
 	return nil
 }
 
-// checkAlignment validates full orderbook
+// checkAlignment validates an orderbook side is sequential and does not contain any tribbles
 func checkAlignment(depth Levels, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
