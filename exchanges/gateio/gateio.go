@@ -149,10 +149,10 @@ var (
 	errInvalidRepayMode                 = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
 	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
 	errChangeHasToBePositive            = errors.New("change has to be positive")
-	errInvalidLeverageValue             = errors.New("invalid leverage value")
+	errInvalidLeverage                  = errors.New("invalid leverage value")
 	errInvalidRiskLimit                 = errors.New("new position risk limit")
-	errInvalidCountTotalValue           = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
-	errInvalidAutoSizeValue             = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
+	errInvalidCountTotal                = errors.New("invalid \"count_total\" value, supported \"count_total\" values are 0 and 1")
+	errInvalidAutoSize                  = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
 	errTooManyOrderRequest              = errors.New("too many order creation request")
 	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                     = errors.New("no ticker data available")
@@ -164,7 +164,7 @@ var (
 	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
-	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
+	errInvalidText                      = errors.New("invalid text value, requires prefix `t-`")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -2123,7 +2123,7 @@ func (g *Gateio) UpdateFuturesPositionLeverage(ctx context.Context, settle curre
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverageValue
+		return nil, errInvalidLeverage
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2199,7 +2199,7 @@ func (g *Gateio) UpdatePositionLeverageInDualMode(ctx context.Context, settle cu
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverageValue
+		return nil, errInvalidLeverage
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2235,31 +2235,9 @@ func (g *Gateio) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle c
 // In single position mode, to close a position, you need to set size to 0 and close to true
 // In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
 func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.Contract.IsEmpty() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
-	}
-	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+	if err := arg.validate(true); err != nil {
 		return nil, err
 	}
-	if arg.Price == "" {
-		return nil, errInvalidPrice
-	}
-	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
-		return nil, fmt.Errorf("%w: %q; only 'IOC' and 'FOK' allowed for market order", order.ErrUnsupportedTimeInForce, arg.TimeInForce)
-	}
-	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
-		return nil, errInvalidAutoSizeValue
-	}
-	if arg.Settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
-	}
-
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitOrderEPL, http.MethodPost, futuresPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
 }
@@ -2290,7 +2268,7 @@ func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, s
 	if countTotal == 1 && status != statusOpen {
 		params.Set("count_total", strconv.FormatInt(countTotal, 10))
 	} else if countTotal != 0 && countTotal != 1 {
-		return nil, errInvalidCountTotalValue
+		return nil, errInvalidCountTotal
 	}
 	var response []Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
@@ -2330,26 +2308,11 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Co
 		return nil, errTooManyOrderRequest
 	}
 	for x := range args {
-		if args[x].Size == 0 {
-			return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
-		}
-		if _, err := timeInForceFromString(args[x].TimeInForce); err != nil {
+		if err := args[x].validate(true); err != nil {
 			return nil, err
 		}
-		if args[x].Price == "" {
-			return nil, errInvalidPrice
-		}
-		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
-			return nil, fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
-		}
-		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
-			return nil, errInvalidTextValue
-		}
-		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
-			return nil, errInvalidAutoSizeValue
-		}
-		if !args[x].Settle.Equal(currency.BTC) && !args[x].Settle.Equal(currency.USDT) {
-			return nil, errEmptyOrInvalidSettlementCurrency
+		if !args[x].Settle.Equal(settle) {
+			return nil, fmt.Errorf("%w, settlement currency in order %d does not match the specified settlement currency %s", errEmptyOrInvalidSettlementCurrency, x+1, settle)
 		}
 	}
 	var response []Order
@@ -2782,7 +2745,7 @@ func (g *Gateio) UpdateDeliveryPositionLeverage(ctx context.Context, settle curr
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if leverage < 0 {
-		return nil, errInvalidLeverageValue
+		return nil, errInvalidLeverage
 	}
 	params := url.Values{}
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
@@ -2808,26 +2771,8 @@ func (g *Gateio) UpdateDeliveryPositionRiskLimit(ctx context.Context, settle cur
 // PlaceDeliveryOrder create a futures order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
 func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
-	if arg == nil {
-		return nil, errNilArgument
-	}
-	if arg.Contract.IsEmpty() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
-	if arg.Size == 0 {
-		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", order.ErrSideIsInvalid)
-	}
-	if _, err := timeInForceFromString(arg.TimeInForce); err != nil {
+	if err := arg.validate(true); err != nil {
 		return nil, err
-	}
-	if arg.Price == "" {
-		return nil, errInvalidPrice
-	}
-	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
-		return nil, errInvalidAutoSizeValue
-	}
-	if arg.Settle.IsEmpty() {
-		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliverySubmitOrderEPL, http.MethodPost, deliveryPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
@@ -2859,7 +2804,7 @@ func (g *Gateio) GetDeliveryOrders(ctx context.Context, contract currency.Pair, 
 	if countTotal == 1 && status != statusOpen {
 		params.Set("count_total", strconv.FormatInt(countTotal, 10))
 	} else if countTotal != 0 && countTotal != 1 {
-		return nil, errInvalidCountTotalValue
+		return nil, errInvalidCountTotal
 	}
 	var response []Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
