@@ -255,7 +255,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 		Exchange: {{.Variable}}.Name, 
 		Pair: pair, 
 		Asset: assetType,
-		VerifyOrderbook: {{.Variable}}.CanVerifyOrderbook,
+		ValidateOrderbook: {{.Variable}}.ValidateOrderbook,
 	}
 	
 	// NOTE: UPDATE ORDERBOOK EXAMPLE

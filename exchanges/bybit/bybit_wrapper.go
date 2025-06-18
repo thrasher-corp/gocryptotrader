@@ -507,12 +507,12 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        by.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Level, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Level, len(orderbookNew.Asks)),
+		Exchange:          by.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: by.ValidateOrderbook,
+		Bids:              make([]orderbook.Level, len(orderbookNew.Bids)),
+		Asks:              make([]orderbook.Level, len(orderbookNew.Asks)),
 	}
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Level{

@@ -517,7 +517,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var newOrderBook orderbook.Book
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.VerifyOrderbook = c.CanVerifyOrderbook
+	newOrderBook.ValidateOrderbook = c.ValidateOrderbook
 
 	pairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {

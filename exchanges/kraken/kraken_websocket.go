@@ -670,7 +670,7 @@ func (k *Kraken) wsProcessOrderBookPartial(pair currency.Pair, askData, bidData 
 	base := orderbook.Book{
 		Pair:                   pair,
 		Asset:                  asset.Spot,
-		VerifyOrderbook:        k.CanVerifyOrderbook,
+		ValidateOrderbook:      k.ValidateOrderbook,
 		Bids:                   make(orderbook.Levels, len(bidData)),
 		Asks:                   make(orderbook.Levels, len(askData)),
 		MaxDepth:               levels,

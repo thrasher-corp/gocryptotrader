@@ -698,14 +698,14 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		switch orderbookData.Type {
 		case "snapshot":
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:        d.Name,
-				VerifyOrderbook: d.CanVerifyOrderbook,
-				LastUpdated:     orderbookData.Timestamp.Time(),
-				Pair:            cp,
-				Asks:            asks,
-				Bids:            bids,
-				Asset:           a,
-				LastUpdateID:    orderbookData.ChangeID,
+				Exchange:          d.Name,
+				ValidateOrderbook: d.ValidateOrderbook,
+				LastUpdated:       orderbookData.Timestamp.Time(),
+				Pair:              cp,
+				Asks:              asks,
+				Bids:              bids,
+				Asset:             a,
+				LastUpdateID:      orderbookData.ChangeID,
 			})
 		case "change":
 			return d.Websocket.Orderbook.Update(&orderbook.Update{
