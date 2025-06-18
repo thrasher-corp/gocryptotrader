@@ -12,10 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	errInvalidAutoSize = errors.New("invalid auto size")
-	errStatusNotSet    = errors.New("status not set")
-)
+var errStatusNotSet = errors.New("status not set")
 
 // authenticateFutures sends an authentication message to the websocket connection
 func (g *Gateio) authenticateFutures(ctx context.Context, conn websocket.Connection) error {
@@ -41,25 +38,11 @@ func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item,
 	}
 
 	for _, o := range orders {
-		if err := validateFuturesPairAsset(o.Contract, a); err != nil {
+		if err := o.validate(false); err != nil {
 			return nil, err
 		}
-
-		if o.Price == "" && o.TimeInForce != "ioc" {
-			return nil, fmt.Errorf("%w: cannot be zero when time in force is not IOC", errInvalidPrice)
-		}
-
-		if o.Size == 0 && o.AutoSize == "" {
-			return nil, fmt.Errorf("%w: size cannot be zero", errInvalidAmount)
-		}
-
-		if o.AutoSize != "" {
-			if o.AutoSize != "close_long" && o.AutoSize != "close_short" {
-				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, o.AutoSize)
-			}
-			if o.Size != 0 {
-				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidAmount)
-			}
+		if _, err := getSettlementCurrency(o.Contract, a); err != nil {
+			return nil, err
 		}
 	}
 

@@ -1042,7 +1042,7 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       "3765",
+		Price:       3765,
 		Text:        "t-my-custom-id",
 		Settle:      currency.USDT,
 		TimeInForce: gtcTIF,
@@ -1204,7 +1204,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       "3765",
+		Price:       3765,
 		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
 		Settle:      currency.BTC,
@@ -1248,7 +1248,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
 			Iceberg:     0,
-			Price:       "3765",
+			Price:       3765,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      currency.BTC,
@@ -1257,7 +1257,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        232,
 			Iceberg:     0,
-			Price:       "376225",
+			Price:       376225,
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      currency.BTC,
@@ -3351,11 +3351,30 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 	assert.Equal(t, order.Market, typeResp, "should be market order")
 }
 
-func TestTimeInForceString(t *testing.T) {
+func TestToExchangeTIF(t *testing.T) {
 	t.Parallel()
-	assert.Empty(t, timeInForceString(order.UnknownTIF))
-	for _, valid := range validTimesInForce {
-		assert.Equal(t, valid.String, timeInForceString(valid.TimeInForce))
+
+	for _, tc := range []struct {
+		tif      order.TimeInForce
+		price    float64
+		expected string
+		error    error
+	}{
+		{price: 0, expected: iocTIF}, // market orders default to IOC
+		{price: 0, tif: order.FillOrKill, expected: fokTIF},
+		{price: 420, expected: gtcTIF}, // limit orders default to GTC
+		{price: 420, tif: order.GoodTillCancel, expected: gtcTIF},
+		{price: 420, tif: order.ImmediateOrCancel, expected: iocTIF},
+		{price: 420, tif: order.PostOnly, expected: pocTIF},
+		{price: 420, tif: order.FillOrKill, expected: fokTIF},
+		{tif: order.GoodTillTime, error: order.ErrUnsupportedTimeInForce},
+	} {
+		t.Run(fmt.Sprintf("TIF:%q Price:'%v'", tc.tif, tc.price), func(t *testing.T) {
+			t.Parallel()
+			got, err := toExchangeTIF(tc.tif, tc.price)
+			require.ErrorIs(t, err, tc.error)
+			require.Equal(t, tc.expected, got)
+		})
 	}
 }
 
