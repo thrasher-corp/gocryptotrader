@@ -75,7 +75,7 @@ var (
 	// checking
 	ref          = []string{"gocryptotrader", "cmd", "documentation"}
 	engineFolder = "engine"
-	githubToken  = os.Getenv("GITHUB_TOKEN") // Defaults to this, otherwise will be overridden by the -ghtoken flag if set
+	githubToken  = os.Getenv("GITHUB_TOKEN") // Overridden by the ghtoken flag when set
 )
 
 // Contributor defines an account associated with this code base by doing
