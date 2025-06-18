@@ -18,7 +18,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to add a new exchange
 
-This document is from a perspective of adding a new exchange called FTX to the codebase:
+This document is from a perspective of adding a new exchange called Binance to the codebase:
 
 ### Run the [exchange templating tool](../cmd/exchange_template/) which will create a base exchange package based on the features the exchange supports
 
@@ -29,7 +29,7 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader/cmd/exchange_template
-go run exchange_template.go -name FTX -ws -rest
+go run exchange_template.go -name Binance -ws -rest
 ```
 
 #### Windows
@@ -37,7 +37,7 @@ go run exchange_template.go -name FTX -ws -rest
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader\cmd\exchange_template
-go run exchange_template.go -name FTX -ws -rest
+go run exchange_template.go -name Binance -ws -rest
 ```
 
 ### Add exchange struct to [config_example.json](../config_example.json), [configtest.json](../testdata/configtest.json):
@@ -51,53 +51,36 @@ config.GetDefaultFilePath()
 
 ```js
   {
-   "name": "FTX",
+   "name": "Binance",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
    "websocketTrafficTimeout": 30000000000,
-   "websocketOrderbookBufferLimit": 5,
+   "connectionMonitorDelay": 0,
    "baseCurrencies": "USD",
    "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
     "pairs": {
-     "futures": {
-      "assetEnabled": true,
-      "enabled": "BTC-PERP",
-      "available": "BTC-PERP",
-      "requestFormat": {
-       "uppercase": true,
-       "delimiter": "-"
-      },
-      "configFormat": {
-       "uppercase": true,
-       "delimiter": "-"
-      }
-     },
      "spot": {
       "assetEnabled": true,
-      "enabled": "BTC/USD",
-      "available": "BTC/USD",
-      "requestFormat": {
-       "uppercase": true,
-       "delimiter": "/"
-      },
-      "configFormat": {
-       "uppercase": true,
-       "delimiter": "/"
-      }
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDT,BNB-BTC,NEO-BTC,QTUM-ETH,ETH-BTC"
      }
     }
    },
    "api": {
     "authenticatedSupport": false,
     "authenticatedWebsocketApiSupport": false,
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
     "credentials": {
      "key": "Key",
      "secret": "Secret"
@@ -105,21 +88,30 @@ config.GetDefaultFilePath()
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-    }
+    },
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "urlEndpoints": null
    },
    "features": {
     "supports": {
      "restAPI": true,
      "restCapabilities": {
       "tickerBatching": true,
-      "autoPairUpdates": true
+      "autoPairUpdates": true,
+      "fundingRateFetching": false
      },
-     "websocketAPI": true,
-     "websocketCapabilities": {}
+     "websocketAPI": true
     },
     "enabled": {
      "autoPairUpdates": true,
-     "websocketAPI": false
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": false,
+     "fillsFeed": false
     }
    },
    "bankAccounts": [
@@ -136,7 +128,12 @@ config.GetDefaultFilePath()
      "iban": "",
      "supportedCurrencies": ""
     }
-   ]
+   ],
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 5,
+    "websocketBufferEnabled": false
+   }
   },
 ```
 
@@ -148,7 +145,7 @@ Check to make sure that the command does not override the NTP client and encrypt
 go build && gocryptotrader.exe --config=config_example.json
 ```
 
-### Add the currency pair format structs in ftx_wrapper.go:
+### Add the currency pair format structs in wrapper.go:
 
 #### Futures currency support:
 
@@ -189,7 +186,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 	}
 ```
 
-### Document the addition of the new exchange (FTX exchange is used as an example below):
+### Document the addition of the new exchange (Binance exchange is used as an example below):
 
 Yes means supported, No means not yet implemented and NA means protocol unsupported
 
@@ -198,7 +195,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
 | Alphapoint | Yes  | Yes        | NA  |
-| Binance| Yes  | Yes        | NA  |
+| Binance| Yes  | Yes        | NA  | // <-------- new exchange
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
@@ -210,7 +207,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| FTX | Yes | Yes | No | // <-------- new exchange
+| FTX | Yes | Yes | No |
 | CoinbasePro | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
@@ -227,7 +224,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 #### Add exchange to the list of [supported exchanges](../exchanges/support.go):
 ```go
 var Exchanges = []string{
-	"binance",
+	"binance", // <-------- new exchange
 	"bitfinex",
 	"bitflyer",
 	"bithumb",
@@ -240,7 +237,7 @@ var Exchanges = []string{
 	"coinut",
 	"deribit",
 	"exmo",
-	"ftx", // <-------- new exchange
+	"ftx",
 	"gateio",
 	"gemini",
 	"hitbtc",
@@ -260,7 +257,7 @@ var Exchanges = []string{
 - Replace names and variables as shown:
 
 ```go
-{{define "exchanges exmo" -}} // exmo -> ftx
+{{define "exchanges exmo" -}} // exmo -> binance
 {{template "header" .}}
 ## Exmo Exchange
 
@@ -270,11 +267,11 @@ var Exchanges = []string{
 ```
 
 ```go
-var e exchange.IBotExchange // We name the exchange.IBotExchange variable after the first character of the exchange, eg f for FTX. e -> f
+var e exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "Exmo" { // Exmo -> FTX
-    e = bot.Exchanges[i] // e -> f
+  if bot.Exchanges[i].GetName() == "Exmo" { // Exmo -> Binance
+    e = bot.Exchanges[i]
   }
 }
 
@@ -348,7 +345,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 
 #### Unauthenticated Functions:
 
-https://docs.ftx.com/#get-markets
+https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints
 
 Create a type struct in types.go for the response type shown on the documentation website:
 
@@ -356,82 +353,96 @@ For efficiency, a JSON to Golang converter can be used: https://mholt.github.io/
 However, great care must be taken as to the values which are autogenerated. The JSON converter tool will default to whatever type it detects, but ultimately conversions to a more useful variable type would be better. For example, price and quantity on some exchange API's provide these as strings. Internally, it would be better if they're converted to the more useful float64 var type.
 
 ```go
-// MarketData stores market data
-type MarketData struct {
-	Name           string  `json:"name"`
-	BaseCurrency   string  `json:"baseCurrency"`
-	QuoteCurrency  string  `json:"quoteCurrency"`
-	MarketType     string  `json:"type"`
-	Underlying     string  `json:"underlying"`
-	Enabled        bool    `json:"enabled"`
-	Ask            float64 `json:"ask"`
-	Bid            float64 `json:"bid"`
-	Last           float64 `json:"last"`
-	PriceIncrement float64 `json:"priceIncrement"`
-	SizeIncrement  float64 `json:"sizeIncrement"`
+// ExchangeInfo holds the full exchange information type
+type ExchangeInfo struct {
+	Code       int        `json:"code"`
+	Msg        string     `json:"msg"`
+	Timezone   string     `json:"timezone"`
+	ServerTime types.Time `json:"serverTime"`
+	RateLimits []*struct {
+		RateLimitType string `json:"rateLimitType"`
+		Interval      string `json:"interval"`
+		Limit         int    `json:"limit"`
+	} `json:"rateLimits"`
+	ExchangeFilters any `json:"exchangeFilters"`
+	Symbols         []*struct {
+		Symbol                     string        `json:"symbol"`
+		Status                     string        `json:"status"`
+		BaseAsset                  string        `json:"baseAsset"`
+		BaseAssetPrecision         int           `json:"baseAssetPrecision"`
+		QuoteAsset                 string        `json:"quoteAsset"`
+		QuotePrecision             int           `json:"quotePrecision"`
+		OrderTypes                 []string      `json:"orderTypes"`
+		IcebergAllowed             bool          `json:"icebergAllowed"`
+		OCOAllowed                 bool          `json:"ocoAllowed"`
+		QuoteOrderQtyMarketAllowed bool          `json:"quoteOrderQtyMarketAllowed"`
+		IsSpotTradingAllowed       bool          `json:"isSpotTradingAllowed"`
+		IsMarginTradingAllowed     bool          `json:"isMarginTradingAllowed"`
+		Filters                    []*filterData `json:"filters"`
+		Permissions                []string      `json:"permissions"`
+		PermissionSets             [][]string    `json:"permissionSets"`
+	} `json:"symbols"`
 }
 ```
 
-Create new consts to define endpoint strings, they are created at the top of ftx.go file:
+Create new consts to define endpoint strings, they are created at the top of rest.go file:
 ```go
 const (
-	ftxAPIURL = "https://ftx.com/api"
+	apiURL = "https://api.binance.com"
 
 	// Public endpoints
-	getMarkets           = "/markets"
-	getMarket            = "/markets/"
-	getOrderbook         = "/markets/%s/orderbook?depth=%s"
-	getTrades            = "/markets/%s/trades?"
-	getHistoricalData    = "/markets/%s/candles?"
-	getFutures           = "/futures"
-	getFuture            = "/futures/"
-	getFutureStats       = "/futures/%s/stats"
-	getFundingRates      = "/funding_rates"
-  	getAllWallegetAllWalletBalances = "/wallet/all_balances"
+	exchangeInfo      = "/api/v3/exchangeInfo"
+	orderBookDepth    = "/api/v3/depth"
+	recentTrades      = "/api/v3/trades"
+	aggregatedTrades  = "/api/v3/aggTrades"
+	candleStick       = "/api/v3/klines"
+	orderEndpoint     = "/api/v3/order"
+)
   ```
 
-Create a get function in ftx.go file and unmarshall the data in the created type:
+Create a get function in rest.go file and unmarshall the data in the created type:
 ```go
-// GetMarkets gets market data
-func (e *Exchange) GetMarkets(ctx context.Context) (Markets, error) {
-	var resp Markets
-	return resp, e.SendHTTPRequest(ctx, ftxAPIURL+getMarkets, &resp)
+// GetExchangeInfo returns exchange information. Check types for more
+// information
+func (e *Exchange) GetExchangeInfo(ctx context.Context) (*ExchangeInfo, error) {
+	var resp *ExchangeInfo
+	return resp, e.SendHTTPRequest(ctx,
+		exchange.RestSpotSupplementary, exchangeInfo, spotExchangeInfo, &resp)
 }
 ```
 
-Create a test function in ftx_test.go to see if the data is received and unmarshalled correctly
+Create a test function in binance_test.go to see if the data is received and unmarshalled correctly
 ```go
-const(
-	spotPair = "FTT/BTC"
-)
-
-func TestGetMarket(t *testing.T) {
+func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
 	e.Verbose = true // used for more detailed output
-	a, err := e.GetMarket(context.Background(), spotPair) // spotPair is just a const so it can be reused in other tests too
-	t.Log(a)
-	assert.NoError(t, err)
+	result, err := e.GetExchangeInfo(context.Background())
+	require.NoError(t, err)
+	t.Log(result)
+	assert.NotNil(t, result)
 }
 ```
-Verbose can be set to true to see the data received if there are errors unmarshalling
-Once testing is done remove verbose, variable a and t.Log(a) since they produce unnecessary output when GCT is run
+Set Verbose to true to view received data during unmarshalling errors. 
+After testing, remove Verbose, the result variable, and t.Log(result), or replace the log with assert.NotNil(t, result) to avoid unnecessary output when running GCT.
 ```go
-_, err := e.GetMarket(context.Background(), spotPair)
+	result, err := e.GetExchangeInfo(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 ```
 
 Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
 
 #### Authenticated functions:
 
-Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
+Authenticated request function is created based on the way the exchange documentation specifies: https://developers.binance.com/docs/binance-spot-api-docs/rest-api/endpoint-security-type
 ```go
 // SendAuthHTTPRequest sends an authenticated request
-func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, path string, data, result any) error {
-// A potential example below of closing over authenticated variables which may 
-// be required to regenerate on every request between each attempt after rate
-// limiting. This is for when signatures are based on timestamps/nonces that are 
-// within time receive windows. NOTE: This is not always necessary and the above
-// SendHTTPRequest example will suffice. 
+func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
+	// A potential example below of closing over authenticated variables which may 
+	// be required to regenerate on every request between each attempt after rate
+	// limiting. This is for when signatures are based on timestamps/nonces that are 
+	// within time receive windows. NOTE: This is not always necessary and the above
+	// SendHTTPRequest example will suffice.
 
 	// Fetches credentials, this can either use a context set credential or if
 	// not found, will default to the config.json exchange specific credentials.
@@ -440,48 +451,57 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, path string,
 		return err
 	}
 
-	generate := func() (*request.Item, error) {
-		ts := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		var body io.Reader
-		var hmac, payload []byte
-		var err error
-		if data != nil {
-			payload, err = json.Marshal(data)
-			if err != nil {
-				return err
-			}
-			body = bytes.NewBuffer(payload)
-			sigPayload := ts + method + "/api" + path + string(payload)
-			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(creds.Secret))
-		} else {
-			sigPayload := ts + method + "/api" + path
-			hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(creds.Secret))
+	endpointPath, err := e.API.Endpoints.GetURL(ePath)
+	if err != nil {
+		return err
+	}
+
+	if params == nil {
+		params = url.Values{}
+	}
+
+	if params.Get("recvWindow") == "" {
+		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
+	}
+
+	interim := json.RawMessage{}
+	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
+		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
+		if err != nil {
+			return nil, err
 		}
 		headers := make(map[string]string)
-		headers["FTX-KEY"] = creds.Key
-		headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
-		headers["FTX-TS"] = ts
-		headers["Content-Type"] = "application/json"
-
-		// This is used to generate the *http.Request.
-		item := &request.Item{
+		headers["X-MBX-APIKEY"] = creds.Key
+		fullPath := common.EncodeURLValues(endpointPath+path, params) + "&signature=" + hex.EncodeToString(hmacSigned)
+		return &request.Item{
 			Method:        method,
-			Path:          ftxAPIURL + path,
+			Path:          fullPath,
 			Headers:       headers,
-			Body:          body,
-			Result:        result,
+			Result:        &interim,
 			Verbose:       e.Verbose,
 			HTTPDebugging: e.HTTPDebugging,
 			HTTPRecording: e.HTTPRecording,
-		}
-		return item, nil
+		}, nil
 	}, request.AuthenticatedRequest)
+	if err != nil {
+		return err
+	}
+	errCap := struct {
+		Success bool   `json:"success"`
+		Message string `json:"msg"`
+		Code    int64  `json:"code"`
+	}{}
 
-	endpoint := request.Unset // Used in conjunction with the rate limiting 
-	// system defined in the exchange package to slow down outbound requests
-	// depending on each individual endpoint. 
-
-	return e.SendPayload(ctx, endpoint, generate)
+	if err := json.Unmarshal(interim, &errCap); err == nil {
+		if !errCap.Success && errCap.Message != "" && errCap.Code != 200 {
+			return errors.New(errCap.Message)
+		}
+	}
+	if result == nil {
+		return nil
+	}
+	return json.Unmarshal(interim, result)
 }
 ```
 
@@ -491,105 +511,130 @@ HTTP Mocking framework can also be added for the exchange. For reference, please
 
 Create authenticated functions and test along the way similar to the functions above:
 
-https://docs.ftx.com/#get-account-information:
+https://developers.binance.com/docs/binance-spot-api-docs/rest-api/account-endpoints:
 
 ```go
-// GetAccountInfo gets account info
-func (e *Exchange) GetAccountInfo(ctx context.Context) (AccountData, error) {
-	var resp AccountData
-	return resp, e.SendAuthHTTPRequest(ctx, http.MethodGet, getAccountInfo, nil, &resp)
+// GetAccount returns binance user accounts
+func (e *Exchange) GetAccount(ctx context.Context) (*Account, error) {
+	type response struct {
+		Response
+		Account
+	}
+
+	var resp response
+	return &resp.Account,  e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, accountInfo, url.Values{}, spotAccountInformationRate, &resp)
 }
 ```
 
 Get Request params for authenticated requests are sent through url.Values{}:
 
-https://docs.ftx.com/#get-withdrawal-history:
+https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints:
 
 ```go
-// GetTriggerOrderHistory gets trigger orders that are currently open
-func (e *Exchange) GetTriggerOrderHistory(ctx context.Context, marketName string, startTime, endTime time.Time, side, orderType, limit string) (TriggerOrderHistory, error) {
-	var resp TriggerOrderHistory
+// QueryOrder returns information on a past order
+func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*OrderResponse, error) {
 	params := url.Values{}
-	if marketName != "" {
-		params.Set("market", marketName)
+	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return resp, err
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
-		}
+	params.Set("symbol", symbolValue)
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
 	}
-	if side != "" {
-		params.Set("side", side)
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-	if orderType != "" {
-		params.Set("type", orderType)
+
+	var resp *OrderResponse
+	if err := e.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary,
+		http.MethodGet, orderEndpoint,
+		params, spotOrderQueryRate,
+		&resp); err != nil {
+		return resp, err
 	}
-	if limit != "" {
-		params.Set("limit", limit)
+
+	if resp.Code != 0 {
+		return resp, errors.New(resp.Msg)
 	}
-	return resp, e.SendAuthHTTPRequest(ctx, http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
+	return resp, nil
 }
 ```
 
-https://docs.ftx.com/#place-order
+https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints
 
 
 Structs for unmarshalling the data are made exactly the same way as the previous functions.
 
 ```go
-type OrderData struct {
-	CreatedAt     time.Time `json:"createdAt"`
-	FilledSize    float64   `json:"filledSize"`
-	Future        string    `json:"future"`
-	ID            int64     `json:"id"`
-	Market        string    `json:"market"`
-	Price         float64   `json:"price"`
-	AvgFillPrice  float64   `json:"avgFillPrice"`
-	RemainingSize float64   `json:"remainingSize"`
-	Side          string    `json:"side"`
-	Size          float64   `json:"size"`
-	Status        string    `json:"status"`
-	OrderType     string    `json:"type"`
-	ReduceOnly    bool      `json:"reduceOnly"`
-	IOC           bool      `json:"ioc"`
-	PostOnly      bool      `json:"postOnly"`
-	ClientID      string    `json:"clientId"`
-}
-
-// PlaceOrder stores data of placed orders
-type PlaceOrder struct {
-	Success bool      `json:"success"`
-	Result  OrderData `json:"result"`
+// OrderResponse is the return structured response from the exchange
+type OrderResponse struct {
+	Code            int        `json:"code"`
+	Msg             string     `json:"msg"`
+	Symbol          string     `json:"symbol"`
+	OrderID         int64      `json:"orderId"`
+	ClientOrderID   string     `json:"clientOrderId"`
+	TransactionTime types.Time `json:"transactTime"`
+	Price           float64    `json:"price,string"`
+	OrigQty         float64    `json:"origQty,string"`
+	ExecutedQty     float64    `json:"executedQty,string"`
+	CumulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
+	Status             string  `json:"status"`
+	TimeInForce        string  `json:"timeInForce"`
+	Type               string  `json:"type"`
+	Side               string  `json:"side"`
+	Fills              []struct {
+		Price           float64 `json:"price,string"`
+		Qty             float64 `json:"qty,string"`
+		Commission      float64 `json:"commission,string"`
+		CommissionAsset string  `json:"commissionAsset"`
+	} `json:"fills"`
 }
 ```
 
-For `POST` or `DELETE` requests, params are sent through a map[string]any:
+For `POST` or `DELETE` requests, params are sent through a query params:
 
 ```go
-// Order places an order
-func (e *Exchange) Order(ctx context.Context, marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
-	req := make(map[string]any)
-	req["market"] = marketName
-	req["side"] = side
-	req["price"] = price
-	req["type"] = orderType
-	req["size"] = size
-	if reduceOnly != "" {
-		req["reduceOnly"] = reduceOnly
+// NewOrder sends a new test order to Binance
+func (e *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (*OrderResponse, error) {
+	symbol, err := e.FormatSymbol(o.Symbol, asset.Spot)
+	if err != nil {
+		return err
 	}
-	if ioc != "" {
-		req["ioc"] = ioc
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("side", o.Side)
+	params.Set("type", string(o.TradeType))
+	if o.QuoteOrderQty > 0 {
+		params.Set("quoteOrderQty", strconv.FormatFloat(o.QuoteOrderQty, 'f', -1, 64))
+	} else {
+		params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
 	}
-	if postOnly != "" {
-		req["postOnly"] = postOnly
+	if o.TradeType == BinanceRequestParamsOrderLimit {
+		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
-	if clientID != "" {
-		req["clientID"] = clientID
+	if o.TimeInForce != "" {
+		params.Set("timeInForce", o.TimeInForce)
 	}
-	var resp PlaceOrder
-	return resp, e.SendAuthHTTPRequest(ctx, http.MethodPost, placeOrder, req, &resp)
+
+	if o.NewClientOrderID != "" {
+		params.Set("newClientOrderId", o.NewClientOrderID)
+	}
+
+	if o.StopPrice != 0 {
+		params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
+	}
+
+	if o.IcebergQty != 0 {
+		params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
+	}
+
+	if o.NewOrderRespType != "" {
+		params.Set("newOrderRespType", o.NewOrderRespType)
+	}
+	var resp *OrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, orderEndpoint, params, spotOrderRate, resp)
 }
 ```
 
@@ -604,8 +649,7 @@ Unsupported Example:
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (e *Exchange) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	var resp *withdraw.ExchangeResponse
-	return resp, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 ```
 
@@ -613,27 +657,51 @@ Supported Examples:
 
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
+// FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, e.Name)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	markets, err := e.GetMarkets(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var pairs []string
+	tradingStatus := "TRADING"
+	var pairs []currency.Pair
 	switch a {
-	case asset.Spot:
-		for x := range markets.Result {
-			if markets.Result[x].MarketType == spotString {
-				pairs = append(pairs, markets.Result[x].Name)
+	case asset.Spot, asset.Margin:
+		info, err := e.GetExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs = make([]currency.Pair, 0, len(info.Symbols))
+		for x := range info.Symbols {
+			if info.Symbols[x].Status != tradingStatus {
+				continue
+			}
+			pair, err := currency.NewPairFromStrings(info.Symbols[x].BaseAsset,
+				info.Symbols[x].QuoteAsset)
+			if err != nil {
+				return nil, err
+			}
+			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
+				pairs = append(pairs, pair)
+			}
+			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
+				pairs = append(pairs, pair)
 			}
 		}
-	case asset.Futures:
-		for x := range markets.Result {
-			if markets.Result[x].MarketType == futuresString {
-				pairs = append(pairs, markets.Result[x].Name)
+	case asset.CoinMarginedFutures:
+		cInfo, err := e.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs = make([]currency.Pair, 0, len(cInfo.Symbols))
+		for z := range cInfo.Symbols {
+			if cInfo.Symbols[z].ContractStatus != tradingStatus {
+				continue
 			}
+			pair, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		}
 	}
 	return pairs, nil
@@ -658,50 +726,91 @@ The currency package contains many helper functions to format and process curren
 
 #### Websocket Setup:
 
-- Set the websocket url in ftx_websocket.go that is provided in the documentation:
+- Set the websocket url in websocket.go that is provided in the documentation:
 
 ```go
-	ftxWSURL          = "wss://ftx.com/ws/"
+	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 ```
 
 #### Complete WsConnect function:
 
 ```go
-// WsConnect connects to a websocket feed
+// WsConnect initiates a websocket connection
 func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
-	err := e.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	// Can set up custom ping handler per websocket connection.
-	e.Websocket.Conn.SetupPingHandler(wshandler.WebsocketPingHandler{
-		MessageType: websocket.PingMessage,
-		Delay:       ftxWebsocketTimer,
-	})
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", e.Name)
-	}
-	// This reader routine is called prior to initiating a subscription for
-	// efficient processing.
-	go e.wsReadData()
-	if e.IsWebsocketAuthenticationSupported() {
-		err = e.WsAuth(context.TODO())
+
+	var dialer gws.Dialer
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
+	var err error
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		listenKey, err = e.GetWsAuthStreamKey(ctx)
 		if err != nil {
-			e.Websocket.DataHandler <- err
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
+		} else {
+			// cleans on failed connection
+			clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+			authPayload := clean[0] + "?streams=" + listenKey
+			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	// Generates the default subscription set, based off enabled pairs.
-	subs, err := e.generateSubscriptions()
+
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
-		return err
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
-	// Finally subscribes to each individual channel.
-	return e.Websocket.SubscribeToChannels(subs)
+
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		// Start a goroutine to keep the WebSocket auth key alive
+		// for accessing authenticated endpoints.
+		go e.KeepAuthKeyAlive(ctx)
+	}
+
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		UseGorillaHandler: true,
+		MessageType:       gws.PongMessage,
+		Delay:             pingDelay,
+	})
+
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData()
+
+	e.setupOrderbookManager(ctx)
+	return nil
+}
+```
+
+- Create the authentication function based on specifications provided in the documentation:
+
+https://developers.binance.com/docs/binance-spot-api-docs/websocket-api/authentication-requests
+
+```go
+// KeepAuthKeyAlive will continuously send messages to
+// keep the WS auth key active
+func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
+	e.Websocket.Wg.Add(1)
+	defer e.Websocket.Wg.Done()
+	ticks := time.NewTicker(time.Minute * 30)
+	for {
+		select {
+		case <-e.Websocket.ShutdownC:
+			ticks.Stop()
+			return
+		case <-ticks.C:
+			err := e.MaintainWsAuthStreamKey(ctx)
+			if err != nil {
+				e.Websocket.DataHandler <- err
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
+			}
+		}
+	}
 }
 ```
 
@@ -710,41 +819,13 @@ func (e *Exchange) WsConnect() error {
 ```go
 // generateSubscriptions generates default subscription
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	var subscriptions subscription.List
-	subscriptions = append(subscriptions, &subscription.Subscription{
-		Channel: wsMarkets,
-	})
-	// Ranges over available channels, pairs and asset types to produce a full
-	// subscription list.
-	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := e.GetAssetTypes()
-	for a := range assets {
-		pairs, err := e.GetEnabledPairs(assets[a])
-		if err != nil {
-			return nil, err
-		}
-		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
-				pairs[z].Quote.String(),
-				"-")
-			for x := range channels {
-				subscriptions = append(subscriptions,
-					&subscription.Subscription{
-						Channel:  channels[x],
-						Pair:     currency.Pairs{newPair},
-						Asset:    assets[a],
-					})
-			}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset == asset.Empty {
+			// Handle backwards compatibility with config without assets, all binance subs are spot
+			s.Asset = asset.Spot
 		}
 	}
-	// Appends authenticated channels to the subscription list
-	if e.IsWebsocketAuthenticationSupported() {
-		var authchan = []string{wsOrders, wsFills}
-		for x := range authchan {
-			subscriptions = append(subscriptions, &subscription.Subscription{Channel: authchan[x]})
-		}
-	}
-	return subscriptions, nil
+	return e.Features.Subscriptions.ExpandTemplates(b)
 }
 ```
 
@@ -765,16 +846,16 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 
 - Create subscribe function with the data provided by the exchange documentation:
 
-https://docs.ftx.com/#request-process
+https://developers.binance.com/docs/binance-spot-api-docs/websocket-api/request-format
 
 - Create a struct required to subscribe to channels:
 
 ```go
-// WsSub has the data used to subscribe to a channel
-type WsSub struct {
-	Channel   string `json:"channel,omitempty"`
-	Market    string `json:"market,omitempty"`
-	Operation string `json:"op,omitempty"`
+// WsPayload defines the payload through the websocket connection
+type WsPayload struct {
+	ID     int64    `json:"id"`
+	Method string   `json:"method"`
+	Params []string `json:"params"`
 }
 ```
 
@@ -958,66 +1039,22 @@ func TestParsingWSOrdersData(t *testing.T) {
 
 - Create types given in the documentation to unmarshall the streamed data:
 
-https://docs.ftx.com/#fills-2
+https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams#trade-streams
 
 ```go
-// WsFills stores websocket fills' data
-type WsFills struct {
-	Fee       float64   `json:"fee"`
-	FeeRate   float64   `json:"feeRate"`
-	Future    string    `json:"future"`
-	ID        int64     `json:"id"`
-	Liquidity string    `json:"liquidity"`
-	Market    string    `json:"market"`
-	OrderID   int64     `json:"int64"`
-	TradeID   int64     `json:"tradeID"`
-	Price     float64   `json:"price"`
-	Side      string    `json:"side"`
-	Size      float64   `json:"size"`
-	Time      time.Time `json:"time"`
-	OrderType string    `json:"orderType"`
-}
-
-// WsFillsDataStore stores ws fills' data
-type WsFillsDataStore struct {
-	Channel     string  `json:"channel"`
-	MessageType string  `json:"type"`
-	FillsData   WsFills `json:"fills"`
-}
-```
-
-- Create the authentication function based on specifications provided in the documentation:
-
-https://docs.ftx.com/#private-channels
-
-```go
-// WsAuth sends an authentication message to receive auth data
-func (e *Exchange) WsAuth(ctx context.Context) error {
-	// Fetches credentials, this can either use a context set credential or if
-	// not found, will default to the config.json exchange specific credentials.
-	// NOTE: Websocket context values are not sufficiently propagated yet, so in 
-	// most circumstances the calling function can call context.TODO() and will
-	// use default credentials.
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
-	strNonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	hmac := crypto.GetHMAC(
-		crypto.HashSHA256,
-		[]byte(strNonce+"websocket_login"),
-		[]byte(creds.Secret),
-	)
-	sign := crypto.HexEncodeToString(hmac)
-	req := Authenticate{Operation: "login",
-		Args: AuthenticationData{
-			Key:  creds.Key,
-			Sign: sign,
-			Time: intNonce,
-		},
-	}
-	return e.Websocket.Conn.SendJSONMessage(req)
+// TradeStream holds the trade stream data
+type TradeStream struct {
+	EventType      string       `json:"e"`
+	EventTime      types.Time   `json:"E"`
+	Symbol         string       `json:"s"`
+	TradeID        int64        `json:"t"`
+	Price          types.Number `json:"p"`
+	Quantity       types.Number `json:"q"`
+	BuyerOrderID   int64        `json:"b"`
+	SellerOrderID  int64        `json:"a"`
+	TimeStamp      types.Time   `json:"T"`
+	IsBuyerMaker   bool         `json:"m"`
+	BestMatchPrice bool         `json:"M"`
 }
 ```
 
@@ -1083,7 +1120,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ExchangeConfig:        	exch,
 		// DefaultURL defines the default endpoint in the event a rollback is 
 		// needed via gctcli.
-		DefaultURL:             ftxWSURL, 
+		DefaultURL:             binanceWSURL, 
 		RunningURL:             exch.API.Endpoints.WebsocketURL,
 		// Connector function outlined above.
 		Connector:              e.WsConnect, 
@@ -1118,7 +1155,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 }
 ```
 
-Below are the features supported by FTX API protocol:
+Below are the features supported by Binance API protocol:
 
   ```go
   e.Features = exchange.Features{
