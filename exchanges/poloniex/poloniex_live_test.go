@@ -9,30 +9,20 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Poloniex load config error", err)
+	p = new(Poloniex)
+	if err := testexch.Setup(p); err != nil {
+		log.Fatalf("Poloniex Setup error: %s", err)
 	}
-	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
-	if err != nil {
-		log.Fatal("Poloniex Setup() init error", err)
-	}
-	poloniexConfig.API.AuthenticatedSupport = true
-	poloniexConfig.API.Credentials.Key = apiKey
-	poloniexConfig.API.Credentials.Secret = apiSecret
-	p.SetDefaults()
-	p.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = p.Setup(poloniexConfig)
-	if err != nil {
-		log.Fatal("Poloniex setup error", err)
+	if apiKey != "" && apiSecret != "" {
+		p.API.AuthenticatedSupport = true
+		p.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 	log.Printf(sharedtestvalues.LiveTesting, p.Name)
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
