@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -371,10 +370,7 @@ func setupTest(t *testing.T) {
 	t.Helper()
 	if verbose {
 		err := testhelpers.EnableVerboseTestOutput()
-		if err != nil {
-			fmt.Printf("failed to enable verbose test output: %v", err)
-			os.Exit(1)
-		}
+		require.NoError(t, err, "EnableVerboseTestOutput must not error")
 	}
 
 	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
