@@ -35,11 +35,8 @@ func (b *Book) Validate() error {
 }
 
 func validate(b *Book) error {
-	// Checking for both ask and bid lengths being zero has been removed and
-	// a warning has been put in place for some exchanges that return zero
-	// level books. In the event that there is a massive liquidity change where
-	// a book dries up, this will still update so we do not traverse potential
-	// incorrect old data.
+	// Some exchanges may return empty sides, but it's not an error
+	// Options have empty sides too frequently for this warning to be useful
 	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
 		log.Warnf(log.OrderBook, bookLengthIssue, b.Exchange, b.Pair, b.Asset, len(b.Bids), len(b.Asks))
 	}
