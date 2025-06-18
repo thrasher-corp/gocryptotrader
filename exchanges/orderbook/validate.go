@@ -9,8 +9,8 @@ import (
 // checker defines specific functionality to determine ascending/descending validation
 type checker func(current, previous Level) error
 
-// asc specifically defines ascending price check
-var asc = func(current, previous Level) error {
+// isAsc specifically defines ascending price check
+var isAsc = func(current, previous Level) error {
 	if current.Price < previous.Price {
 		return errPriceOutOfOrder
 	}
