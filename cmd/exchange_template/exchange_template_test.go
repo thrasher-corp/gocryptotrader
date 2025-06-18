@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -39,9 +41,8 @@ func TestCheckExchangeName(t *testing.T) {
 	}
 
 	for x := range tester {
-		if r := checkExchangeName(tester[x].Name); r != tester[x].ErrExpected {
-			t.Errorf("test: %d unexpected result", x)
-		}
+		r := checkExchangeName(tester[x].Name)
+		assert.Equal(t, tester[x].ErrExpected, r)
 	}
 }
 
@@ -65,18 +66,14 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 			WS:   true,
 		},
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	cfgData, err := os.ReadFile(exchangeConfigPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = saveConfig(testExchangeDir, cfg, exchCfg); err != nil {
-		t.Error(err)
-	}
-	if err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal); err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+
+	err = saveConfig(testExchangeDir, cfg, exchCfg)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal)
+	assert.NoError(t, err)
 }

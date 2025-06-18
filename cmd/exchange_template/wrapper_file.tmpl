@@ -13,7 +13,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -23,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -119,7 +117,7 @@ func (e *Exchange) SetDefaults() {
 			// 	GlobalResultLimit: 2000,
 			// }
 		},
-		Subscriptions: subscription.List{},
+		{{ if .WS }} Subscriptions: {{.Name}}DefaultSubscriptions,{{ end }}
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	e.Requester, err = request.New(e.Name,
@@ -287,15 +285,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-<<<<<<< HEAD
-func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{
-		Exchange: e.Name, 
-=======
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func  (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	book := &orderbook.Book{
-		Exchange: {{.Variable}}.Name, 
->>>>>>> 2958e64afecb39203309120383da1ef1d1e5689f
+		Exchange: e.Name, 
 		Pair: pair, 
 		Asset: assetType,
 		VerifyOrderbook: e.CanVerifyOrderbook,

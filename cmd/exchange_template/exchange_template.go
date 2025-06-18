@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -175,8 +176,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		},
 		{
 			Name:         "main",
-			Filename:     "main_file.tmpl",
-			FilePostfix:  ".go",
+			Filename:     "rest.go",
 			TemplateFile: "main_file.tmpl",
 		},
 		{
@@ -187,15 +187,23 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		},
 		{
 			Name:         "type",
-			Filename:     "type_file.tmpl",
-			FilePostfix:  "_types.go",
+			Filename:     "types.go",
 			TemplateFile: "type_file.tmpl",
 		},
 		{
 			Name:         "wrapper",
-			Filename:     "wrapper_file.tmpl",
-			FilePostfix:  "_wrapper.go",
+			Filename:     "wrapper.go",
 			TemplateFile: "wrapper_file.tmpl",
+		},
+		{
+			Name:         "subscriptions",
+			Filename:     "subscriptions.go",
+			TemplateFile: "subscriptions_file.tmpl",
+		},
+		{
+			Name:         "websocket",
+			Filename:     "websocket.go",
+			TemplateFile: "websocket_file.tmpl",
 		},
 	}
 
@@ -207,6 +215,9 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		}
 
 		filename := outputFiles[x].Filename
+		if !exch.WS && slices.Contains([]string{"websocket", "subscriptions"}, outputFiles[x].Name) {
+			continue
+		}
 		if outputFiles[x].FilePostfix != "" {
 			filename = exch.Name + outputFiles[x].FilePostfix
 		}

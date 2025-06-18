@@ -1,0 +1,73 @@
+{{define "websocket"}}
+package {{.Name}}
+
+import (
+	"fmt"
+	"context"
+	"net/http"
+
+	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+    "github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+)
+
+
+// WsConnect creates a new websocket connection.
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	var dialer gws.Dialer
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
+	
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+        // Add WebSocket authentication logic here.
+	}
+
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	if err != nil {
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
+	}
+
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx)
+	return nil
+}
+
+
+// Subscribe sends a websocket message to receive data from the channel
+func (e *Exchange) Subscribe(_ subscription.List) error {
+	// ctx := context.TODO()
+	return nil
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (e *Exchange) Unsubscribe(_ subscription.List) error {
+	// ctx := context.TODO()
+	return nil
+}
+
+// wsReadData receives and passes on websocket messages for processing
+func (e *Exchange) wsReadData(ctx context.Context) {
+	defer e.Websocket.Wg.Done()
+	for {
+		resp := e.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		err := e.wsHandleData(ctx, resp.Raw)
+		if err != nil {
+		    // e.Websocket.DataHandler <- err
+		}
+	}
+}
+
+// wsHandleData processes a websocket incoming data.
+func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
+    // Implement message parsing and handling logic here.
+	return nil
+}
+
+{{end}}
