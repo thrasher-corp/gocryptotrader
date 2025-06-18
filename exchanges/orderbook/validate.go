@@ -6,8 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// checker defines specific functionality to determine ascending/descending
-// validation
+// checker defines specific functionality to determine ascending/descending validation
 type checker func(current, previous Level) error
 
 // asc specifically defines ascending price check
