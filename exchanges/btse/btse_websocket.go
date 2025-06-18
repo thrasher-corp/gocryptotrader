@@ -343,7 +343,7 @@ func (b *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		newOB.Asset = a
 		newOB.Exchange = b.Name
 		newOB.Asks.Reverse() // Reverse asks for correct alignment
-		newOB.VerifyOrderbook = b.CanVerifyOrderbook
+		newOB.ValidateOrderbook = b.ValidateOrderbook
 		newOB.LastUpdated = time.Now() // NOTE: Temp to fix test.
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {

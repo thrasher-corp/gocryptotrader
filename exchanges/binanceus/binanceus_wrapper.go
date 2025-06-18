@@ -319,10 +319,10 @@ func (bi *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, ass
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        bi.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: bi.CanVerifyOrderbook,
+		Exchange:          bi.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: bi.ValidateOrderbook,
 	}
 
 	orderbookNew, err := bi.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{

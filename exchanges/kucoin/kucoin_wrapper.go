@@ -204,7 +204,6 @@ func (ku *Exchange) Setup(exch *config.Exchange) error {
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
-				UpdateIDProgression:   true,
 			},
 			TradeFeed: ku.Features.Enabled.TradeFeed,
 		})
@@ -395,12 +394,12 @@ func (ku *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, ass
 	}
 
 	book := &orderbook.Book{
-		Exchange:        ku.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		Asks:            ordBook.Asks,
-		Bids:            ordBook.Bids,
+		Exchange:          ku.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: ku.ValidateOrderbook,
+		Asks:              ordBook.Asks,
+		Bids:              ordBook.Bids,
 	}
 	err = book.Process()
 	if err != nil {

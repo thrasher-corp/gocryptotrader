@@ -355,10 +355,10 @@ func (c *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        c.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: c.CanVerifyOrderbook,
+		Exchange:          c.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: c.ValidateOrderbook,
 	}
 	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {

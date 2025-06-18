@@ -670,7 +670,7 @@ func (k *Exchange) wsProcessOrderBookPartial(pair currency.Pair, askData, bidDat
 	base := orderbook.Book{
 		Pair:                   pair,
 		Asset:                  asset.Spot,
-		VerifyOrderbook:        k.CanVerifyOrderbook,
+		ValidateOrderbook:      k.ValidateOrderbook,
 		Bids:                   make(orderbook.Levels, len(bidData)),
 		Asks:                   make(orderbook.Levels, len(askData)),
 		MaxDepth:               levels,

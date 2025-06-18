@@ -459,10 +459,10 @@ func (k *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        k.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: k.CanVerifyOrderbook,
+		Exchange:          k.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: k.ValidateOrderbook,
 	}
 	var err error
 	switch assetType {
@@ -506,6 +506,7 @@ func (k *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
 		}
+		book.Bids.Reverse()
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}

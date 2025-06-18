@@ -290,7 +290,11 @@ func  (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, ass
 		Exchange: e.Name, 
 		Pair: pair, 
 		Asset: assetType,
+<<<<<<< HEAD
 		VerifyOrderbook: e.CanVerifyOrderbook,
+=======
+		ValidateOrderbook: {{.Variable}}.ValidateOrderbook,
+>>>>>>> f21a18fa67af04e4858903251e3caa0725402a02
 	}
 	
 	// NOTE: UPDATE ORDERBOOK EXAMPLE

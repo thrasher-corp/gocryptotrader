@@ -161,9 +161,7 @@ func (b *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:          true,
-			UpdateIDProgression: true,
-			Checksum:            checksum,
+			SortBuffer: true,
 		},
 	})
 	if err != nil {
@@ -259,11 +257,11 @@ func (b *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 
 	book := &orderbook.Book{
-		Exchange:         b.Name,
-		Pair:             p,
-		Asset:            assetType,
-		PriceDuplication: true,
-		VerifyOrderbook:  b.CanVerifyOrderbook,
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		PriceDuplication:  true,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)

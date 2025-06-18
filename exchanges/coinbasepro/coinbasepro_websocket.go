@@ -291,13 +291,13 @@ func (c *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
 	}
 
 	ob := &orderbook.Book{
-		Pair:            pair,
-		Bids:            make(orderbook.Levels, len(snapshot.Bids)),
-		Asks:            make(orderbook.Levels, len(snapshot.Asks)),
-		Asset:           asset.Spot,
-		Exchange:        c.Name,
-		VerifyOrderbook: c.CanVerifyOrderbook,
-		LastUpdated:     snapshot.Time,
+		Pair:              pair,
+		Bids:              make(orderbook.Levels, len(snapshot.Bids)),
+		Asks:              make(orderbook.Levels, len(snapshot.Asks)),
+		Asset:             asset.Spot,
+		Exchange:          c.Name,
+		ValidateOrderbook: c.ValidateOrderbook,
+		LastUpdated:       snapshot.Time,
 	}
 
 	for i := range snapshot.Bids {

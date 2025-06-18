@@ -555,10 +555,10 @@ func (h *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	book := &orderbook.Book{
-		Exchange:        h.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: h.CanVerifyOrderbook,
+		Exchange:          h.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: h.ValidateOrderbook,
 	}
 	var err error
 	switch assetType {

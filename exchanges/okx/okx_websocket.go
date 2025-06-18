@@ -838,13 +838,13 @@ func (ok *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 	}
 	for x := range extractedResponse.Data {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:           asset.Spread,
-			Asks:            extractedResponse.Data[x].Asks,
-			Bids:            extractedResponse.Data[x].Bids,
-			LastUpdated:     resp.Data[x].Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             asset.Spread,
+			Asks:              extractedResponse.Data[x].Asks,
+			Bids:              extractedResponse.Data[x].Bids,
+			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -884,13 +884,13 @@ func (ok *Exchange) wsProcessOrderbook5(data []byte) error {
 
 	for x := range assets {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:           assets[x],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     resp.Data[0].Timestamp.Time(),
-			Pair:            resp.Argument.InstrumentID,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             assets[x],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			Pair:              resp.Argument.InstrumentID,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -1017,13 +1017,13 @@ func (ok *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curre
 	}
 	for i := range assets {
 		newOrderBook := orderbook.Book{
-			Asset:           assets[i],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     data.Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             assets[i],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       data.Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		}
 		err = ok.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
@@ -1037,25 +1037,24 @@ func (ok *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curre
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (ok *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	update := orderbook.Update{
-		Pair:       pair,
-		UpdateTime: data.Timestamp.Time(),
-	}
-	var err error
-	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
+	asks, err := ok.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	update.Bids, err = ok.AppendWsOrderbookItems(data.Bids)
+	bids, err := ok.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
-		ob := update
-		ob.Asset = assets[i]
-		err = ok.Websocket.Orderbook.Update(&ob)
-		if err != nil {
+		if err := ok.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:             pair,
+			Asset:            assets[i],
+			UpdateTime:       data.Timestamp.Time(),
+			GenerateChecksum: generateOrderbookChecksum,
+			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
+			Asks:             asks,
+			Bids:             bids,
+		}); err != nil {
 			return err
 		}
 	}
@@ -1071,12 +1070,12 @@ func (ok *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook
 	return items, nil
 }
 
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
+// generateOrderbookChecksum alternates over the first 25 bid and ask
 // entries of a merged orderbook. The checksum is made up of the price and the
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Exchange) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book, checksumVal uint32) error {
+func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1091,10 +1090,7 @@ func (ok *Exchange) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Bo
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
-		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
-	}
-	return nil
+	return crc32.ChecksumIEEE([]byte(checksumStr))
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.

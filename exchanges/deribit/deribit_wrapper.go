@@ -304,10 +304,10 @@ func (d *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        d.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: d.CanVerifyOrderbook,
+		Exchange:          d.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: d.ValidateOrderbook,
 	}
 	book.Asks = make(orderbook.Levels, 0, len(obData.Asks))
 	for x := range obData.Asks {

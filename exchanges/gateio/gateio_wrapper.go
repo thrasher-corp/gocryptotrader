@@ -689,13 +689,13 @@ func (g *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        g.Name,
-		Asset:           a,
-		VerifyOrderbook: g.CanVerifyOrderbook,
-		Pair:            p.Upper(),
-		LastUpdateID:    o.ID,
-		LastUpdated:     o.Update.Time(),
-		LastPushed:      o.Current.Time(),
+		Exchange:          g.Name,
+		Asset:             a,
+		ValidateOrderbook: g.ValidateOrderbook,
+		Pair:              p.Upper(),
+		LastUpdateID:      o.ID,
+		LastUpdated:       o.Update.Time(),
+		LastPushed:        o.Current.Time(),
 	}
 	book.Bids = make(orderbook.Levels, len(o.Bids))
 	for x := range o.Bids {

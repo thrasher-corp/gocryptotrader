@@ -56,7 +56,7 @@ var (
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
 	perpetualSwapPair = currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")
-	spreadPair        = currency.NewPairWithDelimiter("BTC-USDT-SWAP", "BTC-USD-SWAP", "_")
+	spreadPair        = currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_")
 )
 
 func TestMain(m *testing.M) {
@@ -3903,14 +3903,12 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
+func TestGenerateOrderbookChecksum(t *testing.T) {
 	t.Parallel()
 	var orderbookBase orderbook.Book
 	err := json.Unmarshal([]byte(calculateOrderbookChecksumUpdateOrderbookJSON), &orderbookBase)
 	require.NoError(t, err)
-
-	err = ok.CalculateUpdateOrderbookChecksum(&orderbookBase, 2832680552)
-	assert.NoError(t, err)
+	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
 }
 
 func TestOrderPushData(t *testing.T) {

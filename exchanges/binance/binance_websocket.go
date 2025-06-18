@@ -463,14 +463,14 @@ func (b *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Book{
-		Pair:            p,
-		Asset:           asset.Spot,
-		Exchange:        b.Name,
-		LastUpdateID:    orderbookNew.LastUpdateID,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
-		LastUpdated:     time.Now(), // Time not provided in REST book.
+		Pair:              p,
+		Asset:             asset.Spot,
+		Exchange:          b.Name,
+		LastUpdateID:      orderbookNew.LastUpdateID,
+		ValidateOrderbook: b.ValidateOrderbook,
+		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
+		LastUpdated:       time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Level{
@@ -504,7 +504,7 @@ func (b *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 
 	err = b.applyBufferUpdate(pair)
 	if err != nil {
-		b.flushAndCleanup(pair)
+		b.invalidateAndCleanupOrderbook(pair)
 	}
 
 	return false, err
@@ -745,26 +745,19 @@ func (b *Exchange) processJob(ctx context.Context, p currency.Pair) error {
 	// new update to initiate this.
 	err = b.applyBufferUpdate(p)
 	if err != nil {
-		b.flushAndCleanup(p)
+		b.invalidateAndCleanupOrderbook(p)
 		return err
 	}
 	return nil
 }
 
-// flushAndCleanup flushes orderbook and clean local cache
-func (b *Exchange) flushAndCleanup(p currency.Pair) {
-	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			b.Name,
-			errClean)
+// invalidateAndCleanupOrderbook invalidaates orderbook and cleans local cache
+func (b *Exchange) invalidateAndCleanupOrderbook(p currency.Pair) {
+	if err := b.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s error invalidating websocket orderbook: %v", b.Name, err)
 	}
-	errClean = b.obm.cleanup(p)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			b.Name,
-			errClean)
+	if err := b.obm.cleanup(p); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s error during websocket orderbook cleanup: %v", b.Name, err)
 	}
 }
 
