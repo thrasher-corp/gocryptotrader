@@ -24,7 +24,7 @@ var (
 )
 
 // Setup sets private variables
-func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- any) error {
+func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- any) error {
 	if exchangeConfig == nil { // exchange config fields are checked in websocket package prior to calling this, so further checks are not needed
 		return fmt.Errorf(packageError, errExchangeConfigNil)
 	}
@@ -40,39 +40,39 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 	}
 
 	// NOTE: These variables are set by config.json under "orderbook" for each individual exchange
-	w.bufferEnabled = exchangeConfig.Orderbook.WebsocketBufferEnabled
-	w.obBufferLimit = exchangeConfig.Orderbook.WebsocketBufferLimit
+	o.bufferEnabled = exchangeConfig.Orderbook.WebsocketBufferEnabled
+	o.obBufferLimit = exchangeConfig.Orderbook.WebsocketBufferLimit
 
-	w.sortBuffer = c.SortBuffer
-	w.sortBufferByUpdateIDs = c.SortBufferByUpdateIDs
-	w.exchangeName = exchangeConfig.Name
-	w.dataHandler = dataHandler
-	w.ob = make(map[key.PairAsset]*orderbookHolder)
-	w.verbose = exchangeConfig.Verbose
+	o.sortBuffer = c.SortBuffer
+	o.sortBufferByUpdateIDs = c.SortBufferByUpdateIDs
+	o.exchangeName = exchangeConfig.Name
+	o.dataHandler = dataHandler
+	o.ob = make(map[key.PairAsset]*orderbookHolder)
+	o.verbose = exchangeConfig.Verbose
 	return nil
 }
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
-func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
+func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	if err := book.Validate(); err != nil {
 		return err
 	}
 
-	w.m.RLock()
-	holder, ok := w.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
-	w.m.RUnlock()
+	o.m.RLock()
+	holder, ok := o.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
+	o.m.RUnlock()
 	if !ok {
-		w.m.Lock()
+		o.m.Lock()
 		// Associate orderbook pointer with local exchange depth map
 		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
 		if err != nil {
-			w.m.Unlock()
+			o.m.Unlock()
 			return err
 		}
 		depth.AssignOptions(book)
-		holder = &orderbookHolder{ob: depth, buffer: make([]orderbook.Update, 0, w.obBufferLimit)}
-		w.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
-		w.m.Unlock()
+		holder = &orderbookHolder{ob: depth, buffer: make([]orderbook.Update, 0, o.obBufferLimit)}
+		o.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
+		o.m.Unlock()
 	}
 
 	book.RestSnapshot = false
@@ -81,22 +81,22 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	}
 
 	holder.ob.Publish()
-	w.dataHandler <- holder.ob
+	o.dataHandler <- holder.ob
 	return nil
 }
 
 // Update updates a stored pointer to an orderbook.Depth struct containing bid and ask Tranches, this switches between
 // the usage of a buffered update
-func (w *Orderbook) Update(u *orderbook.Update) error {
-	w.m.RLock()
-	holder, ok := w.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
-	w.m.RUnlock()
+func (o *Orderbook) Update(u *orderbook.Update) error {
+	o.m.RLock()
+	holder, ok := o.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
+	o.m.RUnlock()
 	if !ok {
-		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s", orderbook.ErrDepthNotFound, w.exchangeName, u.Pair, u.Asset)
+		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s", orderbook.ErrDepthNotFound, o.exchangeName, u.Pair, u.Asset)
 	}
 
-	if w.bufferEnabled {
-		if processed, err := w.processBufferUpdate(holder, u); err != nil || !processed {
+	if o.bufferEnabled {
+		if processed, err := o.processBufferUpdate(holder, u); err != nil || !processed {
 			return err
 		}
 	} else {
@@ -107,21 +107,21 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	holder.ob.Publish()
-	w.dataHandler <- holder.ob
+	o.dataHandler <- holder.ob
 	return nil
 }
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as
-// defined by w.obBufferLimit it well then sort and apply updates.
-func (w *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Update) (bool, error) {
+// defined by o.obBufferLimit it well then sort and apply updates.
+func (o *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Update) (bool, error) {
 	holder.buffer = append(holder.buffer, *u)
-	if len(holder.buffer) < w.obBufferLimit {
+	if len(holder.buffer) < o.obBufferLimit {
 		return false, nil
 	}
 
-	if w.sortBuffer {
+	if o.sortBuffer {
 		// sort by last updated to ensure each update is in order
-		if w.sortBufferByUpdateIDs {
+		if o.sortBufferByUpdateIDs {
 			slices.SortFunc(holder.buffer, func(a, b orderbook.Update) int {
 				return cmp.Compare(a.UpdateID, b.UpdateID)
 			})
@@ -145,57 +145,57 @@ func (w *Orderbook) processBufferUpdate(holder *orderbookHolder, u *orderbook.Up
 }
 
 // GetOrderbook returns an orderbook copy as orderbook.Book
-func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+func (o *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
 		return nil, asset.ErrInvalidAsset
 	}
-	w.m.RLock()
-	holder, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
-	w.m.RUnlock()
+	o.m.RLock()
+	holder, ok := o.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	o.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%s %w: %s.%s", w.exchangeName, orderbook.ErrDepthNotFound, a, p)
+		return nil, fmt.Errorf("%s %w: %s.%s", o.exchangeName, orderbook.ErrDepthNotFound, a, p)
 	}
 	return holder.ob.Retrieve()
 }
 
 // LastUpdateID returns the last update ID of the orderbook
-func (w *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
+func (o *Orderbook) LastUpdateID(p currency.Pair, a asset.Item) (int64, error) {
 	if p.IsEmpty() {
 		return 0, currency.ErrCurrencyPairEmpty
 	}
 	if !a.IsValid() {
 		return 0, asset.ErrInvalidAsset
 	}
-	w.m.RLock()
-	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
-	w.m.RUnlock()
+	o.m.RLock()
+	book, ok := o.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	o.m.RUnlock()
 	if !ok {
-		return 0, fmt.Errorf("%s %w: %s.%s", w.exchangeName, orderbook.ErrDepthNotFound, a, p)
+		return 0, fmt.Errorf("%s %w: %s.%s", o.exchangeName, orderbook.ErrDepthNotFound, a, p)
 	}
 	return book.ob.LastUpdateID()
 }
 
 // FlushBuffer flushes individual orderbook buffers while keeping the orderbook lookups intact and ready for new updates
 // when a connection is re-established.
-func (w *Orderbook) FlushBuffer() {
-	w.m.Lock()
-	for _, holder := range w.ob {
+func (o *Orderbook) FlushBuffer() {
+	o.m.Lock()
+	for _, holder := range o.ob {
 		holder.buffer = holder.buffer[:0]
 	}
-	w.m.Unlock()
+	o.m.Unlock()
 }
 
 // InvalidateOrderbook invalidates the orderbook so no trading can occur on potential corrupted data
 // TODO: Add in reason for invalidation for debugging purposes.
-func (w *Orderbook) InvalidateOrderbook(p currency.Pair, a asset.Item) error {
-	w.m.RLock()
-	holder, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
-	w.m.RUnlock()
+func (o *Orderbook) InvalidateOrderbook(p currency.Pair, a asset.Item) error {
+	o.m.RLock()
+	holder, ok := o.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	o.m.RUnlock()
 	if !ok {
-		return fmt.Errorf("cannot invalidate orderbook %s %s %s %w", w.exchangeName, p, a, orderbook.ErrDepthNotFound)
+		return fmt.Errorf("cannot invalidate orderbook %s %s %s %w", o.exchangeName, p, a, orderbook.ErrDepthNotFound)
 	}
 	// Invalidate returns a formatted version of the error it's passed
 	// In this context we don't need that, since this method only returns an error if it cannot invalidate

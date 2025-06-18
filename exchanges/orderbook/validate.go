@@ -3,6 +3,7 @@ package orderbook
 import (
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -28,6 +29,9 @@ var isDsc = func(current, previous Level) error {
 // Validate ensures that the orderbook items are correctly sorted and all fields are valid
 // Bids should always go from a high price to a low price and Asks should always go from a low price to a higher price
 func (b *Book) Validate() error {
+	if err := common.NilGuard(b); err != nil {
+		return err
+	}
 	if !b.ValidateOrderbook {
 		return nil
 	}
