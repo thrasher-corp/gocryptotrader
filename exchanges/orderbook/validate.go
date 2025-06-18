@@ -28,7 +28,7 @@ var isDsc = func(current, previous Level) error {
 // Validate ensures that the orderbook items are correctly sorted and all fields are valid
 // Bids should always go from a high price to a low price and Asks should always go from a low price to a higher price
 func (b *Book) Validate() error {
-	if !b.VerifyOrderbook {
+	if !b.ValidateOrderbook {
 		return nil
 	}
 	return validate(b)

@@ -296,10 +296,10 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {

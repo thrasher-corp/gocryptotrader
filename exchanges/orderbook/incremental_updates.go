@@ -97,7 +97,7 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		}
 	}
 
-	if !d.verifyOrderbook {
+	if !d.validateOrderbook {
 		return nil
 	}
 

@@ -269,10 +269,10 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        h.Name,
-		Pair:            c,
-		Asset:           assetType,
-		VerifyOrderbook: h.CanVerifyOrderbook,
+		Exchange:          h.Name,
+		Pair:              c,
+		Asset:             assetType,
+		ValidateOrderbook: h.ValidateOrderbook,
 	}
 	fPair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {

@@ -48,10 +48,10 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 func TestValidate(t *testing.T) {
 	t.Parallel()
 	b := Book{
-		Exchange:        "TestExchange",
-		Asset:           asset.Spot,
-		Pair:            currency.NewBTCUSD(),
-		VerifyOrderbook: true,
+		Exchange:          "TestExchange",
+		Asset:             asset.Spot,
+		Pair:              currency.NewBTCUSD(),
+		ValidateOrderbook: true,
 	}
 
 	require.NoError(t, b.Validate())
@@ -403,7 +403,7 @@ func levelsFixtureRandom() Levels {
 
 func TestSorting(t *testing.T) {
 	var b Book
-	b.VerifyOrderbook = true
+	b.ValidateOrderbook = true
 
 	b.Asks = levelsFixtureRandom()
 	err := b.Validate()
@@ -431,7 +431,7 @@ func levelsFixture() Levels {
 }
 
 func TestReverse(t *testing.T) {
-	b := Book{VerifyOrderbook: true, Bids: levelsFixture()}
+	b := Book{ValidateOrderbook: true, Bids: levelsFixture()}
 	assert.ErrorIs(t, b.Validate(), errPriceOutOfOrder)
 
 	b.Bids.Reverse()

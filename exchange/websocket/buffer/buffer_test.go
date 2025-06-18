@@ -40,15 +40,15 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 	bids = orderbook.Levels{{Price: 4000, Amount: 1, ID: 6}}
 
 	book := &orderbook.Book{
-		Exchange:         exchangeName,
-		Asks:             asks,
-		Bids:             bids,
-		Asset:            asset.Spot,
-		Pair:             pair,
-		PriceDuplication: true,
-		LastUpdated:      time.Now(),
-		LastUpdateID:     69420,
-		VerifyOrderbook:  true,
+		Exchange:          exchangeName,
+		Asks:              asks,
+		Bids:              bids,
+		Asset:             asset.Spot,
+		Pair:              pair,
+		PriceDuplication:  true,
+		LastUpdated:       time.Now(),
+		LastUpdateID:      69420,
+		ValidateOrderbook: true,
 	}
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
@@ -452,7 +452,7 @@ func TestLoadSnapshot(t *testing.T) {
 	obl.dataHandler = make(chan any, 100)
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 
-	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, VerifyOrderbook: true})
+	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, ValidateOrderbook: true})
 	require.ErrorIs(t, err, orderbook.ErrPriceZero)
 
 	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}})

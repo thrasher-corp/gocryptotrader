@@ -533,10 +533,10 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		}
 		for y := range spreadOrderbook {
 			book := &orderbook.Book{
-				Exchange:        ok.Name,
-				Pair:            pair,
-				Asset:           assetType,
-				VerifyOrderbook: ok.CanVerifyOrderbook,
+				Exchange:          ok.Name,
+				Pair:              pair,
+				Asset:             assetType,
+				ValidateOrderbook: ok.ValidateOrderbook,
 			}
 			book.Bids = make(orderbook.Levels, 0, len(spreadOrderbook[y].Bids))
 			for b := range spreadOrderbook[y].Bids {
@@ -582,10 +582,10 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		}
 		instrumentID = pairFormat.Format(pair)
 		book := &orderbook.Book{
-			Exchange:        ok.Name,
-			Pair:            pair,
-			Asset:           assetType,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Exchange:          ok.Name,
+			Pair:              pair,
+			Asset:             assetType,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		}
 		var orderBookD *OrderBookResponseDetail
 		orderBookD, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)

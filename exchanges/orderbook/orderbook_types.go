@@ -111,10 +111,10 @@ type Book struct {
 	// prices in a payload
 	PriceDuplication bool
 	IsFundingRate    bool
-	// VerifyOrderbook allows for a toggle between orderbook verification set by
+	// ValidateOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
-	VerifyOrderbook bool
+	ValidateOrderbook bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -141,7 +141,7 @@ type options struct {
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool
-	verifyOrderbook        bool
+	validateOrderbook      bool
 	restSnapshot           bool
 	idAligned              bool
 	checksumStringRequired bool

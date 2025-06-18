@@ -459,10 +459,10 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        k.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: k.CanVerifyOrderbook,
+		Exchange:          k.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: k.ValidateOrderbook,
 	}
 	var err error
 	switch assetType {

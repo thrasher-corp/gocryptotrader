@@ -120,14 +120,14 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 
 		if ob.Snapshot {
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Pair:            ob.Currency,
-				Bids:            orderbook.Levels(ob.Bids),
-				Asks:            orderbook.Levels(ob.Asks),
-				LastUpdated:     ob.Timestamp,
-				LastUpdateID:    ob.SnapshotID,
-				Asset:           asset.Spot,
-				Exchange:        b.Name,
-				VerifyOrderbook: b.CanVerifyOrderbook,
+				Pair:              ob.Currency,
+				Bids:              orderbook.Levels(ob.Bids),
+				Asks:              orderbook.Levels(ob.Asks),
+				LastUpdated:       ob.Timestamp,
+				LastUpdateID:      ob.SnapshotID,
+				Asset:             asset.Spot,
+				Exchange:          b.Name,
+				ValidateOrderbook: b.ValidateOrderbook,
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&orderbook.Update{

@@ -58,7 +58,7 @@ func TestProcessUpdate(t *testing.T) {
 	assert.ErrorIs(t, err, ErrLastUpdatedNotSet)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	d.verifyOrderbook = true
+	d.validateOrderbook = true
 	d.askLevels.Levels[0].Amount = 0
 	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}})
 	assert.ErrorIs(t, err, errAmountInvalid)
@@ -81,9 +81,9 @@ func TestProcessUpdate(t *testing.T) {
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	d.askLevels.Levels[0].Amount = 0
-	d.verifyOrderbook = false // Disable verification
+	d.validateOrderbook = false // Disable verification
 	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}, ExpectedChecksum: 1337, GenerateChecksum: func(*Book) uint32 { return 1337 }})
-	require.NoError(t, err, "must not error when verifyOrderbook is false")
+	require.NoError(t, err, "must not error when ValidateOrderbook is false")
 }
 
 func TestUpdate(t *testing.T) {

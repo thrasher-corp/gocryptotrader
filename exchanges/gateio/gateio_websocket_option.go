@@ -533,12 +533,12 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			return err
 		}
 		base := orderbook.Book{
-			Asset:           asset.Options,
-			Exchange:        g.Name,
-			Pair:            data.Contract,
-			LastUpdated:     data.Timestamp.Time(),
-			LastPushed:      lastPushed,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+			Asset:             asset.Options,
+			Exchange:          g.Name,
+			Pair:              data.Contract,
+			LastUpdated:       data.Timestamp.Time(),
+			LastPushed:        lastPushed,
+			ValidateOrderbook: g.ValidateOrderbook,
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
@@ -585,14 +585,14 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			return err
 		}
 		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asks:            ab[0],
-			Bids:            ab[1],
-			Asset:           asset.Options,
-			Exchange:        g.Name,
-			Pair:            currencyPair,
-			LastUpdated:     lastPushed,
-			LastPushed:      lastPushed,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+			Asks:              ab[0],
+			Bids:              ab[1],
+			Asset:             asset.Options,
+			Exchange:          g.Name,
+			Pair:              currencyPair,
+			LastUpdated:       lastPushed,
+			LastPushed:        lastPushed,
+			ValidateOrderbook: g.ValidateOrderbook,
 		})
 		if err != nil {
 			return err

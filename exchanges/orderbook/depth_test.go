@@ -79,7 +79,7 @@ func TestRetrieve(t *testing.T) {
 		lastUpdateID:           1337,
 		priceDuplication:       true,
 		isFundingRate:          true,
-		verifyOrderbook:        true,
+		validateOrderbook:      true,
 		restSnapshot:           true,
 		idAligned:              true,
 		maxDepth:               10,
@@ -107,7 +107,7 @@ func TestRetrieve(t *testing.T) {
 	assert.EqualValues(t, 1337, ob.LastUpdateID, "Should have correct LastUpdateID")
 	assert.True(t, ob.PriceDuplication, "Should have correct PriceDuplication")
 	assert.True(t, ob.IsFundingRate, "Should have correct IsFundingRate")
-	assert.True(t, ob.VerifyOrderbook, "Should have correct VerifyOrderbook")
+	assert.True(t, ob.ValidateOrderbook, "Should have correct ValidateOrderbook")
 	assert.True(t, ob.RestSnapshot, "Should have correct RestSnapshot")
 	assert.True(t, ob.IDAlignment, "Should have correct IDAligned")
 	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
@@ -212,16 +212,16 @@ func TestAssignOptions(t *testing.T) {
 	cp := currency.NewPair(currency.LINK, currency.BTC)
 	tn := time.Now()
 	d.AssignOptions(&Book{
-		Exchange:         "test",
-		Pair:             cp,
-		Asset:            asset.Spot,
-		LastUpdated:      tn,
-		LastUpdateID:     1337,
-		PriceDuplication: true,
-		IsFundingRate:    true,
-		VerifyOrderbook:  true,
-		RestSnapshot:     true,
-		IDAlignment:      true,
+		Exchange:          "test",
+		Pair:              cp,
+		Asset:             asset.Spot,
+		LastUpdated:       tn,
+		LastUpdateID:      1337,
+		PriceDuplication:  true,
+		IsFundingRate:     true,
+		ValidateOrderbook: true,
+		RestSnapshot:      true,
+		IDAlignment:       true,
 	})
 
 	assert.Equal(t, "test", d.exchange, "exchange should be correct")
@@ -231,7 +231,7 @@ func TestAssignOptions(t *testing.T) {
 	assert.EqualValues(t, 1337, d.lastUpdateID, "lastUpdatedID should be correct")
 	assert.True(t, d.priceDuplication, "priceDuplication should be correct")
 	assert.True(t, d.IsFundingRate(), "IsFundingRate should be correct")
-	assert.True(t, d.VerifyOrderbook(), "VerifyOrderbook should be correct")
+	assert.True(t, d.ValidateOrderbook(), "ValidateOrderbook should be correct")
 	assert.True(t, d.restSnapshot, "restSnapshot should be correct")
 	assert.True(t, d.idAligned, "idAligned should be correct")
 }

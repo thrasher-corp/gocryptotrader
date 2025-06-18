@@ -805,14 +805,14 @@ func (bi *Binanceus) SeedLocalCache(ctx context.Context, p currency.Pair) error 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Book{
-		Pair:            p,
-		Asset:           asset.Spot,
-		Exchange:        bi.Name,
-		LastUpdateID:    orderbookNew.LastUpdateID,
-		VerifyOrderbook: bi.CanVerifyOrderbook,
-		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
-		LastUpdated:     time.Now(), // Time not provided in REST book.
+		Pair:              p,
+		Asset:             asset.Spot,
+		Exchange:          bi.Name,
+		LastUpdateID:      orderbookNew.LastUpdateID,
+		ValidateOrderbook: bi.ValidateOrderbook,
+		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
+		LastUpdated:       time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Level{

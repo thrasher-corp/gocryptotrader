@@ -1291,14 +1291,14 @@ func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair, assetType
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
 	newOrderBook := orderbook.Book{
-		Pair:            p,
-		Asset:           assetType,
-		Exchange:        ku.Name,
-		LastUpdated:     time.Now(),
-		LastUpdateID:    orderbookNew.Sequence,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
+		Pair:              p,
+		Asset:             assetType,
+		Exchange:          ku.Name,
+		LastUpdated:       time.Now(),
+		LastUpdateID:      orderbookNew.Sequence,
+		ValidateOrderbook: ku.ValidateOrderbook,
+		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Level{

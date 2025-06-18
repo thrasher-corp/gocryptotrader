@@ -462,14 +462,14 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Book{
-		Pair:            p,
-		Asset:           asset.Spot,
-		Exchange:        b.Name,
-		LastUpdateID:    orderbookNew.LastUpdateID,
-		VerifyOrderbook: b.CanVerifyOrderbook,
-		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
-		LastUpdated:     time.Now(), // Time not provided in REST book.
+		Pair:              p,
+		Asset:             asset.Spot,
+		Exchange:          b.Name,
+		LastUpdateID:      orderbookNew.LastUpdateID,
+		ValidateOrderbook: b.ValidateOrderbook,
+		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
+		LastUpdated:       time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Level{

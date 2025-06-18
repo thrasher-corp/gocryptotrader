@@ -835,13 +835,13 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 	}
 	for x := range extractedResponse.Data {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:           asset.Spread,
-			Asks:            extractedResponse.Data[x].Asks,
-			Bids:            extractedResponse.Data[x].Bids,
-			LastUpdated:     resp.Data[x].Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             asset.Spread,
+			Asks:              extractedResponse.Data[x].Asks,
+			Bids:              extractedResponse.Data[x].Bids,
+			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -881,13 +881,13 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 
 	for x := range assets {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:           assets[x],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     resp.Data[0].Timestamp.Time(),
-			Pair:            resp.Argument.InstrumentID,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             assets[x],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			Pair:              resp.Argument.InstrumentID,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -1014,13 +1014,13 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 	}
 	for i := range assets {
 		newOrderBook := orderbook.Book{
-			Asset:           assets[i],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     data.Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             assets[i],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       data.Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		}
 		err = ok.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {

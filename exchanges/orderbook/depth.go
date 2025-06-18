@@ -81,7 +81,7 @@ func (d *Depth) Retrieve() (*Book, error) {
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
 		IsFundingRate:          d.isFundingRate,
-		VerifyOrderbook:        d.verifyOrderbook,
+		ValidateOrderbook:      d.validateOrderbook,
 		MaxDepth:               d.maxDepth,
 		ChecksumStringRequired: d.checksumStringRequired,
 		RestSnapshot:           d.restSnapshot,
@@ -145,7 +145,7 @@ func (d *Depth) AssignOptions(b *Book) {
 		lastUpdateID:           b.LastUpdateID,
 		priceDuplication:       b.PriceDuplication,
 		isFundingRate:          b.IsFundingRate,
-		verifyOrderbook:        b.VerifyOrderbook,
+		validateOrderbook:      b.ValidateOrderbook,
 		restSnapshot:           b.RestSnapshot,
 		idAligned:              b.IDAlignment,
 		maxDepth:               b.MaxDepth,
@@ -188,11 +188,11 @@ func (d *Depth) IsFundingRate() bool {
 	return d.isFundingRate
 }
 
-// VerifyOrderbook returns if the verify orderbook option is set
-func (d *Depth) VerifyOrderbook() bool {
+// ValidateOrderbook returns if the verify orderbook option is set
+func (d *Depth) ValidateOrderbook() bool {
 	d.m.RLock()
 	defer d.m.RUnlock()
-	return d.verifyOrderbook
+	return d.validateOrderbook
 }
 
 // GetAskLength returns length of asks

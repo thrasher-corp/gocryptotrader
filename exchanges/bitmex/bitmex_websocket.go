@@ -425,7 +425,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = b.Name
-		book.VerifyOrderbook = b.CanVerifyOrderbook
+		book.ValidateOrderbook = b.ValidateOrderbook
 		book.LastUpdated = data[0].Timestamp
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)

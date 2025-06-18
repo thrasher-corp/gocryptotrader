@@ -394,12 +394,12 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	}
 
 	book := &orderbook.Book{
-		Exchange:        ku.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		Asks:            ordBook.Asks,
-		Bids:            ordBook.Bids,
+		Exchange:          ku.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: ku.ValidateOrderbook,
+		Asks:              ordBook.Asks,
+		Bids:              ordBook.Bids,
 	}
 	err = book.Process()
 	if err != nil {

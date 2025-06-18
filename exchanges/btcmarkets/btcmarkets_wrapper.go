@@ -257,11 +257,11 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 	}
 
 	book := &orderbook.Book{
-		Exchange:         b.Name,
-		Pair:             p,
-		Asset:            assetType,
-		PriceDuplication: true,
-		VerifyOrderbook:  b.CanVerifyOrderbook,
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		PriceDuplication:  true,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
