@@ -377,7 +377,7 @@ func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contr
 
 		var g ghError
 		if err := json.Unmarshal(contents, &g); err == nil && g.Message != "" {
-			return nil, fmt.Errorf("GitHub server error message: %s Status: %s", g.Message, g.Status)
+			return nil, fmt.Errorf("GitHub error message: %q Status: %s", g.Message, g.Status)
 		}
 
 		var resp []Contributor
