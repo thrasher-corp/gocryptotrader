@@ -1562,7 +1562,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.Exchange = b.Name
 	book.PriceDuplication = true
 	book.IsFundingRate = fundingRate
-	book.VerifyOrderbook = b.CanVerifyOrderbook
+	book.ValidateOrderbook = b.ValidateOrderbook
 	book.LastUpdated = time.Now() // Not included in snapshot
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
@@ -1593,7 +1593,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 		}
 
 		if book[i].Price > 0 {
-			orderbookUpdate.Action = orderbook.UpdateInsert
+			orderbookUpdate.Action = orderbook.UpdateOrInsertAction
 			if fundingRate {
 				if book[i].Amount < 0 {
 					item.Amount *= -1
@@ -1610,7 +1610,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 				}
 			}
 		} else {
-			orderbookUpdate.Action = orderbook.Delete
+			orderbookUpdate.Action = orderbook.DeleteAction
 			if fundingRate {
 				if book[i].Amount == 1 {
 					// delete bid
@@ -1678,7 +1678,7 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 	if len(c.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	if err := b.Websocket.Orderbook.FlushOrderbook(c.Pairs[0], c.Asset); err != nil {
+	if err := b.Websocket.Orderbook.InvalidateOrderbook(c.Pairs[0], c.Asset); err != nil {
 		// Non-fatal error
 		log.Errorf(log.ExchangeSys, "%s error flushing orderbook: %v", b.Name, err)
 	}

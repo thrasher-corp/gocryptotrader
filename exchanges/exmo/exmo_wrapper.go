@@ -211,10 +211,10 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 	callingBook := &orderbook.Book{
-		Exchange:        e.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: e.CanVerifyOrderbook,
+		Exchange:          e.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
@@ -233,10 +233,10 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 	for i := range enabledPairs {
 		book := &orderbook.Book{
-			Exchange:        e.Name,
-			Pair:            enabledPairs[i],
-			Asset:           assetType,
-			VerifyOrderbook: e.CanVerifyOrderbook,
+			Exchange:          e.Name,
+			Pair:              enabledPairs[i],
+			Asset:             assetType,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}
 
 		curr, err := e.FormatExchangeCurrency(enabledPairs[i], assetType)

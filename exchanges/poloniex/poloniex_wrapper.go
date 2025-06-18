@@ -283,10 +283,10 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		return nil, err
 	}
 	callingBook := &orderbook.Book{
-		Exchange:        p.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: p.CanVerifyOrderbook,
+		Exchange:          p.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: p.ValidateOrderbook,
 	}
 	orderbookNew, err := p.GetOrderbook(ctx, "", poloniexMaxOrderbookDepth)
 	if err != nil {
@@ -311,10 +311,10 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			}
 		}
 		book := &orderbook.Book{
-			Exchange:        p.Name,
-			Pair:            enabledPairs[i],
-			Asset:           assetType,
-			VerifyOrderbook: p.CanVerifyOrderbook,
+			Exchange:          p.Name,
+			Pair:              enabledPairs[i],
+			Asset:             assetType,
+			ValidateOrderbook: p.ValidateOrderbook,
 		}
 
 		book.Bids = make(orderbook.Levels, len(data.Bids))

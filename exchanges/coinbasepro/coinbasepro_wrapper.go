@@ -308,10 +308,10 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        c.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: c.CanVerifyOrderbook,
+		Exchange:          c.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: c.ValidateOrderbook,
 	}
 	fPair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {

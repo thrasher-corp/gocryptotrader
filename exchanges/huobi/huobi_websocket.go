@@ -334,7 +334,7 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 	newOrderBook.Pair = s.Pairs[0]
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = h.Name
-	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
+	newOrderBook.ValidateOrderbook = h.ValidateOrderbook
 	newOrderBook.LastUpdated = update.Timestamp.Time()
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
