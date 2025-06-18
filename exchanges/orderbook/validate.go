@@ -17,8 +17,8 @@ var isAsc = func(current, previous Level) error {
 	return nil
 }
 
-// dsc specifically defines descending price check
-var dsc = func(current, previous Level) error {
+// isDsc specifically defines descending price check
+var isDsc = func(current, previous Level) error {
 	if current.Price > previous.Price {
 		return errPriceOutOfOrder
 	}
