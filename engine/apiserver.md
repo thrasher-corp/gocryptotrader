@@ -18,19 +18,25 @@ You can track ideas, planned features and what's in progress on our [GoCryptoTra
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
 
-## Current Features for Apiserver
-+ The API server subsystem is a deprecated service used to host a REST or websocket server to interact with some functions of GoCryptoTrader
-+ This subsystem is no longer maintained and it is highly encouraged to interact with GRPC endpoints directly where possible
-+ In order to modify the behaviour of the API server subsystem, you can edit the following inside your config file:
 
-### deprecatedRPC
+## Apiserver is Deprecated 
+
+The REST and websocket API service in GoCryptoTrader is deprecated.
+
+Please migrate to GRPC endpoints.
+
+## Documentation for posterity
+
+In order to modify the behaviour of the API server subsystem, you can edit the following inside your config file:
+
+#### deprecatedRPC
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
 | enabled | If enabled will create a REST server which will listen to commands on the listen address | `true` |
 | listenAddress | If enabled will listen for REST requests on this address and return a JSON response | `localhost:9050` |
 
-### websocketRPC
+#### websocketRPC
 
 | Config | Description | Example |
 | ------ | ----------- | ------- |
