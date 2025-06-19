@@ -172,38 +172,38 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		{
 			Name:         "readme",
 			Filename:     "README.md",
-			TemplateFile: "readme_file.tmpl",
+			TemplateFile: "readme.tmpl",
 		},
 		{
 			Name:         "main",
 			Filename:     "rest.go",
-			TemplateFile: "main_file.tmpl",
+			TemplateFile: "main.tmpl",
 		},
 		{
 			Name:         "test",
 			Filename:     "test_file.tmpl",
 			FilePostfix:  "_test.go",
-			TemplateFile: "test_file.tmpl",
+			TemplateFile: "test.tmpl",
 		},
 		{
 			Name:         "type",
 			Filename:     "types.go",
-			TemplateFile: "type_file.tmpl",
+			TemplateFile: "type.tmpl",
 		},
 		{
 			Name:         "wrapper",
 			Filename:     "wrapper.go",
-			TemplateFile: "wrapper_file.tmpl",
+			TemplateFile: "wrapper.tmpl",
 		},
 		{
 			Name:         "subscriptions",
 			Filename:     "subscriptions.go",
-			TemplateFile: "subscriptions_file.tmpl",
+			TemplateFile: "subscriptions.tmpl",
 		},
 		{
 			Name:         "websocket",
 			Filename:     "websocket.go",
-			TemplateFile: "websocket_file.tmpl",
+			TemplateFile: "websocket.tmpl",
 		},
 	}
 
