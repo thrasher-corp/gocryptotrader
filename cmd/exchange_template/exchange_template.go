@@ -175,7 +175,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 			TemplateFile: "readme.tmpl",
 		},
 		{
-			Name:         "main",
+			Name:         "rest",
 			Filename:     "rest.go",
 			TemplateFile: "main.tmpl",
 		},

@@ -13,7 +13,7 @@ import (
 
 func TestCheckExchangeName(t *testing.T) {
 	t.Parallel()
-	for _, value := range []struct {
+	for _, tt := range []struct {
 		Name        string
 		ErrExpected error
 	}{
@@ -40,10 +40,10 @@ func TestCheckExchangeName(t *testing.T) {
 			Name: "testexch",
 		},
 	} {
-		t.Run(value.Name, func(t *testing.T) {
+		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			r := checkExchangeName(value.Name)
-			assert.Equal(t, value.ErrExpected, r)
+			r := checkExchangeName(tt.Name)
+			assert.Equal(t, tt.ErrExpected, r)
 		})
 	}
 }
@@ -77,5 +77,5 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 	require.NoError(t, err, "saveConfig must not error")
 
 	err = os.WriteFile(exchangeConfigPath, cfgData, file.DefaultPermissionOctal)
-	assert.NoError(t, err, "os.WriteFile must not error")
+	require.NoError(t, err, "os.WriteFile must not error")
 }
