@@ -122,7 +122,7 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect starts a new websocket connection
-func (b *Bitfinex) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	ctx := context.TODO()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -164,7 +164,7 @@ func (b *Bitfinex) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitfinex) wsReadData(ws websocket.Connection) {
+func (b *Exchange) wsReadData(ws websocket.Connection) {
 	defer b.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
@@ -176,7 +176,7 @@ func (b *Bitfinex) wsReadData(ws websocket.Connection) {
 }
 
 // WsDataHandler handles data from wsReadData
-func (b *Bitfinex) WsDataHandler(ctx context.Context) {
+func (b *Exchange) WsDataHandler(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 	for {
 		select {
@@ -206,7 +206,7 @@ func (b *Bitfinex) WsDataHandler(ctx context.Context) {
 	}
 }
 
-func (b *Bitfinex) wsHandleData(_ context.Context, respRaw []byte) error {
+func (b *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	var result any
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -505,7 +505,7 @@ func (b *Bitfinex) wsHandleData(_ context.Context, respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
+func (b *Exchange) handleWSEvent(respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, respRaw)
@@ -575,7 +575,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 
 // handleWSSubscribed parses a subscription response and registers the chanID key immediately, before updating subscribeToChan via IncomingWithData chan
 // wsHandleData happens sequentially, so by rekeying on chanID immediately we ensure the first message is not dropped
-func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
+func (b *Exchange) handleWSSubscribed(respRaw []byte) error {
 	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 	if err != nil {
 		return fmt.Errorf("%w 'subId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
@@ -608,7 +608,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	return b.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
 
-func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
+func (b *Exchange) handleWSChannelUpdate(s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
 	if s == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -638,7 +638,7 @@ func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, respRaw [
 	return fmt.Errorf("%s unhandled channel update: %s", b.Name, s.Channel)
 }
 
-func (b *Bitfinex) handleWSChecksum(c *subscription.Subscription, d []any) error {
+func (b *Exchange) handleWSChecksum(c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -672,7 +672,7 @@ func (b *Bitfinex) handleWSChecksum(c *subscription.Subscription, d []any) error
 	return nil
 }
 
-func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []any) error {
+func (b *Exchange) handleWSBookUpdate(c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -777,7 +777,7 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []any) err
 	return nil
 }
 
-func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []any) error {
+func (b *Exchange) handleWSCandleUpdate(c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -857,7 +857,7 @@ func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []any) e
 	return nil
 }
 
-func (b *Bitfinex) handleWSTickerUpdate(c *subscription.Subscription, d []any) error {
+func (b *Exchange) handleWSTickerUpdate(c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -936,7 +936,7 @@ func (b *Bitfinex) handleWSTickerUpdate(c *subscription.Subscription, d []any) e
 	return nil
 }
 
-func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byte) error {
+func (b *Exchange) handleWSAllTrades(s *subscription.Subscription, respRaw []byte) error {
 	feedEnabled := b.IsTradeFeedEnabled()
 	if !feedEnabled && !b.IsSaveTradeDataEnabled() {
 		return nil
@@ -995,12 +995,12 @@ func (b *Bitfinex) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	return err
 }
 
-func (b *Bitfinex) handleWSPublicTradesSnapshot(v []byte) ([]*wsTrade, error) {
+func (b *Exchange) handleWSPublicTradesSnapshot(v []byte) ([]*wsTrade, error) {
 	var trades []*wsTrade
 	return trades, json.Unmarshal(v, &trades)
 }
 
-func (b *Bitfinex) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
+func (b *Exchange) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
 	v, _, _, err := jsonparser.Get(respRaw, "[2]")
 	if err != nil {
 		return nil, err
@@ -1009,7 +1009,7 @@ func (b *Bitfinex) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
 	return t, json.Unmarshal(v, t)
 }
 
-func (b *Bitfinex) handleWSNotification(d []any, respRaw []byte) error {
+func (b *Exchange) handleWSNotification(d []any, respRaw []byte) error {
 	notification, ok := d[2].([]any)
 	if !ok {
 		return errors.New("unable to type assert notification data")
@@ -1080,7 +1080,7 @@ func (b *Bitfinex) handleWSNotification(d []any, respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSPositionSnapshot(d []any) error {
+func (b *Exchange) handleWSPositionSnapshot(d []any) error {
 	snapBundle, ok := d[2].([]any)
 	if !ok {
 		return common.GetTypeAssertError("[]any", d[2], "positionSnapshotBundle")
@@ -1133,7 +1133,7 @@ func (b *Bitfinex) handleWSPositionSnapshot(d []any) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSPositionUpdate(d []any) error {
+func (b *Exchange) handleWSPositionUpdate(d []any) error {
 	positionData, ok := d[2].([]any)
 	if !ok {
 		return common.GetTypeAssertError("[]any", d[2], "positionUpdate")
@@ -1178,7 +1178,7 @@ func (b *Bitfinex) handleWSPositionUpdate(d []any) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSMyTradeUpdate(d []any, eventType string) error {
+func (b *Exchange) handleWSMyTradeUpdate(d []any, eventType string) error {
 	tradeData, ok := d[2].([]any)
 	if !ok {
 		return common.GetTypeAssertError("[]any", d[2], "tradeUpdate")
@@ -1447,7 +1447,7 @@ func wsHandleFundingCreditLoanData(data []any, includePositionPair bool) (*WsCre
 	return &credit, nil
 }
 
-func (b *Bitfinex) wsHandleOrder(data []any) {
+func (b *Exchange) wsHandleOrder(data []any) {
 	var od order.Detail
 	var err error
 	od.Exchange = b.Name
@@ -1526,7 +1526,7 @@ func (b *Bitfinex) wsHandleOrder(data []any) {
 }
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a channel
-func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
+func (b *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
 	if len(books) == 0 {
 		return errors.New("no orderbooks submitted")
 	}
@@ -1569,7 +1569,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
+func (b *Exchange) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -1671,7 +1671,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 // resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
 // which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
 // Flushing the orderbook happens immediately, but the ReSub itself is a go routine to avoid blocking the WS data channel
-func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
+func (b *Exchange) resubOrderbook(c *subscription.Subscription) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -1694,12 +1694,12 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (b *Bitfinex) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Bitfinex) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
 		"subToMap": subToMap,
 		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string {
@@ -1710,7 +1710,7 @@ func (b *Bitfinex) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 }
 
 // ConfigureWS to send checksums and sequence numbers
-func (b *Bitfinex) ConfigureWS(ctx context.Context) error {
+func (b *Exchange) ConfigureWS(ctx context.Context) error {
 	return b.Websocket.Conn.SendJSONMessage(ctx, request.Unset, map[string]any{
 		"event": "conf",
 		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
@@ -1718,7 +1718,7 @@ func (b *Bitfinex) ConfigureWS(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from channels
-func (b *Bitfinex) Subscribe(subs subscription.List) error {
+func (b *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	var err error
 	if subs, err = subs.ExpandTemplates(b); err != nil {
@@ -1728,7 +1728,7 @@ func (b *Bitfinex) Subscribe(subs subscription.List) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
-func (b *Bitfinex) Unsubscribe(subs subscription.List) error {
+func (b *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	var err error
 	if subs, err = subs.ExpandTemplates(b); err != nil {
@@ -1739,7 +1739,7 @@ func (b *Bitfinex) Unsubscribe(subs subscription.List) error {
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
-func (b *Bitfinex) subscribeToChan(ctx context.Context, subs subscription.List) error {
+func (b *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -1784,7 +1784,7 @@ func (b *Bitfinex) subscribeToChan(ctx context.Context, subs subscription.List) 
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (b *Bitfinex) unsubscribeFromChan(ctx context.Context, subs subscription.List) error {
+func (b *Exchange) unsubscribeFromChan(ctx context.Context, subs subscription.List) error {
 	if len(subs) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
@@ -1817,7 +1817,7 @@ func (b *Bitfinex) unsubscribeFromChan(ctx context.Context, subs subscription.Li
 // If found it parses the error code and message as a wrapped error and returns it
 // It might log parsing errors about the nature of the error
 // If the error message is not defined it will return a wrapped common.ErrUnknownError
-func (b *Bitfinex) getErrResp(resp []byte) error {
+func (b *Exchange) getErrResp(resp []byte) error {
 	event, err := jsonparser.GetUnsafeString(resp, "event")
 	if err != nil {
 		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, resp)
@@ -1841,7 +1841,7 @@ func (b *Bitfinex) getErrResp(resp []byte) error {
 }
 
 // WsSendAuth sends a authenticated event payload
-func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
+func (b *Exchange) WsSendAuth(ctx context.Context) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1866,7 +1866,7 @@ func (b *Bitfinex) WsSendAuth(ctx context.Context) error {
 }
 
 // WsNewOrder authenticated new order request
-func (b *Bitfinex) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
+func (b *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
 	data.CustomID = b.Websocket.AuthConn.GenerateMessageID(false)
 	req := makeRequestInterface(wsOrderNew, data)
 	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.CustomID, req)
@@ -1924,7 +1924,7 @@ func (b *Bitfinex) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (str
 }
 
 // WsModifyOrder authenticated modify order request
-func (b *Bitfinex) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest) error {
+func (b *Exchange) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest) error {
 	req := makeRequestInterface(wsOrderUpdate, data)
 	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.OrderID, req)
 	if err != nil {
@@ -1966,7 +1966,7 @@ func (b *Bitfinex) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest
 }
 
 // WsCancelMultiOrders authenticated cancel multi order request
-func (b *Bitfinex) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) error {
+func (b *Exchange) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) error {
 	cancel := WsCancelGroupOrdersRequest{
 		OrderID: orderIDs,
 	}
@@ -1975,7 +1975,7 @@ func (b *Bitfinex) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) er
 }
 
 // WsCancelOrder authenticated cancel order request
-func (b *Bitfinex) WsCancelOrder(ctx context.Context, orderID int64) error {
+func (b *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
@@ -2019,20 +2019,20 @@ func (b *Bitfinex) WsCancelOrder(ctx context.Context, orderID int64) error {
 }
 
 // WsCancelAllOrders authenticated cancel all orders request
-func (b *Bitfinex) WsCancelAllOrders(ctx context.Context) error {
+func (b *Exchange) WsCancelAllOrders(ctx context.Context) error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
 	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsNewOffer authenticated new offer request
-func (b *Bitfinex) WsNewOffer(ctx context.Context, data *WsNewOfferRequest) error {
+func (b *Exchange) WsNewOffer(ctx context.Context, data *WsNewOfferRequest) error {
 	req := makeRequestInterface(wsFundingOfferNew, data)
 	return b.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsCancelOffer authenticated cancel offer request
-func (b *Bitfinex) WsCancelOffer(ctx context.Context, orderID int64) error {
+func (b *Exchange) WsCancelOffer(ctx context.Context, orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}

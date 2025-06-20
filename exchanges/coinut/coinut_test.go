@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	c          = &COINUT{}
+	c          = &Exchange{}
 	wsSetupRan bool
 )
 

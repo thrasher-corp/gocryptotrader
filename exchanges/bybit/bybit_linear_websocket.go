@@ -13,7 +13,7 @@ import (
 )
 
 // WsLinearConnect connects to linear a websocket feed
-func (by *Bybit) WsLinearConnect() error {
+func (by *Exchange) WsLinearConnect() error {
 	ctx := context.TODO()
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.LinearContract) {
 		return websocket.ErrWebsocketNotEnabled
@@ -43,7 +43,7 @@ func (by *Bybit) WsLinearConnect() error {
 }
 
 // GenerateLinearDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
+func (by *Exchange) GenerateLinearDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
@@ -75,18 +75,18 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() (subscription.List, error)
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) LinearSubscribe(channelSubscriptions subscription.List) error {
+func (by *Exchange) LinearSubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
 	return by.handleLinearPayloadSubscription(ctx, "subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) LinearUnsubscribe(channelSubscriptions subscription.List) error {
+func (by *Exchange) LinearUnsubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
 	return by.handleLinearPayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleLinearPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
+func (by *Exchange) handleLinearPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err

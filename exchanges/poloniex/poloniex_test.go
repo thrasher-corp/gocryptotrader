@@ -31,7 +31,7 @@ const (
 
 var testPair = currency.NewPair(currency.BTC, currency.LTC)
 
-var p = &Poloniex{}
+var p = &Exchange{}
 
 func TestTimestamp(t *testing.T) {
 	t.Parallel()

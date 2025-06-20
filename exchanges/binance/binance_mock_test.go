@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("cannot use testnet with mock tests")
 	}
 
-	b = new(Binance)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatal(err)
 	}

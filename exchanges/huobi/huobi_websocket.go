@@ -75,7 +75,7 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect initiates a new websocket connection
-func (h *HUOBI) WsConnect() error {
+func (h *Exchange) WsConnect() error {
 	ctx := context.TODO()
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -101,7 +101,7 @@ func (h *HUOBI) WsConnect() error {
 }
 
 // wsReadMsgs reads and processes messages from a websocket connection
-func (h *HUOBI) wsReadMsgs(ctx context.Context, s websocket.Connection) {
+func (h *Exchange) wsReadMsgs(ctx context.Context, s websocket.Connection) {
 	defer h.Websocket.Wg.Done()
 	for {
 		msg := s.ReadMessage()
@@ -115,7 +115,7 @@ func (h *HUOBI) wsReadMsgs(ctx context.Context, s websocket.Connection) {
 	}
 }
 
-func (h *HUOBI) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (h *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if h.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
@@ -155,7 +155,7 @@ func (h *HUOBI) wsHandleData(ctx context.Context, respRaw []byte) error {
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (h *HUOBI) wsHandleV1ping(ctx context.Context, pingValue int) error {
+func (h *Exchange) wsHandleV1ping(ctx context.Context, pingValue int) error {
 	if err := h.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
@@ -163,7 +163,7 @@ func (h *HUOBI) wsHandleV1ping(ctx context.Context, pingValue int) error {
 }
 
 // wsHandleV2ping handles v2 style pings, currently only used with private connections
-func (h *HUOBI) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
+func (h *Exchange) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
@@ -174,14 +174,14 @@ func (h *HUOBI) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
-func (h *HUOBI) wsHandleV2subResp(action string, respRaw []byte) error {
+func (h *Exchange) wsHandleV2subResp(action string, respRaw []byte) error {
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		return h.Websocket.Match.RequireMatchWithData(action+":"+ch, respRaw)
 	}
 	return nil
 }
 
-func (h *HUOBI) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
 	switch s.Channel {
 	case subscription.TickerChannel:
 		return h.wsHandleTickerMsg(s, respRaw)
@@ -201,7 +201,7 @@ func (h *HUOBI) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte
 	return fmt.Errorf("%w: %s", common.ErrNotYetImplemented, s.Channel)
 }
 
-func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -224,7 +224,7 @@ func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) 
 	return nil
 }
 
-func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
 	saveTradeData := h.IsSaveTradeDataEnabled()
 	tradeFeed := h.IsTradeFeedEnabled()
 	if !saveTradeData && !tradeFeed {
@@ -265,7 +265,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 	return nil
 }
 
-func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -288,7 +288,7 @@ func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) 
 	return nil
 }
 
-func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
 	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -340,7 +340,7 @@ func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byt
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
-func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte) error {
 	var msg wsOrderUpdateMsg
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
@@ -406,7 +406,7 @@ func (h *HUOBI) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []byte
 	return nil
 }
 
-func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+func (h *Exchange) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte) error {
 	var msg wsTradeUpdateMsg
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
@@ -472,7 +472,7 @@ func (h *HUOBI) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []byte
 	return nil
 }
 
-func (h *HUOBI) wsHandleMyAccountMsg(respRaw []byte) error {
+func (h *Exchange) wsHandleMyAccountMsg(respRaw []byte) error {
 	u := &wsAccountUpdateMsg{}
 	if err := json.Unmarshal(respRaw, u); err != nil {
 		return err
@@ -482,12 +482,12 @@ func (h *HUOBI) wsHandleMyAccountMsg(respRaw []byte) error {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (h *HUOBI) generateSubscriptions() (subscription.List, error) {
+func (h *Exchange) generateSubscriptions() (subscription.List, error) {
 	return h.Features.Subscriptions.ExpandTemplates(h)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (h *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":       channelName,
 		"isWildcardChannel": isWildcardChannel,
@@ -496,20 +496,20 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(subs subscription.List) error {
+func (h *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(h)
 	return common.AppendError(errs, h.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return h.manageSubs(ctx, wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(subs subscription.List) error {
+func (h *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(h)
 	return common.AppendError(errs, h.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return h.manageSubs(ctx, wsUnsubOp, l) }, 1))
 }
 
-func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (h *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
@@ -555,7 +555,7 @@ func (h *HUOBI) manageSubs(ctx context.Context, op string, subs subscription.Lis
 	return err
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
+func (h *Exchange) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("accessKey", creds.Key)
 	values.Set("signatureMethod", signatureMethod)
@@ -565,7 +565,7 @@ func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
+func (h *Exchange) wsAuthConnect(ctx context.Context) error {
 	if err := h.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
@@ -575,7 +575,7 @@ func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
 	return nil
 }
 
-func (h *HUOBI) wsLogin(ctx context.Context) error {
+func (h *Exchange) wsLogin(ctx context.Context) error {
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return err

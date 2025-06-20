@@ -47,7 +47,7 @@ const (
 )
 
 var (
-	ok = &Okx{}
+	ok = &Exchange{}
 
 	leadTraderUniqueID string
 	loadLeadTraderOnce sync.Once
@@ -60,7 +60,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	ok = new(Okx)
+	ok = new(Exchange)
 	if err := testexch.Setup(ok); err != nil {
 		log.Fatal(err)
 	}
@@ -412,7 +412,7 @@ func TestGetOpenInterestData(t *testing.T) {
 }
 
 // Only being used for testing purposes and unexported
-func (ok *Okx) underlyingFromInstID(instrumentType, instID string) (string, error) {
+func (ok *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
 	ok.instrumentsInfoMapLock.Lock()
 	defer ok.instrumentsInfoMapLock.Unlock()
 	if instrumentType != "" {
@@ -3913,7 +3913,7 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ok := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", ok.WsHandleData)
 	close(ok.Websocket.DataHandler)
@@ -4017,7 +4017,7 @@ var pushDataMap = map[string]string{
 func TestPushData(t *testing.T) {
 	t.Parallel()
 	var err error
-	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ok := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(ok), "Setup must not error")
 
 	for x := range pushDataMap {
@@ -4061,7 +4061,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ok := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
 	assets, err := ok.getAssetsFromInstrumentID(mainPair.String())
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
@@ -4284,7 +4284,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
-	ok := new(Okx) //nolint:govet // Intentional shadow
+	ok := new(Exchange) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(ok), "Setup must not error")
 
 	_, err := ok.getAssetsFromInstrumentID("")
@@ -6012,7 +6012,7 @@ func TestGetFiatDepositPaymentMethods(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {
+func (ok *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {
 	ok.instrumentsInfoMapLock.Lock()
 	defer ok.instrumentsInfoMapLock.Unlock()
 	if instrumentType != "" {
@@ -6040,7 +6040,7 @@ func (ok *Okx) instrumentFamilyFromInstID(instrumentType, instID string) (string
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ok := new(Okx) //nolint:govet // Intentional copy to prevent future copy/paste mistakes
+	ok := new(Exchange) //nolint:govet // Intentional copy to prevent future copy/paste mistakes
 	require.NoError(t, testexch.Setup(ok), "Setup must not error")
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := ok.generateSubscriptions()

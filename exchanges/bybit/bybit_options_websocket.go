@@ -15,7 +15,7 @@ import (
 )
 
 // WsOptionsConnect connects to options a websocket feed
-func (by *Bybit) WsOptionsConnect() error {
+func (by *Exchange) WsOptionsConnect() error {
 	ctx := context.TODO()
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Options) {
 		return websocket.ErrWebsocketNotEnabled
@@ -43,7 +43,7 @@ func (by *Bybit) WsOptionsConnect() error {
 }
 
 // GenerateOptionsDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+func (by *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	channels := []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.Options)
@@ -64,18 +64,18 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 }
 
 // OptionSubscribe sends a subscription message to options public channels.
-func (by *Bybit) OptionSubscribe(channelSubscriptions subscription.List) error {
+func (by *Exchange) OptionSubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
 	return by.handleOptionsPayloadSubscription(ctx, "subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
-func (by *Bybit) OptionUnsubscribe(channelSubscriptions subscription.List) error {
+func (by *Exchange) OptionUnsubscribe(channelSubscriptions subscription.List) error {
 	ctx := context.TODO()
 	return by.handleOptionsPayloadSubscription(ctx, "unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleOptionsPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
+func (by *Exchange) handleOptionsPayloadSubscription(ctx context.Context, operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelSubscriptions)
 	if err != nil {
 		return err

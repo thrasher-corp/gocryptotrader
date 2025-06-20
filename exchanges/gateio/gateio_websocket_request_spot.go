@@ -20,12 +20,12 @@ var (
 )
 
 // authenticateSpot sends an authentication message to the websocket connection
-func (g *Gateio) authenticateSpot(ctx context.Context, conn websocket.Connection) error {
+func (g *Exchange) authenticateSpot(ctx context.Context, conn websocket.Connection) error {
 	return g.websocketLogin(ctx, conn, "spot.login")
 }
 
 // WebsocketSpotSubmitOrder submits an order via the websocket connection
-func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) (*WebsocketOrderResponse, error) {
+func (g *Exchange) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrderRequest) (*WebsocketOrderResponse, error) {
 	resps, err := g.WebsocketSpotSubmitOrders(ctx, order)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (g *Gateio) WebsocketSpotSubmitOrder(ctx context.Context, order *CreateOrde
 
 // WebsocketSpotSubmitOrders submits orders via the websocket connection. You can
 // send multiple orders in a single request. But only for one asset route.
-func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]WebsocketOrderResponse, error) {
+func (g *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*CreateOrderRequest) ([]WebsocketOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -71,7 +71,7 @@ func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Creat
 }
 
 // WebsocketSpotCancelOrder cancels an order via the websocket connection
-func (g *Gateio) WebsocketSpotCancelOrder(ctx context.Context, orderID string, pair currency.Pair, account string) (*WebsocketOrderResponse, error) {
+func (g *Exchange) WebsocketSpotCancelOrder(ctx context.Context, orderID string, pair currency.Pair, account string) (*WebsocketOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -86,7 +86,7 @@ func (g *Gateio) WebsocketSpotCancelOrder(ctx context.Context, orderID string, p
 }
 
 // WebsocketSpotCancelAllOrdersByIDs cancels multiple orders via the websocket
-func (g *Gateio) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]WebsocketCancellAllResponse, error) {
+func (g *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]WebsocketCancellAllResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
 	}
@@ -105,7 +105,7 @@ func (g *Gateio) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []Webs
 }
 
 // WebsocketSpotCancelAllOrdersByPair cancels all orders for a specific pair
-func (g *Gateio) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]WebsocketOrderResponse, error) {
+func (g *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]WebsocketOrderResponse, error) {
 	if !pair.IsEmpty() && side == order.UnknownSide {
 		// This case will cancel all orders for every pair, this can be introduced later
 		return nil, fmt.Errorf("'%v' %w while pair is set", side, order.ErrSideIsInvalid)
@@ -127,7 +127,7 @@ func (g *Gateio) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair cu
 }
 
 // WebsocketSpotAmendOrder amends an order via the websocket connection
-func (g *Gateio) WebsocketSpotAmendOrder(ctx context.Context, amend *WebsocketAmendOrder) (*WebsocketOrderResponse, error) {
+func (g *Exchange) WebsocketSpotAmendOrder(ctx context.Context, amend *WebsocketAmendOrder) (*WebsocketOrderResponse, error) {
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
@@ -149,7 +149,7 @@ func (g *Gateio) WebsocketSpotAmendOrder(ctx context.Context, amend *WebsocketAm
 }
 
 // WebsocketSpotGetOrderStatus gets the status of an order via the websocket connection
-func (g *Gateio) WebsocketSpotGetOrderStatus(ctx context.Context, orderID string, pair currency.Pair, account string) (*WebsocketOrderResponse, error) {
+func (g *Exchange) WebsocketSpotGetOrderStatus(ctx context.Context, orderID string, pair currency.Pair, account string) (*WebsocketOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}

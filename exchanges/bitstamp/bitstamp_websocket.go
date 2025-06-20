@@ -55,7 +55,7 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect connects to a websocket feed
-func (b *Bitstamp) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -85,7 +85,7 @@ func (b *Bitstamp) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitstamp) wsReadData(ctx context.Context) {
+func (b *Exchange) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -99,7 +99,7 @@ func (b *Bitstamp) wsReadData(ctx context.Context) {
 	}
 }
 
-func (b *Bitstamp) wsHandleData(_ context.Context, respRaw []byte) error {
+func (b *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)
@@ -129,7 +129,7 @@ func (b *Bitstamp) wsHandleData(_ context.Context, respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) handleWSSubscription(event string, respRaw []byte) error {
+func (b *Exchange) handleWSSubscription(event string, respRaw []byte) error {
 	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
 	if err != nil {
 		return fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)
@@ -138,7 +138,7 @@ func (b *Bitstamp) handleWSSubscription(event string, respRaw []byte) error {
 	return b.Websocket.Match.RequireMatchWithData(event+":"+channel, respRaw)
 }
 
-func (b *Bitstamp) handleWSTrade(msg []byte) error {
+func (b *Exchange) handleWSTrade(msg []byte) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -169,7 +169,7 @@ func (b *Bitstamp) handleWSTrade(msg []byte) error {
 	})
 }
 
-func (b *Bitstamp) handleWSOrder(event string, msg []byte) error {
+func (b *Exchange) handleWSOrder(event string, msg []byte) error {
 	channel, p, err := b.parseChannelName(msg)
 	if err != nil {
 		return err
@@ -226,28 +226,28 @@ func (b *Bitstamp) handleWSOrder(event string, msg []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Bitstamp) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from a list of channels
-func (b *Bitstamp) Subscribe(subs subscription.List) error {
+func (b *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	return b.manageSubsWithCreds(ctx, subs, "sub")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (b *Bitstamp) Unsubscribe(subs subscription.List) error {
+func (b *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	return b.manageSubsWithCreds(ctx, subs, "unsub")
 }
 
-func (b *Bitstamp) manageSubsWithCreds(ctx context.Context, subs subscription.List, op string) error {
+func (b *Exchange) manageSubsWithCreds(ctx context.Context, subs subscription.List, op string) error {
 	var errs error
 	var creds *WebsocketAuthResponse
 	if authed := subs.Private(); len(authed) > 0 {
@@ -256,7 +256,7 @@ func (b *Bitstamp) manageSubsWithCreds(ctx context.Context, subs subscription.Li
 	return common.AppendError(errs, b.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error { return b.manageSubs(ctx, s, op, creds) }, 1))
 }
 
-func (b *Bitstamp) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketAuthResponse) error {
+func (b *Exchange) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketAuthResponse) error {
 	subs, errs := subs.ExpandTemplates(b)
 	for _, s := range subs {
 		req := websocketEventRequest{
@@ -288,7 +288,7 @@ func (b *Bitstamp) manageSubs(ctx context.Context, subs subscription.List, op st
 	return errs
 }
 
-func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
+func (b *Exchange) handleWSOrderbook(msg []byte) error {
 	_, p, err := b.parseChannelName(msg)
 	if err != nil {
 		return err
@@ -321,7 +321,7 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 	return b.Websocket.Orderbook.LoadSnapshot(obUpdate)
 }
 
-func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
+func (b *Exchange) seedOrderBook(ctx context.Context) error {
 	p, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
@@ -372,7 +372,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 
 // FetchWSAuth Retrieves a userID and auth-token from REST for subscribing to a websocket channel
 // The token life-expectancy is only about 60s; use it immediately and do not store it
-func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, error) {
+func (b *Exchange) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, error) {
 	resp := &WebsocketAuthResponse{}
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWSAuthToken, true, nil, resp)
 	if err != nil {
@@ -382,7 +382,7 @@ func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, err
 }
 
 // parseChannelName splits the ws message channel and returns the channel name and pair
-func (b *Bitstamp) parseChannelName(respRaw []byte) (string, currency.Pair, error) {
+func (b *Exchange) parseChannelName(respRaw []byte) (string, currency.Pair, error) {
 	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
 	if err != nil {
 		return "", currency.EMPTYPAIR, fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)

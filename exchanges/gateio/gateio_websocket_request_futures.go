@@ -18,12 +18,12 @@ var (
 )
 
 // authenticateFutures sends an authentication message to the websocket connection
-func (g *Gateio) authenticateFutures(ctx context.Context, conn websocket.Connection) error {
+func (g *Exchange) authenticateFutures(ctx context.Context, conn websocket.Connection) error {
 	return g.websocketLogin(ctx, conn, "futures.login")
 }
 
 // WebsocketFuturesSubmitOrder submits an order via the websocket connection
-func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, order *ContractOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, order *ContractOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
 	resps, err := g.WebsocketFuturesSubmitOrders(ctx, a, order)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (g *Gateio) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, 
 }
 
 // WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
-func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
@@ -74,7 +74,7 @@ func (g *Gateio) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item,
 }
 
 // WebsocketFuturesCancelOrder cancels an order via the websocket connection.
-func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string, contract currency.Pair, a asset.Item) (*WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, orderID string, contract currency.Pair, a asset.Item) (*WebsocketFuturesOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -92,7 +92,7 @@ func (g *Gateio) WebsocketFuturesCancelOrder(ctx context.Context, orderID string
 }
 
 // WebsocketFuturesCancelAllOpenFuturesOrders cancels multiple orders via the websocket.
-func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, a asset.Item, side string) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, a asset.Item, side string) ([]WebsocketFuturesOrderResponse, error) {
 	if err := validateFuturesPairAsset(contract, a); err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (g *Gateio) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context,
 }
 
 // WebsocketFuturesAmendOrder amends an order via the websocket connection
-func (g *Gateio) WebsocketFuturesAmendOrder(ctx context.Context, amend *WebsocketFuturesAmendOrder) (*WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *WebsocketFuturesAmendOrder) (*WebsocketFuturesOrderResponse, error) {
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
@@ -133,7 +133,7 @@ func (g *Gateio) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websocke
 }
 
 // WebsocketFuturesOrderList fetches a list of orders via the websocket connection
-func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersList) ([]WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersList) ([]WebsocketFuturesOrderResponse, error) {
 	if list == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
@@ -151,7 +151,7 @@ func (g *Gateio) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketF
 }
 
 // WebsocketFuturesGetOrderStatus gets the status of an order via the websocket connection.
-func (g *Gateio) WebsocketFuturesGetOrderStatus(ctx context.Context, contract currency.Pair, a asset.Item, orderID string) (*WebsocketFuturesOrderResponse, error) {
+func (g *Exchange) WebsocketFuturesGetOrderStatus(ctx context.Context, contract currency.Pair, a asset.Item, orderID string) (*WebsocketFuturesOrderResponse, error) {
 	if err := validateFuturesPairAsset(contract, a); err != nil {
 		return nil, err
 	}

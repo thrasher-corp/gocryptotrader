@@ -79,7 +79,7 @@ var subscriptionNames = map[string]string{
 }
 
 // WsConnect connects to a websocket feed
-func (by *Bybit) WsConnect() error {
+func (by *Exchange) WsConnect() error {
 	ctx := context.TODO()
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
 		return websocket.ErrWebsocketNotEnabled
@@ -108,7 +108,7 @@ func (by *Bybit) WsConnect() error {
 }
 
 // WsAuth sends an authentication message to receive auth data
-func (by *Bybit) WsAuth(ctx context.Context) error {
+func (by *Exchange) WsAuth(ctx context.Context) error {
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -160,12 +160,12 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe subscription.List) error {
+func (by *Exchange) Subscribe(channelsToSubscribe subscription.List) error {
 	ctx := context.TODO()
 	return by.handleSpotSubscription(ctx, "subscribe", channelsToSubscribe)
 }
 
-func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
+func (by *Exchange) handleSubscriptions(operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(by)
 	if err != nil {
 		return
@@ -187,12 +187,12 @@ func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe subscription.List) error {
+func (by *Exchange) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	ctx := context.TODO()
 	return by.handleSpotSubscription(ctx, "unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSpotSubscription(ctx context.Context, operation string, channelsToSubscribe subscription.List) error {
+func (by *Exchange) handleSpotSubscription(ctx context.Context, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -239,12 +239,12 @@ func (by *Bybit) handleSpotSubscription(ctx context.Context, operation string, c
 }
 
 // generateSubscriptions generates default subscription
-func (by *Bybit) generateSubscriptions() (subscription.List, error) {
+func (by *Exchange) generateSubscriptions() (subscription.List, error) {
 	return by.Features.Subscriptions.ExpandTemplates(by)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (by *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":          channelName,
 		"isSymbolChannel":      isSymbolChannel,
@@ -255,7 +255,7 @@ func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (by *Bybit) wsReadData(ctx context.Context, assetType asset.Item, ws websocket.Connection) {
+func (by *Exchange) wsReadData(ctx context.Context, assetType asset.Item, ws websocket.Connection) {
 	defer by.Websocket.Wg.Done()
 	for {
 		select {
@@ -274,7 +274,7 @@ func (by *Bybit) wsReadData(ctx context.Context, assetType asset.Item, ws websoc
 	}
 }
 
-func (by *Bybit) wsHandleData(ctx context.Context, assetType asset.Item, respRaw []byte) error {
+func (by *Exchange) wsHandleData(ctx context.Context, assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -334,7 +334,7 @@ func (by *Bybit) wsHandleData(ctx context.Context, assetType asset.Item, respRaw
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
-func (by *Bybit) wsProcessGreeks(resp []byte) error {
+func (by *Exchange) wsProcessGreeks(resp []byte) error {
 	var result GreeksResponse
 	err := json.Unmarshal(resp, &result)
 	if err != nil {
@@ -344,7 +344,7 @@ func (by *Bybit) wsProcessGreeks(resp []byte) error {
 	return nil
 }
 
-func (by *Bybit) wsProcessWalletPushData(ctx context.Context, assetType asset.Item, resp []byte) error {
+func (by *Exchange) wsProcessWalletPushData(ctx context.Context, assetType asset.Item, resp []byte) error {
 	var result WebsocketWallet
 	err := json.Unmarshal(resp, &result)
 	if err != nil {
@@ -373,7 +373,7 @@ func (by *Bybit) wsProcessWalletPushData(ctx context.Context, assetType asset.It
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
-func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsOrders
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -414,7 +414,7 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 	return nil
 }
 
-func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessExecution(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsExecutions
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -447,7 +447,7 @@ func (by *Bybit) wsProcessExecution(assetType asset.Item, resp *WebsocketRespons
 	return nil
 }
 
-func (by *Bybit) wsProcessPosition(resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessPosition(resp *WebsocketResponse) error {
 	var result WsPositions
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -457,7 +457,7 @@ func (by *Bybit) wsProcessPosition(resp *WebsocketResponse) error {
 	return nil
 }
 
-func (by *Bybit) wsLeverageTokenNav(resp *WebsocketResponse) error {
+func (by *Exchange) wsLeverageTokenNav(resp *WebsocketResponse) error {
 	var result LTNav
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -467,7 +467,7 @@ func (by *Bybit) wsLeverageTokenNav(resp *WebsocketResponse) error {
 	return nil
 }
 
-func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessLeverageTokenTicker(assetType asset.Item, resp *WebsocketResponse) error {
 	var result TickerItem
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -489,7 +489,7 @@ func (by *Bybit) wsProcessLeverageTokenTicker(assetType asset.Item, resp *Websoc
 	return nil
 }
 
-func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
+func (by *Exchange) wsProcessLeverageTokenKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
 	var result LTKlines
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -523,7 +523,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 	return nil
 }
 
-func (by *Bybit) wsProcessLiquidation(resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessLiquidation(resp *WebsocketResponse) error {
 	var result WebsocketLiquidation
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -533,7 +533,7 @@ func (by *Bybit) wsProcessLiquidation(resp *WebsocketResponse) error {
 	return nil
 }
 
-func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
+func (by *Exchange) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
 	var result WsKlines
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -568,7 +568,7 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 	return nil
 }
 
-func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
 	tickResp := new(TickerItem)
 	if err := json.Unmarshal(resp.Data, tickResp); err != nil {
 		return err
@@ -667,7 +667,7 @@ func updateTicker(tick *ticker.Price, resp *TickerItem) {
 	}
 }
 
-func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WebsocketPublicTrades
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
@@ -697,7 +697,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 	return trade.AddTradesToBuffer(tradeDatas...)
 }
 
-func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
+func (by *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsOrderbookDetail
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err

@@ -50,7 +50,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (b *Binance) WsConnect() error {
+func (b *Exchange) WsConnect() error {
 	ctx := context.TODO()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -103,7 +103,7 @@ func (b *Binance) WsConnect() error {
 	return nil
 }
 
-func (b *Binance) setupOrderbookManager(ctx context.Context) {
+func (b *Exchange) setupOrderbookManager(ctx context.Context) {
 	if b.obm == nil {
 		b.obm = &orderbookManager{
 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
@@ -130,7 +130,7 @@ func (b *Binance) setupOrderbookManager(ctx context.Context) {
 
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
-func (b *Binance) KeepAuthKeyAlive(ctx context.Context) {
+func (b *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	ticks := time.NewTicker(time.Minute * 30)
@@ -150,7 +150,7 @@ func (b *Binance) KeepAuthKeyAlive(ctx context.Context) {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Binance) wsReadData() {
+func (b *Exchange) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -165,7 +165,7 @@ func (b *Binance) wsReadData() {
 	}
 }
 
-func (b *Binance) wsHandleData(respRaw []byte) error {
+func (b *Exchange) wsHandleData(respRaw []byte) error {
 	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 		if b.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
@@ -448,7 +448,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 }
 
 // SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
+func (b *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	ob, err := b.GetOrderBook(ctx,
 		OrderBookDataRequestParams{
 			Symbol: p,
@@ -461,7 +461,7 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
+func (b *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Book{
 		Pair:              p,
 		Asset:             asset.Spot,
@@ -488,7 +488,7 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
+func (b *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	pair, err := b.MatchSymbolWithAvailablePairs(wsdp.Pair, asset.Spot, false)
 	if err != nil {
 		return false, err
@@ -510,7 +510,7 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	return false, err
 }
 
-func (b *Binance) generateSubscriptions() (subscription.List, error) {
+func (b *Exchange) generateSubscriptions() (subscription.List, error) {
 	for _, s := range b.Features.Subscriptions {
 		if s.Asset == asset.Empty {
 			// Handle backwards compatibility with config without assets, all binance subs are spot
@@ -523,7 +523,7 @@ func (b *Binance) generateSubscriptions() (subscription.List, error) {
 var subTemplate *template.Template
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (b *Binance) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (b *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	var err error
 	if subTemplate == nil {
 		subTemplate, err = template.New("subscriptions.tmpl").
@@ -558,19 +558,19 @@ func formatChannelInterval(s *subscription.Subscription) string {
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channels subscription.List) error {
+func (b *Exchange) Subscribe(channels subscription.List) error {
 	ctx := context.TODO()
 	return b.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeMethod, l) }, 50)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channels subscription.List) error {
+func (b *Exchange) Unsubscribe(channels subscription.List) error {
 	ctx := context.TODO()
 	return b.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeMethod, l) }, 50)
 }
 
 // manageSubs subscribes or unsubscribes from a list of subscriptions
-func (b *Binance) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (b *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	if op == wsSubscribeMethod {
 		if err := b.Websocket.AddSubscriptions(b.Websocket.Conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
 			return err
@@ -617,7 +617,7 @@ func (b *Binance) manageSubs(ctx context.Context, op string, subs subscription.L
 }
 
 // ProcessOrderbookUpdate processes the websocket orderbook update
-func (b *Binance) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
+func (b *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Level, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
 		updateBid[i] = orderbook.Level{
@@ -644,7 +644,7 @@ func (b *Binance) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *Web
 
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
-func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
+func (b *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	fetching, needsFetching, err := b.obm.handleFetchingBook(pair)
 	if err != nil {
 		return err
@@ -702,7 +702,7 @@ func (o *orderbookManager) setNeedsFetchingBook(pair currency.Pair) error {
 
 // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
 // asset
-func (b *Binance) SynchroniseWebsocketOrderbook(ctx context.Context) {
+func (b *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	b.Websocket.Wg.Add(1)
 	go func() {
 		defer b.Websocket.Wg.Done()
@@ -729,7 +729,7 @@ func (b *Binance) SynchroniseWebsocketOrderbook(ctx context.Context) {
 }
 
 // processJob fetches and processes orderbook updates
-func (b *Binance) processJob(ctx context.Context, p currency.Pair) error {
+func (b *Exchange) processJob(ctx context.Context, p currency.Pair) error {
 	err := b.SeedLocalCache(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
@@ -752,7 +752,7 @@ func (b *Binance) processJob(ctx context.Context, p currency.Pair) error {
 }
 
 // invalidateAndCleanupOrderbook invalidaates orderbook and cleans local cache
-func (b *Binance) invalidateAndCleanupOrderbook(p currency.Pair) {
+func (b *Exchange) invalidateAndCleanupOrderbook(p currency.Pair) {
 	if err := b.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
 		log.Errorf(log.WebsocketMgr, "%s error invalidating websocket orderbook: %v", b.Name, err)
 	}
