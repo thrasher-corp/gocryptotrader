@@ -630,8 +630,8 @@ func (b *Binance) manageSubs(ctx context.Context, op string, subs subscription.L
 // ProcessUpdate processes the websocket orderbook update
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	return b.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       ws.UpdateBids,
-		Asks:       ws.UpdateAsks,
+		Bids:       orderbook.Levels(ws.UpdateBids),
+		Asks:       orderbook.Levels(ws.UpdateAsks),
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
 		UpdateTime: ws.Timestamp.Time(),

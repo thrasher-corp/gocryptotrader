@@ -52,6 +52,7 @@ var defaultEOptionsSubscriptions = []string{
 
 // WsOptionsConnect initiates a websocket connection to coin margined futures websocket
 func (b *Binance) WsOptionsConnect() error {
+	ctx := context.Background()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -84,7 +85,7 @@ func (b *Binance) WsOptionsConnect() error {
 	if err != nil {
 		return err
 	}
-	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}

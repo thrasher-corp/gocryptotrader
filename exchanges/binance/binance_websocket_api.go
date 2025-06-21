@@ -35,6 +35,7 @@ var websocketStatusCodes = map[int64]string{
 
 // WsConnectAPI creates a new websocket connection to API server
 func (b *Binance) WsConnectAPI() error {
+	ctx := context.Background()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -45,7 +46,7 @@ func (b *Binance) WsConnectAPI() error {
 	dialer.Proxy = http.ProxyFromEnvironment
 
 	b.Websocket.AuthConn.SetURL(binanceWebsocketAPIURL)
-	err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = b.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}

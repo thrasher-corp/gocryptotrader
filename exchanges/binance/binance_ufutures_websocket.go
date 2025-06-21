@@ -51,6 +51,7 @@ func getKlineIntervalString(interval kline.Interval) string {
 
 // WsUFuturesConnect initiates a websocket connection
 func (b *Binance) WsUFuturesConnect() error {
+	ctx := context.Background()
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -80,7 +81,7 @@ func (b *Binance) WsUFuturesConnect() error {
 			}
 		}
 	}
-	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = b.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
@@ -260,7 +261,7 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.It
 		UpdateID:   resp.LastUpdateID,
 		UpdateTime: resp.TransactionTime.Time(),
 		Asset:      asset.USDTMarginedFutures,
-		Action:     orderbook.Amend,
+		Action:     orderbook.UpdateAction,
 		Pair:       cp,
 		Asks:       asks,
 		Bids:       bids,
@@ -467,7 +468,7 @@ func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error 
 		UpdateID:   resp.OrderbookUpdateID,
 		UpdateTime: resp.TransactionTime.Time(),
 		Asset:      assetType,
-		Action:     orderbook.Amend,
+		Action:     orderbook.UpdateAction,
 		Bids: []orderbook.Level{{
 			Amount: resp.BestBidQty.Float64(),
 			Price:  resp.BestBidPrice.Float64(),

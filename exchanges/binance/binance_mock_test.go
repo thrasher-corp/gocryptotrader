@@ -5,6 +5,7 @@
 package binance
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -29,15 +30,9 @@ func TestMain(m *testing.M) {
 	if err := testexch.MockHTTPInstance(b); err != nil {
 		log.Fatal(err)
 	}
-
-<<<<<<< HEAD
-	b.setupOrderbookManager()
-	if err := b.populateTradablePairs(); err != nil {
-=======
 	ctx := context.Background()
 	b.setupOrderbookManager(ctx)
-	if err := b.UpdateTradablePairs(ctx, true); err != nil {
->>>>>>> f21a18fa67af04e4858903251e3caa0725402a02
+	if err := b.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
 	if mockTests {
