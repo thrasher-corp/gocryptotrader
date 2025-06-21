@@ -173,11 +173,11 @@ func (h *HUOBI) SetDefaults() {
 }
 
 // Bootstrap ensures that future contract expiry codes are loaded if AutoPairUpdates is not enabled
-func (h *HUOBI) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (h *HUOBI) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
 	if !h.GetEnabledFeatures().AutoPairUpdates && h.SupportsAsset(asset.Futures) {
-		_, err = h.FetchTradablePairs(context.Background(), asset.Futures)
+		_, err = h.FetchTradablePairs(ctx, asset.Futures)
 	}
 
 	return
@@ -555,10 +555,10 @@ func (h *HUOBI) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	book := &orderbook.Book{
-		Exchange:        h.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: h.CanVerifyOrderbook,
+		Exchange:          h.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: h.ValidateOrderbook,
 	}
 	var err error
 	switch assetType {

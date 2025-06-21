@@ -662,7 +662,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	require.NoError(t, err)
 
 	go b.wsReadData()
@@ -939,19 +939,19 @@ func TestGetActionFromString(t *testing.T) {
 
 	action, err := b.GetActionFromString("update")
 	require.NoError(t, err)
-	assert.Equal(t, orderbook.Amend, action)
+	assert.Equal(t, orderbook.UpdateAction, action)
 
 	action, err = b.GetActionFromString("delete")
 	require.NoError(t, err)
-	assert.Equal(t, orderbook.Delete, action)
+	assert.Equal(t, orderbook.DeleteAction, action)
 
 	action, err = b.GetActionFromString("insert")
 	require.NoError(t, err)
-	assert.Equal(t, orderbook.Insert, action)
+	assert.Equal(t, orderbook.InsertAction, action)
 
 	action, err = b.GetActionFromString("update/insert")
 	require.NoError(t, err)
-	assert.Equal(t, orderbook.UpdateInsert, action)
+	assert.Equal(t, orderbook.UpdateOrInsertAction, action)
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {

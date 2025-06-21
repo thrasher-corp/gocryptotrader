@@ -200,10 +200,10 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        y.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: y.CanVerifyOrderbook,
+		Exchange:          y.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: y.ValidateOrderbook,
 	}
 	fPair, err := y.FormatExchangeCurrency(p, assetType)
 	if err != nil {

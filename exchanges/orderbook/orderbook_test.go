@@ -45,71 +45,68 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 	assert.NoError(t, err, "SubscribeToExchangeOrderbooks should not error")
 }
 
-func TestVerify(t *testing.T) {
+func TestValidate(t *testing.T) {
 	t.Parallel()
 	b := Book{
-		Exchange:        "TestExchange",
-		Asset:           asset.Spot,
-		Pair:            currency.NewBTCUSD(),
-		VerifyOrderbook: true,
+		Exchange:          "TestExchange",
+		Asset:             asset.Spot,
+		Pair:              currency.NewBTCUSD(),
+		ValidateOrderbook: true,
 	}
 
-	err := b.Verify()
-	if err != nil {
-		t.Fatalf("expecting %v error but received %v", nil, err)
-	}
+	require.NoError(t, b.Validate())
 
 	b.Asks = []Level{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
-	err = b.Verify()
+	err := b.Validate()
 	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errDuplication)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	b.IsFundingRate = true
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPeriodUnset)
 
 	b.IsFundingRate = false
 
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Asks = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
-	err = b.Verify()
-	require.ErrorIs(t, err, errPriceNotSet)
+	err = b.Validate()
+	require.ErrorIs(t, err, ErrPriceZero)
 
 	b.Bids = []Level{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errIDDuplication)
 
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errDuplication)
 
 	b.Bids = []Level{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
 	b.IsFundingRate = true
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPeriodUnset)
 
 	b.IsFundingRate = false
 
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errAmountInvalid)
 
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
-	err = b.Verify()
-	require.ErrorIs(t, err, errPriceNotSet)
+	err = b.Validate()
+	require.ErrorIs(t, err, ErrPriceZero)
 }
 
 func TestTotalBidsAmount(t *testing.T) {
@@ -226,7 +223,7 @@ func TestBookGetDepth(t *testing.T) {
 func TestDeployDepth(t *testing.T) {
 	pair := currency.NewBTCUSD()
 	_, err := DeployDepth("", pair, asset.Spot)
-	require.ErrorIs(t, err, errExchangeNameUnset)
+	require.ErrorIs(t, err, ErrExchangeNameEmpty)
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", pair, asset.Empty)
@@ -406,27 +403,23 @@ func levelsFixtureRandom() Levels {
 
 func TestSorting(t *testing.T) {
 	var b Book
-	b.VerifyOrderbook = true
+	b.ValidateOrderbook = true
 
 	b.Asks = levelsFixtureRandom()
-	err := b.Verify()
+	err := b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Asks.SortAsks()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = b.Validate()
+	require.NoError(t, err)
 
 	b.Bids = levelsFixtureRandom()
-	err = b.Verify()
+	err = b.Validate()
 	require.ErrorIs(t, err, errPriceOutOfOrder)
 
 	b.Bids.SortBids()
-	err = b.Verify()
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = b.Validate()
+	require.NoError(t, err)
 }
 
 func levelsFixture() Levels {
@@ -438,17 +431,17 @@ func levelsFixture() Levels {
 }
 
 func TestReverse(t *testing.T) {
-	b := Book{VerifyOrderbook: true, Bids: levelsFixture()}
-	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
+	b := Book{ValidateOrderbook: true, Bids: levelsFixture()}
+	assert.ErrorIs(t, b.Validate(), errPriceOutOfOrder)
 
 	b.Bids.Reverse()
-	assert.NoError(t, b.Verify())
+	assert.NoError(t, b.Validate())
 
 	b.Asks = slices.Clone(b.Bids)
-	assert.ErrorIs(t, b.Verify(), errPriceOutOfOrder)
+	assert.ErrorIs(t, b.Validate(), errPriceOutOfOrder)
 
 	b.Asks.Reverse()
-	assert.NoError(t, b.Verify())
+	assert.NoError(t, b.Validate())
 }
 
 // 705985	      1856 ns/op	       0 B/op	       0 allocs/op
@@ -534,23 +527,23 @@ func BenchmarkSortBidsDescending(b *testing.B) {
 func TestCheckAlignment(t *testing.T) {
 	t.Parallel()
 	itemWithFunding := Levels{{Amount: 1337, Price: 0, Period: 1337}}
-	err := checkAlignment(itemWithFunding, true, true, false, false, dsc, "Bitfinex")
+	err := checkAlignment(itemWithFunding, true, true, false, false, isDsc, "Bitfinex")
 	if err != nil {
 		t.Error(err)
 	}
-	err = checkAlignment(itemWithFunding, false, true, false, false, dsc, "Bitfinex")
-	require.ErrorIs(t, err, errPriceNotSet)
+	err = checkAlignment(itemWithFunding, false, true, false, false, isDsc, "Bitfinex")
+	require.ErrorIs(t, err, ErrPriceZero)
 
-	err = checkAlignment(itemWithFunding, true, true, false, false, dsc, "Binance")
-	require.ErrorIs(t, err, errPriceNotSet)
+	err = checkAlignment(itemWithFunding, true, true, false, false, isDsc, "Binance")
+	require.ErrorIs(t, err, ErrPriceZero)
 
 	itemWithFunding[0].Price = 1337
-	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
+	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance")
 	require.ErrorIs(t, err, errChecksumStringNotSet)
 
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"
-	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
+	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance")
 	require.NoError(t, err)
 }
 

@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -124,7 +125,7 @@ type FixtureError struct {
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
-func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
+func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func(context.Context, []byte) error) {
 	tb.Helper()
 
 	for _, e := range FixtureToDataHandlerWithErrors(tb, fixturePath, reader) {
@@ -134,7 +135,7 @@ func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte)
 
 // FixtureToDataHandlerWithErrors squirts the contents of a file to a reader function (probably e.wsHandleData) and returns handler errors
 // Any errors setting up the fixture will fail tests
-func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func([]byte) error) []FixtureError {
+func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader func(context.Context, []byte) error) []FixtureError {
 	tb.Helper()
 
 	fixture, err := os.Open(fixturePath)
@@ -147,7 +148,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		if err := reader(msg); err != nil {
+		if err := reader(tb.Context(), msg); err != nil {
 			errs = append(errs, FixtureError{
 				Err: err,
 				Msg: msg,

@@ -30,8 +30,14 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
+<<<<<<< HEAD
 	b.setupOrderbookManager()
 	if err := b.populateTradablePairs(); err != nil {
+=======
+	ctx := context.Background()
+	b.setupOrderbookManager(ctx)
+	if err := b.UpdateTradablePairs(ctx, true); err != nil {
+>>>>>>> f21a18fa67af04e4858903251e3caa0725402a02
 		log.Fatal(err)
 	}
 	if mockTests {

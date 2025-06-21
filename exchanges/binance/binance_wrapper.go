@@ -674,10 +674,10 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w pair: %v", currency.ErrPairNotEnabled, p)
 	}
 	book := &orderbook.Book{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 	var orderbookNew *OrderBook
 	var orderbookPopulated bool

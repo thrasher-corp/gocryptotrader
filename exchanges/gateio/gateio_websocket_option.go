@@ -71,7 +71,7 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
+	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -95,16 +95,17 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
 // TODO: Update to use the new subscription template system
 func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+	ctx := context.TODO()
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		_, err = g.GetCredentials(context.TODO())
+		_, err = g.GetCredentials(ctx)
 		if err != nil {
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			goto getEnabledPairs
 		}
-		response, err := g.GetSubAccountBalances(context.Background(), "")
+		response, err := g.GetSubAccountBalances(ctx, "")
 		if err != nil {
 			return nil, err
 		}
@@ -533,12 +534,12 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			return err
 		}
 		base := orderbook.Book{
-			Asset:           asset.Options,
-			Exchange:        g.Name,
-			Pair:            data.Contract,
-			LastUpdated:     data.Timestamp.Time(),
-			LastPushed:      lastPushed,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+			Asset:             asset.Options,
+			Exchange:          g.Name,
+			Pair:              data.Contract,
+			LastUpdated:       data.Timestamp.Time(),
+			LastPushed:        lastPushed,
+			ValidateOrderbook: g.ValidateOrderbook,
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
@@ -585,14 +586,14 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			return err
 		}
 		err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asks:            ab[0],
-			Bids:            ab[1],
-			Asset:           asset.Options,
-			Exchange:        g.Name,
-			Pair:            currencyPair,
-			LastUpdated:     lastPushed,
-			LastPushed:      lastPushed,
-			VerifyOrderbook: g.CanVerifyOrderbook,
+			Asks:              ab[0],
+			Bids:              ab[1],
+			Asset:             asset.Options,
+			Exchange:          g.Name,
+			Pair:              currencyPair,
+			LastUpdated:       lastPushed,
+			LastPushed:        lastPushed,
+			ValidateOrderbook: g.ValidateOrderbook,
 		})
 		if err != nil {
 			return err

@@ -3322,7 +3322,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	t.Parallel()
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: OrderbookTranches{
@@ -3621,7 +3621,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(t.Context())
 	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
 	err := json.Unmarshal([]byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":"BTCUSDT","u":7145637297}`),

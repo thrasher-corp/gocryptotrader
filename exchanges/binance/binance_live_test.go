@@ -5,6 +5,7 @@
 package binance
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -40,7 +41,8 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-	b.setupOrderbookManager()
+	ctx := context.Background()
+	b.setupOrderbookManager(ctx)
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	if err := b.populateTradablePairs(); err != nil {
@@ -52,13 +54,6 @@ func TestMain(m *testing.M) {
 	if mockTests {
 		optionsTradablePair = currency.Pair{Base: currency.NewCode("ETH"), Quote: currency.NewCode("240927-3800-P"), Delimiter: currency.DashDelimiter}
 		usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	}
-	assetToTradablePairMap = map[asset.Item]currency.Pair{
-		asset.Spot:                spotTradablePair,
-		asset.Options:             optionsTradablePair,
-		asset.USDTMarginedFutures: usdtmTradablePair,
-		asset.CoinMarginedFutures: coinmTradablePair,
-		asset.Margin:              spotTradablePair,
 	}
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
