@@ -19,13 +19,13 @@ var BitMask250 = big.NewInt(0).Sub(big.NewInt(0).Exp(big.NewInt(2), big.NewInt(2
 type AllSymbolsConfigs struct {
 	SpotConfig struct {
 		Assets []struct {
-			TokenID       string `json:"tokenId"`
-			Token         string `json:"token"`
-			DisplayName   string `json:"displayName"`
-			Decimals      int64  `json:"decimals"`
-			ShowStep      string `json:"showStep"`
-			IconURL       string `json:"iconUrl"`
-			L2WithdrawFee string `json:"l2WithdrawFee"`
+			TokenID       string       `json:"tokenId"`
+			Token         string       `json:"token"`
+			DisplayName   string       `json:"displayName"`
+			Decimals      int64        `json:"decimals"`
+			ShowStep      string       `json:"showStep"`
+			IconURL       string       `json:"iconUrl"`
+			L2WithdrawFee types.Number `json:"l2WithdrawFee"`
 		} `json:"assets"`
 		Global struct {
 			DefaultRegisterTransferToken      string `json:"defaultRegisterTransferToken"`
@@ -84,9 +84,9 @@ type AllSymbolsConfigs struct {
 					FeeRate           string `json:"feeRate"`
 				} `json:"tokens"`
 			} `json:"chains"`
-			MaxWithdraw string `json:"maxWithdraw"`
-			MinDeposit  string `json:"minDeposit"`
-			MinWithdraw string `json:"minWithdraw"`
+			MaxWithdraw string       `json:"maxWithdraw"`
+			MinDeposit  types.Number `json:"minDeposit"`
+			MinWithdraw types.Number `json:"minWithdraw"`
 		} `json:"multiChain"`
 	} `json:"spotConfig"`
 	ContractConfig struct {

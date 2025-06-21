@@ -498,14 +498,6 @@ func (ap *Apexpro) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	if token == nil {
 		return "", errTokenDetailIsMissing
 	}
-	println(
-		"\n\n",
-		int(token.Decimals),
-		arg.ERC20Address,
-		strconv.FormatFloat(arg.Amount, 'f', -1, 64), token.TokenAddress,
-		"0x"+nonceFromClientID(arg.ClientID).Text(16),
-		"\n\n",
-	)
 	fact, err := GetTransferErc20Fact(int(token.Decimals),
 		arg.ERC20Address,
 		strconv.FormatFloat(arg.Amount, 'f', -1, 64), token.TokenAddress,

@@ -52,6 +52,7 @@ func generatePingMessage() ([]byte, error) {
 
 // WsConnect creates a websocket connection
 func (ap *Apexpro) WsConnect() error {
+	ctx := context.Background()
 	if !ap.Websocket.IsEnabled() || !ap.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -59,7 +60,7 @@ func (ap *Apexpro) WsConnect() error {
 	dialer.HandshakeTimeout = ap.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
-	err = ap.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = ap.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			ap.Name,
@@ -88,11 +89,12 @@ func (ap *Apexpro) WsConnect() error {
 
 // WsAuth authenticates the websocket connection
 func (ap *Apexpro) WsAuth(dialer *gws.Dialer) error {
+	ctx := context.Background()
 	creds, err := ap.GetCredentials(context.Background())
 	if err != nil {
 		return err
 	}
-	err = ap.Websocket.AuthConn.Dial(dialer, http.Header{})
+	err = ap.Websocket.AuthConn.Dial(ctx, dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -407,12 +409,12 @@ func (ap *Apexpro) processOrderbook(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	asks := make(orderbook.Tranches, len(resp.Data.Asks))
+	asks := make(orderbook.Levels, len(resp.Data.Asks))
 	for a := range resp.Data.Asks {
 		asks[a].Price = resp.Data.Asks[a][0].Float64()
 		asks[a].Amount = resp.Data.Asks[a][1].Float64()
 	}
-	bids := make(orderbook.Tranches, len(resp.Data.Bids))
+	bids := make(orderbook.Levels, len(resp.Data.Bids))
 	for b := range resp.Data.Bids {
 		bids[b].Price = resp.Data.Bids[b][0].Float64()
 		bids[b].Amount = resp.Data.Bids[b][1].Float64()
@@ -427,15 +429,15 @@ func (ap *Apexpro) processOrderbook(respRaw []byte) error {
 			Asset:      asset.Futures,
 		})
 	}
-	return ap.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Pair:            cp,
-		Asset:           asset.Spot,
-		Exchange:        ap.Name,
-		LastUpdateID:    resp.Data.UpdateID,
-		VerifyOrderbook: ap.CanVerifyOrderbook,
-		LastUpdated:     time.Now(),
-		Asks:            asks,
-		Bids:            bids,
+	return ap.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Pair:              cp,
+		Asset:             asset.Spot,
+		Exchange:          ap.Name,
+		LastUpdateID:      resp.Data.UpdateID,
+		ValidateOrderbook: ap.ValidateOrderbook,
+		LastUpdated:       time.Now(),
+		Asks:              asks,
+		Bids:              bids,
 	})
 }
 

@@ -225,7 +225,7 @@ func (ap *Apexpro) FetchTicker(ctx context.Context, p currency.Pair, assetType a
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (ap *Apexpro) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ap *Apexpro) FetchOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	ob, err := orderbook.Get(ap.Name, pair, assetType)
 	if err != nil {
 		return ap.UpdateOrderbook(ctx, pair, assetType)
@@ -234,7 +234,7 @@ func (ap *Apexpro) FetchOrderbook(ctx context.Context, pair currency.Pair, asset
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ap *Apexpro) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ap *Apexpro) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	pairFormat, err := ap.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
@@ -243,23 +243,23 @@ func (ap *Apexpro) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        ap.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: ap.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          ap.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: ap.ValidateOrderbook,
 	}
-	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
+		book.Bids[x] = orderbook.Level{
 			Amount: orderbookNew.Bids[x][1].Float64(),
 			Price:  orderbookNew.Bids[x][0].Float64(),
 		}
 	}
 
-	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
+		book.Asks[x] = orderbook.Level{
 			Amount: orderbookNew.Asks[x][1].Float64(),
 			Price:  orderbookNew.Asks[x][0].Float64(),
 		}
