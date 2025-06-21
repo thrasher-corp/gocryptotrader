@@ -348,9 +348,9 @@ type OrderbookL3 struct {
 
 // OrderbookResponse is a generalized response for order books
 type OrderbookResponse struct {
-	Sequence int64    `json:"sequence"`
-	Bids     [][3]any `json:"bids"`
-	Asks     [][3]any `json:"asks"`
+	Sequence int64             `json:"sequence"`
+	Bids     [][3]types.Number `json:"bids"`
+	Asks     [][3]types.Number `json:"asks"`
 }
 
 // FillResponse contains fill information from the exchange
@@ -444,11 +444,11 @@ type WebsocketTicker struct {
 
 // WebsocketOrderbookSnapshot defines a snapshot response
 type WebsocketOrderbookSnapshot struct {
-	ProductID string      `json:"product_id"`
-	Type      string      `json:"type"`
-	Bids      [][2]string `json:"bids"`
-	Asks      [][2]string `json:"asks"`
-	Time      time.Time   `json:"time"`
+	ProductID string            `json:"product_id"`
+	Type      string            `json:"type"`
+	Bids      [][2]types.Number `json:"bids"`
+	Asks      [][2]types.Number `json:"asks"`
+	Time      time.Time         `json:"time"`
 }
 
 // WebsocketL2Update defines an update on the L2 orderbooks

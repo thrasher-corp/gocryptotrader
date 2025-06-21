@@ -51,9 +51,8 @@ func TestRateLimit_Limit(t *testing.T) {
 				defer cancel()
 			}
 
-			if err := rl.InitiateRateLimit(ctx, tt.Limit); err != nil && !errors.Is(err, context.DeadlineExceeded) {
-				t.Fatalf("error applying rate limit: %v", err)
-			}
+			err := rl.InitiateRateLimit(ctx, tt.Limit)
+			require.Truef(t, err == nil || errors.Is(err, context.DeadlineExceeded), "InitiateRateLimit must not error: %s", err)
 		})
 	}
 }

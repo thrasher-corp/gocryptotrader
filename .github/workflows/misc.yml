@@ -44,3 +44,10 @@ jobs:
         grep -r -n --include='*_test.go' --color=always -E "errors.Is\([^,]+, nil" . || exit 0
         echo "::error::Replace errors.Is(err, nil) with testify equivalents"
         exit 1
+
+    - name: Check for !errors.Is(err, target) usage
+      run: |
+        grep -r -n --include='*_test.go' --color=always -P '!errors\.Is\(\s*[^,]+\s*,\s*[^)]+\s*\)' . || exit 0
+        echo "::error::Replace !errors.Is(err, target) with testify equivalents"
+        exit 1
+

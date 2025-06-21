@@ -75,6 +75,7 @@ var (
 	// checking
 	ref          = []string{"gocryptotrader", "cmd", "documentation"}
 	engineFolder = "engine"
+	githubToken  = os.Getenv("GITHUB_TOKEN") // Overridden by the ghtoken flag when set
 )
 
 // Contributor defines an account associated with this code base by doing
@@ -83,6 +84,12 @@ type Contributor struct {
 	Login         string `json:"login"`
 	URL           string `json:"html_url"`
 	Contributions int    `json:"contributions"`
+}
+
+// ghError defines a GitHub error response
+type ghError struct {
+	Message string `json:"message"`
+	Status  string `json:"status"`
 }
 
 // Config defines the running config to deploy documentation across a github
@@ -123,6 +130,7 @@ type Attributes struct {
 func main() {
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
 	flag.StringVar(&toolDir, "tooldir", "", "Pass in the documentation tool directory if outside tool folder")
+	flag.StringVar(&githubToken, "ghtoken", githubToken, "Github authentication token to use when fetching the contributors list")
 	flag.Parse()
 
 	wd, err := os.Getwd()
@@ -174,8 +182,7 @@ func main() {
 		}
 		contributors, err = GetContributorList(context.TODO(), config.GithubRepo, verbose)
 		if err != nil {
-			log.Fatalf("Documentation Generation Tool - GetContributorList error %s",
-				err)
+			log.Fatalf("Documentation Generation Tool - GetContributorList error: %s", err)
 		}
 
 		// Github API missing/deleted user contributors
@@ -354,12 +361,23 @@ func GetContributorList(ctx context.Context, repo string, verbose bool) ([]Contr
 	vals := url.Values{}
 	vals.Set("per_page", strconv.Itoa(defaultGithubAPIPerPageLimit))
 
+	headers := make(map[string]string)
+	if githubToken != "" {
+		headers["Authorization"] = "Bearer " + githubToken
+		fmt.Println("Using GitHub token for authentication")
+	}
+
 	for page := 1; ; page++ {
 		vals.Set("page", strconv.Itoa(page))
 
-		contents, err := common.SendHTTPRequest(ctx, http.MethodGet, common.EncodeURLValues(repo+GithubAPIEndpoint, vals), nil, nil, verbose)
+		contents, err := common.SendHTTPRequest(ctx, http.MethodGet, common.EncodeURLValues(repo+GithubAPIEndpoint, vals), headers, nil, verbose)
 		if err != nil {
 			return nil, err
+		}
+
+		var g ghError
+		if err := json.Unmarshal(contents, &g); err == nil && g.Message != "" {
+			return nil, fmt.Errorf("GitHub error message: %q Status: %s", g.Message, g.Status)
 		}
 
 		var resp []Contributor

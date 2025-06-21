@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -49,25 +51,14 @@ func TestVMLoad(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	err := testVM.Load(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, testVM.Load(testScript))
 
 	testScript = testScript[0 : len(testScript)-4]
 	testVM = manager.New()
-	err = testVM.Load(testScript)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, testVM.Load(testScript))
 
 	manager.config = configHelper(false, false, maxTestVirtualMachines)
-	err = testVM.Load(testScript)
-	if err != nil {
-		if !errors.Is(err, ErrScriptingDisabled) {
-			t.Fatal(err)
-		}
-	}
+	require.NoError(t, testVM.Load(testScript))
 }
 
 func TestVMLoad1s(t *testing.T) {
@@ -76,18 +67,10 @@ func TestVMLoad1s(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	err := testVM.Load(testScriptRunner1s)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, testVM.Load(testScriptRunner1s))
 
 	testVM.CompileAndRun()
-	err = testVM.Shutdown()
-	if err != nil {
-		if !errors.Is(err, ErrNoVMLoaded) {
-			t.Fatal(err)
-		}
-	}
+	require.NoError(t, testVM.Shutdown())
 }
 
 func TestVMLoadNegativeTimer(t *testing.T) {
@@ -96,17 +79,10 @@ func TestVMLoadNegativeTimer(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	err := testVM.Load(testScriptRunnerNegative)
-	if err != nil {
-		if !errors.Is(err, ErrNoVMLoaded) {
-			t.Fatal(err)
-		}
-	}
+	require.NoError(t, testVM.Load(testScriptRunnerNegative))
+
 	testVM.CompileAndRun()
-	err = testVM.Shutdown()
-	if err == nil {
-		t.Fatal("expect error on shutdown due to invalid VM")
-	}
+	require.Error(t, testVM.Shutdown())
 }
 
 func TestVMLoadNilVM(t *testing.T) {
@@ -115,19 +91,10 @@ func TestVMLoadNilVM(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	err := testVM.Load(testScript)
-	if err != nil {
-		if !errors.Is(err, ErrNoVMLoaded) {
-			t.Fatal(err)
-		}
-	}
+	require.NoError(t, testVM.Load(testScript))
+
 	testVM = nil
-	err = testVM.Load(testScript)
-	if err != nil {
-		if !errors.Is(err, ErrNoVMLoaded) {
-			t.Fatal(err)
-		}
-	}
+	require.ErrorIs(t, testVM.Load(testScript), ErrNoVMLoaded)
 }
 
 func TestCompileAndRunNilVM(t *testing.T) {
@@ -137,28 +104,14 @@ func TestCompileAndRunNilVM(t *testing.T) {
 	}
 	vmcount := VMSCount.Len()
 	testVM := manager.New()
-	err := testVM.Load(testScript)
-	if err != nil {
-		if !errors.Is(err, ErrNoVMLoaded) {
-			t.Fatal(err)
-		}
-	}
-	err = testVM.Load(testScript)
-	if err != nil {
-		if !errors.Is(err, ErrNoVMLoaded) {
-			t.Fatal(err)
-		}
-	}
+	require.NoError(t, testVM.Load(testScript))
+
+	require.NoError(t, testVM.Load(testScript))
 
 	testVM = nil
 	testVM.CompileAndRun()
-	err = testVM.Shutdown()
-	if err == nil {
-		t.Fatal("VM should not be running with invalid timer")
-	}
-	if VMSCount.Len() == vmcount-1 {
-		t.Fatal("expected VM count to decrease")
-	}
+	require.ErrorIs(t, testVM.Shutdown(), ErrNoVMLoaded)
+	assert.NotEqual(t, vmcount-1, VMSCount.Len(), "Expected vmcount to decrease")
 }
 
 func TestVMLoadNoFile(t *testing.T) {
@@ -167,12 +120,7 @@ func TestVMLoadNoFile(t *testing.T) {
 		started: 1,
 	}
 	testVM := manager.New()
-	err := testVM.Load("missing file")
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			t.Fatal(err)
-		}
-	}
+	assert.ErrorIs(t, testVM.Load("missing file"), os.ErrNotExist)
 }
 
 func TestVMCompile(t *testing.T) {

@@ -1,7 +1,6 @@
 package report
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -323,16 +322,14 @@ func TestEnhanceCandles(t *testing.T) {
 	tt := time.Now()
 	var d Data
 	err := d.enhanceCandles()
-	if !errors.Is(err, errNoCandles) {
-		t.Errorf("received: %v, expected: %v", err, errNoCandles)
-	}
+	assert.ErrorIs(t, err, errNoCandles)
+
 	err = d.SetKlineData(&gctkline.Item{})
 	assert.NoError(t, err)
 
 	err = d.enhanceCandles()
-	if !errors.Is(err, errStatisticsUnset) {
-		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
-	}
+	assert.ErrorIs(t, err, errStatisticsUnset)
+
 	d.Statistics = &statistics.Statistic{}
 	err = d.enhanceCandles()
 	assert.NoError(t, err)

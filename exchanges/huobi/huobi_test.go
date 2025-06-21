@@ -493,9 +493,7 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := h.GetOrderHistory(t.Context(), &getOrdersRequest)
 	require.NoError(t, err)
 
-	cp1, err := currency.NewPairFromString("ADA-USD")
-	require.NoError(t, err)
-	getOrdersRequest.Pairs = []currency.Pair{cp1}
+	getOrdersRequest.Pairs = []currency.Pair{btcusdPair}
 	getOrdersRequest.AssetType = asset.CoinMarginedFutures
 	_, err = h.GetOrderHistory(t.Context(), &getOrdersRequest)
 	require.NoError(t, err)
@@ -959,9 +957,7 @@ func TestGetCurrencies(t *testing.T) {
 
 func TestGet24HrMarketSummary(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("ethusdt")
-	require.NoError(t, err)
-	_, err = h.Get24HrMarketSummary(t.Context(), cp)
+	_, err := h.Get24HrMarketSummary(t.Context(), btcusdtPair)
 	require.NoError(t, err)
 }
 
@@ -1620,7 +1616,7 @@ func TestStringToOrderType(t *testing.T) {
 	}
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		interval kline.Interval

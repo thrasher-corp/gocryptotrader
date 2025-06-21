@@ -196,7 +196,7 @@ func (l *Lbank) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if !l.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
@@ -211,13 +211,13 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        l.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: l.CanVerifyOrderbook,
-		Asks:            make(orderbook.Tranches, len(d.Data.Asks)),
-		Bids:            make(orderbook.Tranches, len(d.Data.Bids)),
+	book := &orderbook.Book{
+		Exchange:          l.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: l.ValidateOrderbook,
+		Asks:              make(orderbook.Levels, len(d.Data.Asks)),
+		Bids:              make(orderbook.Levels, len(d.Data.Bids)),
 	}
 
 	for i := range d.Data.Asks {

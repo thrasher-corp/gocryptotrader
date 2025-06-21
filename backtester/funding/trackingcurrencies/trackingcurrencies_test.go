@@ -1,7 +1,6 @@
 package trackingcurrencies
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,20 +21,14 @@ func TestCreateUSDTrackingPairs(t *testing.T) {
 	t.Parallel()
 
 	_, err := CreateUSDTrackingPairs(nil, nil)
-	if !errors.Is(err, errNilPairsReceived) {
-		t.Errorf("received '%v' expected '%v'", err, errNilPairsReceived)
-	}
+	assert.ErrorIs(t, err, errNilPairsReceived)
 
 	_, err = CreateUSDTrackingPairs([]TrackingPair{{}}, nil)
-	if !errors.Is(err, errExchangeManagerRequired) {
-		t.Errorf("received '%v' expected '%v'", err, errExchangeManagerRequired)
-	}
+	assert.ErrorIs(t, err, errExchangeManagerRequired)
 
 	em := engine.NewExchangeManager()
 	_, err = CreateUSDTrackingPairs([]TrackingPair{{Exchange: eName}}, em)
-	if !errors.Is(err, engine.ErrExchangeNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, engine.ErrExchangeNotFound)
-	}
+	assert.ErrorIs(t, err, engine.ErrExchangeNotFound)
 
 	s1 := TrackingPair{
 		Exchange: eName,
@@ -142,9 +135,8 @@ func TestFindMatchingUSDPairs(t *testing.T) {
 		t.Run(tt.description, func(t *testing.T) {
 			t.Parallel()
 			basePair, quotePair, err := findMatchingUSDPairs(tt.initialPair, tt.availablePairs)
-			if !errors.Is(err, tt.expectedErr) {
-				t.Fatalf("'%v' received '%v' expected '%v'", tt.description, err, tt.expectedErr)
-			}
+			require.ErrorIs(t, err, tt.expectedErr)
+
 			if basePair != tt.basePair {
 				t.Fatalf("'%v' received '%v' expected '%v'", tt.description, basePair, tt.basePair)
 			}

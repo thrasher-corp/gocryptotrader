@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -79,11 +80,12 @@ var subscriptionNames = map[string]string{
 
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
+	ctx := context.TODO()
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := by.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -94,9 +96,9 @@ func (by *Bybit) WsConnect() error {
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Spot, by.Websocket.Conn)
+	go by.wsReadData(ctx, asset.Spot, by.Websocket.Conn)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = by.WsAuth(context.TODO())
+		err = by.WsAuth(ctx)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -107,9 +109,13 @@ func (by *Bybit) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
-	var dialer gws.Dialer
-	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	creds, err := by.GetCredentials(ctx)
 	if err != nil {
+		return err
+	}
+
+	var dialer gws.Dialer
+	if err := by.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 
@@ -120,11 +126,8 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Spot, by.Websocket.AuthConn)
-	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
+	go by.wsReadData(ctx, asset.Spot, by.Websocket.AuthConn)
+
 	intNonce := time.Now().Add(time.Hour * 6).UnixMilli()
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac, err := crypto.GetHMAC(
@@ -135,13 +138,13 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	sign := crypto.HexEncodeToString(hmac)
+	sign := hex.EncodeToString(hmac)
 	req := Authenticate{
 		RequestID: strconv.FormatInt(by.Websocket.AuthConn.GenerateMessageID(false), 10),
 		Operation: "auth",
 		Args:      []any{creds.Key, intNonce, sign},
 	}
-	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.RequestID, req)
+	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -158,7 +161,8 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (by *Bybit) Subscribe(channelsToSubscribe subscription.List) error {
-	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
+	ctx := context.TODO()
+	return by.handleSpotSubscription(ctx, "subscribe", channelsToSubscribe)
 }
 
 func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
@@ -184,10 +188,11 @@ func (by *Bybit) handleSubscriptions(operation string, subs subscription.List) (
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return by.handleSpotSubscription("unsubscribe", channelsToUnsubscribe)
+	ctx := context.TODO()
+	return by.handleSpotSubscription(ctx, "unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe subscription.List) error {
+func (by *Bybit) handleSpotSubscription(ctx context.Context, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := by.handleSubscriptions(operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -195,12 +200,12 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe su
 	for a := range payloads {
 		var response []byte
 		if payloads[a].auth {
-			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[a].RequestID, payloads[a])
+			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
 		} else {
-			response, err = by.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.Unset, payloads[a].RequestID, payloads[a])
+			response, err = by.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
@@ -250,7 +255,7 @@ func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (by *Bybit) wsReadData(assetType asset.Item, ws websocket.Connection) {
+func (by *Bybit) wsReadData(ctx context.Context, assetType asset.Item, ws websocket.Connection) {
 	defer by.Websocket.Wg.Done()
 	for {
 		select {
@@ -261,7 +266,7 @@ func (by *Bybit) wsReadData(assetType asset.Item, ws websocket.Connection) {
 			if resp.Raw == nil {
 				return
 			}
-			err := by.wsHandleData(assetType, resp.Raw)
+			err := by.wsHandleData(ctx, assetType, resp.Raw)
 			if err != nil {
 				by.Websocket.DataHandler <- err
 			}
@@ -269,7 +274,7 @@ func (by *Bybit) wsReadData(assetType asset.Item, ws websocket.Connection) {
 	}
 }
 
-func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
+func (by *Bybit) wsHandleData(ctx context.Context, assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -320,7 +325,7 @@ func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 	case chanOrder:
 		return by.wsProcessOrder(asset.Spot, &result)
 	case chanWallet:
-		return by.wsProcessWalletPushData(asset.Spot, respRaw)
+		return by.wsProcessWalletPushData(ctx, asset.Spot, respRaw)
 	case chanGreeks:
 		return by.wsProcessGreeks(respRaw)
 	case chanDCP:
@@ -339,13 +344,13 @@ func (by *Bybit) wsProcessGreeks(resp []byte) error {
 	return nil
 }
 
-func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) error {
+func (by *Bybit) wsProcessWalletPushData(ctx context.Context, assetType asset.Item, resp []byte) error {
 	var result WebsocketWallet
 	err := json.Unmarshal(resp, &result)
 	if err != nil {
 		return err
 	}
-	creds, err := by.GetCredentials(context.TODO())
+	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -694,59 +699,48 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 
 func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsOrderbookDetail
-	err := json.Unmarshal(resp.Data, &result)
-	if err != nil {
+	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
 	}
+	if len(result.Bids) == 0 && len(result.Asks) == 0 {
+		return nil
+	}
+
 	cp, err := by.MatchSymbolWithAvailablePairs(result.Symbol, assetType, hasPotentialDelimiter(assetType))
 	if err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(result.Asks))
+	asks := make([]orderbook.Level, len(result.Asks))
 	for i := range result.Asks {
-		asks[i].Price, err = strconv.ParseFloat(result.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		asks[i].Amount, err = strconv.ParseFloat(result.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
+		asks[i].Price = result.Asks[i][0].Float64()
+		asks[i].Amount = result.Asks[i][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(result.Bids))
+	bids := make([]orderbook.Level, len(result.Bids))
 	for i := range result.Bids {
-		bids[i].Price, err = strconv.ParseFloat(result.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		bids[i].Amount, err = strconv.ParseFloat(result.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
+		bids[i].Price = result.Bids[i][0].Float64()
+		bids[i].Amount = result.Bids[i][1].Float64()
 	}
-	if len(asks) == 0 && len(bids) == 0 {
-		return nil
-	}
+
 	if resp.Type == "snapshot" {
-		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:           cp,
-			Exchange:       by.Name,
-			Asset:          assetType,
-			LastUpdated:    resp.OrderbookLastUpdated.Time(),
-			LastUpdateID:   result.UpdateID,
-			UpdatePushedAt: resp.PushTimestamp.Time(),
-			Asks:           asks,
-			Bids:           bids,
+		return by.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Pair:         cp,
+			Exchange:     by.Name,
+			Asset:        assetType,
+			LastUpdated:  resp.OrderbookLastUpdated.Time(),
+			LastUpdateID: result.UpdateID,
+			LastPushed:   resp.PushTimestamp.Time(),
+			Asks:         asks,
+			Bids:         bids,
 		})
 	}
 	return by.Websocket.Orderbook.Update(&orderbook.Update{
-		Pair:           cp,
-		Asks:           asks,
-		Bids:           bids,
-		Asset:          assetType,
-		UpdateID:       result.UpdateID,
-		UpdateTime:     resp.OrderbookLastUpdated.Time(),
-		UpdatePushedAt: resp.PushTimestamp.Time(),
+		Pair:       cp,
+		Asks:       asks,
+		Bids:       bids,
+		Asset:      assetType,
+		UpdateID:   result.UpdateID,
+		UpdateTime: resp.OrderbookLastUpdated.Time(),
+		LastPushed: resp.PushTimestamp.Time(),
 	})
 }
 

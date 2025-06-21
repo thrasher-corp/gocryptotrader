@@ -1,7 +1,6 @@
 package gct
 
 import (
-	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -42,9 +41,8 @@ var (
 		Value: "",
 	}
 
-	tv            = objects.TrueValue
-	fv            = objects.FalseValue
-	errTestFailed = errors.New("test failed")
+	tv = objects.TrueValue
+	fv = objects.FalseValue
 )
 
 func TestMain(m *testing.M) {
@@ -55,37 +53,19 @@ func TestMain(m *testing.M) {
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeOrderbook(ctx, exch, currencyPair, delimiter, assetType)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = ExchangeOrderbook(exchError, currencyPair, delimiter, assetType)
-	if err != nil && errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderbook()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangeTicker(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeTicker(ctx, exch, currencyPair, delimiter, assetType)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = ExchangeTicker(exchError, currencyPair, delimiter, assetType)
-	if err != nil && errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeTicker()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangeExchanges(t *testing.T) {
@@ -107,74 +87,52 @@ func TestExchangeExchanges(t *testing.T) {
 	}
 
 	_, err = ExchangeExchanges()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestExchangePairs(t *testing.T) {
 	t.Parallel()
 
 	_, err := ExchangePairs(exch, tv, assetType)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangePairs(exchError, tv, assetType)
-	if err != nil && errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangePairs()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
 func TestAccountInfo(t *testing.T) {
 	t.Parallel()
 
 	_, err := ExchangeAccountInfo()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = ExchangeAccountInfo(ctx, exch, assetType)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeAccountInfo(ctx, exchError, assetType)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestExchangeOrderQuery(t *testing.T) {
 	t.Parallel()
 
 	_, err := ExchangeOrderQuery()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = ExchangeOrderQuery(ctx, exch, orderID)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderQuery(ctx, exchError, orderID)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestExchangeOrderCancel(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeOrderCancel()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = ExchangeOrderCancel(blank, orderID, currencyPair, assetType)
 	if err == nil {
@@ -205,9 +163,7 @@ func TestExchangeOrderCancel(t *testing.T) {
 func TestExchangeOrderSubmit(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeOrderSubmit()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	orderSide := &objects.String{Value: "ASK"}
 	orderType := &objects.String{Value: "LIMIT"}
@@ -217,21 +173,15 @@ func TestExchangeOrderSubmit(t *testing.T) {
 
 	_, err = ExchangeOrderSubmit(ctx, exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderSubmit(ctx, exch, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 
 	_, err = ExchangeOrderSubmit(ctx, objects.TrueValue, currencyPair, delimiter,
 		orderType, orderSide, orderPrice, orderAmount, orderID, orderAsset)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestAllModuleNames(t *testing.T) {
@@ -246,9 +196,7 @@ func TestAllModuleNames(t *testing.T) {
 func TestExchangeDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeDepositAddress()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	currCode := &objects.String{Value: "BTC"}
 	chain := &objects.String{Value: ""}
@@ -258,17 +206,13 @@ func TestExchangeDepositAddress(t *testing.T) {
 	}
 
 	_, err = ExchangeDepositAddress(exchError, currCode, chain)
-	if err != nil && !errors.Is(err, errTestFailed) {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestExchangeWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeWithdrawCrypto()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	currCode := &objects.String{Value: "BTC"}
 	desc := &objects.String{Value: "HELLO"}
@@ -284,9 +228,7 @@ func TestExchangeWithdrawCrypto(t *testing.T) {
 func TestExchangeWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	_, err := ExchangeWithdrawFiat()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	currCode := &objects.String{Value: "AUD"}
 	desc := &objects.String{Value: "Hello"}
@@ -339,14 +281,10 @@ func TestParseInterval(t *testing.T) {
 func TestSetVerbose(t *testing.T) {
 	t.Parallel()
 	_, err := setVerbose()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, objects.ErrWrongNumArguments)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = setVerbose(objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	resp, err := setVerbose(&Context{})
 	require.NoError(t, err)
@@ -367,44 +305,28 @@ var dummyStr = &objects.String{Value: "xxxx"}
 func TestSetAccount(t *testing.T) {
 	t.Parallel()
 	_, err := setAccount()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, objects.ErrWrongNumArguments)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = setAccount(objects.TrueValue, objects.TrueValue, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setAccount(&Context{}, objects.TrueValue, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setAccount(&Context{}, dummyStr, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setAccount(&Context{}, dummyStr, dummyStr, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setAccount(&Context{}, dummyStr, dummyStr, dummyStr, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	resp, err := setAccount(&Context{}, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr, dummyStr)
 	require.NoError(t, err)
@@ -443,19 +365,13 @@ func TestSetAccount(t *testing.T) {
 func TestSetSubAccount(t *testing.T) {
 	t.Parallel()
 	_, err := setSubAccount()
-	if !errors.Is(err, objects.ErrWrongNumArguments) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, objects.ErrWrongNumArguments)
-	}
+	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
 
 	_, err = setSubAccount(objects.TrueValue, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	_, err = setSubAccount(&Context{}, objects.TrueValue)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	subby, err := setSubAccount(&Context{}, dummyStr)
 	require.NoError(t, err)

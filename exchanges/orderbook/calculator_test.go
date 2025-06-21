@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"math"
 	"strings"
 	"testing"
@@ -11,18 +10,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-func testSetup() Base {
-	return Base{
+func testSetup() Book {
+	return Book{
 		Exchange: "a",
 		Pair:     currency.NewBTCUSD(),
-		Asks: []Tranche{
-			{Price: 7000, Amount: 1},
-			{Price: 7001, Amount: 2},
-		},
-		Bids: []Tranche{
-			{Price: 6999, Amount: 1},
-			{Price: 6998, Amount: 2},
-		},
+		Asks:     []Level{{Price: 7000, Amount: 1}, {Price: 7001, Amount: 2}},
+		Bids:     []Level{{Price: 6999, Amount: 1}, {Price: 6998, Amount: 2}},
 	}
 }
 
@@ -31,9 +24,7 @@ func TestWhaleBomb(t *testing.T) {
 	b := testSetup()
 
 	_, err := b.WhaleBomb(-1, true)
-	if !errors.Is(err, errPriceTargetInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceTargetInvalid)
-	}
+	require.ErrorIs(t, err, errPriceTargetInvalid)
 
 	result, err := b.WhaleBomb(7001, true) // <- This price should not be wiped out on the book.
 	require.NoError(t, err)
@@ -54,7 +45,7 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, 0.014285714285714287)
 	}
 
-	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask tranche
+	result, err = b.WhaleBomb(7000.5, true) // <- Slot between prices will lift to next ask level
 	assert.NoError(t, err)
 
 	if result.Amount != 7000 {
@@ -100,14 +91,10 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	_, err = b.WhaleBomb(6000, true)
-	if !errors.Is(err, errCannotShiftPrice) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotShiftPrice)
-	}
+	require.ErrorIs(t, err, errCannotShiftPrice)
 
 	_, err = b.WhaleBomb(-1, false)
-	if !errors.Is(err, errPriceTargetInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errPriceTargetInvalid)
-	}
+	require.ErrorIs(t, err, errPriceTargetInvalid)
 
 	result, err = b.WhaleBomb(6998, false) // <- This price should not be wiped out on the book.
 	require.NoError(t, err)
@@ -128,7 +115,7 @@ func TestWhaleBomb(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.PercentageGainOrLoss, -0.014287755393627661)
 	}
 
-	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid tranche
+	result, err = b.WhaleBomb(6998.5, false) // <- Slot between prices will drop to next bid level
 	assert.NoError(t, err)
 
 	if result.Amount != 1 {
@@ -174,9 +161,7 @@ func TestWhaleBomb(t *testing.T) {
 	}
 
 	_, err = b.WhaleBomb(7500, false)
-	if !errors.Is(err, errCannotShiftPrice) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCannotShiftPrice)
-	}
+	require.ErrorIs(t, err, errCannotShiftPrice)
 }
 
 func TestSimulateOrder(t *testing.T) {
@@ -185,14 +170,10 @@ func TestSimulateOrder(t *testing.T) {
 
 	// Invalid
 	_, err := b.SimulateOrder(-8000, true)
-	if !errors.Is(err, errQuoteAmountInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errQuoteAmountInvalid)
-	}
+	require.ErrorIs(t, err, errQuoteAmountInvalid)
 
-	_, err = (&Base{}).SimulateOrder(1337, true)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	_, err = (&Book{}).SimulateOrder(1337, true)
+	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
 	result, err := b.SimulateOrder(21002, true)
@@ -242,7 +223,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
 	}
 
-	// First tranche
+	// First level
 	result, err = b.SimulateOrder(7000, true)
 	require.NoError(t, err)
 
@@ -254,7 +235,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 7000)
 	}
 
-	if result.MaximumPrice != 7001 { // A full tranche is wiped out and this one should be preserved.
+	if result.MaximumPrice != 7001 { // A full level is wiped out and this one should be preserved.
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 7001)
 	}
 
@@ -294,7 +275,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
 	}
 
-	// Half of second tranche
+	// Half of second level
 	result, err = b.SimulateOrder(14001, true)
 	require.NoError(t, err)
 
@@ -326,15 +307,11 @@ func TestSimulateOrder(t *testing.T) {
 
 	// Invalid
 
-	_, err = (&Base{}).SimulateOrder(-1, false)
-	if !errors.Is(err, errBaseAmountInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBaseAmountInvalid)
-	}
+	_, err = (&Book{}).SimulateOrder(-1, false)
+	require.ErrorIs(t, err, errBaseAmountInvalid)
 
-	_, err = (&Base{}).SimulateOrder(2, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	_, err = (&Book{}).SimulateOrder(2, false)
+	require.ErrorIs(t, err, errNoLiquidity)
 
 	// Full liquidity used
 	result, err = b.SimulateOrder(3, false)
@@ -384,7 +361,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", len(result.Orders), 2)
 	}
 
-	// First tranche
+	// First level
 	result, err = b.SimulateOrder(1, false)
 	require.NoError(t, err)
 
@@ -396,7 +373,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.MaximumPrice, 6999)
 	}
 
-	if result.MinimumPrice != 6998 { // A full tranche is wiped out and this one should be preserved.
+	if result.MinimumPrice != 6998 { // A full level is wiped out and this one should be preserved.
 		t.Fatalf("received: '%v' but expected: '%v'", result.MinimumPrice, 6998)
 	}
 
@@ -436,7 +413,7 @@ func TestSimulateOrder(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", result.Orders[0].Amount, 0.5)
 	}
 
-	// Half of second tranche
+	// Half of second level
 	result, err = b.SimulateOrder(2, false)
 	require.NoError(t, err)
 
@@ -466,52 +443,38 @@ func TestSimulateOrder(t *testing.T) {
 }
 
 func TestGetAveragePrice(t *testing.T) {
-	var b Base
-	b.Exchange = "Binance"
-	cp, err := currency.NewPairFromString("ETH-USDT")
-	if err != nil {
-		t.Error(err)
+	b := Book{
+		Exchange: "Binance",
+		Pair:     currency.NewBTCUSD(),
 	}
-	b.Pair = cp
-	b.Bids = []Tranche{}
-	_, err = b.GetAveragePrice(false, 5)
-	if errors.Is(errNotEnoughLiquidity, err) {
-		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
-	}
-	b = Base{}
-	b.Pair = cp
-	b.Asks = []Tranche{
-		{Amount: 5, Price: 1},
-		{Amount: 5, Price: 2},
-		{Amount: 5, Price: 3},
-		{Amount: 5, Price: 4},
+	_, err := b.GetAveragePrice(false, 5)
+	assert.ErrorIs(t, err, errNotEnoughLiquidity)
+
+	b = Book{
+		Asks: []Level{
+			{Amount: 5, Price: 1},
+			{Amount: 5, Price: 2},
+			{Amount: 5, Price: 3},
+			{Amount: 5, Price: 4},
+		},
 	}
 	_, err = b.GetAveragePrice(true, -2)
-	if !errors.Is(err, errAmountInvalid) {
-		t.Errorf("expected: %v, received %v", errAmountInvalid, err)
-	}
+	assert.ErrorIs(t, err, errAmountInvalid)
+
 	avgPrice, err := b.GetAveragePrice(true, 15)
-	if err != nil {
-		t.Error(err)
-	}
-	if avgPrice != 2 {
-		t.Errorf("avg price calculation failed: expected 2, received %f", avgPrice)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 2.0, avgPrice)
+
 	avgPrice, err = b.GetAveragePrice(true, 18)
-	if err != nil {
-		t.Error(err)
-	}
-	if math.Round(avgPrice*1000)/1000 != 2.333 {
-		t.Errorf("avg price calculation failed: expected 2.333, received %f", math.Round(avgPrice*1000)/1000)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 2.333, math.Round(avgPrice*1000)/1000)
+
 	_, err = b.GetAveragePrice(true, 25)
-	if !errors.Is(err, errNotEnoughLiquidity) {
-		t.Errorf("expected: %v, received %v", errNotEnoughLiquidity, err)
-	}
+	assert.ErrorIs(t, err, errNotEnoughLiquidity)
 }
 
 func TestFindNominalAmount(t *testing.T) {
-	b := Tranches{
+	b := Levels{
 		{Amount: 5, Price: 1},
 		{Amount: 5, Price: 2},
 		{Amount: 5, Price: 3},
@@ -521,7 +484,7 @@ func TestFindNominalAmount(t *testing.T) {
 	if nomAmt != 30 && remainingAmt != 0 {
 		t.Errorf("invalid return")
 	}
-	b = Tranches{}
+	b = Levels{}
 	nomAmt, remainingAmt = b.FindNominalAmount(15)
 	if nomAmt != 0 && remainingAmt != 30 {
 		t.Errorf("invalid return")

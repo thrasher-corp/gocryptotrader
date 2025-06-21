@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,30 +73,26 @@ func TestValidateDate(t *testing.T) {
 		DatabaseData: &DatabaseData{},
 	}
 	err = c.validateDate()
-	if !errors.Is(err, gctcommon.ErrDateUnset) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
+
 	c.DataSettings.DatabaseData.StartDate = time.Now()
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrStartEqualsEnd)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrStartEqualsEnd)
+
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
 	assert.NoError(t, err)
 
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
-	if !errors.Is(err, gctcommon.ErrDateUnset) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrDateUnset)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
+
 	c.DataSettings.APIData.StartDate = time.Now()
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate
 	err = c.validateDate()
-	if !errors.Is(err, gctcommon.ErrStartEqualsEnd) {
-		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrStartEqualsEnd)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrStartEqualsEnd)
+
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
 	assert.NoError(t, err)
@@ -107,102 +102,79 @@ func TestValidateCurrencySettings(t *testing.T) {
 	t.Parallel()
 	c := Config{}
 	err := c.validateCurrencySettings()
-	if !errors.Is(err, errNoCurrencySettings) {
-		t.Errorf("received: %v, expected: %v", err, errNoCurrencySettings)
-	}
+	assert.ErrorIs(t, err, errNoCurrencySettings)
+
 	c.CurrencySettings = append(c.CurrencySettings, CurrencySettings{})
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errUnsetCurrency) {
-		t.Errorf("received: %v, expected: %v", err, errUnsetCurrency)
-	}
+	assert.ErrorIs(t, err, errUnsetCurrency)
+
 	leet := decimal.NewFromInt(1337)
 	c.CurrencySettings[0].SpotDetails = &SpotDetails{InitialQuoteFunds: &leet}
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errUnsetCurrency) {
-		t.Errorf("received: %v, expected: %v", err, errUnsetCurrency)
-	}
+	assert.ErrorIs(t, err, errUnsetCurrency)
+
 	c.CurrencySettings[0].Base = currency.NewCode("lol")
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received: %v, expected: %v", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
 	c.CurrencySettings[0].Asset = asset.Spot
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errUnsetExchange) {
-		t.Errorf("received: %v, expected: %v", err, errUnsetExchange)
-	}
+	assert.ErrorIs(t, err, errUnsetExchange)
+
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
 	assert.NoError(t, err)
 
 	c.CurrencySettings[0].Asset = asset.PerpetualSwap
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errPerpetualsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
-	}
+	assert.ErrorIs(t, err, errPerpetualsUnsupported)
 
 	c.CurrencySettings[0].Asset = asset.USDTMarginedFutures
 	c.CurrencySettings[0].Quote = currency.NewCode("PERP")
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errPerpetualsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
-	}
+	assert.ErrorIs(t, err, errPerpetualsUnsupported)
 
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(3)
 	c.CurrencySettings[0].Quote = currency.NewCode("USD")
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errFeatureIncompatible) {
-		t.Errorf("received: %v, expected: %v", err, errFeatureIncompatible)
-	}
+	assert.ErrorIs(t, err, errFeatureIncompatible)
 
 	c.CurrencySettings[0].Asset = asset.Spot
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
+	assert.ErrorIs(t, err, errBadSlippageRates)
+
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
+	assert.ErrorIs(t, err, errBadSlippageRates)
+
 	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
 	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadSlippageRates) {
-		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
-	}
+	assert.ErrorIs(t, err, errBadSlippageRates)
 
 	c.CurrencySettings[0].SpotDetails = &SpotDetails{}
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
+	assert.ErrorIs(t, err, errBadInitialFunds)
 
 	z := decimal.Zero
 	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
 	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &z
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
+	assert.ErrorIs(t, err, errBadInitialFunds)
 
 	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &leet
 	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
+	assert.ErrorIs(t, err, errBadInitialFunds)
 
 	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
 	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &leet
 	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateCurrencySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
-	}
+	assert.ErrorIs(t, err, errBadInitialFunds)
 }
 
 func TestValidateMinMaxes(t *testing.T) {
@@ -219,9 +191,8 @@ func TestValidateMinMaxes(t *testing.T) {
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errSizeLessThanZero) {
-		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
-	}
+	assert.ErrorIs(t, err, errSizeLessThanZero)
+
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
@@ -230,9 +201,8 @@ func TestValidateMinMaxes(t *testing.T) {
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errSizeLessThanZero) {
-		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
-	}
+	assert.ErrorIs(t, err, errSizeLessThanZero)
+
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
@@ -241,9 +211,7 @@ func TestValidateMinMaxes(t *testing.T) {
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errSizeLessThanZero) {
-		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
-	}
+	assert.ErrorIs(t, err, errSizeLessThanZero)
 
 	c.CurrencySettings = []CurrencySettings{
 		{
@@ -255,9 +223,7 @@ func TestValidateMinMaxes(t *testing.T) {
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errMaxSizeMinSizeMismatch) {
-		t.Errorf("received %v expected %v", err, errMaxSizeMinSizeMismatch)
-	}
+	assert.ErrorIs(t, err, errMaxSizeMinSizeMismatch)
 
 	c.CurrencySettings = []CurrencySettings{
 		{
@@ -268,9 +234,7 @@ func TestValidateMinMaxes(t *testing.T) {
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errMinMaxEqual) {
-		t.Errorf("received %v expected %v", err, errMinMaxEqual)
-	}
+	assert.ErrorIs(t, err, errMinMaxEqual)
 
 	c.CurrencySettings = []CurrencySettings{
 		{
@@ -287,27 +251,23 @@ func TestValidateMinMaxes(t *testing.T) {
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errSizeLessThanZero) {
-		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
-	}
+	assert.ErrorIs(t, err, errSizeLessThanZero)
+
 	c.PortfolioSettings = PortfolioSettings{
 		SellSide: MinMax{
 			MinimumSize: decimal.NewFromInt(-1),
 		},
 	}
 	err = c.validateMinMaxes()
-	if !errors.Is(err, errSizeLessThanZero) {
-		t.Errorf("received %v expected %v", err, errSizeLessThanZero)
-	}
+	assert.ErrorIs(t, err, errSizeLessThanZero)
 }
 
 func TestValidateStrategySettings(t *testing.T) {
 	t.Parallel()
 	c := &Config{}
 	err := c.validateStrategySettings()
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received %v expected %v", err, base.ErrStrategyNotFound)
-	}
+	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
+
 	c.StrategySettings = StrategySettings{Name: dca}
 	err = c.validateStrategySettings()
 	assert.NoError(t, err)
@@ -319,30 +279,23 @@ func TestValidateStrategySettings(t *testing.T) {
 	c.FundingSettings = FundingSettings{}
 	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateStrategySettings()
-	if !errors.Is(err, errExchangeLevelFundingDataRequired) {
-		t.Errorf("received %v expected %v", err, errExchangeLevelFundingDataRequired)
-	}
+	assert.ErrorIs(t, err, errExchangeLevelFundingDataRequired)
+
 	c.FundingSettings.ExchangeLevelFunding = []ExchangeLevelFunding{
 		{
 			InitialFunds: decimal.NewFromInt(-1),
 		},
 	}
 	err = c.validateStrategySettings()
-	if !errors.Is(err, errBadInitialFunds) {
-		t.Errorf("received %v expected %v", err, errBadInitialFunds)
-	}
+	assert.ErrorIs(t, err, errBadInitialFunds)
 
 	c.StrategySettings.SimultaneousSignalProcessing = false
 	err = c.validateStrategySettings()
-	if !errors.Is(err, errSimultaneousProcessingRequired) {
-		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
-	}
+	assert.ErrorIs(t, err, errSimultaneousProcessingRequired)
 
 	c.FundingSettings.UseExchangeLevelFunding = false
 	err = c.validateStrategySettings()
-	if !errors.Is(err, errExchangeLevelFundingRequired) {
-		t.Errorf("received %v expected %v", err, errExchangeLevelFundingRequired)
-	}
+	assert.ErrorIs(t, err, errExchangeLevelFundingRequired)
 }
 
 func TestPrintSettings(t *testing.T) {
@@ -435,9 +388,7 @@ func TestValidate(t *testing.T) {
 
 	c = nil
 	err = c.Validate()
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
 func TestReadStrategyConfigFromFile(t *testing.T) {
@@ -456,9 +407,7 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = ReadStrategyConfigFromFile("test")
-	if !errors.Is(err, common.ErrFileNotFound) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrFileNotFound)
-	}
+	assert.ErrorIs(t, err, common.ErrFileNotFound)
 }
 
 func TestGenerateConfigForDCAAPICandles(t *testing.T) {

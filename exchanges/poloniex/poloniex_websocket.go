@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -55,16 +56,17 @@ var (
 
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
+	ctx := context.TODO()
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	err = p.loadCurrencyDetails(context.TODO())
+	err = p.loadCurrencyDetails(ctx)
 	if err != nil {
 		return err
 	}
@@ -434,8 +436,8 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 			errTypeAssertionFailure)
 	}
 
-	var book orderbook.Base
-	book.Asks = make(orderbook.Tranches, 0, len(askData))
+	var book orderbook.Book
+	book.Asks = make(orderbook.Levels, 0, len(askData))
 	for price, volume := range askData {
 		var p float64
 		p, err = strconv.ParseFloat(price, 64)
@@ -452,10 +454,10 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 		if err != nil {
 			return err
 		}
-		book.Asks = append(book.Asks, orderbook.Tranche{Price: p, Amount: a})
+		book.Asks = append(book.Asks, orderbook.Level{Price: p, Amount: a})
 	}
 
-	book.Bids = make(orderbook.Tranches, 0, len(bidData))
+	book.Bids = make(orderbook.Levels, 0, len(bidData))
 	for price, volume := range bidData {
 		var p float64
 		p, err = strconv.ParseFloat(price, 64)
@@ -472,14 +474,14 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 		if err != nil {
 			return err
 		}
-		book.Bids = append(book.Bids, orderbook.Tranche{Price: p, Amount: a})
+		book.Bids = append(book.Bids, orderbook.Level{Price: p, Amount: a})
 	}
 
 	// Both sides are completely out of order - sort needs to be used
 	book.Asks.SortAsks()
 	book.Bids.SortBids()
 	book.Asset = asset.Spot
-	book.VerifyOrderbook = p.CanVerifyOrderbook
+	book.ValidateOrderbook = p.ValidateOrderbook
 	book.LastUpdated = time.UnixMilli(tsMilli)
 	book.Pair, err = currency.NewPairFromString(pair)
 	if err != nil {
@@ -534,9 +536,9 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []any, 
 		UpdateTime: time.UnixMilli(tsMilli),
 	}
 	if bs == 1 {
-		update.Bids = []orderbook.Tranche{{Price: price, Amount: volume}}
+		update.Bids = []orderbook.Level{{Price: price, Amount: volume}}
 	} else {
-		update.Asks = []orderbook.Tranche{{Price: price, Amount: volume}}
+		update.Asks = []orderbook.Level{{Price: price, Amount: volume}}
 	}
 	return p.Websocket.Orderbook.Update(update)
 }
@@ -572,19 +574,21 @@ func (p *Poloniex) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(subs subscription.List) error {
-	return p.manageSubs(subs, wsSubscribeOp)
+	ctx := context.TODO()
+	return p.manageSubs(ctx, subs, wsSubscribeOp)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(subs subscription.List) error {
-	return p.manageSubs(subs, wsUnsubscribeOp)
+	ctx := context.TODO()
+	return p.manageSubs(ctx, subs, wsUnsubscribeOp)
 }
 
-func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
+func (p *Poloniex) manageSubs(ctx context.Context, subs subscription.List, op wsOp) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
-		creds, err = p.GetCredentials(context.TODO())
+		creds, err = p.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -594,7 +598,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 	for _, s := range subs {
 		var err error
 		if creds != nil && strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), s.Channel) {
-			err = p.wsSendAuthorisedCommand(creds.Secret, creds.Key, op)
+			err = p.wsSendAuthorisedCommand(ctx, creds.Secret, creds.Key, op)
 		} else {
 			req := wsCommand{Command: op}
 			if strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), s.Channel) {
@@ -605,7 +609,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 				}
 				req.Channel = s.Pairs[0].String()
 			}
-			err = p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+			err = p.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 		}
 		if err == nil {
 			if op == wsSubscribeOp {
@@ -621,22 +625,20 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 	return errs
 }
 
-func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
+func (p *Poloniex) wsSendAuthorisedCommand(ctx context.Context, secret, key string, op wsOp) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
-	hmac, err := crypto.GetHMAC(crypto.HashSHA512,
-		[]byte(nonce),
-		[]byte(secret))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512, []byte(nonce), []byte(secret))
 	if err != nil {
 		return err
 	}
 	req := wsAuthorisationRequest{
 		Command: op,
 		Channel: 1000,
-		Sign:    crypto.HexEncodeToString(hmac),
+		Sign:    hex.EncodeToString(hmac),
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	return p.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []any) error {

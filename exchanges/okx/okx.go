@@ -3,6 +3,7 @@ package okx
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -461,7 +462,7 @@ func (ok *Okx) PlaceTakeProfitStopLossOrder(ctx context.Context, arg *AlgoOrderP
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.OrderType != "conditional" {
+	if arg.OrderType != orderConditional {
 		return nil, fmt.Errorf("%w for TPSL: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.StopLossTriggerPrice <= 0 {
@@ -480,7 +481,7 @@ func (ok *Okx) PlaceChaseAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.OrderType != "chase" {
+	if arg.OrderType != orderChase {
 		return nil, fmt.Errorf("%w: order type value 'chase' is only supported for chase orders", order.ErrTypeIsInvalid)
 	}
 	if (arg.MaxChaseType == "" || arg.MaxChaseValue == 0) &&
@@ -495,7 +496,7 @@ func (ok *Okx) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderParams) 
 	if *arg == (AlgoOrderParams{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.OrderType != "trigger" {
+	if arg.OrderType != orderTrigger {
 		return nil, fmt.Errorf("%w for Trigger: %q", order.ErrTypeIsInvalid, arg.OrderType)
 	}
 	if arg.TriggerPrice <= 0 {
@@ -5878,7 +5879,7 @@ URL arguments must be encoded in the request path
 result must be a pointer
 The response will be unmarshalled first into []any{result}, which matches most APIs, and fallback to directly into result
 */
-func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, authenticated request.AuthType) (err error) {
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
 	endpoint, err := ok.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -5888,42 +5889,38 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		Msg  string          `json:"msg"`
 		Data json.RawMessage `json:"data"`
 	}
-	requestType := request.AuthType(request.UnauthenticatedRequest)
 	newRequest := func() (*request.Item, error) {
-		utcTime := time.Now().UTC().Format(time.RFC3339)
-		payload := []byte("")
-
+		var payload []byte
 		if data != nil {
 			payload, err = json.Marshal(data)
 			if err != nil {
 				return nil, err
 			}
 		}
-		path := endpoint + requestPath
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		if simulate, okay := ctx.Value(testNetVal).(bool); okay && simulate {
 			headers["x-simulated-trading"] = "1"
 		}
-		if authenticated == request.AuthenticatedRequest {
+		if requestType == request.AuthenticatedRequest {
 			creds, err := ok.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
 			}
 			signPath := "/" + apiPath + requestPath
-			var hmac []byte
-			hmac, err = crypto.GetHMAC(crypto.HashSHA256, []byte(utcTime+httpMethod+signPath+string(payload)), []byte(creds.Secret))
+			utcTime := time.Now().UTC().Format(time.RFC3339)
+			hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(utcTime+httpMethod+signPath+string(payload)), []byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}
 			headers["OK-ACCESS-KEY"] = creds.Key
-			headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+			headers["OK-ACCESS-SIGN"] = base64.StdEncoding.EncodeToString(hmac)
 			headers["OK-ACCESS-TIMESTAMP"] = utcTime
 			headers["OK-ACCESS-PASSPHRASE"] = creds.ClientID
 		}
 		return &request.Item{
 			Method:        strings.ToUpper(httpMethod),
-			Path:          path,
+			Path:          endpoint + requestPath,
 			Headers:       headers,
 			Body:          bytes.NewBuffer(payload),
 			Result:        &resp,
@@ -5932,14 +5929,11 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			HTTPRecording: ok.HTTPRecording,
 		}, nil
 	}
-	if err = ok.SendPayload(ctx, f, newRequest, requestType); err != nil {
-		if authenticated == request.AuthenticatedRequest {
-			return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
-		}
+	if err := ok.SendPayload(ctx, f, newRequest, requestType); err != nil {
 		return err
 	}
-	if err == nil && resp.Code.Int64() != 0 {
-		if authenticated == request.AuthenticatedRequest {
+	if resp.Code.Int64() != 0 {
+		if requestType == request.AuthenticatedRequest {
 			err = request.ErrAuthRequestFailed
 		}
 		if resp.Msg != "" {

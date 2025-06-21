@@ -275,18 +275,18 @@ func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair,
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := p.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	callingBook := &orderbook.Base{
-		Exchange:        p.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: p.CanVerifyOrderbook,
+	callingBook := &orderbook.Book{
+		Exchange:          p.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: p.ValidateOrderbook,
 	}
 	orderbookNew, err := p.GetOrderbook(ctx, "", poloniexMaxOrderbookDepth)
 	if err != nil {
@@ -310,24 +310,24 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 				continue
 			}
 		}
-		book := &orderbook.Base{
-			Exchange:        p.Name,
-			Pair:            enabledPairs[i],
-			Asset:           assetType,
-			VerifyOrderbook: p.CanVerifyOrderbook,
+		book := &orderbook.Book{
+			Exchange:          p.Name,
+			Pair:              enabledPairs[i],
+			Asset:             assetType,
+			ValidateOrderbook: p.ValidateOrderbook,
 		}
 
-		book.Bids = make(orderbook.Tranches, len(data.Bids))
+		book.Bids = make(orderbook.Levels, len(data.Bids))
 		for y := range data.Bids {
-			book.Bids[y] = orderbook.Tranche{
+			book.Bids[y] = orderbook.Level{
 				Amount: data.Bids[y].Amount,
 				Price:  data.Bids[y].Price,
 			}
 		}
 
-		book.Asks = make(orderbook.Tranches, len(data.Asks))
+		book.Asks = make(orderbook.Levels, len(data.Asks))
 		for y := range data.Asks {
-			book.Asks[y] = orderbook.Tranche{
+			book.Asks[y] = orderbook.Level{
 				Amount: data.Asks[y].Amount,
 				Price:  data.Asks[y].Price,
 			}

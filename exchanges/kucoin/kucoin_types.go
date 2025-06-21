@@ -156,8 +156,8 @@ type Stats24hrs struct {
 // Orderbook stores the orderbook data
 type Orderbook struct {
 	Sequence int64
-	Bids     []orderbook.Tranche
-	Asks     []orderbook.Tranche
+	Bids     []orderbook.Level
+	Asks     []orderbook.Level
 	Time     time.Time
 }
 
@@ -1565,11 +1565,11 @@ type WsFuturesExecutionData struct {
 
 // WsOrderbookLevel5 represents an orderbook push data with depth level 5
 type WsOrderbookLevel5 struct {
-	Sequence      int64               `json:"sequence"`
-	Asks          []orderbook.Tranche `json:"asks"`
-	Bids          []orderbook.Tranche `json:"bids"`
-	PushTimestamp types.Time          `json:"ts"`
-	Timestamp     types.Time          `json:"timestamp"`
+	Sequence      int64             `json:"sequence"`
+	Asks          []orderbook.Level `json:"asks"`
+	Bids          []orderbook.Level `json:"bids"`
+	PushTimestamp types.Time        `json:"ts"`
+	Timestamp     types.Time        `json:"timestamp"`
 }
 
 // WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
@@ -1588,16 +1588,16 @@ func (a *WsOrderbookLevel5Response) ExtractOrderbookItems() *WsOrderbookLevel5 {
 		Sequence:      a.Sequence,
 		PushTimestamp: a.PushTimestamp,
 	}
-	resp.Asks = make([]orderbook.Tranche, len(a.Asks))
+	resp.Asks = make([]orderbook.Level, len(a.Asks))
 	for x := range a.Asks {
-		resp.Asks[x] = orderbook.Tranche{
+		resp.Asks[x] = orderbook.Level{
 			Price:  a.Asks[x][0].Float64(),
 			Amount: a.Asks[x][1].Float64(),
 		}
 	}
-	resp.Bids = make([]orderbook.Tranche, len(a.Bids))
+	resp.Bids = make([]orderbook.Level, len(a.Bids))
 	for x := range a.Bids {
-		resp.Bids[x] = orderbook.Tranche{
+		resp.Bids[x] = orderbook.Level{
 			Price:  a.Bids[x][0].Float64(),
 			Amount: a.Bids[x][1].Float64(),
 		}

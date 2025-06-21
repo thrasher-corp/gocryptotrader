@@ -204,7 +204,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,
 				SortBufferByUpdateIDs: true,
-				UpdateIDProgression:   true,
 			},
 			TradeFeed: ku.Features.Enabled.TradeFeed,
 		})
@@ -372,7 +371,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return nil, err
@@ -394,13 +393,13 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 		return nil, err
 	}
 
-	book := &orderbook.Base{
-		Exchange:        ku.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: ku.CanVerifyOrderbook,
-		Asks:            ordBook.Asks,
-		Bids:            ordBook.Bids,
+	book := &orderbook.Book{
+		Exchange:          ku.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: ku.ValidateOrderbook,
+		Asks:              ordBook.Asks,
+		Bids:              ordBook.Bids,
 	}
 	err = book.Process()
 	if err != nil {

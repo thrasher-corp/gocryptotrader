@@ -250,10 +250,10 @@ type Base struct {
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
-	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
+	// ValidateOrderbook determines if the orderbook verification can be bypassed,
 	// increasing potential update speed but decreasing confidence in orderbook
 	// integrity.
-	CanVerifyOrderbook bool
+	ValidateOrderbook bool
 	order.ExecutionLimits
 
 	AssetWebsocketSupport

@@ -39,6 +39,8 @@ const (
 	canManipulateRealOrders = false
 )
 
+var spotPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true})
+
 func TestMain(m *testing.M) {
 	h.SetDefaults()
 	cfg := config.GetConfig()
@@ -69,54 +71,36 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	_, err := h.GetOrderbook(t.Context(), "BTCUSD", 50)
-	if err != nil {
-		t.Error("Test failed - HitBTC GetOrderbook() error", err)
-	}
+	_, err := h.GetOrderbook(t.Context(), spotPair.String(), 50)
+	assert.NoError(t, err, "GetOrderbook should not error")
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := h.GetTrades(t.Context(), "BTCUSD", "", "", 0, 0, 0, 0)
-	if err != nil {
-		t.Error("Test failed - HitBTC GetTradeHistory() error", err)
-	}
+	_, err := h.GetTrades(t.Context(), spotPair.String(), "", "", 0, 0, 0, 0)
+	assert.NoError(t, err, "GetTrades should not error")
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := h.GetCandles(t.Context(),
-		"BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
-	if err != nil {
-		t.Error("Test failed - HitBTC GetChartData() error", err)
-	}
+	_, err := h.GetCandles(t.Context(), spotPair.String(), "", "D1", time.Now().Add(-24*time.Hour), time.Now())
+	assert.NoError(t, err, "GetCandles should not error")
 }
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 
-	pair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
 	startTime := time.Now().Add(-time.Hour * 6)
 	end := time.Now()
-	_, err = h.GetHistoricCandles(t.Context(), pair, asset.Spot, kline.OneMin, startTime, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := h.GetHistoricCandles(t.Context(), spotPair, asset.Spot, kline.OneMin, startTime, end)
+	assert.NoError(t, err, "GetHistoricCandles should not error")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	pair, err := currency.NewPairFromString("BTC-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err = h.GetHistoricCandlesExtended(t.Context(), pair, asset.Spot, kline.OneHour, startTime, end)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err := h.GetHistoricCandlesExtended(t.Context(), spotPair, asset.Spot, kline.OneHour, startTime, end)
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
 }
 
 func TestGetCurrencies(t *testing.T) {
@@ -191,10 +175,8 @@ func TestGetAllTickers(t *testing.T) {
 }
 
 func TestGetSingularTicker(t *testing.T) {
-	_, err := h.GetTicker(t.Context(), "BTCUSD")
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := h.GetTicker(t.Context(), spotPair.String())
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetFee(t *testing.T) {
@@ -463,7 +445,7 @@ func setupWsAuth(t *testing.T) {
 	}
 
 	var dialer gws.Dialer
-	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +470,7 @@ func TestWsCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.wsCancelOrder("ImNotARealOrderID")
+	_, err := h.wsCancelOrder(t.Context(), "ImNotARealOrderID")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,10 +482,7 @@ func TestWsPlaceOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.wsPlaceOrder(currency.NewPair(currency.LTC, currency.BTC),
-		order.Buy.String(),
-		1,
-		1)
+	_, err := h.wsPlaceOrder(t.Context(), currency.NewPair(currency.LTC, currency.BTC), order.Buy.String(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,7 +494,7 @@ func TestWsReplaceOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders false, skipping test")
 	}
-	_, err := h.wsReplaceOrder("ImNotARealOrderID", 1, 1)
+	_, err := h.wsReplaceOrder(t.Context(), "ImNotARealOrderID", 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +503,7 @@ func TestWsReplaceOrder(t *testing.T) {
 // TestWsGetActiveOrders dials websocket, sends get active orders request.
 func TestWsGetActiveOrders(t *testing.T) {
 	setupWsAuth(t)
-	if _, err := h.wsGetActiveOrders(); err != nil {
+	if _, err := h.wsGetActiveOrders(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -532,7 +511,7 @@ func TestWsGetActiveOrders(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTradingBalance(t *testing.T) {
 	setupWsAuth(t)
-	if _, err := h.wsGetTradingBalance(); err != nil {
+	if _, err := h.wsGetTradingBalance(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -540,7 +519,7 @@ func TestWsGetTradingBalance(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetTrades(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetTrades(currency.NewPair(currency.ETH, currency.BTC), 1000, "ASC", "id")
+	_, err := h.wsGetTrades(t.Context(), currency.NewPair(currency.ETH, currency.BTC), 1000, "ASC", "id")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +528,7 @@ func TestWsGetTrades(t *testing.T) {
 // TestWsGetTradingBalance dials websocket, sends get trading balance request.
 func TestWsGetSymbols(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetSymbols(currency.NewPair(currency.ETH, currency.BTC))
+	_, err := h.wsGetSymbols(t.Context(), currency.NewPair(currency.ETH, currency.BTC))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -558,7 +537,7 @@ func TestWsGetSymbols(t *testing.T) {
 // TestWsGetCurrencies dials websocket, sends get trading balance request.
 func TestWsGetCurrencies(t *testing.T) {
 	setupWsAuth(t)
-	_, err := h.wsGetCurrencies(currency.BTC)
+	_, err := h.wsGetCurrencies(t.Context(), currency.BTC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -964,81 +943,51 @@ func TestWsTrades(t *testing.T) {
 	}
 }
 
-func Test_FormatExchangeKlineInterval(t *testing.T) {
+func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
-	testCases := []struct {
-		name     string
+	for _, tc := range []struct {
 		interval kline.Interval
 		output   string
 	}{
 		{
-			"OneMin",
 			kline.OneMin,
 			"M1",
 		},
 		{
-			"OneDay",
 			kline.OneDay,
 			"D1",
 		},
 		{
-			"SevenDay",
 			kline.SevenDay,
 			"D7",
 		},
 		{
-			"OneMonth",
 			kline.OneMonth,
 			"1M",
 		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
+	} {
+		t.Run(tc.interval.String(), func(t *testing.T) {
 			t.Parallel()
-			ret, err := formatExchangeKlineInterval(test.interval)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+			ret, err := formatExchangeKlineInterval(tc.interval)
+			require.NoError(t, err)
+			assert.Equal(t, tc.output, ret)
 		})
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = h.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := h.GetRecentTrades(t.Context(), spotPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = h.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
+	_, err := h.GetHistoricTrades(t.Context(), spotPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	assert.NoError(t, err, "GetHistoricTrades should not error")
 	// longer term
-	_, err = h.GetHistoricTrades(t.Context(),
-		currencyPair, asset.Spot,
-		time.Now().Add(-time.Minute*60*200),
-		time.Now().Add(-time.Minute*60*199))
-	if err != nil {
-		t.Error(err)
-	}
+	_, err = h.GetHistoricTrades(t.Context(), spotPair, asset.Spot, time.Now().Add(-time.Minute*60*200), time.Now().Add(-time.Minute*60*199))
+	assert.NoError(t, err, "GetHistoricTrades should not error")
 }
 
 func TestGetActiveOrderByClientOrderID(t *testing.T) {

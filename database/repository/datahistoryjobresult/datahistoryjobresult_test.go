@@ -1,7 +1,6 @@
 package datahistoryjobresult
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -68,6 +69,7 @@ func seedDB() error {
 }
 
 func TestDataHistoryJob(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		config *database.Config
@@ -90,52 +92,35 @@ func TestDataHistoryJob(t *testing.T) {
 		},
 	}
 
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !testhelpers.CheckValidConfig(&tc.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-			if err != nil {
-				t.Fatal(err)
-			}
+			dbConn, err := testhelpers.ConnectToDatabase(tc.config)
+			require.NoError(t, err)
 
-			if test.seedDB != nil {
-				err = test.seedDB()
-				if err != nil {
-					t.Error(err)
-				}
+			if tc.seedDB != nil {
+				require.NoError(t, tc.seedDB())
 			}
 
 			db, err := Setup(dbConn)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 
 			// postgres requires job for tests to function
 			var id string
-			if test.name == "postgresql" {
-				var selectID *sql.Rows
-				selectID, err = db.sql.Query("select id from datahistoryjob where nickname = 'testdatahistoryjob1'")
-				if err != nil {
-					t.Fatal(err)
-				}
+			if tc.name == "postgresql" {
+				selectID, err := db.sql.Query("select id from datahistoryjob where nickname = 'testdatahistoryjob1'")
+				require.NoError(t, err)
 				defer func() {
-					err = selectID.Close()
-					if err != nil {
-						t.Fatal(err)
-					}
-					if selectID.Err() != nil {
-						t.Fatal(selectID.Err())
-					}
+					require.NoError(t, selectID.Close())
+					require.NoError(t, selectID.Err())
 				}()
 				selectID.Next()
 				err = selectID.Scan(&id)
-				if err != nil {
-					t.Error(err)
-				}
+				assert.NoError(t, err)
 			}
 
 			var resulterinos, resultaroos []*DataHistoryJobResult
@@ -152,9 +137,7 @@ func TestDataHistoryJob(t *testing.T) {
 				})
 			}
 			err = db.Upsert(resulterinos...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 			// insert the same results to test conflict resolution
 			for i := range 20 {
 				uu, _ := uuid.NewV4()
@@ -174,30 +157,18 @@ func TestDataHistoryJob(t *testing.T) {
 				resultaroos = append(resultaroos, j)
 			}
 			err = db.Upsert(resultaroos...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 
 			results, err := db.GetByJobID(id)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(results) == 0 {
-				t.Error("expected job results")
-			}
+			require.NoError(t, err)
+			assert.NotEmpty(t, results)
 
 			results, err = db.GetJobResultsBetween(id, time.Now().Add(time.Hour*23), time.Now().Add(time.Hour*25))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(results) == 0 {
-				t.Errorf("expected job result, received %v", len(results))
-			}
+			require.NoError(t, err)
+			assert.NotEmpty(t, results)
 
 			err = testhelpers.CloseDatabase(dbConn)
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoError(t, err)
 		})
 	}
 }

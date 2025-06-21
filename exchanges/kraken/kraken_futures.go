@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -319,18 +320,12 @@ func (k *Kraken) GetFuturesAccountData(ctx context.Context) (FuturesAccountsData
 }
 
 func (k *Kraken) signFuturesRequest(secret, endpoint, nonce, data string) (string, error) {
-	message := data + nonce + endpoint
-	hash, err := crypto.GetSHA256([]byte(message))
+	shasum := sha256.Sum256([]byte(data + nonce + endpoint))
+	hmac, err := crypto.GetHMAC(crypto.HashSHA512, shasum[:], []byte(secret))
 	if err != nil {
 		return "", err
 	}
-	hc, err := crypto.GetHMAC(crypto.HashSHA512,
-		hash,
-		[]byte(secret))
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(hc), nil
+	return base64.StdEncoding.EncodeToString(hmac), nil
 }
 
 // SendFuturesAuthRequest will send an auth req

@@ -1,23 +1,19 @@
 package gct
 
 import (
-	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestErrorResponse(t *testing.T) {
 	t.Parallel()
 	_, err := errorResponsef("")
-	if !errors.Is(err, errFormatStringIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errFormatStringIsEmpty)
-	}
+	require.ErrorIs(t, err, errFormatStringIsEmpty)
 
 	_, err = errorResponsef("--")
-	if !errors.Is(err, errNoArguments) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoArguments)
-	}
+	require.ErrorIs(t, err, errNoArguments)
 
 	errResp, err := errorResponsef("error %s", "hello")
 	if err != nil {
@@ -32,7 +28,5 @@ func TestErrorResponse(t *testing.T) {
 func TestConstructRuntimeError(t *testing.T) {
 	t.Parallel()
 	err := constructRuntimeError(0, "", "", nil)
-	if !errors.Is(err, common.ErrTypeAssertFailure) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrTypeAssertFailure)
-	}
+	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 }

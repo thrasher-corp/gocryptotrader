@@ -29,8 +29,9 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	b.setupOrderbookManager()
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+	ctx := context.Background()
+	b.setupOrderbookManager(ctx)
+	if err := b.UpdateTradablePairs(ctx, true); err != nil {
 		log.Fatal(err)
 	}
 

@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,29 +16,19 @@ import (
 func TestSetupAPIServerManager(t *testing.T) {
 	t.Parallel()
 	_, err := setupAPIServerManager(nil, nil, nil, nil, nil, "")
-	if !errors.Is(err, errNilRemoteConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilRemoteConfig)
-	}
+	assert.ErrorIs(t, err, errNilRemoteConfig)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, nil, nil, nil, nil, "")
-	if !errors.Is(err, errNilPProfConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilPProfConfig)
-	}
+	assert.ErrorIs(t, err, errNilPProfConfig)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, nil, nil, nil, "")
-	if !errors.Is(err, errNilExchangeManager) {
-		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
-	}
+	assert.ErrorIs(t, err, errNilExchangeManager)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, nil, nil, "")
-	if !errors.Is(err, errNilBot) {
-		t.Errorf("error '%v', expected '%v'", err, errNilBot)
-	}
+	assert.ErrorIs(t, err, errNilBot)
 
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, "")
-	if !errors.Is(err, errEmptyConfigPath) {
-		t.Errorf("error '%v', expected '%v'", err, errEmptyConfigPath)
-	}
+	assert.ErrorIs(t, err, errEmptyConfigPath)
 
 	wd, _ := os.Getwd()
 	_, err = setupAPIServerManager(&config.RemoteControlConfig{}, &config.Profiler{}, &ExchangeManager{}, &fakeBot{}, nil, wd)
@@ -53,9 +42,8 @@ func TestStartRESTServer(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.StartRESTServer()
-	if !errors.Is(err, errServerDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
-	}
+	assert.ErrorIs(t, err, errServerDisabled)
+
 	m.remoteConfig.DeprecatedRPC.Enabled = true
 	err = m.StartRESTServer()
 	if err != nil {
@@ -70,9 +58,8 @@ func TestStartWebsocketServer(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.StartWebsocketServer()
-	if !errors.Is(err, errServerDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errServerDisabled)
-	}
+	assert.ErrorIs(t, err, errServerDisabled)
+
 	m.remoteConfig.WebsocketRPC.Enabled = true
 	err = m.StartWebsocketServer()
 	assert.NoError(t, err)
@@ -90,9 +77,7 @@ func TestStopRESTServer(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.StopRESTServer()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.StartRESTServer()
 	assert.NoError(t, err)
@@ -120,9 +105,7 @@ func TestWebsocketStop(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.StopWebsocketServer()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.StartWebsocketServer()
 	assert.NoError(t, err)

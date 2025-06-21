@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -11,13 +10,11 @@ import (
 
 func TestSetupNTPManager(t *testing.T) {
 	_, err := setupNTPManager(nil, false)
-	if !errors.Is(err, errNilConfig) {
-		t.Errorf("error '%v', expected '%v'", err, errNilConfig)
-	}
+	assert.ErrorIs(t, err, errNilConfig)
+
 	_, err = setupNTPManager(&config.NTPClientConfig{}, false)
-	if !errors.Is(err, errNilNTPConfigValues) {
-		t.Errorf("error '%v', expected '%v'", err, errNilNTPConfigValues)
-	}
+	assert.ErrorIs(t, err, errNilNTPConfigValues)
+
 	sec := time.Second
 	cfg := &config.NTPClientConfig{
 		AllowedDifference:         &sec,
@@ -62,9 +59,7 @@ func TestNTPManagerIsRunning(t *testing.T) {
 func TestNTPManagerStart(t *testing.T) {
 	var m *ntpManager
 	err := m.Start()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	sec := time.Second
 	cfg := &config.NTPClientConfig{
@@ -75,26 +70,20 @@ func TestNTPManagerStart(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.Start()
-	if !errors.Is(err, errNTPManagerDisabled) {
-		t.Errorf("error '%v', expected '%v'", err, errNTPManagerDisabled)
-	}
+	assert.ErrorIs(t, err, errNTPManagerDisabled)
 
 	m.level = 1
 	err = m.Start()
 	assert.NoError(t, err)
 
 	err = m.Start()
-	if !errors.Is(err, ErrSubSystemAlreadyStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemAlreadyStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
 
 func TestNTPManagerStop(t *testing.T) {
 	var m *ntpManager
 	err := m.Stop()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	sec := time.Second
 	cfg := &config.NTPClientConfig{
@@ -106,9 +95,7 @@ func TestNTPManagerStop(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.Stop()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start()
 	assert.NoError(t, err)
@@ -120,9 +107,8 @@ func TestNTPManagerStop(t *testing.T) {
 func TestFetchNTPTime(t *testing.T) {
 	var m *ntpManager
 	_, err := m.FetchNTPTime()
-	if !errors.Is(err, ErrNilSubsystem) {
-		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
-	}
+	assert.ErrorIs(t, err, ErrNilSubsystem)
+
 	sec := time.Second
 	cfg := &config.NTPClientConfig{
 		AllowedDifference:         &sec,
@@ -133,9 +119,7 @@ func TestFetchNTPTime(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = m.FetchNTPTime()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start()
 	assert.NoError(t, err)
@@ -168,9 +152,7 @@ func TestProcessTime(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.processTime()
-	if !errors.Is(err, ErrSubSystemNotStarted) {
-		t.Errorf("error '%v', expected '%v'", err, ErrSubSystemNotStarted)
-	}
+	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start()
 	assert.NoError(t, err)

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"os"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 	"github.com/d5/tengo/v2"
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
@@ -268,11 +268,8 @@ func (vm *VM) getHash() string {
 		log.Errorln(log.GCTScriptMgr, err)
 	}
 	contents = append(contents, vm.ShortName()...)
-	hash, err := crypto.GetSHA256(contents)
-	if err != nil {
-		log.Errorln(log.GCTScriptMgr, err)
-	}
-	return hex.EncodeToString(hash)
+	s := sha256.Sum256(contents)
+	return hex.EncodeToString(s[:])
 }
 
 func (vmc *vmscount) add() {
