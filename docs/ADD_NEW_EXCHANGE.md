@@ -343,7 +343,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 }
 ```
 
-#### Unauthenticated Functions:
+#### Public Functions:
 
 https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints
 

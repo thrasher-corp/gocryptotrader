@@ -42,8 +42,12 @@ func TestCheckExchangeName(t *testing.T) {
 	} {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
-			r := checkExchangeName(tt.Name)
-			assert.Equal(t, tt.ErrExpected, r)
+			err := checkExchangeName(tt.Name)
+			if tt.ErrExpected == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, tt.ErrExpected, err)
+			}
 		})
 	}
 }

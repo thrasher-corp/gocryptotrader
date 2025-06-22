@@ -177,7 +177,7 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 		{
 			Name:         "rest",
 			Filename:     "rest.go",
-			TemplateFile: "main.tmpl",
+			TemplateFile: "rest.tmpl",
 		},
 		{
 			Name:         "test",
@@ -186,9 +186,9 @@ func makeExchange(exchangeDirectory string, configTestFile *config.Config, exch 
 			TemplateFile: "test.tmpl",
 		},
 		{
-			Name:         "type",
+			Name:         "types",
 			Filename:     "types.go",
-			TemplateFile: "type.tmpl",
+			TemplateFile: "types.tmpl",
 		},
 		{
 			Name:         "wrapper",
