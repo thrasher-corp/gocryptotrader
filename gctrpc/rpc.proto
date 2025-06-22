@@ -346,9 +346,20 @@ message SubmitOrderRequest {
   string order_type = 4;
   double amount = 5;
   double price = 6;
-  string client_id = 7;
-  string asset_type = 8;
-  string margin_type = 9;
+  double quote_amount = 7;
+  string client_id = 8;
+  string client_order_id =9;
+  string asset_type = 10;
+  string margin_type = 11;
+  string time_in_force = 12;
+  double trigger_price =13;
+  string trigger_price_type =14;
+  string risk_management_mode =15;
+  string tracking_mode =16;
+  double tracking_value =17;
+  bool hidden = 18;
+  bool iceberg = 19;
+  bool auto_borrow = 20;
 }
 
 message Trades {
@@ -396,6 +407,11 @@ message CancelOrderRequest {
   CurrencyPair pair = 4;
   string asset_type = 5;
   string side = 6;
+  string order_type =7;
+  string margin_type = 8;
+  string time_in_force=9;
+  string client_id =10;
+  string client_order_id= 11;
 }
 
 message CancelBatchOrdersRequest {
@@ -405,6 +421,11 @@ message CancelBatchOrdersRequest {
   CurrencyPair pair = 4;
   string asset_type = 5;
   string side = 6;
+  string order_type =7;
+  string margin_type = 8;
+  string time_in_force=9;
+  string client_id =10;
+  string client_order_id= 11;
 }
 
 message Orders {
@@ -984,6 +1005,9 @@ message ModifyOrderRequest {
   string asset = 4;
   double amount = 5;
   double price = 6;
+  string time_in_force = 7;
+  double trigger_price = 8;
+  string trigger_price_type =9;
 }
 
 message ModifyOrderResponse {

@@ -1413,6 +1413,22 @@ var submitOrderCommand = &cli.Command{
 			Usage:    "required asset type",
 			Required: false,
 		},
+		&cli.StringFlag{
+			Name:  "quote_amount",
+			Usage: "the optional quote amount for the order",
+		},
+		&cli.StringFlag{
+			Name:  "timeinforce",
+			Usage: "the optional time-in-force for the order",
+		},
+		&cli.StringFlag{
+			Name:  "trigger_price",
+			Usage: "the optional trigger-price for the order",
+		},
+		&cli.StringFlag{
+			Name:  "trigger_price_type",
+			Usage: "the optional trigger-price-type for the order",
+		},
 	},
 }
 
