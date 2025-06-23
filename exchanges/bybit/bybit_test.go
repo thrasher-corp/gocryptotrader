@@ -3197,7 +3197,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, 0.3374, v[0].Price, "price should match")
 			assert.Equal(t, 25.0, v[0].Amount, "amount should match")
 		default:
-			t.Errorf("Unexpected data type received: %T", v)
+			t.Errorf("Unexpected data received: %v", v)
 		}
 	}
 }
