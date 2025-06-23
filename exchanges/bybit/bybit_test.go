@@ -3051,7 +3051,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		return b.wsHandleAuthenticatedData(ctx, r)
 	})
 	close(b.Websocket.DataHandler)
-	require.Len(t, b.Websocket.DataHandler, 6, "Should see correct number of private messages")
+	require.Len(t, b.Websocket.DataHandler, 6, "Should see correct number of messages")
 
 	i := 0
 	for data := range b.Websocket.DataHandler {
