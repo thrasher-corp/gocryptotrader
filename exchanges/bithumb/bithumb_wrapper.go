@@ -363,7 +363,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	for i := range transactions.Data {
 		resp[i] = exchange.WithdrawalHistory{
 			Timestamp: transactions.Data[i].TransferDate.Time(),
-			Currency:  transactions.Data[i].OrderCurrency.String(),
+			Currency:  transactions.Data[i].OrderCurrency,
 			Amount:    transactions.Data[i].Amount,
 			Fee:       transactions.Data[i].Fee,
 		}
@@ -384,16 +384,11 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 	resp := make([]trade.Data, len(tradeData.Data))
 	for i := range tradeData.Data {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData.Data[i].Type)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     e.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData.Data[i].Side,
 			Price:        tradeData.Data[i].Price,
 			Amount:       tradeData.Data[i].UnitsTraded,
 			Timestamp:    tradeData.Data[i].TransactionDate.Time(),

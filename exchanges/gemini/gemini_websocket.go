@@ -230,33 +230,6 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		}
 
 		for i := range result {
-			oSide, err := order.StringToOrderSide(result[i].Side)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  result[i].OrderID,
-					Err:      err,
-				}
-			}
-			var oType order.Type
-			oType, err = stringToOrderType(result[i].OrderType)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  result[i].OrderID,
-					Err:      err,
-				}
-			}
-			var oStatus order.Status
-			oStatus, err = stringToOrderStatus(result[i].Type)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  result[i].OrderID,
-					Err:      err,
-				}
-			}
-
 			enabledPairs, err := e.GetAvailablePairs(asset.Spot)
 			if err != nil {
 				return err
@@ -280,9 +253,9 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				RemainingAmount: result[i].RemainingAmount,
 				Exchange:        e.Name,
 				OrderID:         result[i].OrderID,
-				Type:            oType,
-				Side:            oSide,
-				Status:          oStatus,
+				Type:            result[i].OrderType,
+				Side:            result[i].Side,
+				Status:          result[i].Status,
 				AssetType:       asset.Spot,
 				Date:            result[i].TimestampMS.Time(),
 				Pair:            pair,
@@ -315,14 +288,6 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
-			tSide, err := order.StringToOrderSide(result.Side)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
-			}
-
 			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
@@ -345,7 +310,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				Exchange:     e.Name,
 				Price:        result.Price,
 				Amount:       result.Quantity,
-				Side:         tSide,
+				Side:         result.Side,
 				TID:          strconv.FormatInt(result.EventID, 10),
 			}
 
@@ -436,38 +401,6 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "accepted":
-		return order.New, nil
-	case "booked":
-		return order.Active, nil
-	case "fill":
-		return order.Filled, nil
-	case "cancelled":
-		return order.Cancelled, nil
-	case "cancel_rejected":
-		return order.Rejected, nil
-	case "closed":
-		return order.Filled, nil
-	default:
-		return order.UnknownStatus, errors.New(status + " not recognised as order status")
-	}
-}
-
-func stringToOrderType(oType string) (order.Type, error) {
-	switch oType {
-	case "exchange limit", "auction-only limit", "indication-of-interest limit":
-		return order.Limit, nil
-	case "market buy", "market sell", "block_trade":
-		// block trades are conducted off order-book, so their type is market,
-		// but would be considered a hidden trade
-		return order.Market, nil
-	default:
-		return order.UnknownType, errors.New(oType + " not recognised as order type")
-	}
-}
-
 func (e *Exchange) wsProcessUpdate(result *wsL2MarketData) error {
 	isInitial := len(result.Changes) > 0 && len(result.Trades) > 0
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
@@ -547,13 +480,6 @@ func (e *Exchange) wsProcessUpdate(result *wsL2MarketData) error {
 
 	trades := make([]trade.Data, len(result.Trades))
 	for x := range result.Trades {
-		tSide, err := order.StringToOrderSide(result.Trades[x].Side)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
-		}
 		trades[x] = trade.Data{
 			Timestamp:    result.Trades[x].Timestamp.Time(),
 			CurrencyPair: pair,
@@ -561,7 +487,7 @@ func (e *Exchange) wsProcessUpdate(result *wsL2MarketData) error {
 			Exchange:     e.Name,
 			Price:        result.Trades[x].Price,
 			Amount:       result.Trades[x].Quantity,
-			Side:         tSide,
+			Side:         result.Trades[x].Side,
 			TID:          strconv.FormatInt(result.Trades[x].EventID, 10),
 		}
 	}

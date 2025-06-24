@@ -3,6 +3,7 @@ package btse
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -131,7 +132,7 @@ type Trade struct {
 	Price    float64    `json:"price"`
 	Amount   float64    `json:"size"`
 	Time     types.Time `json:"timestamp"`
-	Side     string     `json:"side"`
+	Side     order.Side `json:"side"`
 	Type     string     `json:"type"`
 }
 
@@ -203,7 +204,7 @@ type TradeHistory []struct {
 	Quote        string     `json:"quote"`
 	RealizedPnl  float64    `json:"realizedPnl"`
 	SerialID     int64      `json:"serialId"`
-	Side         string     `json:"side"`
+	Side         order.Side `json:"side"`
 	Size         float64    `json:"size"`
 	Symbol       string     `json:"symbol"`
 	Timestamp    types.Time `json:"timestamp"`
@@ -242,31 +243,31 @@ type WithdrawalResponse struct {
 
 // OpenOrder stores an open order info
 type OpenOrder struct {
-	AverageFillPrice             float64    `json:"averageFillPrice"`
-	CancelDuration               int64      `json:"cancelDuration"`
-	ClOrderID                    string     `json:"clOrderID"`
-	FillSize                     float64    `json:"fillSize"`
-	FilledSize                   float64    `json:"filledSize"`
-	OrderID                      string     `json:"orderID"`
-	OrderState                   string     `json:"orderState"`
-	OrderType                    int        `json:"orderType"`
-	OrderValue                   float64    `json:"orderValue"`
-	PegPriceDeviation            float64    `json:"pegPriceDeviation"`
-	PegPriceMax                  float64    `json:"pegPriceMax"`
-	PegPriceMin                  float64    `json:"pegPriceMin"`
-	Price                        float64    `json:"price"`
-	Side                         string     `json:"side"`
-	Size                         float64    `json:"size"`
-	Symbol                       string     `json:"symbol"`
-	Timestamp                    types.Time `json:"timestamp"`
-	TrailValue                   float64    `json:"trailValue"`
-	TriggerOrder                 bool       `json:"triggerOrder"`
-	TriggerOrderType             int        `json:"triggerOrderType"`
-	TriggerOriginalPrice         float64    `json:"triggerOriginalPrice"`
-	TriggerPrice                 float64    `json:"triggerPrice"`
-	TriggerStopPrice             float64    `json:"triggerStopPrice"`
-	TriggerTrailingStopDeviation float64    `json:"triggerTrailingStopDeviation"`
-	Triggered                    bool       `json:"triggered"`
+	AverageFillPrice             float64       `json:"averageFillPrice"`
+	CancelDuration               int64         `json:"cancelDuration"`
+	ClOrderID                    string        `json:"clOrderID"`
+	FillSize                     float64       `json:"fillSize"`
+	FilledSize                   float64       `json:"filledSize"`
+	OrderID                      string        `json:"orderID"`
+	OrderState                   order.Status  `json:"orderState"`
+	OrderType                    int           `json:"orderType"`
+	OrderValue                   float64       `json:"orderValue"`
+	PegPriceDeviation            float64       `json:"pegPriceDeviation"`
+	PegPriceMax                  float64       `json:"pegPriceMax"`
+	PegPriceMin                  float64       `json:"pegPriceMin"`
+	Price                        float64       `json:"price"`
+	Side                         order.Side    `json:"side"`
+	Size                         float64       `json:"size"`
+	Symbol                       currency.Pair `json:"symbol"`
+	Timestamp                    types.Time    `json:"timestamp"`
+	TrailValue                   float64       `json:"trailValue"`
+	TriggerOrder                 bool          `json:"triggerOrder"`
+	TriggerOrderType             int           `json:"triggerOrderType"`
+	TriggerOriginalPrice         float64       `json:"triggerOriginalPrice"`
+	TriggerPrice                 float64       `json:"triggerPrice"`
+	TriggerStopPrice             float64       `json:"triggerStopPrice"`
+	TriggerTrailingStopDeviation float64       `json:"triggerTrailingStopDeviation"`
+	Triggered                    bool          `json:"triggered"`
 }
 
 // CancelOrder stores slice of orders
@@ -335,18 +336,18 @@ type wsNotification struct {
 }
 
 type wsOrderUpdate struct {
-	OrderID           string     `json:"orderID"`
-	OrderMode         string     `json:"orderMode"`
-	OrderType         string     `json:"orderType"`
-	PegPriceDeviation string     `json:"pegPriceDeviation"`
-	Price             float64    `json:"price,string"`
-	Size              float64    `json:"size,string"`
-	Status            string     `json:"status"`
-	Stealth           string     `json:"stealth"`
-	Symbol            string     `json:"symbol"`
-	Timestamp         types.Time `json:"timestamp"`
-	TriggerPrice      float64    `json:"triggerPrice,string"`
-	Type              string     `json:"type"`
+	OrderID           string       `json:"orderID"`
+	OrderMode         order.Side   `json:"orderMode"`
+	OrderType         string       `json:"orderType"`
+	PegPriceDeviation string       `json:"pegPriceDeviation"`
+	Price             float64      `json:"price,string"`
+	Size              float64      `json:"size,string"`
+	Status            order.Status `json:"status"`
+	Stealth           string       `json:"stealth"`
+	Symbol            string       `json:"symbol"`
+	Timestamp         types.Time   `json:"timestamp"`
+	TriggerPrice      float64      `json:"triggerPrice,string"`
+	Type              order.Type   `json:"type"`
 }
 
 // ErrorResponse contains errors received from API
