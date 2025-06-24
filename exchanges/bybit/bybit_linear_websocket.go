@@ -33,12 +33,12 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions(a asset.Item) (subscription.
 	return subscriptions, nil
 }
 
-// LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) LinearSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, asset.USDTMarginedFutures, "subscribe", channelSubscriptions)
+// LinearSubscribe sends a websocket message to receive data from the channel
+func (by *Bybit) LinearSubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
+	return by.submitDirectSubscription(ctx, conn, a, "subscribe", channelSubscriptions)
 }
 
-// LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) LinearUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
-	return by.submitDirectSubscription(ctx, conn, asset.USDTMarginedFutures, "unsubscribe", channelSubscriptions)
+// LinearUnsubscribe sends a websocket message to stop receiving data from the channel
+func (by *Bybit) LinearUnsubscribe(ctx context.Context, conn websocket.Connection, a asset.Item, channelSubscriptions subscription.List) error {
+	return by.submitDirectSubscription(ctx, conn, a, "unsubscribe", channelSubscriptions)
 }

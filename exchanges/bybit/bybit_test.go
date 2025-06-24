@@ -3031,7 +3031,7 @@ func TestPushDataPublic(t *testing.T) {
 	slices.Sort(keys)
 
 	for x := range keys {
-		err := b.wsHandleData(t.Context(), asset.Spot, []byte(pushDataMap[keys[x]]))
+		err := b.wsHandleData(asset.Spot, []byte(pushDataMap[keys[x]]))
 		assert.NoError(t, err, "wsHandleData should not error")
 	}
 }
@@ -3212,7 +3212,7 @@ func TestWsTicker(t *testing.T) {
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(ctx context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
-		return b.wsHandleData(ctx, assetRouting[0], r)
+		return b.wsHandleData(assetRouting[0], r)
 	})
 	close(b.Websocket.DataHandler)
 	expected := 8
@@ -3461,7 +3461,7 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
-	err := b.wsHandleData(t.Context(), asset.Spot, data)
+	err := b.wsHandleData(asset.Spot, data)
 	if err != nil {
 		t.Fatal(err)
 	}

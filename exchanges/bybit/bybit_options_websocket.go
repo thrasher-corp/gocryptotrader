@@ -33,12 +33,12 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() (subscription.List, error
 	return subscriptions, nil
 }
 
-// OptionSubscribe sends a subscription message to options public channels.
+// OptionSubscribe sends a websocket message to receive data from the channel
 func (by *Bybit) OptionSubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return by.submitDirectSubscription(ctx, conn, asset.Options, "subscribe", channelSubscriptions)
 }
 
-// OptionUnsubscribe sends an unsubscription messages through options public channels.
+// OptionUnsubscribe sends a websocket message to stop receiving data from the channel
 func (by *Bybit) OptionUnsubscribe(ctx context.Context, conn websocket.Connection, channelSubscriptions subscription.List) error {
 	return by.submitDirectSubscription(ctx, conn, asset.Options, "unsubscribe", channelSubscriptions)
 }

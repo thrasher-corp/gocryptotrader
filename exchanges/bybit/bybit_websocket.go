@@ -198,7 +198,7 @@ func (by *Bybit) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 	}).Parse(subTplText)
 }
 
-func (by *Bybit) wsHandleData(_ context.Context, assetType asset.Item, respRaw []byte) error {
+func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 	var result WebsocketResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -861,6 +861,7 @@ func (by *Bybit) generateAuthSubscriptions() (subscription.List, error) {
 		return nil, nil
 	}
 	var subscriptions subscription.List
+	// TODO: Implement DCP (Disconnection Protect) subscription
 	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
 		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
 	}
