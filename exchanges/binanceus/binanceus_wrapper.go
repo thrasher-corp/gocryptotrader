@@ -370,7 +370,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		locked := theAccount.Balances[i].Locked.InexactFloat64()
 
 		currencyBalance[i] = account.Balance{
-			Currency: currency.NewCode(theAccount.Balances[i].Asset),
+			Currency: theAccount.Balances[i].Asset,
 			Total:    freeBalance + locked,
 			Hold:     locked,
 			Free:     freeBalance,
@@ -625,7 +625,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-	var orderType order.Type
 	resp, err := e.GetOrder(ctx, &OrderRequestParams{
 		Symbol:  symbolValue,
 		OrderID: orderIDInt,
@@ -633,30 +632,17 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, err
 	}
-	orderSide, err := order.StringToOrderSide(resp.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-	status, err := order.StringToOrderStatus(resp.Status)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-	orderType, err = order.StringToOrderType(resp.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-	}
-
 	return &order.Detail{
 		Amount:         resp.OrigQty,
 		Exchange:       e.Name,
 		OrderID:        strconv.FormatUint(resp.OrderID, 10),
 		ClientOrderID:  resp.ClientOrderID,
-		Side:           orderSide,
-		Type:           orderType,
+		Side:           resp.Side,
+		Type:           resp.Type,
 		Pair:           pair,
 		Cost:           resp.CummulativeQuoteQty,
 		AssetType:      assetType,
-		Status:         status,
+		Status:         resp.Status,
 		Price:          resp.Price,
 		ExecutedAmount: resp.ExecutedQty,
 		Date:           resp.Time.Time(),
@@ -741,31 +727,16 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	}
 	orders := make([]order.Detail, len(selectedOrders))
 	for x := range selectedOrders {
-		var orderSide order.Side
-		var orderType order.Type
-		var orderStatus order.Status
-		orderSide, err = order.StringToOrderSide(strings.ToUpper(resp[x].Side))
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
-		orderType, err = order.StringToOrderType(strings.ToUpper(resp[x].Type))
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
-		orderStatus, err = order.StringToOrderStatus(resp[x].Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
 		orders[x] = order.Detail{
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time.Time(),
 			Exchange:      e.Name,
 			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
-			Side:          orderSide,
-			Type:          orderType,
+			Side:          resp[x].Side,
+			Type:          resp[x].Type,
 			Price:         resp[x].Price,
-			Status:        orderStatus,
+			Status:        resp[x].Status,
 			Pair:          getOrdersRequest.Pairs[0],
 			AssetType:     getOrdersRequest.AssetType,
 			LastUpdated:   resp[x].UpdateTime.Time(),

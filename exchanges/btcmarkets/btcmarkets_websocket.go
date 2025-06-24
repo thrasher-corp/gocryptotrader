@@ -245,31 +245,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			price = orderData.Trades[x].Price
 			originalAmount += orderData.Trades[x].Volume
 		}
-		oType, err := order.StringToOrderType(orderData.OrderType)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		oSide, err := order.StringToOrderSide(orderData.Side)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		oStatus, err := order.StringToOrderStatus(orderData.Status)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-
 		clientID := ""
 		if creds, err := e.GetCredentials(ctx); err != nil {
 			e.Websocket.DataHandler <- order.ClassificationError{
@@ -288,9 +263,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			Exchange:        e.Name,
 			OrderID:         orderID,
 			ClientID:        clientID,
-			Type:            oType,
-			Side:            oSide,
-			Status:          oStatus,
+			Type:            orderData.OrderType,
+			Side:            orderData.Side,
+			Status:          orderData.Status,
 			AssetType:       asset.Spot,
 			Date:            orderData.Timestamp,
 			Trades:          trades,

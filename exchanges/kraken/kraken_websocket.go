@@ -298,22 +298,6 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 	}
 
 	for key, val := range result[0] {
-		oSide, err := order.StringToOrderSide(val.Type)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  key,
-				Err:      err,
-			}
-		}
-		oType, err := order.StringToOrderType(val.OrderType)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  key,
-				Err:      err,
-			}
-		}
 		e.Websocket.DataHandler <- &order.Detail{
 			Exchange: e.Name,
 			OrderID:  val.OrderTransactionID,
@@ -324,8 +308,8 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 					Fee:       val.Fee,
 					Exchange:  e.Name,
 					TID:       key,
-					Type:      oType,
-					Side:      oSide,
+					Type:      val.OrderType,
+					Side:      val.Side,
 					Timestamp: val.Time.Time(),
 				},
 			},
@@ -353,60 +337,16 @@ func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 				Fee:                  val.Fee,
 				Date:                 val.OpenTime.Time(),
 				LastUpdated:          val.LastUpdated.Time(),
+				Status:               val.Status,
+				Side:                 val.Description.Side,
+				Type:                 val.Description.OrderType,
 			}
 
-			if val.Status != "" {
-				if s, err := order.StringToOrderStatus(val.Status); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
-				} else {
-					d.Status = s
-				}
-			}
-
-			if val.Description.Pair != "" {
-				if strings.Contains(val.Description.Order, "sell") {
-					d.Side = order.Sell
-				} else {
-					if oSide, err := order.StringToOrderSide(val.Description.Type); err != nil {
-						e.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: e.Name,
-							OrderID:  key,
-							Err:      err,
-						}
-					} else {
-						d.Side = oSide
-					}
-				}
-
-				if oType, err := order.StringToOrderType(val.Description.OrderType); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
-				} else {
-					d.Type = oType
-				}
-
-				if p, err := currency.NewPairFromString(val.Description.Pair); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
-				} else {
-					d.Pair = p
-					if d.AssetType, err = e.GetPairAssetType(p); err != nil {
-						e.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: e.Name,
-							OrderID:  key,
-							Err:      err,
-						}
-					}
+			if !val.Description.Pair.IsEmpty() {
+				var err error
+				d.AssetType, err = e.GetPairAssetType(val.Description.Pair)
+				if err != nil {
+					return fmt.Errorf("error getting asset type for pair %s: %w", val.Description.Pair, err)
 				}
 			}
 

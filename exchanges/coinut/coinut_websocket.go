@@ -282,19 +282,9 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				return err
 			}
 			currencyPair := e.instrumentMap.LookupInstrument(tradeSnap.InstrumentID)
-			p, err := currency.NewPairFromFormattedPairs(currencyPair,
-				pairs,
-				format)
+			p, err := currency.NewPairFromFormattedPairs(currencyPair, pairs, format)
 			if err != nil {
 				return err
-			}
-
-			tSide, err := order.StringToOrderSide(tradeSnap.Trades[i].Side)
-			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
 			}
 
 			trades = append(trades, trade.Data{
@@ -303,7 +293,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				AssetType:    asset.Spot,
 				Exchange:     e.Name,
 				Price:        tradeSnap.Trades[i].Price,
-				Side:         tSide,
+				Side:         tradeSnap.Trades[i].Side,
 				Amount:       tradeSnap.Trades[i].Quantity,
 				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
 			})
@@ -331,21 +321,13 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			return err
 		}
 
-		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
-		}
-
 		return trade.AddTradesToBuffer(trade.Data{
 			Timestamp:    tradeUpdate.Timestamp.Time(),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     e.Name,
 			Price:        tradeUpdate.Price,
-			Side:         tSide,
+			Side:         tradeUpdate.Side,
 			Amount:       tradeUpdate.Quantity,
 			TID:          strconv.FormatInt(tradeUpdate.TransID, 10),
 		})
@@ -384,31 +366,13 @@ func stringToOrderStatus(status string, quantity float64) (order.Status, error) 
 }
 
 func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
-	var oSide order.Side
-	var oStatus order.Status
-	var err error
-	orderID := strconv.FormatInt(oContainer.OrderID, 10)
-	if oContainer.Side != "" {
-		oSide, err = order.StringToOrderSide(oContainer.Side)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-	} else if oContainer.Order.Side != "" {
-		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
+	side := oContainer.Side
+	if oContainer.Order.Side != 0 {
+		side = oContainer.Order.Side
 	}
 
-	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
+	orderID := strconv.FormatInt(oContainer.OrderID, 10)
+	oStatus, err := stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
 	if err != nil {
 		e.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: e.Name,
@@ -430,20 +394,13 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        e.Name,
 		OrderID:         orderID,
-		Side:            oSide,
+		Side:            side,
 		Status:          oStatus,
 		Date:            oContainer.Timestamp.Time(),
 		Trades:          nil,
 	}
 	if oContainer.Reply == "order_filled" {
-		o.Side, err = order.StringToOrderSide(oContainer.Order.Side)
-		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
+		o.Side = oContainer.Order.Side
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
 		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
@@ -458,7 +415,7 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 				Amount:    oContainer.FillQuantity,
 				Exchange:  e.Name,
 				TID:       strconv.FormatInt(oContainer.TransactionID, 10),
-				Side:      oSide,
+				Side:      oContainer.Order.Side,
 				Timestamp: oContainer.Timestamp.Time(),
 			},
 		}

@@ -512,37 +512,12 @@ func TestWSTrades(t *testing.T) {
 
 func TestWsOrderNotification(t *testing.T) {
 	t.Parallel()
-	status := []string{"ORDER_INSERTED", "ORDER_CANCELLED", "TRIGGER_INSERTED", "ORDER_FULL_TRANSACTED", "ORDER_PARTIALLY_TRANSACTED", "INSUFFICIENT_BALANCE", "TRIGGER_ACTIVATED", "MARKET_UNAVAILABLE"}
+	status := []string{"ORDER_INSERTED", "ORDER_CANCELLED", "TRIGGER_INSERTED", "ORDER_FULLY_TRANSACTED", "ORDER_PARTIALLY_TRANSACTED", "INSUFFICIENT_BALANCE", "TRIGGER_ACTIVATED", "MARKET_UNAVAILABLE"}
 	for i := range status {
 		pressXToJSON := []byte(`{"topic": "notificationApi","data": [{"symbol": "BTC-USD","orderID": "1234","orderMode": "MODE_BUY","orderType": "TYPE_LIMIT","price": "1","size": "1","status": "` + status[i] + `","timestamp": "1580349090693","type": "STOP","triggerPrice": "1"}]}`)
 		err := e.wsHandleData(t.Context(), pressXToJSON)
 		assert.NoErrorf(t, err, "wsHandleData notificationApi should not error on %s", status[i])
 		// TODO: Meaningful test of data parsing
-	}
-}
-
-func TestStatusToStandardStatus(t *testing.T) {
-	type TestCases struct {
-		Case   string
-		Result order.Status
-	}
-	testCases := []*TestCases{
-		{Case: "ORDER_INSERTED", Result: order.New},
-		{Case: "TRIGGER_INSERTED", Result: order.New},
-		{Case: "ORDER_CANCELLED", Result: order.Cancelled},
-		{Case: "ORDER_FULL_TRANSACTED", Result: order.Filled},
-		{Case: "ORDER_PARTIALLY_TRANSACTED", Result: order.PartiallyFilled},
-		{Case: "TRIGGER_ACTIVATED", Result: order.Active},
-		{Case: "INSUFFICIENT_BALANCE", Result: order.InsufficientBalance},
-		{Case: "MARKET_UNAVAILABLE", Result: order.MarketUnavailable},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for _, tt := range testCases {
-		result, err := stringToOrderStatus(tt.Case)
-		if tt.Result != order.UnknownStatus {
-			assert.NoErrorf(t, err, "stringToOrderStatus should not error for %s", tt.Case)
-		}
-		assert.Equalf(t, tt.Result, result, "stringToOrderStatus should return correct value for %s", tt.Case)
 	}
 }
 

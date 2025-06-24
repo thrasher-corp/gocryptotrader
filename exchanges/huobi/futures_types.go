@@ -1,6 +1,9 @@
 package huobi
 
-import "github.com/thrasher-corp/gocryptotrader/types"
+import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 // FContractInfoData gets contract info data for futures
 type FContractInfoData struct {
@@ -161,7 +164,7 @@ type FBatchTradesForContractData struct {
 // FuturesTrade is futures trade data
 type FuturesTrade struct {
 	Amount    float64    `json:"amount"`
-	Direction string     `json:"direction"`
+	Direction order.Side `json:"direction"`
 	ID        int64      `json:"id"`
 	Price     float64    `json:"price"`
 	Timestamp types.Time `json:"ts"`

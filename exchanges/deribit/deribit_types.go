@@ -2,9 +2,11 @@ package deribit
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -68,13 +70,13 @@ var (
 
 	websocketRequestTimeout = time.Second * 30
 
-	baseCurrencies = []string{
-		currencyBTC,
-		currencyETH,
-		currencySOL,
-		currencyUSDC,
-		currencyUSDT,
-		currencyEURR,
+	baseCurrencies = []currency.Code{
+		currency.BTC,
+		currency.ETH,
+		currency.SOL,
+		currency.USDC,
+		currency.USDT,
+		currency.EURR,
 	}
 )
 
@@ -120,13 +122,13 @@ type ContractSizeData struct {
 
 // CurrencyData stores data for currencies
 type CurrencyData struct {
-	CoinType             string  `json:"coin_type"`
-	Currency             string  `json:"currency"` // TODO: change to currency.Code
-	CurrencyLong         string  `json:"currency_long"`
-	FeePrecision         int64   `json:"fee_precision"`
-	MinConfirmations     int64   `json:"min_confirmations"`
-	MinWithdrawalFee     float64 `json:"min_withdrawal_fee"`
-	WithdrawalFee        float64 `json:"withdrawal_fee"`
+	CoinType             string        `json:"coin_type"`
+	Currency             currency.Code `json:"currency"`
+	CurrencyLong         string        `json:"currency_long"`
+	FeePrecision         int64         `json:"fee_precision"`
+	MinConfirmations     int64         `json:"min_confirmations"`
+	MinWithdrawalFee     float64       `json:"min_withdrawal_fee"`
+	WithdrawalFee        float64       `json:"withdrawal_fee"`
 	WithdrawalPriorities []struct {
 		Value float64 `json:"value"`
 		Name  string  `json:"name"`
@@ -191,31 +193,31 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
-	InstrumentName               string     `json:"instrument_name"`
-	BaseCurrency                 string     `json:"base_currency"`
-	Kind                         string     `json:"kind"`
-	OptionType                   string     `json:"option_type"`
-	QuoteCurrency                string     `json:"quote_currency"`
-	BlockTradeCommission         float64    `json:"block_trade_commission"`
-	ContractSize                 float64    `json:"contract_size"`
-	CreationTimestamp            types.Time `json:"creation_timestamp"`
-	ExpirationTimestamp          types.Time `json:"expiration_timestamp"`
-	IsActive                     bool       `json:"is_active"`
-	Leverage                     float64    `json:"leverage"`
-	MaxLeverage                  float64    `json:"max_leverage"`
-	MakerCommission              float64    `json:"maker_commission"`
-	MinimumTradeAmount           float64    `json:"min_trade_amount"`
-	TickSize                     float64    `json:"tick_size"`
-	TakerCommission              float64    `json:"taker_commission"`
-	Strike                       float64    `json:"strike"`
-	SettlementPeriod             string     `json:"settlement_period"`
-	SettlementCurrency           string     `json:"settlement_currency"`
-	RequestForQuote              bool       `json:"rfq"`
-	PriceIndex                   string     `json:"price_index"`
-	InstrumentID                 int64      `json:"instrument_id"`
-	CounterCurrency              string     `json:"counter_currency"`
-	MaximumLiquidationCommission float64    `json:"max_liquidation_commission"`
-	FutureType                   string     `json:"future_type"`
+	InstrumentName               string        `json:"instrument_name"`
+	BaseCurrency                 currency.Code `json:"base_currency"`
+	Kind                         string        `json:"kind"`
+	OptionType                   string        `json:"option_type"`
+	QuoteCurrency                currency.Code `json:"quote_currency"`
+	BlockTradeCommission         float64       `json:"block_trade_commission"`
+	ContractSize                 float64       `json:"contract_size"`
+	CreationTimestamp            types.Time    `json:"creation_timestamp"`
+	ExpirationTimestamp          types.Time    `json:"expiration_timestamp"`
+	IsActive                     bool          `json:"is_active"`
+	Leverage                     float64       `json:"leverage"`
+	MaxLeverage                  float64       `json:"max_leverage"`
+	MakerCommission              float64       `json:"maker_commission"`
+	MinimumTradeAmount           float64       `json:"min_trade_amount"`
+	TickSize                     float64       `json:"tick_size"`
+	TakerCommission              float64       `json:"taker_commission"`
+	Strike                       float64       `json:"strike"`
+	SettlementPeriod             string        `json:"settlement_period"`
+	SettlementCurrency           currency.Code `json:"settlement_currency"`
+	RequestForQuote              bool          `json:"rfq"`
+	PriceIndex                   string        `json:"price_index"`
+	InstrumentID                 int64         `json:"instrument_id"`
+	CounterCurrency              string        `json:"counter_currency"`
+	MaximumLiquidationCommission float64       `json:"max_liquidation_commission"`
+	FutureType                   string        `json:"future_type"`
 	TickSizeSteps                []struct {
 		AbovePrice float64 `json:"above_price"`
 		TickSize   float64 `json:"tick_size"`
@@ -505,29 +507,29 @@ type TradeData struct {
 
 // OrderData stores order data
 type OrderData struct {
-	Web                 bool       `json:"web"`
-	TimeInForce         string     `json:"time_in_force"`
-	Replaced            bool       `json:"replaced"`
-	ReduceOnly          bool       `json:"reduce_only"`
-	ProfitLoss          float64    `json:"profit_loss"`
-	Price               float64    `json:"price"`
-	PostOnly            bool       `json:"post_only"`
-	OrderType           string     `json:"order_type"`
-	OrderState          string     `json:"order_state"`
-	OrderID             string     `json:"order_id"`
-	MaxShow             float64    `json:"max_show"`
-	LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
-	Label               string     `json:"label"`
-	IsLiquidation       bool       `json:"is_liquidation"`
-	InstrumentName      string     `json:"instrument_name"`
-	FilledAmount        float64    `json:"filled_amount"`
-	Direction           string     `json:"direction"`
-	CreationTimestamp   types.Time `json:"creation_timestamp"`
-	Commission          float64    `json:"commission"`
-	AveragePrice        float64    `json:"average_price"`
-	API                 bool       `json:"api"`
-	Amount              float64    `json:"amount"`
-	IsRebalance         bool       `json:"is_rebalance"`
+	Web                 bool          `json:"web"`
+	TimeInForce         string        `json:"time_in_force"`
+	Replaced            bool          `json:"replaced"`
+	ReduceOnly          bool          `json:"reduce_only"`
+	ProfitLoss          float64       `json:"profit_loss"`
+	Price               float64       `json:"price"`
+	PostOnly            bool          `json:"post_only"`
+	OrderType           order.Type    `json:"order_type"`
+	OrderState          string        `json:"order_state"`
+	OrderID             string        `json:"order_id"`
+	MaxShow             float64       `json:"max_show"`
+	LastUpdateTimestamp types.Time    `json:"last_update_timestamp"`
+	Label               string        `json:"label"`
+	IsLiquidation       bool          `json:"is_liquidation"`
+	InstrumentName      currency.Pair `json:"instrument_name"`
+	FilledAmount        float64       `json:"filled_amount"`
+	Direction           order.Side    `json:"direction"`
+	CreationTimestamp   types.Time    `json:"creation_timestamp"`
+	Commission          float64       `json:"commission"`
+	AveragePrice        float64       `json:"average_price"`
+	API                 bool          `json:"api"`
+	Amount              float64       `json:"amount"`
+	IsRebalance         bool          `json:"is_rebalance"`
 }
 
 // InitialMarginInfo represents an initial margin of an order.
@@ -680,30 +682,30 @@ type PrivateSettlementData struct {
 
 // AccountSummaryData stores data of account summary for a given currency
 type AccountSummaryData struct {
-	Balance                  float64 `json:"balance"`
-	OptionsSessionUPL        float64 `json:"options_session_upl"`
-	DepositAddress           string  `json:"deposit_address"`
-	OptionsGamma             float64 `json:"options_gamma"`
-	OptionsTheta             float64 `json:"options_theta"`
-	Username                 string  `json:"username"`
-	Equity                   float64 `json:"equity"`
-	Type                     string  `json:"type"`
-	Currency                 string  `json:"currency"`
-	DeltaTotal               float64 `json:"delta_total"`
-	FuturesSessionRPL        float64 `json:"futures_session_rpl"`
-	PortfolioManagingEnabled bool    `json:"portfolio_managing_enabled"`
-	TotalPL                  float64 `json:"total_pl"`
-	MarginBalance            float64 `json:"margin_balance"`
-	TFAEnabled               bool    `json:"tfa_enabled"`
-	OptionsSessionRPL        float64 `json:"options_session_rpl"`
-	OptionsDelta             float64 `json:"options_delta"`
-	FuturesPL                float64 `json:"futures_pl"`
-	ReferrerID               string  `json:"referrer_id"`
-	ID                       int64   `json:"id"`
-	SessionUPL               float64 `json:"session_upl"`
-	AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
-	OptionsPL                float64 `json:"options_pl"`
-	SystemName               string  `json:"system_name"`
+	Balance                  float64       `json:"balance"`
+	OptionsSessionUPL        float64       `json:"options_session_upl"`
+	DepositAddress           string        `json:"deposit_address"`
+	OptionsGamma             float64       `json:"options_gamma"`
+	OptionsTheta             float64       `json:"options_theta"`
+	Username                 string        `json:"username"`
+	Equity                   float64       `json:"equity"`
+	Type                     string        `json:"type"`
+	Currency                 currency.Code `json:"currency"`
+	DeltaTotal               float64       `json:"delta_total"`
+	FuturesSessionRPL        float64       `json:"futures_session_rpl"`
+	PortfolioManagingEnabled bool          `json:"portfolio_managing_enabled"`
+	TotalPL                  float64       `json:"total_pl"`
+	MarginBalance            float64       `json:"margin_balance"`
+	TFAEnabled               bool          `json:"tfa_enabled"`
+	OptionsSessionRPL        float64       `json:"options_session_rpl"`
+	OptionsDelta             float64       `json:"options_delta"`
+	FuturesPL                float64       `json:"futures_pl"`
+	ReferrerID               string        `json:"referrer_id"`
+	ID                       int64         `json:"id"`
+	SessionUPL               float64       `json:"session_upl"`
+	AvailableWithdrawalFunds float64       `json:"available_withdrawal_funds"`
+	OptionsPL                float64       `json:"options_pl"`
+	SystemName               string        `json:"system_name"`
 	Limits                   struct {
 		NonMatchingEngine struct {
 			Rate  int64 `json:"rate"`
@@ -1078,12 +1080,42 @@ type VersionInformation struct {
 
 // wsOrderbook represents orderbook push data for a book websocket subscription.
 type wsOrderbook struct {
-	Type           string     `json:"type"`
-	Timestamp      types.Time `json:"timestamp"`
-	InstrumentName string     `json:"instrument_name"`
-	ChangeID       int64      `json:"change_id"`
-	Bids           [][]any    `json:"bids"`
-	Asks           [][]any    `json:"asks"`
+	Type           string          `json:"type"`
+	Timestamp      types.Time      `json:"timestamp"`
+	InstrumentName string          `json:"instrument_name"`
+	ChangeID       int64           `json:"change_id"`
+	Bids           []orderbookItem `json:"bids"`
+	Asks           []orderbookItem `json:"asks"`
+}
+
+type orderbookItem struct {
+	Action string
+	Price  types.Number
+	Amount types.Number
+}
+
+func (o *orderbookItem) UnmarshalJSON(data []byte) error {
+	var rawData []json.RawMessage
+	if err := json.Unmarshal(data, &rawData); err != nil {
+		return fmt.Errorf("error unmarshalling orderbook item: %w", err)
+	}
+
+	targets := []any{&o.Action, &o.Price, &o.Amount}
+	switch len(rawData) {
+	case 2:
+		targets = targets[1:]
+	case 3:
+		// leave as-is
+	default:
+		return fmt.Errorf("unexpected orderbook item length: %d", len(rawData))
+	}
+
+	for i, raw := range rawData {
+		if err := json.Unmarshal(raw, targets[i]); err != nil {
+			return fmt.Errorf("error unmarshalling %T field[%d]: %w", o, i, err)
+		}
+	}
+	return nil
 }
 
 // wsCandlestickData represents publicly available market data used to generate a TradingView candle chart.
@@ -1307,33 +1339,33 @@ type wsChanges struct {
 		IndexPrice     float64    `json:"index_price"`
 		FeeCurrency    string     `json:"fee_currency"`
 		Fee            float64    `json:"fee"`
-		Direction      string     `json:"direction"`
+		Direction      order.Side `json:"direction"`
 		Amount         float64    `json:"amount"`
 	} `json:"trades"`
 	Positions []WebsocketPosition `json:"positions"`
 	Orders    []struct {
-		Web                 bool       `json:"web"`
-		TimeInForce         string     `json:"time_in_force"`
-		Replaced            bool       `json:"replaced"`
-		ReduceOnly          bool       `json:"reduce_only"`
-		ProfitLoss          float64    `json:"profit_loss"`
-		Price               float64    `json:"price"`
-		PostOnly            bool       `json:"post_only"`
-		OrderType           string     `json:"order_type"`
-		OrderState          string     `json:"order_state"`
-		OrderID             string     `json:"order_id"`
-		MaxShow             float64    `json:"max_show"`
-		LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
-		Label               string     `json:"label"`
-		IsLiquidation       bool       `json:"is_liquidation"`
-		InstrumentName      string     `json:"instrument_name"`
-		FilledAmount        float64    `json:"filled_amount"`
-		Direction           string     `json:"direction"`
-		CreationTimestamp   types.Time `json:"creation_timestamp"`
-		Commission          float64    `json:"commission"`
-		AveragePrice        float64    `json:"average_price"`
-		API                 bool       `json:"api"`
-		Amount              float64    `json:"amount"`
+		Web                 bool         `json:"web"`
+		TimeInForce         string       `json:"time_in_force"`
+		Replaced            bool         `json:"replaced"`
+		ReduceOnly          bool         `json:"reduce_only"`
+		ProfitLoss          float64      `json:"profit_loss"`
+		Price               float64      `json:"price"`
+		PostOnly            bool         `json:"post_only"`
+		OrderType           order.Type   `json:"order_type"`
+		OrderState          order.Status `json:"order_state"`
+		OrderID             string       `json:"order_id"`
+		MaxShow             float64      `json:"max_show"`
+		LastUpdateTimestamp types.Time   `json:"last_update_timestamp"`
+		Label               string       `json:"label"`
+		IsLiquidation       bool         `json:"is_liquidation"`
+		InstrumentName      string       `json:"instrument_name"`
+		FilledAmount        float64      `json:"filled_amount"`
+		Direction           order.Side   `json:"direction"`
+		CreationTimestamp   types.Time   `json:"creation_timestamp"`
+		Commission          float64      `json:"commission"`
+		AveragePrice        float64      `json:"average_price"`
+		API                 bool         `json:"api"`
+		Amount              float64      `json:"amount"`
 	} `json:"orders"`
 	InstrumentName string `json:"instrument_name"`
 }
@@ -1375,28 +1407,28 @@ type WsMMPTrigger struct {
 
 // WsOrder represents changes in user's orders for given instrument.
 type WsOrder struct {
-	TimeInForce         string     `json:"time_in_force"`
-	Replaced            bool       `json:"replaced"`
-	ReduceOnly          bool       `json:"reduce_only"`
-	ProfitLoss          float64    `json:"profit_loss"`
-	Price               float64    `json:"price"`
-	PostOnly            bool       `json:"post_only"`
-	OriginalOrderType   string     `json:"original_order_type"`
-	OrderType           string     `json:"order_type"`
-	OrderState          string     `json:"order_state"`
-	OrderID             string     `json:"order_id"`
-	MaxShow             float64    `json:"max_show"`
-	LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
-	Label               string     `json:"label"`
-	IsLiquidation       bool       `json:"is_liquidation"`
-	InstrumentName      string     `json:"instrument_name"`
-	FilledAmount        float64    `json:"filled_amount"`
-	Direction           string     `json:"direction"`
-	CreationTimestamp   types.Time `json:"creation_timestamp"`
-	Commission          float64    `json:"commission"`
-	AveragePrice        float64    `json:"average_price"`
-	API                 bool       `json:"api"`
-	Amount              float64    `json:"amount"`
+	TimeInForce         string       `json:"time_in_force"`
+	Replaced            bool         `json:"replaced"`
+	ReduceOnly          bool         `json:"reduce_only"`
+	ProfitLoss          float64      `json:"profit_loss"`
+	Price               float64      `json:"price"`
+	PostOnly            bool         `json:"post_only"`
+	OriginalOrderType   string       `json:"original_order_type"`
+	OrderType           order.Type   `json:"order_type"`
+	OrderState          order.Status `json:"order_state"`
+	OrderID             string       `json:"order_id"`
+	MaxShow             float64      `json:"max_show"`
+	LastUpdateTimestamp types.Time   `json:"last_update_timestamp"`
+	Label               string       `json:"label"`
+	IsLiquidation       bool         `json:"is_liquidation"`
+	InstrumentName      string       `json:"instrument_name"`
+	FilledAmount        float64      `json:"filled_amount"`
+	Direction           order.Side   `json:"direction"`
+	CreationTimestamp   types.Time   `json:"creation_timestamp"`
+	Commission          float64      `json:"commission"`
+	AveragePrice        float64      `json:"average_price"`
+	API                 bool         `json:"api"`
+	Amount              float64      `json:"amount"`
 }
 
 // wsUserPortfolio represents current user portfolio

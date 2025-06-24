@@ -292,11 +292,6 @@ func (e *Exchange) processTrades(incoming []byte) error {
 		return err
 	}
 
-	side, err := order.StringToOrderSide(data.Side)
-	if err != nil {
-		return err
-	}
-
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := e.Websocket.Trade.Update(saveTradeData, trade.Data{
@@ -306,7 +301,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 				Exchange:     e.Name,
 				Price:        data.Price.Float64(),
 				Amount:       data.Amount.Float64(),
-				Side:         side,
+				Side:         data.Side,
 				TID:          strconv.FormatInt(data.ID, 10),
 			}); err != nil {
 				return err
@@ -437,20 +432,11 @@ func (e *Exchange) processSpotOrders(data []byte) error {
 		Event   string        `json:"event"`
 		Result  []WsSpotOrder `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	details := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		side, err := order.StringToOrderSide(resp.Result[x].Side)
-		if err != nil {
-			return err
-		}
-		orderType, err := order.StringToOrderType(resp.Result[x].Type)
-		if err != nil {
-			return err
-		}
 		a, err := asset.New(resp.Result[x].Account)
 		if err != nil {
 			return err
@@ -459,8 +445,8 @@ func (e *Exchange) processSpotOrders(data []byte) error {
 			Amount:         resp.Result[x].Amount.Float64(),
 			Exchange:       e.Name,
 			OrderID:        resp.Result[x].ID,
-			Side:           side,
-			Type:           orderType,
+			Side:           resp.Result[x].Side,
+			Type:           resp.Result[x].Type,
 			Pair:           resp.Result[x].CurrencyPair,
 			Cost:           resp.Result[x].Fee.Float64(),
 			AssetType:      a,
@@ -491,15 +477,11 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range fills {
-		side, err := order.StringToOrderSide(resp.Result[x].Side)
-		if err != nil {
-			return err
-		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     e.Name,
 			CurrencyPair: resp.Result[x].CurrencyPair,
-			Side:         side,
+			Side:         resp.Result[x].Side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      strconv.FormatInt(resp.Result[x].ID, 10),
 			Price:        resp.Result[x].Price.Float64(),
@@ -559,7 +541,7 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 		changes[x] = account.Change{
 			AssetType: asset.Margin,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Currency:  resp.Result[x].Currency,
 				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
 				Free:      resp.Result[x].Available.Float64(),
 				Hold:      resp.Result[x].Freeze.Float64(),
@@ -607,7 +589,7 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 			Account:   resp.Result[x].User,
 			AssetType: asset.Margin,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Currency:  resp.Result[x].Currency,
 				Total:     resp.Result[x].Total.Float64(),
 				Free:      resp.Result[x].Available.Float64(),
 				UpdatedAt: resp.Result[x].Timestamp.Time(),

@@ -3,6 +3,7 @@ package bithumb
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -55,7 +56,7 @@ type TransactionHistory struct {
 	Data   []struct {
 		ContNumber      int64          `json:"cont_no,string"`
 		TransactionDate types.DateTime `json:"transaction_date"`
-		Type            string         `json:"type"`
+		Side            order.Side     `json:"type"`
 		UnitsTraded     float64        `json:"units_traded,string"`
 		Price           float64        `json:"price,string"`
 		Total           float64        `json:"total,string"`

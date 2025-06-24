@@ -928,14 +928,14 @@ type OrderDetail struct {
 	ClientOrderID              string       `json:"clOrdId"`
 	Tag                        string       `json:"tag"`
 	ProfitAndLoss              types.Number `json:"pnl"`
-	OrderType                  string       `json:"ordType"`
+	OrderType                  order.Type   `json:"ordType"`
 	Side                       order.Side   `json:"side"`
 	PositionSide               string       `json:"posSide"`
 	TradeMode                  string       `json:"tdMode"`
 	TradeID                    string       `json:"tradeId"`
 	FillTime                   types.Time   `json:"fillTime"`
 	Source                     string       `json:"source"`
-	State                      string       `json:"state"`
+	State                      order.Status `json:"state"`
 	TakeProfitTriggerPriceType string       `json:"tpTriggerPxType"`
 	StopLossTriggerPriceType   string       `json:"slTriggerPxType"`
 	StopLossOrderPrice         types.Number `json:"slOrdPx"`
@@ -1013,7 +1013,7 @@ type PendingOrderItem struct {
 	InstrumentType             string        `json:"instType"`
 	Leverage                   types.Number  `json:"lever"`
 	OrderID                    string        `json:"ordId"`
-	OrderType                  string        `json:"ordType"`
+	OrderType                  order.Type    `json:"ordType"`
 	ProfitAndLoss              types.Number  `json:"pnl"`
 	PositionSide               string        `json:"posSide"`
 	RebateAmount               types.Number  `json:"rebate"`
@@ -1022,7 +1022,7 @@ type PendingOrderItem struct {
 	StopLossOrdPrice           types.Number  `json:"slOrdPx"`
 	StopLossTriggerPrice       types.Number  `json:"slTriggerPx"`
 	StopLossTriggerPriceType   string        `json:"slTriggerPxType"`
-	State                      string        `json:"state"`
+	State                      order.Status  `json:"state"`
 	Price                      types.Number  `json:"px"`
 	Size                       types.Number  `json:"sz"`
 	Tag                        string        `json:"tag"`
@@ -1418,18 +1418,18 @@ type CurrencyDepositResponseItem struct {
 
 // DepositHistoryResponseItem deposit history response item
 type DepositHistoryResponseItem struct {
-	Amount              types.Number `json:"amt"`
-	TransactionID       string       `json:"txId"` // Hash record of the deposit
-	Currency            string       `json:"ccy"`
-	Chain               string       `json:"chain"`
-	From                string       `json:"from"`
-	ToDepositAddress    string       `json:"to"`
-	Timestamp           types.Time   `json:"ts"`
-	State               types.Number `json:"state"`
-	DepositID           string       `json:"depId"`
-	AreaCodeFrom        string       `json:"areaCodeFrom"`
-	FromWithdrawalID    string       `json:"fromWdId"`
-	ActualDepBlkConfirm string       `json:"actualDepBlkConfirm"`
+	Amount              types.Number  `json:"amt"`
+	TransactionID       string        `json:"txId"` // Hash record of the deposit
+	Currency            currency.Code `json:"ccy"`
+	Chain               string        `json:"chain"`
+	From                string        `json:"from"`
+	ToDepositAddress    string        `json:"to"`
+	Timestamp           types.Time    `json:"ts"`
+	State               types.Number  `json:"state"`
+	DepositID           string        `json:"depId"`
+	AreaCodeFrom        string        `json:"areaCodeFrom"`
+	FromWithdrawalID    string        `json:"fromWdId"`
+	ActualDepBlkConfirm string        `json:"actualDepBlkConfirm"`
 }
 
 // WithdrawalInput represents request parameters for cryptocurrency withdrawal
@@ -1481,25 +1481,25 @@ type LightningWithdrawalResponse struct {
 
 // WithdrawalHistoryResponse represents the withdrawal response history
 type WithdrawalHistoryResponse struct {
-	Currency             string       `json:"ccy"`
-	ChainName            string       `json:"chain"`
-	NonTradableAsset     bool         `json:"nonTradableAsset"`
-	Amount               types.Number `json:"amt"`
-	Timestamp            types.Time   `json:"ts"`
-	FromRemittingAddress string       `json:"from"`
-	ToReceivingAddress   string       `json:"to"`
-	AreaCodeFrom         string       `json:"areaCodeFrom"`
-	AreaCodeTo           string       `json:"areaCodeTo"`
-	Tag                  string       `json:"tag"`
-	WithdrawalFee        types.Number `json:"fee"`
-	FeeCurrency          string       `json:"feeCcy"`
-	Memo                 string       `json:"memo"`
-	AddrEx               string       `json:"addrEx"`
-	ClientID             string       `json:"clientId"`
-	TransactionID        string       `json:"txId"` // Hash record of the withdrawal. This parameter will not be returned for internal transfers.
-	StateOfWithdrawal    string       `json:"state"`
-	WithdrawalID         string       `json:"wdId"`
-	PaymentID            string       `json:"pmtId"`
+	Currency             currency.Code `json:"ccy"`
+	ChainName            string        `json:"chain"`
+	NonTradableAsset     bool          `json:"nonTradableAsset"`
+	Amount               types.Number  `json:"amt"`
+	Timestamp            types.Time    `json:"ts"`
+	FromRemittingAddress string        `json:"from"`
+	ToReceivingAddress   string        `json:"to"`
+	AreaCodeFrom         string        `json:"areaCodeFrom"`
+	AreaCodeTo           string        `json:"areaCodeTo"`
+	Tag                  string        `json:"tag"`
+	WithdrawalFee        types.Number  `json:"fee"`
+	FeeCurrency          string        `json:"feeCcy"`
+	Memo                 string        `json:"memo"`
+	AddrEx               string        `json:"addrEx"`
+	ClientID             string        `json:"clientId"`
+	TransactionID        string        `json:"txId"` // Hash record of the withdrawal. This parameter will not be returned for internal transfers.
+	StateOfWithdrawal    string        `json:"state"`
+	WithdrawalID         string        `json:"wdId"`
+	PaymentID            string        `json:"pmtId"`
 }
 
 // DepositWithdrawStatus holds deposit withdraw status info
@@ -3024,15 +3024,15 @@ type SpreadOrder struct {
 	Tag               string       `json:"tag"`
 	Price             types.Number `json:"px"`
 	Size              types.Number `json:"sz"`
-	OrderType         string       `json:"ordType"`
-	Side              string       `json:"side"`
+	OrderType         order.Type   `json:"ordType"`
+	Side              order.Side   `json:"side"`
 	FillSize          types.Number `json:"fillSz"`
 	FillPrice         types.Number `json:"fillPx"`
 	AccFillSize       types.Number `json:"accFillSz"`
 	PendingFillSize   types.Number `json:"pendingFillSz"`
 	PendingSettleSize types.Number `json:"pendingSettleSz"`
 	CanceledSize      types.Number `json:"canceledSz"`
-	State             string       `json:"state"`
+	State             order.Status `json:"state"`
 	AveragePrice      types.Number `json:"avgPx"`
 	CancelSource      string       `json:"cancelSource"`
 	UpdateTime        types.Time   `json:"uTime"`
@@ -3112,7 +3112,7 @@ type SpreadTicker struct {
 // SpreadPublicTradeItem represents publicly available trade order instance
 type SpreadPublicTradeItem struct {
 	SprdID    string       `json:"sprdId"`
-	Side      string       `json:"side"`
+	Side      order.Side   `json:"side"`
 	Size      types.Number `json:"sz"`
 	Price     types.Number `json:"px"`
 	TradeID   string       `json:"tradeId"`
@@ -3670,7 +3670,7 @@ type PublicTrade struct {
 	MarkPrice        types.Number `json:"markPx"`
 	OptionType       string       `json:"optType"`
 	Price            types.Number `json:"px"`
-	Side             string       `json:"side"`
+	Side             order.Side   `json:"side"`
 	Size             types.Number `json:"sz"`
 	TradeID          string       `json:"tradeId"`
 	Timestamp        types.Time   `json:"ts"`
@@ -4357,8 +4357,8 @@ type WsSpreadOrder struct {
 	Tag               string       `json:"tag"`
 	Price             types.Number `json:"px"`
 	Size              types.Number `json:"sz"`
-	OrderType         string       `json:"ordType"`
-	Side              string       `json:"side"`
+	OrderType         order.Type   `json:"ordType"`
+	Side              order.Side   `json:"side"`
 	FillSize          types.Number `json:"fillSz"`
 	FillPrice         types.Number `json:"fillPx"`
 	TradeID           string       `json:"tradeId"`
@@ -4366,7 +4366,7 @@ type WsSpreadOrder struct {
 	PendingFillSize   types.Number `json:"pendingFillSz"`
 	PendingSettleSize types.Number `json:"pendingSettleSz"`
 	CanceledSize      types.Number `json:"canceledSz"`
-	State             string       `json:"state"`
+	State             order.Status `json:"state"`
 	AveragePrice      types.Number `json:"avgPx"`
 	CancelSource      string       `json:"cancelSource"`
 	UpdateTime        types.Time   `json:"uTime"`
@@ -4391,7 +4391,7 @@ type WsSpreadOrderTrade struct {
 		FillPrice     types.Number `json:"fillPx"`
 		FillSize      types.Number `json:"fillSz"`
 		State         string       `json:"state"`
-		Side          string       `json:"side"`
+		Side          order.Side   `json:"side"`
 		ExecType      string       `json:"execType"`
 		Timestamp     types.Time   `json:"ts"`
 		Legs          []struct {
@@ -4442,7 +4442,7 @@ type WsSpreadPublicTicker struct {
 // WsSpreadPublicTrade holds trades data from sprd-public-trades
 type WsSpreadPublicTrade struct {
 	SpreadID  string       `json:"sprdId"`
-	Side      string       `json:"side"`
+	Side      order.Side   `json:"side"`
 	Size      types.Number `json:"sz"`
 	Price     types.Number `json:"px"`
 	TradeID   string       `json:"tradeId"`

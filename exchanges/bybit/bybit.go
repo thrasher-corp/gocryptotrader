@@ -2544,50 +2544,6 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 	return err
 }
 
-func getSide(side string) order.Side {
-	switch side {
-	case sideBuy:
-		return order.Buy
-	case sideSell:
-		return order.Sell
-	default:
-		return order.UnknownSide
-	}
-}
-
-// StringToOrderStatus returns order status from string
-func StringToOrderStatus(status string) order.Status {
-	status = strings.ToUpper(status)
-	switch status {
-	case "CREATED":
-		return order.Open
-	case "NEW":
-		return order.New
-	case "REJECTED":
-		return order.Rejected
-	case "PARTIALLYFILLED", "PARTIALLY_FILLED":
-		return order.PartiallyFilled
-	case "PARTIALLYFILLEDCANCELED":
-		return order.PartiallyFilledCancelled
-	case "PENDING_CANCEL":
-		return order.PendingCancel
-	case "FILLED":
-		return order.Filled
-	case "CANCELED", "CANCELLED":
-		return order.Cancelled
-	case "UNTRIGGERED":
-		return order.Pending
-	case "TRIGGERED":
-		return order.Open
-	case "DEACTIVATED":
-		return order.Closed
-	case "ACTIVE":
-		return order.Active
-	default:
-		return order.UnknownStatus
-	}
-}
-
 func getSign(sign, secret string) (string, error) {
 	hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(sign), []byte(secret))
 	if err != nil {

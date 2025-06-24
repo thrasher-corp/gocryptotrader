@@ -831,7 +831,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 			Status:          withdrawals.Data[i].State,
 			TransferID:      withdrawals.Data[i].TransactionHash,
 			Timestamp:       withdrawals.Data[i].CreatedAt.Time(),
-			Currency:        withdrawals.Data[i].Currency.String(),
+			Currency:        withdrawals.Data[i].Currency,
 			Amount:          withdrawals.Data[i].Amount,
 			Fee:             withdrawals.Data[i].Fee,
 			TransferType:    withdrawals.Data[i].Type,
@@ -861,17 +861,12 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		}
 		for i := range sTrades {
 			for j := range sTrades[i].Trades {
-				var side order.Side
-				side, err = order.StringToOrderSide(sTrades[i].Trades[j].Direction)
-				if err != nil {
-					return nil, err
-				}
 				resp = append(resp, trade.Data{
 					Exchange:     e.Name,
 					TID:          strconv.FormatFloat(sTrades[i].Trades[j].TradeID, 'f', -1, 64),
 					CurrencyPair: p,
 					AssetType:    a,
-					Side:         side,
+					Side:         sTrades[i].Trades[j].Direction,
 					Price:        sTrades[i].Trades[j].Price,
 					Amount:       sTrades[i].Trades[j].Amount,
 					Timestamp:    sTrades[i].Timestamp.Time(),
@@ -886,19 +881,12 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		}
 		for i := range fTrades.Data {
 			for j := range fTrades.Data[i].Data {
-				var side order.Side
-				if fTrades.Data[i].Data[j].Direction != "" {
-					side, err = order.StringToOrderSide(fTrades.Data[i].Data[j].Direction)
-					if err != nil {
-						return nil, err
-					}
-				}
 				resp = append(resp, trade.Data{
 					Exchange:     e.Name,
 					TID:          strconv.FormatInt(fTrades.Data[i].Data[j].ID, 10),
 					CurrencyPair: p,
 					AssetType:    a,
-					Side:         side,
+					Side:         fTrades.Data[i].Data[j].Direction,
 					Price:        fTrades.Data[i].Data[j].Price,
 					Amount:       fTrades.Data[i].Data[j].Amount,
 					Timestamp:    fTrades.Data[i].Data[j].Timestamp.Time(),
@@ -912,19 +900,12 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			return nil, err
 		}
 		for i := range cTrades.Data {
-			var side order.Side
-			if cTrades.Data[i].Direction != "" {
-				side, err = order.StringToOrderSide(cTrades.Data[i].Direction)
-				if err != nil {
-					return nil, err
-				}
-			}
 			resp = append(resp, trade.Data{
 				Exchange:     e.Name,
 				TID:          strconv.FormatInt(cTrades.Data[i].ID, 10),
 				CurrencyPair: p,
 				AssetType:    a,
-				Side:         side,
+				Side:         cTrades.Data[i].Direction,
 				Price:        cTrades.Data[i].Price,
 				Amount:       cTrades.Data[i].Amount,
 				Timestamp:    cTrades.Data[i].Timestamp.Time(),
@@ -1281,73 +1262,25 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		respData := &resp
-		if respData.ID == 0 {
-			return nil, fmt.Errorf("%s - order not found for orderid %s", e.Name, orderID)
-		}
-		responseID := strconv.FormatInt(respData.ID, 10)
-		if responseID != orderID {
-			return nil, errors.New(e.Name + " - GetOrderInfo orderID mismatch. Expected: " +
-				orderID + " Received: " + responseID)
-		}
-		typeDetails := strings.Split(respData.Type, "-")
-		orderSide, err := order.StringToOrderSide(typeDetails[0])
-		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
-		}
-		orderType, err := order.StringToOrderType(typeDetails[1])
-		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
-		}
-		orderStatus, err := order.StringToOrderStatus(respData.State)
-		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
-		}
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = e.GetRequestFormattedPairAndAssetType(respData.Symbol)
+		p, a, err := e.GetRequestFormattedPairAndAssetType(resp.Symbol)
 		if err != nil {
 			return nil, err
 		}
+
 		orderDetail = order.Detail{
 			Exchange:       e.Name,
 			OrderID:        orderID,
-			AccountID:      strconv.FormatInt(respData.AccountID, 10),
+			AccountID:      strconv.FormatInt(resp.AccountID, 10),
 			Pair:           p,
-			Type:           orderType,
-			Side:           orderSide,
-			Date:           respData.CreatedAt.Time(),
-			Status:         orderStatus,
-			Price:          respData.Price,
-			Amount:         respData.Amount,
-			ExecutedAmount: respData.FilledAmount,
-			Fee:            respData.FilledFees,
+			Date:           resp.CreatedAt.Time(),
+			Status:         resp.State,
+			Price:          resp.Price,
+			Amount:         resp.Amount,
+			ExecutedAmount: resp.FilledAmount,
+			Fee:            resp.FilledFees,
 			AssetType:      a,
 		}
+		setOrderSideAndType(resp.Type, &orderDetail)
 	case asset.CoinMarginedFutures:
 		orderInfo, err := e.GetSwapOrderInfo(ctx, pair, orderID, "")
 		if err != nil {
@@ -1517,7 +1450,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:             resp[x].FilledFees,
 				}
-				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				setOrderSideAndType(resp[x].Type, &orderDetail)
 				orders = append(orders, orderDetail)
 			}
 		}
@@ -1652,7 +1585,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:             resp[x].FilledFees,
 				}
-				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				setOrderSideAndType(resp[x].Type, &orderDetail)
 				orderDetail.InferCostsAndTimes()
 				orders = append(orders, orderDetail)
 			}
@@ -1767,12 +1700,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-func setOrderSideStatusAndType(orderState, requestType string, orderDetail *order.Detail) {
-	var err error
-	if orderDetail.Status, err = order.StringToOrderStatus(orderState); err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", orderDetail.Exchange, err)
-	}
-
+func setOrderSideAndType(requestType string, orderDetail *order.Detail) {
 	switch SpotNewOrderRequestParamsType(requestType) {
 	case SpotNewOrderRequestTypeBuyMarket:
 		orderDetail.Side = order.Buy

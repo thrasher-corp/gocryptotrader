@@ -943,7 +943,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 		assert.NotEmpty(t, h, "WithdrawalHistory should not be empty")
 		for _, req := range h {
 			assert.Equal(t, time.Date(2022, time.January, 31, 16, 7, 32, 0, time.UTC), req.Timestamp, "Timestamp should match")
-			assert.Equal(t, "BTC", req.Currency, "Currency should match")
+			assert.Equal(t, currency.BTC, req.Currency, "Currency should match")
 			assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
 		}
 	}

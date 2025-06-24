@@ -118,7 +118,7 @@ type FundingHistory struct {
 	TransferID        string
 	Description       string
 	Timestamp         time.Time
-	Currency          string
+	Currency          currency.Code
 	Amount            float64
 	Fee               float64
 	TransferType      string
@@ -136,7 +136,7 @@ type WithdrawalHistory struct {
 	TransferID      string
 	Description     string
 	Timestamp       time.Time
-	Currency        string
+	Currency        currency.Code
 	Amount          float64
 	Fee             float64
 	TransferType    string

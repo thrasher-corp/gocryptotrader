@@ -598,7 +598,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			Fee:             withdrawals[i].Fee,
 			CryptoToAddress: withdrawals[i].Info,
 			CryptoTxID:      withdrawals[i].TxID,
-			Currency:        c.String(),
+			Currency:        c,
 		}
 	}
 
@@ -903,28 +903,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 				TID: orderInfo.Trades[i],
 			})
 		}
-		side, err := order.StringToOrderSide(orderInfo.Description.Type)
-		if err != nil {
-			return nil, err
-		}
-		status, err := order.StringToOrderStatus(orderInfo.Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
-		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
-		if err != nil {
-			return nil, err
-		}
 
-		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
-			avail,
-			format)
+		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair, avail, format)
 		if err != nil {
 			return nil, err
 		}
 
 		price := orderInfo.Price
-		if orderInfo.Status == statusOpen {
+		if orderInfo.Status == order.Open {
 			price = orderInfo.Description.Price
 		}
 
@@ -932,11 +918,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			Exchange:        e.Name,
 			OrderID:         orderID,
 			Pair:            p,
-			Side:            side,
-			Type:            oType,
+			Side:            orderInfo.Description.Side,
+			Type:            orderInfo.Description.OrderType,
 			Date:            orderInfo.OpenTime.Time(),
 			CloseTime:       orderInfo.CloseTime.Time(),
-			Status:          status,
+			Status:          orderInfo.Status,
 			Price:           price,
 			Amount:          orderInfo.Volume,
 			ExecutedAmount:  orderInfo.VolumeExecuted,
@@ -1110,21 +1096,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 		for i := range resp.Open {
-			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
-				avail,
-				format)
+			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair, avail, format)
 			if err != nil {
 				return nil, err
-			}
-			var side order.Side
-			side, err = order.StringToOrderSide(resp.Open[i].Description.Type)
-			if err != nil {
-				return nil, err
-			}
-			var orderType order.Type
-			orderType, err = order.StringToOrderType(resp.Open[i].Description.OrderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			orders = append(orders, order.Detail{
 				OrderID:         i,
@@ -1134,8 +1108,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Exchange:        e.Name,
 				Date:            resp.Open[i].OpenTime.Time(),
 				Price:           resp.Open[i].Description.Price,
-				Side:            side,
-				Type:            orderType,
+				Side:            resp.Open[i].Description.Side,
+				Type:            resp.Open[i].Description.OrderType,
 				Pair:            p,
 				AssetType:       asset.Spot,
 				Status:          order.Open,
@@ -1232,26 +1206,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		}
 
 		for i := range resp.Closed {
-			p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
-				avail,
-				format)
+			p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair, avail, format)
 			if err != nil {
 				return nil, err
-			}
-
-			var side order.Side
-			side, err = order.StringToOrderSide(resp.Closed[i].Description.Type)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-			}
-			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-			}
-			var orderType order.Type
-			orderType, err = order.StringToOrderType(resp.Closed[i].Description.OrderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			detail := order.Detail{
 				OrderID:         i,
@@ -1264,9 +1221,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				Date:            resp.Closed[i].OpenTime.Time(),
 				CloseTime:       resp.Closed[i].CloseTime.Time(),
 				Price:           resp.Closed[i].Description.Price,
-				Side:            side,
-				Status:          status,
-				Type:            orderType,
+				Side:            resp.Closed[i].Description.Side,
+				Status:          resp.Closed[i].Status,
+				Type:            resp.Closed[i].Description.OrderType,
 				Pair:            p,
 			}
 			detail.InferCostsAndTimes()

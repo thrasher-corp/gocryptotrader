@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -173,7 +174,7 @@ type Trade struct {
 	Sequence string     `json:"sequence"`
 	Price    float64    `json:"price,string"`
 	Size     float64    `json:"size,string"`
-	Side     string     `json:"side"`
+	Side     order.Side `json:"side"`
 	Time     types.Time `json:"time"`
 }
 
@@ -656,36 +657,36 @@ type OrdersListResponse struct {
 
 // OrderDetail represents order detail
 type OrderDetail struct {
-	ID                  string       `json:"id"`
-	ClientOID           string       `json:"clientOid"`
-	Symbol              string       `json:"symbol"`
-	Side                string       `json:"side"`
-	Type                string       `json:"type"`          // optional
-	Remark              string       `json:"remark"`        // optional
-	Stop                string       `json:"stop"`          // optional
-	StopPrice           types.Number `json:"stopPrice"`     // optional
-	SelfTradePrevention string       `json:"stp,omitempty"` // optional
-	Price               types.Number `json:"price"`
-	Size                types.Number `json:"size"`
-	TimeInForce         string       `json:"timeInForce"` // optional
-	CancelAfter         int64        `json:"cancelAfter"` // optional
-	PostOnly            bool         `json:"postOnly"`    // optional
-	Hidden              bool         `json:"hidden"`      // optional
-	Iceberg             bool         `json:"iceberg"`     // optional
-	VisibleSize         types.Number `json:"visibleSize"` // optional
-	Channel             string       `json:"channel"`
-	OperationType       string       `json:"opType"` // operation type: DEAL
-	Funds               string       `json:"funds"`
-	DealFunds           string       `json:"dealFunds"`
-	DealSize            types.Number `json:"dealSize"`
-	Fee                 types.Number `json:"fee"`
-	FeeCurrency         string       `json:"feeCurrency"`
-	StopTriggered       bool         `json:"stopTriggered"`
-	Tags                string       `json:"tags"`
-	IsActive            bool         `json:"isActive"`
-	CancelExist         bool         `json:"cancelExist"`
-	CreatedAt           types.Time   `json:"createdAt"`
-	TradeType           string       `json:"tradeType"`
+	ID                  string        `json:"id"`
+	ClientOID           string        `json:"clientOid"`
+	Symbol              currency.Pair `json:"symbol"`
+	Side                order.Side    `json:"side"`
+	Type                order.Type    `json:"type"`          // optional
+	Remark              string        `json:"remark"`        // optional
+	Stop                string        `json:"stop"`          // optional
+	StopPrice           types.Number  `json:"stopPrice"`     // optional
+	SelfTradePrevention string        `json:"stp,omitempty"` // optional
+	Price               types.Number  `json:"price"`
+	Size                types.Number  `json:"size"`
+	TimeInForce         string        `json:"timeInForce"` // optional
+	CancelAfter         int64         `json:"cancelAfter"` // optional
+	PostOnly            bool          `json:"postOnly"`    // optional
+	Hidden              bool          `json:"hidden"`      // optional
+	Iceberg             bool          `json:"iceberg"`     // optional
+	VisibleSize         types.Number  `json:"visibleSize"` // optional
+	Channel             string        `json:"channel"`
+	OperationType       string        `json:"opType"` // operation type: DEAL
+	Funds               string        `json:"funds"`
+	DealFunds           string        `json:"dealFunds"`
+	DealSize            types.Number  `json:"dealSize"`
+	Fee                 types.Number  `json:"fee"`
+	FeeCurrency         string        `json:"feeCurrency"`
+	StopTriggered       bool          `json:"stopTriggered"`
+	Tags                string        `json:"tags"`
+	IsActive            bool          `json:"isActive"`
+	CancelExist         bool          `json:"cancelExist"`
+	CreatedAt           types.Time    `json:"createdAt"`
+	TradeType           string        `json:"tradeType"`
 
 	// Used by HF Orders
 	Active        bool       `json:"active"`
@@ -744,21 +745,21 @@ type StopOrderListResponse struct {
 // StopOrder holds a stop order detail
 type StopOrder struct {
 	OrderRequest
-	ID              string     `json:"id"`
-	UserID          string     `json:"userId"`
-	Status          string     `json:"status"`
-	Funds           float64    `json:"funds,string"`
-	Channel         string     `json:"channel"`
-	Tags            string     `json:"tags"`
-	DomainID        string     `json:"domainId"`
-	TradeSource     string     `json:"tradeSource"`
-	TradeType       string     `json:"tradeType"`
-	FeeCurrency     string     `json:"feeCurrency"`
-	TakerFeeRate    string     `json:"takerFeeRate"`
-	MakerFeeRate    string     `json:"makerFeeRate"`
-	CreatedAt       types.Time `json:"createdAt"`
-	OrderTime       types.Time `json:"orderTime"`
-	StopTriggerTime types.Time `json:"stopTriggerTime"`
+	ID              string       `json:"id"`
+	UserID          string       `json:"userId"`
+	Status          order.Status `json:"status"`
+	Funds           float64      `json:"funds,string"`
+	Channel         string       `json:"channel"`
+	Tags            string       `json:"tags"`
+	DomainID        string       `json:"domainId"`
+	TradeSource     string       `json:"tradeSource"`
+	TradeType       string       `json:"tradeType"`
+	FeeCurrency     string       `json:"feeCurrency"`
+	TakerFeeRate    string       `json:"takerFeeRate"`
+	MakerFeeRate    string       `json:"makerFeeRate"`
+	CreatedAt       types.Time   `json:"createdAt"`
+	OrderTime       types.Time   `json:"orderTime"`
+	StopTriggerTime types.Time   `json:"stopTriggerTime"`
 }
 
 // AccountInfo represents account information
@@ -1071,10 +1072,10 @@ type DepositAddress struct {
 }
 
 type baseDeposit struct {
-	Currency   string `json:"currency"`
-	WalletTxID string `json:"walletTxId"`
-	IsInner    bool   `json:"isInner"`
-	Status     string `json:"status"`
+	Currency   currency.Code `json:"currency"`
+	WalletTxID string        `json:"walletTxId"`
+	IsInner    bool          `json:"isInner"`
+	Status     string        `json:"status"`
 }
 
 // DepositResponse represents a detailed response for list of deposit
@@ -1369,7 +1370,7 @@ type WsTrade struct {
 	Sequence     string     `json:"sequence"`
 	Type         string     `json:"type"`
 	Symbol       string     `json:"symbol"`
-	Side         string     `json:"side"`
+	Side         order.Side `json:"side"`
 	Price        float64    `json:"price,string"`
 	Size         float64    `json:"size,string"`
 	TradeID      string     `json:"tradeId"`
@@ -1389,8 +1390,8 @@ type WsPriceIndicator struct {
 // WsTradeOrder represents a private trade order push data
 type WsTradeOrder struct {
 	Symbol     string       `json:"symbol"`
-	OrderType  string       `json:"orderType"`
-	Side       string       `json:"side"`
+	OrderType  order.Type   `json:"orderType"`
+	Side       order.Side   `json:"side"`
 	OrderID    string       `json:"orderId"`
 	Type       string       `json:"type"`
 	OrderTime  types.Time   `json:"orderTime"`
@@ -1399,7 +1400,7 @@ type WsTradeOrder struct {
 	Price      float64      `json:"price,string"`
 	ClientOid  string       `json:"clientOid"`
 	RemainSize float64      `json:"remainSize,string"`
-	Status     string       `json:"status"`
+	Status     order.Status `json:"status"`
 	Timestamp  types.Time   `json:"ts"`
 	Liquidity  string       `json:"liquidity"`
 	MatchPrice types.Number `json:"matchPrice"`
@@ -1476,8 +1477,8 @@ type WsStopOrder struct {
 	CreatedAt      types.Time `json:"createdAt"`
 	OrderID        string     `json:"orderId"`
 	OrderPrice     float64    `json:"orderPrice,string"`
-	OrderType      string     `json:"orderType"`
-	Side           string     `json:"side"`
+	OrderType      order.Type `json:"orderType"`
+	Side           order.Side `json:"side"`
 	Size           float64    `json:"size,string"`
 	Stop           string     `json:"stop"`
 	StopPrice      float64    `json:"stopPrice,string"`
@@ -1606,25 +1607,25 @@ type WsFuturesTransactionStatisticsTimeEvent struct {
 
 // WsFuturesTradeOrder represents trade order information according to the market
 type WsFuturesTradeOrder struct {
-	OrderID          string     `json:"orderId"`
-	Symbol           string     `json:"symbol"`
-	Type             string     `json:"type"`       // Message Type: "open", "match", "filled", "canceled", "update"
-	Status           string     `json:"status"`     // Order Status: "match", "open", "done"
-	MatchSize        string     `json:"matchSize"`  // Match Size (when the type is "match")
-	MatchPrice       string     `json:"matchPrice"` // Match Price (when the type is "match")
-	OrderType        string     `json:"orderType"`  // Order Type, "market" indicates market order, "limit" indicates limit order
-	Side             string     `json:"side"`       // Trading direction,include buy and sell
-	OrderPrice       float64    `json:"price,string"`
-	OrderSize        float64    `json:"size,string"`
-	RemainSize       float64    `json:"remainSize,string"`
-	FilledSize       float64    `json:"filledSize,string"`   // Remaining Size for Trading
-	CanceledSize     float64    `json:"canceledSize,string"` // In the update message, the Size of order reduced
-	TradeID          string     `json:"tradeId"`             // Trade ID (when the type is "match")
-	ClientOid        string     `json:"clientOid"`           // Client supplied order id
-	OrderTime        types.Time `json:"orderTime"`
-	OldSize          string     `json:"oldSize "`  // Size Before Update (when the type is "update")
-	TradingDirection string     `json:"liquidity"` // Liquidity, Trading direction, buy or sell in taker
-	Timestamp        types.Time `json:"ts"`
+	OrderID          string       `json:"orderId"`
+	Symbol           string       `json:"symbol"`
+	Type             string       `json:"type"`       // Message Type: "open", "match", "filled", "canceled", "update"
+	Status           order.Status `json:"status"`     // Order Status: "match", "open", "done"
+	MatchSize        string       `json:"matchSize"`  // Match Size (when the type is "match")
+	MatchPrice       string       `json:"matchPrice"` // Match Price (when the type is "match")
+	OrderType        order.Type   `json:"orderType"`  // Order Type, "market" indicates market order, "limit" indicates limit order
+	Side             order.Side   `json:"side"`       // Trading direction,include buy and sell
+	OrderPrice       float64      `json:"price,string"`
+	OrderSize        float64      `json:"size,string"`
+	RemainSize       float64      `json:"remainSize,string"`
+	FilledSize       float64      `json:"filledSize,string"`   // Remaining Size for Trading
+	CanceledSize     float64      `json:"canceledSize,string"` // In the update message, the Size of order reduced
+	TradeID          string       `json:"tradeId"`             // Trade ID (when the type is "match")
+	ClientOid        string       `json:"clientOid"`           // Client supplied order id
+	OrderTime        types.Time   `json:"orderTime"`
+	OldSize          string       `json:"oldSize "`  // Size Before Update (when the type is "update")
+	TradingDirection string       `json:"liquidity"` // Liquidity, Trading direction, buy or sell in taker
+	Timestamp        types.Time   `json:"ts"`
 }
 
 // WsStopOrderLifecycleEvent represents futures stop order lifecycle event
@@ -1632,8 +1633,8 @@ type WsStopOrderLifecycleEvent struct {
 	OrderID        string     `json:"orderId"`
 	Symbol         string     `json:"symbol"`
 	Type           string     `json:"type"`
-	OrderType      string     `json:"orderType"`
-	Side           string     `json:"side"`
+	OrderType      order.Type `json:"orderType"`
+	Side           order.Side `json:"side"`
 	Size           float64    `json:"size,string"`
 	OrderPrice     float64    `json:"orderPrice,string"`
 	Stop           string     `json:"stop"`
@@ -1993,11 +1994,11 @@ type OCOOrderCancellationResponse struct {
 
 // OCOOrderInfo represents an order info
 type OCOOrderInfo struct {
-	OrderID       string     `json:"orderId"`
-	Symbol        string     `json:"symbol"`
-	ClientOrderID string     `json:"clientOid"`
-	OrderTime     types.Time `json:"orderTime"`
-	Status        string     `json:"status"`
+	OrderID       string       `json:"orderId"`
+	Symbol        string       `json:"symbol"`
+	ClientOrderID string       `json:"clientOid"`
+	OrderTime     types.Time   `json:"orderTime"`
+	Status        order.Status `json:"status"`
 }
 
 // OCOOrderDetail represents an oco order detail via the order ID

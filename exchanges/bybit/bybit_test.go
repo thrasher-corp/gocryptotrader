@@ -3452,50 +3452,6 @@ func TestGetLongShortRatio(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidCategory)
 }
 
-func TestStringToOrderStatus(t *testing.T) {
-	t.Parallel()
-	input := []struct {
-		OrderStatus string
-		Expectation order.Status
-	}{
-		{
-			OrderStatus: "",
-			Expectation: order.UnknownStatus,
-		},
-		{
-			OrderStatus: "UNKNOWN",
-			Expectation: order.UnknownStatus,
-		},
-		{
-			OrderStatus: "Cancelled",
-			Expectation: order.Cancelled,
-		},
-		{
-			OrderStatus: "ACTIVE",
-			Expectation: order.Active,
-		},
-		{
-			OrderStatus: "NEW",
-			Expectation: order.New,
-		},
-		{
-			OrderStatus: "FILLED",
-			Expectation: order.Filled,
-		},
-		{
-			OrderStatus: "UNTRIGGERED",
-			Expectation: order.Pending,
-		},
-	}
-	var oStatus order.Status
-	for x := range input {
-		oStatus = StringToOrderStatus(input[x].OrderStatus)
-		if oStatus != input[x].Expectation {
-			t.Fatalf("expected %v, got %v", input[x].Expectation, oStatus)
-		}
-	}
-}
-
 func TestFetchAccountType(t *testing.T) {
 	t.Parallel()
 	if !mockTests {

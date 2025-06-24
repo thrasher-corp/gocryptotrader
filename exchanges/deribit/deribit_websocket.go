@@ -353,18 +353,6 @@ func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		oType, err := order.StringToOrderType(orderData[x].OrderType)
-		if err != nil {
-			return err
-		}
-		side, err := order.StringToOrderSide(orderData[x].Direction)
-		if err != nil {
-			return err
-		}
-		status, err := order.StringToOrderStatus(orderData[x].OrderState)
-		if err != nil {
-			return err
-		}
 		orderDetails[x] = order.Detail{
 			Price:           orderData[x].Price,
 			Amount:          orderData[x].Amount,
@@ -372,9 +360,9 @@ func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 			RemainingAmount: orderData[x].Amount - orderData[x].FilledAmount,
 			Exchange:        e.Name,
 			OrderID:         orderData[x].OrderID,
-			Type:            oType,
-			Side:            side,
-			Status:          status,
+			Type:            orderData[x].OrderType,
+			Side:            orderData[x].Direction,
+			Status:          orderData[x].OrderState,
 			AssetType:       a,
 			Date:            orderData[x].CreationTimestamp.Time(),
 			LastUpdated:     orderData[x].LastUpdateTimestamp.Time(),
@@ -392,20 +380,12 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 	var response wsResponse
 	changeData := &wsChanges{}
 	response.Params.Data = changeData
-	err := json.Unmarshal(respRaw, &response)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &response); err != nil {
 		return err
 	}
 	td := make([]trade.Data, len(changeData.Trades))
 	for x := range changeData.Trades {
-		var side order.Side
-		side, err = order.StringToOrderSide(changeData.Trades[x].Direction)
-		if err != nil {
-			return err
-		}
-		var cp currency.Pair
-		var a asset.Item
-		a, cp, err = getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
+		a, cp, err := getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -416,29 +396,16 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 			Timestamp:    changeData.Trades[x].Timestamp.Time(),
 			Price:        changeData.Trades[x].Price,
 			Amount:       changeData.Trades[x].Amount,
-			Side:         side,
+			Side:         changeData.Trades[x].Direction,
 			TID:          changeData.Trades[x].TradeID,
 			AssetType:    a,
 		}
 	}
-	err = trade.AddTradesToBuffer(td...)
-	if err != nil {
+	if err := trade.AddTradesToBuffer(td...); err != nil {
 		return err
 	}
 	orders := make([]order.Detail, len(changeData.Orders))
 	for x := range orders {
-		oType, err := order.StringToOrderType(changeData.Orders[x].OrderType)
-		if err != nil {
-			return err
-		}
-		side, err := order.StringToOrderSide(changeData.Orders[x].Direction)
-		if err != nil {
-			return err
-		}
-		status, err := order.StringToOrderStatus(changeData.Orders[x].OrderState)
-		if err != nil {
-			return err
-		}
 		a, cp, err := getAssetPairByInstrument(changeData.Orders[x].InstrumentName)
 		if err != nil {
 			return err
@@ -450,9 +417,9 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 			RemainingAmount: changeData.Orders[x].Amount - changeData.Orders[x].FilledAmount,
 			Exchange:        e.Name,
 			OrderID:         changeData.Orders[x].OrderID,
-			Type:            oType,
-			Side:            side,
-			Status:          status,
+			Type:            changeData.Orders[x].OrderType,
+			Side:            changeData.Orders[x].Direction,
+			Status:          changeData.Orders[x].OrderState,
 			AssetType:       a,
 			Date:            changeData.Orders[x].CreationTimestamp.Time(),
 			LastUpdated:     changeData.Orders[x].LastUpdateTimestamp.Time(),
@@ -657,140 +624,74 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 
 func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 	var response wsResponse
-	orderbookData := &wsOrderbook{}
-	response.Params.Data = orderbookData
-	err := json.Unmarshal(respRaw, &response)
+	var ob wsOrderbook
+	response.Params.Data = &ob
+	if err := json.Unmarshal(respRaw, &response); err != nil {
+		return err
+	}
+
+	if len(channels) != 3 && len(channels) != 5 {
+		return nil
+	}
+
+	a, cp, err := getAssetPairByInstrument(ob.InstrumentName)
 	if err != nil {
 		return err
 	}
-	if len(channels) == 3 {
-		a, cp, err := getAssetPairByInstrument(orderbookData.InstrumentName)
-		if err != nil {
-			return err
-		}
-		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
-		for x := range orderbookData.Asks {
-			if len(orderbookData.Asks[x]) != 3 {
-				return errMalformedData
-			}
-			price, okay := orderbookData.Asks[x][1].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
-			}
-			amount, okay := orderbookData.Asks[x][2].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
-			}
-			asks = append(asks, orderbook.Level{
-				Price:  price,
-				Amount: amount,
-			})
-		}
-		bids := make(orderbook.Levels, 0, len(orderbookData.Bids))
-		for x := range orderbookData.Bids {
-			if len(orderbookData.Bids[x]) != 3 {
-				return errMalformedData
-			}
-			price, okay := orderbookData.Bids[x][1].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
-			} else if price == 0.0 {
-				continue
-			}
-			amount, okay := orderbookData.Bids[x][2].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
-			}
-			bids = append(bids, orderbook.Level{
-				Price:  price,
-				Amount: amount,
-			})
-		}
-		if len(asks) == 0 && len(bids) == 0 {
-			return nil
-		}
 
-		switch orderbookData.Type {
-		case "snapshot":
-			return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:          e.Name,
-				ValidateOrderbook: e.ValidateOrderbook,
-				LastUpdated:       orderbookData.Timestamp.Time(),
-				Pair:              cp,
-				Asks:              asks,
-				Bids:              bids,
-				Asset:             a,
-				LastUpdateID:      orderbookData.ChangeID,
-			})
-		case "change":
-			return e.Websocket.Orderbook.Update(&orderbook.Update{
-				Asks:       asks,
-				Bids:       bids,
-				Pair:       cp,
-				Asset:      a,
-				UpdateID:   orderbookData.ChangeID,
-				UpdateTime: orderbookData.Timestamp.Time(),
-			})
-		}
-	} else if len(channels) == 5 {
-		a, cp, err := getAssetPairByInstrument(orderbookData.InstrumentName)
-		if err != nil {
-			return err
-		}
-		asks := make(orderbook.Levels, 0, len(orderbookData.Asks))
-		for x := range orderbookData.Asks {
-			if len(orderbookData.Asks[x]) != 2 {
-				return errMalformedData
-			}
-			price, okay := orderbookData.Asks[x][0].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
-			} else if price == 0 {
+	buildLevels := func(items []orderbookItem) orderbook.Levels {
+		lvls := make(orderbook.Levels, 0, len(items))
+
+		for x := range items {
+			if items[x].Amount == 0 {
 				continue
 			}
-			amount, okay := orderbookData.Asks[x][1].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
-			}
-			asks = append(asks, orderbook.Level{
-				Price:  price,
-				Amount: amount,
+			lvls = append(lvls, orderbook.Level{
+				Price:  items[x].Price.Float64(),
+				Amount: items[x].Amount.Float64(),
 			})
 		}
-		bids := make([]orderbook.Level, 0, len(orderbookData.Bids))
-		for x := range orderbookData.Bids {
-			if len(orderbookData.Bids[x]) != 2 {
-				return errMalformedData
-			}
-			price, okay := orderbookData.Bids[x][0].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
-			} else if price == 0 {
-				continue
-			}
-			amount, okay := orderbookData.Bids[x][1].(float64)
-			if !okay {
-				return fmt.Errorf("%w, invalid amount", errMalformedData)
-			}
-			bids = append(bids, orderbook.Level{
-				Price:  price,
-				Amount: amount,
-			})
-		}
-		if len(asks) == 0 && len(bids) == 0 {
-			return nil
-		}
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asks:         asks,
-			Bids:         bids,
-			Pair:         cp,
-			Asset:        a,
-			Exchange:     e.Name,
-			LastUpdateID: orderbookData.ChangeID,
-			LastUpdated:  orderbookData.Timestamp.Time(),
-		})
+		return lvls
 	}
-	return nil
+	asks := buildLevels(ob.Asks)
+	bids := buildLevels(ob.Bids)
+	if len(asks) == 0 && len(bids) == 0 {
+		return nil
+	}
+
+	book := &orderbook.Book{
+		Exchange:     e.Name,
+		Pair:         cp,
+		Asset:        a,
+		Asks:         asks,
+		Bids:         bids,
+		LastUpdateID: ob.ChangeID,
+		LastUpdated:  ob.Timestamp.Time(),
+	}
+
+	switch {
+	case len(channels) == 3 && ob.Type == "snapshot":
+		book.ValidateOrderbook = e.ValidateOrderbook
+		return e.Websocket.Orderbook.LoadSnapshot(book)
+
+	case len(channels) == 3 && ob.Type == "change":
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
+			Asks:       asks,
+			Bids:       bids,
+			Pair:       cp,
+			Asset:      a,
+			UpdateID:   ob.ChangeID,
+			UpdateTime: ob.Timestamp.Time(),
+		})
+
+	case len(channels) == 5:
+		// on the “5-item” feed we always treat every push as a snapshot
+		return e.Websocket.Orderbook.LoadSnapshot(book)
+
+	default:
+		// either an unknown type or a channel length we don’t handle
+		return nil
+	}
 }
 
 // generateSubscriptions returns a list of configured subscriptions

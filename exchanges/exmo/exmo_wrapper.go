@@ -376,17 +376,12 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	mapData := tradeData[p.String()]
 	resp := make([]trade.Data, len(mapData))
 	for i := range mapData {
-		var side order.Side
-		side, err = order.StringToOrderSide(mapData[i].Type)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     e.Name,
 			TID:          strconv.FormatInt(mapData[i].TradeID, 10),
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         mapData[i].Side,
 			Price:        mapData[i].Price,
 			Amount:       mapData[i].Quantity,
 			Timestamp:    mapData[i].Date.Time(),
@@ -589,22 +584,14 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, 0, len(resp))
 	for i := range resp {
-		symbol, err := currency.NewPairDelimiter(resp[i].Pair, "_")
-		if err != nil {
-			return nil, err
-		}
-		side, err := order.StringToOrderSide(resp[i].Type)
-		if err != nil {
-			return nil, err
-		}
 		orders = append(orders, order.Detail{
 			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
 			Date:     resp[i].Created.Time(),
 			Price:    resp[i].Price,
-			Side:     side,
+			Side:     resp[i].Side,
 			Exchange: e.Name,
-			Pair:     symbol,
+			Pair:     resp[i].Pair,
 		})
 	}
 	return req.Filter(e.Name, orders), nil
@@ -640,25 +627,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 	orders := make([]order.Detail, len(allTrades))
 	for i := range allTrades {
-		pair, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
-		if err != nil {
-			return nil, err
-		}
-		side, err := order.StringToOrderSide(allTrades[i].Type)
-		if err != nil {
-			return nil, err
-		}
 		detail := order.Detail{
 			OrderID:        strconv.FormatInt(allTrades[i].TradeID, 10),
 			Amount:         allTrades[i].Quantity,
 			ExecutedAmount: allTrades[i].Quantity,
 			Cost:           allTrades[i].Amount,
-			CostAsset:      pair.Quote,
+			CostAsset:      allTrades[i].Pair.Quote,
 			Date:           allTrades[i].Date.Time(),
 			Price:          allTrades[i].Price,
-			Side:           side,
+			Side:           allTrades[i].Side,
 			Exchange:       e.Name,
-			Pair:           pair,
+			Pair:           allTrades[i].Pair,
 		}
 		detail.InferCostsAndTimes()
 		orders[i] = detail

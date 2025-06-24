@@ -349,16 +349,16 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account
 	for x := range currencies {
 		var data *AccountSummaryData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			data, err = e.WSRetrieveAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			data, err = e.WSRetrieveAccountSummary(ctx, currencies[x].Currency, false)
 		} else {
-			data, err = e.GetAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			data, err = e.GetAccountSummary(ctx, currencies[x].Currency, false)
 		}
 		if err != nil {
 			return resp, err
 		}
 		var subAcc account.SubAccount
 		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
-			Currency: currency.NewCode(currencies[x].Currency),
+			Currency: currencies[x].Currency,
 			Total:    data.Balance,
 			Hold:     data.Balance - data.AvailableFunds,
 		})
@@ -383,9 +383,9 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	for x := range currencies {
 		var deposits *DepositsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			deposits, err = e.WSRetrieveDeposits(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			deposits, err = e.WSRetrieveDeposits(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			deposits, err = e.GetDeposits(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			deposits, err = e.GetDeposits(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -404,9 +404,9 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		}
 		var withdrawalData *WithdrawalsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			withdrawalData, err = e.GetWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -441,14 +441,14 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := []exchange.WithdrawalHistory{}
 	for x := range currencies {
-		if !strings.EqualFold(currencies[x].Currency, c.String()) {
+		if currencies[x].Currency.Equal(c) {
 			continue
 		}
 		var withdrawalData *WithdrawalsData
 		if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.WSRetrieveWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		} else {
-			withdrawalData, err = e.GetWithdrawals(ctx, currency.NewCode(currencies[x].Currency), 100, 0)
+			withdrawalData, err = e.GetWithdrawals(ctx, currencies[x].Currency, 100, 0)
 		}
 		if err != nil {
 			return nil, err
@@ -749,19 +749,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	if err != nil {
 		return nil, err
 	}
-	orderSide := order.Sell
-	if orderInfo.Direction == sideBUY {
-		orderSide = order.Buy
-	}
-	orderType, err := order.StringToOrderType(orderInfo.OrderType)
-	if err != nil {
-		return nil, err
-	}
-	var pair currency.Pair
-	pair, err = currency.NewPairFromString(orderInfo.InstrumentName)
-	if err != nil {
-		return nil, err
-	}
 	var orderStatus order.Status
 	if orderInfo.OrderState == "untriggered" {
 		orderStatus = order.UnknownStatus
@@ -786,10 +773,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		Fee:             orderInfo.Commission,
 		RemainingAmount: orderInfo.Amount - orderInfo.FilledAmount,
 		OrderID:         orderInfo.OrderID,
-		Pair:            pair,
+		Pair:            orderInfo.InstrumentName,
 		LastUpdated:     orderInfo.LastUpdateTimestamp.Time(),
-		Side:            orderSide,
-		Type:            orderType,
+		Side:            orderInfo.Direction,
+		Type:            orderInfo.OrderType,
 		Status:          orderStatus,
 	}, nil
 }
@@ -878,18 +865,10 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			return nil, err
 		}
 		for y := range ordersData {
-			orderSide := order.Sell
-			if ordersData[y].Direction == sideBUY {
-				orderSide = order.Buy
-			}
-			if getOrdersRequest.Side != orderSide && getOrdersRequest.Side != order.AnySide {
+			if getOrdersRequest.Side != ordersData[y].Direction && getOrdersRequest.Side != order.AnySide {
 				continue
 			}
-			orderType, err := order.StringToOrderType(ordersData[y].OrderType)
-			if err != nil {
-				return nil, err
-			}
-			if getOrdersRequest.Type != orderType && getOrdersRequest.Type != order.AnyType {
+			if getOrdersRequest.Type != ordersData[y].OrderType && getOrdersRequest.Type != order.AnyType {
 				continue
 			}
 			var orderStatus order.Status
@@ -914,8 +893,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 				OrderID:         ordersData[y].OrderID,
 				Pair:            getOrdersRequest.Pairs[x],
 				LastUpdated:     ordersData[y].LastUpdateTimestamp.Time(),
-				Side:            orderSide,
-				Type:            orderType,
+				Side:            ordersData[y].Direction,
+				Type:            ordersData[y].OrderType,
 				Status:          orderStatus,
 				TimeInForce:     tif,
 			})
@@ -949,18 +928,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			return nil, err
 		}
 		for y := range ordersData {
-			orderSide := order.Sell
-			if ordersData[y].Direction == sideBUY {
-				orderSide = order.Buy
-			}
-			if getOrdersRequest.Side != orderSide && getOrdersRequest.Side != order.AnySide {
+			if getOrdersRequest.Side != ordersData[y].Direction && getOrdersRequest.Side != order.AnySide {
 				continue
 			}
-			orderType, err := order.StringToOrderType(ordersData[y].OrderType)
-			if err != nil {
-				return nil, err
-			}
-			if getOrdersRequest.Type != orderType && getOrdersRequest.Type != order.AnyType {
+			if getOrdersRequest.Type != ordersData[y].OrderType && getOrdersRequest.Type != order.AnyType {
 				continue
 			}
 			var orderStatus order.Status
@@ -989,8 +960,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				OrderID:         ordersData[y].OrderID,
 				Pair:            getOrdersRequest.Pairs[x],
 				LastUpdated:     ordersData[y].LastUpdateTimestamp.Time(),
-				Side:            orderSide,
-				Type:            orderType,
+				Side:            ordersData[y].Direction,
+				Type:            ordersData[y].OrderType,
 				Status:          orderStatus,
 				TimeInForce:     tif,
 			})
@@ -1152,9 +1123,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		var marketSummary []*InstrumentData
 		var err error
 		if e.Websocket.IsConnected() {
-			marketSummary, err = e.WSRetrieveInstrumentsData(ctx, currency.NewCode(ccy), e.GetAssetKind(item), false)
+			marketSummary, err = e.WSRetrieveInstrumentsData(ctx, ccy, e.GetAssetKind(item), false)
 		} else {
-			marketSummary, err = e.GetInstruments(ctx, currency.NewCode(ccy), e.GetAssetKind(item), false)
+			marketSummary, err = e.GetInstruments(ctx, ccy, e.GetAssetKind(item), false)
 		}
 		if err != nil {
 			return nil, err
@@ -1187,9 +1158,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			resp = append(resp, futures.Contract{
 				Exchange:             e.Name,
 				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
+				Underlying:           currency.NewPair(inst.BaseCurrency, inst.QuoteCurrency),
 				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(inst.SettlementCurrency)},
+				SettlementCurrencies: []currency.Code{inst.SettlementCurrency},
 				StartDate:            inst.CreationTimestamp.Time(),
 				EndDate:              inst.ExpirationTimestamp.Time(),
 				Type:                 ct,
@@ -1208,13 +1179,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if !e.SupportsAsset(a) {
 		return fmt.Errorf("%s: %w - %v", e.Name, asset.ErrNotSupported, a)
 	}
-	for _, bc := range baseCurrencies {
+	for _, ccy := range baseCurrencies {
 		var instrumentsData []*InstrumentData
 		var err error
 		if e.Websocket.IsConnected() {
-			instrumentsData, err = e.WSRetrieveInstrumentsData(ctx, currency.NewCode(bc), e.GetAssetKind(a), false)
+			instrumentsData, err = e.WSRetrieveInstrumentsData(ctx, ccy, e.GetAssetKind(a), false)
 		} else {
-			instrumentsData, err = e.GetInstruments(ctx, currency.NewCode(bc), e.GetAssetKind(a), false)
+			instrumentsData, err = e.GetInstruments(ctx, ccy, e.GetAssetKind(a), false)
 		}
 		if err != nil {
 			return err

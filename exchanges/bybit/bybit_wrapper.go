@@ -792,10 +792,6 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 	resp := make([]trade.Data, len(tradeData.List))
 	for i := range tradeData.List {
-		side, err := order.StringToOrderSide(tradeData.List[i].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     e.Name,
 			CurrencyPair: formattedPair,
@@ -804,7 +800,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Amount:       tradeData.List[i].Size.Float64(),
 			Timestamp:    tradeData.List[i].TradeTime.Time(),
 			TID:          tradeData.List[i].ExecutionID,
-			Side:         side,
+			Side:         tradeData.List[i].Side,
 		}
 	}
 
@@ -850,16 +846,12 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	}
 	resp := make([]trade.Data, len(tradeHistoryResponse.List))
 	for x := range tradeHistoryResponse.List {
-		side, err := order.StringToOrderSide(tradeHistoryResponse.List[x].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[x] = trade.Data{
 			TID:          tradeHistoryResponse.List[x].ExecutionID,
 			Exchange:     e.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeHistoryResponse.List[x].Side,
 			Price:        tradeHistoryResponse.List[x].Price.Float64(),
 			Amount:       tradeHistoryResponse.List[x].Size.Float64(),
 			Timestamp:    tradeHistoryResponse.List[x].TradeTime.Time(),
@@ -911,15 +903,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	resp.Status, err = order.StringToOrderStatus(orderDetails.OrderStatus)
-	if err != nil {
-		return nil, err
-	}
-	resp.TimeInForce, err = order.StringToTimeInForce(orderDetails.TimeInForce)
-	if err != nil {
-		return nil, err
-	}
 
+	resp.Status = orderDetails.OrderStatus
+	resp.TimeInForce = orderDetails.TimeInForce
 	resp.ReduceOnly = orderDetails.ReduceOnly
 	resp.TriggerPrice = orderDetails.TriggerPrice.Float64()
 	resp.AverageExecutedPrice = orderDetails.AveragePrice.Float64()
@@ -1104,10 +1090,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if len(resp.List) != 1 {
 			return nil, order.ErrOrderNotFound
 		}
-		orderType, err := order.StringToOrderType(resp.List[0].OrderType)
-		if err != nil {
-			return nil, err
-		}
 		remainingAmt := resp.List[0].LeavesQuantity.Float64()
 		if remainingAmt == 0 {
 			remainingAmt = resp.List[0].OrderQuantity.Float64() - resp.List[0].CumulativeExecQuantity.Float64()
@@ -1117,12 +1099,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Exchange:        e.Name,
 			OrderID:         resp.List[0].OrderID,
 			ClientOrderID:   resp.List[0].OrderLinkID,
-			Side:            getSide(resp.List[0].Side),
-			Type:            orderType,
+			Side:            resp.List[0].Side,
+			Type:            resp.List[0].OrderType,
 			Pair:            pair,
 			Cost:            resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
 			AssetType:       assetType,
-			Status:          StringToOrderStatus(resp.List[0].OrderStatus),
+			Status:          resp.List[0].OrderStatus,
 			Price:           resp.List[0].Price.Float64(),
 			ExecutedAmount:  resp.List[0].CumulativeExecQuantity.Float64(),
 			RemainingAmount: remainingAmt,
@@ -1276,20 +1258,16 @@ func (e *Exchange) ConstructOrderDetails(tradeOrders []TradeOrder, assetType ass
 			(!pair.IsEmpty() && !pair.Equal(ePair)) {
 			continue
 		}
-		orderType, err := order.StringToOrderType(tradeOrders[x].OrderType)
-		if err != nil {
-			return nil, err
-		}
 		orders = append(orders, order.Detail{
 			Amount:               tradeOrders[x].OrderQuantity.Float64(),
 			Date:                 tradeOrders[x].CreatedTime.Time(),
 			Exchange:             e.Name,
 			OrderID:              tradeOrders[x].OrderID,
 			ClientOrderID:        tradeOrders[x].OrderLinkID,
-			Side:                 getSide(tradeOrders[x].Side),
-			Type:                 orderType,
+			Side:                 tradeOrders[x].Side,
+			Type:                 tradeOrders[x].OrderType,
 			Price:                tradeOrders[x].Price.Float64(),
-			Status:               StringToOrderStatus(tradeOrders[x].OrderStatus),
+			Status:               tradeOrders[x].OrderStatus,
 			Pair:                 ePair,
 			AssetType:            assetType,
 			LastUpdated:          tradeOrders[x].UpdatedTime.Time(),
@@ -1329,19 +1307,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		for i := range resp.List {
-			// here, we are not using getSide because in sample response's sides are in upper
-			var side order.Side
-			side, err = order.StringToOrderSide(resp.List[i].Side)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-			}
-
 			var pair currency.Pair
 			pair, err = e.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
-			if err != nil {
-				return nil, err
-			}
-			orderType, err := order.StringToOrderType(resp.List[i].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1353,11 +1320,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
 				Exchange:             e.Name,
 				OrderID:              resp.List[i].OrderID,
-				Side:                 side,
-				Type:                 orderType,
+				Side:                 resp.List[i].Side,
+				Type:                 resp.List[i].OrderType,
 				Price:                resp.List[i].Price.Float64(),
 				Pair:                 pair.Format(format),
-				Status:               StringToOrderStatus(resp.List[i].OrderStatus),
+				Status:               resp.List[i].OrderStatus,
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
@@ -1376,18 +1343,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		for i := range resp.List {
-			// here, we are not using getSide because in sample response's sides are in upper
-			var side order.Side
-			side, err = order.StringToOrderSide(resp.List[i].Side)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-			}
 			var pair currency.Pair
 			pair, err = e.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
-			if err != nil {
-				return nil, err
-			}
-			orderType, err := order.StringToOrderType(resp.List[i].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1400,11 +1357,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				LastUpdated:          resp.List[i].UpdatedTime.Time(),
 				Exchange:             e.Name,
 				OrderID:              resp.List[i].OrderID,
-				Side:                 side,
-				Type:                 orderType,
+				Side:                 resp.List[i].Side,
+				Type:                 resp.List[i].OrderType,
 				Price:                resp.List[i].Price.Float64(),
 				Pair:                 pair.Format(format),
-				Status:               StringToOrderStatus(resp.List[i].OrderStatus),
+				Status:               resp.List[i].OrderStatus,
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),

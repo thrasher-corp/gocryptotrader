@@ -1962,8 +1962,8 @@ type PaginationInp struct {
 
 // AmountWithCurrency is a sub-struct used in ListNotificationsSubData, WalletData, TransactionData, DeposWithdrData, Settlement, EquityReset, and PaymentMethodData
 type AmountWithCurrency struct {
-	Amount   types.Number `json:"amount"`
-	Currency string       `json:"currency"`
+	Amount   types.Number  `json:"amount"`
+	Currency currency.Code `json:"currency"`
 }
 
 // Fees is a sub-struct used in ListNotificationsSubData

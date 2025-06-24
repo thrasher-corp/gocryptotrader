@@ -270,17 +270,12 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData[i].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     e.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[i].Side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
 			Timestamp:    tradeData[i].ExecDate.Time(),

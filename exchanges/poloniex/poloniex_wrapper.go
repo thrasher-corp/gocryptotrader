@@ -388,7 +388,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          walletActivity.Deposits[i].Status,
 			Timestamp:       walletActivity.Deposits[i].Timestamp.Time(),
-			Currency:        walletActivity.Deposits[i].Currency.String(),
+			Currency:        walletActivity.Deposits[i].Currency,
 			Amount:          walletActivity.Deposits[i].Amount,
 			CryptoToAddress: walletActivity.Deposits[i].Address,
 			CryptoTxID:      walletActivity.Deposits[i].TransactionID,
@@ -399,7 +399,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			ExchangeName:    e.Name,
 			Status:          walletActivity.Withdrawals[i].Status,
 			Timestamp:       walletActivity.Withdrawals[i].Timestamp.Time(),
-			Currency:        walletActivity.Withdrawals[i].Currency.String(),
+			Currency:        walletActivity.Withdrawals[i].Currency,
 			Amount:          walletActivity.Withdrawals[i].Amount,
 			Fee:             walletActivity.Withdrawals[i].Fee,
 			CryptoToAddress: walletActivity.Withdrawals[i].Address,
@@ -424,7 +424,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Withdrawals[i].Status,
 			Timestamp:       withdrawals.Withdrawals[i].Timestamp.Time(),
-			Currency:        withdrawals.Withdrawals[i].Currency.String(),
+			Currency:        withdrawals.Withdrawals[i].Currency,
 			Amount:          withdrawals.Withdrawals[i].Amount,
 			Fee:             withdrawals.Withdrawals[i].Fee,
 			CryptoToAddress: withdrawals.Withdrawals[i].Address,
@@ -639,33 +639,28 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	orderInfo := order.Detail{
-		Exchange: e.Name,
-		Pair:     pair,
-	}
-
 	trades, err := e.GetAuthenticatedOrderTrades(ctx, orderID)
 	if err != nil && !strings.Contains(err.Error(), "Order not found") {
 		return nil, err
 	}
 
+	orderInfo := order.Detail{
+		Exchange: e.Name,
+		Pair:     pair,
+		Trades:   make([]order.TradeHistory, len(trades)),
+	}
+
 	for i := range trades {
-		var tradeHistory order.TradeHistory
-		tradeHistory.Exchange = e.Name
-		tradeHistory.Side, err = order.StringToOrderSide(trades[i].Type)
-		if err != nil {
-			return nil, err
+		orderInfo.Trades[i] = order.TradeHistory{
+			Exchange:  e.Name,
+			Side:      trades[i].Side,
+			TID:       trades[i].GlobalTradeID,
+			Timestamp: trades[i].Date.Time(),
+			Price:     trades[i].Rate,
+			Amount:    trades[i].Amount,
+			Total:     trades[i].Total,
+			Fee:       trades[i].Fee,
 		}
-		tradeHistory.TID = trades[i].GlobalTradeID
-		tradeHistory.Timestamp, err = time.Parse(time.DateTime, trades[i].Date)
-		if err != nil {
-			return nil, err
-		}
-		tradeHistory.Price = trades[i].Rate
-		tradeHistory.Amount = trades[i].Amount
-		tradeHistory.Total = trades[i].Total
-		tradeHistory.Fee = trades[i].Fee
-		orderInfo.Trades = append(orderInfo.Trades, tradeHistory)
 	}
 
 	resp, err := e.GetAuthenticatedOrderStatus(ctx, orderID)

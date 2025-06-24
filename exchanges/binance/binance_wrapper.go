@@ -302,14 +302,14 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			}
 			var pair currency.Pair
 			if uInfo.Symbols[u].ContractType == "PERPETUAL" {
-				pair, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset,
-					uInfo.Symbols[u].QuoteAsset)
+				pair = currency.NewPair(uInfo.Symbols[u].BaseAsset, uInfo.Symbols[u].QuoteAsset)
 			} else {
 				pair, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+				if err != nil {
+					return nil, err
+				}
 			}
-			if err != nil {
-				return nil, err
-			}
+
 			pairs = append(pairs, pair)
 		}
 	}
@@ -596,7 +596,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			locked := raw.Balances[i].Locked.InexactFloat64()
 
 			currencyBalance = append(currencyBalance, account.Balance{
-				Currency: currency.NewCode(raw.Balances[i].Asset),
+				Currency: raw.Balances[i].Asset,
 				Total:    free + locked,
 				Hold:     locked,
 				Free:     free,
@@ -613,7 +613,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		var currencyDetails []account.Balance
 		for i := range accData.Assets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				Currency: currency.NewCode(accData.Assets[i].Asset),
+				Currency: accData.Assets[i].Asset,
 				Total:    accData.Assets[i].WalletBalance,
 				Hold:     accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
 				Free:     accData.Assets[i].AvailableBalance,
@@ -632,7 +632,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			currencyDetails := accountCurrencyDetails[accData[i].AccountAlias]
 			accountCurrencyDetails[accData[i].AccountAlias] = append(
 				currencyDetails, account.Balance{
-					Currency: currency.NewCode(accData[i].Asset),
+					Currency: accData[i].Asset,
 					Total:    accData[i].Balance,
 					Hold:     accData[i].Balance - accData[i].AvailableBalance,
 					Free:     accData[i].AvailableBalance,
@@ -651,7 +651,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 		var currencyDetails []account.Balance
 		for i := range accData.UserAssets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				Currency:               currency.NewCode(accData.UserAssets[i].Asset),
+				Currency:               accData.UserAssets[i].Asset,
 				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
 				Hold:                   accData.UserAssets[i].Locked,
 				Free:                   accData.UserAssets[i].Free,
@@ -1140,31 +1140,17 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(resp.Side)
-		if err != nil {
-			return nil, err
-		}
-		status, err := order.StringToOrderStatus(resp.Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-		}
-		orderType := order.Limit
-		if resp.Type == "MARKET" {
-			orderType = order.Market
-		}
-
 		return &order.Detail{
 			Amount:         resp.OrigQty,
 			Exchange:       e.Name,
 			OrderID:        strconv.FormatInt(resp.OrderID, 10),
 			ClientOrderID:  resp.ClientOrderID,
-			Side:           side,
-			Type:           orderType,
+			Side:           resp.Side,
+			Type:           resp.Type,
 			Pair:           pair,
 			Cost:           resp.CummulativeQuoteQty,
 			AssetType:      assetType,
-			Status:         status,
+			Status:         resp.Status,
 			Price:          resp.Price,
 			ExecutedAmount: resp.ExecutedQty,
 			Date:           resp.Time.Time(),
@@ -1314,30 +1300,16 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for x := range resp {
-				var side order.Side
-				side, err = order.StringToOrderSide(resp[x].Side)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-				}
-				var orderType order.Type
-				orderType, err = order.StringToOrderType(resp[x].Type)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-				}
-				orderStatus, err := order.StringToOrderStatus(resp[x].Status)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-				}
 				orders = append(orders, order.Detail{
 					Amount:        resp[x].OrigQty,
 					Date:          resp[x].Time.Time(),
 					Exchange:      e.Name,
 					OrderID:       strconv.FormatInt(resp[x].OrderID, 10),
 					ClientOrderID: resp[x].ClientOrderID,
-					Side:          side,
-					Type:          orderType,
+					Side:          resp[x].Side,
+					Type:          resp[x].Type,
 					Price:         resp[x].Price,
-					Status:        orderStatus,
+					Status:        resp[x].Status,
 					Pair:          req.Pairs[i],
 					AssetType:     req.AssetType,
 					LastUpdated:   resp[x].UpdateTime.Time(),
@@ -1430,31 +1402,14 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
 		for x := range req.Pairs {
-			resp, err := e.AllOrders(ctx,
-				req.Pairs[x],
-				"",
-				"1000")
+			resp, err := e.AllOrders(ctx, req.Pairs[x], "", "1000")
 			if err != nil {
 				return nil, err
 			}
 
 			for i := range resp {
-				var side order.Side
-				side, err = order.StringToOrderSide(resp[i].Side)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-				}
-				var orderType order.Type
-				orderType, err = order.StringToOrderType(resp[i].Type)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-				}
-				orderStatus, err := order.StringToOrderStatus(resp[i].Status)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
-				}
 				// New orders are covered in GetOpenOrders
-				if orderStatus == order.New {
+				if resp[i].Status == order.New {
 					continue
 				}
 
@@ -1474,11 +1429,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					LastUpdated:     resp[i].UpdateTime.Time(),
 					Exchange:        e.Name,
 					OrderID:         strconv.FormatInt(resp[i].OrderID, 10),
-					Side:            side,
-					Type:            orderType,
+					Side:            resp[i].Side,
+					Type:            resp[i].Type,
 					Price:           resp[i].Price,
 					Pair:            req.Pairs[x],
-					Status:          orderStatus,
+					Status:          resp[i].Status,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -2158,7 +2113,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 						continue
 					}
 					if pairRate.PaymentCurrency.IsEmpty() {
-						pairRate.PaymentCurrency = currency.NewCode(income[j].Asset)
+						pairRate.PaymentCurrency = income[j].Asset
 					}
 					pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
 					pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[x].Payment)
@@ -2223,7 +2178,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 						continue
 					}
 					if pairRate.PaymentCurrency.IsEmpty() {
-						pairRate.PaymentCurrency = currency.NewCode(income[j].Asset)
+						pairRate.PaymentCurrency = income[j].Asset
 					}
 					pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
 					pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[x].Payment)
@@ -2539,7 +2494,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		for i := range ai.Assets {
 			// TODO: utilise contract data to discern the underlying currency
 			// instead of having a user provide it
-			if ai.Assets[i].Asset != req.UnderlyingPair.Base.Upper().String() {
+			if !ai.Assets[i].Asset.Equal(req.UnderlyingPair.Base) {
 				continue
 			}
 			accountAsset = &ai.Assets[i]
@@ -2616,7 +2571,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
 			ContractSettlementType:       contractSettlementType,
-			Currency:                     currency.NewCode(accountAsset.Asset),
+			Currency:                     accountAsset.Asset,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
 			Leverage:                     decimal.NewFromFloat(leverage),
@@ -2878,7 +2833,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				break
 			}
 			var cp currency.Pair
-			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, ei.Symbols[i].Symbol[len(ei.Symbols[i].BaseAsset):])
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset.String(), ei.Symbols[i].Symbol[len(ei.Symbols[i].BaseAsset.String()):])
 			if err != nil {
 				return nil, err
 			}
@@ -2893,14 +2848,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
-				Underlying:         currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Underlying:         currency.NewPair(ei.Symbols[i].BaseAsset, ei.Symbols[i].QuoteAsset),
 				Asset:              item,
 				SettlementType:     futures.Linear,
 				StartDate:          ei.Symbols[i].OnboardDate.Time(),
 				EndDate:            ed,
 				IsActive:           ei.Symbols[i].Status == "TRADING",
 				Status:             ei.Symbols[i].Status,
-				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
+				MarginCurrency:     ei.Symbols[i].MarginAsset,
 				Type:               ct,
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
@@ -2945,12 +2900,12 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
-				Underlying:         currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Underlying:         currency.NewPair(ei.Symbols[i].BaseAsset, ei.Symbols[i].QuoteAsset),
 				Asset:              item,
 				StartDate:          ei.Symbols[i].OnboardDate.Time(),
 				EndDate:            ed,
 				IsActive:           ei.Symbols[i].ContractStatus == "TRADING",
-				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
+				MarginCurrency:     ei.Symbols[i].MarginAsset,
 				SettlementType:     futures.Inverse,
 				Type:               ct,
 				FundingRateFloor:   fundingRateFloor,

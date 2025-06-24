@@ -1664,14 +1664,14 @@ func TestAdjustQuoteAmount(t *testing.T) {
 	assert.Equal(t, 5.22222222, s.QuoteAmount)
 }
 
-func TestSideUnmarshal(t *testing.T) {
+func TestSideUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var s Side
-	assert.NoError(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
-	assert.Equal(t, Sell, s, "Correctly set order Side")
-	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
+	require.NoError(t, s.UnmarshalJSON([]byte(`"SELL"`)), "UnmarshalJSON with valid side must not error")
+	assert.Equal(t, Sell, s, "Order side should be set correctly")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "UnmarshalJSON with invalid side should error")
 	var jErr *json.UnmarshalTypeError
-	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "UnmarshalJSON with non-string valid JSON should error")
 }
 
 func TestSideMarshalJSON(t *testing.T) {
@@ -1682,6 +1682,26 @@ func TestSideMarshalJSON(t *testing.T) {
 	b, err = UnknownSide.MarshalJSON()
 	assert.NoError(t, err)
 	assert.Equal(t, `"UNKNOWN"`, string(b))
+}
+
+func TestTypeUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var ordType Type
+	require.NoError(t, ordType.UnmarshalJSON([]byte(`"LIMIT"`)), "UnmarshalJSON with valid type must not error")
+	assert.Equal(t, Limit, ordType, "Order type should be set correctly")
+	assert.ErrorIs(t, ordType.UnmarshalJSON([]byte(`"COW"`)), ErrUnrecognisedOrderType, "UnmarshalJSON with invalid type should error")
+	var jErr *json.UnmarshalTypeError
+	assert.ErrorAs(t, ordType.UnmarshalJSON([]byte(`420`)), &jErr, "UnmarshalJSON with non-string valid JSON should error")
+}
+
+func TestStatusUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var s Status
+	require.NoError(t, s.UnmarshalJSON([]byte(`"NEW"`)), "UnmarshalJSON with valid status must not error")
+	assert.Equal(t, New, s, "Order status should be set correctly")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"COW"`)), errUnrecognisedOrderStatus, "UnmarshalJSON with invalid status should error")
+	var jErr *json.UnmarshalTypeError
+	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`69`)), &jErr, "UnmarshalJSON with non-string valid JSON should error")
 }
 
 func TestGetTradeAmount(t *testing.T) {
