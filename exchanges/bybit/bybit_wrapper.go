@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -64,12 +65,6 @@ func (by *Bybit) SetDefaults() {
 		ps := currency.PairStore{AssetEnabled: true, RequestFormat: n.reqFmt, ConfigFormat: n.cfgFmt}
 		if err := by.SetAssetPairStore(n.asset, ps); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", by.Name, n.asset, err)
-		}
-	}
-
-	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options} {
-		if err := by.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", by.Name, a, err)
 		}
 	}
 
@@ -188,12 +183,17 @@ func (by *Bybit) SetDefaults() {
 
 	by.API.Endpoints = by.NewEndpoints()
 	err := by.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:         bybitAPIURL,
-		exchange.RestCoinMargined: bybitAPIURL,
-		exchange.RestUSDTMargined: bybitAPIURL,
-		exchange.RestFutures:      bybitAPIURL,
-		exchange.RestUSDCMargined: bybitAPIURL,
-		exchange.WebsocketSpot:    spotPublic,
+		exchange.RestSpot:              bybitAPIURL,
+		exchange.RestCoinMargined:      bybitAPIURL,
+		exchange.RestUSDTMargined:      bybitAPIURL,
+		exchange.RestFutures:           bybitAPIURL,
+		exchange.RestUSDCMargined:      bybitAPIURL,
+		exchange.WebsocketSpot:         spotPublic,
+		exchange.WebsocketCoinMargined: inversePublic,
+		exchange.WebsocketUSDTMargined: linearPublic,
+		exchange.WebsocketUSDCMargined: linearPublic,
+		exchange.WebsocketOptions:      optionPublic,
+		exchange.WebsocketPrivate:      websocketPrivate,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -214,65 +214,168 @@ func (by *Bybit) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (by *Bybit) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
+
 	if !exch.Enabled {
 		by.SetEnabled(false)
 		return nil
 	}
 
-	err = by.SetupDefaults(exch)
+	if err := by.SetupDefaults(exch); err != nil {
+		return err
+	}
+
+	if err := by.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               exch,
+		Features:                     &by.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
+		TradeFeed:                    by.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement: true,
+	}); err != nil {
+		return err
+	}
+
+	wsSpotURL, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	// Spot
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   wsSpotURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateSubscriptions,
+		Subscriber:            by.Subscribe,
+		Unsubscriber:          by.Unsubscribe,
+		Handler:               func(_ context.Context, resp []byte) error { return by.wsHandleData(asset.Spot, resp) },
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+	}); err != nil {
+		return err
+	}
+
+	wsOptionsURL, err := by.API.Endpoints.GetURL(exchange.WebsocketOptions)
 	if err != nil {
 		return err
 	}
 
-	err = by.Websocket.Setup(
-		&websocket.ManagerSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            spotPublic,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        websocketPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.generateSubscriptions,
-			Features:              &by.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-			},
-			TradeFeed: by.Features.Enabled.TradeFeed,
-		})
-	if err != nil {
+	// Options
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   wsOptionsURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.GenerateOptionsDefaultSubscriptions,
+		Subscriber:            by.OptionSubscribe,
+		Unsubscriber:          by.OptionUnsubscribe,
+		Handler:               func(_ context.Context, resp []byte) error { return by.wsHandleData(asset.Options, resp) },
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+	}); err != nil {
 		return err
 	}
-	err = by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  by.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     bybitWebsocketTimer,
-	})
+
+	wsUSDTLinearURL, err := by.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
 	if err != nil {
 		return err
 	}
 
-	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  websocketPrivate,
+	// Linear - USDT margined futures.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  wsUSDTLinearURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-	})
-}
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:            by.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return by.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
+		},
+		Subscriber: func(ctx context.Context, conn websocket.Connection, sub subscription.List) error {
+			return by.LinearSubscribe(ctx, conn, asset.USDTMarginedFutures, sub)
+		},
+		Unsubscriber: func(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
+			return by.LinearUnsubscribe(ctx, conn, asset.USDTMarginedFutures, unsub)
+		},
+		Handler:            func(_ context.Context, resp []byte) error { return by.wsHandleData(asset.USDTMarginedFutures, resp) },
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
+		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+	}); err != nil {
+		return err
+	}
 
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
-	return by.WsAuth(ctx)
+	wsUSDCLinearURL, err := by.API.Endpoints.GetURL(exchange.WebsocketUSDCMargined)
+	if err != nil {
+		return err
+	}
+
+	// Linear - USDC margined futures.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  wsUSDCLinearURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:            by.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return by.GenerateLinearDefaultSubscriptions(asset.USDCMarginedFutures)
+		},
+		Subscriber: func(ctx context.Context, conn websocket.Connection, sub subscription.List) error {
+			return by.LinearSubscribe(ctx, conn, asset.USDCMarginedFutures, sub)
+		},
+		Unsubscriber: func(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
+			return by.LinearUnsubscribe(ctx, conn, asset.USDCMarginedFutures, unsub)
+		},
+		Handler:            func(_ context.Context, resp []byte) error { return by.wsHandleData(asset.USDCMarginedFutures, resp) },
+		RequestIDGenerator: by.messageIDSeq.IncrementAndGet,
+		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+	}); err != nil {
+		return err
+	}
+
+	wsInverseURL, err := by.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
+	if err != nil {
+		return err
+	}
+
+	// Inverse - Coin margined futures.
+	if err := by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   wsInverseURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.GenerateInverseDefaultSubscriptions,
+		Subscriber:            by.InverseSubscribe,
+		Unsubscriber:          by.InverseUnsubscribe,
+		Handler:               func(_ context.Context, resp []byte) error { return by.wsHandleData(asset.CoinMarginedFutures, resp) },
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+	}); err != nil {
+		return err
+	}
+
+	wsPrivateURL, err := by.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	if err != nil {
+		return err
+	}
+
+	// Private
+	return by.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   wsPrivateURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(time.Microsecond),
+		Authenticated:         true,
+		Connector:             by.WsConnect,
+		GenerateSubscriptions: by.generateAuthSubscriptions,
+		Subscriber:            by.authSubscribe,
+		Unsubscriber:          by.authUnsubscribe,
+		Handler:               by.wsHandleAuthenticatedData,
+		RequestIDGenerator:    by.messageIDSeq.IncrementAndGet,
+		Authenticate:          by.WebsocketAuthenticateConnection,
+	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

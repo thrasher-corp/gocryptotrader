@@ -46,7 +46,7 @@ func (g *Gateio) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Creat
 	for i := range orders {
 		if orders[i].Text == "" {
 			// API requires Text field, or it will be rejected
-			orders[i].Text = "t-" + strconv.FormatInt(g.Counter.IncrementAndGet(), 10)
+			orders[i].Text = "t-" + strconv.FormatInt(g.messageIDSeq.IncrementAndGet(), 10)
 		}
 		if orders[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty

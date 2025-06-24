@@ -2865,11 +2865,6 @@ func TestGetSettlementCurrency(t *testing.T) {
 	}
 }
 
-func TestGenerateWebsocketMessageID(t *testing.T) {
-	t.Parallel()
-	require.NotEmpty(t, g.GenerateWebsocketMessageID(false))
-}
-
 type DummyConnection struct{ websocket.Connection }
 
 func (d *DummyConnection) GenerateMessageID(bool) int64 { return 1337 }
