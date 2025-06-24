@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -335,15 +334,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
 		log.Warnln(log.WebsocketMgr, d.Message)
-	case account.Change:
+	case []accounts.Change, accounts.Change:
 		if m.verbose {
-			m.printAccountHoldingsChangeSummary(exchName, d)
-		}
-	case []account.Change:
-		if m.verbose {
-			for x := range d {
-				m.printAccountHoldingsChangeSummary(exchName, d[x])
-			}
+			log.Debugf(log.WebsocketMgr, "%+v", d)
 		}
 	case []trade.Data, trade.Data:
 		if m.verbose {
@@ -355,10 +348,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	default:
 		if m.verbose {
-			log.Warnf(log.WebsocketMgr,
-				"%s websocket Unknown type: %+v",
-				exchName,
-				d)
+			log.Warnf(log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
 		}
 	}
 	return nil
@@ -400,21 +390,6 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 		o.Amount,
 		o.ExecutedAmount,
 		o.RemainingAmount)
-}
-
-// printAccountHoldingsChangeSummary this function will be deprecated when a
-// account holdings update is done.
-func (m *WebsocketRoutineManager) printAccountHoldingsChangeSummary(exch string, o account.Change) {
-	if m == nil || atomic.LoadInt32(&m.state) == stoppedState || o.Balance == nil {
-		return
-	}
-	log.Debugf(log.WebsocketMgr,
-		"Account Holdings Balance Changed: %s %s %s has changed balance by %f for account: %s",
-		exch,
-		o.AssetType,
-		o.Balance.Currency,
-		o.Balance.Total,
-		o.Account)
 }
 
 // registerWebsocketDataHandler registers an externally (GCT Library) defined
