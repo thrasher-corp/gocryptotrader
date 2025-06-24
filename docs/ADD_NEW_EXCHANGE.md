@@ -207,7 +207,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| FTX | Yes | Yes | No |
 | CoinbasePro | Yes | Yes | No|
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
@@ -237,7 +236,6 @@ var Exchanges = []string{
 	"coinut",
 	"deribit",
 	"exmo",
-	"ftx",
 	"gateio",
 	"gemini",
 	"hitbtc",
@@ -339,7 +337,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 	endpoint := request.Unset // Used in conjunction with the rate limiting 
 	// system defined in the exchange package to slow down outbound requests
 	// depending on each individual endpoint. 
-	return e.SendPayload(ctx, endpoint, generate)
+	return e.SendPayload(ctx, endpoint, generate, request.UnauthenticatedRequest)
 }
 ```
 

@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
-var {{.Name}}DefaultSubscriptions = subscription.List{
+var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 }

@@ -117,7 +117,7 @@ func (e *Exchange) SetDefaults() {
 			// 	GlobalResultLimit: 2000,
 			// }
 		},
-		{{ if .WS }} Subscriptions: {{.Name}}DefaultSubscriptions,{{ end }}
+		{{ if .WS }} Subscriptions: defaultSubscriptions,{{ end }}
 	}
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	e.Requester, err = request.New(e.Name,
