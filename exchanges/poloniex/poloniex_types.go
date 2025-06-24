@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -89,16 +90,16 @@ type OrderStatusData struct {
 
 // OrderTrade holds order trade data
 type OrderTrade struct {
-	Status        string  `json:"status"`
-	GlobalTradeID string  `json:"globalTradeID"`
-	TradeID       string  `json:"tradeID"`
-	CurrencyPair  string  `json:"currencyPair"`
-	Type          string  `json:"type"`
-	Rate          float64 `json:"rate,string"`
-	Amount        float64 `json:"amount,string"`
-	Total         float64 `json:"total,string"`
-	Fee           float64 `json:"fee,string"`
-	Date          string  `json:"date"`
+	Status        string         `json:"status"`
+	GlobalTradeID string         `json:"globalTradeID"`
+	TradeID       string         `json:"tradeID"`
+	CurrencyPair  string         `json:"currencyPair"`
+	Side          order.Side     `json:"type"`
+	Rate          float64        `json:"rate,string"`
+	Amount        float64        `json:"amount,string"`
+	Total         float64        `json:"total,string"`
+	Fee           float64        `json:"fee,string"`
+	Date          types.DateTime `json:"date"`
 }
 
 // ChartData holds kline data
