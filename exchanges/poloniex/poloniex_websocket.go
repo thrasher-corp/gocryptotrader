@@ -481,7 +481,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(data []any) error {
 	book.Asks.SortAsks()
 	book.Bids.SortBids()
 	book.Asset = asset.Spot
-	book.VerifyOrderbook = p.CanVerifyOrderbook
+	book.ValidateOrderbook = p.ValidateOrderbook
 	book.LastUpdated = time.UnixMilli(tsMilli)
 	book.Pair, err = currency.NewPairFromString(pair)
 	if err != nil {

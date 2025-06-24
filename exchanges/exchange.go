@@ -598,7 +598,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
 
-	b.CanVerifyOrderbook = !exch.Orderbook.VerificationBypass
+	b.ValidateOrderbook = !exch.Orderbook.VerificationBypass
 	b.States = currencystate.NewCurrencyStates()
 
 	return nil

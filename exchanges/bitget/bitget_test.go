@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -3065,10 +3064,8 @@ func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 			},
 		},
 	}
-	err := bi.CalculateUpdateOrderbookChecksum(&ord, 0)
-	assert.ErrorIs(t, err, errInvalidChecksum)
-	err = bi.CalculateUpdateOrderbookChecksum(&ord, 892106381)
-	assert.NoError(t, err)
+	resp := bi.CalculateUpdateOrderbookChecksum(&ord)
+	assert.Equal(t, uint32(892106381), resp)
 	ord.Asks = make(orderbook.Levels, 26)
 	data := "3141592653589793238462643383279502884197169399375105"
 	for i := range ord.Asks {
@@ -3077,8 +3074,8 @@ func TestCalculateUpdateOrderbookChecksum(t *testing.T) {
 			StrAmount: string(data[i*2+1]),
 		}
 	}
-	err = bi.CalculateUpdateOrderbookChecksum(&ord, 2945115267)
-	assert.NoError(t, err)
+	resp = bi.CalculateUpdateOrderbookChecksum(&ord)
+	assert.Equal(t, uint32(2945115267), resp)
 }
 
 // The following 20 tests aren't parallel due to collisions with each other, and some other tests
@@ -3587,7 +3584,7 @@ func TestOrderbookDataHandler(t *testing.T) {
 	assert.ErrorIs(t, err, orderbook.ErrAssetTypeNotSet)
 	mockJSON = []byte(`{"action":"update","arg":{"channel":"books","instId":"BTCUSD"},"data":[{"asks":[["1","2"]]}]}`)
 	err = bi.wsHandleData(mockJSON)
-	assert.ErrorIs(t, err, buffer.ErrDepthNotFound)
+	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 	mockJSON = []byte(`{"action":"update","arg":{"channel":"books","instId":"BTCUSD"},"data":[{}]}`)
 	err = bi.wsHandleData(mockJSON)
 	assert.NoError(t, err)

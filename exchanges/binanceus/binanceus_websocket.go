@@ -520,7 +520,7 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 
 	err = bi.applyBufferUpdate(currencyPair)
 	if err != nil {
-		bi.flushAndCleanup(currencyPair)
+		bi.invalidateAndCleanupOrderbook(currencyPair)
 	}
 
 	return false, err
@@ -786,7 +786,7 @@ func (bi *Binanceus) processJob(ctx context.Context, p currency.Pair) error {
 	// new update to initiate this.
 	err = bi.applyBufferUpdate(p)
 	if err != nil {
-		bi.flushAndCleanup(p)
+		bi.invalidateAndCleanupOrderbook(p)
 		return err
 	}
 	return nil
@@ -808,14 +808,14 @@ func (bi *Binanceus) SeedLocalCache(ctx context.Context, p currency.Pair) error 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	newOrderBook := orderbook.Book{
-		Pair:            p,
-		Asset:           asset.Spot,
-		Exchange:        bi.Name,
-		LastUpdateID:    orderbookNew.LastUpdateID,
-		VerifyOrderbook: bi.CanVerifyOrderbook,
-		Bids:            make(orderbook.Levels, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Levels, len(orderbookNew.Asks)),
-		LastUpdated:     time.Now(), // Time not provided in REST book.
+		Pair:              p,
+		Asset:             asset.Spot,
+		Exchange:          bi.Name,
+		LastUpdateID:      orderbookNew.LastUpdateID,
+		ValidateOrderbook: bi.ValidateOrderbook,
+		Bids:              make(orderbook.Levels, len(orderbookNew.Bids)),
+		Asks:              make(orderbook.Levels, len(orderbookNew.Asks)),
+		LastUpdated:       time.Now(), // Time not provided in REST book.
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Level{
@@ -858,20 +858,13 @@ func (o *orderbookManager) handleFetchingBook(pair currency.Pair) (fetching, nee
 	return false, false, nil
 }
 
-// flushAndCleanup flushes orderbook and clean local cache
-func (bi *Binanceus) flushAndCleanup(p currency.Pair) {
-	errClean := bi.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s flushing websocket error: %v",
-			bi.Name,
-			errClean)
+// invalidateAndCleanupOrderbook invalidaates orderbook and cleans local cache
+func (bi *Binanceus) invalidateAndCleanupOrderbook(p currency.Pair) {
+	if err := bi.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s invalidate orderbook websocket error: %v", bi.Name, err)
 	}
-	errClean = bi.obm.cleanup(p)
-	if errClean != nil {
-		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-			bi.Name,
-			errClean)
+	if err := bi.obm.cleanup(p); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v", bi.Name, err)
 	}
 }
 

@@ -515,7 +515,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		newOrderBook.Asset = asset.Spot
 		newOrderBook.Pair = pair
 		newOrderBook.Exchange = g.Name
-		newOrderBook.VerifyOrderbook = g.CanVerifyOrderbook
+		newOrderBook.ValidateOrderbook = g.ValidateOrderbook
 		newOrderBook.LastUpdated = time.Now() // No time is sent
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {

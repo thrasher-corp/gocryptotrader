@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -231,10 +230,7 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:                  bi.generateDefaultSubscriptions,
 		Features:                               &bi.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{
-			Checksum: bi.CalculateUpdateOrderbookChecksum,
-		},
-		RateLimitDefinitions: GetRateLimits(),
+		RateLimitDefinitions:                   GetRateLimits(),
 	})
 	if err != nil {
 		return err
@@ -574,11 +570,11 @@ func (bi *Bitget) FetchOrderbook(ctx context.Context, pair currency.Pair, assetT
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (bi *Bitget) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	book := &orderbook.Book{
-		Exchange:        bi.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: bi.CanVerifyOrderbook,
-		MaxDepth:        150,
+		Exchange:          bi.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: bi.ValidateOrderbook,
+		MaxDepth:          150,
 	}
 	pair, err := bi.FormatExchangeCurrency(pair, assetType)
 	if err != nil {

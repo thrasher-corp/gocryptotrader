@@ -425,7 +425,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = b.Name
-		book.VerifyOrderbook = b.CanVerifyOrderbook
+		book.ValidateOrderbook = b.ValidateOrderbook
 		book.LastUpdated = data[0].Timestamp
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
@@ -607,16 +607,16 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 }
 
 // GetActionFromString matches a string action to an internal action.
-func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
+func (b *Bitmex) GetActionFromString(s string) (orderbook.ActionType, error) {
 	switch s {
 	case "update":
-		return orderbook.Amend, nil
+		return orderbook.UpdateAction, nil
 	case "delete":
-		return orderbook.Delete, nil
+		return orderbook.DeleteAction, nil
 	case "insert":
-		return orderbook.Insert, nil
+		return orderbook.InsertAction, nil
 	case "update/insert":
-		return orderbook.UpdateInsert, nil
+		return orderbook.UpdateOrInsertAction, nil
 	}
 	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }

@@ -300,13 +300,13 @@ func (b *Bitstamp) handleWSOrderbook(msg []byte) error {
 	}
 
 	obUpdate := &orderbook.Book{
-		Bids:            make(orderbook.Levels, len(wsOrderBookResp.Data.Bids)),
-		Asks:            make(orderbook.Levels, len(wsOrderBookResp.Data.Asks)),
-		Pair:            p,
-		LastUpdated:     wsOrderBookResp.Data.Microtimestamp.Time(),
-		Asset:           asset.Spot,
-		Exchange:        b.Name,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+		Bids:              make(orderbook.Levels, len(wsOrderBookResp.Data.Bids)),
+		Asks:              make(orderbook.Levels, len(wsOrderBookResp.Data.Asks)),
+		Pair:              p,
+		LastUpdated:       wsOrderBookResp.Data.Microtimestamp.Time(),
+		Asset:             asset.Spot,
+		Exchange:          b.Name,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 
 	for i := range wsOrderBookResp.Data.Asks {
@@ -338,13 +338,13 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 		}
 
 		newOrderBook := &orderbook.Book{
-			Pair:            p[x],
-			Asset:           asset.Spot,
-			Exchange:        b.Name,
-			VerifyOrderbook: b.CanVerifyOrderbook,
-			Bids:            make(orderbook.Levels, len(orderbookSeed.Bids)),
-			Asks:            make(orderbook.Levels, len(orderbookSeed.Asks)),
-			LastUpdated:     orderbookSeed.Timestamp,
+			Pair:              p[x],
+			Asset:             asset.Spot,
+			Exchange:          b.Name,
+			ValidateOrderbook: b.ValidateOrderbook,
+			Bids:              make(orderbook.Levels, len(orderbookSeed.Bids)),
+			Asks:              make(orderbook.Levels, len(orderbookSeed.Asks)),
+			LastUpdated:       orderbookSeed.Timestamp,
 		}
 
 		for i := range orderbookSeed.Asks {

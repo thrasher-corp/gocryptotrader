@@ -451,7 +451,7 @@ func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 			Asks:                   asks,
 			LastUpdated:            wsResponse.Timestamp.Time(),
 			Exchange:               bi.Name,
-			VerifyOrderbook:        bi.CanVerifyOrderbook,
+			ValidateOrderbook:      bi.ValidateOrderbook,
 			ChecksumStringRequired: true,
 		}
 		err = bi.Websocket.Orderbook.LoadSnapshot(&orderbook)
@@ -460,12 +460,13 @@ func (bi *Bitget) orderbookDataHandler(wsResponse *WsResponse) error {
 		}
 	} else {
 		update := orderbook.Update{
-			Bids:       bids,
-			Asks:       asks,
-			Pair:       pair,
-			UpdateTime: wsResponse.Timestamp.Time(),
-			Asset:      itemDecoder(wsResponse.Arg.InstrumentType),
-			Checksum:   uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
+			Bids:             bids,
+			Asks:             asks,
+			Pair:             pair,
+			UpdateTime:       wsResponse.Timestamp.Time(),
+			Asset:            itemDecoder(wsResponse.Arg.InstrumentType),
+			GenerateChecksum: bi.CalculateUpdateOrderbookChecksum,
+			ExpectedChecksum: uint32(ob[0].Checksum), //nolint:gosec // The exchange sends it as ints expecting overflows to be handled as Go does by default
 		}
 		// Sometimes the exchange returns updates with no new asks or bids, just a checksum and timestamp
 		if len(update.Bids) != 0 || len(update.Asks) != 0 {
@@ -1034,7 +1035,7 @@ func levelConstructor(data [][2]string) ([]orderbook.Level, error) {
 }
 
 // CalculateUpdateOrderbookChecksum calculates the checksum of the orderbook data
-func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book, checksumVal uint32) error {
+func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	var builder strings.Builder
 	for i := range 25 {
 		if len(orderbookData.Bids) > i {
@@ -1048,10 +1049,7 @@ func (bi *Bitget) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book
 	if check != "" {
 		check = check[:len(check)-1]
 	}
-	if crc32.ChecksumIEEE([]byte(check)) != checksumVal {
-		return errInvalidChecksum
-	}
-	return nil
+	return crc32.ChecksumIEEE([]byte(check))
 }
 
 // GenerateDefaultSubscriptions generates default subscriptions

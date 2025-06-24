@@ -22,12 +22,12 @@ const (
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
 	ErrAssetTypeNotSet   = errors.New("orderbook asset type not set")
+	ErrPriceZero         = errors.New("price cannot be zero")
+	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 )
 
 var (
-	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
 	errPairNotSet           = errors.New("orderbook currency pair not set")
-	errPriceNotSet          = errors.New("price cannot be zero")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
 	errIDOutOfOrder         = errors.New("ID out of order")
@@ -111,10 +111,10 @@ type Book struct {
 	// prices in a payload
 	PriceDuplication bool
 	IsFundingRate    bool
-	// VerifyOrderbook allows for a toggle between orderbook verification set by
+	// ValidateOrderbook allows for a toggle between orderbook verification set by
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
-	VerifyOrderbook bool
+	ValidateOrderbook bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
@@ -141,43 +141,11 @@ type options struct {
 	lastUpdateID           int64
 	priceDuplication       bool
 	isFundingRate          bool
-	verifyOrderbook        bool
+	validateOrderbook      bool
 	restSnapshot           bool
 	idAligned              bool
 	checksumStringRequired bool
 	maxDepth               int
-}
-
-// Action defines a set of differing states required to implement an incoming
-// orderbook update used in conjunction with UpdateEntriesByID
-type Action uint8
-
-const (
-	// Amend applies amount adjustment by ID
-	Amend Action = iota + 1
-	// Delete removes price level from book by ID
-	Delete
-	// Insert adds price level to book
-	Insert
-	// UpdateInsert on conflict applies amount adjustment or appends new amount
-	// to book
-	UpdateInsert
-)
-
-// Update and things and stuff
-type Update struct {
-	UpdateID   int64
-	UpdateTime time.Time
-	LastPushed time.Time
-	Asset      asset.Item
-	Action
-	Bids []Level
-	Asks []Level
-	Pair currency.Pair
-	// Checksum defines the expected value when the books have been verified
-	Checksum uint32
-	// AllowEmpty, when true, permits loading an empty order book update to set an UpdateID without including actual data.
-	AllowEmpty bool
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or
