@@ -88,8 +88,9 @@ func (b *Bitmex) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 
+	ctx := context.TODO()
 	var dialer gws.Dialer
-	if err := b.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
+	if err := b.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
 
@@ -97,7 +98,6 @@ func (b *Bitmex) WsConnect() error {
 	go b.wsReadData()
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		ctx := context.TODO()
 		if err := b.websocketSendAuth(ctx); err != nil {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -425,7 +425,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		book.Asset = a
 		book.Pair = p
 		book.Exchange = b.Name
-		book.VerifyOrderbook = b.CanVerifyOrderbook
+		book.ValidateOrderbook = b.ValidateOrderbook
 		book.LastUpdated = data[0].Timestamp
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&book)
@@ -521,21 +521,23 @@ func (b *Bitmex) GetSubscriptionTemplate(_ *subscription.Subscription) (*templat
 
 // Subscribe subscribes to a websocket channel
 func (b *Bitmex) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Private(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsSubscribeOp, l) }, len(subs)),
 	)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
 	return common.AppendError(
-		b.ParallelChanOp(subs.Public(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
-		b.ParallelChanOp(subs.Private(), func(l subscription.List) error { return b.manageSubs(wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeOp, l) }, len(subs)),
+		b.ParallelChanOp(ctx, subs.Private(), func(ctx context.Context, l subscription.List) error { return b.manageSubs(ctx, wsUnsubscribeOp, l) }, len(subs)),
 	)
 }
 
-func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
+func (b *Bitmex) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	req := WebsocketRequest{
 		Command: op,
 	}
@@ -548,7 +550,7 @@ func (b *Bitmex) manageSubs(op string, subs subscription.List) error {
 	if err != nil {
 		return err
 	}
-	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(context.TODO(), request.Unset, string(reqJSON), req, len(subs))
+	resps, errs := b.Websocket.Conn.SendMessageReturnResponses(ctx, request.Unset, string(reqJSON), req, len(subs))
 	for _, resp := range resps {
 		if errMsg, _ := jsonparser.GetString(resp, "error"); errMsg != "" {
 			errs = common.AppendError(errs, errors.New(errMsg))
@@ -605,16 +607,16 @@ func (b *Bitmex) websocketSendAuth(ctx context.Context) error {
 }
 
 // GetActionFromString matches a string action to an internal action.
-func (b *Bitmex) GetActionFromString(s string) (orderbook.Action, error) {
+func (b *Bitmex) GetActionFromString(s string) (orderbook.ActionType, error) {
 	switch s {
 	case "update":
-		return orderbook.Amend, nil
+		return orderbook.UpdateAction, nil
 	case "delete":
-		return orderbook.Delete, nil
+		return orderbook.DeleteAction, nil
 	case "insert":
-		return orderbook.Insert, nil
+		return orderbook.InsertAction, nil
 	case "update/insert":
-		return orderbook.UpdateInsert, nil
+		return orderbook.UpdateOrInsertAction, nil
 	}
 	return 0, fmt.Errorf("%s %w", s, orderbook.ErrInvalidAction)
 }

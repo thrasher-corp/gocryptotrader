@@ -269,10 +269,10 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        h.Name,
-		Pair:            c,
-		Asset:           assetType,
-		VerifyOrderbook: h.CanVerifyOrderbook,
+		Exchange:          h.Name,
+		Pair:              c,
+		Asset:             assetType,
+		ValidateOrderbook: h.ValidateOrderbook,
 	}
 	fPair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
@@ -439,7 +439,7 @@ func (h *HitBTC) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 	status := order.New
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
-		response, err = h.wsPlaceOrder(o.Pair, o.Side.String(), o.Amount, o.Price)
+		response, err = h.wsPlaceOrder(ctx, o.Pair, o.Side.String(), o.Amount, o.Price)
 		if err != nil {
 			return nil, err
 		}

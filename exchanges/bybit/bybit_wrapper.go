@@ -507,12 +507,12 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        by.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Level, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Level, len(orderbookNew.Asks)),
+		Exchange:          by.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: by.ValidateOrderbook,
+		Bids:              make([]orderbook.Level, len(orderbookNew.Bids)),
+		Asks:              make([]orderbook.Level, len(orderbookNew.Asks)),
 	}
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Level{
@@ -1485,7 +1485,10 @@ func (by *Bybit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 	return info.TimeNano.Time(), err
 }
 
-// transformInstrumentInfoSymbol converts GetInstrumentInfo symbol to one stored in config with proper delimiters
+// transformSymbol returns a symbol with a delimiter added if missing
+// * Spot and Coin-M add "_"
+// * Options, USDC-M USDT-M add "-"
+// * CrossMargin is left without a delimiter
 func (i *InstrumentInfo) transformSymbol(a asset.Item) string {
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures:

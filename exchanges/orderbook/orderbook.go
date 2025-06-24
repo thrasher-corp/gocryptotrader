@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
@@ -52,7 +51,8 @@ func (s *store) Update(b *Book) error {
 			return err
 		}
 	}
-	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.LastPushed, true); err != nil {
+	b.RestSnapshot = true
+	if err := book.Depth.LoadSnapshot(b); err != nil {
 		return err
 	}
 	return s.signalMux.Publish(book.Depth, book.RouterID)
@@ -80,7 +80,7 @@ func (s *store) track(b *Book) (book, error) {
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, errExchangeNameUnset
+		return nil, ErrExchangeNameEmpty
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -153,105 +153,11 @@ func (b *Book) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// Verify ensures that the orderbook items are correctly sorted prior to being
-// set and will reject any book with incorrect values.
-// Bids should always go from a high price to a low price and
-// Asks should always go from a low price to a higher price
-func (b *Book) Verify() error {
-	if !b.VerifyOrderbook {
-		return nil
-	}
-
-	// Checking for both ask and bid lengths being zero has been removed and
-	// a warning has been put in place for some exchanges that return zero
-	// level books. In the event that there is a massive liquidity change where
-	// a book dries up, this will still update so we do not traverse potential
-	// incorrect old data.
-	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
-		log.Warnf(log.OrderBook,
-			bookLengthIssue,
-			b.Exchange,
-			b.Pair,
-			b.Asset,
-			len(b.Bids),
-			len(b.Asks))
-	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, dsc, b.Exchange)
-	if err != nil {
-		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
-	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, asc, b.Exchange)
-	if err != nil {
-		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
-	}
-	return nil
-}
-
-// checker defines specific functionality to determine ascending/descending
-// validation
-type checker func(current, previous Level) error
-
-// asc specifically defines ascending price check
-var asc = func(current, previous Level) error {
-	if current.Price < previous.Price {
-		return errPriceOutOfOrder
-	}
-	return nil
-}
-
-// dsc specifically defines descending price check
-var dsc = func(current, previous Level) error {
-	if current.Price > previous.Price {
-		return errPriceOutOfOrder
-	}
-	return nil
-}
-
-// checkAlignment validates full orderbook
-func checkAlignment(depth Levels, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
-	for i := range depth {
-		if depth[i].Price == 0 {
-			switch {
-			case exch == "Bitfinex" && fundingRate: /* funding rate can be 0 it seems on Bitfinex */
-			default:
-				return errPriceNotSet
-			}
-		}
-
-		if depth[i].Amount <= 0 {
-			return errAmountInvalid
-		}
-		if fundingRate && depth[i].Period == 0 {
-			return errPeriodUnset
-		}
-		if requiresChecksumString && (depth[i].StrAmount == "" || depth[i].StrPrice == "") {
-			return errChecksumStringNotSet
-		}
-
-		if i != 0 {
-			prev := i - 1
-			if err := c(depth[i], depth[prev]); err != nil {
-				return err
-			}
-			if isIDAligned && depth[i].ID < depth[prev].ID {
-				return errIDOutOfOrder
-			}
-			if !priceDuplication && depth[i].Price == depth[prev].Price {
-				return errDuplication
-			}
-			if depth[i].ID != 0 && depth[i].ID == depth[prev].ID {
-				return errIDDuplication
-			}
-		}
-	}
-	return nil
-}
-
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
 func (b *Book) Process() error {
 	if b.Exchange == "" {
-		return errExchangeNameUnset
+		return ErrExchangeNameEmpty
 	}
 
 	if b.Pair.IsEmpty() {
@@ -266,7 +172,7 @@ func (b *Book) Process() error {
 		b.LastUpdated = time.Now()
 	}
 
-	if err := b.Verify(); err != nil {
+	if err := b.Validate(); err != nil {
 		return err
 	}
 	return s.Update(b)

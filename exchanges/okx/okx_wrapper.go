@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -214,7 +213,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:                  ok.generateSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig:                  buffer.Config{Checksum: ok.CalculateUpdateOrderbookChecksum},
 		RateLimitDefinitions:                   rateLimits,
 	}); err != nil {
 		return err
@@ -535,10 +533,10 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		}
 		for y := range spreadOrderbook {
 			book := &orderbook.Book{
-				Exchange:        ok.Name,
-				Pair:            pair,
-				Asset:           assetType,
-				VerifyOrderbook: ok.CanVerifyOrderbook,
+				Exchange:          ok.Name,
+				Pair:              pair,
+				Asset:             assetType,
+				ValidateOrderbook: ok.ValidateOrderbook,
 			}
 			book.Bids = make(orderbook.Levels, 0, len(spreadOrderbook[y].Bids))
 			for b := range spreadOrderbook[y].Bids {
@@ -584,10 +582,10 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		}
 		instrumentID = pairFormat.Format(pair)
 		book := &orderbook.Book{
-			Exchange:        ok.Name,
-			Pair:            pair,
-			Asset:           assetType,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Exchange:          ok.Name,
+			Pair:              pair,
+			Asset:             assetType,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		}
 		var orderBookD *OrderBookResponseDetail
 		orderBookD, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
@@ -2113,7 +2111,7 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 
 // getInstrumentsForOptions returns the instruments for options asset type
 func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, error) {
-	underlyings, err := ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+	underlyings, err := ok.GetPublicUnderlyings(ctx, instTypeOption)
 	if err != nil {
 		return nil, err
 	}
@@ -2896,7 +2894,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			switch instType {
 			case instTypeOption:
 				var underlyings []string
-				underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+				underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 				if err != nil {
 					return nil, err
 				}
@@ -2961,7 +2959,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
 		var underlyings []string
-		underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+		underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 		if err != nil {
 			return nil, err
 		}
