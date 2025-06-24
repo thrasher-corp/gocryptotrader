@@ -738,18 +738,13 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			return nil, err
 		}
 		resp = make([]trade.Data, len(spreadTrades))
-		var oSide order.Side
 		for x := range spreadTrades {
-			oSide, err = order.StringToOrderSide(spreadTrades[x].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp[x] = trade.Data{
 				TID:          spreadTrades[x].TradeID,
 				Exchange:     ok.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Side:         oSide,
+				Side:         spreadTrades[x].Side,
 				Price:        spreadTrades[x].Price.Float64(),
 				Amount:       spreadTrades[x].Size.Float64(),
 				Timestamp:    spreadTrades[x].Timestamp.Time(),
@@ -1482,18 +1477,6 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		if err != nil {
 			return nil, err
 		}
-		oSide, err := order.StringToOrderSide(resp.Side)
-		if err != nil {
-			return nil, err
-		}
-		oType, err := order.StringToOrderType(resp.OrderType)
-		if err != nil {
-			return nil, err
-		}
-		oStatus, err := order.StringToOrderStatus(resp.State)
-		if err != nil {
-			return nil, err
-		}
 		cp, err := currency.NewPairFromString(resp.InstrumentID)
 		if err != nil {
 			return nil, err
@@ -1506,12 +1489,12 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 			Exchange:             ok.Name,
 			OrderID:              resp.OrderID,
 			ClientOrderID:        resp.ClientOrderID,
-			Side:                 oSide,
-			Type:                 oType,
+			Side:                 resp.Side,
+			Type:                 resp.OrderType,
 			Pair:                 cp,
 			Cost:                 resp.Price.Float64(),
 			AssetType:            assetType,
-			Status:               oStatus,
+			Status:               resp.State,
 			Price:                resp.Price.Float64(),
 			ExecutedAmount:       resp.FillSize.Float64(),
 			Date:                 resp.CreationTime.Time(),
@@ -1541,11 +1524,8 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 	if err != nil {
 		return nil, err
 	}
-	status, err := order.StringToOrderStatus(orderDetail.State)
-	if err != nil {
-		return nil, err
-	}
-	orderType, tif, err := orderTypeFromString(orderDetail.OrderType)
+
+	_, tif, err := orderTypeFromString(orderDetail.OrderType.String())
 	if err != nil {
 		return nil, err
 	}
@@ -1556,11 +1536,11 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		OrderID:        orderDetail.OrderID,
 		ClientOrderID:  orderDetail.ClientOrderID,
 		Side:           orderDetail.Side,
-		Type:           orderType,
+		Type:           orderDetail.OrderType,
 		Pair:           pair,
 		Cost:           orderDetail.Price.Float64(),
 		AssetType:      assetType,
-		Status:         status,
+		Status:         orderDetail.State,
 		Price:          orderDetail.Price.Float64(),
 		ExecutedAmount: orderDetail.RebateAmount.Float64(),
 		Date:           orderDetail.CreationTime.Time(),
@@ -1653,7 +1633,6 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 	}
 
 	var resp []order.Detail
-	var format currency.PairFormat
 	if req.AssetType == asset.Spread {
 		var spreads []SpreadOrder
 		spreads, err = ok.GetActiveSpreadOrders(ctx, "", req.Type.String(), "", req.FromOrderID, "", 0)
@@ -1661,30 +1640,11 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 			return nil, err
 		}
 		for x := range spreads {
-			format, err = ok.GetPairFormat(asset.Spread, true)
+			format, err := ok.GetPairFormat(asset.Spread, true)
 			if err != nil {
 				return nil, err
 			}
-			var (
-				pair    currency.Pair
-				oType   order.Type
-				oSide   order.Side
-				oStatus order.Status
-			)
-
-			pair, err = currency.NewPairDelimiter(spreads[x].SpreadID, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
-			oType, err = order.StringToOrderType(spreads[x].OrderType)
-			if err != nil {
-				return nil, err
-			}
-			oSide, err = order.StringToOrderSide(spreads[x].Side)
-			if err != nil {
-				return nil, err
-			}
-			oStatus, err = order.StringToOrderStatus(spreads[x].State)
+			pair, err := currency.NewPairDelimiter(spreads[x].SpreadID, format.Delimiter)
 			if err != nil {
 				return nil, err
 			}
@@ -1697,9 +1657,9 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 				Exchange:        ok.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
-				Type:            oType,
-				Side:            oSide,
-				Status:          oStatus,
+				Type:            spreads[x].OrderType,
+				Side:            spreads[x].Side,
+				Status:          spreads[x].State,
 				AssetType:       req.AssetType,
 				Date:            spreads[x].CreationTime.Time(),
 				LastUpdated:     spreads[x].UpdateTime.Time(),
@@ -1755,11 +1715,7 @@ allOrders:
 					continue
 				}
 			}
-			orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
-			if err != nil {
-				return nil, err
-			}
-			oType, tif, err := orderTypeFromString(orderList[i].OrderType)
+			oType, tif, err := orderTypeFromString(orderList[i].OrderType.String())
 			if err != nil {
 				return nil, err
 			}
@@ -1776,7 +1732,7 @@ allOrders:
 				ClientOrderID:   orderList[i].ClientOrderID,
 				Type:            oType,
 				Side:            orderSide,
-				Status:          orderStatus,
+				Status:          orderList[i].State,
 				AssetType:       req.AssetType,
 				Date:            orderList[i].CreationTime.Time(),
 				LastUpdated:     orderList[i].UpdateTime.Time(),
@@ -1827,18 +1783,6 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spreadOrders[x].OrderType)
-			if err != nil {
-				return nil, err
-			}
-			oSide, err := order.StringToOrderSide(spreadOrders[x].Side)
-			if err != nil {
-				return nil, err
-			}
-			oStatus, err := order.StringToOrderStatus(spreadOrders[x].State)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, order.Detail{
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
@@ -1848,9 +1792,9 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 				Exchange:             ok.Name,
 				OrderID:              spreadOrders[x].OrderID,
 				ClientOrderID:        spreadOrders[x].ClientOrderID,
-				Type:                 oType,
-				Side:                 oSide,
-				Status:               oStatus,
+				Type:                 spreadOrders[x].OrderType,
+				Side:                 spreadOrders[x].Side,
+				Status:               spreadOrders[x].State,
 				AssetType:            req.AssetType,
 				Date:                 spreadOrders[x].CreationTime.Time(),
 				LastUpdated:          spreadOrders[x].UpdateTime.Time(),
@@ -1894,14 +1838,10 @@ allOrders:
 				if !req.Pairs[j].Equal(pair) {
 					continue
 				}
-				orderStatus, err := order.StringToOrderStatus(strings.ToUpper(orderList[i].State))
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
-				}
-				if orderStatus == order.Active {
+				if orderList[i].State == order.Active {
 					continue
 				}
-				oType, tif, err := orderTypeFromString(orderList[i].OrderType)
+				oType, tif, err := orderTypeFromString(orderList[i].OrderType.String())
 				if err != nil {
 					return nil, err
 				}
@@ -1912,7 +1852,7 @@ allOrders:
 				}
 
 				remainingAmount := float64(0)
-				if orderStatus != order.Filled {
+				if orderList[i].State != order.Filled {
 					remainingAmount = orderAmount.Float64() - orderList[i].AccumulatedFillSize.Float64()
 				}
 				resp = append(resp, order.Detail{
@@ -1928,7 +1868,7 @@ allOrders:
 					ClientOrderID:        orderList[i].ClientOrderID,
 					Type:                 oType,
 					Side:                 orderList[i].Side,
-					Status:               orderStatus,
+					Status:               orderList[i].State,
 					AssetType:            req.AssetType,
 					Date:                 orderList[i].CreationTime.Time(),
 					LastUpdated:          orderList[i].UpdateTime.Time(),
@@ -2640,11 +2580,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			if fPair.String() != positions[j].InstrumentID {
 				continue
 			}
-			orderStatus, err := order.StringToOrderStatus(strings.ToUpper(positions[j].State))
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ok.Name, err)
-			}
-			oType, tif, err := orderTypeFromString(positions[j].OrderType)
+			_, tif, err := orderTypeFromString(positions[j].OrderType.String())
 			if err != nil {
 				return nil, err
 			}
@@ -2655,7 +2591,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			}
 
 			remainingAmount := float64(0)
-			if orderStatus != order.Filled {
+			if positions[j].State != order.Filled {
 				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
 			}
 			cost := positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64()
@@ -2674,9 +2610,9 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 				Exchange:             ok.Name,
 				OrderID:              positions[j].OrderID,
 				ClientOrderID:        positions[j].ClientOrderID,
-				Type:                 oType,
+				Type:                 positions[j].OrderType,
 				Side:                 positions[j].Side,
-				Status:               orderStatus,
+				Status:               positions[j].State,
 				AssetType:            req.Asset,
 				Date:                 positions[j].CreationTime.Time(),
 				LastUpdated:          positions[j].UpdateTime.Time(),

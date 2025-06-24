@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -130,38 +129,9 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var oType order.Type
-		var oSide order.Side
-		var oStatus order.Status
-		oType, err = order.StringToOrderType(wsOrder.OrderType)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				OrderID:  wsOrder.OrderID,
-				Err:      err,
-			}
-		}
-		oSide, err = order.StringToOrderSide(wsOrder.Side)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				OrderID:  wsOrder.OrderID,
-				Err:      err,
-			}
-		}
-		oStatus, err = statusToStandardStatus(wsOrder.Type)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				OrderID:  wsOrder.OrderID,
-				Err:      err,
-			}
-		}
-		if wsOrder.Reason == "canceled" {
-			oStatus = order.Cancelled
-		}
+
 		ts := wsOrder.Time
-		if wsOrder.Type == "activate" {
+		if wsOrder.Status == order.Active {
 			ts = wsOrder.Timestamp.Time()
 		}
 
@@ -198,9 +168,9 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 				OrderID:         wsOrder.OrderID,
 				AccountID:       wsOrder.ProfileID,
 				ClientID:        clientID,
-				Type:            oType,
-				Side:            oSide,
-				Status:          oStatus,
+				Type:            wsOrder.OrderType,
+				Side:            wsOrder.Side,
+				Status:          wsOrder.Status,
 				AssetType:       a,
 				Date:            ts,
 				Pair:            p,
@@ -211,13 +181,6 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 		err := json.Unmarshal(respRaw, &wsOrder)
 		if err != nil {
 			return err
-		}
-		oSide, err := order.StringToOrderSide(wsOrder.Side)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				Err:      err,
-			}
 		}
 		var p currency.Pair
 		var a asset.Item
@@ -237,7 +200,7 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 						Amount:    wsOrder.Size,
 						Exchange:  c.Name,
 						TID:       strconv.FormatInt(wsOrder.TradeID, 10),
-						Side:      oSide,
+						Side:      wsOrder.Side,
 						Timestamp: wsOrder.Time,
 						IsMaker:   wsOrder.TakerUserID == "",
 					},
@@ -254,7 +217,7 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 				AssetType:    a,
 				Price:        wsOrder.Price,
 				Amount:       wsOrder.Size,
-				Side:         oSide,
+				Side:         wsOrder.Side,
 				TID:          strconv.FormatInt(wsOrder.TradeID, 10),
 			})
 		}
@@ -263,23 +226,6 @@ func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return nil
 	}
 	return nil
-}
-
-func statusToStandardStatus(stat string) (order.Status, error) {
-	switch stat {
-	case "received":
-		return order.New, nil
-	case "open":
-		return order.Active, nil
-	case "done":
-		return order.Filled, nil
-	case "match":
-		return order.PartiallyFilled, nil
-	case "change", "activate":
-		return order.Active, nil
-	default:
-		return order.UnknownStatus, fmt.Errorf("%s not recognised as status type", stat)
-	}
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot

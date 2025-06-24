@@ -523,7 +523,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, as
 			Timestamp:    withdrawals.Items[x].CreatedAt.Time(),
 			Amount:       withdrawals.Items[x].Amount,
 			TransferType: "withdrawal",
-			Currency:     c.String(),
+			Currency:     c,
 		}
 	}
 	return resp, nil
@@ -542,12 +542,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		var side order.Side
 		for i := range tradeData {
-			side, err = order.StringToOrderSide(tradeData[0].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				TID:          tradeData[i].TradeID,
 				Exchange:     ku.Name,
@@ -556,7 +551,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Size,
 				Timestamp:    tradeData[i].FilledTime.Time(),
-				Side:         side,
+				Side:         tradeData[i].Side,
 			})
 		}
 	case asset.Spot, asset.Margin:
@@ -564,17 +559,12 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		var side order.Side
 		for i := range tradeData {
-			side, err = order.StringToOrderSide(tradeData[0].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				TID:          tradeData[i].Sequence,
 				Exchange:     ku.Name,
 				CurrencyPair: p,
-				Side:         side,
+				Side:         tradeData[i].Side,
 				AssetType:    assetType,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Size,
@@ -980,33 +970,17 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	}
 	switch assetType {
 	case asset.Futures:
-		var orderDetail *FuturesOrder
-		orderDetail, err = ku.GetFuturesOrderDetails(ctx, orderID, "")
+		orderDetail, err := ku.GetFuturesOrderDetails(ctx, orderID, "")
 		if err != nil {
 			return nil, err
 		}
-		var nPair currency.Pair
-		nPair, err = currency.NewPairFromString(orderDetail.Symbol)
-		if err != nil {
-			return nil, err
-		}
-		var oType order.Type
-		oType, err = order.StringToOrderType(orderDetail.OrderType)
-		if err != nil {
-			return nil, err
-		}
-		var side order.Side
-		side, err = order.StringToOrderSide(orderDetail.Side)
-		if err != nil {
-			return nil, err
-		}
-		switch side {
+		switch orderDetail.Side {
 		case order.Sell:
-			side = order.Short
+			orderDetail.Side = order.Short
 		case order.Buy:
-			side = order.Long
+			orderDetail.Side = order.Long
 		}
-		if !pair.IsEmpty() && !nPair.Equal(pair) {
+		if !pair.IsEmpty() && !orderDetail.Symbol.Equal(pair) {
 			return nil, fmt.Errorf("order with id %s and symbol %v does not exist", orderID, pair)
 		}
 		var oStatus order.Status
@@ -1019,8 +993,8 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Exchange:             ku.Name,
 			OrderID:              orderDetail.ID,
 			Pair:                 pair,
-			Type:                 oType,
-			Side:                 side,
+			Type:                 orderDetail.OrderType,
+			Side:                 orderDetail.Side,
 			AssetType:            assetType,
 			ExecutedAmount:       orderDetail.DealSize,
 			RemainingAmount:      orderDetail.Size - orderDetail.DealSize,
@@ -1043,19 +1017,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		nPair, err := currency.NewPairFromString(orderDetail.Symbol)
-		if err != nil {
-			return nil, err
-		}
-		oType, err := order.StringToOrderType(orderDetail.Type)
-		if err != nil {
-			return nil, err
-		}
-		side, err := order.StringToOrderSide(orderDetail.Side)
-		if err != nil {
-			return nil, err
-		}
-		if !pair.IsEmpty() && !nPair.Equal(pair) {
+		if !pair.IsEmpty() && !orderDetail.Symbol.Equal(pair) {
 			return nil, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
 		}
 		var oStatus order.Status
@@ -1089,8 +1051,8 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Exchange:             ku.Name,
 			OrderID:              orderDetail.ID,
 			Pair:                 pair,
-			Type:                 oType,
-			Side:                 side,
+			Type:                 orderDetail.Type,
+			Side:                 orderDetail.Side,
 			Fee:                  orderDetail.Fee.Float64(),
 			AssetType:            assetType,
 			ExecutedAmount:       orderDetail.DealSize.Float64(),
@@ -1230,9 +1192,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if !futuresOrders.Items[x].IsActive {
 				continue
 			}
-			var dPair currency.Pair
-			var enabled bool
-			dPair, enabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, false)
+			dPair, enabled, err := ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol.String(), getOrdersRequest.AssetType, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1240,27 +1200,14 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				continue
 			}
 
-			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
-			if err != nil {
-				return nil, err
-			}
-
-			switch side {
+			var side order.Side
+			switch futuresOrders.Items[x].Side {
 			case order.Sell:
 				side = order.Short
 			case order.Buy:
 				side = order.Long
 			}
 
-			oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
-			if err != nil {
-				return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
-			}
-
-			status, err := order.StringToOrderStatus(futuresOrders.Items[x].Status)
-			if err != nil {
-				return nil, err
-			}
 			orders = append(orders, order.Detail{
 				OrderID:            futuresOrders.Items[x].ID,
 				ClientOrderID:      futuresOrders.Items[x].ClientOid,
@@ -1273,11 +1220,11 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				LastUpdated:        futuresOrders.Items[x].UpdatedAt.Time(),
 				Price:              futuresOrders.Items[x].Price,
 				Side:               side,
-				Type:               oType,
+				Type:               futuresOrders.Items[x].OrderType,
 				Pair:               dPair,
 				TimeInForce:        StringToTimeInForce(futuresOrders.Items[x].TimeInForce, futuresOrders.Items[x].PostOnly),
 				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
-				Status:             status,
+				Status:             futuresOrders.Items[x].Status,
 				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
 				Leverage:           futuresOrders.Items[x].Leverage,
 				AssetType:          getOrdersRequest.AssetType,
@@ -1296,7 +1243,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				return nil, err
 			}
 			for a := range response.Items {
-				if response.Items[a].Status != "NEW" {
+				if response.Items[a].Status != order.New {
 					continue
 				}
 				cp, err := currency.NewPairFromString(response.Items[a].Symbol)
@@ -1306,10 +1253,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(cp, true) {
 					continue
 				}
-				status, err := order.StringToOrderStatus(response.Items[a].Status)
-				if err != nil {
-					return nil, err
-				}
 				orders = append(orders, order.Detail{
 					OrderID:       response.Items[a].OrderID,
 					ClientOrderID: response.Items[a].ClientOrderID,
@@ -1317,7 +1260,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					LastUpdated:   response.Items[a].OrderTime.Time(),
 					Type:          order.OCO,
 					Pair:          cp,
-					Status:        status,
+					Status:        response.Items[a].Status,
 				})
 			}
 		case order.Stop, order.StopLimit, order.StopMarket, order.ConditionalStop:
@@ -1336,12 +1279,10 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				return nil, err
 			}
 			for a := range response.Items {
-				if response.Items[a].Status != "New" {
+				if response.Items[a].Status != order.New {
 					continue
 				}
-				var dPair currency.Pair
-				var enabled bool
-				dPair, enabled, err = ku.MatchSymbolCheckEnabled(response.Items[a].Symbol, getOrdersRequest.AssetType, false)
+				dPair, enabled, err := ku.MatchSymbolCheckEnabled(response.Items[a].Symbol, getOrdersRequest.AssetType, false)
 				if err != nil {
 					return nil, err
 				}
@@ -1351,11 +1292,8 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 					continue
 				}
+
 				side, err := order.StringToOrderSide(response.Items[a].Side)
-				if err != nil {
-					return nil, err
-				}
-				status, err := order.StringToOrderStatus(response.Items[a].Status)
 				if err != nil {
 					return nil, err
 				}
@@ -1372,7 +1310,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Type:           order.Stop,
 					Pair:           dPair,
 					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce, response.Items[a].PostOnly),
-					Status:         status,
+					Status:         response.Items[a].Status,
 					AssetType:      getOrdersRequest.AssetType,
 					HiddenOrder:    response.Items[a].Hidden,
 				})
@@ -1397,9 +1335,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				if !spotOrders.Items[x].IsActive {
 					continue
 				}
-				var dPair currency.Pair
-				var isEnabled bool
-				dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(spotOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
+				dPair, isEnabled, err := ku.MatchSymbolCheckEnabled(spotOrders.Items[x].Symbol.String(), getOrdersRequest.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
@@ -1408,10 +1344,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				}
 				if len(getOrdersRequest.Pairs) > 0 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 					continue
-				}
-				side, err := order.StringToOrderSide(spotOrders.Items[x].Side)
-				if err != nil {
-					return nil, err
 				}
 				oType, err := order.StringToOrderType(spotOrders.Items[x].TradeType)
 				if err != nil {
@@ -1425,7 +1357,7 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 					Exchange:        ku.Name,
 					Date:            spotOrders.Items[x].CreatedAt.Time(),
 					Price:           spotOrders.Items[x].Price.Float64(),
-					Side:            side,
+					Side:            spotOrders.Items[x].Side,
 					Type:            oType,
 					Pair:            dPair,
 				})
@@ -1456,10 +1388,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 	}
 
 	var orders []order.Detail
-	var orderSide order.Side
-	var orderStatus order.Status
-	var oType order.Type
-	var pair currency.Pair
 	switch getOrdersRequest.AssetType {
 	case asset.Futures:
 		var futuresOrders *FutureOrdersResponse
@@ -1488,21 +1416,12 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 		}
 		orders = make(order.FilteredOrders, 0, len(futuresOrders.Items))
 		for i := range orders {
-			orderSide, err = order.StringToOrderSide(futuresOrders.Items[i].Side)
-			if err != nil {
-				return nil, err
-			}
-			var isEnabled bool
-			pair, isEnabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[i].Symbol, getOrdersRequest.AssetType, true)
+			pair, isEnabled, err := ku.MatchSymbolCheckEnabled(futuresOrders.Items[i].Symbol.String(), getOrdersRequest.AssetType, true)
 			if err != nil {
 				return nil, err
 			}
 			if !isEnabled {
 				continue
-			}
-			oType, err = order.StringToOrderType(futuresOrders.Items[i].OrderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
 			}
 			orders = append(orders, order.Detail{
 				Price:           futuresOrders.Items[i].Price,
@@ -1512,9 +1431,9 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				Date:            futuresOrders.Items[i].CreatedAt.Time(),
 				Exchange:        ku.Name,
 				OrderID:         futuresOrders.Items[i].ID,
-				Side:            orderSide,
-				Status:          orderStatus,
-				Type:            oType,
+				Side:            futuresOrders.Items[i].Side,
+				Status:          futuresOrders.Items[i].Status,
+				Type:            futuresOrders.Items[i].OrderType,
 				Pair:            pair,
 			})
 			orders[i].InferCostsAndTimes()
@@ -1540,11 +1459,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(cp, true) {
 					continue
 				}
-				var status order.Status
-				status, err = order.StringToOrderStatus(response.Items[a].Status)
-				if err != nil {
-					return nil, err
-				}
 				orders = append(orders, order.Detail{
 					OrderID:       response.Items[a].OrderID,
 					ClientOrderID: response.Items[a].ClientOrderID,
@@ -1552,7 +1466,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					LastUpdated:   response.Items[a].OrderTime.Time(),
 					Type:          order.OCO,
 					Pair:          cp,
-					Status:        status,
+					Status:        response.Items[a].Status,
 				})
 			}
 		case order.Stop, order.StopLimit, order.StopMarket, order.ConditionalStop:
@@ -1584,15 +1498,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				if len(getOrdersRequest.Pairs) > 1 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 					continue
 				}
-				var (
-					side   order.Side
-					status order.Status
-				)
-				side, err = order.StringToOrderSide(response.Items[a].Side)
-				if err != nil {
-					return nil, err
-				}
-				status, err = order.StringToOrderStatus(response.Items[a].Status)
+				side, err := order.StringToOrderSide(response.Items[a].Side)
 				if err != nil {
 					return nil, err
 				}
@@ -1610,7 +1516,7 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Type:           order.Stop,
 					Pair:           dPair,
 					TimeInForce:    StringToTimeInForce(response.Items[a].TimeInForce, response.Items[a].PostOnly),
-					Status:         status,
+					Status:         response.Items[a].Status,
 					AssetType:      getOrdersRequest.AssetType,
 					HiddenOrder:    response.Items[a].Hidden,
 				})
@@ -1638,20 +1544,6 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 			}
 			orders = make([]order.Detail, len(responseOrders.Items))
 			for i := range orders {
-				orderSide, err = order.StringToOrderSide(responseOrders.Items[i].Side)
-				if err != nil {
-					return nil, err
-				}
-				var orderStatus order.Status
-				pair, err = currency.NewPairFromString(responseOrders.Items[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				var oType order.Type
-				oType, err = order.StringToOrderType(responseOrders.Items[i].Type)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s %v", ku.Name, err)
-				}
 				orders[i] = order.Detail{
 					Price:           responseOrders.Items[i].Price.Float64(),
 					Amount:          responseOrders.Items[i].Size.Float64(),
@@ -1660,10 +1552,9 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 					Date:            responseOrders.Items[i].CreatedAt.Time(),
 					Exchange:        ku.Name,
 					OrderID:         responseOrders.Items[i].ID,
-					Side:            orderSide,
-					Status:          orderStatus,
-					Type:            oType,
-					Pair:            pair,
+					Side:            responseOrders.Items[i].Side,
+					Type:            responseOrders.Items[i].Type,
+					Pair:            responseOrders.Items[i].Symbol,
 				}
 				orders[i].InferCostsAndTimes()
 			}
@@ -2287,18 +2178,6 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 		}
 		resp[x].Orders = make([]order.Detail, len(positionOrders.Items))
 		for y := range positionOrders.Items {
-			side, err := order.StringToOrderSide(positionOrders.Items[y].Side)
-			if err != nil {
-				return nil, err
-			}
-			oType, err := order.StringToOrderType(positionOrders.Items[y].OrderType)
-			if err != nil {
-				return nil, fmt.Errorf("asset type: %v err: %w", r.Asset, err)
-			}
-			oStatus, err := order.StringToOrderStatus(positionOrders.Items[y].Status)
-			if err != nil {
-				return nil, fmt.Errorf("asset type: %v err: %w", r.Asset, err)
-			}
 			resp[x].Orders[y] = order.Detail{
 				Leverage:        positionOrders.Items[y].Leverage,
 				Price:           positionOrders.Items[y].Price,
@@ -2310,9 +2189,9 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 				Exchange:        ku.Name,
 				OrderID:         positionOrders.Items[y].ID,
 				ClientOrderID:   positionOrders.Items[y].ClientOid,
-				Type:            oType,
-				Side:            side,
-				Status:          oStatus,
+				Type:            positionOrders.Items[y].OrderType,
+				Side:            positionOrders.Items[y].Side,
+				Status:          positionOrders.Items[y].Status,
 				AssetType:       asset.Futures,
 				Date:            positionOrders.Items[y].CreatedAt.Time(),
 				CloseTime:       positionOrders.Items[y].EndAt.Time(),

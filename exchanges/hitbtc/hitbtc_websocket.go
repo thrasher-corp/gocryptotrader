@@ -221,36 +221,25 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 		var tradeSnapshot WsTrade
-		err := json.Unmarshal(respRaw, &tradeSnapshot)
+		if err := json.Unmarshal(respRaw, &tradeSnapshot); err != nil {
+			return err
+		}
+		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
 			return err
 		}
-		var trades []trade.Data
-		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
-		if err != nil {
-			return &order.ClassificationError{
-				Exchange: h.Name,
-				Err:      err,
-			}
-		}
+		trades := make([]trade.Data, len(tradeSnapshot.Params.Data))
 		for i := range tradeSnapshot.Params.Data {
-			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
-			if err != nil {
-				return &order.ClassificationError{
-					Exchange: h.Name,
-					Err:      err,
-				}
-			}
-			trades = append(trades, trade.Data{
+			trades[i] = trade.Data{
 				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
 				Exchange:     h.Name,
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Price:        tradeSnapshot.Params.Data[i].Price,
 				Amount:       tradeSnapshot.Params.Data[i].Quantity,
-				Side:         side,
+				Side:         tradeSnapshot.Params.Data[i].Side,
 				TID:          strconv.FormatInt(tradeSnapshot.Params.Data[i].ID, 10),
-			})
+			}
 		}
 		return trade.AddTradesToBuffer(trades...)
 	case "activeOrders":
@@ -362,6 +351,14 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 }
 
 func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
+	p, err := currency.NewPairFromString(o.Symbol)
+	if err != nil {
+		return err
+	}
+	a, err := h.GetPairAssetType(p)
+	if err != nil {
+		return err
+	}
 	var trades []order.TradeHistory
 	if o.TradeID > 0 {
 		trades = append(trades, order.TradeHistory{
@@ -373,46 +370,6 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 			Timestamp: o.UpdatedAt,
 		})
 	}
-	oType, err := order.StringToOrderType(o.Type)
-	if err != nil {
-		h.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: h.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
-	}
-	o.Status = strings.Replace(o.Status, "canceled", "cancelled", 1)
-	oStatus, err := order.StringToOrderStatus(o.Status)
-	if err != nil {
-		h.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: h.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
-	}
-	oSide, err := order.StringToOrderSide(o.Side)
-	if err != nil {
-		h.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: h.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
-	}
-
-	p, err := currency.NewPairFromString(o.Symbol)
-	if err != nil {
-		h.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: h.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
-	}
-
-	var a asset.Item
-	a, err = h.GetPairAssetType(p)
-	if err != nil {
-		return err
-	}
 	h.Websocket.DataHandler <- &order.Detail{
 		Price:           o.Price,
 		Amount:          o.Quantity,
@@ -420,9 +377,9 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 		RemainingAmount: o.Quantity - o.CumQuantity,
 		Exchange:        h.Name,
 		OrderID:         o.ID,
-		Type:            oType,
-		Side:            oSide,
-		Status:          oStatus,
+		Type:            o.Type,
+		Side:            o.Side,
+		Status:          o.Status,
 		AssetType:       a,
 		Date:            o.CreatedAt,
 		LastUpdated:     o.UpdatedAt,

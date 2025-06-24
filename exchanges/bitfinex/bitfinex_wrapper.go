@@ -429,7 +429,7 @@ func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 			if Accounts[i].ID == accountBalance[x].Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					account.Balance{
-						Currency: currency.NewCode(accountBalance[x].Currency),
+						Currency: accountBalance[x].Currency,
 						Total:    accountBalance[x].Amount,
 						Hold:     accountBalance[x].Amount - accountBalance[x].Available,
 						Free:     accountBalance[x].Available,
@@ -688,17 +688,12 @@ func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 }
 
 func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
-	side, err := order.StringToOrderSide(o.Side)
-	if err != nil {
-		return nil, err
-	}
-
 	orderDetail := &order.Detail{
 		Amount:          o.OriginalAmount,
 		Date:            o.Timestamp.Time(),
 		Exchange:        b.Name,
 		OrderID:         strconv.FormatInt(o.ID, 10),
-		Side:            side,
+		Side:            o.Side,
 		Price:           o.Price,
 		RemainingAmount: o.RemainingAmount,
 		Pair:            o.Symbol,
@@ -722,9 +717,10 @@ func (b *Bitfinex) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	if orderType == "trailing-stop" {
 		orderDetail.Type = order.TrailingStop
 	} else {
+		var err error
 		orderDetail.Type, err = order.StringToOrderType(orderType)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+			return nil, fmt.Errorf("unable to convert order type %s to order.Type: %w", orderType, err)
 		}
 	}
 
