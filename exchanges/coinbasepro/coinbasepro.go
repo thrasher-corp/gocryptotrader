@@ -1620,27 +1620,23 @@ func (p *Params) encodePagination(pag PaginationInp) error {
 	return nil
 }
 
-// marketIOCImplementation creates a MarketMarketIOC struct based on the provided base and quote amounts
-func marketIOCImplementation(baseAmount, quoteAmount float64) *MarketMarketIOC {
-	if baseAmount != 0 {
-		return &MarketMarketIOC{BaseSize: types.Number(baseAmount)}
-	}
-	if quoteAmount != 0 {
-		return &MarketMarketIOC{QuoteSize: types.Number(quoteAmount)}
-	}
-	return nil
-}
-
 // createOrderConfig populates the OrderConfiguration struct
 func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stopDirection string, baseAmount, quoteAmount, limitPrice, stopPrice, bucketSize float64, endTime time.Time, postOnly bool, bucketNumber int64, bucketDuration time.Duration) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 	switch orderType {
 	case order.Market:
-		orderConfig.MarketMarketIOC = marketIOCImplementation(baseAmount, quoteAmount)
+		if baseAmount != 0 {
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{BaseSize: types.Number(baseAmount)}
+		}
+		if quoteAmount != 0 {
+			orderConfig.MarketMarketIOC = &MarketMarketIOC{QuoteSize: types.Number(quoteAmount)}
+		}
 	case order.Limit:
 		switch {
 		case timeInForce == order.StopOrReduce:
 			orderConfig.SORLimitIOC = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
+		case timeInForce == order.FillOrKill:
+			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
 		case endTime.IsZero():
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{LimitPrice: types.Number(limitPrice), PostOnly: postOnly}
 			if baseAmount != 0 {
@@ -1649,8 +1645,6 @@ func createOrderConfig(orderType order.Type, timeInForce order.TimeInForce, stop
 			if quoteAmount != 0 {
 				orderConfig.LimitLimitGTC.QuoteSize = types.Number(quoteAmount)
 			}
-		case timeInForce == order.FillOrKill:
-			orderConfig.LimitLimitFOK = &QuoteBaseLimit{BaseSize: types.Number(baseAmount), QuoteSize: types.Number(quoteAmount), LimitPrice: types.Number(limitPrice)}
 		default:
 			if endTime.Before(time.Now()) {
 				return orderConfig, errEndTimeInPast
