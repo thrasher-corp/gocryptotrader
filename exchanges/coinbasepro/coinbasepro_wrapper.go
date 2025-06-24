@@ -230,7 +230,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		profileID := accountBalance[i].ProfileID
 		currencies := accountCurrencies[profileID]
 		accountCurrencies[profileID] = append(currencies, account.Balance{
-			Currency:               currency.NewCode(accountBalance[i].Currency),
+			Currency:               accountBalance[i].Currency,
 			Total:                  accountBalance[i].Balance,
 			Hold:                   accountBalance[i].Hold,
 			Free:                   accountBalance[i].Available,
@@ -376,17 +376,12 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 	}
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData[i].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[i].Side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Size,
 			Timestamp:    tradeData[i].Time,
@@ -484,55 +479,33 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, _ curren
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving order %s : %w", orderID, err)
 	}
-	orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order status: %w", err)
-	}
-	orderType, err := order.StringToOrderType(genOrderDetail.Type)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order type: %w", err)
-	}
-	orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order side: %w", err)
-	}
-	pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
-	if err != nil {
-		return nil, fmt.Errorf("error parsing order pair: %w", err)
-	}
-
 	response := order.Detail{
 		Exchange:        c.GetName(),
 		OrderID:         genOrderDetail.ID,
-		Pair:            pair,
-		Side:            orderSide,
-		Type:            orderType,
+		Pair:            genOrderDetail.ProductID,
+		Side:            genOrderDetail.Side,
+		Type:            genOrderDetail.Type,
 		Date:            genOrderDetail.DoneAt,
-		Status:          orderStatus,
+		Status:          genOrderDetail.Status,
 		Price:           genOrderDetail.Price,
 		Amount:          genOrderDetail.Size,
 		ExecutedAmount:  genOrderDetail.FilledSize,
 		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
 	}
-	fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
+	fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID.String())
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving the order fills: %w", err)
 	}
 	for i := range fillResponse {
-		var fillSide order.Side
-		fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing order Side: %w", err)
-		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: fillResponse[i].CreatedAt,
 			TID:       strconv.FormatInt(fillResponse[i].TradeID, 10),
 			Price:     fillResponse[i].Price,
 			Amount:    fillResponse[i].Size,
 			Exchange:  c.GetName(),
-			Type:      orderType,
-			Side:      fillSide,
+			Type:      genOrderDetail.Type,
+			Side:      fillResponse[i].Side,
 			Fee:       fillResponse[i].Fee,
 		})
 	}
@@ -649,37 +622,16 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 		respOrders = append(respOrders, resp...)
 	}
 
-	format, err := c.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
 	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
-		var curr currency.Pair
-		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
-			format.Delimiter)
-		if err != nil {
-			return nil, err
-		}
-		var side order.Side
-		side, err = order.StringToOrderSide(respOrders[i].Side)
-		if err != nil {
-			return nil, err
-		}
-		var orderType order.Type
-		orderType, err = order.StringToOrderType(respOrders[i].Type)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-		}
 		orders[i] = order.Detail{
 			OrderID:        respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
-			Type:           orderType,
+			Type:           respOrders[i].Type,
 			Date:           respOrders[i].CreatedAt,
-			Side:           side,
-			Pair:           curr,
+			Side:           respOrders[i].Side,
+			Pair:           respOrders[i].ProductID,
 			Exchange:       c.Name,
 		}
 	}
@@ -715,49 +667,23 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 		}
 	}
 
-	format, err := c.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		return nil, err
-	}
-
 	orders := make([]order.Detail, len(respOrders))
 	for i := range respOrders {
-		var curr currency.Pair
-		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
-			format.Delimiter)
-		if err != nil {
-			return nil, err
-		}
-		var side order.Side
-		side, err = order.StringToOrderSide(respOrders[i].Side)
-		if err != nil {
-			return nil, err
-		}
-		var orderStatus order.Status
-		orderStatus, err = order.StringToOrderStatus(respOrders[i].Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-		}
-		var orderType order.Type
-		orderType, err = order.StringToOrderType(respOrders[i].Type)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
-		}
 		detail := order.Detail{
 			OrderID:         respOrders[i].ID,
 			Amount:          respOrders[i].Size,
 			ExecutedAmount:  respOrders[i].FilledSize,
 			RemainingAmount: respOrders[i].Size - respOrders[i].FilledSize,
 			Cost:            respOrders[i].ExecutedValue,
-			CostAsset:       curr.Quote,
-			Type:            orderType,
+			CostAsset:       respOrders[i].ProductID.Quote,
+			Type:            respOrders[i].Type,
 			Date:            respOrders[i].CreatedAt,
 			CloseTime:       respOrders[i].DoneAt,
 			Fee:             respOrders[i].FillFees,
-			FeeAsset:        curr.Quote,
-			Side:            side,
-			Status:          orderStatus,
-			Pair:            curr,
+			FeeAsset:        respOrders[i].ProductID.Quote,
+			Side:            respOrders[i].Side,
+			Status:          respOrders[i].Status,
+			Pair:            respOrders[i].ProductID,
 			Price:           respOrders[i].Price,
 			Exchange:        c.Name,
 		}

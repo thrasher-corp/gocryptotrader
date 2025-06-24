@@ -590,7 +590,7 @@ type Trade struct {
 	TradeID   float64    `json:"trade-id"`
 	Price     float64    `json:"price"`
 	Amount    float64    `json:"amount"`
-	Direction string     `json:"direction"`
+	Direction order.Side `json:"direction"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -678,25 +678,25 @@ type CancelOrderBatch struct {
 
 // OrderInfo stores the order info
 type OrderInfo struct {
-	ID               int64      `json:"id"`
-	Symbol           string     `json:"symbol"`
-	AccountID        int64      `json:"account-id"`
-	Amount           float64    `json:"amount,string"`
-	Price            float64    `json:"price,string"`
-	CreatedAt        types.Time `json:"created-at"`
-	Type             string     `json:"type"`
-	FieldAmount      float64    `json:"field-amount,string"`
-	FieldCashAmount  float64    `json:"field-cash-amount,string"`
-	FilledAmount     float64    `json:"filled-amount,string"`
-	FilledCashAmount float64    `json:"filled-cash-amount,string"`
-	FilledFees       float64    `json:"filled-fees,string"`
-	FinishedAt       types.Time `json:"finished-at"`
-	UserID           int64      `json:"user-id"`
-	Source           string     `json:"source"`
-	State            string     `json:"state"`
-	CanceledAt       int64      `json:"canceled-at"`
-	Exchange         string     `json:"exchange"`
-	Batch            string     `json:"batch"`
+	ID               int64        `json:"id"`
+	Symbol           string       `json:"symbol"`
+	AccountID        int64        `json:"account-id"`
+	Amount           float64      `json:"amount,string"`
+	Price            float64      `json:"price,string"`
+	CreatedAt        types.Time   `json:"created-at"`
+	Type             string       `json:"type"`
+	FieldAmount      float64      `json:"field-amount,string"`
+	FieldCashAmount  float64      `json:"field-cash-amount,string"`
+	FilledAmount     float64      `json:"filled-amount,string"`
+	FilledCashAmount float64      `json:"filled-cash-amount,string"`
+	FilledFees       float64      `json:"filled-fees,string"`
+	FinishedAt       types.Time   `json:"finished-at"`
+	UserID           int64        `json:"user-id"`
+	Source           string       `json:"source"`
+	State            order.Status `json:"state"`
+	CanceledAt       int64        `json:"canceled-at"`
+	Exchange         string       `json:"exchange"`
+	Batch            string       `json:"batch"`
 }
 
 // OrderMatchInfo stores the order match info
@@ -824,10 +824,10 @@ type WsDepth struct {
 	Channel   string     `json:"ch"`
 	Timestamp types.Time `json:"ts"`
 	Tick      struct {
-		Bids      [][]any    `json:"bids"`
-		Asks      [][]any    `json:"asks"`
-		Timestamp types.Time `json:"ts"`
-		Version   int64      `json:"version"`
+		Bids      [][]float64 `json:"bids"`
+		Asks      [][]float64 `json:"asks"`
+		Timestamp types.Time  `json:"ts"`
+		Version   int64       `json:"version"`
 	} `json:"tick"`
 }
 
@@ -877,7 +877,7 @@ type WsTrade struct {
 			Timestamp types.Time `json:"ts"`
 			TradeID   float64    `json:"tradeId"`
 			Price     float64    `json:"price"`
-			Direction string     `json:"direction"`
+			Direction order.Side `json:"direction"`
 		} `json:"data"`
 	}
 }
@@ -921,29 +921,29 @@ type wsOrderUpdateMsg struct {
 
 // WsOrderUpdate contains updates to orders
 type WsOrderUpdate struct {
-	EventType       string     `json:"eventType"`
-	Symbol          string     `json:"symbol"`
-	AccountID       int64      `json:"accountId"`
-	OrderID         int64      `json:"orderId"`
-	TradeID         int64      `json:"tradeId"`
-	ClientOrderID   string     `json:"clientOrderId"`
-	Source          string     `json:"orderSource"`
-	Price           float64    `json:"orderPrice,string"`
-	Size            float64    `json:"orderSize,string"`
-	Value           float64    `json:"orderValue,string"`
-	OrderType       string     `json:"type"`
-	TradePrice      float64    `json:"tradePrice,string"`
-	TradeVolume     float64    `json:"tradeVolume,string"`
-	RemainingAmount float64    `json:"remainAmt,string"`
-	ExecutedAmount  float64    `json:"execAmt,string"`
-	IsTaker         bool       `json:"aggressor"`
-	Side            order.Side `json:"orderSide"`
-	OrderStatus     string     `json:"orderStatus"`
-	LastActTime     types.Time `json:"lastActTime"`
-	CreateTime      types.Time `json:"orderCreateTime"`
-	TradeTime       types.Time `json:"tradeTime"`
-	ErrCode         int64      `json:"errCode"`
-	ErrMessage      string     `json:"errMessage"`
+	EventType       string       `json:"eventType"`
+	Symbol          string       `json:"symbol"`
+	AccountID       int64        `json:"accountId"`
+	OrderID         int64        `json:"orderId"`
+	TradeID         int64        `json:"tradeId"`
+	ClientOrderID   string       `json:"clientOrderId"`
+	Source          string       `json:"orderSource"`
+	Price           float64      `json:"orderPrice,string"`
+	Size            float64      `json:"orderSize,string"`
+	Value           float64      `json:"orderValue,string"`
+	OrderType       string       `json:"type"`
+	TradePrice      float64      `json:"tradePrice,string"`
+	TradeVolume     float64      `json:"tradeVolume,string"`
+	RemainingAmount float64      `json:"remainAmt,string"`
+	ExecutedAmount  float64      `json:"execAmt,string"`
+	IsTaker         bool         `json:"aggressor"`
+	Side            order.Side   `json:"orderSide"`
+	OrderStatus     order.Status `json:"orderStatus"`
+	LastActTime     types.Time   `json:"lastActTime"`
+	CreateTime      types.Time   `json:"orderCreateTime"`
+	TradeTime       types.Time   `json:"tradeTime"`
+	ErrCode         int64        `json:"errCode"`
+	ErrMessage      string       `json:"errMessage"`
 }
 
 type wsTradeUpdateMsg struct {
@@ -952,30 +952,30 @@ type wsTradeUpdateMsg struct {
 
 // WsTradeUpdate contains trade updates to orders
 type WsTradeUpdate struct {
-	EventType       string     `json:"eventType"`
-	Symbol          string     `json:"symbol"`
-	OrderID         int64      `json:"orderId"`
-	TradePrice      float64    `json:"tradePrice,string"`
-	TradeVolume     float64    `json:"tradeVolume,string"`
-	Side            order.Side `json:"orderSide"`
-	OrderType       string     `json:"orderType"`
-	IsTaker         bool       `json:"aggressor"`
-	TradeID         int64      `json:"tradeId"`
-	TradeTime       types.Time `json:"tradeTime"`
-	TransactFee     float64    `json:"transactFee,string"`
-	FeeCurrency     string     `json:"feeCurrency"`
-	FeeDeduct       string     `json:"feeDeduct"`
-	FeeDeductType   string     `json:"feeDeductType"`
-	AccountID       int64      `json:"accountId"`
-	Source          string     `json:"orderSource"`
-	OrderPrice      float64    `json:"orderPrice,string"`
-	OrderSize       float64    `json:"orderSize,string"`
-	Value           float64    `json:"orderValue,string"`
-	ClientOrderID   string     `json:"clientOrderId"`
-	StopPrice       string     `json:"stopPrice"`
-	Operator        string     `json:"operator"`
-	OrderCreateTime types.Time `json:"orderCreateTime"`
-	OrderStatus     string     `json:"orderStatus"`
+	EventType       string       `json:"eventType"`
+	Symbol          string       `json:"symbol"`
+	OrderID         int64        `json:"orderId"`
+	TradePrice      float64      `json:"tradePrice,string"`
+	TradeVolume     float64      `json:"tradeVolume,string"`
+	Side            order.Side   `json:"orderSide"`
+	OrderType       string       `json:"orderType"`
+	IsTaker         bool         `json:"aggressor"`
+	TradeID         int64        `json:"tradeId"`
+	TradeTime       types.Time   `json:"tradeTime"`
+	TransactFee     float64      `json:"transactFee,string"`
+	FeeCurrency     string       `json:"feeCurrency"`
+	FeeDeduct       string       `json:"feeDeduct"`
+	FeeDeductType   string       `json:"feeDeductType"`
+	AccountID       int64        `json:"accountId"`
+	Source          string       `json:"orderSource"`
+	OrderPrice      float64      `json:"orderPrice,string"`
+	OrderSize       float64      `json:"orderSize,string"`
+	Value           float64      `json:"orderValue,string"`
+	ClientOrderID   string       `json:"clientOrderId"`
+	StopPrice       string       `json:"stopPrice"`
+	Operator        string       `json:"operator"`
+	OrderCreateTime types.Time   `json:"orderCreateTime"`
+	OrderStatus     order.Status `json:"orderStatus"`
 }
 
 // OrderVars stores side, status and type for any order/trade

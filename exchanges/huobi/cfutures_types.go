@@ -1,6 +1,9 @@
 package huobi
 
-import "github.com/thrasher-corp/gocryptotrader/types"
+import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 // WsSwapReqKline stores req kline data for swap websocket
 type WsSwapReqKline struct {
@@ -427,7 +430,7 @@ type BatchTradesData struct {
 // CoinMarginedFuturesTrade holds coinmarginedfutures trade data
 type CoinMarginedFuturesTrade struct {
 	Amount    float64    `json:"amount"`
-	Direction string     `json:"direction"`
+	Direction order.Side `json:"direction"`
 	ID        int64      `json:"id"`
 	Price     float64    `json:"price"`
 	Timestamp types.Time `json:"ts"`
