@@ -2,6 +2,7 @@ package yobit
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -39,7 +40,7 @@ type Orderbook struct {
 
 // Trade stores trade information
 type Trade struct {
-	Type      string     `json:"type"`
+	Side      order.Side `json:"type"`
 	Price     float64    `json:"price"`
 	Amount    float64    `json:"amount"`
 	TID       int64      `json:"tid"`
@@ -48,12 +49,12 @@ type Trade struct {
 
 // ActiveOrders stores active order information
 type ActiveOrders struct {
-	Pair             string     `json:"pair"`
-	Type             string     `json:"type"`
-	Amount           float64    `json:"amount"`
-	Rate             float64    `json:"rate"`
-	TimestampCreated types.Time `json:"timestamp_created"`
-	Status           int        `json:"status"`
+	Pair             currency.Pair `json:"pair"`
+	Side             order.Side    `json:"type"`
+	Amount           float64       `json:"amount"`
+	Rate             float64       `json:"rate"`
+	TimestampCreated types.Time    `json:"timestamp_created"`
+	Status           int           `json:"status"`
 }
 
 // Pair holds pair information
@@ -83,13 +84,13 @@ type AccountInfo struct {
 
 // OrderInfo stores order information
 type OrderInfo struct {
-	Pair             string     `json:"pair"`
-	Type             string     `json:"type"`
-	StartAmount      float64    `json:"start_amount"`
-	Amount           float64    `json:"amount"`
-	Rate             float64    `json:"rate"`
-	TimestampCreated types.Time `json:"timestamp_created"`
-	Status           int        `json:"status"`
+	Pair             currency.Pair `json:"pair"`
+	Side             order.Side    `json:"type"`
+	StartAmount      float64       `json:"start_amount"`
+	Amount           float64       `json:"amount"`
+	Rate             float64       `json:"rate"`
+	TimestampCreated types.Time    `json:"timestamp_created"`
+	Status           int           `json:"status"`
 }
 
 // CancelOrder is used for the CancelOrder API request response
@@ -117,13 +118,13 @@ type TradeHistoryResponse struct {
 
 // TradeHistory stores trade history
 type TradeHistory struct {
-	Pair      string     `json:"pair"`
-	Type      string     `json:"type"`
-	Amount    float64    `json:"amount"`
-	Rate      float64    `json:"rate"`
-	OrderID   float64    `json:"order_id"`
-	MyOrder   int        `json:"is_your_order"`
-	Timestamp types.Time `json:"timestamp"`
+	Pair      currency.Pair `json:"pair"`
+	Side      order.Side    `json:"type"`
+	Amount    float64       `json:"amount"`
+	Rate      float64       `json:"rate"`
+	OrderID   float64       `json:"order_id"`
+	MyOrder   int           `json:"is_your_order"`
+	Timestamp types.Time    `json:"timestamp"`
 }
 
 // DepositAddress stores a currency deposit address

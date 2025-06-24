@@ -396,22 +396,14 @@ func (e *Exchange) processFuturesStopOrderLifecycleEvent(respData []byte) error 
 	if err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
-	}
-	side, err := order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return err
-	}
 	e.Websocket.DataHandler <- &order.Detail{
 		Price:        resp.OrderPrice,
 		TriggerPrice: resp.StopPrice,
 		Amount:       resp.Size,
 		Exchange:     e.Name,
 		OrderID:      resp.OrderID,
-		Type:         oType,
-		Side:         side,
+		Type:         resp.OrderType,
+		Side:         resp.Side,
 		AssetType:    asset.Futures,
 		Date:         resp.CreatedAt.Time(),
 		LastUpdated:  resp.Timestamp.Time(),
@@ -426,16 +418,7 @@ func (e *Exchange) processFuturesPrivateTradeOrders(respData []byte) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
-	}
-	oStatus, err := e.StringToOrderStatus(resp.Status)
-	if err != nil {
-		return err
-	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
+	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return err
 	}
@@ -443,15 +426,11 @@ func (e *Exchange) processFuturesPrivateTradeOrders(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return err
-	}
 	e.Websocket.DataHandler <- &order.Detail{
-		Type:            oType,
-		Status:          oStatus,
+		Type:            resp.OrderType,
+		Status:          resp.Status,
 		Pair:            pair,
-		Side:            side,
+		Side:            resp.Side,
 		Amount:          resp.OrderSize,
 		Price:           resp.OrderPrice,
 		Exchange:        e.Name,
@@ -644,21 +623,11 @@ func (e *Exchange) processFuturesKline(respData []byte, intervalStr string) erro
 
 // processStopOrderEvent represents a stop order update event.
 func (e *Exchange) processStopOrderEvent(respData []byte) error {
-	resp := WsStopOrder{}
-	err := json.Unmarshal(respData, &resp)
-	if err != nil {
+	var resp WsStopOrder
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	var pair currency.Pair
-	pair, err = currency.NewPairFromString(resp.Symbol)
-	if err != nil {
-		return err
-	}
-	oType, err := order.StringToOrderType(resp.OrderType)
-	if err != nil {
-		return err
-	}
-	side, err := order.StringToOrderSide(resp.Side)
+	pair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return err
 	}
@@ -668,8 +637,8 @@ func (e *Exchange) processStopOrderEvent(respData []byte) error {
 		Amount:       resp.Size,
 		Exchange:     e.Name,
 		OrderID:      resp.OrderID,
-		Type:         oType,
-		Side:         side,
+		Type:         resp.OrderType,
+		Side:         resp.Side,
 		AssetType:    asset.Spot,
 		Date:         resp.CreatedAt.Time(),
 		LastUpdated:  resp.Timestamp.Time(),
@@ -717,24 +686,11 @@ func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []b
 
 // processOrderChangeEvent processes order update events.
 func (e *Exchange) processOrderChangeEvent(respData []byte, topic string) error {
-	response := WsTradeOrder{}
-	err := json.Unmarshal(respData, &response)
-	if err != nil {
-		return err
-	}
-	oType, err := order.StringToOrderType(response.OrderType)
-	if err != nil {
-		return err
-	}
-	oStatus, err := e.StringToOrderStatus(response.Status)
-	if err != nil {
+	var response WsTradeOrder
+	if err := json.Unmarshal(respData, &response); err != nil {
 		return err
 	}
 	pair, err := currency.NewPairFromString(response.Symbol)
-	if err != nil {
-		return err
-	}
-	side, err := order.StringToOrderSide(response.Side)
 	if err != nil {
 		return err
 	}
@@ -752,9 +708,9 @@ func (e *Exchange) processOrderChangeEvent(respData []byte, topic string) error 
 			Exchange:        e.Name,
 			OrderID:         response.OrderID,
 			ClientOrderID:   response.ClientOid,
-			Type:            oType,
-			Side:            side,
-			Status:          oStatus,
+			Type:            response.OrderType,
+			Side:            response.Side,
+			Status:          response.Status,
 			AssetType:       assets[x],
 			Date:            response.OrderTime.Time(),
 			LastUpdated:     response.Timestamp.Time(),
@@ -780,10 +736,6 @@ func (e *Exchange) processTradeData(respData []byte, instrument, topic string) e
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(response.Side)
-	if err != nil {
-		return err
-	}
 	assets, err := e.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
@@ -794,7 +746,7 @@ func (e *Exchange) processTradeData(respData []byte, instrument, topic string) e
 			Timestamp:    response.Time.Time(),
 			Price:        response.Price,
 			Amount:       response.Size,
-			Side:         side,
+			Side:         response.Side,
 			Exchange:     e.Name,
 			TID:          response.TradeID,
 			AssetType:    assets[x],

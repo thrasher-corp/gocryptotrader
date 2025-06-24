@@ -1131,50 +1131,6 @@ func TestWsLevel2Update(t *testing.T) {
 	}
 }
 
-func TestResponseToStatus(t *testing.T) {
-	type TestCases struct {
-		Case   string
-		Result order.Status
-	}
-	testCases := []TestCases{
-		{Case: "accepted", Result: order.New},
-		{Case: "booked", Result: order.Active},
-		{Case: "fill", Result: order.Filled},
-		{Case: "cancelled", Result: order.Cancelled},
-		{Case: "cancel_rejected", Result: order.Rejected},
-		{Case: "closed", Result: order.Filled},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for i := range testCases {
-		result, _ := stringToOrderStatus(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
-	}
-}
-
-func TestResponseToOrderType(t *testing.T) {
-	type TestCases struct {
-		Case   string
-		Result order.Type
-	}
-	testCases := []TestCases{
-		{Case: "exchange limit", Result: order.Limit},
-		{Case: "auction-only limit", Result: order.Limit},
-		{Case: "indication-of-interest limit", Result: order.Limit},
-		{Case: "market buy", Result: order.Market},
-		{Case: "market sell", Result: order.Market},
-		{Case: "block_trade", Result: order.Market},
-		{Case: "LOL", Result: order.UnknownType},
-	}
-	for i := range testCases {
-		result, _ := stringToOrderType(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
-	}
-}
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
