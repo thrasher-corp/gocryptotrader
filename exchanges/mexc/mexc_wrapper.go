@@ -402,10 +402,10 @@ func (me *MEXC) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTy
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        me.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: me.CanVerifyOrderbook,
+		Exchange:          me.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: me.ValidateOrderbook,
 	}
 	switch assetType {
 	case asset.Spot:
@@ -512,6 +512,26 @@ func (me *MEXC) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Ho
 	return resp, nil
 }
 
+func accountStatusToString(status int64) string {
+	switch status {
+	case 1:
+		return "SMALL"
+	case 2:
+		return "TIME_DELAY"
+	case 3:
+		return "LARGE_DELAY"
+	case 4:
+		return "PENDING"
+	case 5:
+		return "SUCCESS"
+	case 6:
+		return "AUDITING"
+	case 7:
+		return "REJECTED"
+	}
+	return ""
+}
+
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	result, err := me.GetFundDepositHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
@@ -520,26 +540,9 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 	}
 	resp := make([]exchange.FundingHistory, len(result))
 	for a := range result {
-		var statusString string
-		switch result[a].Status {
-		case 1:
-			statusString = "SMALL"
-		case 2:
-			statusString = "TIME_DELAY"
-		case 3:
-			statusString = "LARGE_DELAY"
-		case 4:
-			statusString = "PENDING"
-		case 5:
-			statusString = "SUCCESS"
-		case 6:
-			statusString = "AUDITING"
-		case 7:
-			statusString = "REJECTED"
-		}
 		resp[a] = exchange.FundingHistory{
 			ExchangeName:    me.Name,
-			Status:          statusString,
+			Status:          accountStatusToString(result[a].Status),
 			TransferID:      result[a].TransactionID,
 			Timestamp:       result[a].ConfirmTimes.Time(),
 			Currency:        result[a].Coin,
@@ -591,6 +594,32 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 	return resp, nil
 }
 
+func withdrawalStatusToString(withdrawalStatus int64) string {
+	switch withdrawalStatus {
+	case 1:
+		return "APPLY"
+	case 2:
+		return "AUDITING"
+	case 3:
+		return "WAIT"
+	case 4:
+		return "PROCESSING"
+	case 5:
+		return "WAIT_PACKAGING"
+	case 6:
+		return "WAIT_CONFIRM"
+	case 7:
+		return "SUCCESS"
+	case 8:
+		return "FAILED"
+	case 9:
+		return "CANCEL"
+	case 10:
+		return "MANUAL"
+	}
+	return ""
+}
+
 // GetWithdrawalsHistory returns previous withdrawals data
 func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	withdrawals, err := me.GetWithdrawalHistory(ctx, c, time.Time{}, time.Time{}, 0, 0)
@@ -599,31 +628,8 @@ func (me *MEXC) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ as
 	}
 	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for w := range withdrawals {
-		var wdrStatus string
-		switch withdrawals[w].Status {
-		case 1:
-			wdrStatus = "APPLY"
-		case 2:
-			wdrStatus = "AUDITING"
-		case 3:
-			wdrStatus = "WAIT"
-		case 4:
-			wdrStatus = "PROCESSING"
-		case 5:
-			wdrStatus = "WAIT_PACKAGING"
-		case 6:
-			wdrStatus = "WAIT_CONFIRM"
-		case 7:
-			wdrStatus = "SUCCESS"
-		case 8:
-			wdrStatus = "FAILED"
-		case 9:
-			wdrStatus = "CANCEL"
-		case 10:
-			wdrStatus = "MANUAL"
-		}
 		resp[w] = exchange.WithdrawalHistory{
-			Status:          wdrStatus,
+			Status:          withdrawalStatusToString(withdrawals[w].Status),
 			TransferID:      withdrawals[w].TransactionID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
 			Currency:        withdrawals[w].Coin,

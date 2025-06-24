@@ -74,7 +74,7 @@ func (me *MEXC) WsConnect() error {
 		}
 		me.Websocket.Conn.SetURL(me.Websocket.Conn.GetURL() + "?listenKey=" + listenKey)
 	}
-	err := me.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := me.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}

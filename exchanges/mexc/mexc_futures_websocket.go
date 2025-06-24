@@ -72,7 +72,7 @@ func (me *MEXC) WsFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	err = me.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = me.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
