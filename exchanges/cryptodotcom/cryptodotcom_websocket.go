@@ -68,6 +68,7 @@ var responseStream chan SubscriptionRawData
 
 // WsConnect creates a new websocket to public and private endpoints.
 func (cr *Cryptodotcom) WsConnect() error {
+	ctx := context.TODO()
 	responseStream = make(chan SubscriptionRawData)
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -75,7 +76,7 @@ func (cr *Cryptodotcom) WsConnect() error {
 	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
-	err := cr.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := cr.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -163,7 +164,7 @@ func (cr *Cryptodotcom) WsAuthConnect(dialer *gws.Dialer) error {
 	if !cr.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", cr.Name)
 	}
-	err := cr.Websocket.AuthConn.Dial(dialer, http.Header{})
+	err := cr.Websocket.AuthConn.Dial(context.Background(), dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", cr.Name, cryptodotcomWebsocketUserAPI, err)
 	}
@@ -561,11 +562,11 @@ func (cr *Cryptodotcom) processOTCOrderbook(resp *WsResult) error {
 	}
 	for x := range data {
 		book := orderbook.Book{
-			Exchange:        cr.Name,
-			Pair:            cp,
-			Asset:           asset.OTC,
-			VerifyOrderbook: cr.CanVerifyOrderbook,
-			LastUpdated:     resp.Timestamp.Time(),
+			Exchange:          cr.Name,
+			Pair:              cp,
+			Asset:             asset.OTC,
+			ValidateOrderbook: cr.ValidateOrderbook,
+			LastUpdated:       resp.Timestamp.Time(),
 		}
 		book.Asks = make([]orderbook.Level, len(data[x].Asks))
 		for i := range data[x].Asks {
@@ -694,12 +695,12 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 	}
 	for x := range data {
 		book := orderbook.Book{
-			Exchange:        cr.Name,
-			Pair:            cp,
-			Asset:           asset.Spot,
-			LastUpdated:     data[x].OrderbookUpdateTime.Time(),
-			LastUpdateID:    data[x].UpdateSequence,
-			VerifyOrderbook: cr.CanVerifyOrderbook,
+			Exchange:          cr.Name,
+			Pair:              cp,
+			Asset:             asset.Spot,
+			LastUpdated:       data[x].OrderbookUpdateTime.Time(),
+			LastUpdateID:      data[x].UpdateSequence,
+			ValidateOrderbook: cr.ValidateOrderbook,
 		}
 		book.Asks = make([]orderbook.Level, len(data[x].Asks))
 		for i := range data[x].Asks {

@@ -362,10 +362,10 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        cr.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: cr.CanVerifyOrderbook,
+		Exchange:          cr.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: cr.ValidateOrderbook,
 	}
 	if len(orderbookNew.Data) == 0 {
 		return nil, fmt.Errorf("%w, missing orderbook data", orderbook.ErrOrderbookInvalid)
