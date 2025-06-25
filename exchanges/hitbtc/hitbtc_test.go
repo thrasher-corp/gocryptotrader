@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -42,29 +41,19 @@ const (
 var spotPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true})
 
 func TestMain(m *testing.M) {
-	h.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("HitBTC load config error", err)
-	}
-	hitbtcConfig, err := cfg.GetExchangeConfig("HitBTC")
-	if err != nil {
-		log.Fatal("HitBTC Setup() init error")
-	}
-	hitbtcConfig.API.AuthenticatedSupport = true
-	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
-	hitbtcConfig.API.Credentials.Key = apiKey
-	hitbtcConfig.API.Credentials.Secret = apiSecret
-	h.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = h.Setup(hitbtcConfig)
-	if err != nil {
-		log.Fatal("HitBTC setup error", err)
+	h = new(Exchange)
+	if err := testexch.Setup(h); err != nil {
+		log.Fatalf("HitBTC Setup error: %s", err)
 	}
 
-	err = h.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		log.Fatal("HitBTC setup error", err)
+	if apiKey != "" && apiSecret != "" {
+		h.API.AuthenticatedSupport = true
+		h.API.AuthenticatedWebsocketSupport = true
+		h.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
+
+	if err := h.UpdateTradablePairs(context.Background(), false); err != nil {
+		log.Fatalf("HitBTC UpdateTradablePairs error: %s", err)
 	}
 
 	os.Exit(m.Run())

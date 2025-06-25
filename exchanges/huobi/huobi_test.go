@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -55,25 +54,17 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	h.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Huobi load config error", err)
+	h = new(Exchange)
+	if err := testexch.Setup(h); err != nil {
+		log.Fatalf("HUOBI Setup error: %s", err)
 	}
-	hConfig, err := cfg.GetExchangeConfig("Huobi")
-	if err != nil {
-		log.Fatal("Huobi Setup() init error")
+
+	if apiKey != "" && apiSecret != "" {
+		h.API.AuthenticatedSupport = true
+		h.API.AuthenticatedWebsocketSupport = true
+		h.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	hConfig.API.AuthenticatedSupport = true
-	hConfig.API.AuthenticatedWebsocketSupport = true
-	hConfig.API.Credentials.Key = apiKey
-	hConfig.API.Credentials.Secret = apiSecret
-	h.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = h.Setup(hConfig)
-	if err != nil {
-		log.Fatal("Huobi setup error", err)
-	}
+
 	os.Exit(m.Run())
 }
 
@@ -1160,7 +1151,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -1271,7 +1262,7 @@ func TestQueryDepositAddress(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -1281,7 +1272,7 @@ func TestGetDepositAddress(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 
@@ -1291,7 +1282,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(h) {
 		require.NoError(t, err)
 	} else {
-		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
 	}
 }
 

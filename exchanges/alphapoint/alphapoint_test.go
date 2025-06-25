@@ -25,9 +25,14 @@ const (
 var a = &Exchange{}
 
 func TestMain(m *testing.M) {
+	a = new(Exchange)
 	a.SetDefaults()
-	a.SetCredentials(apiKey, apiSecret, "", "", "", "")
-	a.API.AuthenticatedSupport = true
+
+	if apiKey != "" && apiSecret != "" {
+		a.API.AuthenticatedSupport = true
+		a.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
+
 	os.Exit(m.Run())
 }
 

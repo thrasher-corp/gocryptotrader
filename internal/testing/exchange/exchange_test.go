@@ -26,7 +26,8 @@ func TestSetup(t *testing.T) {
 func TestMockHTTPInstance(t *testing.T) {
 	b := new(binance.Exchange)
 	require.NoError(t, Setup(b), "Test exchange Setup must not error")
-	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance must not error")
+	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
+	require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
 }
 
 // TestMockWsInstance exercises MockWsInstance

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -33,24 +32,16 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	e.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Exmo load config error", err)
-	}
-	exmoConf, err := cfg.GetExchangeConfig("EXMO")
-	if err != nil {
-		log.Fatal("Exmo Setup() init error")
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
+		log.Fatalf("EXMO Setup error: %s", err)
 	}
 
-	err = e.Setup(exmoConf)
-	if err != nil {
-		log.Fatal("Exmo setup error", err)
+	if APIKey != "" && APISecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(APIKey, APISecret, "", "", "", "")
 	}
 
-	e.API.AuthenticatedSupport = true
-	e.SetCredentials(APIKey, APISecret, "", "", "", "")
 	os.Exit(m.Run())
 }
 

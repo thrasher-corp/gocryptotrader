@@ -49,7 +49,7 @@ var g *Exchange
 func TestMain(m *testing.M) {
 	g = new(Exchange)
 	if err := testexch.Setup(g); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Gateio Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {

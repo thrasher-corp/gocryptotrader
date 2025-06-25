@@ -1,7 +1,6 @@
 package binanceus
 
 import (
-	"context"
 	"log"
 	"os"
 	reflects "reflect"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -40,28 +38,18 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Binanceus load config error", err)
+	bi = new(Exchange)
+	if err := testexch.Setup(bi); err != nil {
+		log.Fatalf("Binanceus Setup error: %s", err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Binanceus")
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		bi.API.AuthenticatedSupport = true
+		bi.API.AuthenticatedWebsocketSupport = true
+		bi.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	bi.SetDefaults()
-	bi.Websocket = sharedtestvalues.NewTestWebsocket()
+
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	err = bi.Setup(exchCfg)
-	if err != nil {
-		log.Fatal("Binanceus TestMain()", err)
-	}
-	bi.setupOrderbookManager(context.Background())
 	os.Exit(m.Run())
 }
 

@@ -1485,7 +1485,10 @@ func (by *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time,
 	return info.TimeNano.Time(), err
 }
 
-// transformInstrumentInfoSymbol converts GetInstrumentInfo symbol to one stored in config with proper delimiters
+// transformSymbol returns a symbol with a delimiter added if missing
+// * Spot and Coin-M add "_"
+// * Options, USDC-M USDT-M add "-"
+// * CrossMargin is left without a delimiter
 func (i *InstrumentInfo) transformSymbol(a asset.Item) string {
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures:

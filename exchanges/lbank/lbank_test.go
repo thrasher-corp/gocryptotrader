@@ -45,7 +45,7 @@ var (
 func TestMain(m *testing.M) {
 	l = new(Exchange)
 	if err := testexch.Setup(l); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Lbank Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
 		l.API.AuthenticatedSupport = true

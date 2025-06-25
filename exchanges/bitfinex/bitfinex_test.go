@@ -44,21 +44,14 @@ var (
 func TestMain(m *testing.M) {
 	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Bitfinex Setup error: %s", err)
 	}
 
-	if apiKey != "" {
+	if apiKey != "" && apiSecret != "" {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
-	}
-
-	if !b.Enabled || len(b.BaseCurrencies) < 1 {
-		log.Fatal("Bitfinex Setup values not set correctly")
-	}
-
-	if sharedtestvalues.AreAPICredentialsSet(b) {
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	os.Exit(m.Run())
