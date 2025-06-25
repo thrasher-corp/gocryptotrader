@@ -98,7 +98,7 @@ func TestSubscribe(t *testing.T) {
 	_, err = d.subscribe(id)
 	assert.ErrorIs(t, err, errTypeAssertionFailure, "subscribe should error correctly")
 
-	d.outbound.New = getChan
+	d.outbound.New = func() any { return make(chan any) }
 	ch, err := d.subscribe(id)
 	assert.NoError(t, err, "subscribe should not error")
 	assert.NotNil(t, ch, "Channel should not be nil")
