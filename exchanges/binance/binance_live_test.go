@@ -35,8 +35,8 @@ func TestMain(m *testing.M) {
 			exchange.RestCoinMargined: testnetFutures,
 			exchange.RestSpot:         testnetSpotURL,
 		} {
-			if err := b.API.Endpoints.SetRunning(k.String(), v); err != nil {
-				log.Fatalf("Binance SetRunning error: %s", err)
+			if err := b.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
+				log.Fatalf("Binance SetRunningURL error: %s", err)
 			}
 		}
 	}

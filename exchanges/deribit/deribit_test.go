@@ -69,8 +69,8 @@ func TestMain(m *testing.M) {
 		}
 		for k, v := range d.API.Endpoints.GetURLMap() {
 			v = strings.Replace(v, "www.deribit.com", "test.deribit.com", 1)
-			if err := d.API.Endpoints.SetRunning(k, v); err != nil {
-				log.Fatalf("Deribit SetRunning error: %s", err)
+			if err := d.API.Endpoints.SetRunningURL(k, v); err != nil {
+				log.Fatalf("Deribit SetRunningURL error: %s", err)
 			}
 		}
 	}

@@ -80,7 +80,7 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 	}
 
 	for k := range b.API.Endpoints.GetURLMap() {
-		if err := b.API.Endpoints.SetRunning(k, serverPath); err != nil {
+		if err := b.API.Endpoints.SetRunningURL(k, serverPath); err != nil {
 			return fmt.Errorf("error setting running endpoint: %w", err)
 		}
 	}
@@ -109,8 +109,8 @@ func MockWsInstance[T any, PT interface {
 	b := e.GetBase()
 	b.SkipAuthCheck = true
 	b.API.AuthenticatedWebsocketSupport = true
-	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
-	require.NoError(tb, err, "Endpoints.SetRunning must not error for RestSpotURL")
+	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
+	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
 		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
 		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)

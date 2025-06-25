@@ -25,9 +25,8 @@ func TestMain(m *testing.M) {
 		g.API.AuthenticatedSupport = true
 		g.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiAPIURL)
-	if err != nil {
-		log.Fatalf("Gemini SetRunning error: %s", err)
+	if err := g.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), geminiAPIURL); err != nil {
+		log.Fatalf("Gemini SetRunningURL error: %s", err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, g.Name)
 	os.Exit(m.Run())
