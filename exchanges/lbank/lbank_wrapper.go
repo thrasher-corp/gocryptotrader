@@ -212,12 +212,12 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	}
 
 	book := &orderbook.Book{
-		Exchange:        l.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: l.CanVerifyOrderbook,
-		Asks:            make(orderbook.Levels, len(d.Data.Asks)),
-		Bids:            make(orderbook.Levels, len(d.Data.Bids)),
+		Exchange:          l.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: l.ValidateOrderbook,
+		Asks:              make(orderbook.Levels, len(d.Data.Asks)),
+		Bids:              make(orderbook.Levels, len(d.Data.Bids)),
 	}
 
 	for i := range d.Data.Asks {

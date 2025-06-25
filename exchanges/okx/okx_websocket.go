@@ -237,6 +237,7 @@ var subscriptionNames = map[string]string{
 
 // WsConnect initiates a websocket connection
 func (ok *Okx) WsConnect() error {
+	ctx := context.TODO()
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -244,12 +245,12 @@ func (ok *Okx) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
+	go ok.wsReadData(ctx, ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -260,7 +261,7 @@ func (ok *Okx) WsConnect() error {
 		Delay:       time.Second * 20,
 	})
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.WsAuth(context.TODO())
+		err = ok.WsAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -279,12 +280,12 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 		return err
 	}
 	var dialer gws.Dialer
-	err = ok.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = ok.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.AuthConn)
+	go ok.wsReadData(ctx, ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
@@ -315,14 +316,14 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (ok *Okx) wsReadData(ws websocket.Connection) {
+func (ok *Okx) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		if err := ok.WsHandleData(resp.Raw); err != nil {
+		if err := ok.WsHandleData(ctx, resp.Raw); err != nil {
 			ok.Websocket.DataHandler <- err
 		}
 	}
@@ -330,17 +331,19 @@ func (ok *Okx) wsReadData(ws websocket.Connection) {
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
 func (ok *Okx) Subscribe(channelsToSubscribe subscription.List) error {
-	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
+	ctx := context.TODO()
+	return ok.handleSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
 func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
+	ctx := context.TODO()
+	return ok.handleSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleSubscription(operation string, subs subscription.List) error {
+func (ok *Okx) handleSubscription(ctx context.Context, operation string, subs subscription.List) error {
 	reqs := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
@@ -364,7 +367,7 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 			if len(authChunk) > maxConnByteLen {
 				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
 				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests)
+				err = ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests)
 				if err != nil {
 					return err
 				}
@@ -388,7 +391,7 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 			}
 			if len(chunk) > maxConnByteLen {
 				i--
-				err = ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs)
+				err = ok.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs)
 				if err != nil {
 					return err
 				}
@@ -408,13 +411,13 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 	}
 
 	if len(reqs.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, reqs); err != nil {
+		if err := ok.Websocket.Conn.SendJSONMessage(ctx, request.Unset, reqs); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authRequests); err != nil {
+		if err := ok.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, authRequests); err != nil {
 			return err
 		}
 	}
@@ -427,7 +430,7 @@ func (ok *Okx) handleSubscription(operation string, subs subscription.List) erro
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (ok *Okx) WsHandleData(respRaw []byte) error {
+func (ok *Okx) WsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, _ := jsonparser.GetString(respRaw, "id"); id != "" {
 		return ok.Websocket.Match.RequireMatchWithData(id, respRaw)
 	}
@@ -491,7 +494,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		var response WsPositionResponse
 		return ok.wsProcessPushData(respRaw, &response)
 	case channelBalanceAndPosition:
-		return ok.wsProcessBalanceAndPosition(respRaw)
+		return ok.wsProcessBalanceAndPosition(ctx, respRaw)
 	case channelOrders:
 		return ok.wsProcessOrders(respRaw)
 	case channelAlgoOrders:
@@ -835,13 +838,13 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 	}
 	for x := range extractedResponse.Data {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:           asset.Spread,
-			Asks:            extractedResponse.Data[x].Asks,
-			Bids:            extractedResponse.Data[x].Bids,
-			LastUpdated:     resp.Data[x].Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             asset.Spread,
+			Asks:              extractedResponse.Data[x].Asks,
+			Bids:              extractedResponse.Data[x].Bids,
+			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -881,13 +884,13 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 
 	for x := range assets {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:           assets[x],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     resp.Data[0].Timestamp.Time(),
-			Pair:            resp.Argument.InstrumentID,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             assets[x],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			Pair:              resp.Argument.InstrumentID,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -1014,13 +1017,13 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 	}
 	for i := range assets {
 		newOrderBook := orderbook.Book{
-			Asset:           assets[i],
-			Asks:            asks,
-			Bids:            bids,
-			LastUpdated:     data.Timestamp.Time(),
-			Pair:            pair,
-			Exchange:        ok.Name,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+			Asset:             assets[i],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       data.Timestamp.Time(),
+			Pair:              pair,
+			Exchange:          ok.Name,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		}
 		err = ok.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
@@ -1034,25 +1037,24 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.P
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	update := orderbook.Update{
-		Pair:       pair,
-		UpdateTime: data.Timestamp.Time(),
-	}
-	var err error
-	update.Asks, err = ok.AppendWsOrderbookItems(data.Asks)
+	asks, err := ok.AppendWsOrderbookItems(data.Asks)
 	if err != nil {
 		return err
 	}
-	update.Bids, err = ok.AppendWsOrderbookItems(data.Bids)
+	bids, err := ok.AppendWsOrderbookItems(data.Bids)
 	if err != nil {
 		return err
 	}
-	update.Checksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 	for i := range assets {
-		ob := update
-		ob.Asset = assets[i]
-		err = ok.Websocket.Orderbook.Update(&ob)
-		if err != nil {
+		if err := ok.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:             pair,
+			Asset:            assets[i],
+			UpdateTime:       data.Timestamp.Time(),
+			GenerateChecksum: generateOrderbookChecksum,
+			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
+			Asks:             asks,
+			Bids:             bids,
+		}); err != nil {
 			return err
 		}
 	}
@@ -1068,12 +1070,12 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Leve
 	return items, nil
 }
 
-// CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
+// generateOrderbookChecksum alternates over the first 25 bid and ask
 // entries of a merged orderbook. The checksum is made up of the price and the
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book, checksumVal uint32) error {
+func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	var checksum strings.Builder
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1088,10 +1090,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Book, c
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	if crc32.ChecksumIEEE([]byte(checksumStr)) != checksumVal {
-		return fmt.Errorf("%s order book update checksum failed for pair %v", ok.Name, orderbookData.Pair)
-	}
-	return nil
+	return crc32.ChecksumIEEE([]byte(checksumStr))
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
@@ -1442,12 +1441,12 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (ok *Okx) wsProcessBalanceAndPosition(data []byte) error {
+func (ok *Okx) wsProcessBalanceAndPosition(ctx context.Context, data []byte) error {
 	var resp WsBalanceAndPosition
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := ok.GetCredentials(context.TODO())
+	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}

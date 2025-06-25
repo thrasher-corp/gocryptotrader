@@ -552,7 +552,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	err := g.API.Endpoints.SetRunning(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
+	err := g.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
 	if err != nil {
 		t.Error(err)
 	}

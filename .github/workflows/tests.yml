@@ -2,6 +2,7 @@ on: [push, pull_request]
 name: CI
 env:
   GO_VERSION: 1.24.x
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   backend:
     name: GoCryptoTrader backend (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic }})

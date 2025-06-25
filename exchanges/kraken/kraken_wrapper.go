@@ -232,10 +232,10 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 }
 
 // Bootstrap provides initialisation for an exchange
-func (k *Kraken) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (k *Kraken) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
-	if err = k.SeedAssets(context.TODO()); err != nil {
+	if err = k.SeedAssets(ctx); err != nil {
 		err = fmt.Errorf("failed to Seed Assets: %w", err)
 	}
 
@@ -459,16 +459,14 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        k.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: k.CanVerifyOrderbook,
+		Exchange:          k.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: k.ValidateOrderbook,
 	}
-	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew *Orderbook
-		orderbookNew, err = k.GetDepth(ctx, p)
+		orderbookNew, err := k.GetDepth(ctx, p)
 		if err != nil {
 			return book, err
 		}
@@ -487,8 +485,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 			}
 		}
 	case asset.Futures:
-		var futuresOB *FuturesOrderbookData
-		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
+		futuresOB, err := k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
 			return book, err
 		}
@@ -506,11 +503,11 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
 		}
+		book.Bids.SortBids()
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(k.Name, p, assetType)
@@ -700,7 +697,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			timeInForce = "IOC"
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
+			orderID, err = k.wsAddOrder(ctx, &WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
 				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
@@ -781,7 +778,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{o.OrderID})
+			return k.wsCancelOrders(ctx, []string{o.OrderID})
 		}
 		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
@@ -798,7 +795,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -811,7 +808,7 @@ func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.
 		ordersList[i] = o[i].OrderID
 	}
 
-	err := k.wsCancelOrders(ordersList)
+	err := k.wsCancelOrders(ctx, ordersList)
 	return nil, err
 }
 
@@ -826,7 +823,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 	switch req.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := k.wsCancelAllOrders()
+			resp, err := k.wsCancelAllOrders(ctx)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -843,7 +840,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 		for orderID := range openOrders.Open {
 			var err error
 			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				err = k.wsCancelOrders([]string{orderID})
+				err = k.wsCancelOrders(ctx, []string{orderID})
 			} else {
 				_, err = k.CancelExistingOrder(ctx, orderID)
 			}

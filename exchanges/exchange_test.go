@@ -91,7 +91,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://google.com/")
+	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -102,7 +102,7 @@ func TestSet(t *testing.T) {
 	if val != "http://google.com/" {
 		t.Errorf("vals didn't match. expecting: %s, got: %s\n", "http://google.com/", val)
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase3.String(), "Added Edgecase3")
+	err = b.API.Endpoints.SetRunningURL(EdgeCase3.String(), "Added Edgecase3")
 	if err != nil {
 		t.Errorf("not expecting an error since invalid url val err should be logged but received: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestGetURL(t *testing.T) {
 	if getVal != "http://test1.com/" {
 		t.Errorf("getVal failed")
 	}
-	err = b.API.Endpoints.SetRunning(EdgeCase2.String(), "http://OVERWRITTENBRO.com.au/")
+	err = b.API.Endpoints.SetRunningURL(EdgeCase2.String(), "http://OVERWRITTENBRO.com.au/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1827,12 +1827,12 @@ func TestSetAPIURL(t *testing.T) {
 	}
 }
 
-func TestSetRunning(t *testing.T) {
+func TestSetRunningURL(t *testing.T) {
 	b := Base{
 		Name: "HELOOOOOOOO",
 	}
 	b.API.Endpoints = b.NewEndpoints()
-	err := b.API.Endpoints.SetRunning(EdgeCase1.String(), "http://google.com/")
+	err := b.API.Endpoints.SetRunningURL(EdgeCase1.String(), "http://google.com/")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2601,7 +2601,7 @@ func TestParallelChanOp(t *testing.T) {
 	b := Base{}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- b.ParallelChanOp(c, func(c subscription.List) error {
+		errC <- b.ParallelChanOp(t.Context(), c, func(_ context.Context, c subscription.List) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c[0].Channel {

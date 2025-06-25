@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -174,9 +173,6 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			UpdateEntriesByID: true,
-		},
 	})
 	if err != nil {
 		return err
@@ -395,10 +391,10 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 
 	if assetType == asset.Index {

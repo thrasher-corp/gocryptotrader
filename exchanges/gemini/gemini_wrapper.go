@@ -128,7 +128,7 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 	}
 
 	if exch.UseSandbox {
-		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
+		err = g.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), geminiSandboxAPIURL)
 		if err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
@@ -295,10 +295,10 @@ func (g *Gemini) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:        g.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: g.CanVerifyOrderbook,
+		Exchange:          g.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: g.ValidateOrderbook,
 	}
 	fPair, err := g.FormatExchangeCurrency(p, assetType)
 	if err != nil {

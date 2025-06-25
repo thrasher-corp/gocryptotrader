@@ -20,7 +20,7 @@ var mockTests = false
 func TestMain(m *testing.M) {
 	b = new(Bybit)
 	if err := testexch.Setup(b); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Bybit Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {

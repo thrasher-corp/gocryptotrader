@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -26,7 +25,7 @@ import (
 )
 
 var (
-	c          = &COINUT{}
+	c          *COINUT
 	wsSetupRan bool
 )
 
@@ -38,29 +37,21 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	c.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Coinut load config error", err)
+	c = new(COINUT)
+	if err := testexch.Setup(c); err != nil {
+		log.Fatalf("Coinut Setup error: %s", err)
 	}
-	coinutCfg, err := cfg.GetExchangeConfig("COINUT")
-	if err != nil {
-		log.Fatal("Coinut Setup() init error")
+
+	if apiKey != "" && clientID != "" {
+		c.API.AuthenticatedSupport = true
+		c.API.AuthenticatedWebsocketSupport = true
+		c.SetCredentials(apiKey, clientID, "", "", "", "")
 	}
-	coinutCfg.API.AuthenticatedSupport = true
-	coinutCfg.API.AuthenticatedWebsocketSupport = true
-	coinutCfg.API.Credentials.Key = apiKey
-	coinutCfg.API.Credentials.ClientID = clientID
-	c.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = c.Setup(coinutCfg)
-	if err != nil {
-		log.Fatal("Coinut setup error", err)
+
+	if err := c.SeedInstruments(context.Background()); err != nil {
+		log.Fatalf("Coinut SeedInstruments error: %s", err)
 	}
-	err = c.SeedInstruments(context.Background())
-	if err != nil {
-		log.Fatal("Coinut setup error ", err)
-	}
+
 	os.Exit(m.Run())
 }
 
@@ -78,17 +69,17 @@ func setupWSTestAuth(t *testing.T) {
 	}
 
 	var dialer gws.Dialer
-	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	go c.wsReadData()
+	go c.wsReadData(t.Context())
 	err = c.wsAuthenticate(t.Context())
 	if err != nil {
 		t.Error(err)
 	}
 	wsSetupRan = true
-	_, err = c.WsGetInstruments()
+	_, err = c.WsGetInstruments(t.Context())
 	if err != nil {
 		t.Error(err)
 	}
@@ -434,7 +425,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuthGetAccountBalance dials websocket, retrieves account balance
 func TestWsAuthGetAccountBalance(t *testing.T) {
 	setupWSTestAuth(t)
-	if _, err := c.wsGetAccountBalance(); err != nil {
+	if _, err := c.wsGetAccountBalance(t.Context()); err != nil {
 		t.Error(err)
 	}
 }
@@ -452,7 +443,7 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 		Price:    1,
 		Side:     order.Buy,
 	}
-	if _, err := c.wsSubmitOrder(&ord); err != nil {
+	if _, err := c.wsSubmitOrder(t.Context(), &ord); err != nil {
 		t.Error(err)
 	}
 }
@@ -477,7 +468,7 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 		Price:    2,
 		Side:     order.Buy,
 	}
-	_, err := c.wsSubmitOrders([]WsSubmitOrderParameters{order1, order2})
+	_, err := c.wsSubmitOrders(t.Context(), []WsSubmitOrderParameters{order1, order2})
 	if err != nil {
 		t.Error(err)
 	}
@@ -498,7 +489,7 @@ func TestWsAuthCancelOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 	}
-	resp, err := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
+	resp, err := c.wsCancelOrders(t.Context(), []WsCancelOrderParameters{ord, order2})
 	if err != nil {
 		t.Error(err)
 	}
@@ -533,7 +524,7 @@ func TestWsAuthCancelOrder(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	resp, err := c.wsCancelOrder(ord)
+	resp, err := c.wsCancelOrder(t.Context(), ord)
 	if err != nil {
 		t.Error(err)
 	}
@@ -545,7 +536,7 @@ func TestWsAuthCancelOrder(t *testing.T) {
 // TestWsAuthGetOpenOrders dials websocket, retrieves open orders
 func TestWsAuthGetOpenOrders(t *testing.T) {
 	setupWSTestAuth(t)
-	_, err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC).String())
+	_, err := c.wsGetOpenOrders(t.Context(), currency.NewPair(currency.LTC, currency.BTC).String())
 	if err != nil {
 		t.Error(err)
 	}

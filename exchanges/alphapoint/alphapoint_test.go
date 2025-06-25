@@ -22,12 +22,17 @@ const (
 	canManipulateRealOrders = false
 )
 
-var a = &Alphapoint{}
+var a *Alphapoint
 
 func TestMain(m *testing.M) {
+	a = new(Alphapoint)
 	a.SetDefaults()
-	a.SetCredentials(apiKey, apiSecret, "", "", "", "")
-	a.API.AuthenticatedSupport = true
+
+	if apiKey != "" && apiSecret != "" {
+		a.API.AuthenticatedSupport = true
+		a.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
+
 	os.Exit(m.Run())
 }
 
