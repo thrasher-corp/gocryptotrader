@@ -129,8 +129,8 @@ func (e *Exchange) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:  {{.Name}}APIURL,
-		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
+		exchange.RestSpot:  apiURL,
+		{{ if .WS }} exchange.WebsocketSpot: wsAPIURL,{{ end }}
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -166,7 +166,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	err = e.Websocket.Setup(
 		&websocket.ManagerSetup{
 			ExchangeConfig:  exch,
-			DefaultURL:      {{.Name}}WSAPIURL,
+			DefaultURL:      wsAPIURL,
 			RunningURL:      wsRunningEndpoint,
 			Connector:       e.WsConnect,
 			Subscriber:      e.Subscribe,

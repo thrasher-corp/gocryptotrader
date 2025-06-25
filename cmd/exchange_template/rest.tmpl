@@ -15,8 +15,8 @@ type Exchange struct {
 }
 
 const (
-	{{.Name}}APIURL = ""
-	{{.Name}}APIVersion = ""
+	apiURL = ""
+	apiVersion = ""
 
 	// Public endpoints
 
@@ -47,5 +47,5 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 }
 
 // Start implementing public and private exchange API funcs below
-
+// Private endpoints can be implemented in a separate file with a _private.go suffix for ease of access and simplicity.
 {{end}}

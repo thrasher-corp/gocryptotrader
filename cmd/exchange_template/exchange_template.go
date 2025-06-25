@@ -31,19 +31,17 @@ type exchange struct {
 	CapitalName string
 	REST        bool
 	WS          bool
-	FIX         bool
 }
 
 var errInvalidExchangeName = errors.New("invalid exchange name")
 
 func main() {
 	var newExchangeName string
-	var websocketSupport, restSupport, fixSupport bool
+	var websocketSupport, restSupport bool
 
 	flag.StringVar(&newExchangeName, "name", "", "the exchange name")
 	flag.BoolVar(&websocketSupport, "ws", false, "whether the exchange supports websocket")
 	flag.BoolVar(&restSupport, "rest", false, "whether the exchange supports REST")
-	flag.BoolVar(&fixSupport, "fix", false, "whether the exchange supports FIX")
 
 	flag.Parse()
 
@@ -62,7 +60,7 @@ func main() {
 	}
 	newExchangeName = strings.ToLower(newExchangeName)
 
-	if !websocketSupport && !restSupport && !fixSupport {
+	if !websocketSupport && !restSupport {
 		log.Println("At least one protocol must be specified (rest/ws or fix)")
 		flag.Usage()
 		return
@@ -71,7 +69,6 @@ func main() {
 	fmt.Println("Exchange Name: ", newExchangeName)
 	fmt.Println("Websocket Supported: ", websocketSupport)
 	fmt.Println("REST Supported: ", restSupport)
-	fmt.Println("FIX Supported: ", fixSupport)
 	fmt.Println()
 	fmt.Println("Please check if everything is correct and then type y to continue or n to cancel...")
 
@@ -89,7 +86,6 @@ func main() {
 		Name: newExchangeName,
 		REST: restSupport,
 		WS:   websocketSupport,
-		FIX:  fixSupport,
 	}
 	exchangeDirectory := filepath.Join(targetPath, exch.Name)
 	configTestFile := config.GetConfig()
