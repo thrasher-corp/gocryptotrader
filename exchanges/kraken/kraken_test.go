@@ -50,7 +50,7 @@ const (
 func TestMain(m *testing.M) {
 	k = new(Kraken)
 	if err := testexch.Setup(k); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Kraken Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
 		k.API.AuthenticatedSupport = true
