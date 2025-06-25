@@ -41,23 +41,29 @@ func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		routes: make(map[uuid.UUID][]chan any),
 		outbound: sync.Pool{
-			New: getChan,
+			New: func() any { return make(chan any) },
 		},
 	}
 }
 
-func getChan() any {
-	// Create unbuffered channel for data pass
-	return make(chan any)
-}
-
-// Start starts the dispatch system by spawning workers and allocating memory
+// Start starts the dispatch system and spawns workers
 func Start(workers, jobsLimit int) error {
+	dispatcher.m.Lock()
+	defer dispatcher.m.Unlock()
 	return dispatcher.start(workers, jobsLimit)
 }
 
-// Stop attempts to stop the dispatch service, this will close all pipe channels
-// flush job list and drop all workers
+// EnsureRunning starts the global dispatcher if it's not already running
+func EnsureRunning(workers, jobsLimit int) error {
+	dispatcher.m.Lock()
+	defer dispatcher.m.Unlock()
+	if dispatcher.running {
+		return nil
+	}
+	return dispatcher.start(workers, jobsLimit)
+}
+
+// Stop will halt the dispatch service
 func Stop() error {
 	log.Debugln(log.DispatchMgr, "Dispatch manager shutting down...")
 	return dispatcher.stop()
@@ -68,15 +74,12 @@ func IsRunning() bool {
 	return dispatcher.isRunning()
 }
 
-// start compares atomic running value, sets defaults, overrides with
-// configuration, then spawns workers
+// start sets defaults and config and spawns workers
+// Does not provide locking protection
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if err := common.NilGuard(d); err != nil {
 		return err
 	}
-
-	d.m.Lock()
-	defer d.m.Unlock()
 
 	if d.running {
 		return errDispatcherAlreadyRunning
