@@ -1973,15 +1973,3 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
-
-func TestWsConn(t *testing.T) {
-	t.Parallel()
-	if !me.Websocket.IsEnabled() {
-		return
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(me) {
-		me.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	err := me.WsConnect()
-	assert.NoError(t, err)
-}

@@ -532,6 +532,32 @@ func accountStatusToString(status int64) string {
 	return ""
 }
 
+func withdrawalStatusToString(withdrawalStatus int64) string {
+	switch withdrawalStatus {
+	case 1:
+		return "APPLY"
+	case 2:
+		return "AUDITING"
+	case 3:
+		return "WAIT"
+	case 4:
+		return "PROCESSING"
+	case 5:
+		return "WAIT_PACKAGING"
+	case 6:
+		return "WAIT_CONFIRM"
+	case 7:
+		return "SUCCESS"
+	case 8:
+		return "FAILED"
+	case 9:
+		return "CANCEL"
+	case 10:
+		return "MANUAL"
+	}
+	return ""
+}
+
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
 func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	result, err := me.GetFundDepositHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0)
@@ -557,32 +583,9 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 	}
 	resp = make([]exchange.FundingHistory, len(withdrawals))
 	for w := range withdrawals {
-		var wdrStatus string
-		switch withdrawals[w].Status {
-		case 1:
-			wdrStatus = "APPLY"
-		case 2:
-			wdrStatus = "AUDITING"
-		case 3:
-			wdrStatus = "WAIT"
-		case 4:
-			wdrStatus = "PROCESSING"
-		case 5:
-			wdrStatus = "WAIT_PACKAGING"
-		case 6:
-			wdrStatus = "WAIT_CONFIRM"
-		case 7:
-			wdrStatus = "SUCCESS"
-		case 8:
-			wdrStatus = "FAILED"
-		case 9:
-			wdrStatus = "CANCEL"
-		case 10:
-			wdrStatus = "MANUAL"
-		}
 		resp[w] = exchange.FundingHistory{
 			ExchangeName:    me.Name,
-			Status:          wdrStatus,
+			Status:          withdrawalStatusToString(withdrawals[w].Status),
 			TransferID:      withdrawals[w].TransactionID,
 			Timestamp:       withdrawals[w].UpdateTime.Time(),
 			Currency:        withdrawals[w].Coin,
@@ -592,32 +595,6 @@ func (me *MEXC) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 		}
 	}
 	return resp, nil
-}
-
-func withdrawalStatusToString(withdrawalStatus int64) string {
-	switch withdrawalStatus {
-	case 1:
-		return "APPLY"
-	case 2:
-		return "AUDITING"
-	case 3:
-		return "WAIT"
-	case 4:
-		return "PROCESSING"
-	case 5:
-		return "WAIT_PACKAGING"
-	case 6:
-		return "WAIT_CONFIRM"
-	case 7:
-		return "SUCCESS"
-	case 8:
-		return "FAILED"
-	case 9:
-		return "CANCEL"
-	case 10:
-		return "MANUAL"
-	}
-	return ""
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data

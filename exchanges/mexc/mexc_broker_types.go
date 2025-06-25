@@ -95,13 +95,13 @@ type BrokerSubAccountDepositAddressCreationParams struct {
 
 // BrokerSubAccountDepositDetail holds a broker sub-account asset deposit history item
 type BrokerSubAccountDepositDetail struct {
-	Amount        types.Number `json:"amount"`
 	Coin          string       `json:"coin"`
 	Network       string       `json:"network"`
-	Status        types.Number `json:"status"`
 	Address       string       `json:"address"`
 	AddressTag    string       `json:"addressTag"`
 	TransactionID string       `json:"txId"`
 	UnlockConfirm string       `json:"unlockConfirm"`
+	Amount        types.Number `json:"amount"`
+	Status        types.Number `json:"status"`
 	ConfirmTimes  types.Number `json:"confirmTimes"`
 }

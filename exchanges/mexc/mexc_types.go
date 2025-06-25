@@ -1283,9 +1283,9 @@ type PositionMode struct {
 
 // StatusResponse holds a status code and status message response
 type StatusResponse struct {
-	Success bool        `json:"success"`
-	Code    int64       `json:"code"`
-	Data    interface{} `json:"data"`
+	Success bool  `json:"success"`
+	Code    int64 `json:"code"`
+	Data    any   `json:"data"`
 }
 
 // PlaceFuturesOrderParams holds futures order creation parameters
