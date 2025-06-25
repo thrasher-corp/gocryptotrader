@@ -206,8 +206,8 @@ func TestGetLeaderboard(t *testing.T) {
 	require.NoError(t, err, "Setup must not error")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method, "Request method should match expected")
-		assert.Equal(t, "/api/v1/leaderboard", r.URL.Path, "Request path should match expected")
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be correct")
+		assert.Equal(t, "/api/v1/leaderboard", r.URL.Path, "Request path should be correct")
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write([]byte(`[
 			{
@@ -225,8 +225,8 @@ func TestGetLeaderboard(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), server.URL+"/api/v1")
-	require.NoError(t, err, "SetRunning must not error")
+	err = b.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunningURL must not error")
 
 	expectedLeaderboard := []Leaderboard{
 		{IsRealName: true, Name: "Trader Joe", Profit: 12345.67},
@@ -235,7 +235,7 @@ func TestGetLeaderboard(t *testing.T) {
 
 	result, err := b.GetLeaderboard(t.Context(), LeaderboardGetParams{})
 	require.NoError(t, err, "GetLeaderboard must not error")
-	assert.Equal(t, expectedLeaderboard, result, "GetLeaderboard result should match expected")
+	assert.Equal(t, expectedLeaderboard, result, "GetLeaderboard result should be correct")
 }
 
 func TestGetAliasOnLeaderboard(t *testing.T) {
@@ -390,8 +390,8 @@ func TestGetStatsHistorical(t *testing.T) {
 	require.NoError(t, err, "Setup must not error")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method, "Request method should match expected")
-		assert.Equal(t, "/api/v1/stats/history", r.URL.Path, "Request path should match expected")
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be correct")
+		assert.Equal(t, "/api/v1/stats/history", r.URL.Path, "Request path should be correct")
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write([]byte(`[
 			{
@@ -408,13 +408,13 @@ func TestGetStatsHistorical(t *testing.T) {
 				"turnover": 4500000000,
 				"volume": 90000
 			}
-		]`))
+		]`)) // Bitmex sends XBt as the currency for BTC, so we mimic it exactly
 		assert.NoError(t, err, "Writing response to handler should not error")
 	}))
 	defer server.Close()
 
-	err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), server.URL+"/api/v1")
-	require.NoError(t, err, "SetRunning must not error")
+	err = b.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunningURL must not error")
 
 	expectedStats := []StatsHistory{
 		{Currency: "XBt", Date: time.Date(2023, 10, 26, 0, 0, 0, 0, time.UTC), RootSymbol: "XBT", Turnover: 5000000000, Volume: 100000},
@@ -423,7 +423,7 @@ func TestGetStatsHistorical(t *testing.T) {
 
 	result, err := b.GetStatsHistorical(t.Context())
 	require.NoError(t, err, "GetStatsHistorical must not error")
-	assert.Equal(t, expectedStats, result, "GetStatsHistorical result should match expected")
+	assert.Equal(t, expectedStats, result, "GetStatsHistorical result should be correct")
 }
 
 func TestGetStatSummary(t *testing.T) {
