@@ -464,11 +464,9 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Asset:             assetType,
 		ValidateOrderbook: k.ValidateOrderbook,
 	}
-	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew *Orderbook
-		orderbookNew, err = k.GetDepth(ctx, p)
+		orderbookNew, err := k.GetDepth(ctx, p)
 		if err != nil {
 			return book, err
 		}
@@ -487,8 +485,7 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 			}
 		}
 	case asset.Futures:
-		var futuresOB *FuturesOrderbookData
-		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
+		futuresOB, err := k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
 			return book, err
 		}
@@ -506,12 +503,11 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
 		}
-		book.Bids.Reverse()
+		book.Bids.SortBids()
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(k.Name, p, assetType)

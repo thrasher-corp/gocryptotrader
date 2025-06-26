@@ -52,9 +52,8 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	err := testexch.Setup(d)
-	if err != nil {
-		log.Fatal(err)
+	if err := testexch.Setup(d); err != nil {
+		log.Fatalf("Deribit Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
@@ -65,15 +64,13 @@ func TestMain(m *testing.M) {
 	}
 	if useTestNet {
 		deribitWebsocketAddress = "wss://test.deribit.com/ws" + deribitAPIVersion
-		err = d.Websocket.SetWebsocketURL(deribitWebsocketAddress, false, true)
-		if err != nil {
-			log.Fatal(err)
+		if err := d.Websocket.SetWebsocketURL(deribitWebsocketAddress, false, true); err != nil {
+			log.Fatalf("Deribit SetWebsocketURL error: %s", err)
 		}
 		for k, v := range d.API.Endpoints.GetURLMap() {
 			v = strings.Replace(v, "www.deribit.com", "test.deribit.com", 1)
-			err = d.API.Endpoints.SetRunning(k, v)
-			if err != nil {
-				log.Fatal(err)
+			if err := d.API.Endpoints.SetRunningURL(k, v); err != nil {
+				log.Fatalf("Deribit SetRunningURL error: %s", err)
 			}
 		}
 	}

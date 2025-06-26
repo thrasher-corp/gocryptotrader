@@ -62,7 +62,7 @@ var (
 func TestMain(m *testing.M) {
 	ok = new(Okx)
 	if err := testexch.Setup(ok); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Okx Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" && passphrase != "" {
