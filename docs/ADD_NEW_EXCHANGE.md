@@ -132,7 +132,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 ```go
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
-| Alphapoint | Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  | // <-------- new exchange
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
