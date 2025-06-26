@@ -3916,6 +3916,25 @@
             "required": false,
             "type": "number",
             "format": "double"
+          },
+          {
+            "name": "timeInForce",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "triggerPrice",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "triggerPriceType",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -4950,6 +4969,21 @@
         },
         "side": {
           "type": "string"
+        },
+        "orderType": {
+          "type": "string"
+        },
+        "marginType": {
+          "type": "string"
+        },
+        "timeInForce": {
+          "type": "string"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "clientOrderId": {
+          "type": "string"
         }
       }
     },
@@ -4984,6 +5018,21 @@
           "type": "string"
         },
         "side": {
+          "type": "string"
+        },
+        "orderType": {
+          "type": "string"
+        },
+        "marginType": {
+          "type": "string"
+        },
+        "timeInForce": {
+          "type": "string"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "clientOrderId": {
           "type": "string"
         }
       }
@@ -7074,6 +7123,22 @@
         }
       }
     },
+    "gctrpcRiskManagement": {
+      "type": "object",
+      "properties": {
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "limitPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "priceType": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcSavedTrades": {
       "type": "object",
       "properties": {
@@ -7353,18 +7418,68 @@
           "type": "number",
           "format": "double"
         },
+        "assetType": {
+          "type": "string"
+        },
         "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "leverage": {
+          "type": "number",
+          "format": "double"
+        },
+        "clientOrderId": {
+          "type": "string"
+        },
+        "marginType": {
+          "type": "string"
+        },
+        "timeInForce": {
+          "type": "string"
+        },
+        "quoteAmount": {
           "type": "number",
           "format": "double"
         },
         "clientId": {
           "type": "string"
         },
-        "assetType": {
+        "triggerPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "triggerLimitPrice": {
+          "type": "number",
+          "format": "double"
+        },
+        "triggerPriceType": {
           "type": "string"
         },
-        "marginType": {
+        "takeProfit": {
+          "$ref": "#/definitions/gctrpcRiskManagement"
+        },
+        "stopLoss": {
+          "$ref": "#/definitions/gctrpcRiskManagement"
+        },
+        "trackingMode": {
           "type": "string"
+        },
+        "trackingValue": {
+          "type": "number",
+          "format": "double"
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "iceberg": {
+          "type": "boolean"
+        },
+        "autoBorrow": {
+          "type": "boolean"
+        },
+        "reduceOnly": {
+          "type": "boolean"
         }
       }
     },

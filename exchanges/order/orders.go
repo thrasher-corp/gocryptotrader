@@ -1374,3 +1374,18 @@ func StringToTrackingMode(mode string) TrackingMode {
 		return UnknownTrackingMode
 	}
 }
+
+// StringToPriceType converts PriceType instance from string
+func StringToPriceType(priceType string) PriceType {
+	priceType = strings.ToUpper(priceType)
+	switch priceType {
+	case "LAST_PRICE", "LAST":
+		return LastPrice
+	case "INDEX_PRICE", "INDEX":
+		return IndexPrice
+	case "MARK_PRICE", "MARK":
+		return MarkPrice
+	default:
+		return UnknownPriceType
+	}
+}

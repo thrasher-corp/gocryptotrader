@@ -65,6 +65,8 @@ type Submit struct {
 	// See btcmarkets_wrapper.go.
 	TriggerPrice float64
 
+	TriggerLimitPrice float64
+
 	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
 	// https://bybit-exchange.github.io/docs/v5/order/create-order
 	TriggerPriceType PriceType

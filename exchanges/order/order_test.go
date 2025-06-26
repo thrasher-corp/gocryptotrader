@@ -1714,6 +1714,30 @@ func TestStringToTrackingMode(t *testing.T) {
 	}
 }
 
+func TestStringToPriceType(t *testing.T) {
+	t.Parallel()
+	priceTypes := map[string]PriceType{
+		"last_price":  LastPrice,
+		"Last_Price":  LastPrice,
+		"LAST_PRICE":  LastPrice,
+		"LAST":        LastPrice,
+		"last_Price":  LastPrice,
+		"index_price": IndexPrice,
+		"INDEX":       IndexPrice,
+		"INDEX_PRICE": IndexPrice,
+		"Index_Price": IndexPrice,
+		"mark":        MarkPrice,
+		"Mark_Price":  MarkPrice,
+		"MARK_PRICE":  MarkPrice,
+		"abcd":        UnknownPriceType,
+		"":            UnknownPriceType,
+	}
+	for key, val := range priceTypes {
+		result := StringToPriceType(key)
+		assert.Equal(t, val, result)
+	}
+}
+
 func TestTrackingModeString(t *testing.T) {
 	t.Parallel()
 	inputs := map[TrackingMode]string{

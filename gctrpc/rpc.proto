@@ -339,27 +339,37 @@ message GetOrderRequest {
   string asset = 4;
 }
 
+message RiskManagement {
+  double price =1;
+  double limit_price = 2;
+  string price_type =3;
+}
+
 message SubmitOrderRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
   string side = 3;
   string order_type = 4;
   double amount = 5;
-  double price = 6;
-  double quote_amount = 7;
-  string client_id = 8;
-  string client_order_id =9;
-  string asset_type = 10;
-  string margin_type = 11;
-  string time_in_force = 12;
-  double trigger_price =13;
-  string trigger_price_type =14;
-  string risk_management_mode =15;
-  string tracking_mode =16;
-  double tracking_value =17;
-  bool hidden = 18;
-  bool iceberg = 19;
-  bool auto_borrow = 20;
+  string asset_type = 6;
+  double price = 7;
+  double leverage =8;
+  string client_order_id = 9;
+  string margin_type = 10;
+  string time_in_force = 11;
+  double quote_amount = 12;
+  string client_id = 13;
+  double trigger_price = 14;
+  double trigger_limit_price = 15;
+  string trigger_price_type = 16;
+  RiskManagement take_profit=17;
+  RiskManagement stop_loss=18;
+  string tracking_mode = 19;
+  double tracking_value = 20;
+  bool hidden = 21;
+  bool iceberg = 22;
+  bool auto_borrow = 23;
+  bool reduce_only = 24;
 }
 
 message Trades {
@@ -407,11 +417,11 @@ message CancelOrderRequest {
   CurrencyPair pair = 4;
   string asset_type = 5;
   string side = 6;
-  string order_type =7;
+  string order_type = 7;
   string margin_type = 8;
-  string time_in_force=9;
-  string client_id =10;
-  string client_order_id= 11;
+  string time_in_force = 9;
+  string client_id = 10;
+  string client_order_id = 11;
 }
 
 message CancelBatchOrdersRequest {
@@ -421,11 +431,11 @@ message CancelBatchOrdersRequest {
   CurrencyPair pair = 4;
   string asset_type = 5;
   string side = 6;
-  string order_type =7;
+  string order_type = 7;
   string margin_type = 8;
-  string time_in_force=9;
-  string client_id =10;
-  string client_order_id= 11;
+  string time_in_force = 9;
+  string client_id = 10;
+  string client_order_id = 11;
 }
 
 message Orders {
@@ -1007,7 +1017,7 @@ message ModifyOrderRequest {
   double price = 6;
   string time_in_force = 7;
   double trigger_price = 8;
-  string trigger_price_type =9;
+  string trigger_price_type = 9;
 }
 
 message ModifyOrderResponse {

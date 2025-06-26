@@ -1192,16 +1192,33 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, err
 	}
 
+	timeInForce, err := order.StringToTimeInForce(r.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
+
 	submission := &order.Submit{
-		Pair:          p,
-		Side:          side,
-		Type:          oType,
-		Amount:        r.Amount,
-		Price:         r.Price,
-		ClientID:      r.ClientId,
-		ClientOrderID: r.ClientId,
-		Exchange:      r.Exchange,
-		AssetType:     a,
+		Pair:              p,
+		Side:              side,
+		Type:              oType,
+		Amount:            r.Amount,
+		AssetType:         a,
+		Price:             r.Price,
+		Leverage:          r.Leverage,
+		ClientOrderID:     r.ClientId,
+		MarginType:        marginType,
+		TimeInForce:       timeInForce,
+		QuoteAmount:       r.QuoteAmount,
+		ClientID:          r.ClientId,
+		TriggerPrice:      r.TriggerPrice,
+		TriggerLimitPrice: r.TriggerLimitPrice,
+		TriggerPriceType:  order.StringToPriceType(r.TriggerPriceType),
+		Exchange:          r.Exchange,
+		ReduceOnly:        r.ReduceOnly,
+		Hidden:            r.Hidden,
+		Iceberg:           r.Iceberg,
+		AutoBorrow:        r.AutoBorrow,
+		// TODO: handle risk management types
 	}
 	if r.MarginType != "" {
 		submission.MarginType = marginType
