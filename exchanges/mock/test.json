@@ -1,0 +1,1 @@
+{"routes":{"/test":{"GET":[{"data":{"price":8000,"amount":1,"currency":"bitcoin"},"queryString":"currency=btc\u0026command=getprice","bodyParams":"currency=btc\u0026command=getprice","headers":null}]}}}
