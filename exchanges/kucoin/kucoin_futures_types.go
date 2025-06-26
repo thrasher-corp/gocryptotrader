@@ -1,6 +1,7 @@
 package kucoin
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -100,7 +101,7 @@ type FuturesTrade struct {
 	MakerOrderID string     `json:"makerOrderId"`
 	Price        float64    `json:"price,string"`
 	Size         float64    `json:"size"`
-	Side         string     `json:"side"`
+	Side         order.Side `json:"side"`
 	FilledTime   types.Time `json:"ts"`
 }
 
@@ -170,42 +171,42 @@ type FutureOrdersResponse struct {
 
 // FuturesOrder represents futures order information
 type FuturesOrder struct {
-	ID             string     `json:"id"`
-	Symbol         string     `json:"symbol"`
-	OrderType      string     `json:"type"`
-	Side           string     `json:"side"`
-	Price          float64    `json:"price,string"`
-	Size           float64    `json:"size"`
-	Value          float64    `json:"value,string"`
-	DealValue      float64    `json:"dealValue,string"`
-	DealSize       float64    `json:"dealSize"`
-	Stp            string     `json:"stp"`
-	Stop           string     `json:"stop"`
-	StopPriceType  string     `json:"stopPriceType"`
-	StopTriggered  bool       `json:"stopTriggered"`
-	StopPrice      float64    `json:"stopPrice,string"`
-	TimeInForce    string     `json:"timeInForce"`
-	PostOnly       bool       `json:"postOnly"`
-	Hidden         bool       `json:"hidden"`
-	Iceberg        bool       `json:"iceberg"`
-	Leverage       float64    `json:"leverage,string"`
-	ForceHold      bool       `json:"forceHold"`
-	CloseOrder     bool       `json:"closeOrder"`
-	VisibleSize    float64    `json:"visibleSize"`
-	ClientOid      string     `json:"clientOid"`
-	Remark         string     `json:"remark"`
-	Tags           string     `json:"tags"`
-	IsActive       bool       `json:"isActive"`
-	CancelExist    bool       `json:"cancelExist"`
-	CreatedAt      types.Time `json:"createdAt"`
-	UpdatedAt      types.Time `json:"updatedAt"`
-	EndAt          types.Time `json:"endAt"`
-	OrderTime      types.Time `json:"orderTime"`
-	SettleCurrency string     `json:"settleCurrency"`
-	Status         string     `json:"status"`
-	FilledValue    float64    `json:"filledValue,string"`
-	FilledSize     float64    `json:"filledSize"`
-	ReduceOnly     bool       `json:"reduceOnly"`
+	ID             string        `json:"id"`
+	Symbol         currency.Pair `json:"symbol"`
+	OrderType      order.Type    `json:"type"`
+	Side           order.Side    `json:"side"`
+	Price          float64       `json:"price,string"`
+	Size           float64       `json:"size"`
+	Value          float64       `json:"value,string"`
+	DealValue      float64       `json:"dealValue,string"`
+	DealSize       float64       `json:"dealSize"`
+	Stp            string        `json:"stp"`
+	Stop           string        `json:"stop"`
+	StopPriceType  string        `json:"stopPriceType"`
+	StopTriggered  bool          `json:"stopTriggered"`
+	StopPrice      float64       `json:"stopPrice,string"`
+	TimeInForce    string        `json:"timeInForce"`
+	PostOnly       bool          `json:"postOnly"`
+	Hidden         bool          `json:"hidden"`
+	Iceberg        bool          `json:"iceberg"`
+	Leverage       float64       `json:"leverage,string"`
+	ForceHold      bool          `json:"forceHold"`
+	CloseOrder     bool          `json:"closeOrder"`
+	VisibleSize    float64       `json:"visibleSize"`
+	ClientOid      string        `json:"clientOid"`
+	Remark         string        `json:"remark"`
+	Tags           string        `json:"tags"`
+	IsActive       bool          `json:"isActive"`
+	CancelExist    bool          `json:"cancelExist"`
+	CreatedAt      types.Time    `json:"createdAt"`
+	UpdatedAt      types.Time    `json:"updatedAt"`
+	EndAt          types.Time    `json:"endAt"`
+	OrderTime      types.Time    `json:"orderTime"`
+	SettleCurrency string        `json:"settleCurrency"`
+	Status         order.Status  `json:"status"`
+	FilledValue    float64       `json:"filledValue,string"`
+	FilledSize     float64       `json:"filledSize"`
+	ReduceOnly     bool          `json:"reduceOnly"`
 }
 
 // FutureFillsResponse represents a future fills list response detail

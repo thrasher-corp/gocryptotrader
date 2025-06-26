@@ -2,6 +2,8 @@ package bitfinex
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -197,15 +199,29 @@ type Orderbook struct {
 
 // Trade holds resp information
 type Trade struct {
-	Timestamp int64
 	TID       int64
-	Price     float64
+	Timestamp types.Time
 	Amount    float64
-	Exchange  string
+	Price     float64
 	Rate      float64
-	Period    int64
-	Type      string
+	Period    int64 // Funding offer period in days
 	Side      order.Side
+}
+
+// UnmarshalJSON unmarshals JSON data into a Trade struct
+func (t *Trade) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &[5]any{&t.TID, &t.Timestamp, &t.Amount, &t.Rate, &t.Period}); err != nil {
+		return err
+	}
+	if t.Period == 0 {
+		t.Price, t.Rate = t.Rate, 0
+	}
+	t.Side = order.Buy
+	if t.Amount < 0 {
+		t.Amount = math.Abs(t.Amount)
+		t.Side = order.Sell
+	}
+	return nil
 }
 
 // Lendbook holds most recent funding data for a relevant currency
@@ -216,19 +232,19 @@ type Lendbook struct {
 
 // FundingBookItem is a generalised sub-type to hold book information
 type FundingBookItem struct {
-	Rate            float64 `json:"rate,string"`
-	Amount          float64 `json:"amount,string"`
-	Period          int     `json:"period"`
-	Timestamp       string  `json:"timestamp"`
-	FlashReturnRate string  `json:"frr"`
+	Rate            float64    `json:"rate,string"`
+	Amount          float64    `json:"amount,string"`
+	Period          int        `json:"period"`
+	Timestamp       types.Time `json:"timestamp"`
+	FlashReturnRate string     `json:"frr"`
 }
 
 // Lends holds the lent information by currency
 type Lends struct {
-	Rate       float64 `json:"rate,string"`
-	AmountLent float64 `json:"amount_lent,string"`
-	AmountUsed float64 `json:"amount_used,string"`
-	Timestamp  int64   `json:"timestamp"`
+	Rate       float64    `json:"rate,string"`
+	AmountLent float64    `json:"amount_lent,string"`
+	AmountUsed float64    `json:"amount_used,string"`
+	Timestamp  types.Time `json:"timestamp"`
 }
 
 // AccountInfoFull adds the error message to Account info
@@ -254,7 +270,7 @@ type AccountInfoFees struct {
 
 // AccountFees stores withdrawal account fee data from Bitfinex
 type AccountFees struct {
-	Withdraw map[string]any `json:"withdraw"`
+	Withdraw map[string]types.Number `json:"withdraw"`
 }
 
 // AccountSummary holds account summary data
@@ -326,10 +342,10 @@ type MarginLimits struct {
 
 // Balance holds current balance data
 type Balance struct {
-	Type      string  `json:"type"`
-	Currency  string  `json:"currency"`
-	Amount    float64 `json:"amount,string"`
-	Available float64 `json:"available,string"`
+	Type      string        `json:"type"`
+	Currency  currency.Code `json:"currency"`
+	Amount    float64       `json:"amount,string"`
+	Available float64       `json:"available,string"`
 }
 
 // WalletTransfer holds status of wallet to wallet content transfer on exchange
@@ -359,7 +375,7 @@ type Order struct {
 	Exchange              string        `json:"exchange"`
 	Price                 float64       `json:"price,string"`
 	AverageExecutionPrice float64       `json:"avg_execution_price,string"`
-	Side                  string        `json:"side"`
+	Side                  order.Side    `json:"side"`
 	Type                  string        `json:"type"`
 	Timestamp             types.Time    `json:"timestamp"`
 	IsLive                bool          `json:"is_live"`
@@ -395,80 +411,122 @@ type GenericResponse struct {
 
 // Position holds position information
 type Position struct {
-	ID        int64   `json:"id"`
-	Symbol    string  `json:"string"`
-	Status    string  `json:"active"`
-	Base      float64 `json:"base,string"`
-	Amount    float64 `json:"amount,string"`
-	Timestamp string  `json:"timestamp"`
-	Swap      float64 `json:"swap,string"`
-	PL        float64 `json:"pl,string"`
+	ID        int64      `json:"id"`
+	Symbol    string     `json:"string"`
+	Status    string     `json:"active"`
+	Base      float64    `json:"base,string"`
+	Amount    float64    `json:"amount,string"`
+	Timestamp types.Time `json:"timestamp"`
+	Swap      float64    `json:"swap,string"`
+	PL        float64    `json:"pl,string"`
 }
 
 // BalanceHistory holds balance history information
 type BalanceHistory struct {
-	Currency    string  `json:"currency"`
-	Amount      float64 `json:"amount,string"`
-	Balance     float64 `json:"balance,string"`
-	Description string  `json:"description"`
-	Timestamp   string  `json:"timestamp"`
+	Currency    string     `json:"currency"`
+	Amount      float64    `json:"amount,string"`
+	Balance     float64    `json:"balance,string"`
+	Description string     `json:"description"`
+	Timestamp   types.Time `json:"timestamp"`
 }
 
 // MovementHistory holds deposit and withdrawal history data
 type MovementHistory struct {
-	ID               int64   `json:"id"`
-	TxID             string  `json:"txid"`
-	Currency         string  `json:"currency"`
-	Method           string  `json:"method"`
-	Type             string  `json:"withdrawal"`
-	Amount           float64 `json:"amount,string"`
-	Description      string  `json:"description"`
-	Address          string  `json:"address"`
-	Status           string  `json:"status"`
-	Timestamp        float64 `json:"timestamp"`
-	TimestampCreated float64 `json:"timestamp_created"`
-	Fee              float64 `json:"fee"`
+	ID                 int64
+	Currency           currency.Code
+	CurrencyName       string // AKA Method
+	TXID               string
+	MTSStarted         types.Time
+	MTSUpdated         types.Time
+	Status             string
+	Amount             types.Number // Positive for deposits, negative for withdrawals
+	Fees               types.Number
+	DestinationAddress string
+	PaymentID          *string
+	TransactionID      *string
+	TransactionNote    *string
+	TransactionType    string // "deposit" or "withdrawal"
+}
+
+// UnmarshalJSON unmarshals JSON data into a MovementHistory struct
+func (m *MovementHistory) UnmarshalJSON(data []byte) error {
+	var rawDogs []json.RawMessage
+	if err := json.Unmarshal(data, &rawDogs); err != nil {
+		return fmt.Errorf("error unmarshalling MovementHistory data: %w", err)
+	}
+	if len(rawDogs) < 22 {
+		return fmt.Errorf("expected 22 elements, got %d", len(rawDogs))
+	}
+
+	for _, toUnmarshal := range []struct {
+		idx   int
+		field any
+	}{
+		{0, &m.ID},
+		{1, &m.Currency},
+		{2, &m.CurrencyName},
+		{5, &m.MTSStarted},
+		{6, &m.MTSUpdated},
+		{9, &m.Status},
+		{12, &m.Amount},
+		{13, &m.Fees},
+		{16, &m.DestinationAddress},
+		{17, &m.PaymentID},
+		{20, &m.TransactionID},
+		{21, &m.TransactionNote},
+	} {
+		if err := json.Unmarshal(rawDogs[toUnmarshal.idx], toUnmarshal.field); err != nil {
+			return fmt.Errorf("error unmarshalling field %d: %w", toUnmarshal.idx, err)
+		}
+	}
+
+	if m.Amount < 0 {
+		m.TransactionType = "withdrawal"
+	} else {
+		m.TransactionType = "deposit"
+	}
+	return nil
 }
 
 // TradeHistory holds trade history data
 type TradeHistory struct {
-	Price       float64 `json:"price,string"`
-	Amount      float64 `json:"amount,string"`
-	Timestamp   int64   `json:"timestamp"`
-	Exchange    string  `json:"exchange"`
-	Type        string  `json:"type"`
-	FeeCurrency string  `json:"fee_currency"`
-	FeeAmount   float64 `json:"fee_amount,string"`
-	TID         int64   `json:"tid"`
-	OrderID     int64   `json:"order_id"`
+	Price       float64    `json:"price,string"`
+	Amount      float64    `json:"amount,string"`
+	Timestamp   types.Time `json:"timestamp"`
+	Exchange    string     `json:"exchange"`
+	Type        string     `json:"type"`
+	FeeCurrency string     `json:"fee_currency"`
+	FeeAmount   float64    `json:"fee_amount,string"`
+	TID         int64      `json:"tid"`
+	OrderID     int64      `json:"order_id"`
 }
 
 // Offer holds offer information
 type Offer struct {
-	ID              int64   `json:"id"`
-	Currency        string  `json:"currency"`
-	Rate            float64 `json:"rate,string"`
-	Period          int64   `json:"period"`
-	Direction       string  `json:"direction"`
-	Timestamp       string  `json:"timestamp"`
-	Type            string  `json:"type"`
-	IsLive          bool    `json:"is_live"`
-	IsCancelled     bool    `json:"is_cancelled"`
-	OriginalAmount  float64 `json:"original_amount,string"`
-	RemainingAmount float64 `json:"remaining_amount,string"`
-	ExecutedAmount  float64 `json:"executed_amount,string"`
+	ID              int64      `json:"id"`
+	Currency        string     `json:"currency"`
+	Rate            float64    `json:"rate,string"`
+	Period          int64      `json:"period"`
+	Direction       string     `json:"direction"`
+	Timestamp       types.Time `json:"timestamp"`
+	Type            string     `json:"type"`
+	IsLive          bool       `json:"is_live"`
+	IsCancelled     bool       `json:"is_cancelled"`
+	OriginalAmount  float64    `json:"original_amount,string"`
+	RemainingAmount float64    `json:"remaining_amount,string"`
+	ExecutedAmount  float64    `json:"executed_amount,string"`
 }
 
 // MarginFunds holds active funding information used in a margin position
 type MarginFunds struct {
-	ID         int64   `json:"id"`
-	PositionID int64   `json:"position_id"`
-	Currency   string  `json:"currency"`
-	Rate       float64 `json:"rate,string"`
-	Period     int     `json:"period"`
-	Amount     float64 `json:"amount,string"`
-	Timestamp  string  `json:"timestamp"`
-	AutoClose  bool    `json:"auto_close"`
+	ID         int64      `json:"id"`
+	PositionID int64      `json:"position_id"`
+	Currency   string     `json:"currency"`
+	Rate       float64    `json:"rate,string"`
+	Period     int        `json:"period"`
+	Amount     float64    `json:"amount,string"`
+	Timestamp  types.Time `json:"timestamp"`
+	AutoClose  bool       `json:"auto_close"`
 }
 
 // MarginTotalTakenFunds holds position funding including sum of active backing
@@ -493,28 +551,19 @@ type WebsocketBook struct {
 	Period int64
 }
 
-// wsTrade holds trade information
-type wsTrade struct {
-	ID        int64
-	Timestamp types.Time
-	Amount    float64
-	Price     float64
-	Period    int64 // Funding offer period in days
-}
-
-// UnmarshalJSON unmarshals json bytes into a wsTrade
-func (t *wsTrade) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[5]any{&t.ID, &t.Timestamp, &t.Amount, &t.Price, &t.Period})
-}
-
-// Candle holds OHLC data
+// Candle holds OHLCV data
 type Candle struct {
-	Timestamp time.Time
-	Open      float64
-	Close     float64
-	High      float64
-	Low       float64
-	Volume    float64
+	Timestamp types.Time
+	Open      types.Number
+	Close     types.Number
+	High      types.Number
+	Low       types.Number
+	Volume    types.Number
+}
+
+// UnmarshalJSON unmarshals JSON data into a Candle struct
+func (c *Candle) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[6]any{&c.Timestamp, &c.Open, &c.Close, &c.High, &c.Low, &c.Volume})
 }
 
 // Leaderboard keys
@@ -578,7 +627,7 @@ type WebsocketOrder struct {
 	Status     string
 	Price      float64
 	PriceAvg   float64
-	Timestamp  int64
+	Timestamp  types.Time
 	Notify     int
 }
 
@@ -586,7 +635,7 @@ type WebsocketOrder struct {
 type WebsocketTradeExecuted struct {
 	TradeID        int64
 	Pair           string
-	Timestamp      int64
+	Timestamp      types.Time
 	OrderID        int64
 	AmountExecuted float64
 	PriceExecuted  float64
@@ -596,7 +645,7 @@ type WebsocketTradeExecuted struct {
 type WebsocketTradeData struct {
 	TradeID        int64
 	Pair           string
-	Timestamp      int64
+	Timestamp      types.Time
 	OrderID        int64
 	AmountExecuted float64
 	PriceExecuted  float64

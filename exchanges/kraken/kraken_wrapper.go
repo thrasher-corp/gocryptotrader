@@ -11,7 +11,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -600,7 +599,7 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 			Fee:             withdrawals[i].Fee,
 			CryptoToAddress: withdrawals[i].Info,
 			CryptoTxID:      withdrawals[i].TxID,
-			Currency:        c.String(),
+			Currency:        c,
 		}
 	}
 
@@ -617,25 +616,28 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		var tradeData []RecentTrades
-		tradeData, err = k.GetTrades(ctx, p)
+		tradeData, err := k.GetTrades(ctx, p, time.Time{}, 1000)
 		if err != nil {
 			return nil, err
 		}
-		for i := range tradeData {
+		trades, ok := tradeData.Trades[assetTranslator.LookupCurrency(p.String())]
+		if !ok {
+			return nil, fmt.Errorf("unable to find symbol %s in trade data", p.String())
+		}
+		for i := range trades {
 			side := order.Buy
-			if tradeData[i].BuyOrSell == "s" {
+			if trades[i].BuyOrSell == "s" {
 				side = order.Sell
 			}
 			resp = append(resp, trade.Data{
-				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+				TID:          strconv.FormatInt(trades[i].TradeID.Int64(), 10),
 				Exchange:     k.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Volume,
-				Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+				Price:        trades[i].Price.Float64(),
+				Amount:       trades[i].Volume.Float64(),
+				Timestamp:    trades[i].Time.Time(),
 			})
 		}
 	case asset.Futures:
@@ -902,18 +904,6 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 				TID: orderInfo.Trades[i],
 			})
 		}
-		side, err := order.StringToOrderSide(orderInfo.Description.Type)
-		if err != nil {
-			return nil, err
-		}
-		status, err := order.StringToOrderStatus(orderInfo.Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-		}
-		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
-		if err != nil {
-			return nil, err
-		}
 
 		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
 			avail,
@@ -923,7 +913,7 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 		}
 
 		price := orderInfo.Price
-		if orderInfo.Status == statusOpen {
+		if orderInfo.Status == order.Open {
 			price = orderInfo.Description.Price
 		}
 
@@ -931,11 +921,11 @@ func (k *Kraken) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 			Exchange:        k.Name,
 			OrderID:         orderID,
 			Pair:            p,
-			Side:            side,
-			Type:            oType,
+			Side:            orderInfo.Description.Side,
+			Type:            orderInfo.Description.OrderType,
 			Date:            orderInfo.OpenTime.Time(),
 			CloseTime:       orderInfo.CloseTime.Time(),
-			Status:          status,
+			Status:          orderInfo.Status,
 			Price:           price,
 			Amount:          orderInfo.Volume,
 			ExecutedAmount:  orderInfo.VolumeExecuted,
@@ -1109,22 +1099,11 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			return nil, err
 		}
 		for i := range resp.Open {
-			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
-				avail,
-				format)
+			p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair, avail, format)
 			if err != nil {
 				return nil, err
 			}
-			var side order.Side
-			side, err = order.StringToOrderSide(resp.Open[i].Description.Type)
-			if err != nil {
-				return nil, err
-			}
-			var orderType order.Type
-			orderType, err = order.StringToOrderType(resp.Open[i].Description.OrderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-			}
+
 			orders = append(orders, order.Detail{
 				OrderID:         i,
 				Amount:          resp.Open[i].Volume,
@@ -1133,8 +1112,8 @@ func (k *Kraken) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				Exchange:        k.Name,
 				Date:            resp.Open[i].OpenTime.Time(),
 				Price:           resp.Open[i].Description.Price,
-				Side:            side,
-				Type:            orderType,
+				Side:            resp.Open[i].Description.Side,
+				Type:            resp.Open[i].Description.OrderType,
 				Pair:            p,
 				AssetType:       asset.Spot,
 				Status:          order.Open,
@@ -1231,26 +1210,9 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 		}
 
 		for i := range resp.Closed {
-			p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
-				avail,
-				format)
+			p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair, avail, format)
 			if err != nil {
 				return nil, err
-			}
-
-			var side order.Side
-			side, err = order.StringToOrderSide(resp.Closed[i].Description.Type)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-			}
-			status, err := order.StringToOrderStatus(resp.Closed[i].Status)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
-			}
-			var orderType order.Type
-			orderType, err = order.StringToOrderType(resp.Closed[i].Description.OrderType)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", k.Name, err)
 			}
 			detail := order.Detail{
 				OrderID:         i,
@@ -1263,9 +1225,9 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 				Date:            resp.Closed[i].OpenTime.Time(),
 				CloseTime:       resp.Closed[i].CloseTime.Time(),
 				Price:           resp.Closed[i].Description.Price,
-				Side:            side,
-				Status:          status,
-				Type:            orderType,
+				Side:            resp.Closed[i].Description.Side,
+				Status:          resp.Closed[i].Status,
+				Type:            resp.Closed[i].Description.OrderType,
 				Pair:            p,
 			}
 			detail.InferCostsAndTimes()
@@ -1291,11 +1253,6 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 			for o := range orderHistory.OrderEvents {
 				switch {
 				case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1314,17 +1271,12 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 					})
 				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1343,18 +1295,13 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 						Status:    order.Rejected,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1373,18 +1320,13 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],
 						Status:    order.Cancelled,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1403,7 +1345,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  k.Name,
 						Pair:      pairs[p],

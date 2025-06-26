@@ -242,7 +242,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			High:         wsTicker.High24,
 			Low:          wsTicker.Low24,
 			Last:         wsTicker.Last,
-			LastUpdated:  time.Unix(0, wsTicker.Timestamp),
+			LastUpdated:  wsTicker.Timestamp.Time(),
 			AssetType:    asset.Spot,
 			Pair:         p,
 		}
@@ -282,28 +282,18 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 				return err
 			}
 			currencyPair := c.instrumentMap.LookupInstrument(tradeSnap.InstrumentID)
-			p, err := currency.NewPairFromFormattedPairs(currencyPair,
-				pairs,
-				format)
+			p, err := currency.NewPairFromFormattedPairs(currencyPair, pairs, format)
 			if err != nil {
 				return err
 			}
 
-			tSide, err := order.StringToOrderSide(tradeSnap.Trades[i].Side)
-			if err != nil {
-				c.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: c.Name,
-					Err:      err,
-				}
-			}
-
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000),
+				Timestamp:    tradeSnap.Trades[i].Timestamp.Time(),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     c.Name,
 				Price:        tradeSnap.Trades[i].Price,
-				Side:         tSide,
+				Side:         tradeSnap.Trades[i].Side,
 				Amount:       tradeSnap.Trades[i].Quantity,
 				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
 			})
@@ -331,21 +321,13 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			return err
 		}
 
-		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				Err:      err,
-			}
-		}
-
 		return trade.AddTradesToBuffer(trade.Data{
-			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
+			Timestamp:    tradeUpdate.Timestamp.Time(),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     c.Name,
 			Price:        tradeUpdate.Price,
-			Side:         tSide,
+			Side:         tradeUpdate.Side,
 			Amount:       tradeUpdate.Quantity,
 			TID:          strconv.FormatInt(tradeUpdate.TransID, 10),
 		})
@@ -384,31 +366,13 @@ func stringToOrderStatus(status string, quantity float64) (order.Status, error) 
 }
 
 func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
-	var oSide order.Side
-	var oStatus order.Status
-	var err error
-	orderID := strconv.FormatInt(oContainer.OrderID, 10)
-	if oContainer.Side != "" {
-		oSide, err = order.StringToOrderSide(oContainer.Side)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-	} else if oContainer.Order.Side != "" {
-		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
+	side := oContainer.Side
+	if oContainer.Order.Side != 0 {
+		side = oContainer.Order.Side
 	}
 
-	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
+	orderID := strconv.FormatInt(oContainer.OrderID, 10)
+	oStatus, err := stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
 	if err != nil {
 		c.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: c.Name,
@@ -430,24 +394,17 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        c.Name,
 		OrderID:         orderID,
-		Side:            oSide,
+		Side:            side,
 		Status:          oStatus,
-		Date:            time.Unix(0, oContainer.Timestamp),
+		Date:            oContainer.Timestamp.Time(),
 		Trades:          nil,
 	}
 	if oContainer.Reply == "order_filled" {
-		o.Side, err = order.StringToOrderSide(oContainer.Order.Side)
-		if err != nil {
-			c.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: c.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
+		o.Side = oContainer.Order.Side
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
 		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
-		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
+		o.LastUpdated = oContainer.Timestamp.Time()
 		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		if err != nil {
 			return nil, err
@@ -458,8 +415,8 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 				Amount:    oContainer.FillQuantity,
 				Exchange:  c.Name,
 				TID:       strconv.FormatInt(oContainer.TransactionID, 10),
-				Side:      oSide,
-				Timestamp: time.Unix(0, oContainer.Timestamp),
+				Side:      oContainer.Order.Side,
+				Timestamp: oContainer.Timestamp.Time(),
 			},
 		}
 	} else {

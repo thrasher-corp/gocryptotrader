@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -293,11 +294,6 @@ func (g *Gateio) processTrades(incoming []byte) error {
 		return err
 	}
 
-	side, err := order.StringToOrderSide(data.Side)
-	if err != nil {
-		return err
-	}
-
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := g.Websocket.Trade.Update(saveTradeData, trade.Data{
@@ -307,7 +303,7 @@ func (g *Gateio) processTrades(incoming []byte) error {
 				Exchange:     g.Name,
 				Price:        data.Price.Float64(),
 				Amount:       data.Amount.Float64(),
-				Side:         side,
+				Side:         data.Side,
 				TID:          strconv.FormatInt(data.ID, 10),
 			}); err != nil {
 				return err
@@ -433,25 +429,16 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, lastPushed time.Time)
 
 func (g *Gateio) processSpotOrders(data []byte) error {
 	resp := struct {
-		Time    int64         `json:"time"`
+		Time    types.Time    `json:"time"`
 		Channel string        `json:"channel"`
 		Event   string        `json:"event"`
 		Result  []WsSpotOrder `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	details := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		side, err := order.StringToOrderSide(resp.Result[x].Side)
-		if err != nil {
-			return err
-		}
-		orderType, err := order.StringToOrderType(resp.Result[x].Type)
-		if err != nil {
-			return err
-		}
 		a, err := asset.New(resp.Result[x].Account)
 		if err != nil {
 			return err
@@ -460,8 +447,8 @@ func (g *Gateio) processSpotOrders(data []byte) error {
 			Amount:         resp.Result[x].Amount.Float64(),
 			Exchange:       g.Name,
 			OrderID:        resp.Result[x].ID,
-			Side:           side,
-			Type:           orderType,
+			Side:           resp.Result[x].Side,
+			Type:           resp.Result[x].Type,
 			Pair:           resp.Result[x].CurrencyPair,
 			Cost:           resp.Result[x].Fee.Float64(),
 			AssetType:      a,
@@ -481,7 +468,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	}
 
 	resp := struct {
-		Time    int64                 `json:"time"`
+		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
@@ -492,15 +479,11 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range fills {
-		side, err := order.StringToOrderSide(resp.Result[x].Side)
-		if err != nil {
-			return err
-		}
 		fills[x] = fill.Data{
 			Timestamp:    resp.Result[x].CreateTime.Time(),
 			Exchange:     g.Name,
 			CurrencyPair: resp.Result[x].CurrencyPair,
-			Side:         side,
+			Side:         resp.Result[x].Side,
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      strconv.FormatInt(resp.Result[x].ID, 10),
 			Price:        resp.Result[x].Price.Float64(),
@@ -512,7 +495,7 @@ func (g *Gateio) processUserPersonalTrades(data []byte) error {
 
 func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64           `json:"time"`
+		Time    types.Time      `json:"time"`
 		Channel string          `json:"channel"`
 		Event   string          `json:"event"`
 		Result  []WsSpotBalance `json:"result"`
@@ -531,7 +514,7 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 			Account:   resp.Result[i].User,
 			AssetType: asset.Spot,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[i].Currency),
+				Currency:  resp.Result[i].Currency,
 				Total:     resp.Result[i].Total.Float64(),
 				Free:      resp.Result[i].Available.Float64(),
 				Hold:      resp.Result[i].Total.Float64() - resp.Result[i].Available.Float64(),
@@ -545,7 +528,7 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 
 func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsMarginBalance `json:"result"`
@@ -563,7 +546,7 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 		changes[x] = account.Change{
 			AssetType: asset.Margin,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Currency:  resp.Result[x].Currency,
 				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
 				Free:      resp.Result[x].Available.Float64(),
 				Hold:      resp.Result[x].Freeze.Float64(),
@@ -577,7 +560,7 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 
 func (g *Gateio) processFundingBalances(data []byte) error {
 	resp := struct {
-		Time    int64              `json:"time"`
+		Time    types.Time         `json:"time"`
 		Channel string             `json:"channel"`
 		Event   string             `json:"event"`
 		Result  []WsFundingBalance `json:"result"`
@@ -592,7 +575,7 @@ func (g *Gateio) processFundingBalances(data []byte) error {
 
 func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64                  `json:"time"`
+		Time    types.Time             `json:"time"`
 		Channel string                 `json:"channel"`
 		Event   string                 `json:"event"`
 		Result  []WsCrossMarginBalance `json:"result"`
@@ -611,7 +594,7 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 			Account:   resp.Result[x].User,
 			AssetType: asset.Margin,
 			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
+				Currency:  resp.Result[x].Currency,
 				Total:     resp.Result[x].Total.Float64(),
 				Free:      resp.Result[x].Available.Float64(),
 				UpdatedAt: resp.Result[x].Timestamp.Time(),
@@ -624,7 +607,7 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 
 func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`

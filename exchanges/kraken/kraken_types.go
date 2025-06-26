@@ -3,6 +3,7 @@ package kraken
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,18 +72,11 @@ const (
 	// Rate limit consts
 	krakenRateInterval = time.Second
 	krakenRequestRate  = 1
-
-	// Status consts
-	statusOpen = "open"
-
-	krakenFormat = "2006-01-02T15:04:05.000Z"
 )
 
 var (
-	assetTranslator assetTranslatorStore
-
-	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
-	errBadChannelSuffix         = errors.New("bad websocket channel suffix")
+	assetTranslator     assetTranslatorStore
+	errBadChannelSuffix = errors.New("bad websocket channel suffix")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -173,15 +167,50 @@ type OpenHighLowClose struct {
 	Count                      float64
 }
 
-// RecentTrades holds recent trade data
-type RecentTrades struct {
-	Price         float64
-	Volume        float64
-	Time          float64
+// RecentTradesResponse holds recent trade data
+type RecentTradesResponse struct {
+	Trades map[string][]RecentTradeResponseItem
+	Last   types.Time
+}
+
+// UnmarshalJSON unmarshals the recent trades response
+func (r *RecentTradesResponse) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	r.Trades = make(map[string][]RecentTradeResponseItem)
+	for key, raw := range raw {
+		if key == "last" {
+			if err := json.Unmarshal(raw, &r.Last); err != nil {
+				return err
+			}
+		} else {
+			var trades []RecentTradeResponseItem
+			if err := json.Unmarshal(raw, &trades); err != nil {
+				return err
+			}
+			r.Trades[key] = trades
+		}
+	}
+	return nil
+}
+
+// RecentTradeResponseItem holds a single recent trade response item
+type RecentTradeResponseItem struct {
+	Price         types.Number
+	Volume        types.Number
+	Time          types.Time
 	BuyOrSell     string
 	MarketOrLimit string
 	Miscellaneous any
-	TradeID       int64
+	TradeID       types.Number
+}
+
+// UnmarshalJSON unmarshals the recent trade response item
+func (r *RecentTradeResponseItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&r.Price, &r.Volume, &r.Time, &r.BuyOrSell, &r.MarketOrLimit, &r.Miscellaneous, &r.TradeID})
 }
 
 // OrderbookBase stores the orderbook price and amount data
@@ -197,11 +226,46 @@ type Orderbook struct {
 	Asks []OrderbookBase
 }
 
-// Spread holds the spread between trades
-type Spread struct {
-	Time time.Time
-	Bid  float64
-	Ask  float64
+// SpreadItem holds the spread between trades
+type SpreadItem struct {
+	Time types.Time
+	Bid  types.Number
+	Ask  types.Number
+}
+
+// UnmarshalJSON unmarshals the spread item
+func (s *SpreadItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[3]any{&s.Time, &s.Bid, &s.Ask})
+}
+
+// SpreadResponse holds the spread response data
+type SpreadResponse struct {
+	Spreads map[string][]SpreadItem
+	Last    types.Time
+}
+
+// UnmarshalJSON unmarshals the spread response
+func (s *SpreadResponse) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	s.Spreads = make(map[string][]SpreadItem)
+	for key, raw := range raw {
+		if key == "last" {
+			if err := json.Unmarshal(raw, &s.Last); err != nil {
+				return err
+			}
+		} else {
+			var spreads []SpreadItem
+			if err := json.Unmarshal(raw, &spreads); err != nil {
+				return err
+			}
+			s.Spreads[key] = spreads
+		}
+	}
+	return nil
 }
 
 // Balance represents account asset balances
@@ -229,22 +293,22 @@ type TradeBalanceInfo struct {
 
 // OrderInfo type
 type OrderInfo struct {
-	RefID       string     `json:"refid"`
-	UserRef     int32      `json:"userref"`
-	Status      string     `json:"status"`
-	OpenTime    types.Time `json:"opentm"`
-	CloseTime   types.Time `json:"closetm"`
-	StartTime   types.Time `json:"starttm"`
-	ExpireTime  types.Time `json:"expiretm"`
+	RefID       string       `json:"refid"`
+	UserRef     int32        `json:"userref"`
+	Status      order.Status `json:"status"`
+	OpenTime    types.Time   `json:"opentm"`
+	CloseTime   types.Time   `json:"closetm"`
+	StartTime   types.Time   `json:"starttm"`
+	ExpireTime  types.Time   `json:"expiretm"`
 	Description struct {
-		Pair      string  `json:"pair"`
-		Type      string  `json:"type"`
-		OrderType string  `json:"ordertype"`
-		Price     float64 `json:"price,string"`
-		Price2    float64 `json:"price2,string"`
-		Leverage  string  `json:"leverage"`
-		Order     string  `json:"order"`
-		Close     string  `json:"close"`
+		Pair      string     `json:"pair"`
+		Side      order.Side `json:"type"`
+		OrderType order.Type `json:"ordertype"`
+		Price     float64    `json:"price,string"`
+		Price2    float64    `json:"price2,string"`
+		Leverage  string     `json:"leverage"`
+		Order     string     `json:"order"`
+		Close     string     `json:"close"`
 	} `json:"descr"`
 	Volume         float64  `json:"vol,string"`
 	VolumeExecuted float64  `json:"vol_exec,string"`
@@ -552,31 +616,31 @@ type wsSystemStatus struct {
 
 // WsOpenOrder contains all open order data from ws feed
 type WsOpenOrder struct {
-	UserReferenceID int64      `json:"userref"`
-	ExpireTime      types.Time `json:"expiretm"`
-	LastUpdated     types.Time `json:"lastupdated"`
-	OpenTime        types.Time `json:"opentm"`
-	StartTime       types.Time `json:"starttm"`
-	Fee             float64    `json:"fee,string"`
-	LimitPrice      float64    `json:"limitprice,string"`
-	StopPrice       float64    `json:"stopprice,string"`
-	Volume          float64    `json:"vol,string"`
-	ExecutedVolume  float64    `json:"vol_exec,string"`
-	Cost            float64    `json:"cost,string"`
-	AveragePrice    float64    `json:"avg_price,string"`
-	Misc            string     `json:"misc"`
-	OFlags          string     `json:"oflags"`
-	RefID           string     `json:"refid"`
-	Status          string     `json:"status"`
+	UserReferenceID int64        `json:"userref"`
+	ExpireTime      types.Time   `json:"expiretm"`
+	LastUpdated     types.Time   `json:"lastupdated"`
+	OpenTime        types.Time   `json:"opentm"`
+	StartTime       types.Time   `json:"starttm"`
+	Fee             float64      `json:"fee,string"`
+	LimitPrice      float64      `json:"limitprice,string"`
+	StopPrice       float64      `json:"stopprice,string"`
+	Volume          float64      `json:"vol,string"`
+	ExecutedVolume  float64      `json:"vol_exec,string"`
+	Cost            float64      `json:"cost,string"`
+	AveragePrice    float64      `json:"avg_price,string"`
+	Misc            string       `json:"misc"`
+	OFlags          string       `json:"oflags"`
+	RefID           string       `json:"refid"`
+	Status          order.Status `json:"status"`
 	Description     struct {
-		Close     string  `json:"close"`
-		Price     float64 `json:"price,string"`
-		Price2    float64 `json:"price2,string"`
-		Leverage  float64 `json:"leverage,string"`
-		Order     string  `json:"order"`
-		OrderType string  `json:"ordertype"`
-		Pair      string  `json:"pair"`
-		Type      string  `json:"type"`
+		Close     string        `json:"close"`
+		Price     float64       `json:"price,string"`
+		Price2    float64       `json:"price2,string"`
+		Leverage  float64       `json:"leverage,string"`
+		Order     string        `json:"order"`
+		OrderType order.Type    `json:"ordertype"`
+		Pair      currency.Pair `json:"pair"`
+		Side      order.Side    `json:"type"`
 	} `json:"descr"`
 }
 
@@ -586,12 +650,12 @@ type WsOwnTrade struct {
 	Fee                float64    `json:"fee,string"`
 	Margin             float64    `json:"margin,string"`
 	OrderTransactionID string     `json:"ordertxid"`
-	OrderType          string     `json:"ordertype"`
+	OrderType          order.Type `json:"ordertype"`
 	Pair               string     `json:"pair"`
 	PostTransactionID  string     `json:"postxid"`
 	Price              float64    `json:"price,string"`
 	Time               types.Time `json:"time"`
-	Type               string     `json:"type"`
+	Side               order.Side `json:"type"`
 	Vol                float64    `json:"vol,string"`
 }
 
@@ -734,4 +798,39 @@ func (e errorResponse) Errors() error {
 // Warnings returns a string of warnings
 func (e errorResponse) Warnings() string {
 	return strings.Join(e.warnings, ", ")
+}
+
+type wsSnapshot struct {
+	Asks []wsOrderbookItem `json:"as"`
+	Bids []wsOrderbookItem `json:"bs"`
+}
+
+type wsUpdate struct {
+	Asks     []wsOrderbookItem `json:"a"`
+	Bids     []wsOrderbookItem `json:"b"`
+	Checksum uint32            `json:"c,string"`
+}
+
+type wsOrderbookItem struct {
+	Price     float64
+	PriceRaw  string
+	Amount    float64
+	AmountRaw string
+	Time      types.Time
+}
+
+func (ws *wsOrderbookItem) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &[3]any{&ws.PriceRaw, &ws.AmountRaw, &ws.Time})
+	if err != nil {
+		return err
+	}
+	ws.Price, err = strconv.ParseFloat(ws.PriceRaw, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing price: %w", err)
+	}
+	ws.Amount, err = strconv.ParseFloat(ws.AmountRaw, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing amount: %w", err)
+	}
+	return nil
 }

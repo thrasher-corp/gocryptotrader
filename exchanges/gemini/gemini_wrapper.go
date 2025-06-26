@@ -344,8 +344,8 @@ func (g *Gemini) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundi
 		resp[i] = exchange.FundingHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
-			Timestamp:       time.UnixMilli(transfers[i].Timestamp),
-			Currency:        transfers[i].Currency.String(),
+			Timestamp:       transfers[i].Timestamp.Time(),
+			Currency:        transfers[i].Currency,
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
 			TransferType:    transfers[i].Type,
@@ -373,8 +373,8 @@ func (g *Gemini) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a a
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
-			Timestamp:       time.UnixMilli(transfers[i].Timestamp),
-			Currency:        transfers[i].Currency.String(),
+			Timestamp:       transfers[i].Timestamp.Time(),
+			Currency:        transfers[i].Currency,
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
 			TransferType:    transfers[i].Type,
@@ -406,31 +406,22 @@ func (g *Gemini) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 allTrades:
 	for {
 		var tradeData []Trade
-		tradeData, err = g.GetTrades(ctx,
-			p.String(),
-			ts.Unix(),
-			int64(limit),
-			false)
+		tradeData, err = g.GetTrades(ctx, p.String(), ts.Unix(), int64(limit), false)
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+			tradeTS := tradeData[i].Timestamp.Time()
 			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
 				break allTrades
 			}
 
-			var side order.Side
-			side, err = order.StringToOrderSide(tradeData[i].Type)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				Exchange:     g.Name,
 				TID:          strconv.FormatInt(tradeData[i].TID, 10),
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Side:         side,
+				Side:         tradeData[i].Side,
 				Price:        tradeData[i].Price,
 				Amount:       tradeData[i].Amount,
 				Timestamp:    tradeTS,
@@ -559,22 +550,17 @@ func (g *Gemini) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pa
 		return nil, fmt.Errorf("unknown order type: %q", resp.Type)
 	}
 
-	var side order.Side
-	side, err = order.StringToOrderSide(resp.Side)
-	if err != nil {
-		return nil, err
-	}
 	return &order.Detail{
 		OrderID:         strconv.FormatInt(resp.OrderID, 10),
 		Amount:          resp.OriginalAmount,
 		RemainingAmount: resp.RemainingAmount,
 		Pair:            cp,
-		Date:            time.UnixMilli(resp.TimestampMS),
+		Date:            resp.TimestampMS.Time(),
 		Price:           resp.Price,
 		HiddenOrder:     resp.IsHidden,
 		ClientOrderID:   resp.ClientOrderID,
 		Type:            orderType,
-		Side:            side,
+		Side:            resp.Side,
 	}, nil
 }
 
@@ -673,13 +659,6 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			return nil, fmt.Errorf("unknown order type: %q", resp[i].Type)
 		}
 
-		var side order.Side
-		side, err = order.StringToOrderSide(resp[i].Side)
-		if err != nil {
-			return nil, err
-		}
-		orderDate := time.Unix(resp[i].Timestamp, 0)
-
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -687,10 +666,10 @@ func (g *Gemini) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
 			Type:            orderType,
-			Side:            side,
+			Side:            resp[i].Side,
 			Price:           resp[i].Price,
 			Pair:            symbol,
-			Date:            orderDate,
+			Date:            resp[i].Timestamp.Time(),
 		}
 	}
 	return req.Filter(g.Name, orders), nil
@@ -736,20 +715,13 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 
 	orders := make([]order.Detail, len(trades))
 	for i := range trades {
-		var side order.Side
-		side, err = order.StringToOrderSide(trades[i].Type)
-		if err != nil {
-			return nil, err
-		}
-		orderDate := time.Unix(trades[i].Timestamp, 0)
-
 		detail := order.Detail{
 			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             g.Name,
-			Date:                 orderDate,
-			Side:                 side,
+			Date:                 trades[i].Timestamp.Time(),
+			Side:                 trades[i].Side,
 			Fee:                  trades[i].FeeAmount,
 			Price:                trades[i].Price,
 			AverageExecutedPrice: trades[i].Price,

@@ -1,6 +1,10 @@
 package yobit
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 // Response is a generic struct used for exchange API request result
 type Response struct {
@@ -11,7 +15,7 @@ type Response struct {
 
 // Info holds server time and pair information
 type Info struct {
-	ServerTime int64           `json:"server_time"`
+	ServerTime types.Time      `json:"server_time"`
 	Pairs      map[string]Pair `json:"pairs"`
 }
 
@@ -36,21 +40,21 @@ type Orderbook struct {
 
 // Trade stores trade information
 type Trade struct {
-	Type      string  `json:"type"`
-	Price     float64 `json:"price"`
-	Amount    float64 `json:"amount"`
-	TID       int64   `json:"tid"`
-	Timestamp int64   `json:"timestamp"`
+	Side      order.Side `json:"type"`
+	Price     float64    `json:"price"`
+	Amount    float64    `json:"amount"`
+	TID       int64      `json:"tid"`
+	Timestamp types.Time `json:"timestamp"`
 }
 
 // ActiveOrders stores active order information
 type ActiveOrders struct {
-	Pair             string  `json:"pair"`
-	Type             string  `json:"type"`
-	Amount           float64 `json:"amount"`
-	Rate             float64 `json:"rate"`
-	TimestampCreated float64 `json:"timestamp_created"`
-	Status           int     `json:"status"`
+	Pair             currency.Pair `json:"pair"`
+	Side             order.Side    `json:"type"`
+	Amount           float64       `json:"amount"`
+	Rate             float64       `json:"rate"`
+	TimestampCreated types.Time    `json:"timestamp_created"`
+	Status           int           `json:"status"`
 }
 
 // Pair holds pair information
@@ -72,21 +76,21 @@ type AccountInfo struct {
 		Trade    int `json:"trade"`
 		Withdraw int `json:"withdraw"`
 	} `json:"rights"`
-	TransactionCount int     `json:"transaction_count"`
-	OpenOrders       int     `json:"open_orders"`
-	ServerTime       float64 `json:"server_time"`
-	Error            string  `json:"error"`
+	TransactionCount int        `json:"transaction_count"`
+	OpenOrders       int        `json:"open_orders"`
+	ServerTime       types.Time `json:"server_time"`
+	Error            string     `json:"error"`
 }
 
 // OrderInfo stores order information
 type OrderInfo struct {
-	Pair             string  `json:"pair"`
-	Type             string  `json:"type"`
-	StartAmount      float64 `json:"start_amount"`
-	Amount           float64 `json:"amount"`
-	Rate             float64 `json:"rate"`
-	TimestampCreated float64 `json:"timestamp_created"`
-	Status           int     `json:"status"`
+	Pair             currency.Pair `json:"pair"`
+	Side             order.Side    `json:"type"`
+	StartAmount      float64       `json:"start_amount"`
+	Amount           float64       `json:"amount"`
+	Rate             float64       `json:"rate"`
+	TimestampCreated types.Time    `json:"timestamp_created"`
+	Status           int           `json:"status"`
 }
 
 // CancelOrder is used for the CancelOrder API request response
@@ -114,30 +118,30 @@ type TradeHistoryResponse struct {
 
 // TradeHistory stores trade history
 type TradeHistory struct {
-	Pair      string  `json:"pair"`
-	Type      string  `json:"type"`
-	Amount    float64 `json:"amount"`
-	Rate      float64 `json:"rate"`
-	OrderID   float64 `json:"order_id"`
-	MyOrder   int     `json:"is_your_order"`
-	Timestamp float64 `json:"timestamp"`
+	Pair      currency.Pair `json:"pair"`
+	Side      order.Side    `json:"type"`
+	Amount    float64       `json:"amount"`
+	Rate      float64       `json:"rate"`
+	OrderID   float64       `json:"order_id"`
+	MyOrder   int           `json:"is_your_order"`
+	Timestamp types.Time    `json:"timestamp"`
 }
 
 // DepositAddress stores a currency deposit address
 type DepositAddress struct {
 	Success int `json:"success"`
 	Return  struct {
-		Address         string  `json:"address"`
-		ProcessedAmount float64 `json:"processed_amount"`
-		ServerTime      int64   `json:"server_time"`
+		Address         string     `json:"address"`
+		ProcessedAmount float64    `json:"processed_amount"`
+		ServerTime      types.Time `json:"server_time"`
 	} `json:"return"`
 	Error string `json:"error"`
 }
 
 // WithdrawCoinsToAddress stores information for a withdrawcoins request
 type WithdrawCoinsToAddress struct {
-	ServerTime int64  `json:"server_time"`
-	Error      string `json:"error"`
+	ServerTime types.Time `json:"server_time"`
+	Error      string     `json:"error"`
 }
 
 // CreateCoupon stores information coupon information

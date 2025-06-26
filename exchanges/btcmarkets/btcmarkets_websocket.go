@@ -245,31 +245,6 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			price = orderData.Trades[x].Price
 			originalAmount += orderData.Trades[x].Volume
 		}
-		oType, err := order.StringToOrderType(orderData.OrderType)
-		if err != nil {
-			b.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: b.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		oSide, err := order.StringToOrderSide(orderData.Side)
-		if err != nil {
-			b.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: b.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		oStatus, err := order.StringToOrderStatus(orderData.Status)
-		if err != nil {
-			b.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: b.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-
 		clientID := ""
 		if creds, err := b.GetCredentials(ctx); err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
@@ -288,9 +263,9 @@ func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 			Exchange:        b.Name,
 			OrderID:         orderID,
 			ClientID:        clientID,
-			Type:            oType,
-			Side:            oSide,
-			Status:          oStatus,
+			Type:            orderData.OrderType,
+			Side:            orderData.Side,
+			Status:          orderData.Status,
 			AssetType:       asset.Spot,
 			Date:            orderData.Timestamp,
 			Trades:          trades,

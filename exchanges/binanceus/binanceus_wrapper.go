@@ -371,7 +371,7 @@ func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item
 		locked := theAccount.Balances[i].Locked.InexactFloat64()
 
 		currencyBalance[i] = account.Balance{
-			Currency: currency.NewCode(theAccount.Balances[i].Asset),
+			Currency: theAccount.Balances[i].Asset,
 			Total:    freeBalance + locked,
 			Hold:     locked,
 			Free:     freeBalance,
@@ -406,10 +406,6 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 	}
 	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for i := range withdrawals {
-		tm, err := time.Parse(time.DateTime, withdrawals[i].ApplyTime)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
@@ -419,7 +415,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 			CryptoToAddress: withdrawals[i].Address,
 			CryptoTxID:      withdrawals[i].ID,
 			CryptoChain:     withdrawals[i].Network,
-			Timestamp:       tm,
+			Timestamp:       withdrawals[i].ApplyTime.Time(),
 		}
 	}
 	return resp, nil
@@ -630,7 +626,6 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-	var orderType order.Type
 	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
 		Symbol:  symbolValue,
 		OrderID: orderIDInt,
@@ -638,30 +633,17 @@ func (bi *Binanceus) GetOrderInfo(ctx context.Context, orderID string, pair curr
 	if err != nil {
 		return nil, err
 	}
-	orderSide, err := order.StringToOrderSide(resp.Side)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-	}
-	status, err := order.StringToOrderStatus(resp.Status)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-	}
-	orderType, err = order.StringToOrderType(resp.Type)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-	}
-
 	return &order.Detail{
 		Amount:         resp.OrigQty,
 		Exchange:       bi.Name,
 		OrderID:        strconv.FormatUint(resp.OrderID, 10),
 		ClientOrderID:  resp.ClientOrderID,
-		Side:           orderSide,
-		Type:           orderType,
+		Side:           resp.Side,
+		Type:           resp.Type,
 		Pair:           pair,
 		Cost:           resp.CummulativeQuoteQty,
 		AssetType:      assetType,
-		Status:         status,
+		Status:         resp.Status,
 		Price:          resp.Price,
 		ExecutedAmount: resp.ExecutedQty,
 		Date:           resp.Time.Time(),
@@ -746,31 +728,16 @@ func (bi *Binanceus) GetActiveOrders(ctx context.Context, getOrdersRequest *orde
 	}
 	orders := make([]order.Detail, len(selectedOrders))
 	for x := range selectedOrders {
-		var orderSide order.Side
-		var orderType order.Type
-		var orderStatus order.Status
-		orderSide, err = order.StringToOrderSide(strings.ToUpper(resp[x].Side))
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
-		orderType, err = order.StringToOrderType(strings.ToUpper(resp[x].Type))
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
-		orderStatus, err = order.StringToOrderStatus(resp[x].Status)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
-		}
 		orders[x] = order.Detail{
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time.Time(),
 			Exchange:      bi.Name,
 			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
-			Side:          orderSide,
-			Type:          orderType,
+			Side:          resp[x].Side,
+			Type:          resp[x].Type,
 			Price:         resp[x].Price,
-			Status:        orderStatus,
+			Status:        resp[x].Status,
 			Pair:          getOrdersRequest.Pairs[0],
 			AssetType:     getOrdersRequest.AssetType,
 			LastUpdated:   resp[x].UpdateTime.Time(),
@@ -825,12 +792,12 @@ func (bi *Binanceus) GetHistoricCandles(ctx context.Context, pair currency.Pair,
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   candles[x].OpenTime,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
+			Time:   candles[x].OpenTime.Time(),
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -859,12 +826,12 @@ func (bi *Binanceus) GetHistoricCandlesExtended(ctx context.Context, pair curren
 
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].OpenTime.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	}

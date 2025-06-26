@@ -335,7 +335,7 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Ask:          tick.LowestSell,
 		Volume:       tick.Volume24,
 		Pair:         p,
-		LastUpdated:  time.Unix(0, tick.Timestamp),
+		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: c.Name,
 		AssetType:    a,
 	})
@@ -431,20 +431,15 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	}
 	resp := make([]trade.Data, len(tradeData.Trades))
 	for i := range tradeData.Trades {
-		var side order.Side
-		side, err = order.StringToOrderSide(tradeData.Trades[i].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = trade.Data{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData.Trades[i].TransactionID, 10),
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData.Trades[i].Side,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Quantity,
-			Timestamp:    time.Unix(0, tradeData.Trades[i].Timestamp*int64(time.Microsecond)),
+			Timestamp:    tradeData.Trades[i].Timestamp.Time(),
 		}
 	}
 
@@ -812,19 +807,12 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				if err != nil {
 					return nil, err
 				}
-
-				var side order.Side
-				side, err = order.StringToOrderSide(openOrders.Orders[i].Side)
-				if err != nil {
-					return nil, err
-				}
-
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
 					OrderID:         strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
 					Pair:            fPair,
-					Side:            side,
-					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
+					Side:            openOrders.Orders[i].Side,
+					Date:            openOrders.Orders[i].Timestamp.Time(),
 					Status:          order.Active,
 					Price:           openOrders.Orders[i].Price,
 					Amount:          openOrders.Orders[i].Quantity,
@@ -874,19 +862,13 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					return nil, err
 				}
 
-				var side order.Side
-				side, err = order.StringToOrderSide(openOrders.Orders[y].Side)
-				if err != nil {
-					return nil, err
-				}
-
 				orders = append(orders, order.Detail{
 					OrderID:  strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
 					Amount:   openOrders.Orders[y].Quantity,
 					Price:    openOrders.Orders[y].Price,
 					Exchange: c.Name,
-					Side:     side,
-					Date:     time.Unix(openOrders.Orders[y].Timestamp, 0),
+					Side:     openOrders.Orders[y].Side,
+					Date:     openOrders.Orders[y].Timestamp.Time(),
 					Pair:     p,
 				})
 			}
@@ -924,18 +906,12 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 						return nil, err
 					}
 
-					var side order.Side
-					side, err = order.StringToOrderSide(trades.Trades[x].Side)
-					if err != nil {
-						return nil, err
-					}
-
 					detail := order.Detail{
 						Exchange:        c.Name,
 						OrderID:         strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						Pair:            p,
-						Side:            side,
-						Date:            time.Unix(0, trades.Trades[x].Timestamp),
+						Side:            trades.Trades[x].Side,
+						Date:            trades.Trades[x].Timestamp.Time(),
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
 						Amount:          trades.Trades[x].Quantity,
@@ -994,19 +970,13 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 					return nil, err
 				}
 
-				var side order.Side
-				side, err = order.StringToOrderSide(orders.Trades[y].Order.Side)
-				if err != nil {
-					return nil, err
-				}
-
 				allOrders = append(allOrders, order.Detail{
 					OrderID:  strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
 					Amount:   orders.Trades[y].Order.Quantity,
 					Price:    orders.Trades[y].Order.Price,
 					Exchange: c.Name,
-					Side:     side,
-					Date:     time.Unix(orders.Trades[y].Order.Timestamp, 0),
+					Side:     orders.Trades[y].Order.Side,
+					Date:     orders.Trades[y].Order.Timestamp.Time(),
 					Pair:     p,
 				})
 			}

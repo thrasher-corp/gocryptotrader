@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -42,11 +43,11 @@ type Ticker struct {
 
 // Trade holds executed trade information
 type Trade struct {
-	TradeID int64     `json:"trade_id"`
-	Price   float64   `json:"price,string"`
-	Size    float64   `json:"size,string"`
-	Time    time.Time `json:"time"`
-	Side    string    `json:"side"`
+	TradeID int64      `json:"trade_id"`
+	Price   float64    `json:"price,string"`
+	Size    float64    `json:"size,string"`
+	Time    time.Time  `json:"time"`
+	Side    order.Side `json:"side"`
 }
 
 // History holds historic rate information
@@ -89,15 +90,15 @@ type ServerTime struct {
 
 // AccountResponse holds the details for the trading accounts
 type AccountResponse struct {
-	ID            string  `json:"id"`
-	Currency      string  `json:"currency"`
-	Balance       float64 `json:"balance,string"`
-	Available     float64 `json:"available,string"`
-	Hold          float64 `json:"hold,string"`
-	ProfileID     string  `json:"profile_id"`
-	MarginEnabled bool    `json:"margin_enabled"`
-	FundedAmount  float64 `json:"funded_amount,string"`
-	DefaultAmount float64 `json:"default_amount,string"`
+	ID            string        `json:"id"`
+	Currency      currency.Code `json:"currency"`
+	Balance       float64       `json:"balance,string"`
+	Available     float64       `json:"available,string"`
+	Hold          float64       `json:"hold,string"`
+	ProfileID     string        `json:"profile_id"`
+	MarginEnabled bool          `json:"margin_enabled"`
+	FundedAmount  float64       `json:"funded_amount,string"`
+	DefaultAmount float64       `json:"default_amount,string"`
 }
 
 // AccountLedgerResponse holds account history information
@@ -124,25 +125,25 @@ type AccountHolds struct {
 // GeneralizedOrderResponse is the generalized return type across order
 // placement and information collation
 type GeneralizedOrderResponse struct {
-	ID             string    `json:"id"`
-	Price          float64   `json:"price,string"`
-	Size           float64   `json:"size,string"`
-	ProductID      string    `json:"product_id"`
-	Side           string    `json:"side"`
-	Stp            string    `json:"stp"`
-	Type           string    `json:"type"`
-	TimeInForce    string    `json:"time_in_force"`
-	PostOnly       bool      `json:"post_only"`
-	CreatedAt      time.Time `json:"created_at"`
-	FillFees       float64   `json:"fill_fees,string"`
-	FilledSize     float64   `json:"filled_size,string"`
-	ExecutedValue  float64   `json:"executed_value,string"`
-	Status         string    `json:"status"`
-	Settled        bool      `json:"settled"`
-	Funds          float64   `json:"funds,string"`
-	SpecifiedFunds float64   `json:"specified_funds,string"`
-	DoneReason     string    `json:"done_reason"`
-	DoneAt         time.Time `json:"done_at"`
+	ID             string        `json:"id"`
+	Price          float64       `json:"price,string"`
+	Size           float64       `json:"size,string"`
+	ProductID      currency.Pair `json:"product_id"`
+	Side           order.Side    `json:"side"`
+	Stp            string        `json:"stp"`
+	Type           order.Type    `json:"type"`
+	TimeInForce    string        `json:"time_in_force"`
+	PostOnly       bool          `json:"post_only"`
+	CreatedAt      time.Time     `json:"created_at"`
+	FillFees       float64       `json:"fill_fees,string"`
+	FilledSize     float64       `json:"filled_size,string"`
+	ExecutedValue  float64       `json:"executed_value,string"`
+	Status         order.Status  `json:"status"`
+	Settled        bool          `json:"settled"`
+	Funds          float64       `json:"funds,string"`
+	SpecifiedFunds float64       `json:"specified_funds,string"`
+	DoneReason     string        `json:"done_reason"`
+	DoneAt         time.Time     `json:"done_at"`
 }
 
 // Funding holds funding data
@@ -355,16 +356,16 @@ type OrderbookResponse struct {
 
 // FillResponse contains fill information from the exchange
 type FillResponse struct {
-	TradeID   int64     `json:"trade_id"`
-	ProductID string    `json:"product_id"`
-	Price     float64   `json:"price,string"`
-	Size      float64   `json:"size,string"`
-	OrderID   string    `json:"order_id"`
-	CreatedAt time.Time `json:"created_at"`
-	Liquidity string    `json:"liquidity"`
-	Fee       float64   `json:"fee,string"`
-	Settled   bool      `json:"settled"`
-	Side      string    `json:"side"`
+	TradeID   int64      `json:"trade_id"`
+	ProductID string     `json:"product_id"`
+	Price     float64    `json:"price,string"`
+	Size      float64    `json:"size,string"`
+	OrderID   string     `json:"order_id"`
+	CreatedAt time.Time  `json:"created_at"`
+	Liquidity string     `json:"liquidity"`
+	Fee       float64    `json:"fee,string"`
+	Settled   bool       `json:"settled"`
+	Side      order.Side `json:"side"`
 }
 
 // WebsocketSubscribe takes in subscription information
@@ -386,41 +387,41 @@ type WsChannel struct {
 
 // wsOrderReceived holds websocket received values
 type wsOrderReceived struct {
-	Type          string    `json:"type"`
-	OrderID       string    `json:"order_id"`
-	OrderType     string    `json:"order_type"`
-	Size          float64   `json:"size,string"`
-	Price         float64   `json:"price,omitempty,string"`
-	Funds         float64   `json:"funds,omitempty,string"`
-	Side          string    `json:"side"`
-	ClientOID     string    `json:"client_oid"`
-	ProductID     string    `json:"product_id"`
-	Sequence      int64     `json:"sequence"`
-	Time          time.Time `json:"time"`
-	RemainingSize float64   `json:"remaining_size,string"`
-	NewSize       float64   `json:"new_size,string"`
-	OldSize       float64   `json:"old_size,string"`
-	Reason        string    `json:"reason"`
-	Timestamp     float64   `json:"timestamp,string"`
-	UserID        string    `json:"user_id"`
-	ProfileID     string    `json:"profile_id"`
-	StopType      string    `json:"stop_type"`
-	StopPrice     float64   `json:"stop_price,string"`
-	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
-	Private       bool      `json:"private"`
-	TradeID       int64     `json:"trade_id"`
-	MakerOrderID  string    `json:"maker_order_id"`
-	TakerOrderID  string    `json:"taker_order_id"`
-	TakerUserID   string    `json:"taker_user_id"`
+	Status        order.Status `json:"type"`
+	OrderID       string       `json:"order_id"`
+	OrderType     order.Type   `json:"order_type"`
+	Size          float64      `json:"size,string"`
+	Price         float64      `json:"price,omitempty,string"`
+	Funds         float64      `json:"funds,omitempty,string"`
+	Side          order.Side   `json:"side"`
+	ClientOID     string       `json:"client_oid"`
+	ProductID     string       `json:"product_id"`
+	Sequence      int64        `json:"sequence"`
+	Time          time.Time    `json:"time"`
+	RemainingSize float64      `json:"remaining_size,string"`
+	NewSize       float64      `json:"new_size,string"`
+	OldSize       float64      `json:"old_size,string"`
+	Reason        string       `json:"reason"`
+	Timestamp     types.Time   `json:"timestamp"`
+	UserID        string       `json:"user_id"`
+	ProfileID     string       `json:"profile_id"`
+	StopType      string       `json:"stop_type"`
+	StopPrice     float64      `json:"stop_price,string"`
+	TakerFeeRate  float64      `json:"taker_fee_rate,string"`
+	Private       bool         `json:"private"`
+	TradeID       int64        `json:"trade_id"`
+	MakerOrderID  string       `json:"maker_order_id"`
+	TakerOrderID  string       `json:"taker_order_id"`
+	TakerUserID   string       `json:"taker_user_id"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
 type WebsocketHeartBeat struct {
-	Type        string `json:"type"`
-	Sequence    int64  `json:"sequence"`
-	LastTradeID int64  `json:"last_trade_id"`
-	ProductID   string `json:"product_id"`
-	Time        string `json:"time"`
+	Type        string    `json:"type"`
+	Sequence    int64     `json:"sequence"`
+	LastTradeID int64     `json:"last_trade_id"`
+	ProductID   string    `json:"product_id"`
+	Time        time.Time `json:"time"`
 }
 
 // WebsocketTicker defines ticker websocket response
