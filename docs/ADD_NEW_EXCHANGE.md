@@ -44,7 +44,7 @@ go run exchange_template.go -name Binance -ws -rest
 
 Find out which asset types are supported by the exchange and add them to the pairs struct (spot is enabled by default)
 
-#### If main config path is unknown the following function can be used:
+If main config path is unknown the following function can be used:
 ```go
 config.GetDefaultFilePath()
 ```
@@ -54,12 +54,6 @@ config.GetDefaultFilePath()
    "name": "Binance",
    "enabled": true,
    "verbose": false,
-   "httpTimeout": 15000000000,
-   "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 7000000000,
-   "websocketTrafficTimeout": 30000000000,
-   "connectionMonitorDelay": 0,
-   "baseCurrencies": "USD",
    "currencyPairs": {
     "bypassConfigFormatUpgrades": false,
     "requestFormat": {
@@ -78,62 +72,6 @@ config.GetDefaultFilePath()
      }
     }
    },
-   "api": {
-    "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
-    "credentials": {
-     "key": "Key",
-     "secret": "Secret"
-    },
-    "credentialsValidator": {
-     "requiresKey": true,
-     "requiresSecret": true
-    },
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
-    "urlEndpoints": null
-   },
-   "features": {
-    "supports": {
-     "restAPI": true,
-     "restCapabilities": {
-      "tickerBatching": true,
-      "autoPairUpdates": true,
-      "fundingRateFetching": false
-     },
-     "websocketAPI": true
-    },
-    "enabled": {
-     "autoPairUpdates": true,
-     "websocketAPI": true,
-     "saveTradeData": false,
-     "tradeFeed": false,
-     "fillsFeed": false
-    }
-   },
-   "bankAccounts": [
-    {
-     "enabled": false,
-     "bankName": "",
-     "bankAddress": "",
-     "bankPostalCode": "",
-     "bankPostalCity": "",
-     "bankCountry": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ],
-   "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
-   }
   },
 ```
 
@@ -906,8 +844,8 @@ Run gocryptotrader with the following settings enabled in config
      "websocketCapabilities": {}
     },
     "enabled": {
-     "autoPairUpdates": true,
-	 "websocketAPI": true // <- Change this to true if it is false
+    "autoPairUpdates": true,
+	"websocketAPI": true // <- Change this to true if it is false
 ```
 
 #### Handle websocket data:
