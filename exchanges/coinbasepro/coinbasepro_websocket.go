@@ -29,7 +29,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (c *CoinbasePro) WsConnect() error {
+func (c *Exchange) WsConnect() error {
 	ctx := context.TODO()
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -46,7 +46,7 @@ func (c *CoinbasePro) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *CoinbasePro) wsReadData(ctx context.Context) {
+func (c *Exchange) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -61,7 +61,7 @@ func (c *CoinbasePro) wsReadData(ctx context.Context) {
 	}
 }
 
-func (c *CoinbasePro) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (c *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	msgType := wsMsgType{}
 	err := json.Unmarshal(respRaw, &msgType)
 	if err != nil {
@@ -284,7 +284,7 @@ func statusToStandardStatus(stat string) (order.Status, error) {
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
+func (c *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) error {
 	pair, err := currency.NewPairFromString(snapshot.ProductID)
 	if err != nil {
 		return err
@@ -312,7 +312,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 }
 
 // ProcessOrderbookUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessOrderbookUpdate(update *WebsocketL2Update) error {
+func (c *Exchange) ProcessOrderbookUpdate(update *WebsocketL2Update) error {
 	if len(update.Changes) == 0 {
 		return errors.New("no data in websocket update")
 	}
@@ -351,7 +351,7 @@ func (c *CoinbasePro) ProcessOrderbookUpdate(update *WebsocketL2Update) error {
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
+func (c *Exchange) generateSubscriptions() (subscription.List, error) {
 	pairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -377,7 +377,7 @@ func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+func (c *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "subscribe",
@@ -418,7 +418,7 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 	return err
 }
 
-func (c *CoinbasePro) authWsSubscibeReq(ctx context.Context, r *WebsocketSubscribe) error {
+func (c *Exchange) authWsSubscibeReq(ctx context.Context, r *WebsocketSubscribe) error {
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -436,7 +436,7 @@ func (c *CoinbasePro) authWsSubscibeReq(ctx context.Context, r *WebsocketSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+func (c *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	r := &WebsocketSubscribe{
 		Type:     "unsubscribe",

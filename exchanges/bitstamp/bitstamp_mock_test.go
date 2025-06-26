@@ -15,7 +15,7 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	b = new(Bitstamp)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)
 	}

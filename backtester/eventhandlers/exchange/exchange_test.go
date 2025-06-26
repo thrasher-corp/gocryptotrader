@@ -125,7 +125,7 @@ func TestSetCurrency(t *testing.T) {
 	if len(e.CurrencySettings) != 0 {
 		t.Error("expected 0")
 	}
-	f := &binance.Binance{}
+	f := &binance.Exchange{}
 	f.Name = testExchange
 	cs := &Settings{
 		Exchange:      f,
@@ -240,7 +240,7 @@ func TestExecuteOrder(t *testing.T) {
 	require.NoError(t, exchB.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
 	_, err = exch.UpdateOrderbook(t.Context(), p, a)
 	require.NoError(t, err, "UpdateOrderbook must not error")
-	f := &binanceus.Binanceus{}
+	f := &binanceus.Exchange{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:            f,
@@ -359,7 +359,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	limits, err := exch.GetOrderExecutionLimits(a, p)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 
-	f := &btcmarkets.BTCMarkets{}
+	f := &btcmarkets.Exchange{}
 	f.Name = testExchange
 	cs := Settings{
 		Exchange:      f,

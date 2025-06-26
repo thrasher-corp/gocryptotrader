@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	c          *COINUT
+	c          = &Exchange{}
 	wsSetupRan bool
 )
 
@@ -37,7 +37,7 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	c = new(COINUT)
+	c = new(Exchange)
 	if err := testexch.Setup(c); err != nil {
 		log.Fatalf("Coinut Setup error: %s", err)
 	}

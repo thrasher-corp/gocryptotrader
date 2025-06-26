@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	h          *HitBTC
+	h          = &Exchange{}
 	wsSetupRan bool
 )
 
@@ -41,7 +41,7 @@ const (
 var spotPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true})
 
 func TestMain(m *testing.M) {
-	h = new(HitBTC)
+	h = new(Exchange)
 	if err := testexch.Setup(h); err != nil {
 		log.Fatalf("HitBTC Setup error: %s", err)
 	}
@@ -1022,7 +1022,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	h := new(HitBTC)
+	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)

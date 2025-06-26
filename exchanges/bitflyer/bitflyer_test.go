@@ -26,10 +26,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b *Bitflyer
+var b = &Exchange{}
 
 func TestMain(m *testing.M) {
-	b = new(Bitflyer)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatalf("Bitflyer Setup error: %s", err)
 	}

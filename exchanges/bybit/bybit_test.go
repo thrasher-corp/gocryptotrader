@@ -46,7 +46,7 @@ const (
 )
 
 var (
-	b = &Bybit{}
+	b = &Exchange{}
 
 	spotTradablePair, usdcMarginedTradablePair, usdtMarginedTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
 )
@@ -3062,7 +3062,7 @@ func TestPushData(t *testing.T) {
 
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
-	b := new(Bybit) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
@@ -3418,7 +3418,7 @@ func TestRequiresUnifiedAccount(t *testing.T) {
 	}
 	err := b.RequiresUnifiedAccount(t.Context())
 	require.NoError(t, err)
-	b := &Bybit{} //nolint:govet // Intentional shadow to avoid future copy/paste mistakes. Also stops race below.
+	b := &Exchange{} //nolint:govet // Intentional shadow to avoid future copy/paste mistakes. Also stops race below.
 	b.account.accountType = accountTypeNormal
 	err = b.RequiresUnifiedAccount(t.Context())
 	require.ErrorIs(t, err, errAPIKeyIsNotUnified)
@@ -3556,7 +3556,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	b := new(Bybit)
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -3604,7 +3604,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Bybit)
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
 	require.NoError(t, err, "ExpandTemplates must not error")
@@ -3616,7 +3616,7 @@ func TestSubscribe(t *testing.T) {
 
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
-	b := new(Bybit)
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := b.Features.Subscriptions.ExpandTemplates(b)
@@ -3637,7 +3637,7 @@ func TestAuthSubscribe(t *testing.T) {
 		require.NoError(tb, err, "Marshal must not error")
 		return w.WriteMessage(gws.TextMessage, msg)
 	}
-	b = testexch.MockWsInstance[Bybit](t, testws.CurryWsMockUpgrader(t, mock))
+	b = testexch.MockWsInstance[Exchange](t, testws.CurryWsMockUpgrader(t, mock))
 	b.Websocket.AuthConn = b.Websocket.Conn
 	err = b.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")

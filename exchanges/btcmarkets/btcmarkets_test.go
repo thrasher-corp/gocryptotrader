@@ -21,7 +21,7 @@ import (
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
 
-var b = &BTCMarkets{}
+var b = &Exchange{}
 
 // Please supply your own keys here to do better tests
 const (
@@ -33,7 +33,7 @@ const (
 var spotTestPair = currency.NewPair(currency.BTC, currency.AUD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 
 func TestMain(m *testing.M) {
-	b = new(BTCMarkets)
+	b = new(Exchange)
 	if err := testexch.Setup(b); err != nil {
 		log.Fatalf("BTCMarkets Setup error: %s", err)
 	}
@@ -480,7 +480,7 @@ func TestWsTicker(t *testing.T) {
 func TestWSTrade(t *testing.T) {
 	t.Parallel()
 
-	b := new(BTCMarkets) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", b.wsHandleData)
 	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
@@ -965,7 +965,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	b := new(BTCMarkets)
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "_"), currency.NewPairWithDelimiter("ETH", "BTC", "_")}
 	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, false))

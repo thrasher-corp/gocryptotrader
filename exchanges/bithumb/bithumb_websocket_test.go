@@ -28,7 +28,7 @@ func TestWsHandleData(t *testing.T) {
 
 	pairs := currency.Pairs{currency.NewBTCUSDT()}
 
-	dummy := Bithumb{
+	dummy := Exchange{
 		location: time.Local,
 		Base: exchange.Base{
 			Name: "dummy",
@@ -94,7 +94,7 @@ func TestSubToReq(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	b := new(Bithumb)
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}
 	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, p, false))

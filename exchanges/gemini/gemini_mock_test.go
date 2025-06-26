@@ -15,7 +15,7 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	g = new(Gemini)
+	g = new(Exchange)
 	if err := testexch.Setup(g); err != nil {
 		log.Fatalf("Gemini Setup error: %s", err)
 	}

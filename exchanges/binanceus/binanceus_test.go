@@ -31,14 +31,14 @@ const (
 )
 
 var (
-	bi              *Binanceus
+	bi              = &Exchange{}
 	testPairMapping = currency.NewBTCUSDT()
 	// this lock guards against orderbook tests race
 	binanceusOrderBookLock = &sync.Mutex{}
 )
 
 func TestMain(m *testing.M) {
-	bi = new(Binanceus)
+	bi = new(Exchange)
 	if err := testexch.Setup(bi); err != nil {
 		log.Fatalf("Binanceus Setup error: %s", err)
 	}

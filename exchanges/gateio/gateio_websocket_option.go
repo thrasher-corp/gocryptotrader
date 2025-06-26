@@ -66,7 +66,7 @@ var defaultOptionsSubscriptions = []string{
 }
 
 // WsOptionsConnect initiates a websocket connection to options websocket endpoints.
-func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
+func (g *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Options)
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func (g *Gateio) WsOptionsConnect(ctx context.Context, conn websocket.Connection
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
 // TODO: Update to use the new subscription template system
-func (g *Gateio) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+func (g *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
 	ctx := context.TODO()
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
@@ -170,7 +170,7 @@ getEnabledPairs:
 	return subscriptions, nil
 }
 
-func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (g *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -284,17 +284,17 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 }
 
 // OptionsSubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Exchange) OptionsSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateOptionsPayload)
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+func (g *Exchange) OptionsUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateOptionsPayload)
 }
 
 // WsHandleOptionsData handles options websocket data
-func (g *Gateio) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
+func (g *Exchange) WsHandleOptionsData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -351,7 +351,7 @@ func (g *Gateio) WsHandleOptionsData(ctx context.Context, respRaw []byte) error 
 	}
 }
 
-func (g *Gateio) processOptionsContractTickers(incoming []byte) error {
+func (g *Exchange) processOptionsContractTickers(incoming []byte) error {
 	var data OptionsTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -370,7 +370,7 @@ func (g *Gateio) processOptionsContractTickers(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsUnderlyingTicker(incoming []byte) error {
+func (g *Exchange) processOptionsUnderlyingTicker(incoming []byte) error {
 	var data WsOptionUnderlyingTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -380,7 +380,7 @@ func (g *Gateio) processOptionsUnderlyingTicker(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsTradesPushData(data []byte) error {
+func (g *Exchange) processOptionsTradesPushData(data []byte) error {
 	saveTradeData := g.IsSaveTradeDataEnabled()
 	if !saveTradeData &&
 		!g.IsTradeFeedEnabled() {
@@ -411,7 +411,7 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 	return g.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (g *Gateio) processOptionsUnderlyingPricePushData(incoming []byte) error {
+func (g *Exchange) processOptionsUnderlyingPricePushData(incoming []byte) error {
 	var data WsOptionsUnderlyingPrice
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -421,7 +421,7 @@ func (g *Gateio) processOptionsUnderlyingPricePushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsMarkPrice(incoming []byte) error {
+func (g *Exchange) processOptionsMarkPrice(incoming []byte) error {
 	var data WsOptionsMarkPrice
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -431,7 +431,7 @@ func (g *Gateio) processOptionsMarkPrice(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsSettlementPushData(incoming []byte) error {
+func (g *Exchange) processOptionsSettlementPushData(incoming []byte) error {
 	var data WsOptionsSettlement
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -441,7 +441,7 @@ func (g *Gateio) processOptionsSettlementPushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsContractPushData(incoming []byte) error {
+func (g *Exchange) processOptionsContractPushData(incoming []byte) error {
 	var data WsOptionsContract
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -451,7 +451,7 @@ func (g *Gateio) processOptionsContractPushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
+func (g *Exchange) processOptionsCandlestickPushData(data []byte) error {
 	resp := struct {
 		Time    int64                          `json:"time"`
 		Channel string                         `json:"channel"`
@@ -489,7 +489,7 @@ func (g *Gateio) processOptionsCandlestickPushData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
+func (g *Exchange) processOrderbookTickerPushData(incoming []byte) error {
 	var data WsOptionsOrderbookTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
@@ -499,7 +499,7 @@ func (g *Gateio) processOrderbookTickerPushData(incoming []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
+func (g *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
 	var data WsFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -526,7 +526,7 @@ func (g *Gateio) processOptionsOrderbookUpdate(ctx context.Context, incoming []b
 	})
 }
 
-func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
+func (g *Exchange) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
 		var data WsOptionsOrderbookSnapshot
 		err := json.Unmarshal(incoming, &data)
@@ -602,7 +602,7 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 	return nil
 }
 
-func (g *Gateio) processOptionsOrderPushData(data []byte) error {
+func (g *Exchange) processOptionsOrderPushData(data []byte) error {
 	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
@@ -641,7 +641,7 @@ func (g *Gateio) processOptionsOrderPushData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
+func (g *Exchange) processOptionsUserTradesPushData(data []byte) error {
 	if !g.IsFillsFeedEnabled() {
 		return nil
 	}
@@ -670,7 +670,7 @@ func (g *Gateio) processOptionsUserTradesPushData(data []byte) error {
 	return g.Websocket.Fills.Update(fills...)
 }
 
-func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
+func (g *Exchange) processOptionsLiquidatesPushData(data []byte) error {
 	resp := struct {
 		Time    int64                 `json:"time"`
 		Channel string                `json:"channel"`
@@ -685,7 +685,7 @@ func (g *Gateio) processOptionsLiquidatesPushData(data []byte) error {
 	return nil
 }
 
-func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
+func (g *Exchange) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
 	resp := struct {
 		Time    int64                     `json:"time"`
 		Channel string                    `json:"channel"`
@@ -700,7 +700,7 @@ func (g *Gateio) processOptionsUsersPersonalSettlementsPushData(data []byte) err
 	return nil
 }
 
-func (g *Gateio) processOptionsPositionPushData(data []byte) error {
+func (g *Exchange) processOptionsPositionPushData(data []byte) error {
 	resp := struct {
 		Time    int64               `json:"time"`
 		Channel string              `json:"channel"`

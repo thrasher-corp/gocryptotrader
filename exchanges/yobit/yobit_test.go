@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var y *Yobit
+var y = &Exchange{}
 
 // Please supply your own keys for better unit testing
 const (
@@ -32,7 +32,7 @@ const (
 var testPair = currency.NewBTCUSD().Format(currency.PairFormat{Delimiter: "_"})
 
 func TestMain(m *testing.M) {
-	y = new(Yobit)
+	y = new(Exchange)
 	if err := testexch.Setup(y); err != nil {
 		log.Fatalf("Yobit Setup error: %s", err)
 	}

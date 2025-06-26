@@ -22,10 +22,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var a *Alphapoint
+var a = &Exchange{}
 
 func TestMain(m *testing.M) {
-	a = new(Alphapoint)
+	a = new(Exchange)
 	a.SetDefaults()
 
 	if apiKey != "" && apiSecret != "" {

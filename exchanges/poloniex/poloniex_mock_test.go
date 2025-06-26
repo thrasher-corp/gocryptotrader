@@ -15,7 +15,7 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	p = new(Poloniex)
+	p = new(Exchange)
 	if err := testexch.Setup(p); err != nil {
 		log.Fatalf("Poloniex Setup error: %s", err)
 	}

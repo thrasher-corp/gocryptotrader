@@ -38,12 +38,12 @@ const (
 )
 
 var (
-	l        = &Lbank{}
+	l        = &Exchange{}
 	testPair = currency.NewBTCUSDT().Format(currency.PairFormat{Delimiter: "_"})
 )
 
 func TestMain(m *testing.M) {
-	l = new(Lbank)
+	l = new(Exchange)
 	if err := testexch.Setup(l); err != nil {
 		log.Fatalf("Lbank Setup error: %s", err)
 	}
@@ -222,7 +222,7 @@ func TestGetWithdrawRecords(t *testing.T) {
 func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 
-	l2 := new(Lbank)
+	l2 := new(Exchange)
 	l2.SetDefaults()
 	require.ErrorIs(t, l2.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
 
@@ -257,7 +257,7 @@ func TestLoadPrivKey(t *testing.T) {
 func TestSign(t *testing.T) {
 	t.Parallel()
 
-	l2 := new(Lbank)
+	l2 := new(Exchange)
 	l2.SetDefaults()
 	_, err := l2.sign("hello123")
 	require.ErrorIs(t, err, errPrivateKeyNotLoaded)
