@@ -58,11 +58,12 @@ var onceOrderbook map[string]struct{}
 
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
+	ctx := context.TODO()
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,7 @@ func (p *Poloniex) wsAuthConn() error {
 	}
 
 	var dialer gws.Dialer
-	err = p.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	err = p.Websocket.AuthConn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -326,7 +327,7 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 			if onceOrderbook == nil {
 				onceOrderbook = make(map[string]struct{})
 			}
-			var orderbooks *orderbook.Base
+			var orderbooks *orderbook.Book
 			orderbooks, err = p.UpdateOrderbook(context.Background(), pair, asset.Spot)
 			if err != nil {
 				return err
@@ -341,19 +342,19 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 			Pair:       pair,
 			UpdateTime: resp[x].Timestamp.Time(),
 			UpdateID:   resp[x].ID,
-			Action:     orderbook.UpdateInsert,
+			Action:     orderbook.UpdateOrInsertAction,
 			Asset:      asset.Spot,
 		}
-		update.Asks = make(orderbook.Tranches, len(resp[x].Asks))
+		update.Asks = make(orderbook.Levels, len(resp[x].Asks))
 		for i := range resp[x].Asks {
-			update.Asks[i] = orderbook.Tranche{
+			update.Asks[i] = orderbook.Level{
 				Price:  resp[x].Asks[i][0].Float64(),
 				Amount: resp[x].Asks[i][1].Float64(),
 			}
 		}
-		update.Bids = make(orderbook.Tranches, len(resp[x].Bids))
+		update.Bids = make(orderbook.Levels, len(resp[x].Bids))
 		for i := range resp[x].Bids {
-			update.Bids[i] = orderbook.Tranche{
+			update.Bids[i] = orderbook.Level{
 				Price:  resp[x].Bids[i][0].Float64(),
 				Amount: resp[x].Bids[i][1].Float64(),
 			}

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var y = &Yobit{}
+var y *Yobit
 
 // Please supply your own keys for better unit testing
 const (
@@ -33,23 +32,14 @@ const (
 var testPair = currency.NewBTCUSD().Format(currency.PairFormat{Delimiter: "_"})
 
 func TestMain(m *testing.M) {
-	y.SetDefaults()
-	yobitConfig := config.GetConfig()
-	err := yobitConfig.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Yobit load config error", err)
+	y = new(Yobit)
+	if err := testexch.Setup(y); err != nil {
+		log.Fatalf("Yobit Setup error: %s", err)
 	}
-	conf, err := yobitConfig.GetExchangeConfig("Yobit")
-	if err != nil {
-		log.Fatal("Yobit init error", err)
-	}
-	conf.API.Credentials.Key = apiKey
-	conf.API.Credentials.Secret = apiSecret
-	conf.API.AuthenticatedSupport = true
 
-	err = y.Setup(conf)
-	if err != nil {
-		log.Fatal("Yobit setup error", err)
+	if apiKey != "" && apiSecret != "" {
+		y.API.AuthenticatedSupport = true
+		y.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
 	os.Exit(m.Run())

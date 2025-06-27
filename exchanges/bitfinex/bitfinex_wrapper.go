@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -202,9 +201,6 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		Unsubscriber:          b.Unsubscribe,
 		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			UpdateEntriesByID: true,
-		},
 	})
 	if err != nil {
 		return err
@@ -332,19 +328,19 @@ func (b *Bitfinex) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	o := &orderbook.Base{
-		Exchange:         b.Name,
-		Pair:             p,
-		Asset:            assetType,
-		PriceDuplication: true,
-		VerifyOrderbook:  b.CanVerifyOrderbook,
+	o := &orderbook.Book{
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		PriceDuplication:  true,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 
 	fPair, err := b.FormatExchangeCurrency(p, assetType)
@@ -366,18 +362,18 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 	if assetType == asset.MarginFunding {
 		o.IsFundingRate = true
-		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Tranche{
+			o.Asks[x] = orderbook.Level{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Rate,
 				Amount: orderbookNew.Asks[x].Amount,
 				Period: int64(orderbookNew.Asks[x].Period),
 			}
 		}
-		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Tranche{
+			o.Bids[x] = orderbook.Level{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Rate,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -385,17 +381,17 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 			}
 		}
 	} else {
-		o.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		o.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			o.Asks[x] = orderbook.Tranche{
+			o.Asks[x] = orderbook.Level{
 				ID:     orderbookNew.Asks[x].OrderID,
 				Price:  orderbookNew.Asks[x].Price,
 				Amount: orderbookNew.Asks[x].Amount,
 			}
 		}
-		o.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		o.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			o.Bids[x] = orderbook.Tranche{
+			o.Bids[x] = orderbook.Level{
 				ID:     orderbookNew.Bids[x].OrderID,
 				Price:  orderbookNew.Bids[x].Price,
 				Amount: orderbookNew.Bids[x].Amount,
@@ -588,7 +584,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			// All v2 apis use negatives for Short side
 			req.Amount *= -1
 		}
-		orderID, err = b.WsNewOrder(req)
+		orderID, err = b.WsNewOrder(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +640,7 @@ func (b *Bitfinex) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if action.Side.IsShort() && action.Amount > 0 {
 			wsRequest.Amount *= -1
 		}
-		err = b.WsModifyOrder(&wsRequest)
+		err = b.WsModifyOrder(ctx, &wsRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -669,7 +665,7 @@ func (b *Bitfinex) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err = b.WsCancelOrder(orderIDInt)
+		err = b.WsCancelOrder(ctx, orderIDInt)
 	} else {
 		_, err = b.CancelExistingOrder(ctx, orderIDInt)
 	}
@@ -688,7 +684,7 @@ func (b *Bitfinex) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 func (b *Bitfinex) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		err = b.WsCancelAllOrders()
+		err = b.WsCancelAllOrders(ctx)
 	} else {
 		_, err = b.CancelAllExistingOrders(ctx)
 	}

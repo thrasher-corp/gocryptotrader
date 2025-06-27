@@ -11,11 +11,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
-
-const mockfile = "../../testdata/http_mock/poloniex/poloniex.json"
 
 var mockTests = true
 
@@ -32,22 +29,10 @@ func TestMain(m *testing.M) {
 		p.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
+	if err := testexch.MockHTTPInstance(p); err != nil {
+		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
 	}
-
-	err = p.SetHTTPClient(newClient)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	endpoints := p.API.Endpoints.GetURLMap()
-	for k := range endpoints {
-		err = p.API.Endpoints.SetRunning(k, serverDetails)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	var err error
 	spotTradablePair, err = p.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
 	if err != nil {
 		log.Fatal(err)

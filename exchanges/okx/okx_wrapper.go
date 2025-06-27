@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -214,7 +213,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:                  ok.generateSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig:                  buffer.Config{Checksum: ok.CalculateUpdateOrderbookChecksum},
 		RateLimitDefinitions:                   rateLimits,
 	}); err != nil {
 		return err
@@ -514,7 +512,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -534,31 +532,31 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, err
 		}
 		for y := range spreadOrderbook {
-			book := &orderbook.Base{
-				Exchange:        ok.Name,
-				Pair:            pair,
-				Asset:           assetType,
-				VerifyOrderbook: ok.CanVerifyOrderbook,
+			book := &orderbook.Book{
+				Exchange:          ok.Name,
+				Pair:              pair,
+				Asset:             assetType,
+				ValidateOrderbook: ok.ValidateOrderbook,
 			}
-			book.Bids = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Bids))
+			book.Bids = make(orderbook.Levels, 0, len(spreadOrderbook[y].Bids))
 			for b := range spreadOrderbook[y].Bids {
 				// Skip order book bid depths where the price value is zero.
 				if spreadOrderbook[y].Bids[b][0].Float64() == 0 {
 					continue
 				}
-				book.Bids = append(book.Bids, orderbook.Tranche{
+				book.Bids = append(book.Bids, orderbook.Level{
 					Price:      spreadOrderbook[y].Bids[b][0].Float64(),
 					Amount:     spreadOrderbook[y].Bids[b][1].Float64(),
 					OrderCount: spreadOrderbook[y].Bids[b][2].Int64(),
 				})
 			}
-			book.Asks = make(orderbook.Tranches, 0, len(spreadOrderbook[y].Asks))
+			book.Asks = make(orderbook.Levels, 0, len(spreadOrderbook[y].Asks))
 			for a := range spreadOrderbook[y].Asks {
 				// Skip order book ask depths where the price value is zero.
 				if spreadOrderbook[y].Asks[a][0].Float64() == 0 {
 					continue
 				}
-				book.Asks = append(book.Asks, orderbook.Tranche{
+				book.Asks = append(book.Asks, orderbook.Level{
 					Price:      spreadOrderbook[y].Asks[a][0].Float64(),
 					Amount:     spreadOrderbook[y].Asks[a][1].Float64(),
 					OrderCount: spreadOrderbook[y].Asks[a][2].Int64(),
@@ -583,11 +581,11 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		instrumentID = pairFormat.Format(pair)
-		book := &orderbook.Base{
-			Exchange:        ok.Name,
-			Pair:            pair,
-			Asset:           assetType,
-			VerifyOrderbook: ok.CanVerifyOrderbook,
+		book := &orderbook.Book{
+			Exchange:          ok.Name,
+			Pair:              pair,
+			Asset:             assetType,
+			ValidateOrderbook: ok.ValidateOrderbook,
 		}
 		var orderBookD *OrderBookResponseDetail
 		orderBookD, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
@@ -595,16 +593,16 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			return book, err
 		}
 
-		book.Bids = make(orderbook.Tranches, len(orderBookD.Bids))
+		book.Bids = make(orderbook.Levels, len(orderBookD.Bids))
 		for x := range orderBookD.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Amount: orderBookD.Bids[x].Amount.Float64(),
 				Price:  orderBookD.Bids[x].DepthPrice.Float64(),
 			}
 		}
-		book.Asks = make(orderbook.Tranches, len(orderBookD.Asks))
+		book.Asks = make(orderbook.Levels, len(orderBookD.Asks))
 		for x := range orderBookD.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Amount: orderBookD.Asks[x].Amount.Float64(),
 				Price:  orderBookD.Asks[x].DepthPrice.Float64(),
 			}
@@ -2113,7 +2111,7 @@ func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 
 // getInstrumentsForOptions returns the instruments for options asset type
 func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, error) {
-	underlyings, err := ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+	underlyings, err := ok.GetPublicUnderlyings(ctx, instTypeOption)
 	if err != nil {
 		return nil, err
 	}
@@ -2896,7 +2894,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			switch instType {
 			case instTypeOption:
 				var underlyings []string
-				underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+				underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 				if err != nil {
 					return nil, err
 				}
@@ -2961,7 +2959,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	switch instTypes[k[0].Asset] {
 	case instTypeOption:
 		var underlyings []string
-		underlyings, err = ok.GetPublicUnderlyings(context.Background(), instTypeOption)
+		underlyings, err = ok.GetPublicUnderlyings(ctx, instTypeOption)
 		if err != nil {
 			return nil, err
 		}

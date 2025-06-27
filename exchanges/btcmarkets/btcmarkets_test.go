@@ -1,8 +1,6 @@
 package btcmarkets
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -11,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -36,30 +33,17 @@ const (
 var spotTestPair = currency.NewPair(currency.BTC, currency.AUD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 
 func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal(err)
+	b = new(BTCMarkets)
+	if err := testexch.Setup(b); err != nil {
+		log.Fatalf("BTCMarkets Setup error: %s", err)
 	}
-	bConfig, err := cfg.GetExchangeConfig("BTC Markets")
-	if err != nil {
-		log.Fatal(err)
+
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.API.AuthenticatedWebsocketSupport = true
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	bConfig.API.Credentials.Key = apiKey
-	bConfig.API.Credentials.Secret = apiSecret
-	bConfig.API.AuthenticatedSupport = true
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = b.ValidateAPICredentials(context.Background(), asset.Spot)
-	if err != nil {
-		fmt.Println("API credentials are invalid:", err)
-		b.API.AuthenticatedSupport = false
-		b.API.AuthenticatedWebsocketSupport = false
-	}
+
 	os.Exit(m.Run())
 }
 
@@ -487,7 +471,7 @@ func TestWsTicker(t *testing.T) {
     "volume24h": "299.12936654",
     "messageType": "tick"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -554,7 +538,7 @@ func TestWsFundChange(t *testing.T) {
   "fee": "0",
   "messageType": "fundChange"
 }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -576,7 +560,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
           [ "101", "6.32", 2 ] ],
       "messageType": "orderbookUpdate"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -589,7 +573,7 @@ func TestWsOrderbookUpdate(t *testing.T) {
     "messageType": "orderbookUpdate",
 	"checksum": "2513007604"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -601,7 +585,7 @@ func TestWsHeartbeats(t *testing.T) {
   "code": 3,
   "message": "invalid channel names"
 }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(t.Context(), pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -611,7 +595,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 3,
 "message": "invalid marketIds"
 }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -621,7 +605,7 @@ func TestWsHeartbeats(t *testing.T) {
 "code": 1,
 "message": "authentication failed. invalid key"
 }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -640,7 +624,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:19.339Z",
     "messageType": "orderChange"
   }`)
-	err := b.wsHandleData(pressXToJSON)
+	err := b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -663,7 +647,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:50:39.658Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -680,7 +664,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -703,7 +687,7 @@ func TestWsOrders(t *testing.T) {
 	"timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -720,7 +704,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = b.wsHandleData(pressXToJSON)
+	err = b.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -772,26 +756,19 @@ func TestGetHistoricTrades(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestChecksum(t *testing.T) {
-	b := &orderbook.Base{
-		Asks: []orderbook.Tranche{
+func TestOrderbookChecksum(t *testing.T) {
+	b := &orderbook.Book{
+		Asks: orderbook.Levels{
 			{Price: 0.3965, Amount: 44149.815},
 			{Price: 0.3967, Amount: 16000.0},
 		},
-		Bids: []orderbook.Tranche{
+		Bids: orderbook.Levels{
 			{Price: 0.396, Amount: 51.0},
 			{Price: 0.396, Amount: 25.0},
 			{Price: 0.3958, Amount: 18570.0},
 		},
 	}
-
-	expecting := uint32(3802968298)
-	err := checksum(b, expecting)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = checksum(b, uint32(1223123))
-	assert.ErrorIs(t, err, errChecksumFailure)
+	require.Equal(t, uint32(3802968298), orderbookChecksum(b))
 }
 
 func TestTrim(t *testing.T) {

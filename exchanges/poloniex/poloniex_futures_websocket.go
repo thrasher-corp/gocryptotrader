@@ -77,13 +77,14 @@ func (p *Poloniex) WsFuturesConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	ctx := context.TODO()
 	var dialer gws.Dialer
 	onceFuturesOrderbook = make(map[string]bool)
 	err := p.Websocket.SetWebsocketURL(futuresWebsocketPublicURL, false, false)
 	if err != nil {
 		return err
 	}
-	err = p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = p.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func (p *Poloniex) AuthConnect() error {
 	if err != nil {
 		return err
 	}
-	err = p.Websocket.Conn.Dial(&dialer, http.Header{})
+	err = p.Websocket.Conn.Dial(context.Background(), &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -424,12 +425,12 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 		if err != nil {
 			return err
 		}
-		asks := make([]orderbook.Tranche, len(resp[x].Asks))
+		asks := make([]orderbook.Level, len(resp[x].Asks))
 		for a := range resp[x].Asks {
 			asks[a].Price = resp[x].Asks[a][0].Float64()
 			asks[a].Amount = resp[x].Asks[a][1].Float64()
 		}
-		bids := make([]orderbook.Tranche, len(resp[x].Bids))
+		bids := make([]orderbook.Level, len(resp[x].Bids))
 		for a := range resp[x].Bids {
 			bids[a].Price = resp[x].Bids[a][0].Float64()
 			bids[a].Amount = resp[x].Bids[a][1].Float64()
@@ -440,7 +441,7 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 				onceFuturesOrderbook = make(map[string]bool)
 			}
 			onceFuturesOrderbook[resp[x].Symbol] = true
-			err = p.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			err = p.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Bids:         bids,
 				Asks:         asks,
 				Exchange:     p.Name,
@@ -459,7 +460,7 @@ func (p *Poloniex) processFuturesOrderbook(data []byte, action string) error {
 			UpdateTime: resp[x].CreationTime.Time(),
 			LastPushed: resp[x].Timestamp.Time(),
 			Asset:      asset.Futures,
-			Action:     orderbook.UpdateInsert,
+			Action:     orderbook.UpdateOrInsertAction,
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       pair,

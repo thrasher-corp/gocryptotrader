@@ -9,11 +9,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
-func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+func Get(exchange string, p currency.Pair, a asset.Item) (*Book, error) {
 	return s.Retrieve(exchange, p, a)
 }
 
@@ -41,7 +40,7 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 }
 
 // Update stores orderbook data
-func (s *store) Update(b *Base) error {
+func (s *store) Update(b *Book) error {
 	s.m.RLock()
 	book, ok := s.orderbooks[key.ExchangePairAsset{Exchange: b.Exchange, Base: b.Pair.Base.Item, Quote: b.Pair.Quote.Item, Asset: b.Asset}]
 	s.m.RUnlock()
@@ -52,13 +51,14 @@ func (s *store) Update(b *Base) error {
 			return err
 		}
 	}
-	if err := book.Depth.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, b.LastPushed, true); err != nil {
+	b.RestSnapshot = true
+	if err := book.Depth.LoadSnapshot(b); err != nil {
 		return err
 	}
 	return s.signalMux.Publish(book.Depth, book.RouterID)
 }
 
-func (s *store) track(b *Base) (book, error) {
+func (s *store) track(b *Book) (book, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	id, ok := s.exchangeRouters[b.Exchange]
@@ -80,7 +80,7 @@ func (s *store) track(b *Base) (book, error) {
 // DeployDepth used for subsystem deployment creates a depth item in the struct then returns a ptr to that Depth item
 func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
 	if exchange == "" {
-		return nil, errExchangeNameUnset
+		return nil, ErrExchangeNameEmpty
 	}
 	if p.IsEmpty() {
 		return nil, errPairNotSet
@@ -94,7 +94,7 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 	s.m.RUnlock()
 	var err error
 	if !ok {
-		ob, err = s.track(&Base{Exchange: exchange, Pair: p, Asset: a})
+		ob, err = s.track(&Book{Exchange: exchange, Pair: p, Asset: a})
 	}
 	return ob.Depth, err
 }
@@ -110,9 +110,9 @@ func (s *store) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth
 	return ob.Depth, nil
 }
 
-// Retrieve gets orderbook depth data from the stored tranches and returns the
+// Retrieve gets orderbook depth data from the stored Levels and returns the
 // base equivalent copy
-func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -129,13 +129,13 @@ func (s *store) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base,
 }
 
 // GetDepth returns the concrete book allowing the caller to stream orderbook changes
-func (b *Base) GetDepth() (*Depth, error) {
+func (b *Book) GetDepth() (*Depth, error) {
 	return s.GetDepth(b.Exchange, b.Pair, b.Asset)
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
 // bids value
-func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
+func (b *Book) TotalBidsAmount() (amountCollated, total float64) {
 	for x := range b.Bids {
 		amountCollated += b.Bids[x].Amount
 		total += b.Bids[x].Amount * b.Bids[x].Price
@@ -145,7 +145,7 @@ func (b *Base) TotalBidsAmount() (amountCollated, total float64) {
 
 // TotalAsksAmount returns the total amount of asks and the total orderbook
 // asks value
-func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
+func (b *Book) TotalAsksAmount() (amountCollated, total float64) {
 	for y := range b.Asks {
 		amountCollated += b.Asks[y].Amount
 		total += b.Asks[y].Amount * b.Asks[y].Price
@@ -153,105 +153,11 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// Verify ensures that the orderbook items are correctly sorted prior to being
-// set and will reject any book with incorrect values.
-// Bids should always go from a high price to a low price and
-// Asks should always go from a low price to a higher price
-func (b *Base) Verify() error {
-	if !b.VerifyOrderbook {
-		return nil
-	}
-
-	// Checking for both ask and bid lengths being zero has been removed and
-	// a warning has been put in place for some exchanges that return zero
-	// level books. In the event that there is a massive liquidity change where
-	// a book dries up, this will still update so we do not traverse potential
-	// incorrect old data.
-	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
-		log.Warnf(log.OrderBook,
-			bookLengthIssue,
-			b.Exchange,
-			b.Pair,
-			b.Asset,
-			len(b.Bids),
-			len(b.Asks))
-	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, dsc, b.Exchange)
-	if err != nil {
-		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
-	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, asc, b.Exchange)
-	if err != nil {
-		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
-	}
-	return nil
-}
-
-// checker defines specific functionality to determine ascending/descending
-// validation
-type checker func(current, previous Tranche) error
-
-// asc specifically defines ascending price check
-var asc = func(current, previous Tranche) error {
-	if current.Price < previous.Price {
-		return errPriceOutOfOrder
-	}
-	return nil
-}
-
-// dsc specifically defines descending price check
-var dsc = func(current, previous Tranche) error {
-	if current.Price > previous.Price {
-		return errPriceOutOfOrder
-	}
-	return nil
-}
-
-// checkAlignment validates full orderbook
-func checkAlignment(depth Tranches, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
-	for i := range depth {
-		if depth[i].Price == 0 {
-			switch {
-			case exch == "Bitfinex" && fundingRate: /* funding rate can be 0 it seems on Bitfinex */
-			default:
-				return errPriceNotSet
-			}
-		}
-
-		if depth[i].Amount <= 0 {
-			return errAmountInvalid
-		}
-		if fundingRate && depth[i].Period == 0 {
-			return errPeriodUnset
-		}
-		if requiresChecksumString && (depth[i].StrAmount == "" || depth[i].StrPrice == "") {
-			return errChecksumStringNotSet
-		}
-
-		if i != 0 {
-			prev := i - 1
-			if err := c(depth[i], depth[prev]); err != nil {
-				return err
-			}
-			if isIDAligned && depth[i].ID < depth[prev].ID {
-				return errIDOutOfOrder
-			}
-			if !priceDuplication && depth[i].Price == depth[prev].Price {
-				return errDuplication
-			}
-			if depth[i].ID != 0 && depth[i].ID == depth[prev].ID {
-				return errIDDuplication
-			}
-		}
-	}
-	return nil
-}
-
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
-func (b *Base) Process() error {
+func (b *Book) Process() error {
 	if b.Exchange == "" {
-		return errExchangeNameUnset
+		return ErrExchangeNameEmpty
 	}
 
 	if b.Pair.IsEmpty() {
@@ -266,7 +172,7 @@ func (b *Base) Process() error {
 		b.LastUpdated = time.Now()
 	}
 
-	if err := b.Verify(); err != nil {
+	if err := b.Validate(); err != nil {
 		return err
 	}
 	return s.Update(b)
@@ -278,25 +184,25 @@ func (b *Base) Process() error {
 // using a sort algorithm as the algorithm could be impeded by a worst case time
 // complexity when elements are shifted as opposed to just swapping element
 // values.
-func (ts *Tranches) Reverse() {
-	eLen := len(*ts)
+func (l *Levels) Reverse() {
+	eLen := len(*l)
 	var target int
 	for i := eLen/2 - 1; i >= 0; i-- {
 		target = eLen - 1 - i
-		(*ts)[i], (*ts)[target] = (*ts)[target], (*ts)[i]
+		(*l)[i], (*l)[target] = (*l)[target], (*l)[i]
 	}
 }
 
 // SortAsks sorts ask items to the correct ascending order if pricing values are
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
-func (ts Tranches) SortAsks() {
-	sort.Slice(ts, func(i, j int) bool { return ts[i].Price < ts[j].Price })
+func (l Levels) SortAsks() {
+	sort.Slice(l, func(i, j int) bool { return l[i].Price < l[j].Price })
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
-func (ts Tranches) SortBids() {
-	sort.Slice(ts, func(i, j int) bool { return ts[i].Price > ts[j].Price })
+func (l Levels) SortBids() {
+	sort.Slice(l, func(i, j int) bool { return l[i].Price > l[j].Price })
 }

@@ -581,7 +581,6 @@ func (s *Storage) SeedForeignExchangeRates() error {
 	return s.updateExchangeRates(rates)
 }
 
-// UpdateForeignExchangeRates sets exchange rates on the FX map
 func (s *Storage) updateExchangeRates(m map[string]float64) error {
 	return s.fxRates.Update(m)
 }

@@ -232,10 +232,10 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 }
 
 // Bootstrap provides initialisation for an exchange
-func (k *Kraken) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (k *Kraken) Bootstrap(ctx context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 
-	if err = k.SeedAssets(context.TODO()); err != nil {
+	if err = k.SeedAssets(ctx); err != nil {
 		err = fmt.Errorf("failed to Seed Assets: %w", err)
 	}
 
@@ -451,66 +451,63 @@ func (k *Kraken) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := k.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        k.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: k.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          k.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: k.ValidateOrderbook,
 	}
-	var err error
 	switch assetType {
 	case asset.Spot:
-		var orderbookNew *Orderbook
-		orderbookNew, err = k.GetDepth(ctx, p)
+		orderbookNew, err := k.GetDepth(ctx, p)
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
+		book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Tranche{
+			book.Bids[x] = orderbook.Level{
 				Amount: orderbookNew.Bids[x].Amount.Float64(),
 				Price:  orderbookNew.Bids[x].Price.Float64(),
 			}
 		}
-		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
+		book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks[y] = orderbook.Tranche{
+			book.Asks[y] = orderbook.Level{
 				Amount: orderbookNew.Asks[y].Amount.Float64(),
 				Price:  orderbookNew.Asks[y].Price.Float64(),
 			}
 		}
 	case asset.Futures:
-		var futuresOB *FuturesOrderbookData
-		futuresOB, err = k.GetFuturesOrderbook(ctx, p)
+		futuresOB, err := k.GetFuturesOrderbook(ctx, p)
 		if err != nil {
 			return book, err
 		}
-		book.Asks = make([]orderbook.Tranche, len(futuresOB.Orderbook.Asks))
+		book.Asks = make([]orderbook.Level, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks[x] = orderbook.Tranche{
+			book.Asks[x] = orderbook.Level{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			}
 		}
-		book.Bids = make([]orderbook.Tranche, len(futuresOB.Orderbook.Bids))
+		book.Bids = make([]orderbook.Level, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids[y] = orderbook.Tranche{
+			book.Bids[y] = orderbook.Level{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}
 		}
+		book.Bids.SortBids()
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(k.Name, p, assetType)
@@ -700,7 +697,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			timeInForce = "IOC"
 		}
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orderID, err = k.wsAddOrder(&WsAddOrderRequest{
+			orderID, err = k.wsAddOrder(ctx, &WsAddOrderRequest{
 				OrderType:   s.Type.Lower(),
 				OrderSide:   s.Side.Lower(),
 				Pair:        s.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"}).String(), // required pair format: ISO 4217-A3
@@ -781,7 +778,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	switch o.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			return k.wsCancelOrders([]string{o.OrderID})
+			return k.wsCancelOrders(ctx, []string{o.OrderID})
 		}
 		_, err := k.CancelExistingOrder(ctx, o.OrderID)
 		return err
@@ -798,7 +795,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+func (k *Kraken) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -811,7 +808,7 @@ func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.
 		ordersList[i] = o[i].OrderID
 	}
 
-	err := k.wsCancelOrders(ordersList)
+	err := k.wsCancelOrders(ctx, ordersList)
 	return nil, err
 }
 
@@ -826,7 +823,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 	switch req.AssetType {
 	case asset.Spot:
 		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			resp, err := k.wsCancelAllOrders()
+			resp, err := k.wsCancelAllOrders(ctx)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -843,7 +840,7 @@ func (k *Kraken) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.
 		for orderID := range openOrders.Open {
 			var err error
 			if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				err = k.wsCancelOrders([]string{orderID})
+				err = k.wsCancelOrders(ctx, []string{orderID})
 			} else {
 				_, err = k.CancelExistingOrder(ctx, orderID)
 			}

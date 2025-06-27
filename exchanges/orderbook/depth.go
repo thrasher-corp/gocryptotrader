@@ -16,27 +16,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Public errors
 var (
-	// ErrOrderbookInvalid defines an error for when the orderbook is invalid and
-	// should not be trusted
-	ErrOrderbookInvalid = errors.New("orderbook data integrity compromised")
-	// ErrInvalidAction defines and error when an action is invalid
-	ErrInvalidAction = errors.New("invalid action")
-
-	errLastUpdatedNotSet = errors.New("last updated not set")
-	errInvalidBookDepth  = errors.New("invalid book depth")
+	ErrOrderbookInvalid  = errors.New("orderbook data integrity compromised")
+	ErrInvalidAction     = errors.New("invalid action")
+	ErrLastUpdatedNotSet = errors.New("last updated not set")
 )
+
+var errInvalidBookDepth = errors.New("invalid book depth")
 
 // Outbound restricts outbound usage of depth. NOTE: Type assert to
 // *orderbook.Depth.
 type Outbound interface {
-	Retrieve() (*Base, error)
+	Retrieve() (*Book, error)
 }
 
-// Depth defines a store of orderbook tranches
+// Depth defines a store of orderbook Levels
 type Depth struct {
-	askTranches
-	bidTranches
+	askLevels
+	bidLevels
 
 	alert.Notice
 
@@ -63,17 +61,17 @@ func (d *Depth) Publish() {
 	}
 }
 
-// Retrieve returns the orderbook base a copy of the underlying linked list
+// Retrieve returns a snapshot of the orderbook
 // spread
-func (d *Depth) Retrieve() (*Base, error) {
+func (d *Depth) Retrieve() (*Book, error) {
 	d.m.RLock()
 	defer d.m.RUnlock()
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return &Base{
-		Bids:                   d.bidTranches.retrieve(0),
-		Asks:                   d.askTranches.retrieve(0),
+	return &Book{
+		Bids:                   d.bidLevels.retrieve(0),
+		Asks:                   d.askLevels.retrieve(0),
 		Exchange:               d.exchange,
 		Asset:                  d.asset,
 		Pair:                   d.pair,
@@ -83,7 +81,7 @@ func (d *Depth) Retrieve() (*Base, error) {
 		LastUpdateID:           d.lastUpdateID,
 		PriceDuplication:       d.priceDuplication,
 		IsFundingRate:          d.isFundingRate,
-		VerifyOrderbook:        d.verifyOrderbook,
+		ValidateOrderbook:      d.validateOrderbook,
 		MaxDepth:               d.maxDepth,
 		ChecksumStringRequired: d.checksumStringRequired,
 		RestSnapshot:           d.restSnapshot,
@@ -92,50 +90,41 @@ func (d *Depth) Retrieve() (*Base, error) {
 }
 
 // LoadSnapshot flushes the bids and asks with a snapshot
-func (d *Depth) LoadSnapshot(bids, asks []Tranche, lastUpdateID int64, lastUpdated, lastPushed time.Time, updateByREST bool) error {
+func (d *Depth) LoadSnapshot(incoming *Book) error {
 	d.m.Lock()
 	defer d.m.Unlock()
-	if lastUpdated.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
+	if incoming.LastUpdated.IsZero() {
+		return fmt.Errorf("error loading orderbook snapshot: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
 	}
-	d.lastUpdateID = lastUpdateID
-	d.lastUpdated = lastUpdated
-	d.lastPushed = lastPushed
+	d.lastUpdateID = incoming.LastUpdateID
+	d.lastUpdated = incoming.LastUpdated
+	d.lastPushed = incoming.LastPushed
 	d.insertedAt = time.Now()
-	d.restSnapshot = updateByREST
-	d.bidTranches.load(bids)
-	d.askTranches.load(asks)
+	d.restSnapshot = incoming.RestSnapshot
+	d.bidLevels.load(incoming.Bids)
+	d.askLevels.load(incoming.Asks)
 	d.validationError = nil
 	d.Alert()
 	return nil
 }
 
-// invalidate flushes all values back to zero so as to not allow strategy
-// traversal on compromised data. NOTE: This requires locking.
-func (d *Depth) invalidate(withReason error) error {
-	d.lastUpdateID = 0
-	d.lastUpdated = time.Time{}
-	d.bidTranches.load(nil)
-	d.askTranches.load(nil)
-	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]",
-		d.exchange,
-		d.pair,
-		d.asset,
-		common.AppendError(ErrOrderbookInvalid, withReason))
-	d.Alert()
-	return d.validationError
-}
-
-// Invalidate flushes all values back to zero so as to not allow strategy
-// traversal on compromised data.
+// Invalidate initialises the Depth, with a error to explain why it was invalid
 func (d *Depth) Invalidate(withReason error) error {
 	d.m.Lock()
 	defer d.m.Unlock()
 	return d.invalidate(withReason)
+}
+
+// invalidate initialises the Depth, with a error to explain why it was invalid
+// NOTE: This requires locking.
+func (d *Depth) invalidate(withReason error) error {
+	d.lastUpdateID = 0
+	d.lastUpdated = time.Time{}
+	d.bidLevels.load(nil)
+	d.askLevels.load(nil)
+	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]", d.exchange, d.pair, d.asset, common.AppendError(ErrOrderbookInvalid, withReason))
+	d.Alert()
+	return d.validationError
 }
 
 // IsValid returns if the underlying book is valid.
@@ -145,140 +134,8 @@ func (d *Depth) IsValid() bool {
 	return d.validationError == nil
 }
 
-// UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
-// will trim total length of depth level to a specified supplied number
-func (d *Depth) UpdateBidAskByPrice(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		d.bidTranches.updateInsertByPrice(update.Bids, d.options.maxDepth)
-	}
-	if len(update.Asks) != 0 {
-		d.askTranches.updateInsertByPrice(update.Asks, d.options.maxDepth)
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// UpdateBidAskByID amends details by ID
-func (d *Depth) UpdateBidAskByID(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.updateByID(update.Bids)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.updateByID(update.Asks)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// DeleteBidAskByID deletes a price level by ID
-func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.deleteByID(update.Bids, bypassErr)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.deleteByID(update.Asks, bypassErr)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// InsertBidAskByID inserts new updates
-func (d *Depth) InsertBidAskByID(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.insertUpdates(update.Bids)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.insertUpdates(update.Asks)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
-// UpdateInsertByID updates or inserts by ID at current price level.
-func (d *Depth) UpdateInsertByID(update *Update) error {
-	d.m.Lock()
-	defer d.m.Unlock()
-	if update.UpdateTime.IsZero() {
-		return fmt.Errorf("%s %s %s %w",
-			d.exchange,
-			d.pair,
-			d.asset,
-			errLastUpdatedNotSet)
-	}
-	if len(update.Bids) != 0 {
-		err := d.bidTranches.updateInsertByID(update.Bids)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	if len(update.Asks) != 0 {
-		err := d.askTranches.updateInsertByID(update.Asks)
-		if err != nil {
-			return d.invalidate(err)
-		}
-	}
-	d.updateAndAlert(update)
-	return nil
-}
-
 // AssignOptions assigns the initial options for the depth instance
-func (d *Depth) AssignOptions(b *Base) {
+func (d *Depth) AssignOptions(b *Book) {
 	d.m.Lock()
 	d.options = options{
 		exchange:               b.Exchange,
@@ -288,7 +145,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		lastUpdateID:           b.LastUpdateID,
 		priceDuplication:       b.PriceDuplication,
 		isFundingRate:          b.IsFundingRate,
-		verifyOrderbook:        b.VerifyOrderbook,
+		validateOrderbook:      b.ValidateOrderbook,
 		restSnapshot:           b.RestSnapshot,
 		idAligned:              b.IDAlignment,
 		maxDepth:               b.MaxDepth,
@@ -331,11 +188,11 @@ func (d *Depth) IsFundingRate() bool {
 	return d.isFundingRate
 }
 
-// VerifyOrderbook returns if the verify orderbook option is set
-func (d *Depth) VerifyOrderbook() bool {
+// ValidateOrderbook returns if the verify orderbook option is set
+func (d *Depth) ValidateOrderbook() bool {
 	d.m.RLock()
 	defer d.m.RUnlock()
-	return d.verifyOrderbook
+	return d.validateOrderbook
 }
 
 // GetAskLength returns length of asks
@@ -345,7 +202,7 @@ func (d *Depth) GetAskLength() (int, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	return len(d.askTranches.Tranches), nil
+	return len(d.askLevels.Levels), nil
 }
 
 // GetBidLength returns length of bids
@@ -355,7 +212,7 @@ func (d *Depth) GetBidLength() (int, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	return len(d.bidTranches.Tranches), nil
+	return len(d.bidLevels.Levels), nil
 }
 
 // TotalBidAmounts returns the total amount of bids and the total orderbook
@@ -366,7 +223,7 @@ func (d *Depth) TotalBidAmounts() (liquidity, value float64, err error) {
 	if d.validationError != nil {
 		return 0, 0, d.validationError
 	}
-	liquidity, value = d.bidTranches.amount()
+	liquidity, value = d.bidLevels.amount()
 	return liquidity, value, nil
 }
 
@@ -378,7 +235,7 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 	if d.validationError != nil {
 		return 0, 0, d.validationError
 	}
-	liquidity, value = d.askTranches.amount()
+	liquidity, value = d.askLevels.amount()
 	return liquidity, value, nil
 }
 
@@ -401,7 +258,7 @@ func (d *Depth) HitTheBidsByNominalSlippage(maxSlippage, refPrice float64) (*Mov
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return d.bidTranches.hitBidsByNominalSlippage(maxSlippage, refPrice)
+	return d.bidLevels.hitBidsByNominalSlippage(maxSlippage, refPrice)
 }
 
 // HitTheBidsByNominalSlippageFromMid hits the bids by the required nominal
@@ -417,7 +274,7 @@ func (d *Depth) HitTheBidsByNominalSlippageFromMid(maxSlippage float64) (*Moveme
 	if err != nil {
 		return nil, err
 	}
-	return d.bidTranches.hitBidsByNominalSlippage(maxSlippage, mid)
+	return d.bidLevels.hitBidsByNominalSlippage(maxSlippage, mid)
 }
 
 // HitTheBidsByNominalSlippageFromBest hits the bids by the required nominal
@@ -429,11 +286,11 @@ func (d *Depth) HitTheBidsByNominalSlippageFromBest(maxSlippage float64) (*Movem
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	head, err := d.bidTranches.getHeadPriceNoLock()
+	head, err := d.bidLevels.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
-	return d.bidTranches.hitBidsByNominalSlippage(maxSlippage, head)
+	return d.bidLevels.hitBidsByNominalSlippage(maxSlippage, head)
 }
 
 // LiftTheAsksByNominalSlippage lifts the asks by the required nominal slippage
@@ -445,7 +302,7 @@ func (d *Depth) LiftTheAsksByNominalSlippage(maxSlippage, refPrice float64) (*Mo
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return d.askTranches.liftAsksByNominalSlippage(maxSlippage, refPrice)
+	return d.askLevels.liftAsksByNominalSlippage(maxSlippage, refPrice)
 }
 
 // LiftTheAsksByNominalSlippageFromMid lifts the asks by the required nominal
@@ -461,7 +318,7 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromMid(maxSlippage float64) (*Movem
 	if err != nil {
 		return nil, err
 	}
-	return d.askTranches.liftAsksByNominalSlippage(maxSlippage, mid)
+	return d.askLevels.liftAsksByNominalSlippage(maxSlippage, mid)
 }
 
 // LiftTheAsksByNominalSlippageFromBest lifts the asks by the required nominal
@@ -473,11 +330,11 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromBest(maxSlippage float64) (*Move
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	head, err := d.askTranches.getHeadPriceNoLock()
+	head, err := d.askLevels.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
-	return d.askTranches.liftAsksByNominalSlippage(maxSlippage, head)
+	return d.askLevels.liftAsksByNominalSlippage(maxSlippage, head)
 }
 
 // HitTheBidsByImpactSlippage hits the bids by the required impact slippage
@@ -489,7 +346,7 @@ func (d *Depth) HitTheBidsByImpactSlippage(maxSlippage, refPrice float64) (*Move
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return d.bidTranches.hitBidsByImpactSlippage(maxSlippage, refPrice)
+	return d.bidLevels.hitBidsByImpactSlippage(maxSlippage, refPrice)
 }
 
 // HitTheBidsByImpactSlippageFromMid hits the bids by the required impact
@@ -505,7 +362,7 @@ func (d *Depth) HitTheBidsByImpactSlippageFromMid(maxSlippage float64) (*Movemen
 	if err != nil {
 		return nil, err
 	}
-	return d.bidTranches.hitBidsByImpactSlippage(maxSlippage, mid)
+	return d.bidLevels.hitBidsByImpactSlippage(maxSlippage, mid)
 }
 
 // HitTheBidsByImpactSlippageFromBest hits the bids by the required impact
@@ -517,11 +374,11 @@ func (d *Depth) HitTheBidsByImpactSlippageFromBest(maxSlippage float64) (*Moveme
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	head, err := d.bidTranches.getHeadPriceNoLock()
+	head, err := d.bidLevels.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
-	return d.bidTranches.hitBidsByImpactSlippage(maxSlippage, head)
+	return d.bidLevels.hitBidsByImpactSlippage(maxSlippage, head)
 }
 
 // LiftTheAsksByImpactSlippage lifts the asks by the required impact slippage
@@ -533,7 +390,7 @@ func (d *Depth) LiftTheAsksByImpactSlippage(maxSlippage, refPrice float64) (*Mov
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return d.askTranches.liftAsksByImpactSlippage(maxSlippage, refPrice)
+	return d.askLevels.liftAsksByImpactSlippage(maxSlippage, refPrice)
 }
 
 // LiftTheAsksByImpactSlippageFromMid lifts the asks by the required impact
@@ -549,7 +406,7 @@ func (d *Depth) LiftTheAsksByImpactSlippageFromMid(maxSlippage float64) (*Moveme
 	if err != nil {
 		return nil, err
 	}
-	return d.askTranches.liftAsksByImpactSlippage(maxSlippage, mid)
+	return d.askLevels.liftAsksByImpactSlippage(maxSlippage, mid)
 }
 
 // LiftTheAsksByImpactSlippageFromBest lifts the asks by the required impact
@@ -561,11 +418,11 @@ func (d *Depth) LiftTheAsksByImpactSlippageFromBest(maxSlippage float64) (*Movem
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	head, err := d.askTranches.getHeadPriceNoLock()
+	head, err := d.askLevels.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
-	return d.askTranches.liftAsksByImpactSlippage(maxSlippage, head)
+	return d.askLevels.liftAsksByImpactSlippage(maxSlippage, head)
 }
 
 // HitTheBids derives full orderbook slippage information from reference price
@@ -578,9 +435,9 @@ func (d *Depth) HitTheBids(amount, refPrice float64, purchase bool) (*Movement, 
 		return nil, d.validationError
 	}
 	if purchase {
-		return d.bidTranches.getMovementByQuotation(amount, refPrice, false)
+		return d.bidLevels.getMovementByQuotation(amount, refPrice, false)
 	}
-	return d.bidTranches.getMovementByBase(amount, refPrice, false)
+	return d.bidLevels.getMovementByBase(amount, refPrice, false)
 }
 
 // HitTheBidsFromMid derives full orderbook slippage information from mid price
@@ -597,9 +454,9 @@ func (d *Depth) HitTheBidsFromMid(amount float64, purchase bool) (*Movement, err
 		return nil, err
 	}
 	if purchase {
-		return d.bidTranches.getMovementByQuotation(amount, mid, false)
+		return d.bidLevels.getMovementByQuotation(amount, mid, false)
 	}
-	return d.bidTranches.getMovementByBase(amount, mid, false)
+	return d.bidLevels.getMovementByBase(amount, mid, false)
 }
 
 // HitTheBidsFromBest derives full orderbook slippage information from best bid
@@ -611,14 +468,14 @@ func (d *Depth) HitTheBidsFromBest(amount float64, purchase bool) (*Movement, er
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	head, err := d.bidTranches.getHeadPriceNoLock()
+	head, err := d.bidLevels.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
 	if purchase {
-		return d.bidTranches.getMovementByQuotation(amount, head, false)
+		return d.bidLevels.getMovementByQuotation(amount, head, false)
 	}
-	return d.bidTranches.getMovementByBase(amount, head, false)
+	return d.bidLevels.getMovementByBase(amount, head, false)
 }
 
 // LiftTheAsks derives full orderbook slippage information from reference price
@@ -631,9 +488,9 @@ func (d *Depth) LiftTheAsks(amount, refPrice float64, purchase bool) (*Movement,
 		return nil, d.validationError
 	}
 	if purchase {
-		return d.askTranches.getMovementByBase(amount, refPrice, true)
+		return d.askLevels.getMovementByBase(amount, refPrice, true)
 	}
-	return d.askTranches.getMovementByQuotation(amount, refPrice, true)
+	return d.askLevels.getMovementByQuotation(amount, refPrice, true)
 }
 
 // LiftTheAsksFromMid derives full orderbook slippage information from mid price
@@ -650,9 +507,9 @@ func (d *Depth) LiftTheAsksFromMid(amount float64, purchase bool) (*Movement, er
 		return nil, err
 	}
 	if purchase {
-		return d.askTranches.getMovementByBase(amount, mid, true)
+		return d.askLevels.getMovementByBase(amount, mid, true)
 	}
-	return d.askTranches.getMovementByQuotation(amount, mid, true)
+	return d.askLevels.getMovementByQuotation(amount, mid, true)
 }
 
 // LiftTheAsksFromBest derives full orderbook slippage information from best ask
@@ -664,14 +521,14 @@ func (d *Depth) LiftTheAsksFromBest(amount float64, purchase bool) (*Movement, e
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	head, err := d.askTranches.getHeadPriceNoLock()
+	head, err := d.askLevels.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
 	if purchase {
-		return d.askTranches.getMovementByBase(amount, head, true)
+		return d.askLevels.getMovementByBase(amount, head, true)
 	}
-	return d.askTranches.getMovementByQuotation(amount, head, true)
+	return d.askLevels.getMovementByQuotation(amount, head, true)
 }
 
 // GetMidPrice returns the mid price between the ask and bid spread
@@ -686,11 +543,11 @@ func (d *Depth) GetMidPrice() (float64, error) {
 
 // getMidPriceNoLock is an unprotected helper that gets mid price
 func (d *Depth) getMidPriceNoLock() (float64, error) {
-	bidHead, err := d.bidTranches.getHeadPriceNoLock()
+	bidHead, err := d.bidLevels.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
 	}
-	askHead, err := d.askTranches.getHeadPriceNoLock()
+	askHead, err := d.askLevels.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
 	}
@@ -704,7 +561,7 @@ func (d *Depth) GetBestBid() (float64, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	return d.bidTranches.getHeadPriceNoLock()
+	return d.bidLevels.getHeadPriceNoLock()
 }
 
 // GetBestAsk returns the best ask price
@@ -714,7 +571,7 @@ func (d *Depth) GetBestAsk() (float64, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	return d.askTranches.getHeadPriceNoLock()
+	return d.askLevels.getHeadPriceNoLock()
 }
 
 // GetSpreadAmount returns the spread as a quotation amount
@@ -724,11 +581,11 @@ func (d *Depth) GetSpreadAmount() (float64, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	askHead, err := d.askTranches.getHeadPriceNoLock()
+	askHead, err := d.askLevels.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
 	}
-	bidHead, err := d.bidTranches.getHeadPriceNoLock()
+	bidHead, err := d.bidLevels.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
 	}
@@ -742,11 +599,11 @@ func (d *Depth) GetSpreadPercentage() (float64, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	askHead, err := d.askTranches.getHeadPriceNoLock()
+	askHead, err := d.askLevels.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
 	}
-	bidHead, err := d.bidTranches.getHeadPriceNoLock()
+	bidHead, err := d.bidLevels.getHeadPriceNoLock()
 	if err != nil {
 		return 0, err
 	}
@@ -760,22 +617,22 @@ func (d *Depth) GetImbalance() (float64, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	askVolume, err := d.askTranches.getHeadVolumeNoLock()
+	askVolume, err := d.askLevels.getHeadVolumeNoLock()
 	if err != nil {
 		return 0, err
 	}
-	bidVolume, err := d.bidTranches.getHeadVolumeNoLock()
+	bidVolume, err := d.bidLevels.getHeadVolumeNoLock()
 	if err != nil {
 		return 0, err
 	}
 	return (bidVolume - askVolume) / (bidVolume + askVolume), nil
 }
 
-// GetTranches returns the desired tranche for the required depth count. If
+// GetLevels returns the desired level for the required depth count. If
 // count is 0, it will return the entire orderbook. Count == 1 will retrieve the
 // best bid and ask. If the required count exceeds the orderbook depth, it will
 // return the entire orderbook.
-func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
+func (d *Depth) GetLevels(count int) (ask, bid []Level, err error) {
 	if count < 0 {
 		return nil, nil, errInvalidBookDepth
 	}
@@ -784,7 +641,7 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 	if d.validationError != nil {
 		return nil, nil, d.validationError
 	}
-	return d.askTranches.retrieve(count), d.bidTranches.retrieve(count), nil
+	return d.askLevels.retrieve(count), d.bidLevels.retrieve(count), nil
 }
 
 // Pair returns the pair associated with the depth

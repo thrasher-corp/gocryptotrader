@@ -341,7 +341,7 @@ func (p *Poloniex) UpdateTicker(ctx context.Context, currencyPair currency.Pair,
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -353,11 +353,11 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        p.Name,
-		Pair:            pair,
-		Asset:           assetType,
-		VerifyOrderbook: p.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          p.Name,
+		Pair:              pair,
+		Asset:             assetType,
+		ValidateOrderbook: p.ValidateOrderbook,
 	}
 	switch assetType {
 	case asset.Spot:
@@ -366,12 +366,12 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids)/2)
+		book.Bids = make(orderbook.Levels, len(orderbookNew.Bids)/2)
 		for y := range book.Bids {
 			book.Bids[y].Price = orderbookNew.Bids[y*2].Float64()
 			book.Bids[y].Amount = orderbookNew.Bids[y*2+1].Float64()
 		}
-		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks)/2)
+		book.Asks = make(orderbook.Levels, len(orderbookNew.Asks)/2)
 		for y := range book.Asks {
 			book.Asks[y].Price = orderbookNew.Asks[y*2].Float64()
 			book.Asks[y].Amount = orderbookNew.Asks[y*2+1].Float64()
@@ -382,12 +382,12 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
 		for y := range book.Bids {
 			book.Bids[y].Price = orderbookNew.Bids[y][0].Float64()
 			book.Bids[y].Amount = orderbookNew.Bids[y][1].Float64()
 		}
-		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
 		for y := range book.Asks {
 			book.Asks[y].Price = orderbookNew.Asks[y][0].Float64()
 			book.Asks[y].Amount = orderbookNew.Asks[y][1].Float64()

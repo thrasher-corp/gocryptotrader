@@ -119,7 +119,7 @@ type ContractSizeData struct {
 // CurrencyData stores data for currencies
 type CurrencyData struct {
 	CoinType             string  `json:"coin_type"`
-	Currency             string  `json:"currency"`
+	Currency             string  `json:"currency"` // TODO: change to currency.Code
 	CurrencyLong         string  `json:"currency_long"`
 	FeePrecision         int64   `json:"fee_precision"`
 	MinConfirmations     int64   `json:"min_confirmations"`

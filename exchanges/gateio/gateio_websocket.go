@@ -84,7 +84,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn websocket.Connection) e
 	if err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &gws.Dialer{}, http.Header{})
+	err = conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -358,14 +358,14 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, lastPushed time.Time) e
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:    g.Name,
 		Pair:        data.Pair,
 		Asset:       asset.Spot,
 		LastUpdated: data.UpdateTime.Time(),
 		LastPushed:  lastPushed,
-		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Bids:        []orderbook.Level{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:        []orderbook.Level{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
@@ -374,12 +374,12 @@ func (g *Gateio) processOrderbookUpdate(ctx context.Context, incoming []byte, la
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
 		asks[x].Amount = data.Asks[x][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
@@ -402,12 +402,12 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, lastPushed time.Time)
 		return err
 	}
 
-	asks := make([]orderbook.Tranche, len(data.Asks))
+	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
 		asks[x].Amount = data.Asks[x][1].Float64()
 	}
-	bids := make([]orderbook.Tranche, len(data.Bids))
+	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
 		bids[x].Amount = data.Bids[x][1].Float64()
@@ -415,7 +415,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, lastPushed time.Time)
 
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := g.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			if err := g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    g.Name,
 				Pair:        data.CurrencyPair,
 				Asset:       a,

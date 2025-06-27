@@ -203,18 +203,18 @@ func (e *EXMO) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	callingBook := &orderbook.Base{
-		Exchange:        e.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: e.CanVerifyOrderbook,
+	callingBook := &orderbook.Book{
+		Exchange:          e.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
@@ -232,11 +232,11 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	for i := range enabledPairs {
-		book := &orderbook.Base{
-			Exchange:        e.Name,
-			Pair:            enabledPairs[i],
-			Asset:           assetType,
-			VerifyOrderbook: e.CanVerifyOrderbook,
+		book := &orderbook.Book{
+			Exchange:          e.Name,
+			Pair:              enabledPairs[i],
+			Asset:             assetType,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}
 
 		curr, err := e.FormatExchangeCurrency(enabledPairs[i], assetType)
@@ -249,13 +249,13 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 			continue
 		}
 
-		book.Asks = make(orderbook.Tranches, len(data.Asks))
+		book.Asks = make(orderbook.Levels, len(data.Asks))
 		for y := range data.Asks {
 			book.Asks[y].Price = data.Asks[y][0].Float64()
 			book.Asks[y].Amount = data.Asks[y][1].Float64()
 		}
 
-		book.Bids = make(orderbook.Tranches, len(data.Bids))
+		book.Bids = make(orderbook.Levels, len(data.Bids))
 		for y := range data.Bids {
 			book.Bids[y].Price = data.Bids[y][0].Float64()
 			book.Bids[y].Amount = data.Bids[y][1].Float64()

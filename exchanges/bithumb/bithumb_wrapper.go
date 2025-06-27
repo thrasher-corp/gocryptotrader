@@ -256,18 +256,18 @@ func (b *Bithumb) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	book := &orderbook.Base{
-		Exchange:        b.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: b.CanVerifyOrderbook,
+	book := &orderbook.Book{
+		Exchange:          b.Name,
+		Pair:              p,
+		Asset:             assetType,
+		ValidateOrderbook: b.ValidateOrderbook,
 	}
 	curr := p.Base.String()
 
@@ -276,17 +276,17 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Data.Bids))
+	book.Bids = make(orderbook.Levels, len(orderbookNew.Data.Bids))
 	for i := range orderbookNew.Data.Bids {
-		book.Bids[i] = orderbook.Tranche{
+		book.Bids[i] = orderbook.Level{
 			Amount: orderbookNew.Data.Bids[i].Quantity,
 			Price:  orderbookNew.Data.Bids[i].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Data.Asks))
+	book.Asks = make(orderbook.Levels, len(orderbookNew.Data.Asks))
 	for i := range orderbookNew.Data.Asks {
-		book.Asks[i] = orderbook.Tranche{
+		book.Asks[i] = orderbook.Level{
 			Amount: orderbookNew.Data.Asks[i].Quantity,
 			Price:  orderbookNew.Data.Asks[i].Price,
 		}
