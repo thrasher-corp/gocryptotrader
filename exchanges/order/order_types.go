@@ -86,8 +86,9 @@ type Submit struct {
 	RetrieveFees bool
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
-	RetrieveFeeDelay    time.Duration
-	RiskManagementModes RiskManagementModes
+	RetrieveFeeDelay time.Duration
+	TakeProfit       RiskManagement
+	StopLoss         RiskManagement
 
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
@@ -167,11 +168,13 @@ type Modify struct {
 	Amount       float64
 	TriggerPrice float64
 
+	TriggerLimitPrice float64
 	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
 	// https://bybit-exchange.github.io/docs/v5/order/create-order
 	TriggerPriceType PriceType
 
-	RiskManagementModes RiskManagementModes
+	StopLoss   RiskManagement
+	TakeProfit RiskManagement
 }
 
 // ModifyResponse is an order modifying return type
@@ -468,18 +471,6 @@ type RiskManagement struct {
 	LimitPrice float64
 	// OrderType order type when stop-loss or take-profit risk management method is triggered.
 	OrderType Type
-}
-
-// RiskManagementModes represents take-profit and stop-loss risk management methods.
-type RiskManagementModes struct {
-	// Mode take-profit/stop-loss mode
-	Mode       string
-	TakeProfit RiskManagement
-	StopLoss   RiskManagement
-
-	// StopEntry stop: 'entry': Triggers when the last trade price changes to a value at or above the stopPrice.
-	// see: https://www.kucoin.com/docs/rest/spot-trading/stop-order/introduction
-	StopEntry RiskManagement
 }
 
 // PriceType enforces a standard for price types used for take-profit and stop-loss trigger types

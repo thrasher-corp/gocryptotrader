@@ -1050,9 +1050,9 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		})
 	case orderOCO:
 		switch {
-		case s.RiskManagementModes.TakeProfit.Price <= 0:
+		case s.TakeProfit.Price <= 0:
 			return nil, fmt.Errorf("%w, take profit price is required", order.ErrPriceBelowMin)
-		case s.RiskManagementModes.StopLoss.Price <= 0:
+		case s.StopLoss.Price <= 0:
 			return nil, fmt.Errorf("%w, stop loss price is required", order.ErrPriceBelowMin)
 		}
 		result, err = ok.PlaceAlgoOrder(ctx, &AlgoOrderParams{
@@ -1064,12 +1064,12 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 			Size:         s.Amount,
 			ReduceOnly:   s.ReduceOnly,
 
-			TakeProfitTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
-			TakeProfitOrderPrice:       s.RiskManagementModes.TakeProfit.LimitPrice,
+			TakeProfitTriggerPrice:     s.TakeProfit.Price,
+			TakeProfitOrderPrice:       s.TakeProfit.LimitPrice,
 			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
-			StopLossTriggerPrice:     s.RiskManagementModes.TakeProfit.Price,
-			StopLossOrderPrice:       s.RiskManagementModes.StopLoss.LimitPrice,
+			StopLossTriggerPrice:     s.TakeProfit.Price,
+			StopLossOrderPrice:       s.StopLoss.LimitPrice,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
 	default:
@@ -1162,15 +1162,15 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 			return nil, fmt.Errorf("%w, trigger price required", order.ErrPriceBelowMin)
 		}
 		var postTriggerTPSLOrders []SubTPSLParams
-		if action.RiskManagementModes.StopLoss.Price > 0 && action.RiskManagementModes.TakeProfit.Price > 0 {
+		if action.StopLoss.Price > 0 && action.TakeProfit.Price > 0 {
 			postTriggerTPSLOrders = []SubTPSLParams{
 				{
-					NewTakeProfitTriggerPrice:     action.RiskManagementModes.TakeProfit.Price,
-					NewTakeProfitOrderPrice:       action.RiskManagementModes.TakeProfit.LimitPrice,
-					NewStopLossTriggerPrice:       action.RiskManagementModes.StopLoss.Price,
-					NewStopLossOrderPrice:         action.RiskManagementModes.StopLoss.Price,
-					NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
-					NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
+					NewTakeProfitTriggerPrice:     action.TakeProfit.Price,
+					NewTakeProfitOrderPrice:       action.TakeProfit.LimitPrice,
+					NewStopLossTriggerPrice:       action.StopLoss.Price,
+					NewStopLossOrderPrice:         action.StopLoss.Price,
+					NewTakeProfitTriggerPriceType: priceTypeString(action.TakeProfit.TriggerPriceType),
+					NewStopLossTriggerPriceType:   priceTypeString(action.StopLoss.TriggerPriceType),
 				},
 			}
 		}
@@ -1192,11 +1192,11 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		}
 	case order.OCO:
 		switch {
-		case action.RiskManagementModes.TakeProfit.Price <= 0 &&
-			action.RiskManagementModes.TakeProfit.LimitPrice <= 0:
+		case action.TakeProfit.Price <= 0 &&
+			action.TakeProfit.LimitPrice <= 0:
 			return nil, fmt.Errorf("%w, either take profit trigger price or order price is required", order.ErrPriceBelowMin)
-		case action.RiskManagementModes.StopLoss.Price <= 0 &&
-			action.RiskManagementModes.StopLoss.LimitPrice <= 0:
+		case action.StopLoss.Price <= 0 &&
+			action.StopLoss.LimitPrice <= 0:
 			return nil, fmt.Errorf("%w, either stop loss trigger price or order price is required", order.ErrPriceBelowMin)
 		}
 		_, err = ok.AmendAlgoOrder(ctx, &AmendAlgoOrderParam{
@@ -1205,14 +1205,14 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 			ClientSuppliedAlgoOrderID: action.ClientOrderID,
 			NewSize:                   action.Amount,
 
-			NewTakeProfitTriggerPrice: action.RiskManagementModes.TakeProfit.Price,
-			NewTakeProfitOrderPrice:   action.RiskManagementModes.TakeProfit.LimitPrice,
+			NewTakeProfitTriggerPrice: action.TakeProfit.Price,
+			NewTakeProfitOrderPrice:   action.TakeProfit.LimitPrice,
 
-			NewStopLossTriggerPrice: action.RiskManagementModes.StopLoss.Price,
-			NewStopLossOrderPrice:   action.RiskManagementModes.StopEntry.LimitPrice,
+			NewStopLossTriggerPrice: action.StopLoss.Price,
+			NewStopLossOrderPrice:   action.StopLoss.LimitPrice,
 
-			NewTakeProfitTriggerPriceType: priceTypeString(action.RiskManagementModes.TakeProfit.TriggerPriceType),
-			NewStopLossTriggerPriceType:   priceTypeString(action.RiskManagementModes.StopLoss.TriggerPriceType),
+			NewTakeProfitTriggerPriceType: priceTypeString(action.TakeProfit.TriggerPriceType),
+			NewStopLossTriggerPriceType:   priceTypeString(action.StopLoss.TriggerPriceType),
 		})
 		if err != nil {
 			return nil, err

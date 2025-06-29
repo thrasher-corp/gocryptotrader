@@ -3918,7 +3918,25 @@
             "format": "double"
           },
           {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "side",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
             "name": "timeInForce",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clientOrderId",
             "in": "query",
             "required": false,
             "type": "string"
@@ -3931,7 +3949,54 @@
             "format": "double"
           },
           {
+            "name": "triggerLimitPrice",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
             "name": "triggerPriceType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "takeProfit.price",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "takeProfit.limitPrice",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "takeProfit.priceType",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "stopLoss.price",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "stopLoss.limitPrice",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          },
+          {
+            "name": "stopLoss.priceType",
             "in": "query",
             "required": false,
             "type": "string"
@@ -5020,7 +5085,7 @@
         "side": {
           "type": "string"
         },
-        "orderType": {
+        "type": {
           "type": "string"
         },
         "marginType": {

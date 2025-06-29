@@ -292,11 +292,9 @@ func TestModifyOrder(t *testing.T) {
 		Price:        1234,
 		Amount:       0.15,
 		TriggerPrice: 1145,
-		RiskManagementModes: order.RiskManagementModes{
-			StopLoss: order.RiskManagement{
-				Price: 0,
-			},
-		},
+		// StopLoss: order.RiskManagement{
+		// 	Price: 0,
+		// },
 	})
 	if err != nil {
 		t.Error(err)

@@ -782,8 +782,8 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			WhetherToBorrow: s.AssetType == asset.Margin,
 			ReduceOnly:      s.ReduceOnly,
 			OrderFilter: func() string {
-				if s.RiskManagementModes.TakeProfit.Price != 0 || s.RiskManagementModes.TakeProfit.LimitPrice != 0 ||
-					s.RiskManagementModes.StopLoss.Price != 0 || s.RiskManagementModes.StopLoss.LimitPrice != 0 {
+				if s.TakeProfit.Price != 0 || s.TakeProfit.LimitPrice != 0 ||
+					s.StopLoss.Price != 0 || s.StopLoss.LimitPrice != 0 {
 					return ""
 				} else if s.TriggerPrice != 0 {
 					return "tpslOrder"
@@ -795,17 +795,17 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if arg.TriggerPrice != 0 {
 			arg.TriggerPriceType = s.TriggerPriceType.String()
 		}
-		if s.RiskManagementModes.TakeProfit.Price != 0 {
-			arg.TakeProfitPrice = s.RiskManagementModes.TakeProfit.Price
-			arg.TakeProfitTriggerBy = s.RiskManagementModes.TakeProfit.TriggerPriceType.String()
-			arg.TpOrderType = getOrderTypeString(s.RiskManagementModes.TakeProfit.OrderType)
-			arg.TpLimitPrice = s.RiskManagementModes.TakeProfit.LimitPrice
+		if s.TakeProfit.Price != 0 {
+			arg.TakeProfitPrice = s.TakeProfit.Price
+			arg.TakeProfitTriggerBy = s.TakeProfit.TriggerPriceType.String()
+			arg.TpOrderType = getOrderTypeString(s.TakeProfit.OrderType)
+			arg.TpLimitPrice = s.TakeProfit.LimitPrice
 		}
-		if s.RiskManagementModes.StopLoss.Price != 0 {
-			arg.StopLossPrice = s.RiskManagementModes.StopLoss.Price
-			arg.StopLossTriggerBy = s.RiskManagementModes.StopLoss.TriggerPriceType.String()
-			arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
-			arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
+		if s.StopLoss.Price != 0 {
+			arg.StopLossPrice = s.StopLoss.Price
+			arg.StopLossTriggerBy = s.StopLoss.TriggerPriceType.String()
+			arg.SlOrderType = getOrderTypeString(s.StopLoss.OrderType)
+			arg.SlLimitPrice = s.StopLoss.LimitPrice
 		}
 		response, err = by.PlaceOrder(ctx, arg)
 		if err != nil {
@@ -859,12 +859,12 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 			Price:                action.Price,
 			TriggerPrice:         action.TriggerPrice,
 			TriggerPriceType:     action.TriggerPriceType.String(),
-			TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
-			TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
-			TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
-			StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
-			StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
-			StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
+			TakeProfitPrice:      action.TakeProfit.Price,
+			TakeProfitTriggerBy:  getOrderTypeString(action.TakeProfit.OrderType),
+			TakeProfitLimitPrice: action.TakeProfit.LimitPrice,
+			StopLossPrice:        action.StopLoss.Price,
+			StopLossTriggerBy:    action.StopLoss.TriggerPriceType.String(),
+			StopLossLimitPrice:   action.StopLoss.LimitPrice,
 		}
 		result, err = by.AmendOrder(ctx, arg)
 		if err != nil {

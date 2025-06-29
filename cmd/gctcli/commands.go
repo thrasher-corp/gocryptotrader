@@ -1497,36 +1497,34 @@ func submitOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var currencyPair string
-	var orderSide string
-	var orderType string
-	var amount float64
-	var price float64
-	var leverage float64
-	var clientID string
-	var clientOrderID string
-	var assetType string
-	var marginType string
-	var timeInForce string
-	var quoteAmount float64
+	var (
+		exchangeName      string
+		currencyPair      string
+		orderSide         string
+		orderType         string
+		amount            float64
+		price             float64
+		leverage          float64
+		clientID          string
+		clientOrderID     string
+		assetType         string
+		marginType        string
+		timeInForce       string
+		quoteAmount       float64
+		triggerPrice      float64
+		triggerLimitPrice float64
+		triggerPriceType  string
+		trackingMode      string
+		trackingValue     float64
+		tpPrice           float64
+		tpLimitPrice      float64
+		tpPriceType       string
+		slPrice           float64
+		slLimitPrice      float64
+		slPriceType       string
 
-	var triggerPrice float64
-	var triggerLimitPrice float64
-	var triggerPriceType string
-
-	var trackingMode string
-	var trackingValue float64
-
-	var tpPrice float64
-	var tpLimitPrice float64
-	var tpPriceType string
-
-	var slPrice float64
-	var slLimitPrice float64
-	var slPriceType string
-
-	var hidden, iceberg, autoBorrow, reduceOnly bool
+		hidden, iceberg, autoBorrow, reduceOnly bool
+	)
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -1826,12 +1824,12 @@ func submitOrder(c *cli.Context) error {
 			LimitPrice: tpLimitPrice,
 			PriceType:  tpPriceType,
 		},
-		TrackingMode:  trackingMode,
-		TrackingValue: trackingValue,
 		Hidden:        hidden,
 		Iceberg:       iceberg,
-		AutoBorrow:    autoBorrow,
 		ReduceOnly:    reduceOnly,
+		AutoBorrow:    autoBorrow,
+		TrackingMode:  trackingMode,
+		TrackingValue: trackingValue,
 	})
 	if err != nil {
 		return err
@@ -1976,6 +1974,35 @@ var cancelOrderCommand = &cli.Command{
 			Name:  "side",
 			Usage: "the order side",
 		},
+		&cli.StringFlag{
+			Name:  "type",
+			Usage: "the order type (MARKET OR LIMIT)",
+		},
+		&cli.Float64Flag{
+			Name:  "amount",
+			Usage: "the amount for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "price",
+			Usage: "the price for the order",
+		},
+		&cli.StringFlag{
+			Name:  "client_order_id",
+			Usage: "the optional client order ID",
+		},
+		&cli.StringFlag{
+			Name:     "margin_type",
+			Usage:    "the optional margin type",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:  "time_in_force",
+			Usage: "the optional time-in-force for the order",
+		},
+		&cli.StringFlag{
+			Name:  "client_id",
+			Usage: "the optional client id",
+		},
 	},
 }
 
@@ -1984,12 +2011,19 @@ func cancelOrder(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var accountID string
-	var orderID string
-	var currencyPair string
-	var assetType string
-	var orderSide string
+	var (
+		exchangeName  string
+		accountID     string
+		orderID       string
+		currencyPair  string
+		assetType     string
+		orderSide     string
+		orderType     string
+		timeInForce   string
+		clientOrderID string
+		clientID      string
+		marginType    string
+	)
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -2036,6 +2070,36 @@ func cancelOrder(c *cli.Context) error {
 		orderSide = c.Args().Get(5)
 	}
 
+	if c.IsSet("type") {
+		orderType = c.String("type")
+	} else {
+		orderType = c.Args().Get(3)
+	}
+
+	if c.IsSet("time_in_force") {
+		timeInForce = c.String("time_in_force")
+	} else {
+		timeInForce = c.Args().Get(10)
+	}
+
+	if c.IsSet("client_id") {
+		clientID = c.String("client_id")
+	} else {
+		clientID = c.Args().Get(12)
+	}
+
+	if c.IsSet("client_order_id") {
+		clientOrderID = c.String("client_order_id")
+	} else {
+		clientOrderID = c.Args().Get(8)
+	}
+
+	if c.IsSet("margin_type") {
+		marginType = c.String("margintype")
+	} else {
+		marginType = c.Args().Get(9)
+	}
+
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
 	if currencyPair != "" {
@@ -2065,8 +2129,13 @@ func cancelOrder(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		AssetType: assetType,
-		Side:      orderSide,
+		AssetType:     assetType,
+		Side:          orderSide,
+		Type:          orderType,
+		ClientOrderId: clientOrderID,
+		ClientId:      clientID,
+		MarginType:    marginType,
+		TimeInForce:   timeInForce,
 	})
 	if err != nil {
 		return err
@@ -2241,6 +2310,14 @@ var modifyOrderCommand = &cli.Command{
 			Name:  "order_id",
 			Usage: "id of the order to be modified",
 		},
+		&cli.StringFlag{
+			Name:  "type",
+			Usage: "the order type (MARKET OR LIMIT)",
+		},
+		&cli.StringFlag{
+			Name:  "side",
+			Usage: "the order side of the order to be modified",
+		},
 		&cli.Float64Flag{
 			Name:  "price",
 			Usage: "new order price",
@@ -2248,6 +2325,50 @@ var modifyOrderCommand = &cli.Command{
 		&cli.Float64Flag{
 			Name:  "amount",
 			Usage: "new order amount",
+		},
+		&cli.StringFlag{
+			Name:  "client_order_id",
+			Usage: "client supplied id of the order to be modified",
+		},
+		&cli.StringFlag{
+			Name:  "time_in_force",
+			Usage: "the optional time-in-force for the order to be modified",
+		},
+		&cli.Float64Flag{
+			Name:  "trigger_price",
+			Usage: "the optional trigger-price for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "trigger_limit_price",
+			Usage: "the optional trigger-limit-type for the order",
+		},
+		&cli.StringFlag{
+			Name:  "trigger_price_type",
+			Usage: "the optional trigger-price-type for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "tp_price",
+			Usage: "the optional take-profit price for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "tp_limit_price",
+			Usage: "the optional take-profit limit price for the order",
+		},
+		&cli.StringFlag{
+			Name:  "tp_price_type",
+			Usage: "the optional take-profit price type for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "sl_price",
+			Usage: "the optional stop-loss price for the order",
+		},
+		&cli.Float64Flag{
+			Name:  "sl_limit_price",
+			Usage: "the optional stop-loss limit price for the order",
+		},
+		&cli.StringFlag{
+			Name:  "sl_price_type",
+			Usage: "the optional stop-loss price type for the order",
 		},
 	},
 }
@@ -2284,10 +2405,25 @@ func modifyOrder(c *cli.Context) error {
 	}
 
 	// Parse positional arguments.
-	var exchangeName string
-	var orderID string
-	var currencyPair string
-	var assetType string
+	var (
+		exchangeName      string
+		orderID           string
+		currencyPair      string
+		assetType         string
+		clientOrderID     string
+		timeInForce       string
+		triggerPrice      float64
+		triggerLimitPrice float64
+		triggerPriceType  string
+		tpPrice           float64
+		tpLimitPrice      float64
+		tpPriceType       string
+		slPrice           float64
+		slLimitPrice      float64
+		slPriceType       string
+		orderSide         string
+		orderType         string
+	)
 
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -2314,6 +2450,12 @@ func modifyOrder(c *cli.Context) error {
 		return errInvalidPair
 	}
 
+	if c.IsSet("type") {
+		orderType = c.String("type")
+	} else {
+		orderType = c.Args().Get(3)
+	}
+
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	if err != nil {
 		return err
@@ -2335,6 +2477,97 @@ func modifyOrder(c *cli.Context) error {
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
 	}
+
+	if c.IsSet("client_order_id") {
+		clientOrderID = c.String("client_order_id")
+	} else {
+		clientOrderID = c.Args().Get(8)
+	}
+
+	if c.IsSet("time_in_force") {
+		timeInForce = c.String("time_in_force")
+	} else {
+		timeInForce = c.Args().Get(10)
+	}
+
+	if c.IsSet("trigger_price") {
+		triggerPrice = c.Float64("trigger_price")
+	} else if c.Args().Get(13) != "" {
+		var err error
+		triggerPrice, err = strconv.ParseFloat(c.Args().Get(13), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("trigger_limit_price") {
+		triggerLimitPrice = c.Float64("trigger_limit_price")
+	} else if c.Args().Get(14) != "" {
+		var err error
+		triggerLimitPrice, err = strconv.ParseFloat(c.Args().Get(14), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("trigger_price_type") {
+		triggerPriceType = c.String("trigger_price_type")
+	} else {
+		triggerPriceType = c.Args().Get(15)
+	}
+
+	if c.IsSet("tp_price") {
+		tpPrice = c.Float64("sl_price")
+	} else if c.Args().Get(16) != "" {
+		var err error
+		tpPrice, err = strconv.ParseFloat(c.Args().Get(16), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("tp_limit_price") {
+		tpLimitPrice = c.Float64("tp_limit_price")
+	} else if c.Args().Get(17) != "" {
+		var err error
+		tpLimitPrice, err = strconv.ParseFloat(c.Args().Get(17), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("tp_price_type") {
+		tpPriceType = c.String("tp_price_type")
+	} else {
+		tpPriceType = c.Args().Get(18)
+	}
+
+	if c.IsSet("sl_price") {
+		slPrice = c.Float64("sl_price")
+	} else if c.Args().Get(19) != "" {
+		var err error
+		slPrice, err = strconv.ParseFloat(c.Args().Get(19), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("sl_limit_price") {
+		slLimitPrice = c.Float64("sl_limit_price")
+	} else if c.Args().Get(20) != "" {
+		var err error
+		slLimitPrice, err = strconv.ParseFloat(c.Args().Get(20), 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("sl_price_type") {
+		slPriceType = c.String("sl_price_type")
+	} else {
+		slPriceType = c.Args().Get(21)
+	}
+
 	if price == 0 && amount == 0 {
 		return errors.New("either --price or --amount should be present")
 	}
@@ -2355,9 +2588,26 @@ func modifyOrder(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Asset:  assetType,
-		Price:  price,
-		Amount: amount,
+		Asset:             assetType,
+		Price:             price,
+		Amount:            amount,
+		Type:              orderType,
+		Side:              orderSide,
+		TimeInForce:       timeInForce,
+		ClientOrderId:     clientOrderID,
+		TriggerPrice:      triggerPrice,
+		TriggerLimitPrice: triggerLimitPrice,
+		TriggerPriceType:  triggerPriceType,
+		StopLoss: &gctrpc.RiskManagement{
+			Price:      slPrice,
+			LimitPrice: slLimitPrice,
+			PriceType:  slPriceType,
+		},
+		TakeProfit: &gctrpc.RiskManagement{
+			Price:      tpPrice,
+			LimitPrice: tpLimitPrice,
+			PriceType:  tpPriceType,
+		},
 	})
 	if err != nil {
 		return err

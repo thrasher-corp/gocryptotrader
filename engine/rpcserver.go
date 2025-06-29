@@ -1218,7 +1218,16 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Hidden:            r.Hidden,
 		Iceberg:           r.Iceberg,
 		AutoBorrow:        r.AutoBorrow,
-		// TODO: handle risk management types
+		StopLoss: order.RiskManagement{
+			Price:            r.StopLoss.Price,
+			LimitPrice:       r.StopLoss.LimitPrice,
+			TriggerPriceType: order.StringToPriceType(r.StopLoss.PriceType),
+		},
+		TakeProfit: order.RiskManagement{
+			Price:            r.TakeProfit.Price,
+			LimitPrice:       r.TakeProfit.LimitPrice,
+			TriggerPriceType: order.StringToPriceType(r.TakeProfit.PriceType),
+		},
 	}
 	if r.MarginType != "" {
 		submission.MarginType = marginType
@@ -1373,15 +1382,35 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 	if err != nil {
 		return nil, err
 	}
+	marginType, err := margin.StringToMarginType(r.MarginType)
+	if err != nil {
+		return nil, err
+	}
+	timeInForce, err := order.StringToTimeInForce(r.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
+	var orderType order.Type
+	if r.Type != "" {
+		orderType, err = order.StringToOrderType(r.Type)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	err = s.OrderManager.Cancel(ctx,
 		&order.Cancel{
-			Exchange:  r.Exchange,
-			AccountID: r.AccountId,
-			OrderID:   r.OrderId,
-			Side:      side,
-			Pair:      p,
-			AssetType: a,
+			Exchange:      r.Exchange,
+			OrderID:       r.OrderId,
+			ClientOrderID: r.ClientOrderId,
+			AccountID:     r.AccountId,
+			ClientID:      r.ClientId,
+			Type:          orderType,
+			Side:          side,
+			Pair:          p,
+			AssetType:     a,
+			MarginType:    marginType,
+			TimeInForce:   timeInForce,
 		})
 	if err != nil {
 		return nil, err
@@ -1470,6 +1499,25 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 	if err != nil {
 		return nil, err
 	}
+	var side order.Side
+	if r.Side != "" {
+		side, err = order.StringToOrderSide(r.Side)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var orderType order.Type
+	if r.Type != "" {
+		orderType, err = order.StringToOrderType(r.Type)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	timeInForce, err := order.StringToTimeInForce(r.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
 
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
@@ -1483,12 +1531,29 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 		return nil, err
 	}
 	resp, err := s.OrderManager.Modify(ctx, &order.Modify{
-		Exchange:  r.Exchange,
-		AssetType: assetType,
-		Pair:      pair,
-		OrderID:   r.OrderId,
-		Amount:    r.Amount,
-		Price:     r.Price,
+		Exchange:          r.Exchange,
+		AssetType:         assetType,
+		Pair:              pair,
+		OrderID:           r.OrderId,
+		Amount:            r.Amount,
+		Price:             r.Price,
+		ClientOrderID:     r.ClientOrderId,
+		Type:              orderType,
+		Side:              side,
+		TimeInForce:       timeInForce,
+		TriggerPrice:      r.TriggerPrice,
+		TriggerLimitPrice: r.TriggerLimitPrice,
+		TriggerPriceType:  order.StringToPriceType(r.TriggerPriceType),
+		StopLoss: order.RiskManagement{
+			Price:            r.StopLoss.Price,
+			LimitPrice:       r.StopLoss.LimitPrice,
+			TriggerPriceType: order.StringToPriceType(r.StopLoss.PriceType),
+		},
+		TakeProfit: order.RiskManagement{
+			Price:            r.TakeProfit.Price,
+			LimitPrice:       r.TakeProfit.LimitPrice,
+			TriggerPriceType: order.StringToPriceType(r.TakeProfit.PriceType),
+		},
 	})
 	if err != nil {
 		return nil, err

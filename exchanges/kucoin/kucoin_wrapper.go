@@ -698,14 +698,14 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			var stopType string
 			var stopPrice float64
 			switch {
-			case s.RiskManagementModes.StopLoss.Enabled && s.RiskManagementModes.StopEntry.Enabled:
+			case s.StopLoss.Enabled && s.TakeProfit.Enabled:
 				return nil, errors.New("can not enable more than one risk management")
-			case s.RiskManagementModes.StopEntry.Enabled:
+			case s.TakeProfit.Enabled:
 				stopType = "entry"
-				stopPrice = s.RiskManagementModes.StopEntry.Price
-			case s.RiskManagementModes.StopLoss.Enabled:
+				stopPrice = s.TakeProfit.Price
+			case s.StopLoss.Enabled:
 				stopType = "loss"
-				stopPrice = s.RiskManagementModes.StopLoss.Price
+				stopPrice = s.StopLoss.Price
 			}
 			var o string
 			if stopType != "" {
@@ -741,24 +741,24 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return s.DeriveSubmitResponse(o)
 		case order.OCO:
 			switch {
-			case !s.RiskManagementModes.TakeProfit.Enabled || s.RiskManagementModes.TakeProfit.Price <= 0:
+			case !s.TakeProfit.Enabled || s.TakeProfit.Price <= 0:
 				return nil, errors.New("take profit price is required")
-			case !s.RiskManagementModes.StopLoss.Enabled || s.RiskManagementModes.StopLoss.Price <= 0:
+			case !s.StopLoss.Enabled || s.StopLoss.Price <= 0:
 				return nil, errors.New("stop loss price is required")
 			}
 			switch s.Side {
 			case order.Sell:
-				if s.RiskManagementModes.TakeProfit.Price <= s.RiskManagementModes.StopLoss.Price {
+				if s.TakeProfit.Price <= s.StopLoss.Price {
 					return nil, errors.New("stop loss price must be below take profit trigger price for sell orders")
 				}
 			case order.Buy:
-				if s.RiskManagementModes.TakeProfit.Price >= s.RiskManagementModes.StopLoss.Price {
+				if s.TakeProfit.Price >= s.StopLoss.Price {
 					return nil, errors.New("stop loss price must be greater than take profit trigger price for buy orders")
 				}
 			}
 
-			limitPrice := s.RiskManagementModes.TakeProfit.Price
-			stopPrice := s.RiskManagementModes.StopLoss.Price
+			limitPrice := s.TakeProfit.Price
+			stopPrice := s.StopLoss.Price
 
 			var o string
 			o, err = ku.PlaceOCOOrder(ctx, &OCOOrderParams{
