@@ -31,12 +31,12 @@ import (
 )
 
 // SetDefaults sets the basic defaults for Binanceus
-func (bi *Exchange) SetDefaults() {
-	bi.Name = "Binanceus"
-	bi.Enabled = true
-	bi.Verbose = true
-	bi.API.CredentialsValidator.RequiresKey = true
-	bi.API.CredentialsValidator.RequiresSecret = true
+func (ex *Exchange) SetDefaults() {
+	ex.Name = "Binanceus"
+	ex.Enabled = true
+	ex.Verbose = true
+	ex.API.CredentialsValidator.RequiresKey = true
+	ex.API.CredentialsValidator.RequiresSecret = true
 
 	fmt1 := currency.PairStore{
 		AssetEnabled:  true,
@@ -46,11 +46,11 @@ func (bi *Exchange) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-	if err := bi.SetAssetPairStore(asset.Spot, fmt1); err != nil {
-		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
+	if err := ex.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", ex.Name, err)
 	}
 
-	bi.Features = exchange.Features{
+	ex.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
@@ -123,15 +123,15 @@ func (bi *Exchange) SetDefaults() {
 	}
 
 	var err error
-	bi.Requester, err = request.New(bi.Name,
+	ex.Requester, err = request.New(ex.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	bi.API.Endpoints = bi.NewEndpoints()
-	if err := bi.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	ex.API.Endpoints = ex.NewEndpoints()
+	if err := ex.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   binanceusAPIURL,
 		exchange.RestSpotSupplementary:      binanceusAPIURL,
 		exchange.WebsocketSpot:              binanceusDefaultWebsocketURL,
@@ -139,54 +139,54 @@ func (bi *Exchange) SetDefaults() {
 	}); err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s setting default endpoints error %v",
-			bi.Name, err)
+			ex.Name, err)
 	}
-	bi.Websocket = websocket.NewManager()
-	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	ex.Websocket = websocket.NewManager()
+	ex.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	ex.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	ex.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
-func (bi *Exchange) Setup(exch *config.Exchange) error {
+func (ex *Exchange) Setup(exch *config.Exchange) error {
 	err := exch.Validate()
 	if err != nil {
 		return err
 	}
 	if !exch.Enabled {
-		bi.SetEnabled(false)
+		ex.SetEnabled(false)
 		return nil
 	}
-	err = bi.SetupDefaults(exch)
+	err = ex.SetupDefaults(exch)
 	if err != nil {
 		return err
 	}
 
-	ePoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	ePoint, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
-	err = bi.Websocket.Setup(&websocket.ManagerSetup{
+	err = ex.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            binanceusDefaultWebsocketURL,
 		RunningURL:            ePoint,
-		Connector:             bi.WsConnect,
-		Subscriber:            bi.Subscribe,
-		Unsubscriber:          bi.Unsubscribe,
-		GenerateSubscriptions: bi.GenerateSubscriptions,
-		Features:              &bi.Features.Supports.WebsocketCapabilities,
+		Connector:             ex.WsConnect,
+		Subscriber:            ex.Subscribe,
+		Unsubscriber:          ex.Unsubscribe,
+		GenerateSubscriptions: ex.GenerateSubscriptions,
+		Features:              &ex.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
 		},
-		TradeFeed: bi.Features.Enabled.TradeFeed,
+		TradeFeed: ex.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
 	}
 
-	return bi.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	return ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            request.NewWeightedRateLimitByDuration(300 * time.Millisecond),
@@ -194,11 +194,11 @@ func (bi *Exchange) Setup(exch *config.Exchange) error {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (bi *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	if !bi.SupportsAsset(a) {
+func (ex *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !ex.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	info, err := bi.GetExchangeInfo(ctx)
+	info, err := ex.GetExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -221,27 +221,27 @@ func (bi *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curre
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (bi *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
+func (ex *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+	pairs, err := ex.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = bi.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	err = ex.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
 	if err != nil {
 		return err
 	}
-	return bi.EnsureOnePairEnabled()
+	return ex.EnsureOnePairEnabled()
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (bi *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (ex *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w '%v'", asset.ErrNotSupported, a)
 	}
-	tick, err := bi.GetPriceChangeStats(ctx, p)
+	tick, err := ex.GetPriceChangeStats(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -256,32 +256,32 @@ func (bi *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.I
 		Open:         tick.OpenPrice,
 		Close:        tick.PrevClosePrice,
 		Pair:         p,
-		ExchangeName: bi.Name,
+		ExchangeName: ex.Name,
 		AssetType:    a,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return ticker.GetTicker(bi.Name, p, a)
+	return ticker.GetTicker(ex.Name, p, a)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
-func (bi *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+func (ex *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	tick, err := bi.GetTickers(ctx)
+	tick, err := ex.GetTickers(ctx)
 	if err != nil {
 		return err
 	}
 
-	pairs, err := bi.GetEnabledPairs(a)
+	pairs, err := ex.GetEnabledPairs(a)
 	if err != nil {
 		return err
 	}
 	for i := range pairs {
 		for y := range tick {
-			pairFmt, err := bi.FormatExchangeCurrency(pairs[i], a)
+			pairFmt, err := ex.FormatExchangeCurrency(pairs[i], a)
 			if err != nil {
 				return err
 			}
@@ -299,7 +299,7 @@ func (bi *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Open:         tick[y].OpenPrice,
 				Close:        tick[y].PrevClosePrice,
 				Pair:         pairFmt,
-				ExchangeName: bi.Name,
+				ExchangeName: ex.Name,
 				AssetType:    a,
 			})
 			if err != nil {
@@ -311,21 +311,21 @@ func (bi *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (bi *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+func (ex *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := ex.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
-		Exchange:          bi.Name,
+		Exchange:          ex.Name,
 		Pair:              pair,
 		Asset:             assetType,
-		ValidateOrderbook: bi.ValidateOrderbook,
+		ValidateOrderbook: ex.ValidateOrderbook,
 	}
 
-	orderbookNew, err := bi.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
+	orderbookNew, err := ex.GetOrderBookDepth(ctx, &OrderBookDataRequestParams{
 		Symbol: pair,
 		Limit:  1000,
 	})
@@ -350,18 +350,18 @@ func (bi *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, ass
 	if err != nil {
 		return book, err
 	}
-	return orderbook.Get(bi.Name, pair, assetType)
+	return orderbook.Get(ex.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (bi *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (ex *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
-	info.Exchange = bi.Name
+	info.Exchange = ex.Name
 	if assetType != asset.Spot {
 		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	theAccount, err := bi.GetAccount(ctx)
+	theAccount, err := ex.GetAccount(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -380,7 +380,7 @@ func (bi *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item)
 	acc.Currencies = currencyBalance
 	acc.AssetType = assetType
 	info.Accounts = append(info.Accounts, acc)
-	creds, err := bi.GetCredentials(ctx)
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -391,16 +391,16 @@ func (bi *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
-func (bi *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (ex *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (bi *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (ex *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	withdrawals, err := bi.WithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
+	withdrawals, err := ex.WithdrawalHistory(ctx, c, "", time.Time{}, time.Time{}, 0, 10000)
 	if err != nil {
 		return nil, err
 	}
@@ -426,15 +426,15 @@ func (bi *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, 
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (bi *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (ex *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := ex.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	const limit = 1000
-	tradeData, err := bi.GetMostRecentTrades(ctx, RecentTradeRequestParams{p, limit})
+	tradeData, err := ex.GetMostRecentTrades(ctx, RecentTradeRequestParams{p, limit})
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +442,7 @@ func (bi *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 	for i := range tradeData {
 		resp[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
-			Exchange:     bi.Name,
+			Exchange:     ex.Name,
 			AssetType:    assetType,
 			CurrencyPair: p,
 			Price:        tradeData[i].Price,
@@ -451,7 +451,7 @@ func (bi *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 		}
 	}
 
-	if bi.IsSaveTradeDataEnabled() {
+	if ex.IsSaveTradeDataEnabled() {
 		err := trade.AddTradesToBuffer(resp...)
 		if err != nil {
 			return nil, err
@@ -462,11 +462,11 @@ func (bi *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetT
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (bi *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (ex *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := ex.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	req := AggregatedTradeRequestParams{
@@ -474,12 +474,12 @@ func (bi *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asse
 		StartTime: timestampStart.UnixMilli(),
 		EndTime:   timestampEnd.UnixMilli(),
 	}
-	trades, err := bi.GetAggregateTrades(ctx, &req)
+	trades, err := ex.GetAggregateTrades(ctx, &req)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]trade.Data, len(trades))
-	exName := bi.Name
+	exName := ex.Name
 	for i := range trades {
 		t := trades[i].toTradeData(p, exName, assetType)
 		result[i] = *t
@@ -488,11 +488,11 @@ func (bi *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asse
 }
 
 // SubmitOrder submits a new order
-func (bi *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+func (ex *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	var timeInForce string
 	var sideType string
-	err := s.Validate(bi.GetTradingRequirements())
+	err := s.Validate(ex.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +515,7 @@ func (bi *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Su
 		return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 	}
 	var response NewOrderResponse
-	response, err = bi.NewOrder(ctx, &NewOrderRequest{
+	response, err = ex.NewOrder(ctx, &NewOrderRequest{
 		Symbol:           s.Pair,
 		Side:             sideType,
 		Price:            s.Price,
@@ -539,7 +539,7 @@ func (bi *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Su
 			Amount:   response.Fills[i].Qty,
 			Fee:      response.Fills[i].Commission,
 			FeeAsset: response.Fills[i].CommissionAsset,
-			Exchange: bi.Name,
+			Exchange: ex.Name,
 		})
 	}
 
@@ -548,19 +548,19 @@ func (bi *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Su
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (bi *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (ex *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (bi *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
+func (ex *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
 		return err
 	}
 	if o.AssetType != asset.Spot {
 		return fmt.Errorf("%w '%v'", asset.ErrNotSupported, o.AssetType)
 	}
-	_, err := bi.CancelExistingOrder(ctx,
+	_, err := ex.CancelExistingOrder(ctx,
 		&CancelOrderRequestParams{
 			Symbol:                o.Pair,
 			OrderID:               o.OrderID,
@@ -570,23 +570,23 @@ func (bi *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (bi *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+func (ex *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (bi *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (ex *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	if orderCancellation.AssetType == asset.Spot {
-		symbolValue, err := bi.FormatSymbol(orderCancellation.Pair, asset.Spot)
+		symbolValue, err := ex.FormatSymbol(orderCancellation.Pair, asset.Spot)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		openOrders, err := bi.GetAllOpenOrders(ctx, symbolValue)
+		openOrders, err := ex.GetAllOpenOrders(ctx, symbolValue)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -595,7 +595,7 @@ func (bi *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *orde
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			_, err = bi.CancelExistingOrder(ctx, &CancelOrderRequestParams{
+			_, err = ex.CancelExistingOrder(ctx, &CancelOrderRequestParams{
 				Symbol:                pair,
 				OrderID:               strconv.FormatUint(openOrders[ind].OrderID, 10),
 				ClientSuppliedOrderID: openOrders[ind].ClientOrderID,
@@ -611,11 +611,11 @@ func (bi *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *orde
 }
 
 // GetOrderInfo returns order information based on order ID
-func (bi *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (ex *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := bi.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := ex.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 
@@ -623,7 +623,7 @@ func (bi *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 	if err != nil {
 		return nil, fmt.Errorf("invalid orderID %w", err)
 	}
-	symbolValue, err := bi.FormatSymbol(pair, asset.Spot)
+	symbolValue, err := ex.FormatSymbol(pair, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func (bi *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
 	var orderType order.Type
-	resp, err := bi.GetOrder(ctx, &OrderRequestParams{
+	resp, err := ex.GetOrder(ctx, &OrderRequestParams{
 		Symbol:  symbolValue,
 		OrderID: orderIDInt,
 	})
@@ -640,20 +640,20 @@ func (bi *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 	}
 	orderSide, err := order.StringToOrderSide(resp.Side)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
 	}
 	status, err := order.StringToOrderStatus(resp.Status)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
 	}
 	orderType, err = order.StringToOrderType(resp.Type)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+		log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
 	}
 
 	return &order.Detail{
 		Amount:         resp.OrigQty,
-		Exchange:       bi.Name,
+		Exchange:       ex.Name,
 		OrderID:        strconv.FormatUint(resp.OrderID, 10),
 		ClientOrderID:  resp.ClientOrderID,
 		Side:           orderSide,
@@ -670,8 +670,8 @@ func (bi *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curre
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (bi *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _ /*accountID*/, chain string) (*deposit.Address, error) {
-	address, err := bi.GetDepositAddressForCurrency(ctx, c.String(), chain)
+func (ex *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _ /*accountID*/, chain string) (*deposit.Address, error) {
+	address, err := ex.GetDepositAddressForCurrency(ctx, c.String(), chain)
 	if err != nil {
 		return nil, err
 	}
@@ -682,11 +682,11 @@ func (bi *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _ /*
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (bi *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ex *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawID, err := bi.WithdrawCrypto(ctx, withdrawRequest)
+	withdrawID, err := ex.WithdrawCrypto(ctx, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -698,18 +698,18 @@ func (bi *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReq
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted. But, GCT has no concept of withdrawal via SEN
 // the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 // So, this method is not implemented.
-func (bi *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ex *Exchange) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // But, GCT has no concept of withdrawal via SEN the fiat withdrawal end point of Binance.US is built to submit a USD withdraw request via Silvergate Exchange Network (SEN).
-func (bi *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (ex *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (bi *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (ex *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	err := getOrdersRequest.Validate()
 	if err != nil {
 		return nil, err
@@ -723,12 +723,12 @@ func (bi *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order
 	if len(getOrdersRequest.Pairs) != 1 {
 		symbol = ""
 	} else {
-		symbol, err = bi.FormatSymbol(getOrdersRequest.Pairs[0], asset.Spot)
+		symbol, err = ex.FormatSymbol(getOrdersRequest.Pairs[0], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 	}
-	resp, err := bi.GetAllOpenOrders(ctx, symbol)
+	resp, err := ex.GetAllOpenOrders(ctx, symbol)
 	if err != nil {
 		return nil, err
 	}
@@ -751,20 +751,20 @@ func (bi *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order
 		var orderStatus order.Status
 		orderSide, err = order.StringToOrderSide(strings.ToUpper(resp[x].Side))
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+			log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
 		}
 		orderType, err = order.StringToOrderType(strings.ToUpper(resp[x].Type))
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+			log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
 		}
 		orderStatus, err = order.StringToOrderStatus(resp[x].Status)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s %v", bi.Name, err)
+			log.Errorf(log.ExchangeSys, "%s %v", ex.Name, err)
 		}
 		orders[x] = order.Detail{
 			Amount:        resp[x].OrigQty,
 			Date:          resp[x].Time.Time(),
-			Exchange:      bi.Name,
+			Exchange:      ex.Name,
 			OrderID:       strconv.FormatUint(resp[x].OrderID, 10),
 			ClientOrderID: resp[x].ClientOrderID,
 			Side:          orderSide,
@@ -776,43 +776,43 @@ func (bi *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order
 			LastUpdated:   resp[x].UpdateTime.Time(),
 		}
 	}
-	return getOrdersRequest.Filter(bi.Name, orders), nil
+	return getOrdersRequest.Filter(ex.Name, orders), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
-func (bi *Exchange) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (ex *Exchange) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	// An endpoint like /api/v3/allOrders does not exist in the binance us
 	// so This end point is left unimplemented
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
-func (bi *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (ex *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if feeBuilder == nil {
 		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
 	}
-	if (!bi.AreCredentialsValid(ctx) || bi.SkipAuthCheck) &&
+	if (!ex.AreCredentialsValid(ctx) || ex.SkipAuthCheck) &&
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
-	return bi.GetFee(ctx, feeBuilder)
+	return ex.GetFee(ctx, feeBuilder)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
-func (bi *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := bi.UpdateAccountInfo(ctx, assetType)
-	return bi.CheckTransientError(err)
+func (ex *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
+	_, err := ex.UpdateAccountInfo(ctx, assetType)
+	return ex.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (bi *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := bi.GetKlineRequest(pair, a, interval, start, end, false)
+func (ex *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := ex.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
 
-	candles, err := bi.GetSpotKline(ctx, &KlinesRequestParams{
-		Interval:  bi.GetIntervalEnum(req.ExchangeInterval),
+	candles, err := ex.GetSpotKline(ctx, &KlinesRequestParams{
+		Interval:  ex.GetIntervalEnum(req.ExchangeInterval),
 		Symbol:    req.Pair,
 		StartTime: req.Start,
 		EndTime:   req.End,
@@ -837,8 +837,8 @@ func (bi *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, 
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (bi *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := bi.GetKlineExtendedRequest(pair, a, interval, start, end)
+func (ex *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := ex.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -846,8 +846,8 @@ func (bi *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currenc
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		var candles []CandleStick
-		candles, err = bi.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  bi.GetIntervalEnum(req.ExchangeInterval),
+		candles, err = ex.GetSpotKline(ctx, &KlinesRequestParams{
+			Interval:  ex.GetIntervalEnum(req.ExchangeInterval),
 			Symbol:    req.Pair,
 			StartTime: req.RangeHolder.Ranges[x].Start.Time,
 			EndTime:   req.RangeHolder.Ranges[x].End.Time,
@@ -872,8 +872,8 @@ func (bi *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currenc
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
-func (bi *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	coinInfo, err := bi.GetAssetFeesAndWalletStatus(ctx)
+func (ex *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	coinInfo, err := ex.GetAssetFeesAndWalletStatus(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -892,27 +892,27 @@ func (bi *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurren
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (bi *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+func (ex *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (bi *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (ex *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (bi *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+func (ex *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (bi *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := bi.CurrencyPairs.IsPairEnabled(cp, a)
+func (ex *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := ex.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
 	}
-	symbol, err := bi.FormatSymbol(cp, a)
+	symbol, err := ex.FormatSymbol(cp, a)
 	if err != nil {
 		return "", err
 	}

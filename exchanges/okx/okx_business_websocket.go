@@ -44,50 +44,50 @@ var (
 )
 
 // WsConnectBusiness connects to a business websocket channel.
-func (ok *Exchange) WsConnectBusiness(ctx context.Context) error {
-	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
+func (ex *Exchange) WsConnectBusiness(ctx context.Context) error {
+	if !ex.Websocket.IsEnabled() || !ex.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	ok.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
-	err := ok.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	ex.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
+	err := ex.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ctx, ok.Websocket.Conn)
-	if ok.Verbose {
+	ex.Websocket.Wg.Add(1)
+	go ex.wsReadData(ctx, ex.Websocket.Conn)
+	if ex.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			ok.Websocket.GetWebsocketURL())
+			ex.Websocket.GetWebsocketURL())
 	}
-	ok.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
+	ex.Websocket.Conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.WsSpreadAuth(ctx)
+	if ex.Websocket.CanUseAuthenticatedEndpoints() {
+		err = ex.WsSpreadAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	return nil
 }
 
 // WsSpreadAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (ok *Exchange) WsSpreadAuth(ctx context.Context) error {
-	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
+func (ex *Exchange) WsSpreadAuth(ctx context.Context) error {
+	if !ex.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ex.Name)
 	}
-	creds, err := ok.GetCredentials(ctx)
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ts := time.Now().Unix()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
@@ -105,15 +105,15 @@ func (ok *Exchange) WsSpreadAuth(ctx context.Context) error {
 			Sign:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
-	return ok.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
+	return ex.SendAuthenticatedWebsocketRequest(ctx, request.Unset, "login-response", operationLogin, args, nil)
 }
 
 // GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business websocket.
-func (ok *Exchange) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscription, error) {
+func (ex *Exchange) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscription, error) {
 	var subs []string
 	var subscriptions []subscription.Subscription
 	subs = append(subs, defaultBusinessSubscribedChannels...)
-	if ok.Websocket.CanUseAuthenticatedEndpoints() {
+	if ex.Websocket.CanUseAuthenticatedEndpoints() {
 		subs = append(subs, defaultBusinessAuthChannels...)
 	}
 	for c := range subs {
@@ -124,7 +124,7 @@ func (ok *Exchange) GenerateDefaultBusinessSubscriptions() ([]subscription.Subsc
 			okxSpreadOrderbook,
 			okxSpreadPublicTrades,
 			okxSpreadPublicTicker:
-			pairs, err := ok.GetEnabledPairs(asset.Spread)
+			pairs, err := ex.GetEnabledPairs(asset.Spread)
 			if err != nil {
 				return nil, err
 			}
@@ -137,7 +137,7 @@ func (ok *Exchange) GenerateDefaultBusinessSubscriptions() ([]subscription.Subsc
 			}
 		case channelPublicBlockTrades,
 			channelBlockTickers:
-			pairs, err := ok.GetEnabledPairs(asset.PerpetualSwap)
+			pairs, err := ex.GetEnabledPairs(asset.PerpetualSwap)
 			if err != nil {
 				return nil, err
 			}
@@ -158,18 +158,18 @@ func (ok *Exchange) GenerateDefaultBusinessSubscriptions() ([]subscription.Subsc
 }
 
 // BusinessSubscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Exchange) BusinessSubscribe(ctx context.Context, channelsToSubscribe subscription.List) error {
-	return ok.handleBusinessSubscription(ctx, operationSubscribe, channelsToSubscribe)
+func (ex *Exchange) BusinessSubscribe(ctx context.Context, channelsToSubscribe subscription.List) error {
+	return ex.handleBusinessSubscription(ctx, operationSubscribe, channelsToSubscribe)
 }
 
 // BusinessUnsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Exchange) BusinessUnsubscribe(ctx context.Context, channelsToUnsubscribe subscription.List) error {
-	return ok.handleBusinessSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
+func (ex *Exchange) BusinessUnsubscribe(ctx context.Context, channelsToUnsubscribe subscription.List) error {
+	return ex.handleBusinessSubscription(ctx, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Exchange) handleBusinessSubscription(ctx context.Context, operation string, subscriptions subscription.List) error {
+func (ex *Exchange) handleBusinessSubscription(ctx context.Context, operation string, subscriptions subscription.List) error {
 	wsSubscriptionReq := WSSubscriptionInformationList{Operation: operation}
 	var channels subscription.List
 	var authChannels subscription.List
@@ -210,14 +210,14 @@ func (ok *Exchange) handleBusinessSubscription(ctx context.Context, operation st
 		}
 		if len(chunk) > maxConnByteLen {
 			i--
-			err = ok.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
+			err = ex.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
 			if err != nil {
 				return err
 			}
 			if operation == operationUnsubscribe {
-				err = ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
+				err = ex.Websocket.RemoveSubscriptions(ex.Websocket.Conn, channels...)
 			} else {
-				err = ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
+				err = ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, channels...)
 			}
 			if err != nil {
 				return err
@@ -227,17 +227,17 @@ func (ok *Exchange) handleBusinessSubscription(ctx context.Context, operation st
 			continue
 		}
 	}
-	err = ok.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
+	err = ex.Websocket.Conn.SendJSONMessage(ctx, request.UnAuth, wsSubscriptionReq)
 	if err != nil {
 		return err
 	}
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		err = ok.Websocket.RemoveSubscriptions(ok.Websocket.Conn, channels...)
+		err = ex.Websocket.RemoveSubscriptions(ex.Websocket.Conn, channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		err = ok.Websocket.AddSuccessfulSubscriptions(ok.Websocket.Conn, channels...)
+		err = ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, channels...)
 	}
 	return err
 }

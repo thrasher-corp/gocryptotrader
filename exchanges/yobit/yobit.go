@@ -44,15 +44,15 @@ type Exchange struct {
 }
 
 // GetInfo returns the Yobit info
-func (y *Exchange) GetInfo(ctx context.Context) (Info, error) {
+func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 	resp := Info{}
 	path := fmt.Sprintf("/%s/%s/", apiPublicVersion, publicInfo)
 
-	return resp, y.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetTicker returns a ticker for a specific currency
-func (y *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
+func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
 	type Response struct {
 		Data map[string]Ticker
 	}
@@ -60,11 +60,11 @@ func (y *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 	response := Response{}
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
 
-	return response.Data, y.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
+	return response.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
 }
 
 // GetDepth returns the depth for a specific currency
-func (y *Exchange) GetDepth(ctx context.Context, symbol string) (Orderbook, error) {
+func (e *Exchange) GetDepth(ctx context.Context, symbol string) (Orderbook, error) {
 	type Response struct {
 		Data map[string]Orderbook
 	}
@@ -73,18 +73,18 @@ func (y *Exchange) GetDepth(ctx context.Context, symbol string) (Orderbook, erro
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicDepth, symbol)
 
 	return response.Data[symbol],
-		y.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
+		e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
 }
 
 // GetTrades returns the trades for a specific currency
-func (y *Exchange) GetTrades(ctx context.Context, symbol string) ([]Trade, error) {
+func (e *Exchange) GetTrades(ctx context.Context, symbol string) ([]Trade, error) {
 	type respDataHolder struct {
 		Data map[string][]Trade
 	}
 
 	var dataHolder respDataHolder
 	path := "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
-	err := y.SendHTTPRequest(ctx, exchange.RestSpot, path, &dataHolder.Data)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &dataHolder.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -96,10 +96,10 @@ func (y *Exchange) GetTrades(ctx context.Context, symbol string) ([]Trade, error
 }
 
 // GetAccountInformation returns a users account info
-func (y *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
+func (e *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
 	result := AccountInfo{}
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result)
 	if err != nil {
 		return result, err
 	}
@@ -110,7 +110,7 @@ func (y *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, erro
 }
 
 // Trade places an order and returns the order ID if successful or an error
-func (y *Exchange) Trade(ctx context.Context, pair, orderType string, amount, price float64) (int64, error) {
+func (e *Exchange) Trade(ctx context.Context, pair, orderType string, amount, price float64) (int64, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 	req.Add("type", strings.ToLower(orderType))
@@ -119,7 +119,7 @@ func (y *Exchange) Trade(ctx context.Context, pair, orderType string, amount, pr
 
 	result := TradeOrderResponse{}
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTrade, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTrade, req, &result)
 	if err != nil {
 		return int64(result.OrderID), err
 	}
@@ -130,33 +130,33 @@ func (y *Exchange) Trade(ctx context.Context, pair, orderType string, amount, pr
 }
 
 // GetOpenOrders returns the active orders for a specific currency
-func (y *Exchange) GetOpenOrders(ctx context.Context, pair string) (map[string]ActiveOrders, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, pair string) (map[string]ActiveOrders, error) {
 	req := url.Values{}
 	req.Add("pair", pair)
 
 	result := map[string]ActiveOrders{}
 
-	return result, y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateActiveOrders, req, &result)
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateActiveOrders, req, &result)
 }
 
 // GetOrderInformation returns the order info for a specific order ID
-func (y *Exchange) GetOrderInformation(ctx context.Context, orderID int64) (map[string]OrderInfo, error) {
+func (e *Exchange) GetOrderInformation(ctx context.Context, orderID int64) (map[string]OrderInfo, error) {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := map[string]OrderInfo{}
 
-	return result, y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateOrderInfo, req, &result)
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateOrderInfo, req, &result)
 }
 
 // CancelExistingOrder cancels an order for a specific order ID
-func (y *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error {
 	req := url.Values{}
 	req.Add("order_id", strconv.FormatInt(orderID, 10))
 
 	result := CancelOrder{}
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCancelOrder, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCancelOrder, req, &result)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (y *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error
 }
 
 // GetTradeHistory returns the trade history
-func (y *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, since, end int64, order, pair string) (map[string]TradeHistory, error) {
 	req := url.Values{}
 	req.Add("from", strconv.FormatInt(tidFrom, 10))
 	req.Add("count", strconv.FormatInt(count, 10))
@@ -180,7 +180,7 @@ func (y *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, 
 
 	result := TradeHistoryResponse{}
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTradeHistory, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTradeHistory, req, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (y *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, 
 }
 
 // GetCryptoDepositAddress returns the deposit address for a specific currency
-func (y *Exchange) GetCryptoDepositAddress(ctx context.Context, coin string, createNew bool) (*DepositAddress, error) {
+func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, coin string, createNew bool) (*DepositAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 	if createNew {
@@ -200,7 +200,7 @@ func (y *Exchange) GetCryptoDepositAddress(ctx context.Context, coin string, cre
 	}
 
 	var result DepositAddress
-	err := y.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		privateGetDepositAddress,
 		req,
@@ -216,7 +216,7 @@ func (y *Exchange) GetCryptoDepositAddress(ctx context.Context, coin string, cre
 }
 
 // WithdrawCoinsToAddress initiates a withdrawal to a specified address
-func (y *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
+func (e *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amount float64, address string) (WithdrawCoinsToAddress, error) {
 	req := url.Values{}
 	req.Add("coinName", coin)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -224,7 +224,7 @@ func (y *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amou
 
 	result := WithdrawCoinsToAddress{}
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -235,14 +235,14 @@ func (y *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amou
 }
 
 // CreateCoupon creates an exchange coupon for a specific currency
-func (y *Exchange) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
+func (e *Exchange) CreateCoupon(ctx context.Context, currency string, amount float64) (CreateCoupon, error) {
 	req := url.Values{}
 	req.Add("currency", currency)
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result CreateCoupon
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateCoupon, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateCoupon, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -253,13 +253,13 @@ func (y *Exchange) CreateCoupon(ctx context.Context, currency string, amount flo
 }
 
 // RedeemCoupon redeems an exchange coupon
-func (y *Exchange) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, error) {
+func (e *Exchange) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupon, error) {
 	req := url.Values{}
 	req.Add("coupon", coupon)
 
 	result := RedeemCoupon{}
 
-	err := y.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result)
 	if err != nil {
 		return result, err
 	}
@@ -270,8 +270,8 @@ func (y *Exchange) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupo
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (y *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
-	endpoint, err := y.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -280,23 +280,23 @@ func (y *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
 		Result:        result,
-		Verbose:       y.Verbose,
-		HTTPDebugging: y.HTTPDebugging,
-		HTTPRecording: y.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
 
-	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
-func (y *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result any) (err error) {
-	creds, err := y.GetCredentials(ctx)
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, path string, params url.Values, result any) (err error) {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	endpoint, err := y.API.Endpoints.GetURL(ep)
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -304,8 +304,8 @@ func (y *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		params = url.Values{}
 	}
 
-	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		n := y.Requester.GetNonce(nonce.Unix).String()
+	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		n := e.Requester.GetNonce(nonce.Unix).String()
 
 		params.Set("nonce", n)
 		params.Set("method", path)
@@ -328,15 +328,15 @@ func (y *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Body:          strings.NewReader(encoded),
 			Result:        result,
 			NonceEnabled:  true,
-			Verbose:       y.Verbose,
-			HTTPDebugging: y.HTTPDebugging,
-			HTTPRecording: y.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.AuthenticatedRequest)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (y *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:

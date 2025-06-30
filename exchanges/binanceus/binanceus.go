@@ -149,35 +149,35 @@ var (
 // General Data Endpoints
 
 // GetServerTime this endpoint returns the exchange server time.
-func (bi *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (ex *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	var response ServerTime
-	err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, serverTime, spotDefaultRate, &response)
+	err := ex.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, serverTime, spotDefaultRate, &response)
 	return response.Timestamp.Time(), err
 }
 
 // GetSystemStatus endpoint to fetch whether the system status is normal or under maintenance.
-func (bi *Exchange) GetSystemStatus(ctx context.Context) (int, error) {
+func (ex *Exchange) GetSystemStatus(ctx context.Context) (int, error) {
 	resp := struct {
 		Status int `json:"status"`
 	}{}
-	return resp.Status, bi.SendAuthHTTPRequest(
+	return resp.Status, ex.SendAuthHTTPRequest(
 		ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, systemStatus,
 		nil, spotDefaultRate, &resp)
 }
 
 // GetExchangeInfo to get the current exchange trading rules and trading pair information.
-func (bi *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
+func (ex *Exchange) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 	var respo ExchangeInfo
-	return respo, bi.SendHTTPRequest(ctx,
+	return respo, ex.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		exchangeInfo, spotExchangeInfo, &respo)
 }
 
 // GetMostRecentTrades to get older trades. maximum limit in the RecentTradeRequestParams is 1,000 trades.
-func (bi *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
+func (ex *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
 	params := url.Values{}
-	symbol, err := bi.FormatSymbol(rtr.Symbol, asset.Spot)
+	symbol, err := ex.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -185,13 +185,13 @@ func (bi *Exchange) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequ
 	params.Set("limit", strconv.FormatInt(rtr.Limit, 10))
 	path := common.EncodeURLValues(recentTrades, params)
 	var resp []RecentTrade
-	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+	return resp, ex.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetHistoricalTrades returns historical trade activity
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
-func (bi *Exchange) GetHistoricalTrades(ctx context.Context, hist HistoricalTradeParams) ([]HistoricalTrade, error) {
+func (ex *Exchange) GetHistoricalTrades(ctx context.Context, hist HistoricalTradeParams) ([]HistoricalTrade, error) {
 	var resp []HistoricalTrade
 	params := url.Values{}
 	params.Set("symbol", hist.Symbol)
@@ -200,13 +200,13 @@ func (bi *Exchange) GetHistoricalTrades(ctx context.Context, hist HistoricalTrad
 		params.Set("fromId", strconv.FormatUint(hist.FromID, 10))
 	}
 	path := common.EncodeURLValues(historicalTrades, params)
-	return resp, bi.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotHistoricalTradesRate, &resp)
+	return resp, ex.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotHistoricalTradesRate, &resp)
 }
 
 // GetAggregateTrades to get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
-func (bi *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
+func (ex *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	symbol, err := bi.FormatSymbol(agg.Symbol, asset.Spot)
+	symbol, err := ex.FormatSymbol(agg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (bi *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTrade
 		// fromId xor start time must be set
 		canBatch := agg.FromID == 0 != startTime.IsZero()
 		if canBatch {
-			return bi.batchAggregateTrades(ctx, agg, params)
+			return ex.batchAggregateTrades(ctx, agg, params)
 		}
 		// Can't handle this request locally or remotely
 		// We would receive {"code":-1128,"msg":"Combination of optional parameters invalid."}
@@ -248,14 +248,14 @@ func (bi *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTrade
 	}
 	var resp []AggregatedTrade
 	path := common.EncodeURLValues(aggregatedTrades, params)
-	return resp, bi.SendHTTPRequest(ctx,
+	return resp, ex.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // batchAggregateTrades fetches trades in multiple requests   <-- copied and amended from the  binance
 // first phase, hourly requests until the first trade (or end time) is reached
 // second phase, limit requests from previous trade until end time (or limit) is reached
-func (bi *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
+func (ex *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
 	if arg.Limit == 0 || arg.Limit > 1000 {
@@ -280,7 +280,7 @@ func (bi *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTra
 			params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 			params.Set("endTime", strconv.FormatInt(startTime.Add(increment).UnixMilli(), 10))
 			path := common.EncodeURLValues(aggregatedTrades, params)
-			err := bi.SendHTTPRequest(ctx,
+			err := ex.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
 				return resp, err
@@ -298,7 +298,7 @@ func (bi *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTra
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 		path := common.EncodeURLValues(aggregatedTrades, params)
 		var additionalTrades []AggregatedTrade
-		err := bi.SendHTTPRequest(ctx,
+		err := ex.SendHTTPRequest(ctx,
 			exchange.RestSpotSupplementary,
 			path,
 			spotDefaultRate,
@@ -328,9 +328,9 @@ func (bi *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTra
 }
 
 // GetOrderBookDepth to get the order book depth. Please note the limits in the table below.
-func (bi *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
+func (ex *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequestParams) (*OrderBook, error) {
 	params := url.Values{}
-	symbol, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
+	symbol, err := ex.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (bi *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataReq
 	params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 
 	var resp *OrderBookData
-	if err := bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(arg.Limit), &resp); err != nil {
+	if err := ex.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(orderBookDepth, params), orderbookLimit(arg.Limit), &resp); err != nil {
 		return nil, err
 	}
 
@@ -359,7 +359,7 @@ func (bi *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataReq
 }
 
 // GetIntervalEnum allowed interval params by Binanceus
-func (bi *Exchange) GetIntervalEnum(interval kline.Interval) string {
+func (ex *Exchange) GetIntervalEnum(interval kline.Interval) string {
 	switch interval {
 	case kline.OneMin:
 		return "1m"
@@ -397,8 +397,8 @@ func (bi *Exchange) GetIntervalEnum(interval kline.Interval) string {
 }
 
 // GetSpotKline to get Kline/candlestick bars for a token symbol. Klines are uniquely identified by their open time.
-func (bi *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
-	symbol, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
+func (ex *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
+	symbol, err := ex.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +416,7 @@ func (bi *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) 
 	}
 	path := common.EncodeURLValues(candleStick, params)
 	var resp any
-	err = bi.SendHTTPRequest(ctx,
+	err = ex.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		path,
 		spotDefaultRate,
@@ -482,31 +482,31 @@ func (bi *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) 
 }
 
 // GetSinglePriceData to get the latest price for a token symbol or symbols.
-func (bi *Exchange) GetSinglePriceData(ctx context.Context, symbol currency.Pair) (SymbolPrice, error) {
+func (ex *Exchange) GetSinglePriceData(ctx context.Context, symbol currency.Pair) (SymbolPrice, error) {
 	var res SymbolPrice
 	params := url.Values{}
-	symbolValue, err := bi.FormatSymbol(symbol, asset.Spot)
+	symbolValue, err := ex.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return res, err
 	}
 	params.Set("symbol", symbolValue)
 	path := common.EncodeURLValues(tickerPrice, params)
-	return res, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &res)
+	return res, ex.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &res)
 }
 
 // GetPriceDatas to get the latest price for symbols.
-func (bi *Exchange) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
+func (ex *Exchange) GetPriceDatas(ctx context.Context) (SymbolPrices, error) {
 	var res SymbolPrices
-	return res, bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tickerPrice, spotSymbolPriceAllRate, &res)
+	return res, ex.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tickerPrice, spotSymbolPriceAllRate, &res)
 }
 
 // GetAveragePrice returns current average price for a symbol.
 //
 // symbol: string of currency pair
-func (bi *Exchange) GetAveragePrice(ctx context.Context, symbol currency.Pair) (AveragePrice, error) {
+func (ex *Exchange) GetAveragePrice(ctx context.Context, symbol currency.Pair) (AveragePrice, error) {
 	resp := AveragePrice{}
 	params := url.Values{}
-	symbolValue, err := bi.FormatSymbol(symbol, asset.Spot)
+	symbolValue, err := ex.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -514,19 +514,19 @@ func (bi *Exchange) GetAveragePrice(ctx context.Context, symbol currency.Pair) (
 
 	path := common.EncodeURLValues(averagePrice, params)
 
-	return resp, bi.SendHTTPRequest(ctx,
+	return resp, ex.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
 // symbol: string of currency pair
-func (bi *Exchange) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestPrice, error) {
+func (ex *Exchange) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestPrice, error) {
 	resp := BestPrice{}
 	params := url.Values{}
 	rateLimit := spotOrderbookTickerAllRate
 	if !symbol.IsEmpty() {
 		rateLimit = spotDefaultRate
-		symbolValue, err := bi.FormatSymbol(symbol, asset.Spot)
+		symbolValue, err := ex.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return resp, err
 		}
@@ -535,18 +535,18 @@ func (bi *Exchange) GetBestPrice(ctx context.Context, symbol currency.Pair) (Bes
 	path := common.EncodeURLValues(bestPrice, params)
 
 	return resp,
-		bi.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, rateLimit, &resp)
+		ex.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, rateLimit, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
 // symbol: string of currency pair
-func (bi *Exchange) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (PriceChangeStats, error) {
+func (ex *Exchange) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	params := url.Values{}
 	rateLimit := spotPriceChangeAllRate
 	if !symbol.IsEmpty() {
 		rateLimit = spotDefaultRate
-		symbolValue, err := bi.FormatSymbol(symbol, asset.Spot)
+		symbolValue, err := ex.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return resp, err
 		}
@@ -554,26 +554,26 @@ func (bi *Exchange) GetPriceChangeStats(ctx context.Context, symbol currency.Pai
 	}
 	path := common.EncodeURLValues(priceChange, params)
 
-	return resp, bi.SendHTTPRequest(ctx,
+	return resp, ex.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, rateLimit, &resp)
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
-func (bi *Exchange) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
+func (ex *Exchange) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
-	return resp, bi.SendHTTPRequest(ctx,
+	return resp, ex.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, priceChange, spotPriceChangeAllRate, &resp)
 }
 
 // GetAccount returns binance user accounts
-func (bi *Exchange) GetAccount(ctx context.Context) (*Account, error) {
+func (ex *Exchange) GetAccount(ctx context.Context) (*Account, error) {
 	type response struct {
 		Response
 		Account
 	}
 	var resp response
 	params := url.Values{}
-	if err := bi.SendAuthHTTPRequest(ctx,
+	if err := ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, accountInfo,
 		params, spotAccountInformationRate,
@@ -589,7 +589,7 @@ func (bi *Exchange) GetAccount(ctx context.Context) (*Account, error) {
 }
 
 // GetUserAccountStatus  to fetch account status detail.
-func (bi *Exchange) GetUserAccountStatus(ctx context.Context, recvWindow uint64) (*AccountStatusResponse, error) {
+func (ex *Exchange) GetUserAccountStatus(ctx context.Context, recvWindow uint64) (*AccountStatusResponse, error) {
 	var resp AccountStatusResponse
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
@@ -602,7 +602,7 @@ func (bi *Exchange) GetUserAccountStatus(ctx context.Context, recvWindow uint64)
 	}
 
 	return &resp,
-		bi.SendAuthHTTPRequest(ctx,
+		ex.SendAuthHTTPRequest(ctx,
 			exchange.RestSpotSupplementary,
 			http.MethodGet,
 			accountStatus,
@@ -612,7 +612,7 @@ func (bi *Exchange) GetUserAccountStatus(ctx context.Context, recvWindow uint64)
 }
 
 // GetUserAPITradingStatus to fetch account API trading status details.
-func (bi *Exchange) GetUserAPITradingStatus(ctx context.Context, recvWindow uint64) (*TradeStatus, error) {
+func (ex *Exchange) GetUserAPITradingStatus(ctx context.Context, recvWindow uint64) (*TradeStatus, error) {
 	type response struct {
 		Success bool        `json:"success"`
 		TC      TradeStatus `json:"status"`
@@ -626,7 +626,7 @@ func (bi *Exchange) GetUserAPITradingStatus(ctx context.Context, recvWindow uint
 	}
 	params.Set("recvWindow", strconv.FormatUint(recvWindow, 10))
 	return &resp.TC,
-		bi.SendAuthHTTPRequest(ctx,
+		ex.SendAuthHTTPRequest(ctx,
 			exchange.RestSpotSupplementary,
 			http.MethodGet,
 			tradingStatus,
@@ -636,17 +636,17 @@ func (bi *Exchange) GetUserAPITradingStatus(ctx context.Context, recvWindow uint
 }
 
 // GetFee to fetch trading fees.
-func (bi *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (ex *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		multiplier, er := bi.getMultiplier(ctx, feeBuilder.IsMaker, feeBuilder)
+		multiplier, er := ex.getMultiplier(ctx, feeBuilder.IsMaker, feeBuilder)
 		if er != nil {
 			return 0, er
 		}
 		fee = calculateTradingFee(feeBuilder.PurchasePrice, feeBuilder.Amount, multiplier)
 	case exchange.CryptocurrencyWithdrawalFee:
-		wallet, er := bi.GetAssetFeesAndWalletStatus(ctx)
+		wallet, er := ex.GetAssetFeesAndWalletStatus(ctx)
 		if er != nil {
 			return fee, er
 		}
@@ -667,12 +667,12 @@ func (bi *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder)
 }
 
 // getMultiplier retrieves account based taker/maker fees
-func (bi *Exchange) getMultiplier(ctx context.Context, isMaker bool, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	symbol, er := bi.FormatSymbol(feeBuilder.Pair, asset.Spot)
+func (ex *Exchange) getMultiplier(ctx context.Context, isMaker bool, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	symbol, er := ex.FormatSymbol(feeBuilder.Pair, asset.Spot)
 	if er != nil {
 		return 0, er
 	}
-	trades, er := bi.GetTradeFee(ctx, 0, symbol)
+	trades, er := ex.GetTradeFee(ctx, 0, symbol)
 	if er != nil {
 		return 0, er
 	}
@@ -698,7 +698,7 @@ func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 }
 
 // GetTradeFee to fetch trading fees.
-func (bi *Exchange) GetTradeFee(ctx context.Context, recvWindow uint64, symbol string) (TradeFeeList, error) {
+func (ex *Exchange) GetTradeFee(ctx context.Context, recvWindow uint64, symbol string) (TradeFeeList, error) {
 	timestamp := time.Now().UnixMilli()
 	params := url.Values{}
 	var resp TradeFeeList
@@ -714,7 +714,7 @@ func (bi *Exchange) GetTradeFee(ctx context.Context, recvWindow uint64, symbol s
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	return resp, bi.SendAuthHTTPRequest(ctx,
+	return resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		tradeFee,
@@ -728,7 +728,7 @@ func (bi *Exchange) GetTradeFee(ctx context.Context, recvWindow uint64, symbol s
 //
 // INPUTS:
 // asset: string , startTime & endTime unix time in Milli seconds, recvWindow(duration in milli seconds > 2000 to < 6000)
-func (bi *Exchange) GetAssetDistributionHistory(ctx context.Context, asset string, startTime, endTime int64, recvWindow uint64) (*AssetDistributionHistories, error) {
+func (ex *Exchange) GetAssetDistributionHistory(ctx context.Context, asset string, startTime, endTime int64, recvWindow uint64) (*AssetDistributionHistories, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	var resp AssetDistributionHistories
@@ -751,7 +751,7 @@ func (bi *Exchange) GetAssetDistributionHistory(ctx context.Context, asset strin
 	if asset != "" {
 		params.Set("asset", asset)
 	}
-	return &resp, bi.SendAuthHTTPRequest(ctx,
+	return &resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, assetDistributionHistory,
 		params,
@@ -759,28 +759,28 @@ func (bi *Exchange) GetAssetDistributionHistory(ctx context.Context, asset strin
 }
 
 // QuickEnableCryptoWithdrawal use this endpoint to enable crypto withdrawals.
-func (bi *Exchange) QuickEnableCryptoWithdrawal(ctx context.Context) error {
+func (ex *Exchange) QuickEnableCryptoWithdrawal(ctx context.Context) error {
 	params := url.Values{}
 	response := struct {
 		Data any
 	}{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	return bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodPost,
 		accountEnableCryptoWithdrawalEndpoint, params, spotDefaultRate, &(response.Data))
 }
 
 // QuickDisableCryptoWithdrawal use this endpoint to disable crypto withdrawals.
-func (bi *Exchange) QuickDisableCryptoWithdrawal(ctx context.Context) error {
+func (ex *Exchange) QuickDisableCryptoWithdrawal(ctx context.Context) error {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	return bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodPost,
 		accountDisableCryptoWithdrawalEndpoint, params, spotDefaultRate, nil)
 }
 
 // GetUsersSpotAssetSnapshot retrieves a snapshot of list of assets in the account.
-func (bi *Exchange) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint64) (*SpotAssetsSnapshotResponse, error) {
+func (ex *Exchange) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint64) (*SpotAssetsSnapshotResponse, error) {
 	params := url.Values{}
 	params.Set("type", "SPOT")
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -797,13 +797,13 @@ func (bi *Exchange) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, en
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	var resp SpotAssetsSnapshotResponse
-	return &resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return &resp, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, usersSpotAssetsSnapshot,
 		params, spotDefaultRate, &resp)
 }
 
 // GetSubaccountInformation to fetch your sub-account list.
-func (bi *Exchange) GetSubaccountInformation(ctx context.Context, page, limit uint64, status, email string) ([]SubAccount, error) {
+func (ex *Exchange) GetSubaccountInformation(ctx context.Context, page, limit uint64, status, email string) ([]SubAccount, error) {
 	params := url.Values{}
 	type response struct {
 		Success     bool         `json:"success"`
@@ -825,7 +825,7 @@ func (bi *Exchange) GetSubaccountInformation(ctx context.Context, page, limit ui
 	}
 	timestamp := time.Now().UnixMilli()
 	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
-	return resp.Subaccounts, bi.SendAuthHTTPRequest(ctx,
+	return resp.Subaccounts, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		subaccountsInformation,
@@ -835,7 +835,7 @@ func (bi *Exchange) GetSubaccountInformation(ctx context.Context, page, limit ui
 }
 
 // GetSubaccountTransferHistory to fetch sub-account asset transfer history.
-func (bi *Exchange) GetSubaccountTransferHistory(ctx context.Context, email string, startTime, endTime, page, limit int64) ([]TransferHistory, error) {
+func (ex *Exchange) GetSubaccountTransferHistory(ctx context.Context, email string, startTime, endTime, page, limit int64) ([]TransferHistory, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errNotValidEmailAddress
 	}
@@ -864,7 +864,7 @@ func (bi *Exchange) GetSubaccountTransferHistory(ctx context.Context, email stri
 		Success   bool              `json:"success"`
 		Transfers []TransferHistory `json:"transfers"`
 	}
-	return resp.Transfers, bi.SendAuthHTTPRequest(ctx,
+	return resp.Transfers, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		subaccountTransferHistory,
@@ -874,7 +874,7 @@ func (bi *Exchange) GetSubaccountTransferHistory(ctx context.Context, email stri
 }
 
 // ExecuteSubAccountTransfer to execute sub-account asset transfers.
-func (bi *Exchange) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccountTransferRequestParams) (*SubAccountTransferResponse, error) {
+func (ex *Exchange) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccountTransferRequestParams) (*SubAccountTransferResponse, error) {
 	params := url.Values{}
 	var response SubAccountTransferResponse
 	if !common.MatchesEmailPattern(arg.FromEmail) {
@@ -894,11 +894,11 @@ func (bi *Exchange) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccou
 	params.Set("asset", arg.Asset)
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
+	return &response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
 }
 
 // GetSubaccountAssets to fetch sub-account assets.
-func (bi *Exchange) GetSubaccountAssets(ctx context.Context, email string) (*SubAccountAssets, error) {
+func (ex *Exchange) GetSubaccountAssets(ctx context.Context, email string) (*SubAccountAssets, error) {
 	var resp SubAccountAssets
 	if !common.MatchesEmailPattern(email) {
 		return nil, errNotValidEmailAddress
@@ -908,7 +908,7 @@ func (bi *Exchange) GetSubaccountAssets(ctx context.Context, email string) (*Sub
 	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	params.Set("email", email)
 	//
-	return &resp, bi.SendAuthHTTPRequest(ctx,
+	return &resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		subaccountAssets, params,
 		spotDefaultRate,
@@ -916,7 +916,7 @@ func (bi *Exchange) GetSubaccountAssets(ctx context.Context, email string) (*Sub
 }
 
 // GetMasterAccountTotalUSDValue this endpoint to get the total value of assets in the master account in USD.
-func (bi *Exchange) GetMasterAccountTotalUSDValue(ctx context.Context, email string, page, size int) (*SpotUSDMasterAccounts, error) {
+func (ex *Exchange) GetMasterAccountTotalUSDValue(ctx context.Context, email string, page, size int) (*SpotUSDMasterAccounts, error) {
 	var response SpotUSDMasterAccounts
 	params := url.Values{}
 	if email != "" {
@@ -929,13 +929,13 @@ func (bi *Exchange) GetMasterAccountTotalUSDValue(ctx context.Context, email str
 		params.Set("size", strconv.Itoa(size))
 	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return &response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, masterAccounts, params,
 		spotDefaultRate, &response)
 }
 
 // GetSubaccountStatusList this endpoint retrieves a status list of sub-accounts.
-func (bi *Exchange) GetSubaccountStatusList(ctx context.Context, email string) ([]SubAccountStatus, error) {
+func (ex *Exchange) GetSubaccountStatusList(ctx context.Context, email string) ([]SubAccountStatus, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
@@ -943,7 +943,7 @@ func (bi *Exchange) GetSubaccountStatusList(ctx context.Context, email string) (
 	params.Set("email", email)
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response []SubAccountStatus
-	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, subAccountStatusList, params,
 		spotDefaultRate, &response)
 }
@@ -952,7 +952,7 @@ func (bi *Exchange) GetSubaccountStatusList(ctx context.Context, email string) (
 
 // GetOrderRateLimits get the current trade order count rate limits for all time intervals.
 // INPUTS: recvWindow <= 60000
-func (bi *Exchange) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]OrderRateLimit, error) {
+func (ex *Exchange) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]OrderRateLimit, error) {
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
 	params.Set("timestamp", strconv.Itoa(int(timestamp)))
@@ -962,13 +962,13 @@ func (bi *Exchange) GetOrderRateLimits(ctx context.Context, recvWindow uint) ([]
 		params.Set("recvWindow", strconv.Itoa(30000))
 	}
 	var resp []OrderRateLimit
-	return resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderRateLimit, params, spotOrderRateLimitRate, &resp)
+	return resp, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, orderRateLimit, params, spotOrderRateLimitRate, &resp)
 }
 
 // NewOrder sends a new order to Binanceus
-func (bi *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
+func (ex *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
-	if err := bi.newOrder(ctx, orderRequest, o, &resp); err != nil {
+	if err := ex.newOrder(ctx, orderRequest, o, &resp); err != nil {
 		return resp, err
 	}
 	if resp.Code != 0 {
@@ -979,15 +979,15 @@ func (bi *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderR
 
 // NewOrderTest sends a new test order to Binanceus
 // to test new order creation and signature/recvWindow long. The endpoint creates and validates a new order but does not send it into the matching engine.
-func (bi *Exchange) NewOrderTest(ctx context.Context, o *NewOrderRequest) (*NewOrderResponse, error) {
+func (ex *Exchange) NewOrderTest(ctx context.Context, o *NewOrderRequest) (*NewOrderResponse, error) {
 	var resp NewOrderResponse
-	return &resp, bi.newOrder(ctx, testCreateNeworder, o, &resp)
+	return &resp, ex.newOrder(ctx, testCreateNeworder, o, &resp)
 }
 
 // newOrder this endpoint is used by both new order and NewOrderTest passing their route and order information to send new order.
-func (bi *Exchange) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
+func (ex *Exchange) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
 	params := url.Values{}
-	symbol, err := bi.FormatSymbol(o.Symbol, asset.Spot)
+	symbol, err := ex.FormatSymbol(o.Symbol, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -1017,14 +1017,14 @@ func (bi *Exchange) newOrder(ctx context.Context, api string, o *NewOrderRequest
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-	return bi.SendAuthHTTPRequest(ctx,
+	return ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost, api, params,
 		spotOrderRate, resp)
 }
 
 // GetOrder to check a trade order's status.
-func (bi *Exchange) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Order, error) {
+func (ex *Exchange) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Order, error) {
 	var resp Order
 	params := url.Values{}
 	if arg.Symbol == "" {
@@ -1042,7 +1042,7 @@ func (bi *Exchange) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Ord
 	if arg.recvWindow > 200 && arg.recvWindow <= 6000 {
 		params.Set("recvWindow", strconv.Itoa(int(arg.recvWindow)))
 	}
-	return &resp, bi.SendAuthHTTPRequest(ctx,
+	return &resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, orderRequest,
 		params, spotOrderQueryRate,
@@ -1050,7 +1050,7 @@ func (bi *Exchange) GetOrder(ctx context.Context, arg *OrderRequestParams) (*Ord
 }
 
 // GetAllOpenOrders to get all open trade orders on a token symbol. Do not access this without a token symbol as this would return all pair data.
-func (bi *Exchange) GetAllOpenOrders(ctx context.Context, symbol string) ([]Order, error) {
+func (ex *Exchange) GetAllOpenOrders(ctx context.Context, symbol string) ([]Order, error) {
 	var response []Order
 	params := url.Values{}
 
@@ -1066,18 +1066,18 @@ func (bi *Exchange) GetAllOpenOrders(ctx context.Context, symbol string) ([]Orde
 	} else {
 		rateLimit = spotOpenOrdersAllRate
 	}
-	return response, bi.SendAuthHTTPRequest(ctx,
+	return response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		openOrders, params,
 		rateLimit, &response)
 }
 
 // CancelExistingOrder to cancel an active trade order.
-func (bi *Exchange) CancelExistingOrder(ctx context.Context, arg *CancelOrderRequestParams) (*Order, error) {
+func (ex *Exchange) CancelExistingOrder(ctx context.Context, arg *CancelOrderRequestParams) (*Order, error) {
 	params := url.Values{}
 	var response Order
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	symbolValue, err := bi.FormatSymbol(arg.Symbol, asset.Spot)
+	symbolValue, err := ex.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil || symbolValue == "" {
 		return nil, errMissingCurrencySymbol
 	}
@@ -1091,14 +1091,14 @@ func (bi *Exchange) CancelExistingOrder(ctx context.Context, arg *CancelOrderReq
 		params.Set("orderId", arg.OrderID)
 	}
 	params.Set("recvWindow", recvWindowSize5000String)
-	return &response, bi.SendAuthHTTPRequest(ctx,
+	return &response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodDelete, orderRequest,
 		params, spotOrderRate, &response)
 }
 
 // CancelOpenOrdersForSymbol request to cancel an open orders.
-func (bi *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string) ([]Order, error) {
+func (ex *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string) ([]Order, error) {
 	params := url.Values{}
 	if symbol == "" || len(symbol) < 4 {
 		return nil, errMissingCurrencySymbol
@@ -1107,13 +1107,13 @@ func (bi *Exchange) CancelOpenOrdersForSymbol(ctx context.Context, symbol string
 	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
 	params.Set("recvWindow", "5000")
 	var response []Order
-	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodDelete, openOrders,
 		params, spotOrderRate, response)
 }
 
 // GetTrades to get trade data for a specific account and token symbol.
-func (bi *Exchange) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Trade, error) {
+func (ex *Exchange) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Trade, error) {
 	var resp []Trade
 	params := url.Values{}
 	if arg.Symbol == "" || len(arg.Symbol) <= 2 {
@@ -1138,13 +1138,13 @@ func (bi *Exchange) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Trad
 	} else if arg.Limit > 1000 {
 		params.Set("limit", strconv.Itoa(1000))
 	}
-	return resp, bi.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, myTrades, params, spotTradesQueryRate, &resp)
+	return resp, ex.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, myTrades, params, spotTradesQueryRate, &resp)
 }
 
 // OCO Orders
 
 // CreateNewOCOOrder o place a new OCO(one-cancels-the-other) order.
-func (bi *Exchange) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputParams) (*OCOFullOrderResponse, error) {
+func (ex *Exchange) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputParams) (*OCOFullOrderResponse, error) {
 	params := url.Values{}
 	if arg == nil || arg.Symbol == "" || len(arg.Symbol) <= 2 || arg.Quantity == 0 || arg.Side == "" || arg.Price == 0 || arg.StopPrice == 0 {
 		return nil, errIncompleteArguments
@@ -1185,14 +1185,14 @@ func (bi *Exchange) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputPar
 	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response OCOFullOrderResponse
-	return &response, bi.SendAuthHTTPRequest(ctx,
+	return &response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost, ocoOrder, params,
 		spotOrderRate, &response)
 }
 
 // GetOCOOrder to retrieve a specific OCO order based on provided optional parameters.
-func (bi *Exchange) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestParams) (*OCOOrderResponse, error) {
+func (ex *Exchange) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestParams) (*OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	switch {
@@ -1205,11 +1205,11 @@ func (bi *Exchange) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestPara
 	}
 	params.Set("recvWindow", "60000")
 	var response OCOOrderResponse
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, ocoOrderList, params, spotSingleOCOOrderRate, &response)
+	return &response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, ocoOrderList, params, spotSingleOCOOrderRate, &response)
 }
 
 // GetAllOCOOrder to retrieve all OCO orders based on provided optional parameters. Please note the maximum limit is 1,000 orders.
-func (bi *Exchange) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestParams) ([]OCOOrderResponse, error) {
+func (ex *Exchange) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestParams) ([]OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response []OCOOrderResponse
@@ -1229,14 +1229,14 @@ func (bi *Exchange) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestPar
 	if arg.RecvWindow > 0 {
 		params.Set("recvWindow", strconv.FormatUint(arg.RecvWindow, 10))
 	}
-	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, ocoAllOrderList,
 		params, spotAllOCOOrdersRate,
 		&response)
 }
 
 // GetOpenOCOOrders to query open OCO orders.
-func (bi *Exchange) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([]OCOOrderResponse, error) {
+func (ex *Exchange) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([]OCOOrderResponse, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if recvWindow > 0 {
@@ -1245,13 +1245,13 @@ func (bi *Exchange) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([]
 		params.Set("recvWindow", "30000")
 	}
 	var response []OCOOrderResponse
-	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
+	return response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
 		ocoOpenOrders, params,
 		spotOpenOrdersSpecificRate, &response)
 }
 
 // CancelOCOOrder to cancel an entire order list.
-func (bi *Exchange) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequestParams) (*OCOFullOrderResponse, error) {
+func (ex *Exchange) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequestParams) (*OCOFullOrderResponse, error) {
 	var response OCOFullOrderResponse
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -1266,7 +1266,7 @@ func (bi *Exchange) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequ
 	if arg.RecvWindow > 0 {
 		params.Set("recvWindow", strconv.FormatUint(arg.RecvWindow, 10))
 	}
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return &response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, ocoOrderList,
 		params, spotOrderRate, &response)
 }
@@ -1275,20 +1275,20 @@ func (bi *Exchange) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequ
 
 // GetSupportedCoinPairs to get a list of supported coin pairs for convert.
 // returns list of CoinPairInfo
-func (bi *Exchange) GetSupportedCoinPairs(ctx context.Context, symbol currency.Pair) ([]CoinPairInfo, error) {
+func (ex *Exchange) GetSupportedCoinPairs(ctx context.Context, symbol currency.Pair) ([]CoinPairInfo, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("fromCoin", symbol.Base.String())
 		params.Set("toCoin", symbol.Quote.String())
 	}
 	var resp []CoinPairInfo
-	return resp, bi.SendAuthHTTPRequest(ctx,
+	return resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet, otcSelectors,
 		params, spotDefaultRate, &resp)
 }
 
 // RequestForQuote endpoint to request a quote for a from-to coin pair.
-func (bi *Exchange) RequestForQuote(ctx context.Context, arg *RequestQuoteParams) (*Quote, error) {
+func (ex *Exchange) RequestForQuote(ctx context.Context, arg *RequestQuoteParams) (*Quote, error) {
 	params := url.Values{}
 	var resp Quote
 	if arg.FromCoin == "" {
@@ -1308,7 +1308,7 @@ func (bi *Exchange) RequestForQuote(ctx context.Context, arg *RequestQuoteParams
 	params.Set("requestAmount", strconv.FormatFloat(arg.RequestAmount, 'f', 0, 64))
 	params.Set("requestCoin", arg.RequestCoin)
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
-	return &resp, bi.SendAuthHTTPRequest(ctx,
+	return &resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost, otcQuotes, params,
 		spotDefaultRate, &resp)
@@ -1316,7 +1316,7 @@ func (bi *Exchange) RequestForQuote(ctx context.Context, arg *RequestQuoteParams
 
 // PlaceOTCTradeOrder to place an order using an acquired quote.
 // returns OTCTradeOrderResponse response containing the OrderID,OrderStatus, and CreateTime information of an order.
-func (bi *Exchange) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*OTCTradeOrderResponse, error) {
+func (ex *Exchange) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*OTCTradeOrderResponse, error) {
 	params := url.Values{}
 	if strings.Trim(quoteID, " ") == "" {
 		return nil, errMissingQuoteID
@@ -1324,14 +1324,14 @@ func (bi *Exchange) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*OT
 	params.Set("quoteId", quoteID)
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response OTCTradeOrderResponse
-	return &response, bi.SendAuthHTTPRequest(ctx,
+	return &response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost,
 		otcTradeOrder, params,
 		spotOrderRate, &response)
 }
 
 // GetOTCTradeOrder returns a single OTC Trade Order instance.
-func (bi *Exchange) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTCTradeOrder, error) {
+func (ex *Exchange) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTCTradeOrder, error) {
 	var response OTCTradeOrder
 	params := url.Values{}
 	if orderID <= 0 {
@@ -1341,7 +1341,7 @@ func (bi *Exchange) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTCT
 	params.Set("orderId", orderIDStr)
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	path := otcTradeOrders + orderIDStr
-	return &response, bi.SendAuthHTTPRequest(ctx,
+	return &response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		path, params,
@@ -1349,7 +1349,7 @@ func (bi *Exchange) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTCT
 }
 
 // GetAllOTCTradeOrders returns list of OTC Trade Orders
-func (bi *Exchange) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrderRequestParams) ([]OTCTradeOrder, error) {
+func (ex *Exchange) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrderRequestParams) ([]OTCTradeOrder, error) {
 	params := url.Values{}
 	if arg.OrderID != "" {
 		params.Set("orderId", arg.OrderID)
@@ -1370,14 +1370,14 @@ func (bi *Exchange) GetAllOTCTradeOrders(ctx context.Context, arg *OTCTradeOrder
 		params.Set("limit", strconv.Itoa(int(arg.Limit)))
 	}
 	var response []OTCTradeOrder
-	return response, bi.SendAuthHTTPRequest(ctx,
+	return response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, otcTradeOrder,
 		params, spotOrderRate, &response)
 }
 
 // GetAllOCBSTradeOrders use this endpoint to query all OCBS orders by condition.
-func (bi *Exchange) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderRequestParams) (*OCBSTradeOrdersResponse, error) {
+func (ex *Exchange) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderRequestParams) (*OCBSTradeOrdersResponse, error) {
 	var resp OCBSTradeOrdersResponse
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
@@ -1393,7 +1393,7 @@ func (bi *Exchange) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderRequ
 	if arg.Limit > 0 && arg.Limit < 100 {
 		params.Set("limit", strconv.Itoa(int(arg.Limit)))
 	}
-	return &resp, bi.SendAuthHTTPRequest(ctx,
+	return &resp, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, ocbsTradeOrders,
 		params, spotOrderRate, &resp)
@@ -1403,18 +1403,18 @@ func (bi *Exchange) GetAllOCBSTradeOrders(ctx context.Context, arg OCBSOrderRequ
 
 // GetAssetFeesAndWalletStatus to fetch the details of all crypto assets, including fees, withdrawal limits and network status.
 // returns the asset wallet detail as a list.
-func (bi *Exchange) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWalletList, error) {
+func (ex *Exchange) GetAssetFeesAndWalletStatus(ctx context.Context) (AssetWalletList, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response AssetWalletList
-	return response, bi.SendAuthHTTPRequest(ctx,
+	return response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, assetFeeAndWalletStatus,
 		params, spotDefaultRate, &response)
 }
 
 // WithdrawCrypto method to withdraw crypto
-func (bi *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (string, error) {
+func (ex *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (string, error) {
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if arg.Currency.String() == "" {
@@ -1440,7 +1440,7 @@ func (bi *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (
 	}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
 	var response WithdrawalResponse
-	if err := bi.SendAuthHTTPRequest(ctx,
+	if err := ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost, applyWithdrawal,
 		params, spotDefaultRate, &response); err != nil {
@@ -1451,7 +1451,7 @@ func (bi *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (
 
 // WithdrawalHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (bi *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
+func (ex *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]WithdrawStatusResponse, error) {
 	params := url.Values{}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
@@ -1481,7 +1481,7 @@ func (bi *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, stat
 		params.Set("limit", strconv.Itoa(limit))
 	}
 	var withdrawStatus []WithdrawStatusResponse
-	if err := bi.SendAuthHTTPRequest(ctx,
+	if err := ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		withdrawalHistory,
@@ -1495,7 +1495,7 @@ func (bi *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, stat
 
 // FiatWithdrawalHistory to fetch your fiat (USD) withdrawal history.
 // returns FiatAssetHistory containing list of fiat asset records.
-func (bi *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+func (ex *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
@@ -1517,7 +1517,7 @@ func (bi *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdraw
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
 	params.Set("timestamp", strconv.Itoa(int(time.Now().UnixMilli())))
-	return response, bi.SendAuthHTTPRequest(ctx,
+	return response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, fiatWithdrawalHistory,
 		params, spotDefaultRate, &response)
@@ -1525,7 +1525,7 @@ func (bi *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdraw
 
 // WithdrawFiat to submit a USD withdraw request via Silvergate Exchange Network (SEN).
 // returns the Order ID as string
-func (bi *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestParams) (string, error) {
+func (ex *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestParams) (string, error) {
 	params := url.Values{}
 	timestamp := strconv.Itoa(int(time.Now().UnixMilli()))
 	if arg == nil {
@@ -1551,7 +1551,7 @@ func (bi *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestPa
 		OrderID string `json:"orderId"`
 	}
 	var resp response
-	return resp.OrderID, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+	return resp.OrderID, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodPost, withdrawFiat,
 		params, spotDefaultRate, &resp,
 	)
@@ -1563,7 +1563,7 @@ func (bi *Exchange) WithdrawFiat(ctx context.Context, arg *WithdrawFiatRequestPa
 */
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
-func (bi *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
+func (ex *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddress, error) {
 	params := url.Values{}
 	if currency == "" {
 		return nil, errMissingRequiredArgumentCoin
@@ -1575,12 +1575,12 @@ func (bi *Exchange) GetDepositAddressForCurrency(ctx context.Context, currency, 
 	params.Set("recvWindow", "10000")
 	var d DepositAddress
 	return &d,
-		bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &d)
+		ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &d)
 }
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
-func (bi *Exchange) DepositHistory(ctx context.Context, c currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
+func (ex *Exchange) DepositHistory(ctx context.Context, c currency.Code, status uint8, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
 	var response []DepositHistory
 	params := url.Values{}
 	if !c.IsEmpty() {
@@ -1611,7 +1611,7 @@ func (bi *Exchange) DepositHistory(ctx context.Context, c currency.Code, status 
 		params.Set("limit", strconv.Itoa(limit))
 	}
 
-	if err := bi.SendAuthHTTPRequest(ctx,
+	if err := ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		depositHistory,
@@ -1625,7 +1625,7 @@ func (bi *Exchange) DepositHistory(ctx context.Context, c currency.Code, status 
 }
 
 // FiatDepositHistory fetch your fiat (USD) deposit history as Fiat Assets History
-func (bi *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+func (ex *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
@@ -1647,13 +1647,13 @@ func (bi *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalR
 	}
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response FiatAssetsHistory
-	return response, bi.SendAuthHTTPRequest(ctx,
+	return response, ex.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		fiatDepositHistory, params, spotDefaultRate, &response)
 }
 
 // GetSubAccountDepositAddress retrieves sub-account’s deposit address.
-func (bi *Exchange) GetSubAccountDepositAddress(ctx context.Context, arg SubAccountDepositAddressRequestParams) (*SubAccountDepositAddress, error) {
+func (ex *Exchange) GetSubAccountDepositAddress(ctx context.Context, arg SubAccountDepositAddressRequestParams) (*SubAccountDepositAddress, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(arg.Email) {
 		return nil, errMissingSubAccountEmail
@@ -1663,12 +1663,12 @@ func (bi *Exchange) GetSubAccountDepositAddress(ctx context.Context, arg SubAcco
 	params.Set("email", arg.Email)
 	params.Set("coin", arg.Coin.String())
 	var response SubAccountDepositAddress
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
+	return &response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
 		subAccountDepositAddress, params, spotDefaultRate, &response)
 }
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history.
-func (bi *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
+func (ex *Exchange) GetSubAccountDepositHistory(ctx context.Context, email string, coin currency.Code, status int, startTime, endTime time.Time, limit, offset int) ([]SubAccountDepositItem, error) {
 	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errMissingSubAccountEmail
@@ -1693,14 +1693,14 @@ func (bi *Exchange) GetSubAccountDepositHistory(ctx context.Context, email strin
 		params.Set("offset", strconv.Itoa(offset))
 	}
 	var response []SubAccountDepositItem
-	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
+	return response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet,
 		subAccountDepositHistory, params, spotDefaultRate, &response)
 }
 
 // Referral Endpoints
 
 // GetReferralRewardHistory retrieves the user’s referral reward history.
-func (bi *Exchange) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
+func (ex *Exchange) GetReferralRewardHistory(ctx context.Context, userBusinessType, page, rows int) (*ReferralRewardHistoryResponse, error) {
 	params := url.Values{}
 	switch {
 	case userBusinessType != 0 && userBusinessType != 1:
@@ -1715,12 +1715,12 @@ func (bi *Exchange) GetReferralRewardHistory(ctx context.Context, userBusinessTy
 	params.Set("rows", strconv.Itoa(rows))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response ReferralRewardHistoryResponse
-	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, referralRewardHistory, params, spotDefaultRate, &response)
+	return &response, ex.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, referralRewardHistory, params, spotDefaultRate, &response)
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (bi *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
-	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
+func (ex *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+	endpointPath, err := ex.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -1728,23 +1728,23 @@ func (bi *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, pat
 		Method:        http.MethodGet,
 		Path:          endpointPath + path,
 		Result:        result,
-		Verbose:       bi.Verbose,
-		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording,
+		Verbose:       ex.Verbose,
+		HTTPDebugging: ex.HTTPDebugging,
+		HTTPRecording: ex.HTTPRecording,
 	}
-	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
+	return ex.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
 // appended to the headers without a secret
-func (bi *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
-	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
+func (ex *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any) error {
+	endpointPath, err := ex.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-	creds, err := bi.GetCredentials(ctx)
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -1756,23 +1756,23 @@ func (bi *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.UR
 		Path:          endpointPath + path,
 		Headers:       headers,
 		Result:        result,
-		Verbose:       bi.Verbose,
-		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording,
+		Verbose:       ex.Verbose,
+		HTTPDebugging: ex.HTTPDebugging,
+		HTTPRecording: ex.HTTPRecording,
 	}
 
-	return bi.SendPayload(ctx, f, func() (*request.Item, error) {
+	return ex.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (bi *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
-	creds, err := bi.GetCredentials(ctx)
+func (ex *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, result any) error {
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
+	endpointPath, err := ex.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
@@ -1783,7 +1783,7 @@ func (bi *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 		params.Set("recvWindow", strconv.FormatInt(defaultRecvWindow.Milliseconds(), 10))
 	}
 	interim := json.RawMessage{}
-	err = bi.SendPayload(ctx, f, func() (*request.Item, error) {
+	err = ex.SendPayload(ctx, f, func() (*request.Item, error) {
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
 		if err != nil {
@@ -1797,9 +1797,9 @@ func (bi *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
-			Verbose:       bi.Verbose,
-			HTTPDebugging: bi.HTTPDebugging,
-			HTTPRecording: bi.HTTPRecording,
+			Verbose:       ex.Verbose,
+			HTTPDebugging: ex.HTTPDebugging,
+			HTTPRecording: ex.HTTPRecording,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -1825,13 +1825,13 @@ func (bi *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL,
 // Start a new user data websocket. The stream will close after 60 minutes unless a keepalive is sent.
 // If the account has an active listenKey,
 // that listenKey will be returned and its validity will be extended for 60 minutes.
-func (bi *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
-	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+func (ex *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
+	endpointPath, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return "", err
 	}
 
-	creds, err := bi.GetCredentials(ctx)
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -1844,12 +1844,12 @@ func (bi *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
 		Result:        &resp,
-		Verbose:       bi.Verbose,
-		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording,
+		Verbose:       ex.Verbose,
+		HTTPDebugging: ex.HTTPDebugging,
+		HTTPRecording: ex.HTTPRecording,
 	}
 
-	err = bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
+	err = ex.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
@@ -1863,17 +1863,17 @@ func (bi *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 // Keepalive a user data stream to prevent a time out.
 // User data streams will close after 60 minutes.
 // It's recommended to send a ping about every 30 minutes.
-func (bi *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
-	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+func (ex *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
+	endpointPath, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return err
 	}
 	if listenKey == "" {
-		listenKey, err = bi.GetWsAuthStreamKey(ctx)
+		listenKey, err = ex.GetWsAuthStreamKey(ctx)
 		return err
 	}
 
-	creds, err := bi.GetCredentials(ctx)
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -1888,28 +1888,28 @@ func (bi *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		Verbose:       bi.Verbose,
-		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording,
+		Verbose:       ex.Verbose,
+		HTTPDebugging: ex.HTTPDebugging,
+		HTTPRecording: ex.HTTPRecording,
 	}
 
-	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
+	return ex.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
 }
 
 // CloseUserDataStream Close out a user data websocket.
-func (bi *Exchange) CloseUserDataStream(ctx context.Context) error {
-	endpointPath, err := bi.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+func (ex *Exchange) CloseUserDataStream(ctx context.Context) error {
+	endpointPath, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 	if err != nil {
 		return err
 	}
 	if listenKey == "" {
-		listenKey, err = bi.GetWsAuthStreamKey(ctx)
+		listenKey, err = ex.GetWsAuthStreamKey(ctx)
 		return err
 	}
 
-	creds, err := bi.GetCredentials(ctx)
+	creds, err := ex.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -1924,12 +1924,12 @@ func (bi *Exchange) CloseUserDataStream(ctx context.Context) error {
 		Method:        http.MethodDelete,
 		Path:          path,
 		Headers:       headers,
-		Verbose:       bi.Verbose,
-		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording,
+		Verbose:       ex.Verbose,
+		HTTPDebugging: ex.HTTPDebugging,
+		HTTPRecording: ex.HTTPRecording,
 	}
 
-	return bi.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
+	return ex.SendPayload(ctx, spotDefaultRate, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
 }

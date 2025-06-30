@@ -87,11 +87,11 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
 // that the instrument is associated with
-func (ok *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
+func (ex *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	pf, err := ok.CurrencyPairs.GetFormat(asset.Spot, true)
+	pf, err := ex.CurrencyPairs.GetFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -106,14 +106,14 @@ func (ok *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item
 	switch {
 	case len(splitSymbol) == 2:
 		resp := make([]asset.Item, 0, 2)
-		enabled, err := ok.IsPairEnabled(pair, asset.Spot)
+		enabled, err := ex.IsPairEnabled(pair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		if enabled {
 			resp = append(resp, asset.Spot)
 		}
-		enabled, err = ok.IsPairEnabled(pair, asset.Margin)
+		enabled, err = ex.IsPairEnabled(pair, asset.Margin)
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +133,7 @@ func (ok *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item
 		default:
 			aType = asset.Futures
 		}
-		enabled, err := ok.IsPairEnabled(pair, aType)
+		enabled, err := ex.IsPairEnabled(pair, aType)
 		if err != nil {
 			return nil, err
 		} else if enabled {

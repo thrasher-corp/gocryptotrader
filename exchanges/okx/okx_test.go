@@ -412,11 +412,11 @@ func TestGetOpenInterestData(t *testing.T) {
 }
 
 // Only being used for testing purposes and unexported
-func (ok *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
-	ok.instrumentsInfoMapLock.Lock()
-	defer ok.instrumentsInfoMapLock.Unlock()
+func (ex *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
+	ex.instrumentsInfoMapLock.Lock()
+	defer ex.instrumentsInfoMapLock.Unlock()
 	if instrumentType != "" {
-		insts, okay := ok.instrumentsInfoMap[instrumentType]
+		insts, okay := ex.instrumentsInfoMap[instrumentType]
 		if !okay {
 			return "", errInvalidInstrumentType
 		}
@@ -426,7 +426,7 @@ func (ok *Exchange) underlyingFromInstID(instrumentType, instID string) (string,
 			}
 		}
 	} else {
-		for _, insts := range ok.instrumentsInfoMap {
+		for _, insts := range ex.instrumentsInfoMap {
 			for a := range insts {
 				if insts[a].InstrumentID.String() == instID {
 					return insts[a].Underlying, nil
@@ -6012,11 +6012,11 @@ func TestGetFiatDepositPaymentMethods(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func (ok *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {
-	ok.instrumentsInfoMapLock.Lock()
-	defer ok.instrumentsInfoMapLock.Unlock()
+func (ex *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (string, error) {
+	ex.instrumentsInfoMapLock.Lock()
+	defer ex.instrumentsInfoMapLock.Unlock()
 	if instrumentType != "" {
-		insts, okay := ok.instrumentsInfoMap[instrumentType]
+		insts, okay := ex.instrumentsInfoMap[instrumentType]
 		if !okay {
 			return "", errInvalidInstrumentType
 		}
@@ -6026,7 +6026,7 @@ func (ok *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (s
 			}
 		}
 	} else {
-		for _, insts := range ok.instrumentsInfoMap {
+		for _, insts := range ex.instrumentsInfoMap {
 			for a := range insts {
 				if insts[a].InstrumentID.String() == instID {
 					return insts[a].InstrumentFamily, nil

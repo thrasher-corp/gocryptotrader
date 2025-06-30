@@ -50,12 +50,12 @@ type Exchange struct {
 
 // GetTicker returns current ticker information from Alphapoint for a selected
 // currency pair ie "BTCUSD"
-func (a *Exchange) GetTicker(ctx context.Context, currencyPair string) (Ticker, error) {
+func (e *Exchange) GetTicker(ctx context.Context, currencyPair string) (Ticker, error) {
 	req := make(map[string]any)
 	req["productPair"] = currencyPair
 	response := Ticker{}
 
-	err := a.SendHTTPRequest(ctx,
+	err := e.SendHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointTicker,
@@ -76,14 +76,14 @@ func (a *Exchange) GetTicker(ctx context.Context, currencyPair string) (Ticker, 
 // AlphaPoint Exchange. To begin from the most recent trade, set startIndex to
 // 0 (default: 0)
 // Count: specifies the number of trades to return (default: 10)
-func (a *Exchange) GetTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
+func (e *Exchange) GetTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
 	req := make(map[string]any)
 	req["ins"] = currencyPair
 	req["startIndex"] = startIndex
 	req["Count"] = count
 	response := Trades{}
 
-	err := a.SendHTTPRequest(ctx,
+	err := e.SendHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost, alphapointTrades, req, &response)
 	if err != nil {
 		return response, err
@@ -98,14 +98,14 @@ func (a *Exchange) GetTrades(ctx context.Context, currencyPair string, startInde
 // CurrencyPair - instrument code (ex: “BTCUSD”)
 // StartDate - specifies the starting time in epoch time, type is long
 // EndDate - specifies the end time in epoch time, type is long
-func (a *Exchange) GetTradesByDate(ctx context.Context, currencyPair string, startDate, endDate int64) (Trades, error) {
+func (e *Exchange) GetTradesByDate(ctx context.Context, currencyPair string, startDate, endDate int64) (Trades, error) {
 	req := make(map[string]any)
 	req["ins"] = currencyPair
 	req["startDate"] = startDate
 	req["endDate"] = endDate
 	response := Trades{}
 
-	err := a.SendHTTPRequest(ctx,
+	err := e.SendHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointTradesByDate,
@@ -122,12 +122,12 @@ func (a *Exchange) GetTradesByDate(ctx context.Context, currencyPair string, sta
 
 // GetOrderbook fetches the current orderbook for a given currency pair
 // CurrencyPair - trade pair (ex: “BTCUSD”)
-func (a *Exchange) GetOrderbook(ctx context.Context, currencyPair string) (Orderbook, error) {
+func (e *Exchange) GetOrderbook(ctx context.Context, currencyPair string) (Orderbook, error) {
 	req := make(map[string]any)
 	req["productPair"] = currencyPair
 	response := Orderbook{}
 
-	err := a.SendHTTPRequest(ctx,
+	err := e.SendHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost, alphapointOrderbook, req, &response)
 	if err != nil {
 		return response, err
@@ -139,10 +139,10 @@ func (a *Exchange) GetOrderbook(ctx context.Context, currencyPair string) (Order
 }
 
 // GetProductPairs gets the currency pairs currently traded on alphapoint
-func (a *Exchange) GetProductPairs(ctx context.Context) (ProductPairs, error) {
+func (e *Exchange) GetProductPairs(ctx context.Context) (ProductPairs, error) {
 	response := ProductPairs{}
 
-	err := a.SendHTTPRequest(ctx,
+	err := e.SendHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost, alphapointProductPairs, nil, &response)
 	if err != nil {
 		return response, err
@@ -154,10 +154,10 @@ func (a *Exchange) GetProductPairs(ctx context.Context) (ProductPairs, error) {
 }
 
 // GetProducts gets the currency products currently supported on alphapoint
-func (a *Exchange) GetProducts(ctx context.Context) (Products, error) {
+func (e *Exchange) GetProducts(ctx context.Context) (Products, error) {
 	response := Products{}
 
-	err := a.SendHTTPRequest(ctx,
+	err := e.SendHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost, alphapointProducts, nil, &response)
 	if err != nil {
 		return response, err
@@ -174,7 +174,7 @@ func (a *Exchange) GetProducts(ctx context.Context) (Products, error) {
 // Email - Email address
 // Phone - Phone number (ex: “+12223334444”)
 // Password - Minimum 8 characters
-func (a *Exchange) CreateAccount(ctx context.Context, firstName, lastName, email, phone, password string) error {
+func (e *Exchange) CreateAccount(ctx context.Context, firstName, lastName, email, phone, password string) error {
 	if len(password) < 8 {
 		return errors.New(
 			"alphapoint Error - Create account - Password must be 8 characters or more",
@@ -189,7 +189,7 @@ func (a *Exchange) CreateAccount(ctx context.Context, firstName, lastName, email
 	req["password"] = password
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost, alphapointCreateAccount, req, &response)
 	if err != nil {
 		return fmt.Errorf("unable to create account. Reason: %s", err)
@@ -201,10 +201,10 @@ func (a *Exchange) CreateAccount(ctx context.Context, firstName, lastName, email
 }
 
 // GetUserInfo returns current account user information
-func (a *Exchange) GetUserInfo(ctx context.Context) (UserInfo, error) {
+func (e *Exchange) GetUserInfo(ctx context.Context) (UserInfo, error) {
 	response := UserInfo{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointUserInfo,
@@ -228,7 +228,7 @@ func (a *Exchange) GetUserInfo(ctx context.Context) (UserInfo, error) {
 // Cell2FAValue - Cell phone number, required for Authentication
 // Use2FAForWithdraw - “true” or “false” set to true for using 2FA for
 // withdrawals
-func (a *Exchange) SetUserInfo(ctx context.Context, firstName, lastName, cell2FACountryCode, cell2FAValue string, useAuthy2FA, use2FAForWithdraw bool) (UserInfoSet, error) {
+func (e *Exchange) SetUserInfo(ctx context.Context, firstName, lastName, cell2FACountryCode, cell2FAValue string, useAuthy2FA, use2FAForWithdraw bool) (UserInfoSet, error) {
 	response := UserInfoSet{}
 
 	userInfoKVPs := []UserInfoKVP{
@@ -261,7 +261,7 @@ func (a *Exchange) SetUserInfo(ctx context.Context, firstName, lastName, cell2FA
 	req := make(map[string]any)
 	req["userInfoKVP"] = userInfoKVPs
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointUserInfo,
@@ -278,10 +278,10 @@ func (a *Exchange) SetUserInfo(ctx context.Context, firstName, lastName, cell2FA
 }
 
 // GetAccountInformation returns account info
-func (a *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
+func (e *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
 	response := AccountInfo{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointAccountInfo,
@@ -301,14 +301,14 @@ func (a *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, erro
 // CurrencyPair - Instrument code (ex: “BTCUSD”)
 // StartIndex - Starting index, if less than 0 then start from the beginning
 // Count - Returns last trade, (Default: 30)
-func (a *Exchange) GetAccountTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
+func (e *Exchange) GetAccountTrades(ctx context.Context, currencyPair string, startIndex, count int) (Trades, error) {
 	req := make(map[string]any)
 	req["ins"] = currencyPair
 	req["startIndex"] = startIndex
 	req["count"] = count
 	response := Trades{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointAccountTrades,
@@ -325,10 +325,10 @@ func (a *Exchange) GetAccountTrades(ctx context.Context, currencyPair string, st
 }
 
 // GetDepositAddresses generates a deposit address
-func (a *Exchange) GetDepositAddresses(ctx context.Context) ([]DepositAddresses, error) {
+func (e *Exchange) GetDepositAddresses(ctx context.Context) ([]DepositAddresses, error) {
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointDepositAddresses,
@@ -349,7 +349,7 @@ func (a *Exchange) GetDepositAddresses(ctx context.Context) ([]DepositAddresses,
 // product - Currency name (ex: “BTC”)
 // amount - Amount (ex: “.011”)
 // address - Withdraw address
-func (a *Exchange) WithdrawCoins(ctx context.Context, symbol, product, address string, amount float64) error {
+func (e *Exchange) WithdrawCoins(ctx context.Context, symbol, product, address string, amount float64) error {
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["product"] = product
@@ -357,7 +357,7 @@ func (a *Exchange) WithdrawCoins(ctx context.Context, symbol, product, address s
 	req["sendToAddress"] = address
 
 	response := Response{}
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointWithdraw,
@@ -373,7 +373,7 @@ func (a *Exchange) WithdrawCoins(ctx context.Context, symbol, product, address s
 	return nil
 }
 
-func (a *Exchange) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
+func (e *Exchange) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
 	if orderType == order.Market.String() {
 		orderTypeNumber = 1
 	}
@@ -387,8 +387,8 @@ func (a *Exchange) convertOrderTypeToOrderTypeNumber(orderType string) (orderTyp
 // orderType - “1” for market orders, “0” for limit orders
 // quantity - Quantity
 // price - Price in USD
-func (a *Exchange) CreateOrder(ctx context.Context, symbol, side, orderType string, quantity, price float64) (int64, error) {
-	orderTypeNumber := a.convertOrderTypeToOrderTypeNumber(orderType)
+func (e *Exchange) CreateOrder(ctx context.Context, symbol, side, orderType string, quantity, price float64) (int64, error) {
+	orderTypeNumber := e.convertOrderTypeToOrderTypeNumber(orderType)
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["side"] = side
@@ -397,7 +397,7 @@ func (a *Exchange) CreateOrder(ctx context.Context, symbol, side, orderType stri
 	req["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointCreateOrder,
@@ -421,14 +421,14 @@ func (a *Exchange) CreateOrder(ctx context.Context, symbol, side, orderType stri
 // book. A buy order will be modified to the highest bid and a sell order will
 // be modified to the lowest ask price. “1” means "Execute now", which will
 // convert a limit order into a market order.
-func (a *Exchange) ModifyExistingOrder(ctx context.Context, symbol string, orderID, action int64) (int64, error) {
+func (e *Exchange) ModifyExistingOrder(ctx context.Context, symbol string, orderID, action int64) (int64, error) {
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["serverOrderId"] = orderID
 	req["modifyAction"] = action
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointModifyOrder,
@@ -447,13 +447,13 @@ func (a *Exchange) ModifyExistingOrder(ctx context.Context, symbol string, order
 // CancelExistingOrder cancels an order that has not been executed.
 // symbol - Instrument code (ex: “BTCUSD”)
 // OrderID - Order id (ex: 1000)
-func (a *Exchange) CancelExistingOrder(ctx context.Context, orderID int64, omsid string) (int64, error) {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64, omsid string) (int64, error) {
 	req := make(map[string]any)
 	req["OrderId"] = orderID
 	req["OMSId"] = omsid
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointCancelOrder,
@@ -471,12 +471,12 @@ func (a *Exchange) CancelExistingOrder(ctx context.Context, orderID int64, omsid
 
 // CancelAllExistingOrders cancels all open orders by symbol.
 // symbol - Instrument code (ex: “BTCUSD”)
-func (a *Exchange) CancelAllExistingOrders(ctx context.Context, omsid string) error {
+func (e *Exchange) CancelAllExistingOrders(ctx context.Context, omsid string) error {
 	req := make(map[string]any)
 	req["OMSId"] = omsid
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointCancelAllOrders,
@@ -493,10 +493,10 @@ func (a *Exchange) CancelAllExistingOrders(ctx context.Context, omsid string) er
 }
 
 // GetOrders returns all current open orders
-func (a *Exchange) GetOrders(ctx context.Context) ([]OpenOrders, error) {
+func (e *Exchange) GetOrders(ctx context.Context) ([]OpenOrders, error) {
 	response := OrderInfo{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointOpenOrders,
@@ -517,7 +517,7 @@ func (a *Exchange) GetOrders(ctx context.Context) ([]OpenOrders, error) {
 // side - “buy” or “sell”
 // quantity - Quantity
 // price - Price in USD
-func (a *Exchange) GetOrderFee(ctx context.Context, symbol, side string, quantity, price float64) (float64, error) {
+func (e *Exchange) GetOrderFee(ctx context.Context, symbol, side string, quantity, price float64) (float64, error) {
 	req := make(map[string]any)
 	req["ins"] = symbol
 	req["side"] = side
@@ -525,7 +525,7 @@ func (a *Exchange) GetOrderFee(ctx context.Context, symbol, side string, quantit
 	req["px"] = strconv.FormatFloat(price, 'f', -1, 64)
 	response := Response{}
 
-	err := a.SendAuthenticatedHTTPRequest(ctx,
+	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
 		alphapointOrderFee,
@@ -542,8 +542,8 @@ func (a *Exchange) GetOrderFee(ctx context.Context, symbol, side string, quantit
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (a *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
-	endpoint, err := a.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -561,30 +561,30 @@ func (a *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 		Path:          path,
 		Headers:       headers,
 		Result:        result,
-		Verbose:       a.Verbose,
-		HTTPDebugging: a.HTTPDebugging,
-		HTTPRecording: a.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
 
-	return a.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
-func (a *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
-	creds, err := a.GetCredentials(ctx)
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, data map[string]any, result any) error {
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
-	endpoint, err := a.API.Endpoints.GetURL(ep)
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
 
-	n := a.Requester.GetNonce(nonce.UnixNano)
+	n := e.Requester.GetNonce(nonce.UnixNano)
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
@@ -612,12 +612,12 @@ func (a *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		Headers:       headers,
 		Result:        result,
 		NonceEnabled:  true,
-		Verbose:       a.Verbose,
-		HTTPDebugging: a.HTTPDebugging,
-		HTTPRecording: a.HTTPRecording,
+		Verbose:       e.Verbose,
+		HTTPDebugging: e.HTTPDebugging,
+		HTTPRecording: e.HTTPRecording,
 	}
 
-	return a.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		item.Body = bytes.NewBuffer(PayloadJSON)
 		return item, nil
 	}, request.AuthenticatedRequest)

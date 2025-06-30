@@ -37,8 +37,8 @@ var defaultDeliveryFuturesSubscriptions = []string{
 }
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
-func (g *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
+func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
@@ -63,18 +63,18 @@ func (g *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 // TODO: Update to use the new subscription template system
-func (g *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	ctx := context.TODO()
-	_, err := g.GetCredentials(ctx)
+	_, err := e.GetCredentials(ctx)
 	if err != nil {
-		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
-	pairs, err := g.GetEnabledPairs(asset.DeliveryFutures)
+	pairs, err := e.GetEnabledPairs(asset.DeliveryFutures)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
@@ -96,7 +96,7 @@ func (g *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.L
 				params["frequency"] = kline.HundredMilliseconds
 				params["level"] = strconv.FormatUint(deliveryFuturesUpdateLimit, 10)
 			}
-			fPair, err := g.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
+			fPair, err := e.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
 			if err != nil {
 				return nil, err
 			}
@@ -112,25 +112,25 @@ func (g *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.L
 }
 
 // DeliveryFuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Exchange) DeliveryFuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, g.generateDeliveryFuturesPayload)
+func (e *Exchange) DeliveryFuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
 // DeliveryFuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateDeliveryFuturesPayload)
+func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
+	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
-func (g *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(ctx)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		creds, err = e.GetCredentials(ctx)
 		if err != nil {
-			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	outbound := make([]WsInput, 0, len(channelsToSubscribe))
@@ -142,7 +142,7 @@ func (g *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn webs
 		timestamp := time.Now()
 		var params []string
 		params = []string{channelsToSubscribe[i].Pairs[0].String()}
-		if g.Websocket.CanUseAuthenticatedEndpoints() {
+		if e.Websocket.CanUseAuthenticatedEndpoints() {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
 				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
@@ -154,7 +154,7 @@ func (g *Exchange) generateDeliveryFuturesPayload(ctx context.Context, conn webs
 					params = append([]string{value}, params...)
 				}
 				var sigTemp string
-				sigTemp, err = g.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
 				if err != nil {
 					return nil, err
 				}

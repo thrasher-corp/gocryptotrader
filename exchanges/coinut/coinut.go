@@ -55,36 +55,36 @@ type Exchange struct {
 }
 
 // SeedInstruments seeds the instrument map
-func (c *Exchange) SeedInstruments(ctx context.Context) error {
-	i, err := c.GetInstruments(ctx)
+func (e *Exchange) SeedInstruments(ctx context.Context) error {
+	i, err := e.GetInstruments(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, y := range i.Instruments {
-		c.instrumentMap.Seed(y[0].Base+y[0].Quote, y[0].InstrumentID)
+		e.instrumentMap.Seed(y[0].Base+y[0].Quote, y[0].InstrumentID)
 	}
 	return nil
 }
 
 // GetInstruments returns instruments
-func (c *Exchange) GetInstruments(ctx context.Context) (Instruments, error) {
+func (e *Exchange) GetInstruments(ctx context.Context) (Instruments, error) {
 	var result Instruments
 	params := make(map[string]any)
 	params["sec_type"] = strings.ToUpper(asset.Spot.String())
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutInstruments, params, false, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutInstruments, params, false, &result)
 }
 
 // GetInstrumentTicker returns a ticker for a specific instrument
-func (c *Exchange) GetInstrumentTicker(ctx context.Context, instrumentID int64) (Ticker, error) {
+func (e *Exchange) GetInstrumentTicker(ctx context.Context, instrumentID int64) (Ticker, error) {
 	var result Ticker
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutTicker, params, false, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutTicker, params, false, &result)
 }
 
 // GetInstrumentOrderbook returns the orderbooks for a specific instrument
-func (c *Exchange) GetInstrumentOrderbook(ctx context.Context, instrumentID, limit int64) (*Orderbook, error) {
+func (e *Exchange) GetInstrumentOrderbook(ctx context.Context, instrumentID, limit int64) (*Orderbook, error) {
 	var result Orderbook
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
@@ -92,26 +92,26 @@ func (c *Exchange) GetInstrumentOrderbook(ctx context.Context, instrumentID, lim
 		params["top_n"] = limit
 	}
 
-	return &result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrderbook, params, false, &result)
+	return &result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrderbook, params, false, &result)
 }
 
 // GetTrades returns trade information
-func (c *Exchange) GetTrades(ctx context.Context, instrumentID int64) (Trades, error) {
+func (e *Exchange) GetTrades(ctx context.Context, instrumentID int64) (Trades, error) {
 	var result Trades
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutTrades, params, false, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutTrades, params, false, &result)
 }
 
 // GetUserBalance returns the full user balance
-func (c *Exchange) GetUserBalance(ctx context.Context) (*UserBalance, error) {
+func (e *Exchange) GetUserBalance(ctx context.Context) (*UserBalance, error) {
 	var result *UserBalance
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutBalance, nil, true, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutBalance, nil, true, &result)
 }
 
 // NewOrder places a new order on the exchange
-func (c *Exchange) NewOrder(ctx context.Context, instrumentID int64, quantity, price float64, buy bool, orderID uint32) (any, error) {
+func (e *Exchange) NewOrder(ctx context.Context, instrumentID int64, quantity, price float64, buy bool, orderID uint32) (any, error) {
 	var result any
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
@@ -125,28 +125,28 @@ func (c *Exchange) NewOrder(ctx context.Context, instrumentID int64, quantity, p
 	}
 	params["client_ord_id"] = orderID
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrder, params, true, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrder, params, true, &result)
 }
 
 // NewOrders places multiple orders on the exchange
-func (c *Exchange) NewOrders(ctx context.Context, orders []Order) ([]OrdersBase, error) {
+func (e *Exchange) NewOrders(ctx context.Context, orders []Order) ([]OrdersBase, error) {
 	var result OrdersResponse
 	params := make(map[string]any)
 	params["orders"] = orders
 
-	return result.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrders, params, true, &result.Data)
+	return result.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrders, params, true, &result.Data)
 }
 
 // GetOpenOrders returns a list of open order and relevant information
-func (c *Exchange) GetOpenOrders(ctx context.Context, instrumentID int64) (GetOpenOrdersResponse, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, instrumentID int64) (GetOpenOrdersResponse, error) {
 	var result GetOpenOrdersResponse
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersOpen, params, true, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersOpen, params, true, &result)
 }
 
 // CancelExistingOrder cancels a specific order and returns if it was actioned
-func (c *Exchange) CancelExistingOrder(ctx context.Context, instrumentID, orderID int64) (bool, error) {
+func (e *Exchange) CancelExistingOrder(ctx context.Context, instrumentID, orderID int64) (bool, error) {
 	var result GenericResponse
 	params := make(map[string]any)
 	type Request struct {
@@ -162,7 +162,7 @@ func (c *Exchange) CancelExistingOrder(ctx context.Context, instrumentID, orderI
 	entries := []Request{entry}
 	params["entries"] = entries
 
-	err := c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersCancel, params, true, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersCancel, params, true, &result)
 	if err != nil {
 		return false, err
 	}
@@ -170,18 +170,18 @@ func (c *Exchange) CancelExistingOrder(ctx context.Context, instrumentID, orderI
 }
 
 // CancelOrders cancels multiple orders
-func (c *Exchange) CancelOrders(ctx context.Context, orders []CancelOrders) (CancelOrdersResponse, error) {
+func (e *Exchange) CancelOrders(ctx context.Context, orders []CancelOrders) (CancelOrdersResponse, error) {
 	var result CancelOrdersResponse
 	params := make(map[string]any)
 	var entries []CancelOrders
 	entries = append(entries, orders...)
 	params["entries"] = entries
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersCancel, params, true, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersCancel, params, true, &result)
 }
 
 // GetTradeHistory returns trade history for a specific instrument.
-func (c *Exchange) GetTradeHistory(ctx context.Context, instrumentID, start, limit int64) (TradeHistory, error) {
+func (e *Exchange) GetTradeHistory(ctx context.Context, instrumentID, start, limit int64) (TradeHistory, error) {
 	var result TradeHistory
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
@@ -192,39 +192,39 @@ func (c *Exchange) GetTradeHistory(ctx context.Context, instrumentID, start, lim
 		params["limit"] = limit
 	}
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutTradeHistory, params, true, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutTradeHistory, params, true, &result)
 }
 
 // GetIndexTicker returns the index ticker for an asset
-func (c *Exchange) GetIndexTicker(ctx context.Context, asset string) (IndexTicker, error) {
+func (e *Exchange) GetIndexTicker(ctx context.Context, asset string) (IndexTicker, error) {
 	var result IndexTicker
 	params := make(map[string]any)
 	params["asset"] = asset
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutIndexTicker, params, false, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutIndexTicker, params, false, &result)
 }
 
 // GetDerivativeInstruments returns a list of derivative instruments
-func (c *Exchange) GetDerivativeInstruments(ctx context.Context, secType string) (any, error) {
+func (e *Exchange) GetDerivativeInstruments(ctx context.Context, secType string) (any, error) {
 	var result any // TODO: Make this a concrete type
 	params := make(map[string]any)
 	params["sec_type"] = secType
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutInstruments, params, false, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutInstruments, params, false, &result)
 }
 
 // GetOptionChain returns option chain
-func (c *Exchange) GetOptionChain(ctx context.Context, asset, secType string) (OptionChainResponse, error) {
+func (e *Exchange) GetOptionChain(ctx context.Context, asset, secType string) (OptionChainResponse, error) {
 	var result OptionChainResponse
 	params := make(map[string]any)
 	params["asset"] = asset
 	params["sec_type"] = secType
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutOptionChain, params, false, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOptionChain, params, false, &result)
 }
 
 // GetPositionHistory returns position history
-func (c *Exchange) GetPositionHistory(ctx context.Context, secType string, start, limit int) (PositionHistory, error) {
+func (e *Exchange) GetPositionHistory(ctx context.Context, secType string, start, limit int) (PositionHistory, error) {
 	var result PositionHistory
 	params := make(map[string]any)
 	params["sec_type"] = secType
@@ -235,11 +235,11 @@ func (c *Exchange) GetPositionHistory(ctx context.Context, secType string, start
 		params["limit"] = limit
 	}
 
-	return result, c.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionHistory, params, true, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionHistory, params, true, &result)
 }
 
 // GetOpenPositionsForInstrument returns all your current opened positions
-func (c *Exchange) GetOpenPositionsForInstrument(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
+func (e *Exchange) GetOpenPositionsForInstrument(ctx context.Context, instrumentID int) ([]OpenPosition, error) {
 	type Response struct {
 		Positions []OpenPosition `json:"positions"`
 	}
@@ -248,12 +248,12 @@ func (c *Exchange) GetOpenPositionsForInstrument(ctx context.Context, instrument
 	params["inst_id"] = instrumentID
 
 	return result.Positions,
-		c.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionOpen, params, true, &result)
+		e.SendHTTPRequest(ctx, exchange.RestSpot, coinutPositionOpen, params, true, &result)
 }
 
 // SendHTTPRequest sends either an authenticated or unauthenticated HTTP request
-func (c *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequest string, params map[string]any, authenticated bool, result any) (err error) {
-	endpoint, err := c.API.Endpoints.GetURL(ep)
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequest string, params map[string]any, authenticated bool, result any) (err error) {
+	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (c *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 		requestType = request.AuthenticatedRequest
 	}
 	var rawMsg json.RawMessage
-	err = c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		params["nonce"] = getNonce()
 		params["request"] = apiRequest
 
@@ -280,7 +280,7 @@ func (c *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 		headers := make(map[string]string)
 		if authenticated {
 			var creds *account.Credentials
-			creds, err = c.GetCredentials(ctx)
+			creds, err = e.GetCredentials(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -303,9 +303,9 @@ func (c *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 			Body:          bytes.NewBuffer(payload),
 			Result:        &rawMsg,
 			NonceEnabled:  true,
-			Verbose:       c.Verbose,
-			HTTPDebugging: c.HTTPDebugging,
-			HTTPRecording: c.HTTPRecording,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, requestType)
 	if err != nil {
@@ -322,18 +322,18 @@ func (c *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiRequ
 		if authenticated {
 			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, genResp.Status[0])
 		}
-		return fmt.Errorf("%s SendHTTPRequest error: %s", c.Name, genResp.Status[0])
+		return fmt.Errorf("%s SendHTTPRequest error: %s", e.Name, genResp.Status[0])
 	}
 
 	return json.Unmarshal(rawMsg, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
-func (c *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (e *Exchange) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		fee = c.calculateTradingFee(feeBuilder.Pair.Base,
+		fee = e.calculateTradingFee(feeBuilder.Pair.Base,
 			feeBuilder.Pair.Quote,
 			feeBuilder.PurchasePrice,
 			feeBuilder.Amount,
@@ -363,7 +363,7 @@ func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
 	return 0.002 * price * amount
 }
 
-func (c *Exchange) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {
+func (e *Exchange) calculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, isMaker bool) float64 {
 	var fee float64
 
 	switch {
