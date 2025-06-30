@@ -846,13 +846,8 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	if err != nil {
 		return err
 	}
-	response := WsCandlestickData{}
-	err = json.Unmarshal(respData, &response)
-	if err != nil {
-		return err
-	}
-	resp, err := response.getCandlestickData()
-	if err != nil {
+	var resp WsCandlestick
+	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
 	assets, err := ku.CalculateAssets(topic, pair)
@@ -864,17 +859,17 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 			continue
 		}
 		ku.Websocket.DataHandler <- &websocket.KlineData{
-			Timestamp:  response.Time.Time(),
+			Timestamp:  resp.Time.Time(),
 			Pair:       pair,
 			AssetType:  assets[x],
 			Exchange:   ku.Name,
-			StartTime:  resp.Candles.StartTime,
+			StartTime:  resp.Candles.StartTime.Time(),
 			Interval:   intervalString,
-			OpenPrice:  resp.Candles.OpenPrice,
-			ClosePrice: resp.Candles.ClosePrice,
-			HighPrice:  resp.Candles.HighPrice,
-			LowPrice:   resp.Candles.LowPrice,
-			Volume:     resp.Candles.TransactionVolume,
+			OpenPrice:  resp.Candles.OpenPrice.Float64(),
+			ClosePrice: resp.Candles.ClosePrice.Float64(),
+			HighPrice:  resp.Candles.HighPrice.Float64(),
+			LowPrice:   resp.Candles.LowPrice.Float64(),
+			Volume:     resp.Candles.TransactionVolume.Float64(),
 		}
 	}
 	return nil

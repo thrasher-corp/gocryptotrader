@@ -386,41 +386,41 @@ type WsChannel struct {
 
 // wsOrderReceived holds websocket received values
 type wsOrderReceived struct {
-	Type          string    `json:"type"`
-	OrderID       string    `json:"order_id"`
-	OrderType     string    `json:"order_type"`
-	Size          float64   `json:"size,string"`
-	Price         float64   `json:"price,omitempty,string"`
-	Funds         float64   `json:"funds,omitempty,string"`
-	Side          string    `json:"side"`
-	ClientOID     string    `json:"client_oid"`
-	ProductID     string    `json:"product_id"`
-	Sequence      int64     `json:"sequence"`
-	Time          time.Time `json:"time"`
-	RemainingSize float64   `json:"remaining_size,string"`
-	NewSize       float64   `json:"new_size,string"`
-	OldSize       float64   `json:"old_size,string"`
-	Reason        string    `json:"reason"`
-	Timestamp     float64   `json:"timestamp,string"`
-	UserID        string    `json:"user_id"`
-	ProfileID     string    `json:"profile_id"`
-	StopType      string    `json:"stop_type"`
-	StopPrice     float64   `json:"stop_price,string"`
-	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
-	Private       bool      `json:"private"`
-	TradeID       int64     `json:"trade_id"`
-	MakerOrderID  string    `json:"maker_order_id"`
-	TakerOrderID  string    `json:"taker_order_id"`
-	TakerUserID   string    `json:"taker_user_id"`
+	Type          string     `json:"type"`
+	OrderID       string     `json:"order_id"`
+	OrderType     string     `json:"order_type"`
+	Size          float64    `json:"size,string"`
+	Price         float64    `json:"price,omitempty,string"`
+	Funds         float64    `json:"funds,omitempty,string"`
+	Side          string     `json:"side"`
+	ClientOID     string     `json:"client_oid"`
+	ProductID     string     `json:"product_id"`
+	Sequence      int64      `json:"sequence"`
+	Time          time.Time  `json:"time"`
+	RemainingSize float64    `json:"remaining_size,string"`
+	NewSize       float64    `json:"new_size,string"`
+	OldSize       float64    `json:"old_size,string"`
+	Reason        string     `json:"reason"`
+	Timestamp     types.Time `json:"timestamp"`
+	UserID        string     `json:"user_id"`
+	ProfileID     string     `json:"profile_id"`
+	StopType      string     `json:"stop_type"`
+	StopPrice     float64    `json:"stop_price,string"`
+	TakerFeeRate  float64    `json:"taker_fee_rate,string"`
+	Private       bool       `json:"private"`
+	TradeID       int64      `json:"trade_id"`
+	MakerOrderID  string     `json:"maker_order_id"`
+	TakerOrderID  string     `json:"taker_order_id"`
+	TakerUserID   string     `json:"taker_user_id"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
 type WebsocketHeartBeat struct {
-	Type        string `json:"type"`
-	Sequence    int64  `json:"sequence"`
-	LastTradeID int64  `json:"last_trade_id"`
-	ProductID   string `json:"product_id"`
-	Time        string `json:"time"`
+	Type        string    `json:"type"`
+	Sequence    int64     `json:"sequence"`
+	LastTradeID int64     `json:"last_trade_id"`
+	ProductID   string    `json:"product_id"`
+	Time        time.Time `json:"time"`
 }
 
 // WebsocketTicker defines ticker websocket response

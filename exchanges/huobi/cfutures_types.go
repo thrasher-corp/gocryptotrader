@@ -253,13 +253,13 @@ type SwapWsSubLiquidationOrders struct {
 	Topic      string     `json:"topic"`
 	Timestamp  types.Time `json:"ts"`
 	OrdersData []struct {
-		Symbol       string  `json:"symbol"`
-		ContractCode string  `json:"contract_code"`
-		Direction    string  `json:"direction"`
-		Offset       string  `json:"offset"`
-		Volume       float64 `json:"volume"`
-		Price        float64 `json:"price"`
-		CreatedAt    int64   `json:"created_at"`
+		Symbol       string     `json:"symbol"`
+		ContractCode string     `json:"contract_code"`
+		Direction    string     `json:"direction"`
+		Offset       string     `json:"offset"`
+		Volume       float64    `json:"volume"`
+		Price        float64    `json:"price"`
+		CreatedAt    types.Time `json:"created_at"`
 	} `json:"data"`
 }
 
@@ -269,13 +269,13 @@ type SwapWsSubFundingData struct {
 	Topic       string     `json:"topic"`
 	Timestamp   types.Time `json:"ts"`
 	FundingData []struct {
-		Symbol         string  `json:"symbol"`
-		ContractCode   string  `json:"contract_code"`
-		FeeAsset       string  `json:"fee_asset"`
-		FundingTime    int64   `json:"funding_time,string"`
-		FundingRate    float64 `json:"funding_rate,string"`
-		EstimatedRate  float64 `json:"estimated_rate,string"`
-		SettlementTime int64   `json:"settlement_time,string"`
+		Symbol         string     `json:"symbol"`
+		ContractCode   string     `json:"contract_code"`
+		FeeAsset       string     `json:"fee_asset"`
+		FundingTime    types.Time `json:"funding_time"`
+		FundingRate    float64    `json:"funding_rate,string"`
+		EstimatedRate  float64    `json:"estimated_rate,string"`
+		SettlementTime types.Time `json:"settlement_time"`
 	} `json:"data"`
 }
 
@@ -435,7 +435,7 @@ type CoinMarginedFuturesTrade struct {
 
 // InsuranceAndClawbackData stores insurance fund's and clawback rate's data
 type InsuranceAndClawbackData struct {
-	Timestamp string `json:"timestamp"`
+	Timestamp types.Time `json:"timestamp"`
 	Data      []struct {
 		ContractCode      string  `json:"contract_code"`
 		InsuranceFund     float64 `json:"insurance_fund"`
@@ -533,15 +533,15 @@ type TraderSentimentIndexPositionData struct {
 // LiquidationOrdersData stores data of liquidation orders
 type LiquidationOrdersData struct {
 	Data []struct {
-		QueryID      int64   `json:"query_id"`
-		ContractCode string  `json:"contract_code"`
-		Symbol       string  `json:"symbol"`
-		Direction    string  `json:"direction"`
-		Offset       string  `json:"offset"`
-		Volume       float64 `json:"volume"`
-		Price        float64 `json:"price"`
-		CreatedAt    int64   `json:"created_at"`
-		Amount       float64 `json:"amount"`
+		QueryID      int64      `json:"query_id"`
+		ContractCode string     `json:"contract_code"`
+		Symbol       string     `json:"symbol"`
+		Direction    string     `json:"direction"`
+		Offset       string     `json:"offset"`
+		Volume       float64    `json:"volume"`
+		Price        float64    `json:"price"`
+		CreatedAt    types.Time `json:"created_at"`
+		Amount       float64    `json:"amount"`
 	} `json:"data"`
 }
 
@@ -553,13 +553,13 @@ type SwapFundingRatesResponse struct {
 
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
-	EstimatedRate   float64 `json:"estimated_rate,string"`
-	FundingRate     float64 `json:"funding_rate,string"`
-	ContractCode    string  `json:"contractCode"`
-	Symbol          string  `json:"symbol"`
-	FeeAsset        string  `json:"fee_asset"`
-	FundingTime     int64   `json:"fundingTime,string"`
-	NextFundingTime int64   `json:"next_funding_time,string"`
+	EstimatedRate   float64    `json:"estimated_rate,string"`
+	FundingRate     float64    `json:"funding_rate,string"`
+	ContractCode    string     `json:"contractCode"`
+	Symbol          string     `json:"symbol"`
+	FeeAsset        string     `json:"fee_asset"`
+	FundingTime     types.Time `json:"fundingTime"`
+	NextFundingTime types.Time `json:"next_funding_time"`
 }
 
 // HistoricalFundingRateData stores historical funding rates for perpetuals
@@ -574,13 +574,13 @@ type HistoricalFundingRateData struct {
 
 // HistoricalRateData stores historical rates data
 type HistoricalRateData struct {
-	FundingRate     float64 `json:"funding_rate,string"`
-	RealizedRate    float64 `json:"realized_rate,string"`
-	FundingTime     int64   `json:"fundingTime,string"`
-	ContractCode    string  `json:"contract_code"`
-	Symbol          string  `json:"symbol"`
-	FeeAsset        string  `json:"fee_asset"`
-	AvgPremiumIndex float64 `json:"avg_premium_index,string"`
+	FundingRate     float64    `json:"funding_rate,string"`
+	RealizedRate    float64    `json:"realized_rate,string"`
+	FundingTime     types.Time `json:"fundingTime"`
+	ContractCode    string     `json:"contract_code"`
+	Symbol          string     `json:"symbol"`
+	FeeAsset        string     `json:"fee_asset"`
+	AvgPremiumIndex float64    `json:"avg_premium_index,string"`
 }
 
 // PremiumIndexKlineData stores kline data for premium

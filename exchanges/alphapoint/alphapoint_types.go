@@ -2,18 +2,19 @@ package alphapoint
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Response contains general responses from the exchange
 type Response struct {
-	IsAccepted    bool    `json:"isAccepted"`
-	RejectReason  string  `json:"rejectReason"`
-	Fee           float64 `json:"fee"`
-	FeeProduct    string  `json:"feeProduct"`
-	CancelOrderID int64   `json:"cancelOrderId"`
-	ServerOrderID int64   `json:"serverOrderId"`
-	DateTimeUTC   float64 `json:"dateTimeUtc"`
-	ModifyOrderID int64   `json:"modifyOrderId"`
+	IsAccepted    bool       `json:"isAccepted"`
+	RejectReason  string     `json:"rejectReason"`
+	Fee           float64    `json:"fee"`
+	FeeProduct    string     `json:"feeProduct"`
+	CancelOrderID int64      `json:"cancelOrderId"`
+	ServerOrderID int64      `json:"serverOrderId"`
+	DateTimeUTC   types.Time `json:"dateTimeUtc"`
+	ModifyOrderID int64      `json:"modifyOrderId"`
 	Addresses     []DepositAddresses
 }
 
@@ -36,15 +37,15 @@ type Ticker struct {
 
 // Trades holds trade information
 type Trades struct {
-	IsAccepted   bool    `json:"isAccepted"`
-	RejectReason string  `json:"rejectReason"`
-	DateTimeUTC  int64   `json:"dateTimeUtc"`
-	Instrument   string  `json:"ins"`
-	StartIndex   int     `json:"startIndex"`
-	Count        int     `json:"count"`
-	StartDate    int64   `json:"startDate"`
-	EndDate      int64   `json:"endDate"`
-	Trades       []Trade `json:"trades"`
+	IsAccepted   bool       `json:"isAccepted"`
+	RejectReason string     `json:"rejectReason"`
+	DateTimeUTC  types.Time `json:"dateTimeUtc"`
+	Instrument   string     `json:"ins"`
+	StartIndex   int        `json:"startIndex"`
+	Count        int        `json:"count"`
+	StartDate    int64      `json:"startDate"`
+	EndDate      int64      `json:"endDate"`
+	Trades       []Trade    `json:"trades"`
 }
 
 // Trade is a sub-type which holds the singular trade that occurred in the past
@@ -148,15 +149,15 @@ type AccountInfo struct {
 
 // Order is a generalised order type
 type Order struct {
-	ServerOrderID int     `json:"ServerOrderId"`
-	AccountID     int     `json:"AccountId"`
-	Price         float64 `json:"Price"`
-	QtyTotal      float64 `json:"QtyTotal"`
-	QtyRemaining  float64 `json:"QtyRemaining"`
-	ReceiveTime   int64   `json:"ReceiveTime"`
-	Side          int64   `json:"Side"`
-	State         int     `json:"orderState"`
-	OrderType     int     `json:"orderType"`
+	ServerOrderID int        `json:"ServerOrderId"`
+	AccountID     int        `json:"AccountId"`
+	Price         float64    `json:"Price"`
+	QtyTotal      float64    `json:"QtyTotal"`
+	QtyRemaining  float64    `json:"QtyRemaining"`
+	ReceiveTime   types.Time `json:"ReceiveTime"`
+	Side          int64      `json:"Side"`
+	State         int        `json:"orderState"`
+	OrderType     int        `json:"orderType"`
 }
 
 // OpenOrders holds the full range of orders by instrument
@@ -169,7 +170,7 @@ type OpenOrders struct {
 type OrderInfo struct {
 	OpenOrders   []OpenOrders `json:"openOrdersInfo"`
 	IsAccepted   bool         `json:"isAccepted"`
-	DateTimeUTC  int64        `json:"dateTimeUtc"`
+	DateTimeUTC  types.Time   `json:"dateTimeUtc"`
 	RejectReason string       `json:"rejectReason"`
 }
 

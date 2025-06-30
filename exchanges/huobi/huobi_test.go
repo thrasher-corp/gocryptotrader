@@ -521,8 +521,9 @@ func TestGetSwapMarketDepth(t *testing.T) {
 
 func TestGetSwapKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
+	r, err := h.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
+	assert.NotEmpty(t, r.Data, "GetSwapKlineData should return some data")
 }
 
 func TestGetSwapMarketOverview(t *testing.T) {
@@ -570,8 +571,8 @@ func TestGetTraderSentimentIndexPosition(t *testing.T) {
 
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", 0, 0, "", 0)
-	require.NoError(t, err)
+	_, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", time.Now().AddDate(0, 0, -2), time.Now(), "", 0)
+	assert.NoError(t, err, "GetLiquidationOrders should not error")
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -662,8 +663,9 @@ func TestGetAccountFinancialRecords(t *testing.T) {
 func TestGetSwapSettlementRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, h)
-	_, err := h.GetSwapSettlementRecords(t.Context(), ethusdPair, time.Time{}, time.Time{}, 0, 0)
+	r, err := h.GetSwapSettlementRecords(t.Context(), ethusdPair, time.Now().AddDate(0, -1, 0), time.Now(), 0, 0)
 	require.NoError(t, err)
+	assert.NotEmpty(t, r.Data, "GetSwapSettlementRecords should return some data")
 }
 
 func TestGetAvailableLeverage(t *testing.T) {

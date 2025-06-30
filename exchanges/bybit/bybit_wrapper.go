@@ -1420,12 +1420,12 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		timeSeries = make([]kline.Candle, len(candles))
 		for x := range candles {
 			timeSeries[x] = kline.Candle{
-				Time:   candles[x].StartTime,
-				Open:   candles[x].Open,
-				High:   candles[x].High,
-				Low:    candles[x].Low,
-				Close:  candles[x].Close,
-				Volume: candles[x].TradeVolume,
+				Time:   candles[x].StartTime.Time(),
+				Open:   candles[x].Open.Float64(),
+				High:   candles[x].High.Float64(),
+				Low:    candles[x].Low.Float64(),
+				Close:  candles[x].Close.Float64(),
+				Volume: candles[x].TradeVolume.Float64(),
 			}
 		}
 		return req.ProcessResponse(timeSeries)
@@ -1461,12 +1461,12 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 
 			for i := range klineItems {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   klineItems[i].StartTime,
-					Open:   klineItems[i].Open,
-					High:   klineItems[i].High,
-					Low:    klineItems[i].Low,
-					Close:  klineItems[i].Close,
-					Volume: klineItems[i].TradeVolume,
+					Time:   klineItems[i].StartTime.Time(),
+					Open:   klineItems[i].Open.Float64(),
+					High:   klineItems[i].High.Float64(),
+					Low:    klineItems[i].Low.Float64(),
+					Close:  klineItems[i].Close.Float64(),
+					Volume: klineItems[i].TradeVolume.Float64(),
 				})
 			}
 		}

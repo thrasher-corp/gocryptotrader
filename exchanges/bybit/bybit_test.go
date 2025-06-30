@@ -75,25 +75,46 @@ func TestGetKlines(t *testing.T) {
 		s = time.Unix(1691897100, 0).Round(kline.FiveMin.Duration())
 		e = time.Unix(1691907100, 0).Round(kline.FiveMin.Duration())
 	}
-	_, err := b.GetKlines(t.Context(), "spot", spotTradablePair.String(), kline.FiveMin, s, e, 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetKlines(t.Context(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetKlines(t.Context(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetKlines(t.Context(), "inverse", inverseTradablePair.String(), kline.FiveMin, s, e, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetKlines(t.Context(), "option", optionsTradablePair.String(), kline.FiveMin, s, e, 5)
-	if err == nil {
-		t.Fatalf("expected 'params error: Category is invalid', but found nil")
+	for _, tc := range []struct {
+		category   string
+		pair       currency.Pair
+		reqLimit   uint64
+		expRespLen int
+		expError   error
+	}{
+		{"spot", spotTradablePair, 100, 34, nil}, // TODO: Update expected limit when mock data is updated
+		{"linear", usdtMarginedTradablePair, 5, 5, nil},
+		{"linear", usdcMarginedTradablePair, 5, 5, nil},
+		{"inverse", inverseTradablePair, 5, 5, nil},
+		{"option", optionsTradablePair, 5, 5, errInvalidCategory},
+	} {
+		t.Run(fmt.Sprintf("%s-%s", tc.category, tc.pair), func(t *testing.T) {
+			t.Parallel()
+			r, err := b.GetKlines(t.Context(), tc.category, tc.pair.String(), kline.FiveMin, s, e, tc.reqLimit)
+			if tc.expError != nil {
+				require.ErrorIs(t, err, tc.expError)
+				return
+			}
+			require.NoError(t, err)
+			if mockTests {
+				require.Equal(t, tc.expRespLen, len(r))
+
+				switch tc.category {
+				case "spot":
+					assert.Equal(t, KlineItem{StartTime: types.Time(e), Open: 29393.99, High: 29399.76, Low: 29393.98, Close: 29399.76, TradeVolume: 1.168988, Turnover: 34363.5346739}, r[0])
+				case "linear":
+					if tc.pair == usdtMarginedTradablePair {
+						assert.Equal(t, KlineItem{StartTime: types.Time(e), Open: 0.0003, High: 0.0003, Low: 0.0002995, Close: 0.0003, TradeVolume: 55102100, Turnover: 16506.2427}, r[0])
+						return
+					}
+					assert.Equal(t, KlineItem{StartTime: types.Time(e), Open: 239.7, High: 239.7, Low: 239.7, Close: 239.7}, r[0])
+				case "inverse":
+					assert.Equal(t, KlineItem{StartTime: types.Time(e), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
+				}
+			} else {
+				assert.NotEmpty(t, r)
+			}
+		})
 	}
 }
 
