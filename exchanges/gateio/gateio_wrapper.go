@@ -1786,8 +1786,7 @@ func (g *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return req.ProcessResponse(candlestickItems)
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (g *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	chains, err := g.ListCurrencyChain(ctx, cryptocurrency.Upper())
 	if err != nil {

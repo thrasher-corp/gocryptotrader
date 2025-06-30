@@ -1066,8 +1066,7 @@ func (by *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency curren
 	return nil, fmt.Errorf("%w for currency: %s chain: %s", deposit.ErrAddressNotFound, cryptocurrency, chain)
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (by *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	info, err := by.GetCoinInfo(ctx, cryptocurrency)
 	if err != nil {

@@ -1532,8 +1532,7 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 	return resp, nil
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (k *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	methods, err := k.GetDepositMethods(ctx, cryptocurrency.String())
 	if err != nil {

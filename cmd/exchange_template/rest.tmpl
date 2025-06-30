@@ -15,7 +15,7 @@ type Exchange struct {
 }
 
 const (
-	apiURL = ""
+	apiURL     = ""
 	apiVersion = ""
 
 	// Public endpoints
@@ -26,8 +26,8 @@ const (
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any) error {
 	// This is used to generate the *http.Request, used in conjunction with the
-	// generate functionality below. 
-	item := &request.Item{  
+	// generate functionality below.
+	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -37,12 +37,12 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, path string, result any)
 	}
 
 	// Request function that closes over the above request.Item values, which
-	// executes on every attempt after rate limiting. 
+	// executes on every attempt after rate limiting.
 	generate := func() (*request.Item, error) { return item, nil }
 
-	endpoint := request.Unset // Used in conjunction with the rate limiting 
+	endpoint := request.Unset // Used in conjunction with the rate limiting
 	// system defined in the exchange package to slow down outbound requests
-	// depending on each individual endpoint. 
+	// depending on each individual endpoint.
 	return e.SendPayload(ctx, endpoint, generate, request.UnauthenticatedRequest)
 }
 

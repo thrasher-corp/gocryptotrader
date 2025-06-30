@@ -1847,8 +1847,7 @@ func (ku *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time,
 	}
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (ku *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty

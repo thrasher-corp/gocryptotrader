@@ -695,8 +695,7 @@ func (e *Exchange) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	chains, err := e.GetCryptoPaymentProvidersList(ctx)
 	if err != nil {

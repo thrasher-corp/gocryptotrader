@@ -1856,8 +1856,7 @@ func (b *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	return b.LoadLimits(limits)
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (b *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	coinInfo, err := b.GetAllCoinsInfo(ctx)
 	if err != nil {

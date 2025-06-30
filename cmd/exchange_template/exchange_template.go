@@ -100,15 +100,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println(`GoCryptoTrader: Exchange templating tool service complete
-Add appropriate exchange config settings, particularly enabled and available assets and pairs, to config_example.json for proper functionality (it has been automatically be added to testdata/configtest.json)
-When the exchange code implementation has been completed (REST/Websocket/wrappers and tests), please add the exchange to engine/exchange.go
-Increment the available exchanges counter in config/config_test.go
-Add the exchange name to exchanges/support.go
-Ensure go test ./... -race passes
-Open a pull request
-If help is needed, please post a message in Slack.`)
 }
 
 func checkExchangeName(exchName string) error {

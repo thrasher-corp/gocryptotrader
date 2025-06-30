@@ -1149,8 +1149,7 @@ func (b *Exchange) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 	return string(runes), nil
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (b *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	if err := b.PopulateAcceptableMethods(ctx); err != nil {
 		return nil, err

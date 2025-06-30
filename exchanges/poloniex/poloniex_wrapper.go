@@ -1003,8 +1003,7 @@ func (p *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	return req.ProcessResponse(timeSeries)
 }
 
-// GetAvailableTransferChains returns the available transfer blockchains for the specific
-// cryptocurrency
+// GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (p *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	currencies, err := p.GetCurrencies(ctx)
 	if err != nil {

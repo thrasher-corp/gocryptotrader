@@ -21,16 +21,18 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer gws.Dialer
+	dialer := gws.Dialer{
+		HandshakeTimeout: e.Config.HTTPTimeout,
+		Proxy:            http.ProxyFromEnvironment,
+	}
 	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
-	
+
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-        // Add WebSocket authentication logic here.
+		// Add WebSocket authentication logic here.
 	}
 
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
@@ -38,7 +40,6 @@ func (e *Exchange) WsConnect() error {
 	go e.wsReadData(ctx)
 	return nil
 }
-
 
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(_ subscription.List) error {
@@ -60,16 +61,15 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-		    // e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			// e.Websocket.DataHandler &lt;- err
 		}
 	}
 }
 
 // wsHandleData processes a websocket incoming data.
 func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
-    // Implement message parsing and handling logic here.
+	// Implement message parsing and handling logic here.
 	return nil
 }
 

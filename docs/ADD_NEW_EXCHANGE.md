@@ -238,7 +238,7 @@ This will generate a readme file for the exchange which can be found in the new 
 
 ### Code Consistency Guidelines
 
-1. Exchange API function parameters and structs should default to using unsigned integers (e.g., uint64) instead of int or int64. Using int can be problematic since we target different architectures, and its size varies between 32-bit and 64-bit systems (e.g., I still run Raspberry Pi on a 32-bit architecture). Explicitly using uint64 ensures consistency and prevents issues like negative values where they don’t make sense. Additionally, many common strconv functions (e.g., FormatUint) default to uint64, making it a more natural choice over uint32, despite the potential memory savings.
+1. Exchange API function parameters and structs should default to using unsigned integers (e.g., uint64) instead of int or int64. Using int can be problematic since we target different architectures, and its size varies between 32-bit and 64-bit systems (e.g., Some people run GCT on 32-bit Raspiberry Pi's). Explicitly using uint64 ensures consistency and prevents issues like negative values where they don’t make sense. Additionally, many common strconv functions (e.g., FormatUint) default to uint64, making it a more natural choice over uint32, despite the potential memory savings.
 
 2. Exchange parameters for start and end times should use time.Time instead of int64 UNIX timestamps. Even if an exchange requires a UNIX timestamp, we should convert it within the function to maintain consistency and readability.
 
