@@ -187,8 +187,7 @@ func (k *Kraken) wsHandleData(_ context.Context, respRaw []byte) error {
 
 		// For all types of channel second to last field is the channel Name
 		var chanName string
-		chanIndex := len(msg) - 2
-		if err := json.Unmarshal(msg[chanIndex], &chanName); err != nil {
+		if err := json.Unmarshal(msg[len(msg)-2], &chanName); err != nil {
 			return fmt.Errorf("error unmarshalling channel name: %w", err)
 		}
 
@@ -418,7 +417,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 			}
 
 			if val.Volume > 0 {
-				// Note: Only set if status is open
+				// Note: Volume and ExecutedVolume are only populated when status is open
 				d.RemainingAmount = val.Volume - val.ExecutedVolume
 			}
 			k.Websocket.DataHandler <- d
