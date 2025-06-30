@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // List of all websocket channels to subscribe to
@@ -426,18 +425,6 @@ func (k *Kraken) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 	return nil
 }
 
-type wsTicker struct {
-	Ask                        [3]types.Number `json:"a"`
-	Bid                        [3]types.Number `json:"b"`
-	Last                       [2]types.Number `json:"c"`
-	Volume                     [2]types.Number `json:"v"`
-	VolumeWeightedAveragePrice [2]types.Number `json:"p"`
-	Trades                     [2]int64        `json:"t"`
-	Low                        [2]types.Number `json:"l"`
-	High                       [2]types.Number `json:"h"`
-	Open                       [2]types.Number `json:"o"`
-}
-
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (k *Kraken) wsProcessTickers(dataRaw json.RawMessage, pair currency.Pair) error {
 	var t wsTicker
@@ -460,18 +447,6 @@ func (k *Kraken) wsProcessTickers(dataRaw json.RawMessage, pair currency.Pair) e
 	return nil
 }
 
-type wsSpread struct {
-	Bid       types.Number
-	Ask       types.Number
-	Time      types.Time
-	BidVolume types.Number
-	AskVolume types.Number
-}
-
-func (w *wsSpread) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[5]any{&w.Bid, &w.Ask, &w.Time, &w.BidVolume, &w.AskVolume})
-}
-
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler
 func (k *Kraken) wsProcessSpread(rawData json.RawMessage, pair currency.Pair) error {
 	var data wsSpread
@@ -489,19 +464,6 @@ func (k *Kraken) wsProcessSpread(rawData json.RawMessage, pair currency.Pair) er
 			data.AskVolume.Float64())
 	}
 	return nil
-}
-
-type wsTrades struct {
-	Price     types.Number
-	Volume    types.Number
-	Time      types.Time
-	Side      string
-	OrderType string
-	Misc      string
-}
-
-func (w *wsTrades) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[6]any{&w.Price, &w.Volume, &w.Time, &w.Side, &w.OrderType, &w.Misc})
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
@@ -731,22 +693,6 @@ func trim(s string) string {
 	s = strings.Replace(s, ".", "", 1)
 	s = strings.TrimLeft(s, "0")
 	return s
-}
-
-type wsCandle struct {
-	LastUpdateTime types.Time
-	EndTime        types.Time
-	Open           types.Number
-	High           types.Number
-	Low            types.Number
-	Close          types.Number
-	VWAP           types.Number
-	Volume         types.Number
-	Count          int64
-}
-
-func (w *wsCandle) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[9]any{&w.LastUpdateTime, &w.EndTime, &w.Open, &w.High, &w.Low, &w.Close, &w.VWAP, &w.Volume, &w.Count})
 }
 
 // wsProcessCandle converts candle data and sends it to the data handler
