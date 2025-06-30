@@ -253,13 +253,13 @@ type SwapWsSubLiquidationOrders struct {
 	Topic      string     `json:"topic"`
 	Timestamp  types.Time `json:"ts"`
 	OrdersData []struct {
-		Symbol       string  `json:"symbol"`
-		ContractCode string  `json:"contract_code"`
-		Direction    string  `json:"direction"`
-		Offset       string  `json:"offset"`
-		Volume       float64 `json:"volume"`
-		Price        float64 `json:"price"`
-		CreatedAt    int64   `json:"created_at"`
+		Symbol       string     `json:"symbol"`
+		ContractCode string     `json:"contract_code"`
+		Direction    string     `json:"direction"`
+		Offset       string     `json:"offset"`
+		Volume       float64    `json:"volume"`
+		Price        float64    `json:"price"`
+		CreatedAt    types.Time `json:"created_at"`
 	} `json:"data"`
 }
 
@@ -533,15 +533,15 @@ type TraderSentimentIndexPositionData struct {
 // LiquidationOrdersData stores data of liquidation orders
 type LiquidationOrdersData struct {
 	Data []struct {
-		QueryID      int64   `json:"query_id"`
-		ContractCode string  `json:"contract_code"`
-		Symbol       string  `json:"symbol"`
-		Direction    string  `json:"direction"`
-		Offset       string  `json:"offset"`
-		Volume       float64 `json:"volume"`
-		Price        float64 `json:"price"`
-		CreatedAt    int64   `json:"created_at"`
-		Amount       float64 `json:"amount"`
+		QueryID      int64      `json:"query_id"`
+		ContractCode string     `json:"contract_code"`
+		Symbol       string     `json:"symbol"`
+		Direction    string     `json:"direction"`
+		Offset       string     `json:"offset"`
+		Volume       float64    `json:"volume"`
+		Price        float64    `json:"price"`
+		CreatedAt    types.Time `json:"created_at"`
+		Amount       float64    `json:"amount"`
 	} `json:"data"`
 }
 

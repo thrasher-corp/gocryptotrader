@@ -264,13 +264,13 @@ type FTopPositionsLongShortRatio struct {
 type FLiquidationOrdersInfo struct {
 	Data struct {
 		Orders []struct {
-			Symbol       string  `json:"symbol"`
-			ContractCode string  `json:"contract_code"`
-			Direction    string  `json:"direction"`
-			Offset       string  `json:"offset"`
-			Volume       float64 `json:"volume"`
-			Price        float64 `json:"price"`
-			CreatedAt    int64   `json:"created_at"`
+			Symbol       string     `json:"symbol"`
+			ContractCode string     `json:"contract_code"`
+			Direction    string     `json:"direction"`
+			Offset       string     `json:"offset"`
+			Volume       float64    `json:"volume"`
+			Price        float64    `json:"price"`
+			CreatedAt    types.Time `json:"created_at"`
 		} `json:"orders"`
 		TotalPage   int64 `json:"total_page"`
 		CurrentPage int64 `json:"current_page"`

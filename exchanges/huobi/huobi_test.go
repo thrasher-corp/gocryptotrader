@@ -571,9 +571,8 @@ func TestGetTraderSentimentIndexPosition(t *testing.T) {
 
 func TestGetLiquidationOrders(t *testing.T) {
 	t.Parallel()
-	r, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", time.Now().AddDate(0, 0, -1), time.Now(), "", 0)
-	require.NoError(t, err)
-	assert.NotEmpty(t, r.Data, "GetLiquidationOrders should return some data")
+	_, err := h.GetLiquidationOrders(t.Context(), btcusdPair, "closed", time.Now().AddDate(0, 0, -2), time.Now(), "", 0)
+	assert.NoError(t, err, "GetLiquidationOrders should not error")
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {

@@ -379,13 +379,13 @@ type FWsSubLiquidationOrders struct {
 	Topic      string     `json:"topic"`
 	Timestamp  types.Time `json:"ts"`
 	OrdersData []struct {
-		Symbol       string  `json:"symbol"`
-		ContractCode string  `json:"contract_code"`
-		Direction    string  `json:"direction"`
-		Offset       string  `json:"offset"`
-		Volume       float64 `json:"volume"`
-		Price        float64 `json:"price"`
-		CreatedAt    int64   `json:"created_at"`
+		Symbol       string     `json:"symbol"`
+		ContractCode string     `json:"contract_code"`
+		Direction    string     `json:"direction"`
+		Offset       string     `json:"offset"`
+		Volume       float64    `json:"volume"`
+		Price        float64    `json:"price"`
+		CreatedAt    types.Time `json:"created_at"`
 	} `json:"data"`
 }
 
@@ -701,16 +701,16 @@ type OrderInfo struct {
 
 // OrderMatchInfo stores the order match info
 type OrderMatchInfo struct {
-	ID           int    `json:"id"`
-	OrderID      int    `json:"order-id"`
-	MatchID      int    `json:"match-id"`
-	Symbol       string `json:"symbol"`
-	Type         string `json:"type"`
-	Source       string `json:"source"`
-	Price        string `json:"price"`
-	FilledAmount string `json:"filled-amount"`
-	FilledFees   string `json:"filled-fees"`
-	CreatedAt    int64  `json:"created-at"`
+	ID           int        `json:"id"`
+	OrderID      int        `json:"order-id"`
+	MatchID      int        `json:"match-id"`
+	Symbol       string     `json:"symbol"`
+	Type         string     `json:"type"`
+	Source       string     `json:"source"`
+	Price        string     `json:"price"`
+	FilledAmount string     `json:"filled-amount"`
+	FilledFees   string     `json:"filled-fees"`
+	CreatedAt    types.Time `json:"created-at"`
 }
 
 // MarginOrder stores the margin order info
