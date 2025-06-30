@@ -3117,6 +3117,9 @@ func (g *Gateio) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlyi
 
 // GetExpirationTime return the expiration time for the provided underlying.
 func (g *Gateio) GetExpirationTime(ctx context.Context, underlying string) (time.Time, error) {
+	if underlying == "" {
+		return time.Time{}, errInvalidUnderlying
+	}
 	var timestamps []types.Time
 	err := g.SendHTTPRequest(ctx, exchange.RestSpot, publicExpirationOptionsEPL, gateioOptionExpiration+"?underlying="+underlying, &timestamps)
 	if err != nil {
