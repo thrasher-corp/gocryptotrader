@@ -5,7 +5,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -47,21 +46,6 @@ func Int64FromString(raw any) (int64, error) {
 		return 0, fmt.Errorf("unable to parse as int64: %T", raw)
 	}
 	return n, nil
-}
-
-// TimeFromUnixTimestampFloat format
-func TimeFromUnixTimestampFloat(raw any) (time.Time, error) {
-	ts, ok := raw.(float64)
-	if !ok {
-		return time.Time{}, fmt.Errorf("unable to parse, value not float64: %T", raw)
-	}
-	return time.UnixMilli(int64(ts)), nil
-}
-
-// TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to a time.Time in UTC
-func TimeFromUnixTimestampDecimal(input float64) time.Time {
-	i, f := math.Modf(input)
-	return time.Unix(int64(i), int64(f*(1e9))).UTC()
 }
 
 // BoolPtr takes in boolean condition and returns pointer version of it

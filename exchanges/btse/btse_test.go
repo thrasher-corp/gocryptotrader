@@ -387,12 +387,6 @@ func TestGetFee(t *testing.T) {
 	assert.NoError(t, err, "fee builuder should not error for a fraction of a squillion")
 }
 
-func TestParseOrderTime(t *testing.T) {
-	actual, err := parseOrderTime("2018-08-20 19:20:46")
-	assert.NoError(t, err, "parseOrderTime should not error")
-	assert.EqualValues(t, 1534792846, actual.Unix(), "parseOrderTime should provide correct value")
-}
-
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)

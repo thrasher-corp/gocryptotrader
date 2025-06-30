@@ -20,6 +20,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -366,13 +367,13 @@ func (h *HUOBI) GetCurrenciesIncludingChains(ctx context.Context, curr currency.
 func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var result struct {
 		Response
-		Timestamp int64 `json:"data"`
+		Timestamp types.Time `json:"data"`
 	}
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiTimestamp, &result)
 	if result.ErrorMessage != "" {
 		return time.Time{}, errors.New(result.ErrorMessage)
 	}
-	return time.UnixMilli(result.Timestamp), err
+	return result.Timestamp.Time(), err
 }
 
 // GetAccounts returns the Huobi user accounts
