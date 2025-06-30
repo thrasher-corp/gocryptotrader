@@ -95,9 +95,9 @@ func TestGetKlines(t *testing.T) {
 				require.ErrorIs(t, err, tc.expError)
 				return
 			}
-			require.NoErrorf(t, err, "GetKlines for category %s and pair %s must not error", tc.category, tc.pair)
+			require.NoError(t, err)
 			if mockTests {
-				require.Equalf(t, tc.expRespLen, len(r), "GetKlines for category %s and pair %s must return %d items", tc.category, tc.pair, tc.expRespLen)
+				require.Equal(t, tc.expRespLen, len(r))
 
 				switch tc.category {
 				case "spot":
@@ -112,7 +112,7 @@ func TestGetKlines(t *testing.T) {
 					assert.Equal(t, KlineItem{StartTime: types.Time(e), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
 				}
 			} else {
-				assert.NotEmptyf(t, r, "GetKlines for category %s and pair %s should return a non-empty list", tc.category, tc.pair)
+				assert.NotEmpty(t, r)
 			}
 		})
 	}

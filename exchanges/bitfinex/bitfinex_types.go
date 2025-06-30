@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -450,34 +449,32 @@ type MovementHistory struct {
 
 // UnmarshalJSON unmarshals JSON data into a MovementHistory struct
 func (m *MovementHistory) UnmarshalJSON(data []byte) error {
-	var rawDogs []json.RawMessage
-	if err := json.Unmarshal(data, &rawDogs); err != nil {
-		return fmt.Errorf("error unmarshalling MovementHistory data: %w", err)
-	}
-	if len(rawDogs) < 22 {
-		return fmt.Errorf("expected 22 elements, got %d", len(rawDogs))
-	}
-
-	for _, toUnmarshal := range []struct {
-		idx   int
-		field any
-	}{
-		{0, &m.ID},
-		{1, &m.Currency},
-		{2, &m.CurrencyName},
-		{5, &m.MTSStarted},
-		{6, &m.MTSUpdated},
-		{9, &m.Status},
-		{12, &m.Amount},
-		{13, &m.Fees},
-		{16, &m.DestinationAddress},
-		{17, &m.PaymentID},
-		{20, &m.TransactionID},
-		{21, &m.TransactionNote},
-	} {
-		if err := json.Unmarshal(rawDogs[toUnmarshal.idx], toUnmarshal.field); err != nil {
-			return fmt.Errorf("error unmarshalling field %d: %w", toUnmarshal.idx, err)
-		}
+	var unusedField any
+	if err := json.Unmarshal(data, &[22]any{
+		&m.ID,
+		&m.Currency,
+		&m.CurrencyName,
+		&unusedField,
+		&unusedField,
+		&m.MTSStarted,
+		&m.MTSUpdated,
+		&unusedField,
+		&unusedField,
+		&m.Status,
+		&unusedField,
+		&unusedField,
+		&m.Amount,
+		&m.Fees,
+		&unusedField,
+		&unusedField,
+		&m.DestinationAddress,
+		&m.PaymentID,
+		&unusedField,
+		&unusedField,
+		&m.TransactionID,
+		&m.TransactionNote,
+	}); err != nil {
+		return err
 	}
 
 	if m.Amount < 0 {

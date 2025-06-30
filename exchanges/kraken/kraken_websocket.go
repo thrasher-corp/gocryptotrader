@@ -418,7 +418,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 			}
 
 			if val.Volume > 0 {
-				// Note: We don't seem to ever get both there values
+				// Note: Only set if status is open
 				d.RemainingAmount = val.Volume - val.ExecutedVolume
 			}
 			k.Websocket.DataHandler <- d
@@ -480,7 +480,7 @@ func (k *Kraken) wsProcessSpread(rawData json.RawMessage, pair currency.Pair) er
 		return fmt.Errorf("error unmarshalling spread data: %w", err)
 	}
 	if k.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
+		log.Debugf(log.ExchangeSys, "%s Spread data for %q received. Best bid: '%v' Best ask: '%v' Time: %q, Bid volume: '%v', Ask volume: '%v'",
 			k.Name,
 			pair,
 			data.Bid.Float64(),
