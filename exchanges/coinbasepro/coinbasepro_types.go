@@ -37,6 +37,9 @@ type Version bool
 // FiatTransferType is used so that we don't need to duplicate the four fiat transfer-related endpoints under version 2 of the API
 type FiatTransferType bool
 
+// Integer is used to represent an integer in the API, which is represented as a string in the JSON response
+type Integer int64
+
 // ValueWithCurrency is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse, ErrorMetadata, SubscriptionInfo, FuturesBalanceSummary, ListFuturesSweepsResponse, PerpetualsPortfolioSummary, PerpPositionDetail, FeeStruct, AmScale, and ConvertResponse
 type ValueWithCurrency struct {
 	Value    types.Number `json:"value"`
@@ -65,7 +68,7 @@ type Account struct {
 type AllAccountsResponse struct {
 	Accounts []Account `json:"accounts"`
 	HasNext  bool      `json:"has_next"`
-	Cursor   string    `json:"cursor"`
+	Cursor   Integer   `json:"cursor"`
 	Size     uint8     `json:"size"`
 }
 
@@ -130,11 +133,12 @@ type FCMTradingSessionDetails struct {
 
 // PerpetualDetails is a sub-struct used in the type FutureProductDetails
 type PerpetualDetails struct {
-	OpenInterest  types.Number `json:"open_interest"`
-	FundingRate   types.Number `json:"funding_rate"`
-	FundingTime   time.Time    `json:"funding_time"`
-	MaxLeverage   types.Number `json:"max_leverage"`
-	BaseAssetUUID string       `json:"base_asset_uuid"`
+	OpenInterest   types.Number `json:"open_interest"`
+	FundingRate    types.Number `json:"funding_rate"`
+	FundingTime    time.Time    `json:"funding_time"`
+	MaxLeverage    types.Number `json:"max_leverage"`
+	BaseAssetUUID  string       `json:"base_asset_uuid"`
+	UnderlyingType string       `json:"underlying_type"`
 }
 
 // FutureProductDetails is a sub-struct used in the type Product
@@ -154,6 +158,9 @@ type FutureProductDetails struct {
 	TimeToExpiry           time.Duration    `json:"time_to_expiry_ms,string"`
 	NonCrypto              bool             `json:"non_crypto"`
 	ContractExpiryName     string           `json:"contract_expiry_name"`
+	TwentyFourBySeven      bool             `json:"twenty_four_by_seven"`
+	FundingInterval        string           `json:"funding_interval"`
+	OpenInterest           types.Number     `json:"open_interest"`
 }
 
 // Product holds product information, returned by GetProductByID, and used as a sub-struct in the type AllProducts
@@ -194,7 +201,9 @@ type Product struct {
 	DisplayName               string                   `json:"display_name"`
 	ProductVenue              string                   `json:"product_venue"`
 	ApproximateQuote24HVolume types.Number             `json:"approximate_quote_24h_volume"`
-	FutureProductDetails      FutureProductDetails     `json:"future_product_details"`
+	NewAt                     time.Time                `json:"new_at"`
+	// The following field only appears for future products
+	FutureProductDetails FutureProductDetails `json:"future_product_details"`
 }
 
 // AllProducts holds information on a lot of available currency pairs, returned by GetAllProducts
@@ -223,6 +232,7 @@ type Trades struct {
 	Side      string        `json:"side"`
 	Bid       types.Number  `json:"bid"`
 	Ask       types.Number  `json:"ask"`
+	Exchange  string        `json:"exchange"`
 }
 
 // Ticker holds basic ticker information, returned by GetTicker
@@ -337,11 +347,12 @@ type SuccessResponse struct {
 	AttachedOrderID string        `json:"attached_order_id"`
 }
 
-// ErrorResponse is a sub-struct used in the type SuccessFailureConfig
+// ErrorResponse is a sub-struct used in unmarshalling errors from the exchange in general
 type ErrorResponse struct {
-	Error                 string `json:"error"`
+	ErrorType             string `json:"error"`
 	Message               string `json:"message"`
 	ErrorDetails          string `json:"error_details"`
+	EditFailureReason     string `json:"edit_failure_reason"`
 	PreviewFailureReason  string `json:"preview_failure_reason"`
 	NewOrderFailureReason string `json:"new_order_failure_reason"`
 }
@@ -374,7 +385,6 @@ type PlaceOrderInfo struct {
 type SuccessFailureConfig struct {
 	Success            bool               `json:"success"`
 	SuccessResponse    SuccessResponse    `json:"success_response"`
-	ErrorResponse      ErrorResponse      `json:"error_response"`
 	OrderConfiguration OrderConfiguration `json:"order_configuration"`
 }
 
@@ -445,7 +455,6 @@ type GetOrderResponse struct {
 	OriginatingOrderID         string             `json:"originating_order_id"`
 	AttachedOrderID            string             `json:"attached_order_id"`
 	AttachedOrderConfiguration OrderConfiguration `json:"attached_order_configuration"`
-	CurrentPendingReplace      json.RawMessage    `json:"current_pending_replace"`
 }
 
 // Fills is a sub-struct used in the type FillResponse
@@ -471,46 +480,75 @@ type Fills struct {
 // FillResponse contains fill information, returned by ListFills
 type FillResponse struct {
 	Fills  []Fills `json:"fills"`
-	Cursor string  `json:"cursor"`
+	Cursor Integer `json:"cursor"`
 }
 
 // PreviewOrderInfo is a struct used in the formation of requests in PreviewOrder
 type PreviewOrderInfo struct {
-	ProductID        string
-	Side             string
-	OrderType        order.Type
-	TimeInForce      order.TimeInForce
-	StopDirection    string
-	MarginType       string
-	CommissionValue  float64
-	BaseAmount       float64
-	QuoteAmount      float64
-	LimitPrice       float64
-	StopPrice        float64
-	TradableBalance  float64
-	Leverage         float64
-	PostOnly         bool
-	IsMax            bool
-	SkipFCMRiskCheck bool
-	EndTime          time.Time
+	ProductID                  string
+	Side                       string
+	OrderType                  order.Type
+	TimeInForce                order.TimeInForce
+	StopDirection              string
+	MarginType                 string
+	RetailPortfolioID          string
+	BaseAmount                 float64
+	QuoteAmount                float64
+	LimitPrice                 float64
+	StopPrice                  float64
+	Leverage                   float64
+	BucketSize                 float64
+	BucketNumber               int64
+	BucketDuration             time.Duration
+	PostOnly                   bool
+	EndTime                    time.Time
+	AttachedOrderConfiguration OrderConfiguration
+}
+
+// TriggerBracketPNL is a sub-struct used in the type PreviewOrderResp
+type TriggerBracketPNL struct {
+	TakeProfitPNL types.Number `json:"take_profit_pnl"`
+	StopLossPNL   types.Number `json:"stop_loss_pnl"`
+}
+
+// TWAPBucketMetadata is a sub-struct used in the type PreviewOrderResp
+type TWAPBucketMetadata struct {
+	BucketDuration time.Duration `json:"bucket_duration"`
+	BucketSize     types.Number  `json:"bucket_size"`
+	BucketNumber   Integer       `json:"bucket_number"`
+}
+
+// MarginRatioData is a sub-struct used in the type PreviewOrderResp
+type MarginRatioData struct {
+	CurrentMarginRatio   types.Number `json:"current_margin_ratio"`
+	ProjectedMarginRatio types.Number `json:"projected_margin_ratio"`
 }
 
 // PreviewOrderResp contains information on the effects of placing an order, returned by PreviewOrder
 type PreviewOrderResp struct {
-	OrderTotal       types.Number `json:"order_total"`
-	CommissionTotal  types.Number `json:"commission_total"`
-	Errs             []string     `json:"errs"`
-	Warning          []string     `json:"warning"`
-	QuoteSize        types.Number `json:"quote_size"`
-	BaseSize         types.Number `json:"base_size"`
-	BestBid          types.Number `json:"best_bid"`
-	BestAsk          types.Number `json:"best_ask"`
-	IsMax            bool         `json:"is_max"`
-	OrderMarginTotal types.Number `json:"order_margin_total"`
-	Leverage         types.Number `json:"leverage"`
-	LongLeverage     types.Number `json:"long_leverage"`
-	ShortLeverage    types.Number `json:"short_leverage"`
-	Slippage         types.Number `json:"slippage"`
+	OrderTotal                     types.Number       `json:"order_total"`
+	CommissionTotal                types.Number       `json:"commission_total"`
+	Errs                           []string           `json:"errs"`
+	Warning                        []string           `json:"warning"`
+	QuoteSize                      types.Number       `json:"quote_size"`
+	BaseSize                       types.Number       `json:"base_size"`
+	BestBid                        types.Number       `json:"best_bid"`
+	BestAsk                        types.Number       `json:"best_ask"`
+	IsMax                          bool               `json:"is_max"`
+	OrderMarginTotal               types.Number       `json:"order_margin_total"`
+	Leverage                       types.Number       `json:"leverage"`
+	LongLeverage                   types.Number       `json:"long_leverage"`
+	ShortLeverage                  types.Number       `json:"short_leverage"`
+	Slippage                       types.Number       `json:"slippage"`
+	PreviewID                      string             `json:"preview_id"`
+	CurrentLiquidationBuffer       types.Number       `json:"current_liquidation_buffer"`
+	ProjectedLiquidationBuffer     types.Number       `json:"projected_liquidation_buffer"`
+	MaxLeverage                    types.Number       `json:"max_leverage"`
+	PNLConfiguration               TriggerBracketPNL  `json:"pnl_configuration"`
+	TWAPBucketMetadata             TWAPBucketMetadata `json:"twap_bucket_metadata"`
+	PositionNotionalLimit          types.Number       `json:"position_notional_limit"`
+	MaxNotionalAtRequestedLeverage types.Number       `json:"max_notional_at_requested_leverage"`
+	MarginRatioData                MarginRatioData    `json:"margin_ratio_data"`
 }
 
 // SimplePortfolioData is a sub-struct used in the type DetailedPortfolioResponse
@@ -663,8 +701,8 @@ type SweepData struct {
 	ScheduledTime   time.Time         `json:"scheduled_time"`
 }
 
-// PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as a sub-struct in the types PerpPositionDetail, AllPerpPosResponse, and OnePerpPosResponse
-type PerpetualsPortfolioSummary struct {
+// PerpPositionSummary contains information on perpetuals portfolio balances, used as a sub-struct in the types PerpPositionDetail, AllPerpPosResponse, and OnePerpPosResponse
+type PerpPositionSummary struct {
 	PortfolioUUID              string            `json:"portfolio_uuid"`
 	Collateral                 types.Number      `json:"collateral"`
 	PositionNotional           types.Number      `json:"position_notional"`
@@ -683,45 +721,95 @@ type PerpetualsPortfolioSummary struct {
 	MarginFlags                string            `json:"margin_flags"`
 	LiquidationStatus          string            `json:"liquidation_status"`
 	UnrealizedPNL              ValueWithCurrency `json:"unrealized_pnl"`
-	BuyingPower                ValueWithCurrency `json:"buying_power"`
+	BuyingPower                ValueWithCurrency `json:"buying_power"` // Not in the GetPerpetualsPortfolioSummary response
 	TotalBalance               ValueWithCurrency `json:"total_balance"`
-	MaxWithDrawal              ValueWithCurrency `json:"max_withdrawal"`
+	MaxWithdrawal              ValueWithCurrency `json:"max_withdrawal"` // Not in the GetPerpetualsPortfolioSummary response
 }
 
-// PerpPositionDetail contains information on a single perpetuals position, used as a sub-struct in the types AllPerpPosResponse and OnePerpPosResponse
+// PerpetualPortfolioSummary contains information on perpetuals portfolio balances, used as a sub-struct in the type PerpetualPortfolioResponse
+type PerpetualPortfolioSummary struct {
+	UnrealisedPNL           ValueWithCurrency `json:"unrealized_pnl"`
+	BuyingPower             ValueWithCurrency `json:"buying_power"`
+	TotalBalance            ValueWithCurrency `json:"total_balance"`
+	MaximumWithdrawalAmount ValueWithCurrency `json:"maximum_withdrawal_amount"`
+}
+
+// PerpetualPortfolioResponse contains information on perpetuals portfolio balances, returned by GetPerpetualsPortfolioSummary
+type PerpetualPortfolioResponse struct {
+	Portfolios []PerpPositionSummary     `json:"portfolios"`
+	Summary    PerpetualPortfolioSummary `json:"summary"`
+}
+
+// PerpPositionDetail contains information on a single perpetuals position, used as a sub-struct in the type AllPerpPosResponse, and returned by GetPerpetualsPositionByID
 type PerpPositionDetail struct {
-	ProductID             currency.Pair              `json:"product_id"`
-	ProductUUID           string                     `json:"product_uuid"`
-	Symbol                string                     `json:"symbol"`
-	VWAP                  ValueWithCurrency          `json:"vwap"`
-	PositionSide          string                     `json:"position_side"`
-	NetSize               types.Number               `json:"net_size"`
-	BuyOrderSize          types.Number               `json:"buy_order_size"`
-	SellOrderSize         types.Number               `json:"sell_order_size"`
-	IMContribution        types.Number               `json:"im_contribution"`
-	UnrealizedPNL         ValueWithCurrency          `json:"unrealized_pnl"`
-	MarkPrice             ValueWithCurrency          `json:"mark_price"`
-	LiquidationPrice      ValueWithCurrency          `json:"liquidation_price"`
-	Leverage              types.Number               `json:"leverage"`
-	IMNotional            ValueWithCurrency          `json:"im_notional"`
-	MMNotional            ValueWithCurrency          `json:"mm_notional"`
-	PositionNotional      ValueWithCurrency          `json:"position_notional"`
-	MarginType            string                     `json:"margin_type"`
-	LiquidationBuffer     types.Number               `json:"liquidation_buffer"`
-	LiquidationPercentage types.Number               `json:"liquidation_percentage"`
-	PortfolioSummary      PerpetualsPortfolioSummary `json:"portfolio_summary"`
+	ProductID             currency.Pair       `json:"product_id"`
+	ProductUUID           string              `json:"product_uuid"`
+	PortfolioUUID         string              `json:"portfolio_uuid"`
+	Symbol                string              `json:"symbol"`
+	VWAP                  ValueWithCurrency   `json:"vwap"`
+	EntryVWAP             ValueWithCurrency   `json:"entry_vwap"`
+	PositionSide          string              `json:"position_side"`
+	MarginType            string              `json:"margin_type"`
+	NetSize               types.Number        `json:"net_size"`
+	BuyOrderSize          types.Number        `json:"buy_order_size"`
+	SellOrderSize         types.Number        `json:"sell_order_size"`
+	IMContribution        types.Number        `json:"im_contribution"`
+	UnrealizedPNL         ValueWithCurrency   `json:"unrealized_pnl"`
+	MarkPrice             ValueWithCurrency   `json:"mark_price"`
+	LiquidationPrice      ValueWithCurrency   `json:"liquidation_price"`
+	Leverage              types.Number        `json:"leverage"`
+	IMNotional            ValueWithCurrency   `json:"im_notional"`
+	MMNotional            ValueWithCurrency   `json:"mm_notional"`
+	PositionNotional      ValueWithCurrency   `json:"position_notional"`
+	AggregatedPNL         ValueWithCurrency   `json:"aggregated_pnl"`
+	LiquidationBuffer     types.Number        `json:"liquidation_buffer"`     // Not in GetPerpetualsPositionByID
+	LiquidationPercentage types.Number        `json:"liquidation_percentage"` // Not in GetPerpetualsPositionByID
+	PortfolioSummary      PerpPositionSummary `json:"portfolio_summary"`      // Not in GetPerpetualsPositionByID
+}
+
+// PortfolioAsset contains information on a single portfolio asset, used as a sub-struct in the type PortfolioBalance
+type PortfolioAsset struct {
+	AssetID                          string       `json:"asset_id"`
+	AssetUUID                        string       `json:"asset_uuid"`
+	AssetName                        string       `json:"asset_name"`
+	Status                           string       `json:"status"`
+	CollateralWeight                 types.Number `json:"collateral_weight"`
+	AccountCollateralLimit           types.Number `json:"account_collateral_limit"`
+	EcosystemCollateralLimitBreached bool         `json:"ecosystem_collateral_limit_breached"`
+	AssetIconURL                     string       `json:"asset_icon_url"`
+	SupportedNetworksEnabled         bool         `json:"supported_networks_enabled"`
+}
+
+// PortfolioBalance contains information on a single portfolio balance, used as a sub-struct in the type PortfolioBalancesResponse
+type PortfolioBalance struct {
+	Asset                        PortfolioAsset `json:"asset"`
+	Quantity                     types.Number   `json:"quantity"`
+	Hold                         types.Number   `json:"hold"`
+	TransferHold                 types.Number   `json:"transfer_hold"`
+	CollateralValue              types.Number   `json:"collateral_value"`
+	CollateralWeight             types.Number   `json:"collateral_weight"`
+	MaxWithdrawAmount            types.Number   `json:"max_withdraw_amount"`
+	Loan                         types.Number   `json:"loan"`
+	LoanCollateralRequirementUSD types.Number   `json:"loan_collateral_requirement_usd"`
+	PledgedQuantity              types.Number   `json:"pledged_quantity"`
+}
+
+// PortfolioBalancesResponse contains information on a portfolio's balances, returned by GetPortfolioBalances
+type PortfolioBalancesResponse struct {
+	PortfolioUUID        string             `json:"portfolio_uuid"`
+	Balances             []PortfolioBalance `json:"balances"`
+	IsMarginLimitReached bool               `json:"is_margin_limit_reached"`
+}
+
+// PerpetualSummary contains information on a perpetual position's summary, used as a sub-struct in the type AllPerpPosResponse
+type PerpetualSummary struct {
+	AggregatedPNL ValueWithCurrency `json:"aggregated_pnl"`
 }
 
 // AllPerpPosResponse contains information on perpetuals positions, returned by GetAllPerpetualsPositions
 type AllPerpPosResponse struct {
-	Positions        []PerpPositionDetail       `json:"positions"`
-	PortfolioSummary PerpetualsPortfolioSummary `json:"portfolio_summary"`
-}
-
-// OnePerpPosResponse contains information on a single perpetuals position, returned by GetPerpetualsPositionByID
-type OnePerpPosResponse struct {
-	Position         PerpPositionDetail         `json:"position"`
-	PortfolioSummary PerpetualsPortfolioSummary `json:"portfolio_summary"`
+	Positions []PerpPositionDetail `json:"positions"`
+	Summary   PerpetualSummary     `json:"summary"`
 }
 
 // FeeTier is a sub-struct used in the type TransactionSummary
@@ -766,9 +854,9 @@ type TransactionSummary struct {
 // ListOrdersResp contains information on a lot of orders, returned by ListOrders
 type ListOrdersResp struct {
 	Orders   []GetOrderResponse `json:"orders"`
-	Sequence int64              `json:"sequence,string"`
+	Sequence Integer            `json:"sequence"`
 	HasNext  bool               `json:"has_next"`
-	Cursor   string             `json:"cursor"`
+	Cursor   Integer            `json:"cursor"`
 }
 
 // LinkStruct is a sub-struct storing information on links, used in Disclosure and ConvertResponse
@@ -1708,17 +1796,17 @@ type ServerTimeV3 struct {
 
 // PaymentMethodData is a sub-type that holds information on a payment method
 type PaymentMethodData struct {
-	ID            string    `json:"id"`
-	Type          string    `json:"type"`
-	Name          string    `json:"name"`
-	Currency      string    `json:"currency"`
-	Verified      bool      `json:"verified"`
-	AllowBuy      bool      `json:"allow_buy"`
-	AllowSell     bool      `json:"allow_sell"`
-	AllowDeposit  bool      `json:"allow_deposit"`
-	AllowWithdraw bool      `json:"allow_withdraw"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string        `json:"id"`
+	Type          string        `json:"type"`
+	Name          string        `json:"name"`
+	Currency      currency.Code `json:"currency"`
+	Verified      bool          `json:"verified"`
+	AllowBuy      bool          `json:"allow_buy"`
+	AllowSell     bool          `json:"allow_sell"`
+	AllowDeposit  bool          `json:"allow_deposit"`
+	AllowWithdraw bool          `json:"allow_withdraw"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
 // IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse, TransactionData, DeposWithdrData, and PaymentMethodData

@@ -238,7 +238,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		accountBalance []Account
 		done           bool
 		err            error
-		cursor         string
+		cursor         int64
 		accountResp    *AllAccountsResponse
 	)
 	response.Exchange = c.Name
@@ -249,7 +249,7 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		}
 		accountBalance = append(accountBalance, accountResp.Accounts...)
 		done = !accountResp.HasNext
-		cursor = accountResp.Cursor
+		cursor = int64(accountResp.Cursor)
 	}
 	accountCurrencies := make(map[string][]account.Balance)
 	for i := range accountBalance {
@@ -292,7 +292,7 @@ func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset
 	if err != nil {
 		return nil, err
 	}
-	err = c.tickerHelper(ctx, fPair.String(), a, verified)
+	err = c.tickerHelper(ctx, fPair, a, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -630,13 +630,13 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 		return nil, err
 	}
 	response := c.getOrderRespToOrderDetail(genOrderDetail, pair, assetItem)
-	fillData, err := c.ListFills(ctx, []string{orderID}, nil, nil, "", "", time.Time{}, time.Now(), manyFills)
+	fillData, err := c.ListFills(ctx, []string{orderID}, nil, nil, 0, "", time.Time{}, time.Now(), manyFills)
 	if err != nil {
 		return nil, err
 	}
 	cursor := fillData.Cursor
-	for cursor != "" {
-		tempFillData, err := c.ListFills(ctx, []string{orderID}, nil, nil, cursor, "", time.Time{}, time.Now(), manyFills)
+	for cursor != 0 {
+		tempFillData, err := c.ListFills(ctx, []string{orderID}, nil, nil, int64(cursor), "", time.Time{}, time.Now(), manyFills)
 		if err != nil {
 			return nil, err
 		}
@@ -1067,7 +1067,7 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productIDs currency.Pairs, orderType, orderSide, productType string, orderStatus []string, limit int32, startDate, endDate time.Time) ([]GetOrderResponse, error) {
 	hasNext := true
 	var resp []GetOrderResponse
-	var cursor string
+	var cursor int64
 	if orderSide == "ANY" {
 		orderSide = ""
 	}
@@ -1078,13 +1078,13 @@ func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productIDs curr
 		productType = "FUTURE"
 	}
 	for hasNext {
-		interResp, err := c.ListOrders(ctx, nil, orderStatus, nil, []string{orderType}, nil, productIDs, productType, orderSide, "", "", "", cursor, "", limit, startDate, endDate, currency.Code{})
+		interResp, err := c.ListOrders(ctx, nil, orderStatus, nil, []string{orderType}, nil, productIDs, productType, orderSide, "", "", "", "", cursor, limit, startDate, endDate, currency.Code{})
 		if err != nil {
 			return nil, err
 		}
 		resp = append(resp, interResp.Orders...)
 		hasNext = interResp.HasNext
-		cursor = interResp.Cursor
+		cursor = int64(interResp.Cursor)
 	}
 	return resp, nil
 }
@@ -1230,13 +1230,9 @@ func (c *CoinbasePro) verificationCheck(ctx context.Context) (bool, error) {
 }
 
 // TickerHelper fetches the ticker for a given currency pair, used by UpdateTickers and UpdateTicker
-func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType asset.Item, verified bool) error {
-	pair, err := currency.NewPairDelimiter(name, currency.DashDelimiter)
-	if err != nil {
-		return err
-	}
+func (c *CoinbasePro) tickerHelper(ctx context.Context, name currency.Pair, assetType asset.Item, verified bool) error {
 	newTick := &ticker.Price{
-		Pair:         pair,
+		Pair:         name,
 		ExchangeName: c.Name,
 		AssetType:    assetType,
 	}
