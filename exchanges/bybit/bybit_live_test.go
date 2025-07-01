@@ -18,21 +18,21 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	b = new(Bybit)
-	if err := testexch.Setup(b); err != nil {
+	ex = new(Exchange)
+	if err := testexch.Setup(ex); err != nil {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		b.API.AuthenticatedSupport = true
-		b.API.AuthenticatedWebsocketSupport = true
-		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.API.AuthenticatedSupport = true
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	if b.API.AuthenticatedSupport {
-		if _, err := b.FetchAccountType(context.Background()); err != nil {
-			log.Printf("%s unable to FetchAccountType: %v", b.Name, err)
+	if ex.API.AuthenticatedSupport {
+		if _, err := ex.FetchAccountType(context.Background()); err != nil {
+			log.Printf("%s unable to FetchAccountType: %v", ex.Name, err)
 		}
 	}
 
@@ -48,14 +48,14 @@ func instantiateTradablePairs() {
 		}
 	}
 
-	err := b.UpdateTradablePairs(context.Background(), true)
+	err := ex.UpdateTradablePairs(context.Background(), true)
 	handleError("unable to UpdateTradablePairs", err)
 
 	setTradablePair := func(assetType asset.Item, p *currency.Pair) {
-		tradables, err := b.GetEnabledPairs(assetType)
+		tradables, err := ex.GetEnabledPairs(assetType)
 		handleError("unable to GetEnabledPairs", err)
 
-		format, err := b.GetPairFormat(assetType, true)
+		format, err := ex.GetPairFormat(assetType, true)
 		handleError("unable to GetPairFormat", err)
 
 		*p = tradables[0].Format(format)

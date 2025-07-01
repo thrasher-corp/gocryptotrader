@@ -15,10 +15,10 @@ import (
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	err := g.websocketLogin(t.Context(), nil, "")
+	err := e.websocketLogin(t.Context(), nil, "")
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -34,21 +34,21 @@ func TestWebsocketLogin(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotSubmitOrder(t.Context(), &CreateOrderRequest{})
+	_, err := e.WebsocketSpotSubmitOrder(t.Context(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	out := &CreateOrderRequest{CurrencyPair: currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})}
-	_, err = g.WebsocketSpotSubmitOrder(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Sell.String())
-	_, err = g.WebsocketSpotSubmitOrder(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
 	out.Amount = 1
 	out.Type = "limit"
-	_, err = g.WebsocketSpotSubmitOrder(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = 100
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -59,24 +59,24 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 
 func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotSubmitOrders(t.Context())
+	_, err := e.WebsocketSpotSubmitOrders(t.Context())
 	require.ErrorIs(t, err, errOrdersEmpty)
 	out := &CreateOrderRequest{}
-	_, err = g.WebsocketSpotSubmitOrders(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	out.CurrencyPair = currency.NewBTCUSDT()
-	_, err = g.WebsocketSpotSubmitOrders(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	out.Side = strings.ToLower(order.Buy.String())
-	_, err = g.WebsocketSpotSubmitOrders(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
 	out.Amount = 0.0003
 	out.Type = "limit"
-	_, err = g.WebsocketSpotSubmitOrders(t.Context(), out)
+	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = 20000
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -93,12 +93,12 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 
 func TestWebsocketSpotCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotCancelOrder(t.Context(), "", currency.EMPTYPAIR, "")
+	_, err := e.WebsocketSpotCancelOrder(t.Context(), "", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = g.WebsocketSpotCancelOrder(t.Context(), "1337", currency.EMPTYPAIR, "")
+	_, err = e.WebsocketSpotCancelOrder(t.Context(), "1337", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -109,18 +109,18 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 
 func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{})
+	_, err := e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{})
 	require.ErrorIs(t, err, errNoOrdersToCancel)
 	out := WebsocketOrderBatchRequest{}
-	_, err = g.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
+	_, err = e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	out.OrderID = "1337"
-	_, err = g.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
+	_, err = e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	out.Pair = BTCUSDT
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -132,10 +132,10 @@ func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 
 func TestWebsocketSpotCancelAllOrdersByPair(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotCancelAllOrdersByPair(t.Context(), currency.NewPairWithDelimiter("LTC", "USDT", "_"), 0, "")
+	_, err := e.WebsocketSpotCancelAllOrdersByPair(t.Context(), currency.NewPairWithDelimiter("LTC", "USDT", "_"), 0, "")
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -146,25 +146,25 @@ func TestWebsocketSpotCancelAllOrdersByPair(t *testing.T) {
 
 func TestWebsocketSpotAmendOrder(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotAmendOrder(t.Context(), nil)
+	_, err := e.WebsocketSpotAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	amend := &WebsocketAmendOrder{}
-	_, err = g.WebsocketSpotAmendOrder(t.Context(), amend)
+	_, err = e.WebsocketSpotAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	amend.OrderID = "1337"
-	_, err = g.WebsocketSpotAmendOrder(t.Context(), amend)
+	_, err = e.WebsocketSpotAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	amend.Pair = BTCUSDT
 
-	_, err = g.WebsocketSpotAmendOrder(t.Context(), amend)
+	_, err = e.WebsocketSpotAmendOrder(t.Context(), amend)
 	require.ErrorIs(t, err, errInvalidAmount)
 
 	amend.Amount = "0.0004"
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
@@ -176,15 +176,15 @@ func TestWebsocketSpotAmendOrder(t *testing.T) {
 
 func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 	t.Parallel()
-	_, err := g.WebsocketSpotGetOrderStatus(t.Context(), "", currency.EMPTYPAIR, "")
+	_, err := e.WebsocketSpotGetOrderStatus(t.Context(), "", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	_, err = g.WebsocketSpotGetOrderStatus(t.Context(), "1337", currency.EMPTYPAIR, "")
+	_, err = e.WebsocketSpotGetOrderStatus(t.Context(), "1337", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, g)
+	testexch.UpdatePairsOnce(t, e)
 	g := newExchangeWithWebsocket(t, asset.Spot) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
 	got, err := g.WebsocketSpotGetOrderStatus(t.Context(), "644999650452", BTCUSDT, "")

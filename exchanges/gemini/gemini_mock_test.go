@@ -15,12 +15,12 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	g = new(Exchange)
-	if err := testexch.Setup(g); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Gemini Setup error: %s", err)
 	}
 
-	if err := testexch.MockHTTPInstance(g); err != nil {
+	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Gemini MockHTTPInstance error: %s", err)
 	}
 

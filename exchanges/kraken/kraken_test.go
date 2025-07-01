@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	k               *Exchange
+	e               *Exchange
 	spotTestPair    = currency.NewPair(currency.XBT, currency.USD)
 	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
 )
@@ -48,31 +48,31 @@ const (
 )
 
 func TestMain(m *testing.M) {
-	k = new(Exchange)
-	if err := testexch.Setup(k); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Kraken Setup error: %s", err)
 	}
 	if apiKey != "" && apiSecret != "" {
-		k.API.AuthenticatedSupport = true
-		k.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.API.AuthenticatedSupport = true
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 	os.Exit(m.Run())
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, k)
+	testexch.UpdatePairsOnce(t, e)
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetCurrentServerTime(t.Context())
+	_, err := e.GetCurrentServerTime(t.Context())
 	assert.NoError(t, err, "GetCurrentServerTime should not error")
 }
 
 func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
-	st, err := k.GetServerTime(t.Context(), asset.Spot)
+	st, err := e.GetServerTime(t.Context(), asset.Spot)
 	require.NoError(t, err, "GetServerTime must not error")
 	assert.WithinRange(t, st, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 }
@@ -81,13 +81,13 @@ func TestWrapperGetServerTime(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
-	err := k.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
+	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 	for _, p := range []currency.Pair{
 		currency.NewPair(currency.ETH, currency.USDT),
 		currency.NewPair(currency.XBT, currency.USDT),
 	} {
-		limits, err := k.GetOrderExecutionLimits(asset.Spot, p)
+		limits, err := e.GetOrderExecutionLimits(asset.Spot, p)
 		require.NoErrorf(t, err, "%s GetOrderExecutionLimits must not error", p)
 		assert.Positivef(t, limits.PriceStepIncrementSize, "%s PriceStepIncrementSize should be positive", p)
 		assert.Positivef(t, limits.MinimumBaseAmount, "%s MinimumBaseAmount should be positive", p)
@@ -96,17 +96,17 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := k.FetchTradablePairs(t.Context(), asset.Futures)
+	_, err := e.FetchTradablePairs(t.Context(), asset.Futures)
 	assert.NoError(t, err, "FetchTradablePairs should not error")
 }
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, k)
-	_, err := k.UpdateTicker(t.Context(), spotTestPair, asset.Spot)
+	testexch.UpdatePairsOnce(t, e)
+	_, err := e.UpdateTicker(t.Context(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "UpdateTicker spot asset should not error")
 
-	_, err = k.UpdateTicker(t.Context(), futuresTestPair, asset.Futures)
+	_, err = e.UpdateTicker(t.Context(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "UpdateTicker futures asset should not error")
 }
 
@@ -146,9 +146,9 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := k.UpdateOrderbook(t.Context(), spotTestPair, asset.Spot)
+	_, err := e.UpdateOrderbook(t.Context(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "UpdateOrderbook spot asset should not error")
-	_, err = k.UpdateOrderbook(t.Context(), futuresTestPair, asset.Futures)
+	_, err = e.UpdateOrderbook(t.Context(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "UpdateOrderbook futures asset should not error")
 }
 
@@ -160,163 +160,163 @@ func TestFuturesBatchOrder(t *testing.T) {
 	tempData.OrderID = "test123"
 	tempData.Symbol = futuresTestPair.Lower().String()
 	data = append(data, tempData)
-	_, err := k.FuturesBatchOrder(t.Context(), data)
+	_, err := e.FuturesBatchOrder(t.Context(), data)
 	assert.ErrorIs(t, err, errInvalidBatchOrderType, "FuturesBatchOrder should error correctly")
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	data[0].PlaceOrderType = "cancel"
-	_, err = k.FuturesBatchOrder(t.Context(), data)
+	_, err = e.FuturesBatchOrder(t.Context(), data)
 	assert.NoError(t, err, "FuturesBatchOrder should not error")
 }
 
 func TestFuturesEditOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesEditOrder(t.Context(), "test123", "", 5.2, 1, 0)
+	_, err := e.FuturesEditOrder(t.Context(), "test123", "", 5.2, 1, 0)
 	assert.NoError(t, err, "FuturesEditOrder should not error")
 }
 
 func TestFuturesSendOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesSendOrder(t.Context(), order.Limit, futuresTestPair, "buy", "", "", "", order.ImmediateOrCancel, 1, 1, 0.9)
+	_, err := e.FuturesSendOrder(t.Context(), order.Limit, futuresTestPair, "buy", "", "", "", order.ImmediateOrCancel, 1, 1, 0.9)
 	assert.NoError(t, err, "FuturesSendOrder should not error")
 }
 
 func TestFuturesCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesCancelOrder(t.Context(), "test123", "")
+	_, err := e.FuturesCancelOrder(t.Context(), "test123", "")
 	assert.NoError(t, err, "FuturesCancelOrder should not error")
 }
 
 func TestFuturesGetFills(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.FuturesGetFills(t.Context(), time.Now().Add(-time.Hour*24))
+	_, err := e.FuturesGetFills(t.Context(), time.Now().Add(-time.Hour*24))
 	assert.NoError(t, err, "FuturesGetFills should not error")
 }
 
 func TestFuturesTransfer(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.FuturesTransfer(t.Context(), "cash", "futures", "btc", 2)
+	_, err := e.FuturesTransfer(t.Context(), "cash", "futures", "btc", 2)
 	assert.NoError(t, err, "FuturesTransfer should not error")
 }
 
 func TestFuturesGetOpenPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.FuturesGetOpenPositions(t.Context())
+	_, err := e.FuturesGetOpenPositions(t.Context())
 	assert.NoError(t, err, "FuturesGetOpenPositions should not error")
 }
 
 func TestFuturesNotifications(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.FuturesNotifications(t.Context())
+	_, err := e.FuturesNotifications(t.Context())
 	assert.NoError(t, err, "FuturesNotifications should not error")
 }
 
 func TestFuturesCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesCancelAllOrders(t.Context(), futuresTestPair)
+	_, err := e.FuturesCancelAllOrders(t.Context(), futuresTestPair)
 	assert.NoError(t, err, "FuturesCancelAllOrders should not error")
 }
 
 func TestGetFuturesAccountData(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.GetFuturesAccountData(t.Context())
+	_, err := e.GetFuturesAccountData(t.Context())
 	assert.NoError(t, err, "GetFuturesAccountData should not error")
 }
 
 func TestFuturesCancelAllOrdersAfter(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesCancelAllOrdersAfter(t.Context(), 50)
+	_, err := e.FuturesCancelAllOrdersAfter(t.Context(), 50)
 	assert.NoError(t, err, "FuturesCancelAllOrdersAfter should not error")
 }
 
 func TestFuturesOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.FuturesOpenOrders(t.Context())
+	_, err := e.FuturesOpenOrders(t.Context())
 	assert.NoError(t, err, "FuturesOpenOrders should not error")
 }
 
 func TestFuturesRecentOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.FuturesRecentOrders(t.Context(), futuresTestPair)
+	_, err := e.FuturesRecentOrders(t.Context(), futuresTestPair)
 	assert.NoError(t, err, "FuturesRecentOrders should not error")
 }
 
 func TestFuturesWithdrawToSpotWallet(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesWithdrawToSpotWallet(t.Context(), "xbt", 5)
+	_, err := e.FuturesWithdrawToSpotWallet(t.Context(), "xbt", 5)
 	assert.NoError(t, err, "FuturesWithdrawToSpotWallet should not error")
 }
 
 func TestFuturesGetTransfers(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	_, err := k.FuturesGetTransfers(t.Context(), time.Now().Add(-time.Hour*24))
+	_, err := e.FuturesGetTransfers(t.Context(), time.Now().Add(-time.Hour*24))
 	assert.NoError(t, err, "FuturesGetTransfers should not error")
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesOrderbook(t.Context(), futuresTestPair)
+	_, err := e.GetFuturesOrderbook(t.Context(), futuresTestPair)
 	assert.NoError(t, err, "GetFuturesOrderbook should not error")
 }
 
 func TestGetFuturesMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetInstruments(t.Context())
+	_, err := e.GetInstruments(t.Context())
 	assert.NoError(t, err, "GetInstruments should not error")
 }
 
 func TestGetFuturesTickers(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesTickers(t.Context())
+	_, err := e.GetFuturesTickers(t.Context())
 	assert.NoError(t, err, "GetFuturesTickers should not error")
 }
 
 func TestGetFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesTradeHistory(t.Context(), futuresTestPair, time.Now().Add(-time.Hour*24))
+	_, err := e.GetFuturesTradeHistory(t.Context(), futuresTestPair, time.Now().Add(-time.Hour*24))
 	assert.NoError(t, err, "GetFuturesTradeHistory should not error")
 }
 
 // TestGetAssets API endpoint test
 func TestGetAssets(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetAssets(t.Context())
+	_, err := e.GetAssets(t.Context())
 	assert.NoError(t, err, "GetAssets should not error")
 }
 
 func TestSeedAssetTranslator(t *testing.T) {
 	t.Parallel()
 
-	err := k.SeedAssets(t.Context())
+	err := e.SeedAssets(t.Context())
 	require.NoError(t, err, "SeedAssets must not error")
 
 	for from, to := range map[string]string{"XBTUSD": "XXBTZUSD", "USD": "ZUSD", "XBT": "XXBT"} {
@@ -348,7 +348,7 @@ func TestLookupCurrency(t *testing.T) {
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"fees", "leverage", "margin", ""} {
-		_, err := k.GetAssetPairs(t.Context(), []string{}, v)
+		_, err := e.GetAssetPairs(t.Context(), []string{}, v)
 		require.NoErrorf(t, err, "GetAssetPairs %s must not error", v)
 	}
 }
@@ -356,35 +356,35 @@ func TestGetAssetPairs(t *testing.T) {
 // TestGetTicker API endpoint test
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTicker(t.Context(), spotTestPair)
+	_, err := e.GetTicker(t.Context(), spotTestPair)
 	assert.NoError(t, err, "GetTicker should not error")
 }
 
 // TestGetTickers API endpoint test
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetTickers(t.Context(), "LTCUSD,ETCUSD")
+	_, err := e.GetTickers(t.Context(), "LTCUSD,ETCUSD")
 	assert.NoError(t, err, "GetTickers should not error")
 }
 
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
+	_, err := e.GetOHLC(t.Context(), currency.NewPairWithDelimiter("XXBT", "ZUSD", ""), "1440")
 	assert.NoError(t, err, "GetOHLC should not error")
 }
 
 // TestGetDepth API endpoint test
 func TestGetDepth(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetDepth(t.Context(), spotTestPair)
+	_, err := e.GetDepth(t.Context(), spotTestPair)
 	assert.NoError(t, err, "GetDepth should not error")
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, k)
-	r, err := k.GetTrades(t.Context(), spotTestPair, time.Now().Add(-time.Hour*4), 1000)
+	testexch.UpdatePairsOnce(t, e)
+	r, err := e.GetTrades(t.Context(), spotTestPair, time.Now().Add(-time.Hour*4), 1000)
 	require.NoError(t, err, "GetTrades must not error")
 	require.NotNil(t, r, "GetTrades must return a valid response")
 }
@@ -392,7 +392,7 @@ func TestGetTrades(t *testing.T) {
 func TestGetSpread(t *testing.T) {
 	t.Parallel()
 	p := currency.NewPair(currency.BCH, currency.EUR) // XBTUSD not in spread data
-	r, err := k.GetSpread(t.Context(), p, time.Now().Add(-time.Hour*4))
+	r, err := e.GetSpread(t.Context(), p, time.Now().Add(-time.Hour*4))
 	require.NoError(t, err, "GetSpread must not error")
 	require.NotNil(t, r, "GetSpread must return a valid response")
 	require.NotZero(t, r.Last.Time(), "GetSpread must return a valid last updated time")
@@ -404,77 +404,77 @@ func TestGetSpread(t *testing.T) {
 // TestGetBalance API endpoint test
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.GetBalance(t.Context())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetBalance(t.Context())
 	assert.NoError(t, err, "GetBalance should not error")
 }
 
 // TestGetTradeBalance API endpoint test
 func TestGetDepositMethods(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.GetDepositMethods(t.Context(), "USDT")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetDepositMethods(t.Context(), "USDT")
 	assert.NoError(t, err, "GetDepositMethods should not error")
 }
 
 // TestGetTradeBalance API endpoint test
 func TestGetTradeBalance(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := TradeBalanceOptions{Asset: "ZEUR"}
-	_, err := k.GetTradeBalance(t.Context(), args)
+	_, err := e.GetTradeBalance(t.Context(), args)
 	assert.NoError(t, err)
 }
 
 // TestGetOpenOrders API endpoint test
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := OrderInfoOptions{Trades: true}
-	_, err := k.GetOpenOrders(t.Context(), args)
+	_, err := e.GetOpenOrders(t.Context(), args)
 	assert.NoError(t, err)
 }
 
 // TestGetClosedOrders API endpoint test
 func TestGetClosedOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := GetClosedOrdersOptions{Trades: true, Start: "OE4KV4-4FVQ5-V7XGPU"}
-	_, err := k.GetClosedOrders(t.Context(), args)
+	_, err := e.GetClosedOrders(t.Context(), args)
 	assert.NoError(t, err)
 }
 
 // TestQueryOrdersInfo API endpoint test
 func TestQueryOrdersInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := OrderInfoOptions{Trades: true}
-	_, err := k.QueryOrdersInfo(t.Context(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
+	_, err := e.QueryOrdersInfo(t.Context(), args, "OR6ZFV-AA6TT-CKFFIW", "OAMUAJ-HLVKG-D3QJ5F")
 	assert.NoError(t, err)
 }
 
 // TestGetTradesHistory API endpoint test
 func TestGetTradesHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	args := GetTradesHistoryOptions{Trades: true, Start: "TMZEDR-VBJN2-NGY6DX", End: "TVRXG2-R62VE-RWP3UW"}
-	_, err := k.GetTradesHistory(t.Context(), args)
+	_, err := e.GetTradesHistory(t.Context(), args)
 	assert.NoError(t, err)
 }
 
 // TestQueryTrades API endpoint test
 func TestQueryTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.QueryTrades(t.Context(), true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.QueryTrades(t.Context(), true, "TMZEDR-VBJN2-NGY6DX", "TFLWIB-KTT7L-4TWR3L", "TDVRAH-2H6OS-SLSXRX")
 	assert.NoError(t, err)
 }
 
 // TestOpenPositions API endpoint test
 func TestOpenPositions(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.OpenPositions(t.Context(), false)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.OpenPositions(t.Context(), false)
 	assert.NoError(t, err)
 }
 
@@ -482,38 +482,38 @@ func TestOpenPositions(t *testing.T) {
 // TODO: Needs a positive test
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	args := GetLedgersOptions{Start: "LRUHXI-IWECY-K4JYGO", End: "L5NIY7-JZQJD-3J4M2V", Ofs: 15}
-	_, err := k.GetLedgers(t.Context(), args)
+	_, err := e.GetLedgers(t.Context(), args)
 	assert.ErrorContains(t, err, "EQuery:Unknown asset pair", "GetLedger should error on imaginary ledgers")
 }
 
 // TestQueryLedgers API endpoint test
 func TestQueryLedgers(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.QueryLedgers(t.Context(), "LVTSFS-NHZVM-EXNZ5M")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.QueryLedgers(t.Context(), "LVTSFS-NHZVM-EXNZ5M")
 	assert.NoError(t, err)
 }
 
 // TestGetTradeVolume API endpoint test
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.GetTradeVolume(t.Context(), true, spotTestPair)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetTradeVolume(t.Context(), true, spotTestPair)
 	assert.NoError(t, err, "GetTradeVolume should not error")
 }
 
 // TestOrders Tests AddOrder and CancelExistingOrder
 func TestOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	args := AddOrderOptions{OrderFlags: "fcib"}
 	cp, err := currency.NewPairFromString("XXBTZUSD")
 	assert.NoError(t, err, "NewPairFromString should not error")
-	resp, err := k.AddOrder(t.Context(),
+	resp, err := e.AddOrder(t.Context(),
 		cp,
 		order.Buy.Lower(), order.Limit.Lower(),
 		0.0001, 9000, 9000, 0, &args)
@@ -521,7 +521,7 @@ func TestOrders(t *testing.T) {
 	if assert.NoError(t, err, "AddOrder should not error") {
 		if assert.Len(t, resp.TransactionIDs, 1, "One TransactionId should be returned") {
 			id := resp.TransactionIDs[0]
-			_, err = k.CancelExistingOrder(t.Context(), id)
+			_, err = e.CancelExistingOrder(t.Context(), id)
 			assert.NoErrorf(t, err, "CancelExistingOrder should not error, Please ensure order %s is cancelled manually", id)
 		}
 	}
@@ -530,8 +530,8 @@ func TestOrders(t *testing.T) {
 // TestCancelExistingOrder API endpoint test
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
-	_, err := k.CancelExistingOrder(t.Context(), "OAVY7T-MV5VK-KHDF5X")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err := e.CancelExistingOrder(t.Context(), "OAVY7T-MV5VK-KHDF5X")
 	if assert.Error(t, err, "Cancel with imaginary order-id should error") {
 		assert.ErrorContains(t, err, "EOrder:Unknown order", "Cancel with imaginary order-id should error Unknown Order")
 	}
@@ -552,10 +552,10 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
-	f, err := k.GetFeeByType(t.Context(), feeBuilder)
+	f, err := e.GetFeeByType(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFeeByType must not error")
 	assert.Positive(t, f, "GetFeeByType should return a positive value")
-	if !sharedtestvalues.AreAPICredentialsSet(k) {
+	if !sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "GetFeeByType should set FeeType correctly")
 	} else {
 		assert.Equal(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType, "GetFeeByType should set FeeType correctly")
@@ -567,53 +567,53 @@ func TestGetFee(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
 
-	if sharedtestvalues.AreAPICredentialsSet(k) {
-		_, err := k.GetFee(t.Context(), feeBuilder)
+	if sharedtestvalues.AreAPICredentialsSet(e) {
+		_, err := e.GetFee(t.Context(), feeBuilder)
 		assert.NoError(t, err, "CryptocurrencyTradeFee Basic GetFee should not error")
 
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		_, err = k.GetFee(t.Context(), feeBuilder)
+		_, err = e.GetFee(t.Context(), feeBuilder)
 		assert.NoError(t, err, "CryptocurrencyTradeFee High quantity GetFee should not error")
 
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		_, err = k.GetFee(t.Context(), feeBuilder)
+		_, err = e.GetFee(t.Context(), feeBuilder)
 		assert.NoError(t, err, "CryptocurrencyTradeFee IsMaker GetFee should not error")
 
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		_, err = k.GetFee(t.Context(), feeBuilder)
+		_, err = e.GetFee(t.Context(), feeBuilder)
 		assert.NoError(t, err, "CryptocurrencyTradeFee Negative purchase price GetFee should not error")
 
 		feeBuilder = setFeeBuilder()
 		feeBuilder.FeeType = exchange.InternationalBankDepositFee
-		_, err = k.GetFee(t.Context(), feeBuilder)
+		_, err = e.GetFee(t.Context(), feeBuilder)
 		assert.NoError(t, err, "InternationalBankDepositFee Basic GetFee should not error")
 	}
 
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
 	feeBuilder.Pair.Base = currency.XXBT
-	_, err := k.GetFee(t.Context(), feeBuilder)
+	_, err := e.GetFee(t.Context(), feeBuilder)
 	assert.NoError(t, err, "CryptocurrencyDepositFee Basic GetFee should not error")
 
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	_, err = k.GetFee(t.Context(), feeBuilder)
+	_, err = e.GetFee(t.Context(), feeBuilder)
 	assert.NoError(t, err, "CryptocurrencyWithdrawalFee Basic GetFee should not error")
 
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	_, err = k.GetFee(t.Context(), feeBuilder)
+	_, err = e.GetFee(t.Context(), feeBuilder)
 	assert.NoError(t, err, "CryptocurrencyWithdrawalFee Invalid currency GetFee should not error")
 
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	_, err = k.GetFee(t.Context(), feeBuilder)
+	_, err = e.GetFee(t.Context(), feeBuilder)
 	assert.NoError(t, err, "InternationalBankWithdrawalFee Basic GetFee should not error")
 }
 
@@ -621,14 +621,14 @@ func TestGetFee(t *testing.T) {
 func TestFormatWithdrawPermissions(t *testing.T) {
 	t.Parallel()
 	exp := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.AutoWithdrawFiatWithSetupText + " & " + exchange.WithdrawFiatWith2FAText
-	withdrawPermissions := k.FormatWithdrawPermissions()
+	withdrawPermissions := e.FormatWithdrawPermissions()
 	assert.Equal(t, exp, withdrawPermissions, "FormatWithdrawPermissions should return correct value")
 }
 
 // TestGetActiveOrders wrapper test
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
@@ -637,14 +637,14 @@ func TestGetActiveOrders(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := k.GetActiveOrders(t.Context(), &getOrdersRequest)
+	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err, "GetActiveOrders should not error")
 }
 
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.AnyType,
@@ -652,15 +652,15 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.AnySide,
 	}
 
-	_, err := k.GetOrderHistory(t.Context(), &getOrdersRequest)
+	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	assert.NoError(t, err)
 }
 
 // TestGetOrderInfo exercises GetOrderInfo
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	_, err := k.GetOrderInfo(t.Context(), "OZPTPJ-HVYHF-EDIGXS", currency.EMPTYPAIR, asset.Spot)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetOrderInfo(t.Context(), "OZPTPJ-HVYHF-EDIGXS", currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorContains(t, err, "order OZPTPJ-HVYHF-EDIGXS not found in response", "Should error that order was not found in response")
 }
 
@@ -670,10 +670,10 @@ func TestGetOrderInfo(t *testing.T) {
 // TestSubmitOrder wrapper test
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{
-		Exchange:  k.Name,
+		Exchange:  e.Name,
 		Pair:      spotTestPair,
 		Side:      order.Buy,
 		Type:      order.Limit,
@@ -682,8 +682,8 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "meowOrder",
 		AssetType: asset.Spot,
 	}
-	response, err := k.SubmitOrder(t.Context(), orderSubmission)
-	if sharedtestvalues.AreAPICredentialsSet(k) {
+	response, err := e.SubmitOrder(t.Context(), orderSubmission)
+	if sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.NoError(t, err, "SubmitOrder should not error")
 		assert.Equal(t, order.New, response.Status, "SubmitOrder should return a New order status")
 	} else {
@@ -695,21 +695,21 @@ func TestSubmitOrder(t *testing.T) {
 func TestCancelExchangeOrder(t *testing.T) {
 	t.Parallel()
 
-	err := k.CancelOrder(t.Context(), &order.Cancel{
+	err := e.CancelOrder(t.Context(), &order.Cancel{
 		AssetType: asset.Options,
 		OrderID:   "1337",
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelOrder should error on Options asset")
 
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderCancellation := &order.Cancel{
 		OrderID:   "OGEX6P-B5Q74-IGZ72R",
 		AssetType: asset.Spot,
 	}
 
-	err = k.CancelOrder(t.Context(), orderCancellation)
-	if sharedtestvalues.AreAPICredentialsSet(k) {
+	err = e.CancelOrder(t.Context(), orderCancellation)
+	if sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.NoError(t, err, "CancelOrder should not error")
 	} else {
 		assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelOrder should error correctly")
@@ -719,7 +719,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 // TestCancelExchangeOrder wrapper test
 func TestCancelBatchExchangeOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	var ordersCancellation []order.Cancel
 	ordersCancellation = append(ordersCancellation, order.Cancel{
@@ -728,8 +728,8 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 		AssetType: asset.Spot,
 	})
 
-	_, err := k.CancelBatchOrders(t.Context(), ordersCancellation)
-	if sharedtestvalues.AreAPICredentialsSet(k) {
+	_, err := e.CancelBatchOrders(t.Context(), ordersCancellation)
+	if sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.NoError(t, err, "CancelBatchOrder should not error")
 	} else {
 		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should error correctly")
@@ -739,11 +739,11 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 // TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	resp, err := k.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	resp, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
 
-	if sharedtestvalues.AreAPICredentialsSet(k) {
+	if sharedtestvalues.AreAPICredentialsSet(e) {
 		assert.NoError(t, err, "CancelAllOrders should not error")
 	} else {
 		assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelBatchOrders should error correctly")
@@ -757,9 +757,9 @@ func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err := k.UpdateAccountInfo(t.Context(), a)
+		_, err := e.UpdateAccountInfo(t.Context(), a)
 
-		if sharedtestvalues.AreAPICredentialsSet(k) {
+		if sharedtestvalues.AreAPICredentialsSet(e) {
 			assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a) // Note Well: Spot and Futures have separate api keys
 		} else {
 			assert.ErrorIsf(t, err, exchange.ErrAuthenticationSupportNotEnabled, "UpdateAccountInfo should error correctly for asset %s", a)
@@ -771,17 +771,17 @@ func TestUpdateAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := k.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
+	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should error correctly")
 }
 
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	withdrawCryptoRequest := withdraw.Request{
-		Exchange: k.Name,
+		Exchange: e.Name,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
@@ -791,12 +791,12 @@ func TestWithdraw(t *testing.T) {
 		TradePassword: "Key",
 	}
 
-	_, err := k.WithdrawCryptocurrencyFunds(t.Context(),
+	_, err := e.WithdrawCryptocurrencyFunds(t.Context(),
 		&withdrawCryptoRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
+	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if sharedtestvalues.AreAPICredentialsSet(k) && err != nil {
+	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
@@ -804,7 +804,7 @@ func TestWithdraw(t *testing.T) {
 // TestWithdrawFiat wrapper test
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	withdrawFiatRequest := withdraw.Request{
 		Amount:        -1,
@@ -813,11 +813,11 @@ func TestWithdrawFiat(t *testing.T) {
 		TradePassword: "someBank",
 	}
 
-	_, err := k.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
+	_, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
+	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if sharedtestvalues.AreAPICredentialsSet(k) && err != nil {
+	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
@@ -825,7 +825,7 @@ func TestWithdrawFiat(t *testing.T) {
 // TestWithdrawInternationalBank wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, k, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	withdrawFiatRequest := withdraw.Request{
 		Amount:        -1,
@@ -834,28 +834,28 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		TradePassword: "someBank",
 	}
 
-	_, err := k.WithdrawFiatFundsToInternationalBank(t.Context(),
+	_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
+	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if sharedtestvalues.AreAPICredentialsSet(k) && err != nil {
+	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := k.GetCryptoDepositAddress(t.Context(), "Bitcoin", "XBT", false)
+	_, err := e.GetCryptoDepositAddress(t.Context(), "Bitcoin", "XBT", false)
 	if err != nil {
 		t.Error(err)
 	}
 	if !canManipulateRealOrders {
 		t.Skip("canManipulateRealOrders not set, skipping test")
 	}
-	_, err = k.GetCryptoDepositAddress(t.Context(), "Bitcoin", "XBT", true)
+	_, err = e.GetCryptoDepositAddress(t.Context(), "Bitcoin", "XBT", true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -864,13 +864,13 @@ func TestGetCryptoDepositAddress(t *testing.T) {
 // TestGetDepositAddress wrapper test
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	if sharedtestvalues.AreAPICredentialsSet(k) {
-		_, err := k.GetDepositAddress(t.Context(), currency.USDT, "", "")
+	if sharedtestvalues.AreAPICredentialsSet(e) {
+		_, err := e.GetDepositAddress(t.Context(), currency.USDT, "", "")
 		if err != nil {
 			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
-		_, err := k.GetDepositAddress(t.Context(), currency.BTC, "", "")
+		_, err := e.GetDepositAddress(t.Context(), currency.BTC, "", "")
 		if err == nil {
 			t.Error("GetDepositAddress() error can not be nil")
 		}
@@ -880,13 +880,13 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWithdrawStatus wrapper test
 func TestWithdrawStatus(t *testing.T) {
 	t.Parallel()
-	if sharedtestvalues.AreAPICredentialsSet(k) {
-		_, err := k.WithdrawStatus(t.Context(), currency.BTC, "")
+	if sharedtestvalues.AreAPICredentialsSet(e) {
+		_, err := e.WithdrawStatus(t.Context(), currency.BTC, "")
 		if err != nil {
 			t.Error("WithdrawStatus() error", err)
 		}
 	} else {
-		_, err := k.WithdrawStatus(t.Context(), currency.BTC, "")
+		_, err := e.WithdrawStatus(t.Context(), currency.BTC, "")
 		if err == nil {
 			t.Error("GetDepositAddress() error can not be nil")
 		}
@@ -896,10 +896,10 @@ func TestWithdrawStatus(t *testing.T) {
 // TestWithdrawCancel wrapper test
 func TestWithdrawCancel(t *testing.T) {
 	t.Parallel()
-	_, err := k.WithdrawCancel(t.Context(), currency.BTC, "")
-	if sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
+	_, err := e.WithdrawCancel(t.Context(), currency.BTC, "")
+	if sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Error("WithdrawCancel() error cannot be nil")
-	} else if !sharedtestvalues.AreAPICredentialsSet(k) && err == nil {
+	} else if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
 		t.Errorf("WithdrawCancel() error - expecting an error when no keys are set but received nil")
 	}
 }
@@ -1106,7 +1106,7 @@ func TestWsCandlesSub(t *testing.T) {
 func TestWsOwnTradesSub(t *testing.T) {
 	t.Parallel()
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
@@ -1127,9 +1127,9 @@ func TestWsOwnTradesSub(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	pairs, err := k.GetEnabledPairs(asset.Spot)
+	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	require.False(t, k.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	require.False(t, e.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel},
 		{Channel: subscription.AllTradesChannel},
@@ -1141,23 +1141,23 @@ func TestGenerateSubscriptions(t *testing.T) {
 		s.Asset = asset.Spot
 		s.Pairs = pairs
 	}
-	subs, err := k.generateSubscriptions()
+	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 
-	k.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	exp = append(exp, subscription.List{
 		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}...)
-	subs, err = k.generateSubscriptions()
+	subs, err = e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	k := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
@@ -1202,9 +1202,9 @@ func TestWsCancelOrders(t *testing.T) {
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
-	testexch.SetupWs(t, k)
-	_, err := k.wsCancelAllOrders(t.Context())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	testexch.SetupWs(t, e)
+	_, err := e.wsCancelAllOrders(t.Context())
 	require.NoError(t, err, "wsCancelAllOrders must not error")
 }
 
@@ -1330,18 +1330,18 @@ func TestWsOpenOrders(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, k)
+	testexch.UpdatePairsOnce(t, e)
 
-	_, err := k.GetHistoricCandles(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	_, err := e.GetHistoricCandles(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
 
-	_, err = k.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	_, err = e.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error with asset.ErrNotSupported")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetHistoricCandlesExtended(t.Context(), futuresTestPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
+	_, err := e.GetHistoricCandlesExtended(t.Context(), futuresTestPair, asset.Spot, kline.OneMin, time.Now().Add(-time.Minute*3), time.Now())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricCandlesExtended should error correctly")
 }
 
@@ -1354,24 +1354,24 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 		{kline.OneMin, "1"},
 		{kline.OneDay, "1440"},
 	} {
-		assert.Equalf(t, tt.exp, k.FormatExchangeKlineInterval(tt.interval), "FormatExchangeKlineInterval should return correct output for %s", tt.interval.Short())
+		assert.Equalf(t, tt.exp, e.FormatExchangeKlineInterval(tt.interval), "FormatExchangeKlineInterval should return correct output for %s", tt.interval.Short())
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, k)
+	testexch.UpdatePairsOnce(t, e)
 
-	_, err := k.GetRecentTrades(t.Context(), spotTestPair, asset.Spot)
+	_, err := e.GetRecentTrades(t.Context(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "GetRecentTrades should not error")
 
-	_, err = k.GetRecentTrades(t.Context(), futuresTestPair, asset.Futures)
+	_, err = e.GetRecentTrades(t.Context(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "GetRecentTrades should not error")
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetHistoricTrades(t.Context(), spotTestPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	_, err := e.GetHistoricTrades(t.Context(), spotTestPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades should error")
 }
 
@@ -1425,21 +1425,21 @@ func TestChecksumCalculation(t *testing.T) {
 
 func TestGetCharts(t *testing.T) {
 	t.Parallel()
-	resp, err := k.GetFuturesCharts(t.Context(), "1d", "spot", futuresTestPair, time.Time{}, time.Time{})
+	resp, err := e.GetFuturesCharts(t.Context(), "1d", "spot", futuresTestPair, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Candles)
 
 	end := resp.Candles[0].Time.Time()
-	_, err = k.GetFuturesCharts(t.Context(), "1d", "spot", futuresTestPair, end.Add(-time.Hour*24*7), end)
+	_, err = e.GetFuturesCharts(t.Context(), "1d", "spot", futuresTestPair, end.Add(-time.Hour*24*7), end)
 	require.NoError(t, err)
 }
 
 func TestGetFuturesTrades(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
+	_, err := e.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
 	assert.NoError(t, err, "GetFuturesTrades should not error")
 
-	_, err = k.GetFuturesTrades(t.Context(), futuresTestPair, time.Now().Add(-time.Hour), time.Now())
+	_, err = e.GetFuturesTrades(t.Context(), futuresTestPair, time.Now().Add(-time.Hour), time.Now())
 	assert.NoError(t, err, "GetFuturesTrades should not error")
 }
 
@@ -1515,33 +1515,33 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesContractDetails(t.Context(), asset.Spot)
+	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
-	_, err = k.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
+	_, err = e.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = k.GetFuturesContractDetails(t.Context(), asset.Futures)
+	_, err = e.GetFuturesContractDetails(t.Context(), asset.Futures)
 	assert.NoError(t, err, "GetFuturesContractDetails should not error")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewBTCUSD(),
 		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error")
 
-	_, err = k.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err, "GetLatestFundingRates should not error")
 
-	err = k.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
+	err = e.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
 	assert.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error: %s", err)
-	_, err = k.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
+	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.Futures,
 		Pair:                 futuresTestPair,
 		IncludePredictedRate: true,
@@ -1551,15 +1551,15 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	is, err := k.IsPerpetualFutureCurrency(asset.Binary, currency.NewBTCUSDT())
+	is, err := e.IsPerpetualFutureCurrency(asset.Binary, currency.NewBTCUSDT())
 	assert.NoError(t, err)
 	assert.False(t, is, "IsPerpetualFutureCurrency should return false for a binary asset")
 
-	is, err = k.IsPerpetualFutureCurrency(asset.Futures, currency.NewBTCUSDT())
+	is, err = e.IsPerpetualFutureCurrency(asset.Futures, currency.NewBTCUSDT())
 	assert.NoError(t, err)
 	assert.False(t, is, "IsPerpetualFutureCurrency should return false for a non-perpetual future")
 
-	is, err = k.IsPerpetualFutureCurrency(asset.Futures, futuresTestPair)
+	is, err = e.IsPerpetualFutureCurrency(asset.Futures, futuresTestPair)
 	assert.NoError(t, err)
 	assert.True(t, is, "IsPerpetualFutureCurrency should return true for a perpetual future")
 }
@@ -1622,14 +1622,14 @@ func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, k)
-	for _, a := range k.GetAssetTypes(false) {
-		pairs, err := k.CurrencyPairs.GetPairs(a, false)
+	testexch.UpdatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		pairs, err := e.CurrencyPairs.GetPairs(a, false)
 		if len(pairs) == 0 {
 			continue
 		}
 		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		resp, err := k.GetCurrencyTradeURL(t.Context(), a, pairs[0])
+		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a != asset.Spot && a != asset.Futures {
 			assert.ErrorIs(t, err, asset.ErrNotSupported)
 			continue

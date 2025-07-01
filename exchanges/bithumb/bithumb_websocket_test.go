@@ -52,7 +52,7 @@ func TestWsHandleData(t *testing.T) {
 	}
 
 	dummy.setupOrderbookManager(t.Context())
-	dummy.API.Endpoints = b.NewEndpoints()
+	dummy.API.Endpoints = e.NewEndpoints()
 
 	welcomeMsg := []byte(`{"status":"0000","resmsg":"Connected Successfully"}`)
 	err := dummy.wsHandleData(welcomeMsg)

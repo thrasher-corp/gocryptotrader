@@ -15,12 +15,12 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	p = new(Exchange)
-	if err := testexch.Setup(p); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Poloniex Setup error: %s", err)
 	}
 
-	if err := testexch.MockHTTPInstance(p); err != nil {
+	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
 	}
 

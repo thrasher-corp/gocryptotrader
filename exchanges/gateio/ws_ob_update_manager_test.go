@@ -18,12 +18,12 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
 	m := newWsOBUpdateManager(0)
-	err := m.ProcessOrderbookUpdate(t.Context(), g, 1337, &orderbook.Update{})
+	err := m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
-	err = g.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-		Exchange:     g.Name,
+	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     e.Name,
 		Pair:         pair,
 		Asset:        asset.USDTMarginedFutures,
 		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
@@ -34,7 +34,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = m.ProcessOrderbookUpdate(t.Context(), g, 1337, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{
 		UpdateID:   1338,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -44,7 +44,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessOrderbookUpdate(t.Context(), g, 1340, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1340, &orderbook.Update{
 		UpdateID:   1341,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,
@@ -61,7 +61,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	cache.mtx.Unlock()
 
 	// Test orderbook snapshot is behind update
-	err = m.ProcessOrderbookUpdate(t.Context(), g, 1342, &orderbook.Update{
+	err = m.ProcessOrderbookUpdate(t.Context(), e, 1342, &orderbook.Update{
 		UpdateID:   1343,
 		Pair:       pair,
 		Asset:      asset.USDTMarginedFutures,

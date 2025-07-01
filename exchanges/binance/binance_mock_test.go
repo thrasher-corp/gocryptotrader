@@ -20,16 +20,16 @@ func TestMain(m *testing.M) {
 		log.Fatal("cannot use testnet with mock tests")
 	}
 
-	b = new(Exchange)
-	if err := testexch.Setup(b); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Binance Setup error: %s", err)
 	}
 
-	if err := testexch.MockHTTPInstance(b); err != nil {
+	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Binance MockHTTPInstance error: %s", err)
 	}
 
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
 	}
 

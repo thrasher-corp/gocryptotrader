@@ -15,12 +15,12 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	b = new(Exchange)
-	if err := testexch.Setup(b); err != nil {
+	e = new(Exchange)
+	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)
 	}
 
-	if err := testexch.MockHTTPInstance(b, "api"); err != nil {
+	if err := testexch.MockHTTPInstance(e, "api"); err != nil {
 		log.Fatalf("Bitstamp MockHTTPInstance error: %s", err)
 	}
 
