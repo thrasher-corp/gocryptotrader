@@ -1,12 +1,12 @@
 package bitfinex
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
-	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -19,7 +19,6 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -33,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -628,7 +628,7 @@ func (e *Exchange) handleWSChannelUpdate(s *subscription.Subscription, respRaw [
 	case subscription.OrderbookChannel:
 		return e.handleWSBookUpdate(s, d)
 	case subscription.CandlesChannel:
-		return e.handleWSCandleUpdate(s, d)
+		return e.handleWSAllCandleUpdates(s, respRaw)
 	case subscription.TickerChannel:
 		return e.handleWSTickerUpdate(s, d)
 	case subscription.AllTradesChannel:
@@ -777,83 +777,48 @@ func (e *Exchange) handleWSBookUpdate(c *subscription.Subscription, d []any) err
 	return nil
 }
 
-func (e *Exchange) handleWSCandleUpdate(c *subscription.Subscription, d []any) error {
+func (e *Exchange) handleWSAllCandleUpdates(c *subscription.Subscription, respRaw []byte) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
 	if len(c.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	candleBundle, ok := d[1].([]any)
-	if !ok || len(candleBundle) == 0 {
-		return nil
+	v, valueType, _, err := jsonparser.Get(respRaw, "[1]")
+	if err != nil {
+		return fmt.Errorf("%w `candlesUpdate[1]`: %w", common.ErrParsingWSField, err)
+	}
+	if valueType != jsonparser.Array {
+		return fmt.Errorf("%w `candlesUpdate[1]`: %w %q", common.ErrParsingWSField, jsonparser.UnknownValueTypeError, valueType)
+	}
+	var wsCandles []Candle
+	if bytes.HasPrefix(v, []byte("[[")) {
+		if err := json.Unmarshal(v, &wsCandles); err != nil {
+			return fmt.Errorf("error unmarshalling candle snapshot: %w", err)
+		}
+	} else {
+		var wsCandle Candle
+		if err := json.Unmarshal(v, &wsCandle); err != nil {
+			return fmt.Errorf("error unmarshalling candle update: %w", err)
+		}
+		wsCandles = []Candle{wsCandle}
 	}
 
-	switch candleData := candleBundle[0].(type) {
-	case []any:
-		for i := range candleBundle {
-			var element []any
-			element, ok = candleBundle[i].([]any)
-			if !ok {
-				return errors.New("candle type assertion for element data")
-			}
-			if len(element) < 6 {
-				return errors.New("invalid candleBundle length")
-			}
-			var err error
-			var klineData websocket.KlineData
-			if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(element[0]); err != nil {
-				return fmt.Errorf("unable to convert candle timestamp: %w", err)
-			}
-			if klineData.OpenPrice, ok = element[1].(float64); !ok {
-				return errors.New("unable to type assert candle open price")
-			}
-			if klineData.ClosePrice, ok = element[2].(float64); !ok {
-				return errors.New("unable to type assert candle close price")
-			}
-			if klineData.HighPrice, ok = element[3].(float64); !ok {
-				return errors.New("unable to type assert candle high price")
-			}
-			if klineData.LowPrice, ok = element[4].(float64); !ok {
-				return errors.New("unable to type assert candle low price")
-			}
-			if klineData.Volume, ok = element[5].(float64); !ok {
-				return errors.New("unable to type assert candle volume")
-			}
-			klineData.Exchange = e.Name
-			klineData.AssetType = c.Asset
-			klineData.Pair = c.Pairs[0]
-			e.Websocket.DataHandler <- klineData
+	klines := make([]websocket.KlineData, len(wsCandles))
+	for i := range wsCandles {
+		klines[i] = websocket.KlineData{
+			Exchange:   e.Name,
+			AssetType:  c.Asset,
+			Pair:       c.Pairs[0],
+			Timestamp:  wsCandles[i].Timestamp.Time(),
+			OpenPrice:  wsCandles[i].Open.Float64(),
+			ClosePrice: wsCandles[i].Close.Float64(),
+			HighPrice:  wsCandles[i].High.Float64(),
+			LowPrice:   wsCandles[i].Low.Float64(),
+			Volume:     wsCandles[i].Volume.Float64(),
 		}
-	case float64:
-		if len(candleBundle) < 6 {
-			return errors.New("invalid candleBundle length")
-		}
-		var err error
-		var klineData websocket.KlineData
-		if klineData.Timestamp, err = convert.TimeFromUnixTimestampFloat(candleData); err != nil {
-			return fmt.Errorf("unable to convert candle timestamp: %w", err)
-		}
-		if klineData.OpenPrice, ok = candleBundle[1].(float64); !ok {
-			return errors.New("unable to type assert candle open price")
-		}
-		if klineData.ClosePrice, ok = candleBundle[2].(float64); !ok {
-			return errors.New("unable to type assert candle close price")
-		}
-		if klineData.HighPrice, ok = candleBundle[3].(float64); !ok {
-			return errors.New("unable to type assert candle high price")
-		}
-		if klineData.LowPrice, ok = candleBundle[4].(float64); !ok {
-			return errors.New("unable to type assert candle low price")
-		}
-		if klineData.Volume, ok = candleBundle[5].(float64); !ok {
-			return errors.New("unable to type assert candle volume")
-		}
-		klineData.Exchange = e.Name
-		klineData.AssetType = c.Asset
-		klineData.Pair = c.Pairs[0]
-		e.Websocket.DataHandler <- klineData
 	}
+	e.Websocket.DataHandler <- klines
 	return nil
 }
 
@@ -951,14 +916,14 @@ func (e *Exchange) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	if err != nil {
 		return fmt.Errorf("%w `tradesUpdate[1]`: %w", common.ErrParsingWSField, err)
 	}
-	var wsTrades []*wsTrade
+	var wsTrades []*Trade
 	switch valueType {
 	case jsonparser.String:
 		t, err := e.handleWSPublicTradeUpdate(respRaw)
 		if err != nil {
 			return fmt.Errorf("%w `tradesUpdate[2]`: %w", common.ErrParsingWSField, err)
 		}
-		wsTrades = []*wsTrade{t}
+		wsTrades = []*Trade{t}
 	case jsonparser.Array:
 		if wsTrades, err = e.handleWSPublicTradesSnapshot(v); err != nil {
 			return fmt.Errorf("%w `tradesSnapshot`: %w", common.ErrParsingWSField, err)
@@ -972,18 +937,15 @@ func (e *Exchange) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 			Exchange:     e.Name,
 			AssetType:    s.Asset,
 			CurrencyPair: s.Pairs[0],
-			TID:          strconv.FormatInt(w.ID, 10),
+			TID:          strconv.FormatInt(w.TID, 10),
 			Timestamp:    w.Timestamp.Time().UTC(),
-			Side:         order.Buy,
+			Side:         w.Side,
 			Amount:       w.Amount,
 			Price:        w.Price,
 		}
 		if w.Period != 0 {
 			t.AssetType = asset.MarginFunding
-		}
-		if t.Amount < 0 {
-			t.Side = order.Sell
-			t.Amount = math.Abs(t.Amount)
+			t.Price = w.Rate
 		}
 		if feedEnabled {
 			e.Websocket.DataHandler <- t
@@ -995,17 +957,17 @@ func (e *Exchange) handleWSAllTrades(s *subscription.Subscription, respRaw []byt
 	return err
 }
 
-func (e *Exchange) handleWSPublicTradesSnapshot(v []byte) ([]*wsTrade, error) {
-	var trades []*wsTrade
+func (e *Exchange) handleWSPublicTradesSnapshot(v []byte) ([]*Trade, error) {
+	var trades []*Trade
 	return trades, json.Unmarshal(v, &trades)
 }
 
-func (e *Exchange) handleWSPublicTradeUpdate(respRaw []byte) (*wsTrade, error) {
+func (e *Exchange) handleWSPublicTradeUpdate(respRaw []byte) (*Trade, error) {
 	v, _, _, err := jsonparser.Get(respRaw, "[2]")
 	if err != nil {
 		return nil, err
 	}
-	t := &wsTrade{}
+	t := &Trade{}
 	return t, json.Unmarshal(v, t)
 }
 
@@ -1199,7 +1161,7 @@ func (e *Exchange) handleWSMyTradeUpdate(d []any, eventType string) error {
 	if timestamp, ok = tradeData[2].(float64); !ok {
 		return errors.New("unable to type assert trade timestamp")
 	}
-	tData.Timestamp = int64(timestamp)
+	tData.Timestamp = types.Time(time.UnixMilli(int64(timestamp)))
 	var orderID float64
 	if orderID, ok = tradeData[3].(float64); !ok {
 		return errors.New("unable to type assert trade order ID")

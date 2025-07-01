@@ -11,7 +11,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -617,25 +616,28 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	var resp []trade.Data
 	switch assetType {
 	case asset.Spot:
-		var tradeData []RecentTrades
-		tradeData, err = e.GetTrades(ctx, p)
+		tradeData, err := e.GetTrades(ctx, p, time.Time{}, 1000)
 		if err != nil {
 			return nil, err
 		}
-		for i := range tradeData {
+		trades, ok := tradeData.Trades[assetTranslator.LookupCurrency(p.String())]
+		if !ok {
+			return nil, fmt.Errorf("unable to find symbol %s in trade data", p.String())
+		}
+		for i := range trades {
 			side := order.Buy
-			if tradeData[i].BuyOrSell == "s" {
+			if trades[i].BuyOrSell == "s" {
 				side = order.Sell
 			}
 			resp = append(resp, trade.Data{
-				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
+				TID:          strconv.FormatInt(trades[i].TradeID.Int64(), 10),
 				Exchange:     e.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
-				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Volume,
-				Timestamp:    convert.TimeFromUnixTimestampDecimal(tradeData[i].Time),
+				Price:        trades[i].Price.Float64(),
+				Amount:       trades[i].Volume.Float64(),
+				Timestamp:    trades[i].Time.Time(),
 			})
 		}
 	case asset.Futures:
@@ -1291,11 +1293,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			for o := range orderHistory.OrderEvents {
 				switch {
 				case orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1314,17 +1311,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 						ClientID:  orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.ClientID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.ExecutionEvent.Execution.TakerOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  e.Name,
 						Pair:      pairs[p],
 					})
 				case orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1343,18 +1335,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderRejected.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  e.Name,
 						Pair:      pairs[p],
 						Status:    order.Rejected,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1373,18 +1360,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderCancelled.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  e.Name,
 						Pair:      pairs[p],
 						Status:    order.Cancelled,
 					})
 				case orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.UID != "":
-					timeVar, err := time.Parse(krakenFormat,
-						orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp)
-					if err != nil {
-						return orders, err
-					}
 					oDirection, err := compatibleOrderSide(orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Direction)
 					if err != nil {
 						return orders, err
@@ -1403,7 +1385,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 						ClientID:  orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.AccountID,
 						AssetType: asset.Futures,
 						Type:      oType,
-						Date:      timeVar,
+						Date:      orderHistory.OrderEvents[o].Event.OrderPlaced.RecentOrder.Timestamp,
 						Side:      oDirection,
 						Exchange:  e.Name,
 						Pair:      pairs[p],

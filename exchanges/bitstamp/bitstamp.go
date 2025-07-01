@@ -58,7 +58,6 @@ const (
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
-	bitstampTimeLayout   = "2006-1-2 15:04:05"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bitstamp
@@ -260,53 +259,14 @@ func (e *Exchange) GetBalance(ctx context.Context) (Balances, error) {
 
 // GetUserTransactions returns an array of transactions
 func (e *Exchange) GetUserTransactions(ctx context.Context, currencyPair string) ([]UserTransactions, error) {
-	type Response struct {
-		Date          string       `json:"datetime"`
-		TransactionID int64        `json:"id"`
-		Type          int64        `json:"type,string"`
-		USD           types.Number `json:"usd"`
-		EUR           types.Number `json:"eur"`
-		XRP           types.Number `json:"xrp"`
-		BTC           types.Number `json:"btc"`
-		BTCUSD        types.Number `json:"btc_usd"`
-		Fee           float64      `json:"fee,string"`
-		OrderID       int64        `json:"order_id"`
-	}
-
-	var response []Response
+	var resp []UserTransactions
+	var err error
 	if currencyPair == "" {
-		if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions,
-			true,
-			url.Values{},
-			&response); err != nil {
-			return nil, err
-		}
+		err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions, true, url.Values{}, &resp)
 	} else {
-		if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair,
-			true,
-			url.Values{},
-			&response); err != nil {
-			return nil, err
-		}
+		err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair, true, url.Values{}, &resp)
 	}
-
-	transactions := make([]UserTransactions, len(response))
-	for x := range response {
-		transactions[x] = UserTransactions{
-			Date:          response[x].Date,
-			TransactionID: response[x].TransactionID,
-			Type:          response[x].Type,
-			EUR:           response[x].EUR.Float64(),
-			XRP:           response[x].XRP.Float64(),
-			USD:           response[x].USD.Float64(),
-			BTC:           response[x].BTC.Float64(),
-			BTCUSD:        response[x].BTCUSD.Float64(),
-			Fee:           response[x].Fee,
-			OrderID:       response[x].OrderID,
-		}
-	}
-
-	return transactions, nil
+	return resp, err
 }
 
 // GetOpenOrders returns all open orders on the exchange
@@ -633,10 +593,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 	}
 	return json.Unmarshal(interim, result)
-}
-
-func parseTime(dateTime string) (time.Time, error) {
-	return time.Parse(bitstampTimeLayout, dateTime)
 }
 
 func filterOrderbookZeroBidPrice(ob *orderbook.Book) {

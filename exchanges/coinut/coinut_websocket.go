@@ -242,7 +242,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			High:         wsTicker.High24,
 			Low:          wsTicker.Low24,
 			Last:         wsTicker.Last,
-			LastUpdated:  time.Unix(0, wsTicker.Timestamp),
+			LastUpdated:  wsTicker.Timestamp.Time(),
 			AssetType:    asset.Spot,
 			Pair:         p,
 		}
@@ -298,7 +298,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			}
 
 			trades = append(trades, trade.Data{
-				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000),
+				Timestamp:    tradeSnap.Trades[i].Timestamp.Time(),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
 				Exchange:     e.Name,
@@ -340,7 +340,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		}
 
 		return trade.AddTradesToBuffer(trade.Data{
-			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
+			Timestamp:    tradeUpdate.Timestamp.Time(),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     e.Name,
@@ -432,7 +432,7 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 		OrderID:         orderID,
 		Side:            oSide,
 		Status:          oStatus,
-		Date:            time.Unix(0, oContainer.Timestamp),
+		Date:            oContainer.Timestamp.Time(),
 		Trades:          nil,
 	}
 	if oContainer.Reply == "order_filled" {
@@ -447,7 +447,7 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity
 		o.OrderID = strconv.FormatInt(oContainer.Order.OrderID, 10)
-		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
+		o.LastUpdated = oContainer.Timestamp.Time()
 		o.Pair, o.AssetType, err = e.GetRequestFormattedPairAndAssetType(e.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		if err != nil {
 			return nil, err
@@ -459,7 +459,7 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 				Exchange:  e.Name,
 				TID:       strconv.FormatInt(oContainer.TransactionID, 10),
 				Side:      oSide,
-				Timestamp: time.Unix(0, oContainer.Timestamp),
+				Timestamp: oContainer.Timestamp.Time(),
 			},
 		}
 	} else {

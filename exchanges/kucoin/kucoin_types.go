@@ -1342,63 +1342,26 @@ type OrderbookChanges struct {
 	Bids [][]types.Number `json:"bids"`
 }
 
-// WsCandlestickData represents candlestick information push data for a symbol
-type WsCandlestickData struct {
-	Symbol  string     `json:"symbol"`
-	Candles [7]string  `json:"candles"`
-	Time    types.Time `json:"time"`
-}
-
 // WsCandlestick represents candlestick information push data for a symbol
 type WsCandlestick struct {
-	Symbol  string `json:"symbol"`
-	Candles struct {
-		StartTime         time.Time
-		OpenPrice         float64
-		ClosePrice        float64
-		HighPrice         float64
-		LowPrice          float64
-		TransactionVolume float64
-		TransactionAmount float64
-	} `json:"candles"`
-	Time time.Time `json:"time"`
+	Symbol  string       `json:"symbol"`
+	Candles wsCandleItem `json:"candles"`
+	Time    types.Time   `json:"time"`
 }
 
-func (a *WsCandlestickData) getCandlestickData() (*WsCandlestick, error) {
-	cand := &WsCandlestick{
-		Symbol: a.Symbol,
-		Time:   a.Time.Time(),
-	}
-	timeStamp, err := strconv.ParseInt(a.Candles[0], 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.StartTime = time.UnixMilli(timeStamp)
-	cand.Candles.OpenPrice, err = strconv.ParseFloat(a.Candles[1], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.ClosePrice, err = strconv.ParseFloat(a.Candles[2], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.HighPrice, err = strconv.ParseFloat(a.Candles[3], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.LowPrice, err = strconv.ParseFloat(a.Candles[4], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.TransactionVolume, err = strconv.ParseFloat(a.Candles[5], 64)
-	if err != nil {
-		return nil, err
-	}
-	cand.Candles.TransactionAmount, err = strconv.ParseFloat(a.Candles[6], 64)
-	if err != nil {
-		return nil, err
-	}
-	return cand, nil
+type wsCandleItem struct {
+	StartTime         types.Time
+	OpenPrice         types.Number
+	ClosePrice        types.Number
+	HighPrice         types.Number
+	LowPrice          types.Number
+	TransactionVolume types.Number
+	TransactionAmount types.Number
+}
+
+// UnmarshalJSON unmarshals data into a wsCandleItem
+func (a *wsCandleItem) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &[7]any{&a.StartTime, &a.OpenPrice, &a.ClosePrice, &a.HighPrice, &a.LowPrice, &a.TransactionVolume, &a.TransactionAmount})
 }
 
 // WsTrade represents a trade push data
@@ -2351,7 +2314,7 @@ type MarginActiveSymbolDetail struct {
 
 // MarginInterestRecords represents a cross/isolated margin interest records
 type MarginInterestRecords struct {
-	Timestamp   int64                `json:"timestamp"`
+	Timestamp   types.Time           `json:"timestamp"`
 	CurrentPage int64                `json:"currentPage"`
 	PageSize    int64                `json:"pageSize"`
 	TotalNum    int64                `json:"totalNum"`

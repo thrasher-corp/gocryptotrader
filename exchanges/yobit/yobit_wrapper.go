@@ -305,7 +305,6 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy
 		if tradeData[i].Type == "ask" {
 			side = order.Sell
@@ -318,7 +317,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    tradeTS,
+			Timestamp:    tradeData[i].Timestamp.Time(),
 		}
 	}
 
@@ -465,7 +464,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			Amount:   orderInfo.Amount,
 			Price:    orderInfo.Rate,
 			Side:     side,
-			Date:     time.Unix(int64(orderInfo.TimestampCreated), 0),
+			Date:     orderInfo.TimestampCreated.Time(),
 			Pair:     symbol,
 			Exchange: e.Name,
 		}, nil
@@ -572,7 +571,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
+				Date:     resp[id].TimestampCreated.Time(),
 				Pair:     symbol,
 				Exchange: e.Name,
 			})
@@ -626,7 +625,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		var side order.Side
 		side, err = order.StringToOrderSide(allOrders[i].Type)
 		if err != nil {
@@ -640,7 +638,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			AverageExecutedPrice: allOrders[i].Rate,
 			Side:                 side,
 			Status:               order.Filled,
-			Date:                 orderDate,
+			Date:                 allOrders[i].Timestamp.Time(),
 			Pair:                 pair,
 			Exchange:             e.Name,
 		}
@@ -673,7 +671,7 @@ func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(info.ServerTime, 0), nil
+	return info.ServerTime.Time(), nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

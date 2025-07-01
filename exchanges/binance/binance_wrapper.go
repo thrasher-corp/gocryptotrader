@@ -1653,12 +1653,12 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		}
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].OpenTime.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	case asset.USDTMarginedFutures:
@@ -1734,12 +1734,12 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			for i := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[i].OpenTime,
-					Open:   candles[i].Open,
-					High:   candles[i].High,
-					Low:    candles[i].Low,
-					Close:  candles[i].Close,
-					Volume: candles[i].Volume,
+					Time:   candles[i].OpenTime.Time(),
+					Open:   candles[i].Open.Float64(),
+					High:   candles[i].High.Float64(),
+					Low:    candles[i].Low.Float64(),
+					Close:  candles[i].Close.Float64(),
+					Volume: candles[i].Volume.Float64(),
 				})
 			}
 		case asset.USDTMarginedFutures:
@@ -1932,7 +1932,7 @@ func (e *Exchange) GetServerTime(ctx context.Context, ai asset.Item) (time.Time,
 		if err != nil {
 			return time.Time{}, err
 		}
-		return time.UnixMilli(info.ServerTime), nil
+		return info.ServerTime.Time(), nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
@@ -2127,14 +2127,14 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 			for j := range frh {
 				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-					Time: time.UnixMilli(frh[j].FundingTime),
+					Time: frh[j].FundingTime.Time(),
 					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
 			}
 			if len(frh) < requestLimit {
 				break
 			}
-			sd = time.UnixMilli(frh[len(frh)-1].FundingTime)
+			sd = frh[len(frh)-1].FundingTime.Time()
 		}
 		var mp []UMarkPrice
 		mp, err = e.UGetMarkPrice(ctx, fPair)
@@ -2154,8 +2154,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					tt := time.UnixMilli(income[j].Time)
-					tt = tt.Truncate(time.Duration(fundingRateFrequency) * time.Hour)
+					tt := income[j].Time.Time().Truncate(time.Duration(fundingRateFrequency) * time.Hour)
 					if !tt.Equal(pairRate.FundingRates[x].Time) {
 						continue
 					}
@@ -2193,14 +2192,14 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 			for j := range frh {
 				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-					Time: time.UnixMilli(frh[j].FundingTime),
+					Time: frh[j].FundingTime.Time(),
 					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
 			}
 			if len(frh) < requestLimit {
 				break
 			}
-			sd = time.UnixMilli(frh[len(frh)-1].FundingTime)
+			sd = frh[len(frh)-1].FundingTime.Time()
 		}
 		var mp []IndexMarkPrice
 		mp, err = e.GetIndexAndMarkPrice(ctx, fPair.String(), "")
@@ -2220,8 +2219,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					tt := time.UnixMilli(income[j].Timestamp)
-					tt = tt.Truncate(8 * time.Hour)
+					tt := income[j].Timestamp.Time().Truncate(8 * time.Hour)
 					if !tt.Equal(pairRate.FundingRates[x].Time) {
 						continue
 					}

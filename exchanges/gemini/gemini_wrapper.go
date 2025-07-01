@@ -344,7 +344,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp[i] = exchange.FundingHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
-			Timestamp:       time.UnixMilli(transfers[i].Timestamp),
+			Timestamp:       transfers[i].Timestamp.Time(),
 			Currency:        transfers[i].Currency.String(),
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
@@ -373,7 +373,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:          transfers[i].Status,
 			TransferID:      transfers[i].WithdrawalID,
-			Timestamp:       time.UnixMilli(transfers[i].Timestamp),
+			Timestamp:       transfers[i].Timestamp.Time(),
 			Currency:        transfers[i].Currency.String(),
 			Amount:          transfers[i].Amount,
 			Fee:             transfers[i].FeeAmount,
@@ -406,16 +406,12 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 allTrades:
 	for {
 		var tradeData []Trade
-		tradeData, err = e.GetTrades(ctx,
-			p.String(),
-			ts.Unix(),
-			int64(limit),
-			false)
+		tradeData, err = e.GetTrades(ctx, p.String(), ts.Unix(), int64(limit), false)
 		if err != nil {
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTS := time.Unix(tradeData[i].Timestamp, 0)
+			tradeTS := tradeData[i].Timestamp.Time()
 			if tradeTS.After(timestampEnd) && !timestampEnd.IsZero() {
 				break allTrades
 			}
@@ -569,7 +565,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		Amount:          resp.OriginalAmount,
 		RemainingAmount: resp.RemainingAmount,
 		Pair:            cp,
-		Date:            time.UnixMilli(resp.TimestampMS),
+		Date:            resp.TimestampMS.Time(),
 		Price:           resp.Price,
 		HiddenOrder:     resp.IsHidden,
 		ClientOrderID:   resp.ClientOrderID,
@@ -678,7 +674,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(resp[i].Timestamp, 0)
 
 		orders[i] = order.Detail{
 			Amount:          resp[i].OriginalAmount,
@@ -690,7 +685,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			Side:            side,
 			Price:           resp[i].Price,
 			Pair:            symbol,
-			Date:            orderDate,
+			Date:            resp[i].Timestamp.Time(),
 		}
 	}
 	return req.Filter(e.Name, orders), nil
@@ -741,14 +736,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(trades[i].Timestamp, 0)
-
 		detail := order.Detail{
 			OrderID:              strconv.FormatInt(trades[i].OrderID, 10),
 			Amount:               trades[i].Amount,
 			ExecutedAmount:       trades[i].Amount,
 			Exchange:             e.Name,
-			Date:                 orderDate,
+			Date:                 trades[i].Timestamp.Time(),
 			Side:                 side,
 			Fee:                  trades[i].FeeAmount,
 			Price:                trades[i].Price,

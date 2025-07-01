@@ -1341,7 +1341,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Pair:           p,
 			Type:           orderType,
 			Side:           orderSide,
-			Date:           time.UnixMilli(respData.CreatedAt),
+			Date:           respData.CreatedAt.Time(),
 			Status:         orderStatus,
 			Price:          respData.Price,
 			Amount:         respData.Amount,
@@ -1514,7 +1514,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
 					Pair:            req.Pairs[i],
 					Exchange:        e.Name,
-					Date:            time.UnixMilli(resp[x].CreatedAt),
+					Date:            resp[x].CreatedAt.Time(),
 					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:             resp[x].FilledFees,
 				}
@@ -1648,8 +1648,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					CostAsset:       req.Pairs[i].Quote,
 					Pair:            req.Pairs[i],
 					Exchange:        e.Name,
-					Date:            time.UnixMilli(resp[x].CreatedAt),
-					CloseTime:       time.UnixMilli(resp[x].FinishedAt),
+					Date:            resp[x].CreatedAt.Time(),
+					CloseTime:       resp[x].FinishedAt.Time(),
 					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:             resp[x].FilledFees,
 				}
@@ -1738,8 +1738,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					if req.Type != orderVars.OrderType {
 						continue
 					}
-					orderCreateTime := time.Unix(openOrders.Data.Orders[x].CreateDate, 0)
-
 					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
 					if err != nil {
 						return orders, err
@@ -1759,7 +1757,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
 						Pair:            p,
-						Date:            orderCreateTime,
+						Date:            openOrders.Data.Orders[x].CreateDate.Time(),
 					})
 				}
 				currentPage++
@@ -2191,9 +2189,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if !isPerp {
 			continue
 		}
-		var ft, nft time.Time
-		nft = time.UnixMilli(rates[i].NextFundingTime)
-		ft = time.UnixMilli(rates[i].FundingTime)
+		ft, nft := rates[i].FundingTime.Time(), rates[i].NextFundingTime.Time()
 		var fri time.Duration
 		if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
 			// can infer funding rate interval from the only funding rate frequency defined
@@ -2201,7 +2197,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				fri = k.Duration()
 			}
 		}
-		if rates[i].FundingTime == 0 {
+		if rates[i].FundingTime.Time().IsZero() {
 			ft = nft.Add(-fri)
 		}
 		if ft.After(time.Now()) {

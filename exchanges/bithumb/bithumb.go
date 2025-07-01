@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -237,39 +236,21 @@ func (e *Exchange) GetAccountBalance(ctx context.Context, c string) (FullBalance
 		}
 
 		c := splitTag[len(splitTag)-1]
-
-		var val float64
-		switch v := datum.(type) {
-		case float64:
-			val = v
-		case string:
-			val, err = strconv.ParseFloat(v, 64)
-			if err != nil {
-				return fullBalance, err
-			}
-		default:
-			return fullBalance, common.GetTypeAssertError("float64|string", datum)
-		}
+		val := datum.Float64()
 
 		switch splitTag[0] {
 		case "available":
 			fullBalance.Available[c] = val
-
 		case "in":
 			fullBalance.InUse[c] = val
-
 		case "total":
 			fullBalance.Total[c] = val
-
 		case "misu":
 			fullBalance.Misu[c] = val
-
 		case "xcoin":
 			fullBalance.Xcoin[c] = val
-
 		default:
-			return fullBalance, fmt.Errorf("getaccountbalance error tag name %s unhandled",
-				splitTag)
+			return fullBalance, fmt.Errorf("getaccountbalance error tag name %s unhandled", splitTag)
 		}
 	}
 
@@ -695,7 +676,7 @@ var errCode = map[string]string{
 }
 
 // GetCandleStick returns candle stick data for requested pair
-func (e *Exchange) GetCandleStick(ctx context.Context, symbol, interval string) (resp OHLCVResponse, err error) {
+func (e *Exchange) GetCandleStick(ctx context.Context, symbol, interval string) (resp *OHLCVResponse, err error) {
 	path := publicCandleStick + symbol + "/" + interval
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	return

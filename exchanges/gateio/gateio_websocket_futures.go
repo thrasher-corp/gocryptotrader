@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -299,7 +300,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, conn websocket.Co
 
 func (e *Exchange) processFuturesTickers(data []byte, assetType asset.Item) error {
 	resp := struct {
-		Time    int64            `json:"time"`
+		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsFutureTicker `json:"result"`
@@ -319,7 +320,7 @@ func (e *Exchange) processFuturesTickers(data []byte, assetType asset.Item) erro
 			Last:         resp.Result[x].Last.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
-			LastUpdated:  time.Unix(resp.Time, 0),
+			LastUpdated:  resp.Time.Time(),
 		}
 	}
 	e.Websocket.DataHandler <- tickerPriceDatas
@@ -333,7 +334,7 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 	}
 
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsFuturesTrades `json:"result"`
@@ -360,7 +361,7 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 
 func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []FuturesCandlestick `json:"result"`
@@ -514,7 +515,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 
 func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
-		Time    int64            `json:"time"`
+		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsFuturesOrder `json:"result"`
@@ -567,7 +568,7 @@ func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) er
 	}
 
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsFuturesUserTrade `json:"result"`
@@ -594,7 +595,7 @@ func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) er
 
 func (e *Exchange) processFuturesLiquidatesNotification(data []byte) error {
 	resp := struct {
-		Time    int64                              `json:"time"`
+		Time    types.Time                         `json:"time"`
 		Channel string                             `json:"channel"`
 		Event   string                             `json:"event"`
 		Result  []WsFuturesLiquidationNotification `json:"result"`
@@ -609,7 +610,7 @@ func (e *Exchange) processFuturesLiquidatesNotification(data []byte) error {
 
 func (e *Exchange) processFuturesAutoDeleveragesNotification(data []byte) error {
 	resp := struct {
-		Time    int64                                  `json:"time"`
+		Time    types.Time                             `json:"time"`
 		Channel string                                 `json:"channel"`
 		Event   string                                 `json:"event"`
 		Result  []WsFuturesAutoDeleveragesNotification `json:"result"`
@@ -624,7 +625,7 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(data []byte) error 
 
 func (e *Exchange) processPositionCloseData(data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsPositionClose `json:"result"`
@@ -639,7 +640,7 @@ func (e *Exchange) processPositionCloseData(data []byte) error {
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
-		Time    int64       `json:"time"`
+		Time    types.Time  `json:"time"`
 		Channel string      `json:"channel"`
 		Event   string      `json:"event"`
 		Result  []WsBalance `json:"result"`
@@ -675,7 +676,7 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 
 func (e *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error {
 	resp := struct {
-		Time    int64                                  `json:"time"`
+		Time    types.Time                             `json:"time"`
 		Channel string                                 `json:"channel"`
 		Event   string                                 `json:"event"`
 		Result  []WsFuturesReduceRiskLimitNotification `json:"result"`
@@ -690,7 +691,7 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(data []byte) error 
 
 func (e *Exchange) processFuturesPositionsNotification(data []byte) error {
 	resp := struct {
-		Time    int64               `json:"time"`
+		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
 		Event   string              `json:"event"`
 		Result  []WsFuturesPosition `json:"result"`
@@ -705,7 +706,7 @@ func (e *Exchange) processFuturesPositionsNotification(data []byte) error {
 
 func (e *Exchange) processFuturesAutoOrderPushData(data []byte) error {
 	resp := struct {
-		Time    int64                `json:"time"`
+		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsFuturesAutoOrder `json:"result"`

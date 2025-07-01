@@ -1165,16 +1165,32 @@ func TestGetAggregatedTrades(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	_, err := b.GetSpotKline(t.Context(),
-		&KlinesRequestParams{
-			Symbol:    currency.NewBTCUSDT(),
-			Interval:  kline.FiveMin.Short(),
-			Limit:     24,
-			StartTime: start,
-			EndTime:   end,
-		})
-	if err != nil {
-		t.Error("Binance GetSpotKline() error", err)
+	r, err := b.GetSpotKline(t.Context(), &KlinesRequestParams{
+		Symbol:    currency.NewBTCUSDT(),
+		Interval:  kline.FiveMin.Short(),
+		Limit:     24,
+		StartTime: start,
+		EndTime:   end,
+	})
+	require.NoError(t, err, "GetSpotKline must not error")
+	if mockTests {
+		require.Equal(t, 24, len(r), "GetSpotKline must return 24 items in mock test")
+		exp := CandleStick{
+			OpenTime:                 types.Time(time.UnixMilli(1577836800000)),
+			Open:                     7195.24,
+			High:                     7196.25,
+			Low:                      7178.64,
+			Close:                    7179.78,
+			Volume:                   95.509133,
+			CloseTime:                types.Time(time.UnixMilli(1577837099999)),
+			QuoteAssetVolume:         686317.13625177,
+			TradeCount:               1127,
+			TakerBuyAssetVolume:      32.773245,
+			TakerBuyQuoteAssetVolume: 235537.29504531,
+		}
+		assert.Equal(t, exp, r[0])
+	} else {
+		assert.NotEmpty(t, r, "GetSpotKline should return data")
 	}
 }
 
@@ -1484,14 +1500,9 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectTime, err := time.Parse(time.RFC3339Nano, "2020-01-02T16:19:04.831Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	start := time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC)
+	expectTime := time.Date(2020, 1, 2, 16, 19, 4, 831_000_000, time.UTC)
 	tests := []struct {
 		name string
 		// mock test or live test
@@ -1576,10 +1587,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 
 func TestGetAggregatedTradesErrors(t *testing.T) {
 	t.Parallel()
-	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+	start := time.Date(2020, 1, 2, 15, 4, 5, 0, time.UTC)
 	tests := []struct {
 		name string
 		args *AggregatedTradeRequestParams

@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Deribit
@@ -2449,12 +2450,11 @@ func (e *Exchange) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTra
 
 // GetTime retrieves the current time (in milliseconds). This API endpoint can be used to check the clock skew between your software and Deribit's systems.
 func (e *Exchange) GetTime(ctx context.Context) (time.Time, error) {
-	var result int64
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/get_time", &result)
-	if err != nil {
+	var timestamp types.Time
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/get_time", &timestamp); err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(result), nil
+	return timestamp.Time(), nil
 }
 
 // GetLastBlockTradesByCurrency returns list of last users block trades

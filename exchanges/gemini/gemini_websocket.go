@@ -284,7 +284,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				Side:            oSide,
 				Status:          oStatus,
 				AssetType:       asset.Spot,
-				Date:            time.UnixMilli(result[i].Timestampms),
+				Date:            result[i].TimestampMS.Time(),
 				Pair:            pair,
 			}
 		}
@@ -339,7 +339,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			}
 
 			tradeEvent := trade.Data{
-				Timestamp:    time.UnixMilli(result.Timestamp),
+				Timestamp:    result.Timestamp.Time(),
 				CurrencyPair: pair,
 				AssetType:    asset.Spot,
 				Exchange:     e.Name,
@@ -555,7 +555,7 @@ func (e *Exchange) wsProcessUpdate(result *wsL2MarketData) error {
 			}
 		}
 		trades[x] = trade.Data{
-			Timestamp:    time.UnixMilli(result.Trades[x].Timestamp),
+			Timestamp:    result.Trades[x].Timestamp.Time(),
 			CurrencyPair: pair,
 			AssetType:    asset.Spot,
 			Exchange:     e.Name,

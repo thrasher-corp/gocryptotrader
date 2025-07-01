@@ -282,7 +282,7 @@ func (e *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code cur
 }
 
 // GetLiquidationOrders gets liquidation orders for a given perp
-func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime int64, direction string, fromID int64) (LiquidationOrdersData, error) {
+func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.Pair, tradeType string, startTime, endTime time.Time, direction string, fromID int64) (LiquidationOrdersData, error) {
 	var resp LiquidationOrdersData
 	formattedContract, err := e.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
@@ -296,11 +296,11 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.P
 	params.Set("contract", formattedContract)
 	params.Set("trade_type", strconv.FormatInt(tType, 10))
 
-	if startTime != 0 {
-		params.Set("start_time", strconv.FormatInt(startTime, 10))
+	if !startTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
-	if endTime != 0 {
-		params.Set("end_time", strconv.FormatInt(startTime, 10))
+	if !endTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if direction != "" {
 		params.Set("direct", direction)
@@ -512,8 +512,8 @@ func (e *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.P
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
-		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
-		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
+		req["start_time"] = strconv.FormatInt(startTime.UnixMilli(), 10)
+		req["end_time"] = strconv.FormatInt(endTime.UnixMilli(), 10)
 	}
 	if pageIndex != 0 {
 		req["page_index"] = pageIndex

@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -433,7 +434,7 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 
 func (e *Exchange) processSpotOrders(data []byte) error {
 	resp := struct {
-		Time    int64         `json:"time"`
+		Time    types.Time    `json:"time"`
 		Channel string        `json:"channel"`
 		Event   string        `json:"event"`
 		Result  []WsSpotOrder `json:"result"`
@@ -481,7 +482,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 	}
 
 	resp := struct {
-		Time    int64                 `json:"time"`
+		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
@@ -512,7 +513,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 
 func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64           `json:"time"`
+		Time    types.Time      `json:"time"`
 		Channel string          `json:"channel"`
 		Event   string          `json:"event"`
 		Result  []WsSpotBalance `json:"result"`
@@ -545,7 +546,7 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsMarginBalance `json:"result"`
@@ -577,7 +578,7 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 
 func (e *Exchange) processFundingBalances(data []byte) error {
 	resp := struct {
-		Time    int64              `json:"time"`
+		Time    types.Time         `json:"time"`
 		Channel string             `json:"channel"`
 		Event   string             `json:"event"`
 		Result  []WsFundingBalance `json:"result"`
@@ -592,7 +593,7 @@ func (e *Exchange) processFundingBalances(data []byte) error {
 
 func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    int64                  `json:"time"`
+		Time    types.Time             `json:"time"`
 		Channel string                 `json:"channel"`
 		Event   string                 `json:"event"`
 		Result  []WsCrossMarginBalance `json:"result"`
@@ -624,7 +625,7 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 
 func (e *Exchange) processCrossMarginLoans(data []byte) error {
 	resp := struct {
-		Time    int64             `json:"time"`
+		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`

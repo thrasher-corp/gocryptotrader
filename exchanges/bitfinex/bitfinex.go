@@ -750,18 +750,16 @@ func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
 // timestampStart is a millisecond timestamp
 // timestampEnd is a millisecond timestamp
 // reOrderResp reorders the returned data.
-func (e *Exchange) GetTrades(ctx context.Context, currencyPair string, limit, timestampStart, timestampEnd int64, reOrderResp bool) ([]Trade, error) {
+func (e *Exchange) GetTrades(ctx context.Context, currencyPair string, limit uint64, start, end time.Time, reOrderResp bool) ([]Trade, error) {
 	v := url.Values{}
 	if limit > 0 {
-		v.Set("limit", strconv.FormatInt(limit, 10))
+		v.Set("limit", strconv.FormatUint(limit, 10))
 	}
-
-	if timestampStart > 0 {
-		v.Set("start", strconv.FormatInt(timestampStart, 10))
+	if !start.IsZero() {
+		v.Set("start", strconv.FormatInt(start.UnixMilli(), 10))
 	}
-
-	if timestampEnd > 0 {
-		v.Set("end", strconv.FormatInt(timestampEnd, 10))
+	if !end.IsZero() {
+		v.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
 	}
 	sortVal := "0"
 	if reOrderResp {
@@ -769,72 +767,9 @@ func (e *Exchange) GetTrades(ctx context.Context, currencyPair string, limit, ti
 	}
 	v.Set("sort", sortVal)
 
-	path := bitfinexAPIVersion2 + bitfinexTrades + currencyPair + "/hist" + "?" + v.Encode()
-
-	var resp [][]any
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, tradeRateLimit)
-	if err != nil {
-		return nil, err
-	}
-
-	history := make([]Trade, len(resp))
-	for i := range resp {
-		amount, ok := resp[i][2].(float64)
-		if !ok {
-			return nil, errors.New("unable to type assert amount")
-		}
-		side := order.Buy.String()
-		if amount < 0 {
-			side = order.Sell.String()
-			amount *= -1
-		}
-
-		tid, ok := resp[i][0].(float64)
-		if !ok {
-			return nil, errors.New("unable to type assert trade ID")
-		}
-		timestamp, ok := resp[i][1].(float64)
-		if !ok {
-			return nil, errors.New("unable to type assert timestamp")
-		}
-
-		if len(resp[i]) > 4 {
-			var rate float64
-			rate, ok = resp[i][3].(float64)
-			if !ok {
-				return nil, errors.New("unable to type assert rate")
-			}
-			var period float64
-			period, ok = resp[i][4].(float64)
-			if !ok {
-				return nil, errors.New("unable to type assert period")
-			}
-
-			history[i] = Trade{
-				TID:       int64(tid),
-				Timestamp: int64(timestamp),
-				Amount:    amount,
-				Rate:      rate,
-				Period:    int64(period),
-				Type:      side,
-			}
-			continue
-		}
-		price, ok := resp[i][3].(float64)
-		if !ok {
-			return nil, errors.New("unable to type assert price")
-		}
-
-		history[i] = Trade{
-			TID:       int64(tid),
-			Timestamp: int64(timestamp),
-			Amount:    amount,
-			Price:     price,
-			Type:      side,
-		}
-	}
-
-	return history, nil
+	path := common.EncodeURLValues(bitfinexAPIVersion2+bitfinexTrades+currencyPair+"/hist", v)
+	var resp []Trade
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp, tradeRateLimit)
 }
 
 // GetOrderbook retrieves the orderbook bid and ask price points for a currency
@@ -997,108 +932,39 @@ func (e *Exchange) GetLends(ctx context.Context, symbol string, values url.Value
 // GetCandles returns candle chart data
 // timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D', '1W', '14D', '1M'
 // section values: last or hist
-func (e *Exchange) GetCandles(ctx context.Context, symbol, timeFrame string, start, end int64, limit uint64, historic bool) ([]Candle, error) {
+func (e *Exchange) GetCandles(ctx context.Context, symbol, timeFrame string, start, end time.Time, limit uint64, historic bool) ([]Candle, error) {
 	var fundingPeriod string
 	if symbol[0] == 'f' {
 		fundingPeriod = ":p30"
 	}
 
-	path := bitfinexAPIVersion2 +
-		bitfinexCandles +
-		":" +
-		timeFrame +
-		":" +
-		symbol +
-		fundingPeriod
+	path := bitfinexAPIVersion2 + bitfinexCandles + ":" + timeFrame + ":" + symbol + fundingPeriod
 
 	if historic {
 		v := url.Values{}
-		if start > 0 {
-			v.Set("start", strconv.FormatInt(start, 10))
+		if !start.IsZero() {
+			v.Set("start", strconv.FormatInt(start.UnixMilli(), 10))
 		}
 
-		if end > 0 {
-			v.Set("end", strconv.FormatInt(end, 10))
+		if !end.IsZero() {
+			v.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
 		}
 
 		if limit > 0 {
 			v.Set("limit", strconv.FormatUint(limit, 10))
 		}
 
-		path += "/hist"
-		if len(v) > 0 {
-			path += "?" + v.Encode()
-		}
-
-		var response [][]any
-		err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, candle)
-		if err != nil {
-			return nil, err
-		}
-
-		candles := make([]Candle, len(response))
-		for i := range response {
-			var c Candle
-			timestamp, ok := response[i][0].(float64)
-			if !ok {
-				return nil, errors.New("unable to type assert timestamp")
-			}
-			c.Timestamp = time.UnixMilli(int64(timestamp))
-			if c.Open, ok = response[i][1].(float64); !ok {
-				return nil, errors.New("unable to type assert open")
-			}
-			if c.Close, ok = response[i][2].(float64); !ok {
-				return nil, errors.New("unable to type assert close")
-			}
-			if c.High, ok = response[i][3].(float64); !ok {
-				return nil, errors.New("unable to type assert high")
-			}
-			if c.Low, ok = response[i][4].(float64); !ok {
-				return nil, errors.New("unable to type assert low")
-			}
-			if c.Volume, ok = response[i][5].(float64); !ok {
-				return nil, errors.New("unable to type assert volume")
-			}
-			candles[i] = c
-		}
-
-		return candles, nil
+		var response []Candle
+		return response, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path+"/hist", v), &response, candle)
 	}
 
 	path += "/last"
 
-	var response []any
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, candle)
+	var c Candle
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &c, candle)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(response) == 0 {
-		return nil, errors.New("no data returned")
-	}
-
-	var c Candle
-	timestamp, ok := response[0].(float64)
-	if !ok {
-		return nil, errors.New("unable to type assert timestamp")
-	}
-	c.Timestamp = time.UnixMilli(int64(timestamp))
-	if c.Open, ok = response[1].(float64); !ok {
-		return nil, errors.New("unable to type assert open")
-	}
-	if c.Close, ok = response[2].(float64); !ok {
-		return nil, errors.New("unable to type assert close")
-	}
-	if c.High, ok = response[3].(float64); !ok {
-		return nil, errors.New("unable to type assert high")
-	}
-	if c.Low, ok = response[4].(float64); !ok {
-		return nil, errors.New("unable to type assert low")
-	}
-	if c.Volume, ok = response[5].(float64); !ok {
-		return nil, errors.New("unable to type assert volume")
-	}
-
 	return []Candle{c}, nil
 }
 
@@ -1831,7 +1697,6 @@ func (e *Exchange) GetBalanceHistory(ctx context.Context, symbol string, timeSin
 
 // GetMovementHistory returns an array of past deposits and withdrawals
 func (e *Exchange) GetMovementHistory(ctx context.Context, symbol, method string, timeSince, timeUntil time.Time, limit int) ([]MovementHistory, error) {
-	var response [][]any
 	req := make(map[string]any)
 	req["currency"] = symbol
 
@@ -1839,89 +1704,18 @@ func (e *Exchange) GetMovementHistory(ctx context.Context, symbol, method string
 		req["method"] = method
 	}
 	if !timeSince.IsZero() {
-		req["since"] = timeSince
+		req["since"] = timeSince.UnixMilli()
 	}
 	if !timeUntil.IsZero() {
-		req["until"] = timeUntil
+		req["until"] = timeUntil.UnixMilli()
 	}
 	if limit > 0 {
 		req["limit"] = limit
 	}
 
-	err := e.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost,
-		"auth/r/"+bitfinexHistoryMovements+"/"+symbol+"/"+bitfinexHistoryShort,
-		req,
-		&response,
-		orderMulti)
-	if err != nil {
-		return nil, err
-	}
-	var resp []MovementHistory //nolint:prealloc // its an array in an array
-	var ok bool
-	for i := range response {
-		var move MovementHistory
-		for j := range response[i] {
-			if response[i][j] == nil {
-				continue
-			}
-			switch j {
-			case 0:
-				var id float64
-				id, ok = response[i][j].(float64)
-				if !ok {
-					return nil, common.GetTypeAssertError("float64", response[i][j], "Movements.Id")
-				}
-				move.ID = int64(id)
-			case 1:
-				move.Currency, ok = response[i][j].(string)
-				if !ok {
-					return nil, common.GetTypeAssertError("string", response[i][j], "Movements.Currency")
-				}
-			case 5:
-				move.TimestampCreated, ok = response[i][j].(float64)
-				if !ok {
-					return nil, common.GetTypeAssertError("float64", response[i][j], "Movements.MovementStartedAt")
-				}
-			case 6:
-				move.Timestamp, ok = response[i][j].(float64)
-				if !ok {
-					return nil, common.GetTypeAssertError("float64", response[i][j], "Movements.MovementLastUpdated")
-				}
-			case 9:
-				move.Status, ok = response[i][j].(string)
-				if !ok {
-					return nil, common.GetTypeAssertError("string", response[i][j], "Movements.CurrentStatus")
-				}
-			case 12:
-				move.Amount, ok = response[i][j].(float64)
-				if !ok {
-					return nil, common.GetTypeAssertError("float64", response[i][j], "Movements.AmountOfFundsMoved")
-				}
-			case 13:
-				move.Fee, ok = response[i][j].(float64)
-				if !ok {
-					return nil, common.GetTypeAssertError("float64", response[i][j], "Movements.FeesApplied")
-				}
-			case 16:
-				move.Address, ok = response[i][j].(string)
-				if !ok {
-					return nil, common.GetTypeAssertError("string", response[i][j], "Movements.DestinationAddress")
-				}
-			case 20:
-				move.TxID, ok = response[i][j].(string)
-				if !ok {
-					return nil, common.GetTypeAssertError("string", response[i][j], "Movements.TransactionId")
-				}
-			case 21:
-				move.Description, ok = response[i][j].(string)
-				if !ok {
-					return nil, common.GetTypeAssertError("string", response[i][j], "Movements.WithdrawTransactionNote")
-				}
-			}
-		}
-		resp = append(resp, move)
-	}
-	return resp, nil
+	var resp []MovementHistory
+	path := bitfinexV2Auth + "r/" + bitfinexHistoryMovements + "/" + symbol + "/" + bitfinexHistoryShort
+	return resp, e.SendAuthenticatedHTTPRequestV2(ctx, exchange.RestSpot, http.MethodPost, path, req, &resp, orderMulti)
 }
 
 // GetTradeHistory returns past executed trades
@@ -2232,18 +2026,12 @@ func getOfflineTradeFee(price, amount float64) float64 {
 }
 
 // GetCryptocurrencyWithdrawalFee returns an estimate of fee based on type of transaction
-func (e *Exchange) GetCryptocurrencyWithdrawalFee(c currency.Code, accountFees AccountFees) (fee float64, err error) {
-	switch result := accountFees.Withdraw[c.String()].(type) {
-	case string:
-		fee, err = strconv.ParseFloat(result, 64)
-		if err != nil {
-			return 0, err
-		}
-	case float64:
-		fee = result
+func (e *Exchange) GetCryptocurrencyWithdrawalFee(c currency.Code, accountFees AccountFees) (float64, error) {
+	fee, ok := accountFees.Withdraw[c.String()]
+	if !ok {
+		return 0, fmt.Errorf("withdrawal fee for %s not found", c.String())
 	}
-
-	return fee, nil
+	return fee.Float64(), nil
 }
 
 func getInternationalBankDepositFee(amount float64) float64 {

@@ -292,136 +292,39 @@ func (e *Exchange) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbo
 }
 
 // GetTrades returns current trades on Kraken
-func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]RecentTrades, error) {
-	values := url.Values{}
+func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, since time.Time, count uint64) (*RecentTradesResponse, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	translatedAsset := assetTranslator.LookupCurrency(symbolValue)
-	values.Set("pair", translatedAsset)
-
-	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTrades, values.Encode())
-
-	data := make(map[string]any)
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &data)
-	if err != nil {
-		return nil, err
+	values := url.Values{}
+	values.Set("pair", assetTranslator.LookupCurrency(symbolValue))
+	if !since.IsZero() {
+		values.Set("since", strconv.FormatInt(since.Unix(), 10))
+	}
+	if count > 0 {
+		values.Set("count", strconv.FormatUint(count, 10))
 	}
 
-	trades, ok := data[translatedAsset].([]any)
-	if !ok {
-		return nil, fmt.Errorf("no data returned for symbol %v", symbol)
-	}
-
-	var individualTrade []any
-	recentTrades := make([]RecentTrades, len(trades))
-	for x := range trades {
-		individualTrade, ok = trades[x].([]any)
-		if !ok {
-			return nil, errors.New("unable to parse individual trade data")
-		}
-		if len(individualTrade) != 7 {
-			return nil, errors.New("unrecognised trade data received")
-		}
-		var r RecentTrades
-
-		price, ok := individualTrade[0].(string)
-		if !ok {
-			return nil, common.GetTypeAssertError("string", individualTrade[0], "price")
-		}
-		r.Price, err = strconv.ParseFloat(price, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		volume, ok := individualTrade[1].(string)
-		if !ok {
-			return nil, common.GetTypeAssertError("string", individualTrade[1], "volume")
-		}
-		r.Volume, err = strconv.ParseFloat(volume, 64)
-		if err != nil {
-			return nil, err
-		}
-		r.Time, ok = individualTrade[2].(float64)
-		if !ok {
-			return nil, common.GetTypeAssertError("float64", individualTrade[2], "time")
-		}
-		r.BuyOrSell, ok = individualTrade[3].(string)
-		if !ok {
-			return nil, common.GetTypeAssertError("string", individualTrade[3], "buyOrSell")
-		}
-		r.MarketOrLimit, ok = individualTrade[4].(string)
-		if !ok {
-			return nil, common.GetTypeAssertError("string", individualTrade[4], "marketOrLimit")
-		}
-		r.Miscellaneous, ok = individualTrade[5].(string)
-		if !ok {
-			return nil, common.GetTypeAssertError("string", individualTrade[5], "miscellaneous")
-		}
-		tradeID, ok := individualTrade[6].(float64)
-		if !ok {
-			return nil, common.GetTypeAssertError("float64", individualTrade[6], "tradeID")
-		}
-		r.TradeID = int64(tradeID)
-		recentTrades[x] = r
-	}
-	return recentTrades, nil
+	path := common.EncodeURLValues("/"+krakenAPIVersion+"/public/"+krakenTrades, values)
+	var resp *RecentTradesResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetSpread returns the full spread on Kraken
-func (e *Exchange) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread, error) {
-	values := url.Values{}
+func (e *Exchange) GetSpread(ctx context.Context, symbol currency.Pair, since time.Time) (*SpreadResponse, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+	values := url.Values{}
 	values.Set("pair", symbolValue)
-
-	result := make(map[string]any)
-	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenSpread, values.Encode())
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
-	if err != nil {
-		return nil, err
+	if !since.IsZero() {
+		values.Set("since", strconv.FormatInt(since.Unix(), 10))
 	}
-
-	data, ok := result[symbolValue]
-	if !ok {
-		return nil, fmt.Errorf("unable to find %s in spread data", symbolValue)
-	}
-
-	spreadData, ok := data.([]any)
-	if !ok {
-		return nil, errors.New("unable to type assert spreadData")
-	}
-
-	peanutButter := make([]Spread, len(spreadData))
-	for x := range spreadData {
-		subData, ok := spreadData[x].([]any)
-		if !ok {
-			return nil, errors.New("unable to type assert subData")
-		}
-
-		if len(subData) < 3 {
-			return nil, errors.New("unexpected data length")
-		}
-
-		var s Spread
-		timeData, ok := subData[0].(float64)
-		if !ok {
-			return nil, common.GetTypeAssertError("float64", subData[0], "timeData")
-		}
-		s.Time = time.Unix(int64(timeData), 0)
-
-		if s.Bid, err = convert.FloatFromString(subData[1]); err != nil {
-			return nil, err
-		}
-		if s.Ask, err = convert.FloatFromString(subData[2]); err != nil {
-			return nil, err
-		}
-		peanutButter[x] = s
-	}
-	return peanutButter, nil
+	var peanutButter *SpreadResponse
+	path := common.EncodeURLValues("/"+krakenAPIVersion+"/public/"+krakenSpread, values)
+	return peanutButter, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &peanutButter)
 }
 
 // GetBalance returns your balance associated with your keys

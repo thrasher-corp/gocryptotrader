@@ -406,10 +406,6 @@ func (ex *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, 
 	}
 	resp := make([]exchange.WithdrawalHistory, len(withdrawals))
 	for i := range withdrawals {
-		tm, err := time.Parse(time.DateTime, withdrawals[i].ApplyTime)
-		if err != nil {
-			return nil, err
-		}
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
@@ -419,7 +415,7 @@ func (ex *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, 
 			CryptoToAddress: withdrawals[i].Address,
 			CryptoTxID:      withdrawals[i].ID,
 			CryptoChain:     withdrawals[i].Network,
-			Timestamp:       tm,
+			Timestamp:       withdrawals[i].ApplyTime.Time(),
 		}
 	}
 	return resp, nil
@@ -825,12 +821,12 @@ func (ex *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, 
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   candles[x].OpenTime,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].Volume,
+			Time:   candles[x].OpenTime.Time(),
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(timeSeries)
@@ -859,12 +855,12 @@ func (ex *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currenc
 
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+				Time:   candles[i].OpenTime.Time(),
+				Open:   candles[i].Open.Float64(),
+				High:   candles[i].High.Float64(),
+				Low:    candles[i].Low.Float64(),
+				Close:  candles[i].Close.Float64(),
+				Volume: candles[i].Volume.Float64(),
 			})
 		}
 	}

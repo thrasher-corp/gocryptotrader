@@ -170,7 +170,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 	})
 	if err != nil {
-		fmt.Println("COINBASE ISSUE")
 		return err
 	}
 
