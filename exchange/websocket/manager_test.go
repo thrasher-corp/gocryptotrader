@@ -262,7 +262,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -280,7 +280,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -958,7 +958,7 @@ func TestFlushChannels(t *testing.T) {
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
-		Handler:               func(context.Context, []byte) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
@@ -1066,7 +1066,7 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
@@ -1335,4 +1335,19 @@ func TestGetConnection(t *testing.T) {
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+}
+
+func TestWebsocketConnectionRequireMatchWithData(t *testing.T) {
+	t.Parallel()
+	ws := connection{Match: NewMatch()}
+	err := ws.RequireMatchWithData(0, nil)
+	require.ErrorIs(t, err, ErrSignatureNotMatched)
+
+	ch, err := ws.Match.Set(0, 1)
+	require.NoError(t, err)
+
+	err = ws.RequireMatchWithData(0, []byte("test"))
+	require.NoError(t, err)
+	require.Len(t, ch, 1, "must have one item in channel")
+	assert.Equal(t, []byte("test"), <-ch)
 }
