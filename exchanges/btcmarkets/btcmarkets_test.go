@@ -480,7 +480,7 @@ func TestWsTicker(t *testing.T) {
 func TestWSTrade(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", b.wsHandleData)
 	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")

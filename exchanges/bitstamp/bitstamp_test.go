@@ -760,7 +760,7 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange)
 	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", b.wsHandleData)
 	close(b.Websocket.DataHandler)

@@ -728,7 +728,7 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	d := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	d := new(Exchange)
 	require.NoError(t, testexch.Setup(d), "Setup instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", d.wsHandleData)
 	close(d.Websocket.DataHandler)
@@ -3343,7 +3343,7 @@ func setupWs() {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	d := new(Exchange) //nolint:govet // Intentional lexical scope shadow
+	d := new(Exchange)
 	require.NoError(t, testexch.Setup(d), "Test instance Setup must not error")
 
 	d.Websocket.SetCanUseAuthenticatedEndpoints(true)

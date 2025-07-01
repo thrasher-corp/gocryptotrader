@@ -2337,7 +2337,7 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	ku.SetCredentials("mock", "test", "test", "", "", "")
 	ku.API.AuthenticatedSupport = true
 	ku.API.AuthenticatedWebsocketSupport = true
@@ -2347,7 +2347,7 @@ func TestPushData(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 
 	// Pairs overlap for spot/margin tests:
 	// Only in Spot: BTC-USDT, ETH-USDT
@@ -2410,7 +2410,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestGenerateTickerAllSub(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:11], true)
@@ -2429,7 +2429,7 @@ func TestGenerateTickerAllSub(t *testing.T) {
 func TestGenerateOtherSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FourHour},
@@ -2452,7 +2452,7 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 func TestGenerateMarginSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error storing spot pairs")
@@ -2489,7 +2489,7 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := &Exchange{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := &Exchange{
 		Base: exchange.Base{
 			Config: &config.Exchange{
 				Features: &config.FeaturesConfig{
@@ -2988,7 +2988,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
 	close(ku.Websocket.DataHandler)
 	assert.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
@@ -3039,7 +3039,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 func TestSubscribeBatches(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
 
@@ -3066,7 +3066,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 
 	const expectedLimit = 400
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
 
@@ -3103,7 +3103,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 func TestSubscribeTickerAll(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
 
@@ -3306,7 +3306,7 @@ func BenchmarkIntervalToString(b *testing.B) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku := testInstance(t)
 	_, err := ku.GetOpenInterest(t.Context(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,

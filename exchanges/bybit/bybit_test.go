@@ -3083,7 +3083,7 @@ func TestPushData(t *testing.T) {
 
 func TestWsTicker(t *testing.T) {
 	t.Parallel()
-	b := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	b := new(Exchange)
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
@@ -3439,7 +3439,7 @@ func TestRequiresUnifiedAccount(t *testing.T) {
 	}
 	err := ex.RequiresUnifiedAccount(t.Context())
 	require.NoError(t, err)
-	b := &Exchange{} //nolint:govet // Intentional shadow to avoid future copy/paste mistakes. Also stops race below.
+	b := &Exchange{}
 	b.account.accountType = accountTypeNormal
 	err = ex.RequiresUnifiedAccount(t.Context())
 	require.ErrorIs(t, err, errAPIKeyIsNotUnified)
