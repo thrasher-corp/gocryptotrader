@@ -28,6 +28,7 @@ var (
 	ErrSubmitLeverageNotSupported = errors.New("leverage is not supported via order submission")
 	ErrClientOrderIDNotSupported  = errors.New("client order id not supported")
 	ErrUnsupportedOrderType       = errors.New("unsupported order type")
+	ErrUnsupportedStatusType      = errors.New("unsupported status type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
@@ -93,6 +94,11 @@ type Submit struct {
 	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
 	Iceberg bool
 
+	// EndTime is the moment which a good til date order is valid until
+	EndTime time.Time
+
+	// StopDirection is the direction from which the stop order will trigger
+	StopDirection StopDirection
 	// TrackingMode specifies the way trailing stop and chase orders follow the market price or ask/bid prices.
 	// See: https://www.okx.com/docs-v5/en/#order-book-trading-algo-trading-post-place-algo-order
 	TrackingMode  TrackingMode
@@ -373,6 +379,7 @@ const (
 	Chase           // chase limit order
 	OptimalLimit
 	MarketMakerProtection
+	Bracket // Sets both a profit target and a stop loss simultaneously.
 
 	// Hybrid order types
 	StopLimit        = Stop | Limit
@@ -399,8 +406,30 @@ const (
 	orderOCO                   = "OCO"
 	orderOptimalLimit          = "OPTIMAL_LIMIT"
 	orderMarketMakerProtection = "MMP"
+	orderBracket               = "BRACKET"
 	orderAnyType               = "ANY"
 )
+
+// AllOrderTypes collects all order types for easy and consistent comparisons
+var AllOrderTypes = Limit |
+	Market |
+	Stop |
+	StopLimit |
+	StopMarket |
+	TakeProfit |
+	TakeProfitMarket |
+	TrailingStop |
+	IOS |
+	AnyType |
+	Liquidation |
+	Trigger |
+	OCO |
+	ConditionalStop |
+	TWAP |
+	Chase |
+	OptimalLimit |
+	MarketMakerProtection |
+	Bracket
 
 // Side enforces a standard for order sides across the code base
 type Side uint32
@@ -455,6 +484,17 @@ type ClassificationError struct {
 // forcing required filter operations when calling method Filter() on
 // MultiOrderRequest.
 type FilteredOrders []Detail
+
+// StopDirection is the direction from which the stop order will trigger; Up will have the order trigger
+// when the last trade price goes above the TriggerPrice; Down will have the order trigger when the
+// last trade price goes below the TriggerPrice
+type StopDirection bool
+
+// StopDirection types
+const (
+	StopUp   StopDirection = true
+	StopDown StopDirection = false
+)
 
 // RiskManagement represents a risk management detail information.
 type RiskManagement struct {
