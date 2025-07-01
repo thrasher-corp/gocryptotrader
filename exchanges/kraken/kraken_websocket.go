@@ -898,7 +898,7 @@ func (k *Kraken) handleSubResps(s *subscription.Subscription, resps [][]byte, op
 	return errs
 }
 
-// getSubErrResp calls getRespErr and if there's no error from that ensures the status matches the sub operation
+// getSubRespErr calls getRespErr and if there's no error from that ensures the status matches the sub operation
 func (k *Kraken) getSubRespErr(resp []byte, op string) error {
 	if err := k.getRespErr(resp); err != nil {
 		return err
